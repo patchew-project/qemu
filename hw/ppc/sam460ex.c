@@ -336,7 +336,7 @@ static void sam460ex_init(MachineState *machine)
     ppc4xx_sdram_ddr2_enable(PPC4xx_SDRAM_DDR2(dev));
 
     /* IIC controllers and devices */
-    dev = sysbus_create_simple(TYPE_PPC4xx_I2C, 0x4ef600700,
+    dev = sysbus_create_simple_orphan(TYPE_PPC4xx_I2C, 0x4ef600700,
                                qdev_get_gpio_in(uic[0], 2));
     i2c = PPC4xx_I2C(dev)->bus;
     /* SPD EEPROM on RAM module */
@@ -347,7 +347,7 @@ static void sam460ex_init(MachineState *machine)
     /* RTC */
     i2c_slave_create_simple(i2c, "m41t80", 0x68);
 
-    dev = sysbus_create_simple(TYPE_PPC4xx_I2C, 0x4ef600800,
+    dev = sysbus_create_simple_orphan(TYPE_PPC4xx_I2C, 0x4ef600800,
                                qdev_get_gpio_in(uic[0], 3));
 
     /* External bus controller */
@@ -387,7 +387,7 @@ static void sam460ex_init(MachineState *machine)
                                 l2cache_ram);
 
     /* USB */
-    sysbus_create_simple(TYPE_PPC4xx_EHCI, 0x4bffd0400,
+    sysbus_create_simple_orphan(TYPE_PPC4xx_EHCI, 0x4bffd0400,
                          qdev_get_gpio_in(uic[2], 29));
     dev = qdev_new_orphan("sysbus-ohci");
     qdev_prop_set_string(dev, "masterbus", "usb-bus.0");
@@ -416,7 +416,7 @@ static void sam460ex_init(MachineState *machine)
 
     /* PCI bus */
     /* All PCI irqs are connected to the same UIC pin (cf. UBoot source) */
-    dev = sysbus_create_simple(TYPE_PPC440_PCIX_HOST, 0xc0ec00000,
+    dev = sysbus_create_simple_orphan(TYPE_PPC440_PCIX_HOST, 0xc0ec00000,
                                qdev_get_gpio_in(uic[1], 0));
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0xc08000000);
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));

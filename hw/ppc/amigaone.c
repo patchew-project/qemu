@@ -329,7 +329,7 @@ static void amigaone_init(MachineState *machine)
     }
 
     /* Articia S */
-    dev = sysbus_create_simple(TYPE_ARTICIA, ARTICIA_ADDR, NULL);
+    dev = sysbus_create_simple_orphan(TYPE_ARTICIA, ARTICIA_ADDR, NULL);
 
     i2c_bus = I2C_BUS(qdev_get_child_bus(dev, "smbus"));
     if (machine->ram_size > 512 * MiB) {

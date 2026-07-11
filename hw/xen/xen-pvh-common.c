@@ -173,7 +173,7 @@ static void xen_create_virtio_mmio_devices(XenPVHMachineState *s)
         qemu_irq irq = qemu_allocate_irq(xen_set_irq, NULL,
                                          s->cfg.virtio_mmio_irq_base + i);
 
-        sysbus_create_simple("virtio-mmio", base, irq);
+        sysbus_create_simple_orphan("virtio-mmio", base, irq);
 
         trace_xen_create_virtio_mmio_devices(i,
                                              s->cfg.virtio_mmio_irq_base + i,

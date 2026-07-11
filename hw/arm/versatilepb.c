@@ -232,21 +232,21 @@ static void versatile_init(MachineState *machine, int board_id)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(sysctl), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, 0x10000000);
 
-    dev = sysbus_create_varargs("pl190", 0x10140000,
+    dev = sysbus_create_varargs_orphan("pl190", 0x10140000,
                                 qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ),
                                 qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ),
                                 NULL);
     for (n = 0; n < 32; n++) {
         pic[n] = qdev_get_gpio_in(dev, n);
     }
-    dev = sysbus_create_simple(TYPE_VERSATILE_PB_SIC, 0x10003000, NULL);
+    dev = sysbus_create_simple_orphan(TYPE_VERSATILE_PB_SIC, 0x10003000, NULL);
     for (n = 0; n < 32; n++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), n, pic[n]);
         sic[n] = qdev_get_gpio_in(dev, n);
     }
 
-    sysbus_create_simple("pl050_keyboard", 0x10006000, sic[3]);
-    sysbus_create_simple("pl050_mouse", 0x10007000, sic[4]);
+    sysbus_create_simple_orphan("pl050_keyboard", 0x10006000, sic[3]);
+    sysbus_create_simple_orphan("pl050_mouse", 0x10007000, sic[4]);
 
     dev = qdev_new_orphan("versatile_pci");
     busdev = SYS_BUS_DEVICE(dev);
@@ -292,13 +292,13 @@ static void versatile_init(MachineState *machine, int board_id)
     sysbus_mmio_map(busdev, 0, 0x10130000);
     sysbus_connect_irq(busdev, 0, pic[17]);
 
-    sysbus_create_simple("sp804", 0x101e2000, pic[4]);
-    sysbus_create_simple("sp804", 0x101e3000, pic[5]);
+    sysbus_create_simple_orphan("sp804", 0x101e2000, pic[4]);
+    sysbus_create_simple_orphan("sp804", 0x101e3000, pic[5]);
 
-    sysbus_create_simple("pl061", 0x101e4000, pic[6]);
-    sysbus_create_simple("pl061", 0x101e5000, pic[7]);
-    sysbus_create_simple("pl061", 0x101e6000, pic[8]);
-    sysbus_create_simple("pl061", 0x101e7000, pic[9]);
+    sysbus_create_simple_orphan("pl061", 0x101e4000, pic[6]);
+    sysbus_create_simple_orphan("pl061", 0x101e5000, pic[7]);
+    sysbus_create_simple_orphan("pl061", 0x101e6000, pic[8]);
+    sysbus_create_simple_orphan("pl061", 0x101e7000, pic[9]);
 
     /* The versatile/PB actually has a modified Color LCD controller
        that includes hardware cursor support from the PL111.  */
@@ -312,7 +312,7 @@ static void versatile_init(MachineState *machine, int board_id)
     /* Wire up the mux control signals from the SYS_CLCD register */
     qdev_connect_gpio_out(sysctl, 0, qdev_get_gpio_in(dev, 0));
 
-    dev = sysbus_create_varargs("pl181", 0x10005000, sic[22], sic[1], NULL);
+    dev = sysbus_create_varargs_orphan("pl181", 0x10005000, sic[22], sic[1], NULL);
     dinfo = drive_get(IF_SD, 0, 0);
     if (dinfo) {
         DeviceState *card;
@@ -324,7 +324,7 @@ static void versatile_init(MachineState *machine, int board_id)
                                &error_fatal);
     }
 
-    dev = sysbus_create_varargs("pl181", 0x1000b000, sic[23], sic[2], NULL);
+    dev = sysbus_create_varargs_orphan("pl181", 0x1000b000, sic[23], sic[2], NULL);
     dinfo = drive_get(IF_SD, 0, 1);
     if (dinfo) {
         DeviceState *card;
@@ -337,9 +337,9 @@ static void versatile_init(MachineState *machine, int board_id)
     }
 
     /* Add PL031 Real Time Clock. */
-    sysbus_create_simple("pl031", 0x101e8000, pic[10]);
+    sysbus_create_simple_orphan("pl031", 0x101e8000, pic[10]);
 
-    dev = sysbus_create_simple(TYPE_ARM_SBCON_I2C, 0x10002000, NULL);
+    dev = sysbus_create_simple_orphan(TYPE_ARM_SBCON_I2C, 0x10002000, NULL);
     i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
     i2c_slave_create_simple(i2c, "ds1338", 0x68);
 

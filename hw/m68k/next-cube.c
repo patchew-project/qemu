@@ -1280,7 +1280,7 @@ static void next_cube_init(MachineState *machine)
     memory_region_add_subregion(sysmem, 0x04000000, machine->ram);
 
     /* Framebuffer */
-    sysbus_create_simple(TYPE_NEXTFB, 0x0B000000, NULL);
+    sysbus_create_simple_orphan(TYPE_NEXTFB, 0x0B000000, NULL);
 
     /* MMIO */
     sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 0, 0x02005000);
@@ -1319,7 +1319,7 @@ static void next_cube_init(MachineState *machine)
     memory_region_add_subregion(sysmem, 0x820c0000, &m->bmapm2);
 
     /* KBD */
-    sysbus_create_simple(TYPE_NEXTKBD, 0x0200e000, NULL);
+    sysbus_create_simple_orphan(TYPE_NEXTKBD, 0x0200e000, NULL);
 
     /* Load ROM here */
     memory_region_init_rom(&m->rom, NULL, "next.rom", 0x20000, &error_fatal);

@@ -269,7 +269,7 @@ static void zynq_init(MachineState *machine)
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, MPCORE_PERIPHBASE);
     zynq_binfo.gic_cpu_if_addr = MPCORE_PERIPHBASE + 0x100;
-    sysbus_create_varargs("l2x0", MPCORE_PERIPHBASE + 0x2000, NULL);
+    sysbus_create_varargs_orphan("l2x0", MPCORE_PERIPHBASE + 0x2000, NULL);
     for (n = 0; n < smp_cpus; n++) {
         /* See "hw/intc/arm_gic.h" for the IRQ line association */
         DeviceState *cpudev = DEVICE(zynq_machine->cpu[n]);
@@ -287,8 +287,8 @@ static void zynq_init(MachineState *machine)
     n = zynq_init_spi_flashes(0xE0007000, pic[81 - GIC_INTERNAL], false, n);
     n = zynq_init_spi_flashes(0xE000D000, pic[51 - GIC_INTERNAL], true, n);
 
-    sysbus_create_simple(TYPE_CHIPIDEA, 0xE0002000, pic[53 - GIC_INTERNAL]);
-    sysbus_create_simple(TYPE_CHIPIDEA, 0xE0003000, pic[76 - GIC_INTERNAL]);
+    sysbus_create_simple_orphan(TYPE_CHIPIDEA, 0xE0002000, pic[53 - GIC_INTERNAL]);
+    sysbus_create_simple_orphan(TYPE_CHIPIDEA, 0xE0003000, pic[76 - GIC_INTERNAL]);
 
     dev = qdev_new_orphan(TYPE_CADENCE_UART);
     busdev = SYS_BUS_DEVICE(dev);
@@ -307,9 +307,9 @@ static void zynq_init(MachineState *machine)
     sysbus_mmio_map(busdev, 0, 0xE0001000);
     sysbus_connect_irq(busdev, 0, pic[82 - GIC_INTERNAL]);
 
-    sysbus_create_varargs("cadence_ttc", 0xF8001000,
+    sysbus_create_varargs_orphan("cadence_ttc", 0xF8001000,
             pic[42-GIC_INTERNAL], pic[43-GIC_INTERNAL], pic[44-GIC_INTERNAL], NULL);
-    sysbus_create_varargs("cadence_ttc", 0xF8002000,
+    sysbus_create_varargs_orphan("cadence_ttc", 0xF8002000,
             pic[69-GIC_INTERNAL], pic[70-GIC_INTERNAL], pic[71-GIC_INTERNAL], NULL);
 
     ddr_ctrl_init(0xF8006000);

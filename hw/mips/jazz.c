@@ -395,7 +395,7 @@ static void mips_jazz_init(MachineState *machine,
     sysbus_mmio_map(sysbus, 0, 0x80009000);
 
     /* LED indicator */
-    sysbus_create_simple("jazz-led", 0x8000f000, NULL);
+    sysbus_create_simple_orphan("jazz-led", 0x8000f000, NULL);
 
     g_free(dmas);
 }

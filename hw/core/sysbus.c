@@ -209,7 +209,40 @@ static void sysbus_device_realize(DeviceState *dev, Error **errp)
 {
 }
 
-DeviceState *sysbus_create_varargs(const char *name,
+static void sysbus_create_tail(SysBusDevice *s, hwaddr addr, va_list va)
+{
+    qemu_irq irq;
+    int n;
+
+    if (addr != (hwaddr)-1) {
+        sysbus_mmio_map(s, 0, addr);
+    }
+    n = 0;
+    while (1) {
+        irq = va_arg(va, qemu_irq);
+        if (!irq) {
+            break;
+        }
+        sysbus_connect_irq(s, n, irq);
+        n++;
+    }
+}
+
+DeviceState *sysbus_create_varargs(Object *parent, const char *id,
+                                    const char *type, hwaddr addr, ...)
+{
+    DeviceState *dev;
+    va_list va;
+
+    dev = qdev_new(parent, id, type);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
+    va_start(va, addr);
+    sysbus_create_tail(SYS_BUS_DEVICE(dev), addr, va);
+    va_end(va);
+    return dev;
+}
+
+DeviceState *sysbus_create_varargs_orphan(const char *name,
                                    hwaddr addr, ...)
 {
     DeviceState *dev;

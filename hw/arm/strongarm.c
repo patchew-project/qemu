@@ -1622,24 +1622,24 @@ StrongARMState *sa1110_init(const char *cpu_type)
 
     s->cpu = ARM_CPU(cpu_create(cpu_type));
 
-    s->pic = sysbus_create_varargs("strongarm_pic", 0x90050000,
+    s->pic = sysbus_create_varargs_orphan("strongarm_pic", 0x90050000,
                     qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_IRQ),
                     qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_FIQ),
                     NULL);
 
-    sysbus_create_varargs("pxa25x-timer", 0x90000000,
+    sysbus_create_varargs_orphan("pxa25x-timer", 0x90000000,
                     qdev_get_gpio_in(s->pic, SA_PIC_OSTC0),
                     qdev_get_gpio_in(s->pic, SA_PIC_OSTC1),
                     qdev_get_gpio_in(s->pic, SA_PIC_OSTC2),
                     qdev_get_gpio_in(s->pic, SA_PIC_OSTC3),
                     NULL);
 
-    sysbus_create_simple(TYPE_STRONGARM_RTC, 0x90010000,
+    sysbus_create_simple_orphan(TYPE_STRONGARM_RTC, 0x90010000,
                     qdev_get_gpio_in(s->pic, SA_PIC_RTC_ALARM));
 
     s->gpio = strongarm_gpio_init(0x90040000, s->pic);
 
-    s->ppc = sysbus_create_varargs(TYPE_STRONGARM_PPC, 0x90060000, NULL);
+    s->ppc = sysbus_create_varargs_orphan(TYPE_STRONGARM_PPC, 0x90060000, NULL);
 
     for (i = 0; sa_serial[i].io_base; i++) {
         DeviceState *dev = qdev_new_orphan(TYPE_STRONGARM_UART);
@@ -1651,7 +1651,7 @@ StrongARMState *sa1110_init(const char *cpu_type)
                 qdev_get_gpio_in(s->pic, sa_serial[i].irq));
     }
 
-    s->ssp = sysbus_create_varargs(TYPE_STRONGARM_SSP, 0x80070000,
+    s->ssp = sysbus_create_varargs_orphan(TYPE_STRONGARM_SSP, 0x80070000,
                 qdev_get_gpio_in(s->pic, SA_PIC_SSP), NULL);
     s->ssp_bus = (SSIBus *)qdev_get_child_bus(s->ssp, "ssi");
 

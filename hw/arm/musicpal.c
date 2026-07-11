@@ -1240,9 +1240,9 @@ static void musicpal_init(MachineState *machine)
                            &error_fatal);
     memory_region_add_subregion(address_space_mem, MP_SRAM_BASE, sram);
 
-    pic = sysbus_create_simple(TYPE_MV88W8618_PIC, MP_PIC_BASE,
+    pic = sysbus_create_simple_orphan(TYPE_MV88W8618_PIC, MP_PIC_BASE,
                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ));
-    sysbus_create_varargs(TYPE_MV88W8618_PIT, MP_PIT_BASE,
+    sysbus_create_varargs_orphan(TYPE_MV88W8618_PIT, MP_PIT_BASE,
                           qdev_get_gpio_in(pic, MP_TIMER1_IRQ),
                           qdev_get_gpio_in(pic, MP_TIMER2_IRQ),
                           qdev_get_gpio_in(pic, MP_TIMER3_IRQ),
@@ -1286,7 +1286,7 @@ static void musicpal_init(MachineState *machine)
                               2, 0x00BF, 0x236D, 0x0000, 0x0000,
                               0x5555, 0x2AAA, 0);
     }
-    sysbus_create_simple(TYPE_MV88W8618_FLASHCFG, MP_FLASHCFG_BASE, NULL);
+    sysbus_create_simple_orphan(TYPE_MV88W8618_FLASHCFG, MP_FLASHCFG_BASE, NULL);
 
     dev = qdev_new_orphan(TYPE_MV88W8618_ETH);
     qemu_configure_nic_device(dev, true, "mv88w8618");
@@ -1297,17 +1297,17 @@ static void musicpal_init(MachineState *machine)
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                        qdev_get_gpio_in(pic, MP_ETH_IRQ));
 
-    sysbus_create_simple("mv88w8618_wlan", MP_WLAN_BASE, NULL);
+    sysbus_create_simple_orphan("mv88w8618_wlan", MP_WLAN_BASE, NULL);
 
-    sysbus_create_simple(TYPE_MUSICPAL_MISC, MP_MISC_BASE, NULL);
+    sysbus_create_simple_orphan(TYPE_MUSICPAL_MISC, MP_MISC_BASE, NULL);
 
-    dev = sysbus_create_simple(TYPE_MUSICPAL_GPIO, MP_GPIO_BASE,
+    dev = sysbus_create_simple_orphan(TYPE_MUSICPAL_GPIO, MP_GPIO_BASE,
                                qdev_get_gpio_in(pic, MP_GPIO_IRQ));
-    i2c_dev = sysbus_create_simple(TYPE_GPIO_I2C, -1, NULL);
+    i2c_dev = sysbus_create_simple_orphan(TYPE_GPIO_I2C, -1, NULL);
     i2c = (I2CBus *)qdev_get_child_bus(i2c_dev, "i2c");
 
-    lcd_dev = sysbus_create_simple(TYPE_MUSICPAL_LCD, MP_LCD_BASE, NULL);
-    key_dev = sysbus_create_simple(TYPE_MUSICPAL_KEY, -1, NULL);
+    lcd_dev = sysbus_create_simple_orphan(TYPE_MUSICPAL_LCD, MP_LCD_BASE, NULL);
+    key_dev = sysbus_create_simple_orphan(TYPE_MUSICPAL_KEY, -1, NULL);
 
     /* I2C read data */
     qdev_connect_gpio_out(i2c_dev, 0,

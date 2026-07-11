@@ -600,7 +600,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     }
 
     /* Cache controller */
-    sysbus_create_simple("l2x0", EXYNOS4210_L2X0_BASE_ADDR, NULL);
+    sysbus_create_simple_orphan("l2x0", EXYNOS4210_L2X0_BASE_ADDR, NULL);
 
     /* External GIC */
     qdev_prop_set_uint32(DEVICE(&s->ext_gic), "num-cpu", EXYNOS4210_NCPUS);
@@ -667,13 +667,13 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     * The only reason of existence at the moment is that secondary CPU boot
     * loader uses PMU INFORM5 register as a holding pen.
     */
-    sysbus_create_simple("exynos4210.pmu", EXYNOS4210_PMU_BASE_ADDR, NULL);
+    sysbus_create_simple_orphan("exynos4210.pmu", EXYNOS4210_PMU_BASE_ADDR, NULL);
 
-    sysbus_create_simple("exynos4210.clk", EXYNOS4210_CLK_BASE_ADDR, NULL);
-    sysbus_create_simple("exynos4210.rng", EXYNOS4210_RNG_BASE_ADDR, NULL);
+    sysbus_create_simple_orphan("exynos4210.clk", EXYNOS4210_CLK_BASE_ADDR, NULL);
+    sysbus_create_simple_orphan("exynos4210.rng", EXYNOS4210_RNG_BASE_ADDR, NULL);
 
     /* PWM */
-    sysbus_create_varargs("exynos4210.pwm", EXYNOS4210_PWM_BASE_ADDR,
+    sysbus_create_varargs_orphan("exynos4210.pwm", EXYNOS4210_PWM_BASE_ADDR,
                           s->irq_table[exynos4210_get_irq(22, 0)],
                           s->irq_table[exynos4210_get_irq(22, 1)],
                           s->irq_table[exynos4210_get_irq(22, 2)],
@@ -681,7 +681,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
                           s->irq_table[exynos4210_get_irq(22, 4)],
                           NULL);
     /* RTC */
-    sysbus_create_varargs("exynos4210.rtc", EXYNOS4210_RTC_BASE_ADDR,
+    sysbus_create_varargs_orphan("exynos4210.rtc", EXYNOS4210_RTC_BASE_ADDR,
                           s->irq_table[exynos4210_get_irq(23, 0)],
                           s->irq_table[exynos4210_get_irq(23, 1)],
                           NULL);
@@ -784,7 +784,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
         sysbus_connect_irq(busdev, n, s->irq_table[exynos4210_get_irq(11, n)]);
     }
 
-    sysbus_create_simple(TYPE_EXYNOS4210_EHCI, EXYNOS4210_EHCI_BASE_ADDR,
+    sysbus_create_simple_orphan(TYPE_EXYNOS4210_EHCI, EXYNOS4210_EHCI_BASE_ADDR,
             s->irq_table[exynos4210_get_irq(28, 3)]);
 
     /*** DMA controllers ***/

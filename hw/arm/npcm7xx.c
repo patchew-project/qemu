@@ -521,7 +521,7 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     }
 
     /* L2 cache controller */
-    sysbus_create_simple("l2x0", NPCM7XX_L2C_BA, NULL);
+    sysbus_create_simple_orphan("l2x0", NPCM7XX_L2C_BA, NULL);
 
     /* System Global Control Registers (GCR). Can fail due to user input. */
     object_property_set_int(OBJECT(&s->gcr), "disabled-modules",

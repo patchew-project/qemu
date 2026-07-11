@@ -169,7 +169,7 @@ static const TypeInfo xen_overlay_info = {
 
 void xen_overlay_create(void)
 {
-    xen_overlay_singleton = XEN_OVERLAY(sysbus_create_simple(TYPE_XEN_OVERLAY,
+    xen_overlay_singleton = XEN_OVERLAY(sysbus_create_simple_orphan(TYPE_XEN_OVERLAY,
                                                              -1, NULL));
 
     /* If xen_domid wasn't explicitly set, at least make sure it isn't zero. */

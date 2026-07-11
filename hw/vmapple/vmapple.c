@@ -305,7 +305,7 @@ static void create_rtc(const VMAppleMachineState *vms)
     hwaddr base = vms->memmap[VMAPPLE_RTC].base;
     int irq = vms->irqmap[VMAPPLE_RTC];
 
-    sysbus_create_simple("pl031", base, qdev_get_gpio_in(vms->gic, irq));
+    sysbus_create_simple_orphan("pl031", base, qdev_get_gpio_in(vms->gic, irq));
 }
 
 static DeviceState *gpio_key_dev;
@@ -331,7 +331,7 @@ static void create_gpio_devices(const VMAppleMachineState *vms, int gpio,
     sysbus_realize_and_unref(s, &error_fatal);
     memory_region_add_subregion(mem, base, sysbus_mmio_get_region(s, 0));
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->gic, irq));
-    gpio_key_dev = sysbus_create_simple("gpio-key", -1,
+    gpio_key_dev = sysbus_create_simple_orphan("gpio-key", -1,
                                         qdev_get_gpio_in(pl061_dev, 3));
 }
 

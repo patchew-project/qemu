@@ -377,7 +377,7 @@ void kvmclock_create(bool create_always)
     if (create_always ||
         cpu->env.features[FEAT_KVM] & (CPUID_KVM_CLOCK |
                                        CPUID_KVM_CLOCK2)) {
-        sysbus_create_simple(TYPE_KVM_CLOCK, -1, NULL);
+        sysbus_create_simple_orphan(TYPE_KVM_CLOCK, -1, NULL);
     }
 }
 

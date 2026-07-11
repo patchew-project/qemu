@@ -1018,7 +1018,7 @@ static void sun4m_hw_init(MachineState *machine)
                      slavio_irq[30], fdc_tc);
 
     if (hwdef->cs_base) {
-        sysbus_create_simple("sun-CS4231", hwdef->cs_base,
+        sysbus_create_simple_orphan("sun-CS4231", hwdef->cs_base,
                              slavio_irq[5]);
     }
 

@@ -197,7 +197,7 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     }
 
     for (i = 0; i < mms->virtio_num_transports; i++) {
-        sysbus_create_simple("virtio-mmio",
+        sysbus_create_simple_orphan("virtio-mmio",
                              VIRTIO_MMIO_BASE + i * 512,
                              x86ms->gsi[mms->virtio_irq_base + i]);
     }

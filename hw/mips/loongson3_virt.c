@@ -536,7 +536,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
                    qdev_get_gpio_in(liointc, UART_IRQ), 115200, serial_hd(0),
                    DEVICE_LITTLE_ENDIAN);
 
-    sysbus_create_simple("goldfish_rtc", virt_memmap[VIRT_RTC].base,
+    sysbus_create_simple_orphan("goldfish_rtc", virt_memmap[VIRT_RTC].base,
                          qdev_get_gpio_in(liointc, RTC_IRQ));
 
     cpuclk = clock_new(OBJECT(machine), "cpu-refclk");

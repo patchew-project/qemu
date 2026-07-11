@@ -218,7 +218,7 @@ static void pegasos_init(MachineState *machine)
         MemoryRegion *pci_mem, *mr;
 
         /* Articia S */
-        pm->nb = DEVICE(sysbus_create_simple(TYPE_ARTICIA, 0xfe000000, NULL));
+        pm->nb = DEVICE(sysbus_create_simple_orphan(TYPE_ARTICIA, 0xfe000000, NULL));
         pci_mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(pm->nb), 1);
         mr = g_new(MemoryRegion, 1);
         memory_region_init_alias(mr, OBJECT(pm->nb), "pci-mem-low", pci_mem,
@@ -233,7 +233,7 @@ static void pegasos_init(MachineState *machine)
     }
     case PEGASOS2:
         /* Marvell Discovery II system controller */
-        pm->nb = DEVICE(sysbus_create_simple(TYPE_MV64361, -1,
+        pm->nb = DEVICE(sysbus_create_simple_orphan(TYPE_MV64361, -1,
                         qdev_get_gpio_in(DEVICE(pm->cpu), PPC6xx_INPUT_INT)));
         pci_bus = mv64361_get_pci_bus(pm->nb, 1);
         break;

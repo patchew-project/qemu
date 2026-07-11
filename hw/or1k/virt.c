@@ -300,7 +300,7 @@ static void openrisc_virt_rtc_init(OR1KVirtState *state, hwaddr base,
     qemu_irq rtc_irq = get_per_cpu_irq(cpus, num_cpus, irq_pin);
 
     /* Goldfish RTC */
-    sysbus_create_simple(TYPE_GOLDFISH_RTC, base, rtc_irq);
+    sysbus_create_simple_orphan(TYPE_GOLDFISH_RTC, base, rtc_irq);
 
     /* Goldfish RTC FDT */
     nodename = g_strdup_printf("/soc/rtc@%" HWADDR_PRIx, base);

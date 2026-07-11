@@ -1143,7 +1143,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     sysbus_connect_irq(SYS_BUS_DEVICE(ssys_dev), 0, qdev_get_gpio_in(nvic, 28));
 
     if (DEV_CAP(1, ADC)) {
-        dev = sysbus_create_varargs(TYPE_STELLARIS_ADC, 0x40038000,
+        dev = sysbus_create_varargs_orphan(TYPE_STELLARIS_ADC, 0x40038000,
                                     qdev_get_gpio_in(nvic, 14),
                                     qdev_get_gpio_in(nvic, 15),
                                     qdev_get_gpio_in(nvic, 16),
@@ -1189,7 +1189,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
 
     for (i = 0; i < NUM_GPIO; i++) {
         if (DEV_CAP(4, GPIO(i))) {
-            gpio_dev[i] = sysbus_create_simple("pl061_luminary", gpio_addr[i],
+            gpio_dev[i] = sysbus_create_simple_orphan("pl061_luminary", gpio_addr[i],
                                                qdev_get_gpio_in(nvic,
                                                                 gpio_irq[i]));
             for (j = 0; j < 8; j++) {
@@ -1201,7 +1201,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
 
     for (i = 0; i < NUM_I2C; i++) {
         if (DEV_CAP(2, I2C(i))) {
-            i2c_dev[i] = sysbus_create_simple(TYPE_STELLARIS_I2C, i2c_addr[i],
+            i2c_dev[i] = sysbus_create_simple_orphan(TYPE_STELLARIS_I2C, i2c_addr[i],
                                               qdev_get_gpio_in(nvic,
                                                                i2c_irq[i]));
         }
@@ -1226,7 +1226,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         }
     }
     if (DEV_CAP(2, SSI)) {
-        dev = sysbus_create_simple("pl022", 0x40008000,
+        dev = sysbus_create_simple_orphan("pl022", 0x40008000,
                                    qdev_get_gpio_in(nvic, 7));
         if (board->peripherals & BP_OLED_SSI) {
             void *bus;

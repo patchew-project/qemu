@@ -485,7 +485,7 @@ static void virt_devices_init(DeviceState *pch_pic,
      * Create some unimplemented devices to emulate this.
      */
     create_unimplemented_device("pci-dma-cfg", 0x1001041c, 0x4);
-    sysbus_create_simple("ls7a_rtc", VIRT_RTC_REG_BASE,
+    sysbus_create_simple_orphan("ls7a_rtc", VIRT_RTC_REG_BASE,
                          qdev_get_gpio_in(pch_pic,
                          VIRT_RTC_IRQ - VIRT_GSI_BASE));
 

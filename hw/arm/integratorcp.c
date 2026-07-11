@@ -626,26 +626,26 @@ static void integratorcp_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map((SysBusDevice *)dev, 0, 0x10000000);
 
-    dev = sysbus_create_varargs(TYPE_INTEGRATOR_PIC, 0x14000000,
+    dev = sysbus_create_varargs_orphan(TYPE_INTEGRATOR_PIC, 0x14000000,
                                 qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ),
                                 qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ),
                                 NULL);
     for (i = 0; i < 32; i++) {
         pic[i] = qdev_get_gpio_in(dev, i);
     }
-    sic = sysbus_create_simple(TYPE_INTEGRATOR_PIC, 0xca000000, pic[26]);
-    sysbus_create_varargs("integrator_pit", 0x13000000,
+    sic = sysbus_create_simple_orphan(TYPE_INTEGRATOR_PIC, 0xca000000, pic[26]);
+    sysbus_create_varargs_orphan("integrator_pit", 0x13000000,
                           pic[5], pic[6], pic[7], NULL);
-    sysbus_create_simple("pl031", 0x15000000, pic[8]);
+    sysbus_create_simple_orphan("pl031", 0x15000000, pic[8]);
     pl011_create(0x16000000, pic[1], serial_hd(0));
     pl011_create(0x17000000, pic[2], serial_hd(1));
-    icp = sysbus_create_simple(TYPE_ICP_CONTROL_REGS, 0xcb000000,
+    icp = sysbus_create_simple_orphan(TYPE_ICP_CONTROL_REGS, 0xcb000000,
                                qdev_get_gpio_in(sic, 3));
-    sysbus_create_simple("pl050_keyboard", 0x18000000, pic[3]);
-    sysbus_create_simple("pl050_mouse", 0x19000000, pic[4]);
-    sysbus_create_simple(TYPE_INTEGRATOR_DEBUG, 0x1a000000, 0);
+    sysbus_create_simple_orphan("pl050_keyboard", 0x18000000, pic[3]);
+    sysbus_create_simple_orphan("pl050_mouse", 0x19000000, pic[4]);
+    sysbus_create_simple_orphan(TYPE_INTEGRATOR_DEBUG, 0x1a000000, 0);
 
-    dev = sysbus_create_varargs("pl181", 0x1c000000, pic[23], pic[24], NULL);
+    dev = sysbus_create_varargs_orphan("pl181", 0x1c000000, pic[23], pic[24], NULL);
     qdev_connect_gpio_out_named(dev, "card-read-only", 0,
                           qdev_get_gpio_in_named(icp, ICP_GPIO_MMC_WPROT, 0));
     qdev_connect_gpio_out_named(dev, "card-inserted", 0,

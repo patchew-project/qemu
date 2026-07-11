@@ -537,7 +537,7 @@ static void create_rtc(const SBSAMachineState *sms)
     hwaddr base = sbsa_ref_memmap[SBSA_RTC].base;
     int irq = sbsa_ref_irqmap[SBSA_RTC];
 
-    sysbus_create_simple("pl031", base, qdev_get_gpio_in(sms->gic, irq));
+    sysbus_create_simple_orphan("pl031", base, qdev_get_gpio_in(sms->gic, irq));
 }
 
 static void create_wdt(const SBSAMachineState *sms)
@@ -572,10 +572,10 @@ static void create_gpio(const SBSAMachineState *sms)
     hwaddr base = sbsa_ref_memmap[SBSA_GPIO].base;
     int irq = sbsa_ref_irqmap[SBSA_GPIO];
 
-    pl061_dev = sysbus_create_simple("pl061", base,
+    pl061_dev = sysbus_create_simple_orphan("pl061", base,
                                      qdev_get_gpio_in(sms->gic, irq));
 
-    gpio_key_dev = sysbus_create_simple("gpio-key", -1,
+    gpio_key_dev = sysbus_create_simple_orphan("gpio-key", -1,
                                         qdev_get_gpio_in(pl061_dev, 3));
 
     /* connect powerdown request */

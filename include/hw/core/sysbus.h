@@ -91,15 +91,39 @@ bool sysbus_realize_and_unref(SysBusDevice *dev, Error **errp);
 /* Call func for every dynamically created sysbus device in the system */
 void foreach_dynamic_sysbus_device(FindSysbusDeviceFunc *func, void *opaque);
 
-/* Legacy helper function for creating devices.  */
-DeviceState *sysbus_create_varargs(const char *name,
+/**
+ * sysbus_create_varargs: Create, parent and realize a sysbus device
+ * @parent: the QOM parent (usually the machine or containing device)
+ * @id: child<> property name
+ * @type: sysbus device type to create
+ * @addr: MMIO region 0 address, or -1 for none
+ * @...: NULL-terminated list of qemu_irq to connect
+ *
+ * Create a sysbus device via qdev_new(@parent, @id, @type), realize
+ * it, optionally map MMIO region 0 at @addr, and connect the given
+ * IRQs.  The returned device is owned by @parent.
+ */
+DeviceState *sysbus_create_varargs(Object *parent, const char *id,
+                                   const char *type, hwaddr addr, ...);
+
+static inline DeviceState *sysbus_create_simple(Object *parent,
+                                                 const char *id,
+                                                 const char *type,
+                                                 hwaddr addr,
+                                                 qemu_irq irq)
+{
+    return sysbus_create_varargs(parent, id, type, addr, irq, NULL);
+}
+
+/* Legacy helper function for creating unparented devices.  */
+DeviceState *sysbus_create_varargs_orphan(const char *name,
                                  hwaddr addr, ...);
 
-static inline DeviceState *sysbus_create_simple(const char *name,
+static inline DeviceState *sysbus_create_simple_orphan(const char *name,
                                               hwaddr addr,
                                               qemu_irq irq)
 {
-    return sysbus_create_varargs(name, addr, irq, NULL);
+    return sysbus_create_varargs_orphan(name, addr, irq, NULL);
 }
 
 #endif /* HW_SYSBUS_H */

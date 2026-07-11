@@ -313,7 +313,7 @@ static void a9_daughterboard_init(VexpressMachineState *vms,
     /* 0x100e1000 PL354 Static Memory Controller */
     /* 0x100e2000 System Configuration Controller */
 
-    sysbus_create_simple("sp804", 0x100e4000, pic[48]);
+    sysbus_create_simple_orphan("sp804", 0x100e4000, pic[48]);
     /* 0x100e5000 SP805 Watchdog module */
     /* 0x100e6000 BP147 TrustZone Protection Controller */
     /* 0x100e9000 PL301 'Fast' AXI matrix */
@@ -321,7 +321,7 @@ static void a9_daughterboard_init(VexpressMachineState *vms,
     /* 0x100ec000 TrustZone Address Space Controller */
     /* 0x10200000 CoreSight debug APB */
     /* 0x1e00a000 PL310 L2 Cache Controller */
-    sysbus_create_varargs("l2x0", 0x1e00a000, NULL);
+    sysbus_create_varargs_orphan("l2x0", 0x1e00a000, NULL);
 }
 
 /* Voltage values for SYS_CFG_VOLT daughterboard registers;
@@ -623,7 +623,7 @@ static void vexpress_common_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(pl041), 0, map[VE_PL041]);
     sysbus_connect_irq(SYS_BUS_DEVICE(pl041), 0, pic[11]);
 
-    dev = sysbus_create_varargs("pl181", map[VE_MMCI], pic[9], pic[10], NULL);
+    dev = sysbus_create_varargs_orphan("pl181", map[VE_MMCI], pic[9], pic[10], NULL);
     /* Wire up MMC card detect and read-only signals */
     qdev_connect_gpio_out_named(dev, "card-read-only", 0,
                           qdev_get_gpio_in(sysctl, ARM_SYSCTL_GPIO_MMC_WPROT));
@@ -640,22 +640,22 @@ static void vexpress_common_init(MachineState *machine)
                                &error_fatal);
     }
 
-    sysbus_create_simple("pl050_keyboard", map[VE_KMI0], pic[12]);
-    sysbus_create_simple("pl050_mouse", map[VE_KMI1], pic[13]);
+    sysbus_create_simple_orphan("pl050_keyboard", map[VE_KMI0], pic[12]);
+    sysbus_create_simple_orphan("pl050_mouse", map[VE_KMI1], pic[13]);
 
     pl011_create(map[VE_UART0], pic[5], serial_hd(0));
     pl011_create(map[VE_UART1], pic[6], serial_hd(1));
     pl011_create(map[VE_UART2], pic[7], serial_hd(2));
     pl011_create(map[VE_UART3], pic[8], serial_hd(3));
 
-    sysbus_create_simple("sp804", map[VE_TIMER01], pic[2]);
-    sysbus_create_simple("sp804", map[VE_TIMER23], pic[3]);
+    sysbus_create_simple_orphan("sp804", map[VE_TIMER01], pic[2]);
+    sysbus_create_simple_orphan("sp804", map[VE_TIMER23], pic[3]);
 
-    dev = sysbus_create_simple(TYPE_ARM_SBCON_I2C, map[VE_SERIALDVI], NULL);
+    dev = sysbus_create_simple_orphan(TYPE_ARM_SBCON_I2C, map[VE_SERIALDVI], NULL);
     i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
     i2c_slave_create_simple(i2c, "sii9022", 0x39);
 
-    sysbus_create_simple("pl031", map[VE_RTC], pic[4]); /* RTC */
+    sysbus_create_simple_orphan("pl031", map[VE_RTC], pic[4]); /* RTC */
 
     /* VE_COMPACTFLASH: not modelled */
 
@@ -706,7 +706,7 @@ static void vexpress_common_init(MachineState *machine)
      * no backend is created the transport will just sit harmlessly idle.
      */
     for (i = 0; i < NUM_VIRTIO_TRANSPORTS; i++) {
-        sysbus_create_simple("virtio-mmio", map[VE_VIRTIO] + 0x200 * i,
+        sysbus_create_simple_orphan("virtio-mmio", map[VE_VIRTIO] + 0x200 * i,
                              pic[40 + i]);
     }
 

@@ -200,13 +200,13 @@ static void realview_init(MachineState *machine,
         for (n = 0; n < smp_cpus; n++) {
             sysbus_connect_irq(busdev, n, cpu_irq[n]);
         }
-        sysbus_create_varargs("l2x0", periphbase + 0x2000, NULL);
+        sysbus_create_varargs_orphan("l2x0", periphbase + 0x2000, NULL);
         /* Both A9 and 11MPCore put the GIC CPU i/f at base + 0x100 */
         realview_binfo.gic_cpu_if_addr = periphbase + 0x100;
     } else {
         uint32_t gic_addr = is_pb ? 0x1e000000 : 0x10040000;
         /* For now just create the nIRQ GIC, and ignore the others.  */
-        dev = sysbus_create_simple(TYPE_REALVIEW_GIC, gic_addr, cpu_irq[0]);
+        dev = sysbus_create_simple_orphan(TYPE_REALVIEW_GIC, gic_addr, cpu_irq[0]);
     }
     for (n = 0; n < GIC_EXT_IRQS; n++) {
         pic[n] = qdev_get_gpio_in(dev, n);
@@ -221,8 +221,8 @@ static void realview_init(MachineState *machine,
     sysbus_mmio_map(SYS_BUS_DEVICE(pl041), 0, 0x10004000);
     sysbus_connect_irq(SYS_BUS_DEVICE(pl041), 0, pic[19]);
 
-    sysbus_create_simple("pl050_keyboard", 0x10006000, pic[20]);
-    sysbus_create_simple("pl050_mouse", 0x10007000, pic[21]);
+    sysbus_create_simple_orphan("pl050_keyboard", 0x10006000, pic[20]);
+    sysbus_create_simple_orphan("pl050_mouse", 0x10007000, pic[21]);
 
     pl011_create(0x10009000, pic[12], serial_hd(0));
     pl011_create(0x1000a000, pic[13], serial_hd(1));
@@ -238,12 +238,12 @@ static void realview_init(MachineState *machine,
     sysbus_mmio_map(busdev, 0, 0x10030000);
     sysbus_connect_irq(busdev, 0, pic[24]);
 
-    sysbus_create_simple("sp804", 0x10011000, pic[4]);
-    sysbus_create_simple("sp804", 0x10012000, pic[5]);
+    sysbus_create_simple_orphan("sp804", 0x10011000, pic[4]);
+    sysbus_create_simple_orphan("sp804", 0x10012000, pic[5]);
 
-    sysbus_create_simple("pl061", 0x10013000, pic[6]);
-    sysbus_create_simple("pl061", 0x10014000, pic[7]);
-    gpio2 = sysbus_create_simple("pl061", 0x10015000, pic[8]);
+    sysbus_create_simple_orphan("pl061", 0x10013000, pic[6]);
+    sysbus_create_simple_orphan("pl061", 0x10014000, pic[7]);
+    gpio2 = sysbus_create_simple_orphan("pl061", 0x10015000, pic[8]);
 
     dev = qdev_new_orphan("pl111");
     object_property_set_link(OBJECT(dev), "framebuffer-memory",
@@ -252,7 +252,7 @@ static void realview_init(MachineState *machine,
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x10020000);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[23]);
 
-    dev = sysbus_create_varargs("pl181", 0x10005000, pic[17], pic[18], NULL);
+    dev = sysbus_create_varargs_orphan("pl181", 0x10005000, pic[17], pic[18], NULL);
     /* Wire up MMC card detect and read-only signals. These have
      * to go to both the PL061 GPIO and the sysctl register.
      * Note that the PL181 orders these lines (readonly,inserted)
@@ -278,7 +278,7 @@ static void realview_init(MachineState *machine,
                                &error_fatal);
     }
 
-    sysbus_create_simple("pl031", 0x10017000, pic[10]);
+    sysbus_create_simple_orphan("pl031", 0x10017000, pic[10]);
 
     if (!is_pb) {
         dev = qdev_new_orphan("realview_pci");
@@ -319,7 +319,7 @@ static void realview_init(MachineState *machine,
         pci_init_nic_devices(pci_bus, "rtl8139");
     }
 
-    dev = sysbus_create_simple(TYPE_ARM_SBCON_I2C, 0x10002000, NULL);
+    dev = sysbus_create_simple_orphan(TYPE_ARM_SBCON_I2C, 0x10002000, NULL);
     i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
     i2c_slave_create_simple(i2c, "ds1338", 0x68);
 

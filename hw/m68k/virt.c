@@ -202,7 +202,7 @@ static void virt_init(MachineState *machine)
     sysbus_connect_irq(sysbus, 0, PIC_GPIO(VIRT_GF_TTY_IRQ_BASE));
 
     /* virt controller */
-    dev = sysbus_create_simple(TYPE_VIRT_CTRL, VIRT_CTRL_MMIO_BASE,
+    dev = sysbus_create_simple_orphan(TYPE_VIRT_CTRL, VIRT_CTRL_MMIO_BASE,
                                PIC_GPIO(VIRT_CTRL_IRQ_BASE));
 
     /* virtio-mmio */

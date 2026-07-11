@@ -64,7 +64,7 @@ static void collie_init(MachineState *machine)
                               FLASH_SECTOR_SIZE, 4, 0x00, 0x00, 0x00, 0x00, 0);
     }
 
-    sysbus_create_simple("scoop", 0x40800000, NULL);
+    sysbus_create_simple_orphan("scoop", 0x40800000, NULL);
 
     collie_binfo.board_id = 0x208;
     arm_load_kernel(cms->sa1110->cpu, machine, &collie_binfo);

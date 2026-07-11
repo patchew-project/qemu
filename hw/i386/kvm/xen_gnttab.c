@@ -152,7 +152,7 @@ static const TypeInfo xen_gnttab_info = {
 
 void xen_gnttab_create(void)
 {
-    xen_gnttab_singleton = XEN_GNTTAB(sysbus_create_simple(TYPE_XEN_GNTTAB,
+    xen_gnttab_singleton = XEN_GNTTAB(sysbus_create_simple_orphan(TYPE_XEN_GNTTAB,
                                                            -1, NULL));
 }
 

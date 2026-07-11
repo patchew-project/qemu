@@ -306,7 +306,7 @@ static void gsi_assert_bh(void *opaque)
 
 void xen_evtchn_create(unsigned int nr_gsis, qemu_irq *system_gsis)
 {
-    XenEvtchnState *s = XEN_EVTCHN(sysbus_create_simple(TYPE_XEN_EVTCHN,
+    XenEvtchnState *s = XEN_EVTCHN(sysbus_create_simple_orphan(TYPE_XEN_EVTCHN,
                                                         -1, NULL));
     int i;
 

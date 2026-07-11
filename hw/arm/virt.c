@@ -1561,7 +1561,7 @@ static void create_rtc(const VirtMachineState *vms)
     const char compat[] = "arm,pl031\0arm,primecell";
     MachineState *ms = MACHINE(vms);
 
-    sysbus_create_simple("pl031", base, qdev_get_gpio_in(vms->gic, irq));
+    sysbus_create_simple_orphan("pl031", base, qdev_get_gpio_in(vms->gic, irq));
 
     nodename = g_strdup_printf("/pl031@%" PRIx64, base);
     qemu_fdt_add_subnode(ms->fdt, nodename);
@@ -1606,7 +1606,7 @@ static void virt_generic_error_req(Notifier *n, void *opaque)
 static void create_gpio_keys(char *fdt, DeviceState *pl061_dev,
                              uint32_t phandle)
 {
-    gpio_key_dev = sysbus_create_simple("gpio-key", -1,
+    gpio_key_dev = sysbus_create_simple_orphan("gpio-key", -1,
                                         qdev_get_gpio_in(pl061_dev,
                                                          GPIO_PIN_POWER_BUTTON));
 
@@ -1631,7 +1631,7 @@ static void create_secure_gpio_pwr(char *fdt, DeviceState *pl061_dev,
     DeviceState *gpio_pwr_dev;
 
     /* gpio-pwr */
-    gpio_pwr_dev = sysbus_create_simple("gpio-pwr", -1, NULL);
+    gpio_pwr_dev = sysbus_create_simple_orphan("gpio-pwr", -1, NULL);
 
     /* connect secure pl061 to gpio-pwr */
     qdev_connect_gpio_out(pl061_dev, SECURE_GPIO_RESET,
@@ -1746,7 +1746,7 @@ static void create_virtio_devices(const VirtMachineState *vms)
         int irq = vms->irqmap[VIRT_MMIO] + i;
         hwaddr base = vms->memmap[VIRT_MMIO].base + i * size;
 
-        sysbus_create_simple("virtio-mmio", base,
+        sysbus_create_simple_orphan("virtio-mmio", base,
                              qdev_get_gpio_in(vms->gic, irq));
     }
 
