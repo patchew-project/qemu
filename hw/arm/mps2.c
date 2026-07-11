@@ -279,7 +279,7 @@ static void mps2_common_init(MachineState *machine)
         Object *orgate;
         DeviceState *orgate_dev;
 
-        orgate = object_new(TYPE_OR_IRQ);
+        orgate = object_new_child(OBJECT(mms), "uart-orgate", TYPE_OR_IRQ);
         object_property_set_int(orgate, "num-lines", 6, &error_fatal);
         qdev_realize(DEVICE(orgate), NULL, &error_fatal);
         orgate_dev = DEVICE(orgate);
@@ -322,7 +322,7 @@ static void mps2_common_init(MachineState *machine)
         Object *orgate;
         DeviceState *orgate_dev;
 
-        orgate = object_new(TYPE_OR_IRQ);
+        orgate = object_new_child(OBJECT(mms), "uart-orgate", TYPE_OR_IRQ);
         object_property_set_int(orgate, "num-lines", 10, &error_fatal);
         qdev_realize(DEVICE(orgate), NULL, &error_fatal);
         orgate_dev = DEVICE(orgate);
@@ -338,7 +338,8 @@ static void mps2_common_init(MachineState *machine)
             DeviceState *txrx_orgate_dev, *dev;
             SysBusDevice *s;
 
-            txrx_orgate = object_new(TYPE_OR_IRQ);
+            txrx_orgate = object_new_child(OBJECT(mms), "uart-txrx-orgate[*]",
+                                           TYPE_OR_IRQ);
             object_property_set_int(txrx_orgate, "num-lines", 2, &error_fatal);
             qdev_realize(DEVICE(txrx_orgate), NULL, &error_fatal);
             txrx_orgate_dev = DEVICE(txrx_orgate);
@@ -430,7 +431,7 @@ static void mps2_common_init(MachineState *machine)
         Object *orgate;
         int j;
 
-        orgate = object_new(TYPE_OR_IRQ);
+        orgate = object_new_child(OBJECT(mms), "spi-orgate[*]", TYPE_OR_IRQ);
         object_property_set_int(orgate, "num-lines", 2, &error_fatal);
         orgate_dev = DEVICE(orgate);
         qdev_realize(orgate_dev, NULL, &error_fatal);
