@@ -27,6 +27,102 @@ that make up a QEMU "machine". You can view this tree by running
 objects created by the machine itself as well those created due to
 user configuration.
 
+Composition-tree parenting contract
+====================================
+
+Every QOM object that participates in the running system must have a
+composition-tree parent before it is used.  The parent gives the object
+a stable, canonical path such as ``/machine/soc/uart[0]`` that is
+visible in ``info qom-tree`` and addressable via ``qom-get`` and
+``qom-set``.  Objects that reach ``realize`` (for devices), that are
+wired to another object (for IRQ lines), or that are given a name (for
+memory regions) without a parent are programming errors.
+
+Creating parented objects
+-------------------------
+
+The standard creation helpers all take the composition-tree parent and
+the child name as their first two arguments:
+
+.. code-block:: c
+
+    Object      *object_new_child(Object *parent, const char *id,
+                                  const char *typename);
+    DeviceState *qdev_new(Object *parent, const char *id,
+                          const char *typename);
+    DeviceState *sysbus_create_simple(Object *parent, const char *id,
+                                      const char *type, hwaddr, qemu_irq);
+    PCIDevice   *pci_new(Object *parent, const char *id, ...);
+    ISADevice   *isa_new(Object *parent, const char *id, ...);
+    /* i2c_slave_new(), ssi_create_peripheral(), usb_new(),
+       cpu_create() etc. follow the same pattern. */
+
+``object_new()`` remains available as the primitive allocator for
+transient introspection objects and for ``qdev_device_add()``, which
+parents the device via ``qdev_set_id()``.  All other callers should use
+one of the parented helpers above, or ``object_initialize_child()`` for
+objects that are embedded by value in the parent's instance struct.
+
+Choosing the parent
+-------------------
+
+The QOM parent is the object that owns the child's lifetime.  In
+practice this is the object whose code is creating the child:
+
+* Board code (``MachineClass.init``) parents onboard devices to the
+  machine: ``OBJECT(machine)``.
+* A composite device's ``DeviceClass.realize`` parents the sub-devices
+  it creates to itself: ``OBJECT(dev)``.
+* An SoC container likewise parents the devices it creates to the SoC
+  object.
+
+The bus a device is plugged into is *not* its composition-tree parent.
+A device may sit on a bus owned by ``B`` without being a child of
+``B``; the bus relationship is expressed through the ``parent_bus``
+link, not the ``child<>`` property.
+
+Choosing the child name
+-----------------------
+
+* A single instance takes a bare noun: ``"uart"``, ``"gic"``, ``"rtc"``.
+* A fixed number of identical instances take an explicit index:
+  ``"uart[0]"``, ``"uart[1]"``.
+* When the caller does not care about the index, ``"uart[*]"`` lets
+  QOM allocate the next free slot in the ``uart[]`` array.
+* Address-based names such as ``"eth@0x30000000"`` should only be used
+  when the address is genuinely the identity of the device.
+
+Child names share the parent's property namespace, so avoid names that
+collide with class-defined properties of the parent (in particular,
+machine class properties visible on ``/machine``).
+
+Reference-count contract
+------------------------
+
+``object_new_child()``, ``qdev_new()`` and the per-bus creators return
+with the object's single reference held by the parent's ``child<>``
+property.  The caller does *not* hold a reference of its own and must
+therefore pair creation with plain ``qdev_realize()`` rather than
+``qdev_realize_and_unref()``.  The object is finalized when the parent
+drops its ``child<>`` property, typically via ``object_unparent()``.
+
+Enforcement
+-----------
+
+The parenting contract is enforced at the points where an unparented
+object would first become visible or entangled with another object:
+
+* ``device_set_realized()`` fails with an ``Error`` if the device has
+  no composition-tree parent.
+* ``memory_region_do_init()`` asserts that a memory region given a
+  non-empty name also has an owner.
+* ``qdev_connect_gpio_out_named()`` asserts that the outbound IRQ
+  line being connected already has a composition-tree parent.
+
+There is no ``/machine/unattached`` fallback container; an object that
+would previously have landed there now triggers one of the errors
+above instead.
+
 Creating a QOM class
 ====================
 
