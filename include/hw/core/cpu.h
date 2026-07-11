@@ -858,16 +858,6 @@ char *cpu_model_from_type(const char *typename);
 CPUState *cpu_create(Object *parent, const char *id, const char *typename);
 
 /**
- * cpu_create_orphan:
- * @typename: The CPU type.
- *
- * Instantiates a CPU and realizes the CPU.
- *
- * Returns: A #CPUState or %NULL if an error occurred.
- */
-CPUState *cpu_create_orphan(const char *typename);
-
-/**
  * parse_cpu_option:
  * @cpu_option: The -cpu option including optional parameters.
  *

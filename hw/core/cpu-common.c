@@ -68,18 +68,6 @@ CPUState *cpu_create(Object *parent, const char *id, const char *typename)
     return cpu;
 }
 
-CPUState *cpu_create_orphan(const char *typename)
-{
-    Error *err = NULL;
-    CPUState *cpu = CPU(object_new(typename));
-    if (!qdev_realize(DEVICE(cpu), NULL, &err)) {
-        error_report_err(err);
-        object_unref(OBJECT(cpu));
-        exit(EXIT_FAILURE);
-    }
-    return cpu;
-}
-
 void cpu_reset_interrupt(CPUState *cpu, int mask)
 {
     qatomic_and(&cpu->interrupt_request, ~mask);
