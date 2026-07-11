@@ -58,7 +58,7 @@ static void collie_init(MachineState *machine)
 
     for (unsigned i = 0; i < 2; i++) {
         DriveInfo *dinfo = drive_get(IF_PFLASH, 0, i);
-        pflash_cfi01_register(i ? SA_CS1 : SA_CS0,
+        pflash_cfi01_register(OBJECT(machine), i ? SA_CS1 : SA_CS0,
                               i ? "collie.fl2" : "collie.fl1", FLASH_SIZE,
                               dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                               FLASH_SECTOR_SIZE, 4, 0x00, 0x00, 0x00, 0x00, 0);

@@ -12,7 +12,7 @@
 OBJECT_DECLARE_SIMPLE_TYPE(PFlashCFI01, PFLASH_CFI01)
 
 
-PFlashCFI01 *pflash_cfi01_register(hwaddr base,
+PFlashCFI01 *pflash_cfi01_register(Object *parent, hwaddr base,
                                    const char *name,
                                    hwaddr size,
                                    BlockBackend *blk,
@@ -31,7 +31,7 @@ void pflash_cfi01_legacy_drive(PFlashCFI01 *dev, DriveInfo *dinfo);
 OBJECT_DECLARE_SIMPLE_TYPE(PFlashCFI02, PFLASH_CFI02)
 
 
-PFlashCFI02 *pflash_cfi02_register(hwaddr base,
+PFlashCFI02 *pflash_cfi02_register(Object *parent, hwaddr base,
                                    const char *name,
                                    hwaddr size,
                                    BlockBackend *blk,

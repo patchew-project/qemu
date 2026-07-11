@@ -993,7 +993,7 @@ static void pflash_cfi02_register_types(void)
 
 type_init(pflash_cfi02_register_types)
 
-PFlashCFI02 *pflash_cfi02_register(hwaddr base,
+PFlashCFI02 *pflash_cfi02_register(Object *parent, hwaddr base,
                                    const char *name,
                                    hwaddr size,
                                    BlockBackend *blk,
@@ -1005,7 +1005,7 @@ PFlashCFI02 *pflash_cfi02_register(hwaddr base,
                                    uint16_t unlock_addr1,
                                    int be)
 {
-    DeviceState *dev = qdev_new_orphan(TYPE_PFLASH_CFI02);
+    DeviceState *dev = qdev_new(parent, name, TYPE_PFLASH_CFI02);
 
     if (blk) {
         qdev_prop_set_drive(dev, "drive", blk);
@@ -1023,7 +1023,7 @@ PFlashCFI02 *pflash_cfi02_register(hwaddr base,
     qdev_prop_set_uint16(dev, "unlock-addr0", unlock_addr0);
     qdev_prop_set_uint16(dev, "unlock-addr1", unlock_addr1);
     qdev_prop_set_string(dev, "name", name);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     return PFLASH_CFI02(dev);

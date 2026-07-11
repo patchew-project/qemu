@@ -96,30 +96,31 @@ static void fdctrl_handle_tc(void *opaque, int irq, int level)
     trace_fdctrl_tc_pulse(level);
 }
 
-void fdctrl_init_sysbus(qemu_irq irq, hwaddr mmio_base, DriveInfo **fds)
+void fdctrl_init_sysbus(Object *parent, qemu_irq irq, hwaddr mmio_base,
+                        DriveInfo **fds)
 {
     DeviceState *dev;
     SysBusDevice *sbd;
     FDCtrlSysBus *sys;
 
-    dev = qdev_new_orphan("sysbus-fdc");
+    dev = qdev_new(parent, "fdc", "sysbus-fdc");
     sys = SYSBUS_FDC(dev);
     sbd = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_realize(sbd, &error_fatal);
     sysbus_connect_irq(sbd, 0, irq);
     sysbus_mmio_map(sbd, 0, mmio_base);
 
     fdctrl_init_drives(&sys->state.bus, fds);
 }
 
-void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,
+void sun4m_fdctrl_init(Object *parent, qemu_irq irq, hwaddr io_base,
                        DriveInfo **fds, qemu_irq *fdc_tc)
 {
     DeviceState *dev;
     FDCtrlSysBus *sys;
 
-    dev = qdev_new_orphan("sun-fdtwo");
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    dev = qdev_new(parent, "fdc", "sun-fdtwo");
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sys = SYSBUS_FDC(dev);
     sysbus_connect_irq(SYS_BUS_DEVICE(sys), 0, irq);
     sysbus_mmio_map(SYS_BUS_DEVICE(sys), 0, io_base);

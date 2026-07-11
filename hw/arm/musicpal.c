@@ -1279,7 +1279,8 @@ static void musicpal_init(MachineState *machine)
          * 0xFF800000 (if there is 8 MB flash). So remap flash access if the
          * image is smaller than 32 MB.
          */
-        pflash_cfi02_register(0x100000000ULL - MP_FLASH_SIZE_MAX,
+        pflash_cfi02_register(OBJECT(machine),
+                              0x100000000ULL - MP_FLASH_SIZE_MAX,
                               "musicpal.flash", flash_size,
                               blk, FLASH_SECTOR_SIZE,
                               MP_FLASH_SIZE_MAX / flash_size,

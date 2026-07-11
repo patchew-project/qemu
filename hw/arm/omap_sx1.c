@@ -150,7 +150,7 @@ static void sx1_init(MachineState *machine, const int version)
 
     fl_idx = 0;
     if ((dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
-        pflash_cfi01_register(OMAP_CS0_BASE,
+        pflash_cfi01_register(OBJECT(machine), OMAP_CS0_BASE,
                               "omap_sx1.flash0-1", flash_size,
                               blk_by_legacy_dinfo(dinfo),
                               SECTOR_SIZE, 4, 0, 0, 0, 0, 0);
@@ -169,7 +169,7 @@ static void sx1_init(MachineState *machine, const int version)
         memory_region_add_subregion(address_space,
                                 OMAP_CS1_BASE + FLASH1_SIZE, &cs[1]);
 
-        pflash_cfi01_register(OMAP_CS1_BASE,
+        pflash_cfi01_register(OBJECT(machine), OMAP_CS1_BASE,
                               "omap_sx1.flash1-1", FLASH1_SIZE,
                               blk_by_legacy_dinfo(dinfo),
                               SECTOR_SIZE, 4, 0, 0, 0, 0, 0);

@@ -83,7 +83,7 @@ struct boot_info {
     uint32_t entry;
 };
 
-static int sam460ex_load_uboot(void)
+static int sam460ex_load_uboot(Object *parent)
 {
     /*
      * This first creates 1MiB of flash memory mapped at the end of
@@ -106,7 +106,8 @@ static int sam460ex_load_uboot(void)
     DriveInfo *dinfo;
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    if (!pflash_cfi01_register(FLASH_BASE | ((hwaddr)FLASH_BASE_H << 32),
+    if (!pflash_cfi01_register(parent,
+                               FLASH_BASE | ((hwaddr)FLASH_BASE_H << 32),
                                "sam460ex.flash", FLASH_SIZE,
                                dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                                64 * KiB, 1, 0x89, 0x18, 0x0000, 0x0, 1)) {
@@ -459,7 +460,7 @@ static void sam460ex_init(MachineState *machine)
 
     /* Load U-Boot image. */
     if (!machine->kernel_filename) {
-        success = sam460ex_load_uboot();
+        success = sam460ex_load_uboot(OBJECT(machine));
         if (success < 0) {
             error_report("could not load firmware");
             exit(1);

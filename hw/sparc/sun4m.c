@@ -1015,7 +1015,7 @@ static void sun4m_hw_init(MachineState *machine)
         /* there is zero or one floppy drive */
         memset(fd, 0, sizeof(fd));
         fd[0] = drive_get(IF_FLOPPY, 0, 0);
-        sun4m_fdctrl_init(slavio_irq[22], hwdef->fd_base, fd,
+        sun4m_fdctrl_init(OBJECT(machine), slavio_irq[22], hwdef->fd_base, fd,
                           &fdc_tc);
     } else {
         fdc_tc = qemu_allocate_irq(dummy_fdc_tc, NULL, 0);

@@ -948,7 +948,7 @@ static const TypeInfo pflash_cfi01_types[] = {
 
 DEFINE_TYPES(pflash_cfi01_types)
 
-PFlashCFI01 *pflash_cfi01_register(hwaddr base,
+PFlashCFI01 *pflash_cfi01_register(Object *parent, hwaddr base,
                                    const char *name,
                                    hwaddr size,
                                    BlockBackend *blk,
@@ -958,7 +958,7 @@ PFlashCFI01 *pflash_cfi01_register(hwaddr base,
                                    uint16_t id2, uint16_t id3,
                                    int be)
 {
-    DeviceState *dev = qdev_new_orphan(TYPE_PFLASH_CFI01);
+    DeviceState *dev = qdev_new(parent, name, TYPE_PFLASH_CFI01);
 
     if (blk) {
         qdev_prop_set_drive(dev, "drive", blk);
@@ -973,7 +973,7 @@ PFlashCFI01 *pflash_cfi01_register(hwaddr base,
     qdev_prop_set_uint16(dev, "id2", id2);
     qdev_prop_set_uint16(dev, "id3", id3);
     qdev_prop_set_string(dev, "name", name);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     return PFLASH_CFI01(dev);
