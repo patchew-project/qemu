@@ -1274,7 +1274,7 @@ static void lan9118_realize(DeviceState *dev, Error **errp)
     const MemoryRegionOps *mem_ops =
             s->mode_16bit ? &lan9118_16bit_mem_ops : &lan9118_mem_ops;
 
-    qemu_init_irq(&s->mii_irq, lan9118_update_irq, s, 0);
+    qemu_init_irq_child(OBJECT(s), "mii-irq", &s->mii_irq, lan9118_update_irq, s, 0);
     object_initialize_child(OBJECT(s), "mii", &s->mii, TYPE_LAN9118_PHY);
     if (!sysbus_realize_and_unref(SYS_BUS_DEVICE(&s->mii), errp)) {
         return;

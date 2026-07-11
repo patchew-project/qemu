@@ -134,7 +134,8 @@ static void pegasos2_setup_pci_irq(PegasosMachineState *pm)
                                                    TYPE_OR_IRQ, &error_fatal,
                                                    "num-lines", "2", NULL);
                 qdev_realize(DEVICE(ori), NULL, &error_fatal);
-                qemu_init_irq(&pm->pci_irqs[i], pegasos2_pci_irq, pm, i);
+                qemu_init_irq_child(OBJECT(pm), "pci-irq[*]", &pm->pci_irqs[i],
+                                    pegasos2_pci_irq, pm, i);
                 qdev_connect_gpio_out(DEVICE(ori), 0, &pm->pci_irqs[i]);
                 pm->mv_pirq[i] = qdev_get_gpio_in_named(pm->nb, "gpp", 12 + i);
                 pm->via_pirq[i] = qdev_get_gpio_in_named(pm->sb, "pirq", i);

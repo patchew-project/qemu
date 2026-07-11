@@ -200,7 +200,10 @@ static r2d_fpga_t *r2d_fpga_init(Object *owner,
     memory_region_init_io(&s->iomem, owner, &r2d_fpga_ops, s, "r2d-fpga", 0x40);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
-    qemu_init_irqs(s->irq, NR_IRQS, r2d_fpga_irq_set, s);
+    for (int i = 0; i < NR_IRQS; i++) {
+        qemu_init_irq_child(owner, "fpga-irq[*]", &s->irq[i],
+                            r2d_fpga_irq_set, s, i);
+    }
 
     return s;
 }

@@ -697,7 +697,8 @@ static void device_finalize(Object *obj)
 
     QLIST_FOREACH_SAFE(ngl, &dev->gpios, node, next) {
         QLIST_REMOVE(ngl, node);
-        qemu_free_irqs(ngl->in, ngl->num_in);
+        /* IRQs are child<> properties of dev; freed via child destruction */
+        g_free(ngl->in);
         g_free(ngl->name);
         g_free(ngl);
         /* ngl->out irqs are owned by the other end and should not be freed

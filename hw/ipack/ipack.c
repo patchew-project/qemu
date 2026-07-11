@@ -55,18 +55,25 @@ static void ipack_device_realize(DeviceState *dev, Error **errp)
     }
     bus->free_slot = idev->slot + 1;
 
-    qemu_init_irqs(idev->irq, ARRAY_SIZE(idev->irq), bus->set_irq, idev);
+    for (int i = 0; i < ARRAY_SIZE(idev->irq); i++) {
+        qemu_init_irq_child(OBJECT(idev), "irq[*]", &idev->irq[i],
+                            bus->set_irq, idev, i);
+    }
 
     k->realize(dev, errp);
 }
 
 static void ipack_device_unrealize(DeviceState *dev)
 {
+    IPackDevice *idev = IPACK_DEVICE(dev);
     IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(dev);
 
     if (k->unrealize) {
         k->unrealize(dev);
-        return;
+    }
+
+    for (int i = 0; i < ARRAY_SIZE(idev->irq); i++) {
+        object_unparent(OBJECT(&idev->irq[i]));
     }
 }
 

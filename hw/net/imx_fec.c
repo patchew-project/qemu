@@ -1205,7 +1205,7 @@ static void imx_eth_realize(DeviceState *dev, Error **errp)
     sysbus_init_irq(sbd, &s->irq[0]);
     sysbus_init_irq(sbd, &s->irq[1]);
 
-    qemu_init_irq(&s->mii_irq, imx_phy_update_irq, s, 0);
+    qemu_init_irq_child(OBJECT(s), "mii-irq", &s->mii_irq, imx_phy_update_irq, s, 0);
     object_initialize_child(OBJECT(s), "mii", &s->mii, TYPE_LAN9118_PHY);
     if (!sysbus_realize_and_unref(SYS_BUS_DEVICE(&s->mii), errp)) {
         return;
