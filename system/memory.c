@@ -3631,15 +3631,15 @@ void mtree_info(bool flatview, bool dispatch_tree, bool owner, bool disabled)
 
 static void memory_region_register_ram(MemoryRegion *mr, Object *owner)
 {
-    DeviceState *owner_dev;
-
-    /* This will assert if owner is neither NULL nor a DeviceState.
-     * We only want the owner here for the purposes of defining a
-     * unique name for migration. TODO: Ideally we should implement
-     * a naming scheme for Objects which are not DeviceStates, in
-     * which case we can relax this restriction.
+    /*
+     * vmstate_register_ram() prefixes the RAMBlock idstr with the
+     * canonical path of @owner when it is a DeviceState.  Board-
+     * created RAM regions are owned by the machine, which is not a
+     * device; pass NULL there so the idstr is the bare region name,
+     * matching historical behaviour for owner==NULL callers.
      */
-    owner_dev = DEVICE(owner);
+    DeviceState *owner_dev =
+        (DeviceState *)object_dynamic_cast(owner, TYPE_DEVICE);
     vmstate_register_ram(mr, owner_dev);
 }
 
