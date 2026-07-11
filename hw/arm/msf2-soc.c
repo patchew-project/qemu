@@ -128,7 +128,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     memory_region_add_subregion(system_memory, ENVM_BASE_ADDRESS, &s->nvm);
     memory_region_add_subregion(system_memory, 0, &s->nvm_alias);
 
-    memory_region_init_ram(&s->sram, NULL, "MSF2.eSRAM", s->esram_size,
+    memory_region_init_ram(&s->sram, OBJECT(dev_soc), "MSF2.eSRAM", s->esram_size,
                            &error_fatal);
     memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, &s->sram);
 

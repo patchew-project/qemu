@@ -55,7 +55,7 @@ static void emcraft_sf2_s2s010_init(MachineState *machine)
     MemoryRegion *ddr = g_new(MemoryRegion, 1);
     Clock *m3clk;
 
-    memory_region_init_ram(ddr, NULL, "ddr-ram", DDR_SIZE,
+    memory_region_init_ram(ddr, OBJECT(machine), "ddr-ram", DDR_SIZE,
                            &error_fatal);
     memory_region_add_subregion(sysmem, DDR_BASE_ADDRESS, ddr);
 

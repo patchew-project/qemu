@@ -204,7 +204,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
                                 &s->rom);
 
     /* initialize internal RAM (16 KB) */
-    if (!memory_region_init_ram(&s->iram, NULL, "imx31.iram",
+    if (!memory_region_init_ram(&s->iram, OBJECT(dev), "imx31.iram",
                                 FSL_IMX31_IRAM_SIZE, errp)) {
         return;
     }

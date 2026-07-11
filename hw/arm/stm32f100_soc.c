@@ -108,7 +108,7 @@ static void stm32f100_soc_realize(DeviceState *dev_soc, Error **errp)
     memory_region_add_subregion(system_memory, 0, &s->flash_alias);
 
     /* Init SRAM region */
-    memory_region_init_ram(&s->sram, NULL, "STM32F100.sram", SRAM_SIZE,
+    memory_region_init_ram(&s->sram, OBJECT(dev_soc), "STM32F100.sram", SRAM_SIZE,
                            &error_fatal);
     memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, &s->sram);
 

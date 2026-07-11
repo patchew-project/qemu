@@ -115,20 +115,20 @@ OBJECT_DECLARE_TYPE(MPS2MachineState, MPS2MachineClass, MPS2_MACHINE)
 /* Initialize the auxiliary RAM region @mr and map it into
  * the memory map at @base.
  */
-static void make_ram(MemoryRegion *mr, const char *name,
+static void make_ram(Object *owner, MemoryRegion *mr, const char *name,
                      hwaddr base, hwaddr size)
 {
-    memory_region_init_ram(mr, NULL, name, size, &error_fatal);
+    memory_region_init_ram(mr, owner, name, size, &error_fatal);
     memory_region_add_subregion(get_system_memory(), base, mr);
 }
 
 /* Create an alias of an entire original MemoryRegion @orig
  * located at @base in the memory map.
  */
-static void make_ram_alias(MemoryRegion *mr, const char *name,
+static void make_ram_alias(Object *owner, MemoryRegion *mr, const char *name,
                            MemoryRegion *orig, hwaddr base)
 {
-    memory_region_init_alias(mr, NULL, name, orig, 0,
+    memory_region_init_alias(mr, owner, name, orig, 0,
                              memory_region_size(orig));
     memory_region_add_subregion(get_system_memory(), base, mr);
 }
@@ -192,12 +192,12 @@ static void mps2_common_init(MachineState *machine)
     memory_region_add_subregion(system_memory, mmc->psram_base, machine->ram);
 
     if (mmc->has_block_ram) {
-        make_ram(&mms->blockram, "mps.blockram", 0x01000000, 0x4000);
-        make_ram_alias(&mms->blockram_m1, "mps.blockram_m1",
+        make_ram(obj, &mms->blockram, "mps.blockram", 0x01000000, 0x4000);
+        make_ram_alias(obj, &mms->blockram_m1, "mps.blockram_m1",
                        &mms->blockram, 0x01004000);
-        make_ram_alias(&mms->blockram_m2, "mps.blockram_m2",
+        make_ram_alias(obj, &mms->blockram_m2, "mps.blockram_m2",
                        &mms->blockram, 0x01008000);
-        make_ram_alias(&mms->blockram_m3, "mps.blockram_m3",
+        make_ram_alias(obj, &mms->blockram_m3, "mps.blockram_m3",
                        &mms->blockram, 0x0100c000);
     }
 
@@ -205,17 +205,18 @@ static void mps2_common_init(MachineState *machine)
     case FPGA_AN385:
     case FPGA_AN386:
     case FPGA_AN500:
-        make_ram(&mms->ssram1, "mps.ssram1", 0x0, 0x400000);
-        make_ram_alias(&mms->ssram1_m, "mps.ssram1_m", &mms->ssram1, 0x400000);
-        make_ram(&mms->ssram23, "mps.ssram23", 0x20000000, 0x400000);
-        make_ram_alias(&mms->ssram23_m, "mps.ssram23_m",
+        make_ram(obj, &mms->ssram1, "mps.ssram1", 0x0, 0x400000);
+        make_ram_alias(obj, &mms->ssram1_m, "mps.ssram1_m",
+                       &mms->ssram1, 0x400000);
+        make_ram(obj, &mms->ssram23, "mps.ssram23", 0x20000000, 0x400000);
+        make_ram_alias(obj, &mms->ssram23_m, "mps.ssram23_m",
                        &mms->ssram23, 0x20400000);
         break;
     case FPGA_AN511:
-        make_ram(&mms->blockram, "mps.blockram", 0x0, 0x40000);
-        make_ram(&mms->ssram1, "mps.ssram1", 0x00400000, 0x00800000);
-        make_ram(&mms->sram, "mps.sram", 0x20000000, 0x20000);
-        make_ram(&mms->ssram23, "mps.ssram23", 0x20400000, 0x400000);
+        make_ram(obj, &mms->blockram, "mps.blockram", 0x0, 0x40000);
+        make_ram(obj, &mms->ssram1, "mps.ssram1", 0x00400000, 0x00800000);
+        make_ram(obj, &mms->sram, "mps.sram", 0x20000000, 0x20000);
+        make_ram(obj, &mms->ssram23, "mps.ssram23", 0x20400000, 0x400000);
         break;
     default:
         g_assert_not_reached();

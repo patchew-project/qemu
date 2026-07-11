@@ -74,7 +74,7 @@ static void max78000_soc_realize(DeviceState *dev_soc, Error **errp)
 
     memory_region_add_subregion(system_memory, FLASH_BASE_ADDRESS, &s->flash);
 
-    memory_region_init_ram(&s->sram, NULL, "MAX78000.sram", SRAM_SIZE,
+    memory_region_init_ram(&s->sram, obj, "MAX78000.sram", SRAM_SIZE,
                            &err);
 
     gcrdev = DEVICE(&s->gcr);

@@ -1084,11 +1084,11 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     object_property_add_child(OBJECT(ms), "soc", soc_container);
 
     /* Flash programming is done via the SCU, so pretend it is ROM.  */
-    memory_region_init_rom(flash, NULL, "stellaris.flash", flash_size,
+    memory_region_init_rom(flash, OBJECT(ms), "stellaris.flash", flash_size,
                            &error_fatal);
     memory_region_add_subregion(system_memory, 0, flash);
 
-    memory_region_init_ram(sram, NULL, "stellaris.sram", sram_size,
+    memory_region_init_ram(sram, OBJECT(ms), "stellaris.sram", sram_size,
                            &error_fatal);
     memory_region_add_subregion(system_memory, 0x20000000, sram);
 

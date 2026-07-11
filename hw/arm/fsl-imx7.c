@@ -689,7 +689,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     /*
      * OCRAM memory
      */
-    memory_region_init_ram(&s->ocram, NULL, "imx7.ocram",
+    memory_region_init_ram(&s->ocram, OBJECT(dev), "imx7.ocram",
                            FSL_IMX7_OCRAM_MEM_SIZE,
                            &error_abort);
     memory_region_add_subregion(get_system_memory(), FSL_IMX7_OCRAM_MEM_ADDR,
@@ -698,7 +698,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     /*
      * OCRAM EPDC memory
      */
-    memory_region_init_ram(&s->ocram_epdc, NULL, "imx7.ocram_epdc",
+    memory_region_init_ram(&s->ocram_epdc, OBJECT(dev), "imx7.ocram_epdc",
                            FSL_IMX7_OCRAM_EPDC_SIZE,
                            &error_abort);
     memory_region_add_subregion(get_system_memory(), FSL_IMX7_OCRAM_EPDC_ADDR,
@@ -707,7 +707,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     /*
      * OCRAM PXP memory
      */
-    memory_region_init_ram(&s->ocram_pxp, NULL, "imx7.ocram_pxp",
+    memory_region_init_ram(&s->ocram_pxp, OBJECT(dev), "imx7.ocram_pxp",
                            FSL_IMX7_OCRAM_PXP_SIZE,
                            &error_abort);
     memory_region_add_subregion(get_system_memory(), FSL_IMX7_OCRAM_PXP_ADDR,
@@ -716,7 +716,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     /*
      * OCRAM_S memory
      */
-    memory_region_init_ram(&s->ocram_s, NULL, "imx7.ocram_s",
+    memory_region_init_ram(&s->ocram_s, OBJECT(dev), "imx7.ocram_s",
                            FSL_IMX7_OCRAM_S_SIZE,
                            &error_abort);
     memory_region_add_subregion(get_system_memory(), FSL_IMX7_OCRAM_S_ADDR,

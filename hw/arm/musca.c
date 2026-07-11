@@ -235,12 +235,12 @@ static MemoryRegion *make_mpc(MuscaMachineState *mms, void *opaque,
     switch (mpcinfo[i].type) {
     case MPC_ROM:
         downstream = &mms->ram[i];
-        memory_region_init_rom(downstream, NULL, mpcinfo[i].name,
+        memory_region_init_rom(downstream, OBJECT(mms), mpcinfo[i].name,
                                mpcinfo[i].size, &error_fatal);
         break;
     case MPC_RAM:
         downstream = &mms->ram[i];
-        memory_region_init_ram(downstream, NULL, mpcinfo[i].name,
+        memory_region_init_ram(downstream, OBJECT(mms), mpcinfo[i].name,
                                mpcinfo[i].size, &error_fatal);
         break;
     case MPC_CRYPTOISLAND:

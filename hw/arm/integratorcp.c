@@ -617,7 +617,7 @@ static void integratorcp_init(MachineState *machine)
     /* SDRAM at address zero*/
     memory_region_add_subregion(address_space_mem, 0, machine->ram);
     /* And again at address 0x80000000 */
-    memory_region_init_alias(ram_alias, NULL, "ram.alias", machine->ram,
+    memory_region_init_alias(ram_alias, OBJECT(machine), "ram.alias", machine->ram,
                              0, ram_size);
     memory_region_add_subregion(address_space_mem, 0x80000000, ram_alias);
 

@@ -128,22 +128,22 @@ static void sx1_init(MachineState *machine, const int version)
     mpu = omap310_mpu_init(OBJECT(machine), machine->ram, machine->cpu_type);
 
     /* External Flash (EMIFS) */
-    memory_region_init_rom(flash, NULL, "omap_sx1.flash0-0", flash_size,
+    memory_region_init_rom(flash, OBJECT(machine), "omap_sx1.flash0-0", flash_size,
                            &error_fatal);
     memory_region_add_subregion(address_space, OMAP_CS0_BASE, flash);
 
-    memory_region_init_io(&cs[0], NULL, &static_ops, &cs0val,
+    memory_region_init_io(&cs[0], OBJECT(machine), &static_ops, &cs0val,
                           "sx1.cs0", OMAP_CS0_SIZE - flash_size);
     memory_region_add_subregion(address_space,
                                 OMAP_CS0_BASE + flash_size, &cs[0]);
 
 
-    memory_region_init_io(&cs[2], NULL, &static_ops, &cs2val,
+    memory_region_init_io(&cs[2], OBJECT(machine), &static_ops, &cs2val,
                           "sx1.cs2", OMAP_CS2_SIZE);
     memory_region_add_subregion(address_space,
                                 OMAP_CS2_BASE, &cs[2]);
 
-    memory_region_init_io(&cs[3], NULL, &static_ops, &cs3val,
+    memory_region_init_io(&cs[3], OBJECT(machine), &static_ops, &cs3val,
                           "sx1.cs3", OMAP_CS3_SIZE);
     memory_region_add_subregion(address_space,
                                 OMAP_CS3_BASE, &cs[3]);
@@ -160,11 +160,11 @@ static void sx1_init(MachineState *machine, const int version)
     if ((version == 1) &&
             (dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
         MemoryRegion *flash_1 = g_new(MemoryRegion, 1);
-        memory_region_init_rom(flash_1, NULL, "omap_sx1.flash1-0",
+        memory_region_init_rom(flash_1, OBJECT(machine), "omap_sx1.flash1-0",
                                FLASH1_SIZE, &error_fatal);
         memory_region_add_subregion(address_space, OMAP_CS1_BASE, flash_1);
 
-        memory_region_init_io(&cs[1], NULL, &static_ops, &cs1val,
+        memory_region_init_io(&cs[1], OBJECT(machine), &static_ops, &cs1val,
                               "sx1.cs1", OMAP_CS1_SIZE - FLASH1_SIZE);
         memory_region_add_subregion(address_space,
                                 OMAP_CS1_BASE + FLASH1_SIZE, &cs[1]);
@@ -175,7 +175,7 @@ static void sx1_init(MachineState *machine, const int version)
                               SECTOR_SIZE, 4, 0, 0, 0, 0, 0);
         fl_idx++;
     } else {
-        memory_region_init_io(&cs[1], NULL, &static_ops, &cs1val,
+        memory_region_init_io(&cs[1], OBJECT(machine), &static_ops, &cs1val,
                               "sx1.cs1", OMAP_CS1_SIZE);
         memory_region_add_subregion(address_space,
                                 OMAP_CS1_BASE, &cs[1]);

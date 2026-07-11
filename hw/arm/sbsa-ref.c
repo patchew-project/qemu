@@ -410,7 +410,7 @@ static void create_secure_ram(SBSAMachineState *sms,
     hwaddr base = sbsa_ref_memmap[SBSA_SECURE_MEM].base;
     hwaddr size = sbsa_ref_memmap[SBSA_SECURE_MEM].size;
 
-    memory_region_init_ram(secram, NULL, "sbsa-ref.secure-ram", size,
+    memory_region_init_ram(secram, OBJECT(sms), "sbsa-ref.secure-ram", size,
                            &error_fatal);
     memory_region_add_subregion(secure_sysmem, base, secram);
 }

@@ -338,7 +338,7 @@ static MemoryRegion *mr_for_raminfo(MPS2TZMachineState *mms,
     assert(raminfo->mrindex < MPS2TZ_RAM_MAX);
     ram = &mms->ram[raminfo->mrindex];
 
-    memory_region_init_ram(ram, NULL, raminfo->name,
+    memory_region_init_ram(ram, OBJECT(mms), raminfo->name,
                            raminfo->size, &error_fatal);
     if (raminfo->flags & IS_ROM) {
         memory_region_set_readonly(ram, true);
@@ -349,10 +349,10 @@ static MemoryRegion *mr_for_raminfo(MPS2TZMachineState *mms,
 /* Create an alias of an entire original MemoryRegion @orig
  * located at @base in the memory map.
  */
-static void make_ram_alias(MemoryRegion *mr, const char *name,
+static void make_ram_alias(Object *owner, MemoryRegion *mr, const char *name,
                            MemoryRegion *orig, hwaddr base)
 {
-    memory_region_init_alias(mr, NULL, name, orig, 0,
+    memory_region_init_alias(mr, owner, name, orig, 0,
                              memory_region_size(orig));
     memory_region_add_subregion(get_system_memory(), base, mr);
 }
@@ -767,7 +767,8 @@ static void create_non_mpc_ram(MPS2TZMachineState *mms)
         if (p->flags & IS_ALIAS) {
             SysBusDevice *mpc_sbd = SYS_BUS_DEVICE(&mms->mpc[p->mpc]);
             MemoryRegion *upstream = sysbus_mmio_get_region(mpc_sbd, 1);
-            make_ram_alias(&mms->ram[p->mrindex], p->name, upstream, p->base);
+            make_ram_alias(OBJECT(mms), &mms->ram[p->mrindex], p->name,
+                           upstream, p->base);
         } else if (p->mpc == -1) {
             /* RAM not behind an MPC */
             MemoryRegion *mr = mr_for_raminfo(mms, p);

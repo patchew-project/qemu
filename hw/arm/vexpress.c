@@ -392,7 +392,7 @@ static void a15_daughterboard_init(VexpressMachineState *vms,
     /* 0x2b060000: SP805 watchdog: not modelled */
     /* 0x2b0a0000: PL341 dynamic memory controller: not modelled */
     /* 0x2e000000: system SRAM */
-    memory_region_init_ram(&vms->a15sram, NULL, "vexpress.a15sram", 0x10000,
+    memory_region_init_ram(&vms->a15sram, OBJECT(vms), "vexpress.a15sram", 0x10000,
                            &error_fatal);
     memory_region_add_subregion(sysmem, 0x2e000000, &vms->a15sram);
 
@@ -677,7 +677,7 @@ static void vexpress_common_init(MachineState *machine)
         /* Map flash 0 as an alias into low memory */
         MemoryRegion *flash0mem;
         flash0mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(pflash0), 0);
-        memory_region_init_alias(&vms->flashalias, NULL, "vexpress.flashalias",
+        memory_region_init_alias(&vms->flashalias, OBJECT(vms), "vexpress.flashalias",
                                  flash0mem, 0, VEXPRESS_FLASH_SIZE);
         memory_region_add_subregion(sysmem, map[VE_NORFLASHALIAS], &vms->flashalias);
     }
@@ -687,12 +687,12 @@ static void vexpress_common_init(MachineState *machine)
                              "vexpress.flash1", dinfo);
 
     sram_size = 0x2000000;
-    memory_region_init_ram(&vms->sram, NULL, "vexpress.sram", sram_size,
+    memory_region_init_ram(&vms->sram, OBJECT(vms), "vexpress.sram", sram_size,
                            &error_fatal);
     memory_region_add_subregion(sysmem, map[VE_SRAM], &vms->sram);
 
     vram_size = 0x800000;
-    memory_region_init_ram(&vms->vram, NULL, "vexpress.vram", vram_size,
+    memory_region_init_ram(&vms->vram, OBJECT(vms), "vexpress.vram", vram_size,
                            &error_fatal);
     memory_region_add_subregion(sysmem, map[VE_VIDEORAM], &vms->vram);
 

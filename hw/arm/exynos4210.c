@@ -660,7 +660,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
                                 &s->irom_alias_mem);
 
     /* Internal RAM */
-    memory_region_init_ram(&s->iram_mem, NULL, "exynos4210.iram",
+    memory_region_init_ram(&s->iram_mem, OBJECT(socdev), "exynos4210.iram",
                            EXYNOS4210_IRAM_SIZE, &error_fatal);
     memory_region_add_subregion(system_mem, EXYNOS4210_IRAM_BASE_ADDR,
                                 &s->iram_mem);

@@ -2308,13 +2308,13 @@ static void create_platform_bus(VirtMachineState *vms)
                                 sysbus_mmio_get_region(s, 0));
 }
 
-static void create_tag_ram(MemoryRegion *tag_sysmem,
+static void create_tag_ram(Object *owner, MemoryRegion *tag_sysmem,
                            hwaddr base, hwaddr size,
                            const char *name)
 {
     MemoryRegion *tagram = g_new(MemoryRegion, 1);
 
-    memory_region_init_ram(tagram, NULL, name, size / 32, &error_fatal);
+    memory_region_init_ram(tagram, owner, name, size / 32, &error_fatal);
     memory_region_add_subregion(tag_sysmem, base / 32, tagram);
 }
 
@@ -2328,7 +2328,7 @@ static void create_secure_ram(VirtMachineState *vms,
     hwaddr size = vms->memmap[VIRT_SECURE_MEM].size;
     MachineState *ms = MACHINE(vms);
 
-    memory_region_init_ram(secram, NULL, "virt.secure-ram", size,
+    memory_region_init_ram(secram, OBJECT(vms), "virt.secure-ram", size,
                            &error_fatal);
     memory_region_add_subregion(secure_sysmem, base, secram);
 
@@ -2340,7 +2340,8 @@ static void create_secure_ram(VirtMachineState *vms,
     qemu_fdt_setprop_string(ms->fdt, nodename, "secure-status", "okay");
 
     if (secure_tag_sysmem) {
-        create_tag_ram(secure_tag_sysmem, base, size, "mach-virt.secure-tag");
+        create_tag_ram(OBJECT(vms), secure_tag_sysmem, base, size,
+                       "mach-virt.secure-tag");
     }
 
     g_free(nodename);
@@ -2840,7 +2841,7 @@ static void virt_post_cpus_gic_realized(VirtMachineState *vms,
                 exit(1);
             }
 
-            memory_region_init_ram(pvtime, NULL, "pvtime", pvtime_size, NULL);
+            memory_region_init_ram(pvtime, OBJECT(vms), "pvtime", pvtime_size, NULL);
             memory_region_add_subregion(sysmem, pvtime_reg_base, pvtime);
         }
         if (!aarch64 && vms->virt) {
@@ -3200,7 +3201,7 @@ static void machvirt_init(MachineState *machine)
     }
 
     if (tag_sysmem) {
-        create_tag_ram(tag_sysmem, vms->memmap[VIRT_MEM].base,
+        create_tag_ram(OBJECT(vms), tag_sysmem, vms->memmap[VIRT_MEM].base,
                        machine->ram_size, "mach-virt.tag");
     }
 

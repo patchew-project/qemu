@@ -104,7 +104,7 @@ static void kzm_init(MachineState *machine)
         ram_size -= size;
 
         if (size < ram[i].size) {
-            memory_region_init_alias(&s->ram_alias, NULL, "ram.alias",
+            memory_region_init_alias(&s->ram_alias, OBJECT(machine), "ram.alias",
                                      machine->ram,
                                      alias_offset, ram[i].size - size);
             memory_region_add_subregion(get_system_memory(),

@@ -1236,7 +1236,7 @@ static void musicpal_init(MachineState *machine)
 
     memory_region_add_subregion(address_space_mem, 0, machine->ram);
 
-    memory_region_init_ram(sram, NULL, "musicpal.sram", MP_SRAM_SIZE,
+    memory_region_init_ram(sram, OBJECT(machine), "musicpal.sram", MP_SRAM_SIZE,
                            &error_fatal);
     memory_region_add_subregion(address_space_mem, MP_SRAM_BASE, sram);
 

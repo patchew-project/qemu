@@ -215,7 +215,7 @@ static MemoryRegion *mr_for_raminfo(MPS3RMachineState *mms,
     assert(raminfo->mrindex < MPS3R_RAM_MAX);
     ram = &mms->ram[raminfo->mrindex];
 
-    memory_region_init_ram(ram, NULL, raminfo->name,
+    memory_region_init_ram(ram, OBJECT(mms), raminfo->name,
                            raminfo->size, &error_fatal);
     if (raminfo->flags & IS_ROM) {
         memory_region_set_readonly(ram, true);
@@ -397,7 +397,7 @@ static void mps3r_common_init(MachineState *machine)
         object_unref(mms->cpu[i]);
 
         /* Per-CPU RAM */
-        memory_region_init_ram(&mms->cpu_ram[i], NULL, ramname,
+        memory_region_init_ram(&mms->cpu_ram[i], OBJECT(mms), ramname,
                                0x1000, &error_fatal);
         memory_region_add_subregion(&mms->cpu_sysmem[i], 0xe7c01000,
                                     &mms->cpu_ram[i]);

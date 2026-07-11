@@ -177,7 +177,7 @@ void aspeed_install_boot_rom(AspeedSoCState *soc, BlockBackend *blk,
 {
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(soc);
 
-    memory_region_init_rom(boot_rom, NULL, "aspeed.boot_rom", rom_size,
+    memory_region_init_rom(boot_rom, OBJECT(soc), "aspeed.boot_rom", rom_size,
                            &error_abort);
     memory_region_add_subregion_overlap(&soc->spi_boot_container, 0,
                                         boot_rom, 1);

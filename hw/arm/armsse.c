@@ -620,7 +620,7 @@ static uint32_t armsse_sys_config_value(ARMSSE *s, const ARMSSEInfo *info)
 static void make_alias(ARMSSE *s, MemoryRegion *mr, MemoryRegion *container,
                        const char *name, hwaddr base, hwaddr size, hwaddr orig)
 {
-    memory_region_init_alias(mr, NULL, name, container, orig, size);
+    memory_region_init_alias(mr, OBJECT(s), name, container, orig, size);
     /* The alias is even lower priority than unimplemented_device regions */
     memory_region_add_subregion_overlap(container, base, mr, -1500);
 }
@@ -1161,7 +1161,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         SysBusDevice *sbd_mpc;
         uint32_t sram_bank_size = 1 << s->sram_addr_width;
 
-        memory_region_init_ram(&s->sram[i], NULL, ramname,
+        memory_region_init_ram(&s->sram[i], OBJECT(dev), ramname,
                                sram_bank_size, errp);
         g_free(ramname);
         if (*errp) {
@@ -1226,11 +1226,11 @@ static void armsse_realize(DeviceState *dev, Error **errp)
 
     if (info->has_tcms) {
         /* The SSE-300 has an ITCM at 0x0000_0000 and a DTCM at 0x2000_0000 */
-        memory_region_init_ram(&s->itcm, NULL, "sse300-itcm", 512 * KiB, errp);
+        memory_region_init_ram(&s->itcm, OBJECT(dev), "sse300-itcm", 512 * KiB, errp);
         if (*errp) {
             return;
         }
-        memory_region_init_ram(&s->dtcm, NULL, "sse300-dtcm", 512 * KiB, errp);
+        memory_region_init_ram(&s->dtcm, OBJECT(dev), "sse300-dtcm", 512 * KiB, errp);
         if (*errp) {
             return;
         }

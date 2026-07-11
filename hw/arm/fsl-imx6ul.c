@@ -699,7 +699,7 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     /*
      * OCRAM memory
      */
-    memory_region_init_ram(&s->ocram, NULL, "imx6ul.ocram",
+    memory_region_init_ram(&s->ocram, OBJECT(dev), "imx6ul.ocram",
                            FSL_IMX6UL_OCRAM_MEM_SIZE,
                            &error_abort);
     memory_region_add_subregion(get_system_memory(), FSL_IMX6UL_OCRAM_MEM_ADDR,

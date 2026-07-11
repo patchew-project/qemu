@@ -88,14 +88,14 @@ static void lan9215_init(uint32_t base, qemu_irq irq)
     }
 }
 
-static void exynos4_boards_init_ram(Exynos4BoardState *s,
+static void exynos4_boards_init_ram(Object *owner, Exynos4BoardState *s,
                                     MemoryRegion *system_mem,
                                     unsigned long ram_size)
 {
     unsigned long mem_size = ram_size;
 
     if (mem_size > EXYNOS4210_DRAM_MAX_SIZE) {
-        memory_region_init_ram(&s->dram1_mem, NULL, "exynos4210.dram1",
+        memory_region_init_ram(&s->dram1_mem, owner, "exynos4210.dram1",
                                mem_size - EXYNOS4210_DRAM_MAX_SIZE,
                                &error_fatal);
         memory_region_add_subregion(system_mem, EXYNOS4210_DRAM1_BASE_ADDR,
@@ -103,7 +103,7 @@ static void exynos4_boards_init_ram(Exynos4BoardState *s,
         mem_size = EXYNOS4210_DRAM_MAX_SIZE;
     }
 
-    memory_region_init_ram(&s->dram0_mem, NULL, "exynos4210.dram0", mem_size,
+    memory_region_init_ram(&s->dram0_mem, owner, "exynos4210.dram0", mem_size,
                            &error_fatal);
     memory_region_add_subregion(system_mem, EXYNOS4210_DRAM0_BASE_ADDR,
                                 &s->dram0_mem);
@@ -122,7 +122,7 @@ exynos4_boards_init_common(MachineState *machine,
     exynos4_board_binfo.gic_cpu_if_addr =
             EXYNOS4210_SMP_PRIVATE_BASE_ADDR + 0x100;
 
-    exynos4_boards_init_ram(s, get_system_memory(),
+    exynos4_boards_init_ram(OBJECT(machine), s, get_system_memory(),
                             exynos4_board_ram_size[board_type]);
 
     object_initialize_child(OBJECT(machine), "soc", &s->soc,
