@@ -219,14 +219,14 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
     qdev_realize(DEVICE(&s->u_cluster), NULL, &error_abort);
 
     /* Reserved Memory at address 0 */
-    memory_region_init_ram(rsvd0_mem, NULL, "microchip.pfsoc.rsvd0_mem",
+    memory_region_init_ram(rsvd0_mem, OBJECT(dev), "microchip.pfsoc.rsvd0_mem",
                            memmap[MICROCHIP_PFSOC_RSVD0].size, &error_fatal);
     memory_region_add_subregion(system_memory,
                                 memmap[MICROCHIP_PFSOC_RSVD0].base,
                                 rsvd0_mem);
 
     /* E51 DTIM */
-    memory_region_init_ram(e51_dtim_mem, NULL, "microchip.pfsoc.e51_dtim_mem",
+    memory_region_init_ram(e51_dtim_mem, OBJECT(dev), "microchip.pfsoc.e51_dtim_mem",
                            memmap[MICROCHIP_PFSOC_E51_DTIM].size, &error_fatal);
     memory_region_add_subregion(system_memory,
                                 memmap[MICROCHIP_PFSOC_E51_DTIM].base,
@@ -271,7 +271,7 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
      * leave it enabled all the time. This won't break anything, but will be
      * too generous to misbehaving guests.
      */
-    memory_region_init_ram(l2lim_mem, NULL, "microchip.pfsoc.l2lim",
+    memory_region_init_ram(l2lim_mem, OBJECT(dev), "microchip.pfsoc.l2lim",
                            memmap[MICROCHIP_PFSOC_L2LIM].size, &error_fatal);
     memory_region_add_subregion(system_memory,
                                 memmap[MICROCHIP_PFSOC_L2LIM].base,
@@ -549,10 +549,10 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
     /* Split RAM into low and high regions using aliases to machine->ram */
     mem_low_size = memmap[MICROCHIP_PFSOC_DRAM_LO].size;
     mem_high_size = machine->ram_size - mem_low_size;
-    memory_region_init_alias(mem_low, NULL,
+    memory_region_init_alias(mem_low, OBJECT(machine),
                              "microchip.icicle.kit.ram_low", machine->ram,
                              0, mem_low_size);
-    memory_region_init_alias(mem_high, NULL,
+    memory_region_init_alias(mem_high, OBJECT(machine),
                              "microchip.icicle.kit.ram_high", machine->ram,
                              mem_low_size, mem_high_size);
 
@@ -565,13 +565,13 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
                                 mem_high);
 
     /* Create aliases for the low and high RAM regions */
-    memory_region_init_alias(mem_low_alias, NULL,
+    memory_region_init_alias(mem_low_alias, OBJECT(machine),
                              "microchip.icicle.kit.ram_low.alias",
                              mem_low, 0, mem_low_size);
     memory_region_add_subregion(system_memory,
                                 memmap[MICROCHIP_PFSOC_DRAM_LO_ALIAS].base,
                                 mem_low_alias);
-    memory_region_init_alias(mem_high_alias, NULL,
+    memory_region_init_alias(mem_high_alias, OBJECT(machine),
                              "microchip.icicle.kit.ram_high.alias",
                              mem_high, 0, mem_high_size);
     memory_region_add_subregion(system_memory,

@@ -477,7 +477,7 @@ static void sifive_u_machine_init(MachineState *machine)
                                 machine->ram);
 
     /* register QSPI0 Flash */
-    memory_region_init_ram(flash0, NULL, "riscv.sifive.u.flash0",
+    memory_region_init_ram(flash0, OBJECT(machine), "riscv.sifive.u.flash0",
                            memmap[SIFIVE_U_DEV_FLASH0].size, &error_fatal);
     memory_region_add_subregion(system_memory, memmap[SIFIVE_U_DEV_FLASH0].base,
                                 flash0);
@@ -763,7 +763,7 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
      * leave it enabled all the time. This won't break anything, but will be
      * too generous to misbehaving guests.
      */
-    memory_region_init_ram(l2lim_mem, NULL, "riscv.sifive.u.l2lim",
+    memory_region_init_ram(l2lim_mem, OBJECT(dev), "riscv.sifive.u.l2lim",
                            memmap[SIFIVE_U_DEV_L2LIM].size, &error_fatal);
     memory_region_add_subregion(system_memory, memmap[SIFIVE_U_DEV_L2LIM].base,
                                 l2lim_mem);

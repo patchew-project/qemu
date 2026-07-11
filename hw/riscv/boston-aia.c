@@ -374,7 +374,7 @@ static void boston_mach_init(MachineState *machine)
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->cps), 0, 0, 1);
 
     flash =  g_new(MemoryRegion, 1);
-    memory_region_init_rom(flash, NULL, "boston.flash",
+    memory_region_init_rom(flash, OBJECT(machine), "boston.flash",
                            boston_memmap[BOSTON_FLASH].size, &error_fatal);
     memory_region_add_subregion_overlap(sys_mem,
                                         boston_memmap[BOSTON_FLASH].base,
@@ -385,7 +385,7 @@ static void boston_mach_init(MachineState *machine)
                                         machine->ram, 0);
 
     ddr_low_alias = g_new(MemoryRegion, 1);
-    memory_region_init_alias(ddr_low_alias, NULL, "boston_low.ddr",
+    memory_region_init_alias(ddr_low_alias, OBJECT(machine), "boston_low.ddr",
                              machine->ram, 0,
                              MIN(machine->ram_size, (256 * MiB)));
     memory_region_add_subregion_overlap(sys_mem, 0, ddr_low_alias, 0);
@@ -398,7 +398,7 @@ static void boston_mach_init(MachineState *machine)
                              qdev_get_gpio_in(s->cps.aplic, PCIE2_INT));
 
     platreg = g_new(MemoryRegion, 1);
-    memory_region_init_io(platreg, NULL, &boston_platreg_ops, s,
+    memory_region_init_io(platreg, OBJECT(machine), &boston_platreg_ops, s,
                           "boston-platregs",
                           boston_memmap[BOSTON_PLATREG].size);
     memory_region_add_subregion_overlap(sys_mem,
@@ -410,7 +410,7 @@ static void boston_mach_init(MachineState *machine)
                              serial_hd(0), DEVICE_LITTLE_ENDIAN);
 
     lcd = g_new(MemoryRegion, 1);
-    memory_region_init_io(lcd, NULL, &boston_lcd_ops, s, "boston-lcd", 0x8);
+    memory_region_init_io(lcd, OBJECT(machine), &boston_lcd_ops, s, "boston-lcd", 0x8);
     memory_region_add_subregion_overlap(sys_mem,
                                         boston_memmap[BOSTON_LCD].base, lcd, 0);
 

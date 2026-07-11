@@ -1462,7 +1462,7 @@ static void virt_machine_init(MachineState *machine)
                                 machine->ram);
 
     /* boot rom */
-    memory_region_init_rom(mask_rom, NULL, "riscv_virt_board.mrom",
+    memory_region_init_rom(mask_rom, OBJECT(machine), "riscv_virt_board.mrom",
                            s->memmap[VIRT_MROM].size, &error_fatal);
     memory_region_add_subregion(system_memory, s->memmap[VIRT_MROM].base,
                                 mask_rom);

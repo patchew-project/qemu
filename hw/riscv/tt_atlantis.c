@@ -538,7 +538,7 @@ static void tt_atlantis_machine_init(MachineState *machine)
                                 s->memmap[TT_ATL_DDR_LO].base, ram_lo);
 
     /* Boot ROM */
-    memory_region_init_rom(bootrom, NULL, "tt-atlantis.bootrom",
+    memory_region_init_rom(bootrom, OBJECT(machine), "tt-atlantis.bootrom",
                            s->memmap[TT_ATL_BOOTROM].size, &error_fatal);
     memory_region_add_subregion(system_memory, s->memmap[TT_ATL_BOOTROM].base,
                                 bootrom);

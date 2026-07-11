@@ -179,7 +179,7 @@ static void spike_board_init(MachineState *machine)
         machine->ram);
 
     /* boot rom */
-    memory_region_init_rom(mask_rom, NULL, "riscv.spike.mrom",
+    memory_region_init_rom(mask_rom, OBJECT(machine), "riscv.spike.mrom",
                            memmap[SPIKE_MROM].size, &error_fatal);
     memory_region_add_subregion(system_memory, memmap[SPIKE_MROM].base,
                                 mask_rom);

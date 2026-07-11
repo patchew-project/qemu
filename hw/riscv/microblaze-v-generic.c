@@ -70,12 +70,12 @@ static void mb_v_generic_init(MachineState *machine)
     object_property_set_bool(OBJECT(cpu), "d", false, NULL);
     qdev_realize(DEVICE(cpu), NULL, &error_abort);
     /* Attach emulated BRAM through the LMB.  */
-    memory_region_init_ram(phys_lmb_bram, NULL,
+    memory_region_init_ram(phys_lmb_bram, OBJECT(machine),
                            "mb_v.lmb_bram", LMB_BRAM_SIZE,
                            &error_fatal);
     memory_region_add_subregion(sysmem, 0x00000000, phys_lmb_bram);
 
-    memory_region_init_ram(phys_ram, NULL, "mb_v.ram",
+    memory_region_init_ram(phys_ram, OBJECT(machine), "mb_v.ram",
                            ram_size, &error_fatal);
     memory_region_add_subregion(sysmem, ddr_base, phys_ram);
 
