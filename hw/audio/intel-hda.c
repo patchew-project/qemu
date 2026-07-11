@@ -1313,9 +1313,9 @@ static void intel_hda_and_codec_init(const char *audiodev)
     intel_hda = qdev_device_add_from_qdict(props, false, &error_fatal);
     hdabus = QLIST_FIRST(&intel_hda->child_bus);
 
-    codec = qdev_new_orphan("hda-duplex");
+    codec = qdev_new(OBJECT(intel_hda), "codec", "hda-duplex");
     qdev_prop_set_string(codec, "audiodev", audiodev);
-    qdev_realize_and_unref(codec, hdabus, &error_fatal);
+    qdev_realize(codec, hdabus, &error_fatal);
     object_unref(intel_hda);
 }
 

@@ -110,10 +110,11 @@ void audio_model_init(void)
     }
 
     if (c->typename) {
-        DeviceState *dev = qdev_new_orphan(c->typename);
+        DeviceState *dev = qdev_new(machine_get_container("peripheral-anon"),
+                                    "audio[*]", c->typename);
         BusState *bus = qdev_find_default_bus(DEVICE_GET_CLASS(dev), &error_fatal);
         qdev_prop_set_string(dev, "audiodev", audiodev_id);
-        qdev_realize_and_unref(dev, bus, &error_fatal);
+        qdev_realize(dev, bus, &error_fatal);
     } else {
         c->init(audiodev_id);
     }
