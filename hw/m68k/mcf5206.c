@@ -593,7 +593,7 @@ static void mcf5206_mbar_realize(DeviceState *dev, Error **errp)
                           "mbar", 0x00001000);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 
-    s->pic = qemu_allocate_irqs_orphan(m5206_mbar_set_irq, s, 14);
+    s->pic = qemu_allocate_irqs(OBJECT(dev), "pic-irq", m5206_mbar_set_irq, s, 14);
     m5206_timer_init(&s->timer[0], s->pic[9]);
     m5206_timer_init(&s->timer[1], s->pic[10]);
     s->uart[0] = mcf_uart_create(OBJECT(s), s->pic[12], serial_hd(0));

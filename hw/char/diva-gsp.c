@@ -126,7 +126,8 @@ static void diva_pci_realize(PCIDevice *dev, Error **errp)
     pci->dev.config[PCI_INTERRUPT_PIN] = 1;
     memory_region_init(&pci->membar, OBJECT(pci), "serial_ports", 4096);
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &pci->membar);
-    pci->irqs = qemu_allocate_irqs_orphan(multi_serial_irq_mux, pci, di.nports);
+    pci->irqs = qemu_allocate_irqs(OBJECT(dev), "serial-irq",
+                                   multi_serial_irq_mux, pci, di.nports);
 
     for (i = 0; i < di.nports; i++) {
         s = pci->state + i;

@@ -224,7 +224,7 @@ static void kvaser_pci_realize(PCIDevice *pci_dev, Error **errp)
     pci_conf = pci_dev->config;
     pci_conf[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin A */
 
-    d->irq = qemu_allocate_irq_orphan(kvaser_pci_irq_handler, d, 0);
+    d->irq = qemu_allocate_irq(OBJECT(s), "kvaser-irq", kvaser_pci_irq_handler, d, 0);
 
     can_sja_init(s, d->irq);
 

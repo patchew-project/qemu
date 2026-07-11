@@ -267,7 +267,8 @@ static void phb3_msi_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    msi->qirqs = qemu_allocate_irqs_orphan(phb3_msi_set_irq, msi, ics->nr_irqs);
+    msi->qirqs = qemu_allocate_irqs(OBJECT(dev), "msi-irq",
+                                    phb3_msi_set_irq, msi, ics->nr_irqs);
 }
 
 static void phb3_msi_instance_init(Object *obj)

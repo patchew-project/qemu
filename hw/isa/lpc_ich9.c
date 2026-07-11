@@ -429,7 +429,7 @@ static void ich9_lpc_pm_init(ICH9LPCState *lpc)
     qemu_irq sci_irq;
     FWCfgState *fw_cfg = fw_cfg_find();
 
-    sci_irq = qemu_allocate_irq_orphan(ich9_set_sci, lpc, 0);
+    sci_irq = qemu_allocate_irq(OBJECT(lpc), "sci-irq", ich9_set_sci, lpc, 0);
     ich9_pm_init(PCI_DEVICE(lpc), &lpc->pm, sci_irq);
 
     if (lpc->smi_host_features && fw_cfg) {

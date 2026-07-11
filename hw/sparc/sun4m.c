@@ -1008,7 +1008,8 @@ static void sun4m_hw_init(MachineState *machine)
 
     if (hwdef->apc_base) {
         apc_init(OBJECT(machine), hwdef->apc_base,
-                 qemu_allocate_irq_orphan(cpu_halt_signal, NULL, 0));
+                 qemu_allocate_irq(OBJECT(machine), "cpu-halt",
+                                   cpu_halt_signal, NULL, 0));
     }
 
     if (hwdef->fd_base) {
@@ -1018,7 +1019,7 @@ static void sun4m_hw_init(MachineState *machine)
         sun4m_fdctrl_init(OBJECT(machine), slavio_irq[22], hwdef->fd_base, fd,
                           &fdc_tc);
     } else {
-        fdc_tc = qemu_allocate_irq_orphan(dummy_fdc_tc, NULL, 0);
+        fdc_tc = qemu_allocate_irq(OBJECT(machine), "fdc-tc", dummy_fdc_tc, NULL, 0);
     }
 
     slavio_misc_init(OBJECT(machine), hwdef->slavio_base, hwdef->aux1_base,

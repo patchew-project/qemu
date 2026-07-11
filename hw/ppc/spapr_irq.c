@@ -339,7 +339,7 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         spapr_xive_hcall_init(spapr);
     }
 
-    spapr->qirqs = qemu_allocate_irqs_orphan(spapr_set_irq, spapr,
+    spapr->qirqs = qemu_allocate_irqs(OBJECT(spapr), "irq", spapr_set_irq, spapr,
                                       SPAPR_NR_XIRQS + SPAPR_IRQ_NR_IPIS);
 
     /*

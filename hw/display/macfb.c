@@ -737,7 +737,7 @@ static void macfb_nubus_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&nd->slot_mem, DAFB_BASE, &ms->mem_ctrl);
     memory_region_add_subregion(&nd->slot_mem, VIDEO_BASE, &ms->mem_vram);
 
-    ms->irq = qemu_allocate_irq_orphan(macfb_nubus_set_irq, s, 0);
+    ms->irq = qemu_allocate_irq(OBJECT(dev), "nubus-irq", macfb_nubus_set_irq, s, 0);
 }
 
 static void macfb_nubus_unrealize(DeviceState *dev)

@@ -993,7 +993,7 @@ ISABus *pnv_lpc_isa_create(PnvLpcController *lpc, bool use_cpld, Error **errp)
     }
 
     /* POWER has a 17th irq, QEMU only implements the 16 regular device irqs */
-    irqs = qemu_allocate_irqs_orphan(handler, lpc, ISA_NUM_IRQS);
+    irqs = qemu_allocate_irqs(OBJECT(lpc), "isa-irq", handler, lpc, ISA_NUM_IRQS);
 
     isa_bus_register_input_irqs(isa_bus, irqs);
 

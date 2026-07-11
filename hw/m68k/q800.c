@@ -474,11 +474,11 @@ static void q800_machine_init(MachineState *machine)
     sysbus_realize(sysbus, &error_fatal);
     /* SCSI and SCSI data IRQs are negative edge triggered */
     sysbus_connect_irq(sysbus, 0,
-                       qemu_irq_invert_orphan(
+                       qemu_irq_invert(OBJECT(machine), "scsi-irq-inv",
                            qdev_get_gpio_in(DEVICE(&m->via2),
                                                    VIA2_IRQ_SCSI_BIT)));
     sysbus_connect_irq(sysbus, 1,
-                       qemu_irq_invert_orphan(
+                       qemu_irq_invert(OBJECT(machine), "scsi-drq-inv",
                            qdev_get_gpio_in(DEVICE(&m->via2),
                                                    VIA2_IRQ_SCSI_DATA_BIT)));
     memory_region_add_subregion(&m->macio, ESP_BASE - IO_BASE,

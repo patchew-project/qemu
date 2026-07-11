@@ -1054,7 +1054,8 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
         ics_set_irq_type(&phb->lsis, i, true);
     }
 
-    phb->qirqs = qemu_allocate_irqs_orphan(ics_set_irq, &phb->lsis, phb->lsis.nr_irqs);
+    phb->qirqs = qemu_allocate_irqs(OBJECT(dev), "lsi-irq",
+                                    ics_set_irq, &phb->lsis, phb->lsis.nr_irqs);
 
     /* MSI sources */
     object_property_set_link(OBJECT(&phb->msis), "phb", OBJECT(phb),

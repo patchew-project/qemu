@@ -170,7 +170,7 @@ static void xen_create_virtio_mmio_devices(XenPVHMachineState *s)
      */
     for (i = s->cfg.virtio_mmio_num - 1; i >= 0; i--) {
         hwaddr base = s->cfg.virtio_mmio.base + i * s->cfg.virtio_mmio.size;
-        qemu_irq irq = qemu_allocate_irq_orphan(xen_set_irq, NULL,
+        qemu_irq irq = qemu_allocate_irq(OBJECT(s), "virtio-irq[*]", xen_set_irq, NULL,
                                          s->cfg.virtio_mmio_irq_base + i);
 
         sysbus_create_simple(OBJECT(s), "virtio-mmio[*]", "virtio-mmio",
@@ -260,7 +260,8 @@ static inline void xenpvh_gpex_init(XenPVHMachineState *s,
     assert(xpc->set_pci_intx_irq);
 
     for (i = 0; i < PCI_NUM_PINS; i++) {
-        qemu_irq irq = qemu_allocate_irq_orphan(xpc->set_pci_intx_irq, s, i);
+        qemu_irq irq = qemu_allocate_irq(OBJECT(s), "pci-intx-irq[*]",
+                                         xpc->set_pci_intx_irq, s, i);
 
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, irq);
         gpex_set_irq_num(GPEX_HOST(dev), i, s->cfg.pci_intx_irq_base + i);

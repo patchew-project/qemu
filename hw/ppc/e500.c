@@ -1089,7 +1089,8 @@ void ppce500_init(MachineState *machine)
                                     sysbus_mmio_get_region(s, 0));
 
         /* Power Off GPIO at Pin 0 */
-        poweroff_irq = qemu_allocate_irq_orphan(ppce500_power_off, NULL, 0);
+        poweroff_irq = qemu_allocate_irq(OBJECT(machine), "poweroff",
+                                         ppce500_power_off, NULL, 0);
         qdev_connect_gpio_out(dev, 0, poweroff_irq);
     }
 

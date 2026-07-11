@@ -509,7 +509,8 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
 
     qdev_init_gpio_in(dev, pnv_psi_power8_set_irq, ics->nr_irqs);
 
-    psi->qirqs = qemu_allocate_irqs_orphan(ics_set_irq, ics, ics->nr_irqs);
+    psi->qirqs = qemu_allocate_irqs(OBJECT(dev), "psi-irq",
+                                    ics_set_irq, ics, ics->nr_irqs);
 
     /* XSCOM region for PSI registers */
     pnv_xscom_region_init(&psi->xscom_regs, OBJECT(dev), &pnv_psi_xscom_ops,
@@ -872,7 +873,8 @@ static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
         xive_source_irq_set_lsi(xsrc, i);
     }
 
-    psi->qirqs = qemu_allocate_irqs_orphan(xive_source_set_irq, xsrc, xsrc->nr_irqs);
+    psi->qirqs = qemu_allocate_irqs(OBJECT(dev), "psi-irq",
+                                    xive_source_set_irq, xsrc, xsrc->nr_irqs);
 
     qdev_init_gpio_in(dev, pnv_psi_power9_set_irq, xsrc->nr_irqs);
 

@@ -1605,7 +1605,8 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
 
     pnv_phb4_update_xsrc(phb);
 
-    phb->qirqs = qemu_allocate_irqs_orphan(xive_source_set_irq, xsrc, xsrc->nr_irqs);
+    phb->qirqs = qemu_allocate_irqs(OBJECT(dev), "lsi-irq",
+                                    xive_source_set_irq, xsrc, xsrc->nr_irqs);
 
     pnv_phb4_xscom_realize(phb);
 }
