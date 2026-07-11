@@ -186,9 +186,10 @@ static void openrisc_sim_net_init(Or1ksimState *state, hwaddr base, hwaddr size,
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     if (num_cpus > 1) {
-        DeviceState *splitter = qdev_new_orphan(TYPE_SPLIT_IRQ);
+        DeviceState *splitter = qdev_new(OBJECT(state), "irq-splitter[*]",
+                                         TYPE_SPLIT_IRQ);
         qdev_prop_set_uint32(splitter, "num-lines", num_cpus);
-        qdev_realize_and_unref(splitter, NULL, &error_fatal);
+        qdev_realize(splitter, NULL, &error_fatal);
         for (i = 0; i < num_cpus; i++) {
             qdev_connect_gpio_out(splitter, i, get_cpu_irq(cpus, i, irq_pin));
         }
@@ -221,11 +222,11 @@ static void openrisc_sim_ompic_init(Or1ksimState *state, hwaddr base,
     char *nodename;
     int i;
 
-    dev = qdev_new_orphan("or1k-ompic");
+    dev = qdev_new(OBJECT(state), "ompic", "or1k-ompic");
     qdev_prop_set_uint32(dev, "num-cpus", num_cpus);
 
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     for (i = 0; i < num_cpus; i++) {
         sysbus_connect_irq(s, i, get_cpu_irq(cpus, i, irq_pin));
     }
@@ -254,9 +255,10 @@ static void openrisc_sim_serial_init(Or1ksimState *state, hwaddr base,
     int i;
 
     if (num_cpus > 1) {
-        DeviceState *splitter = qdev_new_orphan(TYPE_SPLIT_IRQ);
+        DeviceState *splitter = qdev_new(OBJECT(state), "irq-splitter[*]",
+                                         TYPE_SPLIT_IRQ);
         qdev_prop_set_uint32(splitter, "num-lines", num_cpus);
-        qdev_realize_and_unref(splitter, NULL, &error_fatal);
+        qdev_realize(splitter, NULL, &error_fatal);
         for (i = 0; i < num_cpus; i++) {
             qdev_connect_gpio_out(splitter, i, get_cpu_irq(cpus, i, irq_pin));
         }
@@ -299,7 +301,8 @@ static void openrisc_sim_init(MachineState *machine)
 
     assert(smp_cpus >= 1 && smp_cpus <= OR1KSIM_CPUS_MAX);
     for (n = 0; n < smp_cpus; n++) {
-        cpus[n] = OPENRISC_CPU(cpu_create_orphan(machine->cpu_type));
+        cpus[n] = OPENRISC_CPU(cpu_create(OBJECT(machine), "cpu[*]",
+                                          machine->cpu_type));
         if (cpus[n] == NULL) {
             fprintf(stderr, "Unable to find CPU definition!\n");
             exit(1);

@@ -105,14 +105,16 @@ static qemu_irq get_cpu_irq(OpenRISCCPU *cpus[], int cpunum, int irq_pin)
     return qdev_get_gpio_in_named(DEVICE(cpus[cpunum]), "IRQ", irq_pin);
 }
 
-static qemu_irq get_per_cpu_irq(OpenRISCCPU *cpus[], int num_cpus, int irq_pin)
+static qemu_irq get_per_cpu_irq(Object *parent, OpenRISCCPU *cpus[],
+                                int num_cpus, int irq_pin)
 {
     int i;
 
     if (num_cpus > 1) {
-        DeviceState *splitter = qdev_new_orphan(TYPE_SPLIT_IRQ);
+        DeviceState *splitter = qdev_new(parent, "irq-splitter[*]",
+                                         TYPE_SPLIT_IRQ);
         qdev_prop_set_uint32(splitter, "num-lines", num_cpus);
-        qdev_realize_and_unref(splitter, NULL, &error_fatal);
+        qdev_realize(splitter, NULL, &error_fatal);
         for (i = 0; i < num_cpus; i++) {
             qdev_connect_gpio_out(splitter, i, get_cpu_irq(cpus, i, irq_pin));
         }
@@ -206,11 +208,11 @@ static void openrisc_virt_ompic_init(OR1KVirtState *state, hwaddr base,
     char *nodename;
     int i;
 
-    dev = qdev_new_orphan("or1k-ompic");
+    dev = qdev_new(OBJECT(state), "ompic", "or1k-ompic");
     qdev_prop_set_uint32(dev, "num-cpus", num_cpus);
 
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     for (i = 0; i < num_cpus; i++) {
         sysbus_connect_irq(s, i, get_cpu_irq(cpus, i, irq_pin));
     }
@@ -233,7 +235,8 @@ static void openrisc_virt_serial_init(OR1KVirtState *state, hwaddr base,
 {
     void *fdt = state->fdt;
     char *nodename;
-    qemu_irq serial_irq = get_per_cpu_irq(cpus, num_cpus, irq_pin);
+    qemu_irq serial_irq = get_per_cpu_irq(OBJECT(state), cpus, num_cpus,
+                                          irq_pin);
 
     serial_mm_init(get_system_memory(), base, 0, serial_irq, 115200,
                    serial_hd(0), DEVICE_BIG_ENDIAN);
@@ -297,10 +300,12 @@ static void openrisc_virt_rtc_init(OR1KVirtState *state, hwaddr base,
 {
     void *fdt = state->fdt;
     char *nodename;
-    qemu_irq rtc_irq = get_per_cpu_irq(cpus, num_cpus, irq_pin);
+    qemu_irq rtc_irq = get_per_cpu_irq(OBJECT(state), cpus, num_cpus,
+                                       irq_pin);
 
     /* Goldfish RTC */
-    sysbus_create_simple_orphan(TYPE_GOLDFISH_RTC, base, rtc_irq);
+    sysbus_create_simple(OBJECT(state), "rtc", TYPE_GOLDFISH_RTC, base,
+                         rtc_irq);
 
     /* Goldfish RTC FDT */
     nodename = g_strdup_printf("/soc/rtc@%" HWADDR_PRIx, base);
@@ -379,8 +384,8 @@ static void openrisc_virt_pcie_init(OR1KVirtState *state,
     qemu_irq pcie_irq;
     int i;
 
-    dev = qdev_new_orphan(TYPE_GPEX_HOST);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    dev = qdev_new(OBJECT(state), "pcie", TYPE_GPEX_HOST);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* Map ECAM space. */
     alias = g_new0(MemoryRegion, 1);
@@ -410,7 +415,7 @@ static void openrisc_virt_pcie_init(OR1KVirtState *state,
 
     /* Connect IRQ lines. */
     for (i = 0; i < PCI_NUM_PINS; i++) {
-        pcie_irq = get_per_cpu_irq(cpus, num_cpus, irq_base + i);
+        pcie_irq = get_per_cpu_irq(OBJECT(state), cpus, num_cpus, irq_base + i);
 
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, pcie_irq);
         gpex_set_irq_num(GPEX_HOST(dev), i, irq_base + i);
@@ -448,13 +453,14 @@ static void openrisc_virt_virtio_init(OR1KVirtState *state, hwaddr base,
     char *nodename;
     DeviceState *dev;
     SysBusDevice *sysbus;
-    qemu_irq virtio_irq = get_per_cpu_irq(cpus, num_cpus, irq_pin);
+    qemu_irq virtio_irq = get_per_cpu_irq(OBJECT(state), cpus, num_cpus,
+                                          irq_pin);
 
     /* VirtIO MMIO devices */
-    dev = qdev_new_orphan(TYPE_VIRTIO_MMIO);
+    dev = qdev_new(OBJECT(state), "virtio-mmio[*]", TYPE_VIRTIO_MMIO);
     qdev_prop_set_bit(dev, "force-legacy", false);
     sysbus = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sysbus, &error_fatal);
+    sysbus_realize(sysbus, &error_fatal);
     sysbus_connect_irq(sysbus, 0, virtio_irq);
     sysbus_mmio_map(sysbus, 0, base);
 
@@ -481,7 +487,8 @@ static void openrisc_virt_init(MachineState *machine)
 
     assert(smp_cpus >= 1 && smp_cpus <= VIRT_CPUS_MAX);
     for (n = 0; n < smp_cpus; n++) {
-        cpus[n] = OPENRISC_CPU(cpu_create_orphan(machine->cpu_type));
+        cpus[n] = OPENRISC_CPU(cpu_create(OBJECT(machine), "cpu[*]",
+                                          machine->cpu_type));
         if (cpus[n] == NULL) {
             fprintf(stderr, "Unable to find CPU definition!\n");
             exit(1);
