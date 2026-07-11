@@ -2223,6 +2223,13 @@ F: docs/pci*
 F: docs/specs/*pci*
 F: docs/system/sriov.rst
 
+Thunderbolt PCIe
+R: Dmitry R <rdmitry0911@gmail.com>
+S: Maintained
+F: docs/specs/thunderbolt-pcie-hotplug.rst
+F: hw/display/thunderbolt-vga.c
+F: hw/pci-bridge/thunderbolt*.c
+
 ARM PCI Hotplug
 M: Gustavo Romero <gustavo.romero@linaro.org>
 L: qemu-arm@nongnu.org

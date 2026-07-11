@@ -31,6 +31,7 @@ guest hardware that is specific to QEMU.
    pvpanic
    spdm
    standard-vga
+   thunderbolt-pcie-hotplug
    virt-ctlr
    vmcoreinfo
    vmgenid
