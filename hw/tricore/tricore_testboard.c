@@ -55,6 +55,7 @@ static void tricore_load_kernel(CPUTriCoreState *env)
 
 static void tricore_testboard_init(MachineState *machine, int board_id)
 {
+    Object *mo = OBJECT(machine);
     TriCoreCPU *cpu;
     CPUTriCoreState *env;
     TriCoreTestDeviceState *test_dev;
@@ -67,7 +68,7 @@ static void tricore_testboard_init(MachineState *machine, int board_id)
     MemoryRegion *pcp_data = g_new(MemoryRegion, 1);
     MemoryRegion *pcp_text = g_new(MemoryRegion, 1);
 
-    cpu = TRICORE_CPU(cpu_create_orphan(machine->cpu_type));
+    cpu = TRICORE_CPU(cpu_create(mo, "cpu", machine->cpu_type));
     env = &cpu->env;
     memory_region_init_ram(ext_cram, NULL, "powerlink_ext_c.ram",
                            2 * MiB, &error_fatal);
@@ -89,7 +90,9 @@ static void tricore_testboard_init(MachineState *machine, int board_id)
     memory_region_add_subregion(sysmem, 0xf0050000, pcp_data);
     memory_region_add_subregion(sysmem, 0xf0060000, pcp_text);
 
-    test_dev = TRICORE_TESTDEVICE(qdev_new_orphan(TYPE_TRICORE_TESTDEVICE));
+    test_dev = TRICORE_TESTDEVICE(qdev_new(mo, "testdevice",
+                                           TYPE_TRICORE_TESTDEVICE));
+    sysbus_realize(SYS_BUS_DEVICE(test_dev), &error_fatal);
     memory_region_add_subregion(sysmem, 0xf0000000, &test_dev->iomem);
 
 
