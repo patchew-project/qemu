@@ -85,7 +85,8 @@ petalogix_s3adsp1800_init(MachineState *machine)
     MemoryRegion *sysmem = get_system_memory();
     EndianMode endianness = psms->endianness;
 
-    cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
+    cpu = MICROBLAZE_CPU(object_new_child(OBJECT(machine), "cpu[0]",
+                                          TYPE_MICROBLAZE_CPU));
     object_property_set_str(OBJECT(cpu), "version", "7.10.d", &error_abort);
     object_property_set_bool(OBJECT(cpu), "little-endian",
                              endianness == ENDIAN_MODE_LITTLE, &error_abort);

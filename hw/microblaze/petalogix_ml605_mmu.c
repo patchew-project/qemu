@@ -82,7 +82,8 @@ petalogix_ml605_init(MachineState *machine)
     qemu_irq irq[32];
 
     /* init CPUs */
-    cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
+    cpu = MICROBLAZE_CPU(object_new_child(OBJECT(machine), "cpu[0]",
+                                          TYPE_MICROBLAZE_CPU));
     object_property_set_str(OBJECT(cpu), "version", "8.10.a", &error_abort);
     /* Use FPU but don't use floating point conversion and square
      * root instructions
