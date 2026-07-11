@@ -55,17 +55,18 @@ static void npcm8xx_load_bootrom(MachineState *machine, NPCM8xxState *soc)
     }
 }
 
-static void npcm8xx_connect_flash(NPCM7xxFIUState *fiu, int cs_no,
-                                  const char *flash_type, DriveInfo *dinfo)
+static void npcm8xx_connect_flash(Object *parent, NPCM7xxFIUState *fiu,
+                                  int cs_no, const char *flash_type,
+                                  DriveInfo *dinfo)
 {
     DeviceState *flash;
     qemu_irq flash_cs;
 
-    flash = qdev_new_orphan(flash_type);
+    flash = qdev_new(parent, "flash[*]", flash_type);
     if (dinfo) {
         qdev_prop_set_drive(flash, "drive", blk_by_legacy_dinfo(dinfo));
     }
-    qdev_realize_and_unref(flash, BUS(fiu->spi), &error_fatal);
+    qdev_realize(flash, BUS(fiu->spi), &error_fatal);
 
     flash_cs = qdev_get_gpio_in_named(flash, SSI_GPIO_CS, 0);
     qdev_connect_gpio_out_named(DEVICE(fiu), "cs", cs_no, flash_cs);
@@ -156,10 +157,11 @@ static void npcm8xx_connect_pwm_fan(NPCM8xxState *soc, SplitIRQ *splitter,
     qdev_connect_gpio_out(DEVICE(splitter), output_no, fan_duty_gpio);
 }
 
-static void npcm845_evb_i2c_init(NPCM8xxState *soc)
+static void npcm845_evb_i2c_init(Object *parent, NPCM8xxState *soc)
 {
     /* tmp100 temperature sensor on SVB, tmp105 is compatible */
-    i2c_slave_create_simple_orphan(npcm8xx_i2c_get_bus(soc, 6), "tmp105", 0x48);
+    i2c_slave_create_simple(parent, "tmp105",
+                            npcm8xx_i2c_get_bus(soc, 6), "tmp105", 0x48);
 }
 
 static void npcm845_evb_fan_init(NPCM8xxMachine *machine, NPCM8xxState *soc)
@@ -195,8 +197,9 @@ static void npcm845_evb_init(MachineState *machine)
     qdev_realize(DEVICE(soc), NULL, &error_fatal);
 
     npcm8xx_load_bootrom(machine, soc);
-    npcm8xx_connect_flash(&soc->fiu[0], 0, "w25q256", drive_get(IF_MTD, 0, 0));
-    npcm845_evb_i2c_init(soc);
+    npcm8xx_connect_flash(OBJECT(machine), &soc->fiu[0], 0, "w25q256",
+                          drive_get(IF_MTD, 0, 0));
+    npcm845_evb_i2c_init(OBJECT(machine), soc);
     npcm845_evb_fan_init(NPCM8XX_MACHINE(machine), soc);
     npcm8xx_load_kernel(machine, soc);
 }

@@ -78,17 +78,18 @@ static void npcm7xx_load_bootrom(MachineState *machine, NPCM7xxState *soc)
     }
 }
 
-static void npcm7xx_connect_flash(NPCM7xxFIUState *fiu, int cs_no,
-                                  const char *flash_type, DriveInfo *dinfo)
+static void npcm7xx_connect_flash(Object *parent, NPCM7xxFIUState *fiu,
+                                  int cs_no, const char *flash_type,
+                                  DriveInfo *dinfo)
 {
     DeviceState *flash;
     qemu_irq flash_cs;
 
-    flash = qdev_new_orphan(flash_type);
+    flash = qdev_new(parent, "flash[*]", flash_type);
     if (dinfo) {
         qdev_prop_set_drive(flash, "drive", blk_by_legacy_dinfo(dinfo));
     }
-    qdev_realize_and_unref(flash, BUS(fiu->spi), &error_fatal);
+    qdev_realize(flash, BUS(fiu->spi), &error_fatal);
 
     flash_cs = qdev_get_gpio_in_named(flash, SSI_GPIO_CS, 0);
     qdev_connect_gpio_out_named(DEVICE(fiu), "cs", cs_no, flash_cs);
@@ -102,7 +103,7 @@ static void npcm7xx_connect_dram(NPCM7xxState *soc, MemoryRegion *dram)
                              &error_abort);
 }
 
-static void sdhci_attach_drive(SDHCIState *sdhci, int unit)
+static void sdhci_attach_drive(Object *parent, SDHCIState *sdhci, int unit)
 {
         DriveInfo *di = drive_get(IF_SD, 0, unit);
         BlockBackend *blk = di ? blk_by_legacy_dinfo(di) : NULL;
@@ -113,9 +114,9 @@ static void sdhci_attach_drive(SDHCIState *sdhci, int unit)
             exit(1);
         }
 
-        DeviceState *carddev = qdev_new_orphan(TYPE_SD_CARD);
+        DeviceState *carddev = qdev_new(parent, "sd-card[*]", TYPE_SD_CARD);
         qdev_prop_set_drive_err(carddev, "drive", blk, &error_fatal);
-        qdev_realize_and_unref(carddev, bus, &error_fatal);
+        qdev_realize(carddev, bus, &error_fatal);
 }
 
 static NPCM7xxState *npcm7xx_create_soc(MachineState *machine,
@@ -195,16 +196,20 @@ static void npcm7xx_connect_pwm_fan(NPCM7xxState *soc, SplitIRQ *splitter,
     qdev_connect_gpio_out(DEVICE(splitter), output_no, fan_duty_gpio);
 }
 
-static void npcm750_evb_i2c_init(NPCM7xxState *soc)
+static void npcm750_evb_i2c_init(Object *parent, NPCM7xxState *soc)
 {
     /* lm75 temperature sensor on SVB, tmp105 is compatible */
-    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 0), "tmp105", 0x48);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            npcm7xx_i2c_get_bus(soc, 0), "tmp105", 0x48);
     /* lm75 temperature sensor on EB, tmp105 is compatible */
-    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 1), "tmp105", 0x48);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            npcm7xx_i2c_get_bus(soc, 1), "tmp105", 0x48);
     /* tmp100 temperature sensor on EB, tmp105 is compatible */
-    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 2), "tmp105", 0x48);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            npcm7xx_i2c_get_bus(soc, 2), "tmp105", 0x48);
     /* tmp100 temperature sensor on SVB, tmp105 is compatible */
-    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 6), "tmp105", 0x48);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            npcm7xx_i2c_get_bus(soc, 6), "tmp105", 0x48);
 }
 
 static void npcm750_evb_fan_init(NPCM7xxMachine *machine, NPCM7xxState *soc)
@@ -231,13 +236,17 @@ static void npcm750_evb_fan_init(NPCM7xxMachine *machine, NPCM7xxState *soc)
     npcm7xx_connect_pwm_fan(soc, &splitter[7], 0x0f, 1);
 }
 
-static void quanta_gsj_i2c_init(NPCM7xxState *soc)
+static void quanta_gsj_i2c_init(Object *parent, NPCM7xxState *soc)
 {
     /* GSJ machine have 4 max31725 temperature sensors, tmp105 is compatible. */
-    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 1), "tmp105", 0x5c);
-    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 2), "tmp105", 0x5c);
-    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 3), "tmp105", 0x5c);
-    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 4), "tmp105", 0x5c);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            npcm7xx_i2c_get_bus(soc, 1), "tmp105", 0x5c);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            npcm7xx_i2c_get_bus(soc, 2), "tmp105", 0x5c);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            npcm7xx_i2c_get_bus(soc, 3), "tmp105", 0x5c);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            npcm7xx_i2c_get_bus(soc, 4), "tmp105", 0x5c);
 
     at24c_eeprom_init(npcm7xx_i2c_get_bus(soc, 9), 0x55, 8192);
     at24c_eeprom_init(npcm7xx_i2c_get_bus(soc, 10), 0x55, 8192);
@@ -253,7 +262,8 @@ static void quanta_gsj_i2c_init(NPCM7xxState *soc)
      * - ucd90160@6b
      */
 
-    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 15), "pca9548", 0x75);
+    i2c_slave_create_simple(parent, "pca9548",
+                            npcm7xx_i2c_get_bus(soc, 15), "pca9548", 0x75);
 }
 
 static void quanta_gsj_fan_init(NPCM7xxMachine *machine, NPCM7xxState *soc)
@@ -329,33 +339,45 @@ static void quanta_gbs_i2c_init(NPCM7xxState *soc)
      */
 }
 
-static void kudo_bmc_i2c_init(NPCM7xxState *soc)
+static void kudo_bmc_i2c_init(Object *parent, NPCM7xxState *soc)
 {
     I2CSlave *i2c_mux;
 
-    i2c_mux = i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 1),
+    i2c_mux = i2c_slave_create_simple(parent, "pca9548[*]",
+                                      npcm7xx_i2c_get_bus(soc, 1),
                                       TYPE_PCA9548, 0x75);
 
     /* tmp105 is compatible with the lm75 */
-    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 4), "tmp105", 0x5c);
-    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 5), "tmp105", 0x5c);
-    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 6), "tmp105", 0x5c);
-    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 7), "tmp105", 0x5c);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            pca954x_i2c_get_bus(i2c_mux, 4), "tmp105", 0x5c);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            pca954x_i2c_get_bus(i2c_mux, 5), "tmp105", 0x5c);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            pca954x_i2c_get_bus(i2c_mux, 6), "tmp105", 0x5c);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            pca954x_i2c_get_bus(i2c_mux, 7), "tmp105", 0x5c);
 
-    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 1), TYPE_PCA9548, 0x77);
+    i2c_slave_create_simple(parent, "pca9548[*]",
+                            npcm7xx_i2c_get_bus(soc, 1), TYPE_PCA9548, 0x77);
 
-    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 4), TYPE_PCA9548, 0x77);
+    i2c_slave_create_simple(parent, "pca9548[*]",
+                            npcm7xx_i2c_get_bus(soc, 4), TYPE_PCA9548, 0x77);
 
     at24c_eeprom_init(npcm7xx_i2c_get_bus(soc, 4), 0x50, 8192); /* mbfru */
 
-    i2c_mux = i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 13),
+    i2c_mux = i2c_slave_create_simple(parent, "pca9548[*]",
+                                      npcm7xx_i2c_get_bus(soc, 13),
                                       TYPE_PCA9548, 0x77);
 
     /* tmp105 is compatible with the lm75 */
-    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 2), "tmp105", 0x48);
-    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 3), "tmp105", 0x49);
-    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 4), "tmp105", 0x48);
-    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 5), "tmp105", 0x49);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            pca954x_i2c_get_bus(i2c_mux, 2), "tmp105", 0x48);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            pca954x_i2c_get_bus(i2c_mux, 3), "tmp105", 0x49);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            pca954x_i2c_get_bus(i2c_mux, 4), "tmp105", 0x48);
+    i2c_slave_create_simple(parent, "tmp105[*]",
+                            pca954x_i2c_get_bus(i2c_mux, 5), "tmp105", 0x49);
 
     at24c_eeprom_init(npcm7xx_i2c_get_bus(soc, 14), 0x55, 8192); /* bmcfru */
 
@@ -371,8 +393,9 @@ static void npcm750_evb_init(MachineState *machine)
     qdev_realize(DEVICE(soc), NULL, &error_fatal);
 
     npcm7xx_load_bootrom(machine, soc);
-    npcm7xx_connect_flash(&soc->fiu[0], 0, "w25q256", drive_get(IF_MTD, 0, 0));
-    npcm750_evb_i2c_init(soc);
+    npcm7xx_connect_flash(OBJECT(machine), &soc->fiu[0], 0, "w25q256",
+                          drive_get(IF_MTD, 0, 0));
+    npcm750_evb_i2c_init(OBJECT(machine), soc);
     npcm750_evb_fan_init(NPCM7XX_MACHINE(machine), soc);
     npcm7xx_load_kernel(machine, soc);
 }
@@ -386,9 +409,9 @@ static void quanta_gsj_init(MachineState *machine)
     qdev_realize(DEVICE(soc), NULL, &error_fatal);
 
     npcm7xx_load_bootrom(machine, soc);
-    npcm7xx_connect_flash(&soc->fiu[0], 0, "mx25l25635e",
+    npcm7xx_connect_flash(OBJECT(machine), &soc->fiu[0], 0, "mx25l25635e",
                           drive_get(IF_MTD, 0, 0));
-    quanta_gsj_i2c_init(soc);
+    quanta_gsj_i2c_init(OBJECT(machine), soc);
     quanta_gsj_fan_init(NPCM7XX_MACHINE(machine), soc);
     npcm7xx_load_kernel(machine, soc);
 }
@@ -403,11 +426,11 @@ static void quanta_gbs_init(MachineState *machine)
 
     npcm7xx_load_bootrom(machine, soc);
 
-    npcm7xx_connect_flash(&soc->fiu[0], 0, "mx66u51235f",
+    npcm7xx_connect_flash(OBJECT(machine), &soc->fiu[0], 0, "mx66u51235f",
                           drive_get(IF_MTD, 0, 0));
 
     quanta_gbs_i2c_init(soc);
-    sdhci_attach_drive(&soc->mmc.sdhci, 0);
+    sdhci_attach_drive(OBJECT(machine), &soc->mmc.sdhci, 0);
     npcm7xx_load_kernel(machine, soc);
 }
 
@@ -420,13 +443,13 @@ static void kudo_bmc_init(MachineState *machine)
     qdev_realize(DEVICE(soc), NULL, &error_fatal);
 
     npcm7xx_load_bootrom(machine, soc);
-    npcm7xx_connect_flash(&soc->fiu[0], 0, "mx66u51235f",
+    npcm7xx_connect_flash(OBJECT(machine), &soc->fiu[0], 0, "mx66u51235f",
                           drive_get(IF_MTD, 0, 0));
-    npcm7xx_connect_flash(&soc->fiu[1], 0, "mx66u51235f",
+    npcm7xx_connect_flash(OBJECT(machine), &soc->fiu[1], 0, "mx66u51235f",
                           drive_get(IF_MTD, 3, 0));
 
-    kudo_bmc_i2c_init(soc);
-    sdhci_attach_drive(&soc->mmc.sdhci, 0);
+    kudo_bmc_i2c_init(OBJECT(machine), soc);
+    sdhci_attach_drive(OBJECT(machine), &soc->mmc.sdhci, 0);
     npcm7xx_load_kernel(machine, soc);
 }
 
@@ -439,7 +462,7 @@ static void mori_bmc_init(MachineState *machine)
     qdev_realize(DEVICE(soc), NULL, &error_fatal);
 
     npcm7xx_load_bootrom(machine, soc);
-    npcm7xx_connect_flash(&soc->fiu[1], 0, "mx66u51235f",
+    npcm7xx_connect_flash(OBJECT(machine), &soc->fiu[1], 0, "mx66u51235f",
                           drive_get(IF_MTD, 3, 0));
 
     npcm7xx_load_kernel(machine, soc);
