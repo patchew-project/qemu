@@ -359,7 +359,8 @@ static bool pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
         dev_name = dev->qdev.id;
     }
 
-    ds = qdev_new_orphan(type == CXL ? TYPE_PXB_CXL_HOST : TYPE_PXB_HOST);
+    ds = qdev_new(OBJECT(dev), "pxb-host",
+                  type == CXL ? TYPE_PXB_CXL_HOST : TYPE_PXB_HOST);
     if (type == PCIE) {
         bus = pci_root_bus_new(ds, dev_name, NULL, NULL, 0, TYPE_PXB_PCIE_BUS);
     } else if (type == CXL) {
@@ -368,7 +369,7 @@ static bool pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
         PXB_CXL_DEV(dev)->cxl_host_bridge = PXB_CXL_HOST(ds);
     } else {
         bus = pci_root_bus_new(ds, "pxb-internal", NULL, NULL, 0, TYPE_PXB_BUS);
-        bds = qdev_new_orphan("pci-bridge");
+        bds = qdev_new(OBJECT(dev), "pci-bridge", "pci-bridge");
         bds->id = g_strdup(dev_name);
         qdev_prop_set_uint8(bds, PCI_BRIDGE_DEV_PROP_CHASSIS_NR, pxb->bus_nr);
         qdev_prop_set_bit(bds, PCI_BRIDGE_DEV_PROP_SHPC, false);
@@ -388,9 +389,9 @@ static bool pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
         goto err_register_bus;
     }
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(ds), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(ds), &error_fatal);
     if (bds) {
-        qdev_realize_and_unref(bds, &bus->qbus, &error_fatal);
+        qdev_realize(bds, &bus->qbus, &error_fatal);
     }
 
     pci_word_test_and_set_mask(dev->config + PCI_STATUS,
@@ -401,9 +402,9 @@ static bool pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
     return true;
 
 err_register_bus:
-    object_unref(OBJECT(bds));
+    object_unparent(OBJECT(bds));
     object_unparent(OBJECT(bus));
-    object_unref(OBJECT(ds));
+    object_unparent(OBJECT(ds));
     return false;
 }
 
