@@ -52,15 +52,15 @@ static const MemoryRegionOps sun4v_rtc_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-void sun4v_rtc_init(hwaddr addr)
+void sun4v_rtc_init(Object *parent, hwaddr addr)
 {
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_new_orphan(TYPE_SUN4V_RTC);
+    dev = qdev_new(parent, "rtc", TYPE_SUN4V_RTC);
     s = SYS_BUS_DEVICE(dev);
 
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
 
     sysbus_mmio_map(s, 0, addr);
 }

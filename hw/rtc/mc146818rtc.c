@@ -923,18 +923,18 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     qdev_init_gpio_out(dev, &s->irq, 1);
 }
 
-MC146818RtcState *mc146818_rtc_init(ISABus *bus, int base_year,
+MC146818RtcState *mc146818_rtc_init(Object *parent, ISABus *bus, int base_year,
                                     qemu_irq intercept_irq)
 {
     DeviceState *dev;
     ISADevice *isadev;
     MC146818RtcState *s;
 
-    isadev = isa_new_orphan(TYPE_MC146818_RTC);
+    isadev = isa_new(parent, "rtc[*]", TYPE_MC146818_RTC);
     dev = DEVICE(isadev);
     s = MC146818_RTC(isadev);
     qdev_prop_set_int32(dev, "base_year", base_year);
-    isa_realize_and_unref(isadev, bus, &error_fatal);
+    qdev_realize(dev, BUS(bus), &error_fatal);
     if (intercept_irq) {
         qdev_connect_gpio_out(dev, 0, intercept_irq);
     } else {
