@@ -146,7 +146,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
 
     for (i = 0; i < MSF2_NUM_UARTS; i++) {
         if (serial_hd(i)) {
-            serial_mm_init(get_system_memory(), uart_addr[i], 2,
+            serial_mm_init(OBJECT(s), get_system_memory(), uart_addr[i], 2,
                            qdev_get_gpio_in(armv7m, uart_irq[i]),
                            115200, serial_hd(i), DEVICE_NATIVE_ENDIAN);
         }

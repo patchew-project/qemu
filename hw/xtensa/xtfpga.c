@@ -312,7 +312,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     xtfpga_fpga_init(system_io, 0x0d020000, freq);
     xtfpga_net_init(system_io, 0x0d030000, 0x0d030400, 0x0d800000, extints[1]);
 
-    serial_mm_init(system_io, 0x0d050020, 2, extints[0],
+    serial_mm_init(OBJECT(machine), system_io, 0x0d050020, 2, extints[0],
                    115200, serial_hd(0), DEVICE_NATIVE_ENDIAN);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);

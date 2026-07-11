@@ -146,11 +146,11 @@ static void mchp_pfsoc_mmuart_register_types(void)
 
 type_init(mchp_pfsoc_mmuart_register_types)
 
-MchpPfSoCMMUartState *mchp_pfsoc_mmuart_create(MemoryRegion *sysmem,
+MchpPfSoCMMUartState *mchp_pfsoc_mmuart_create(Object *parent, MemoryRegion *sysmem,
                                                hwaddr base,
                                                qemu_irq irq, Chardev *chr)
 {
-    DeviceState *dev = qdev_new_orphan(TYPE_MCHP_PFSOC_UART);
+    DeviceState *dev = qdev_new(parent, "uart[*]", TYPE_MCHP_PFSOC_UART);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
     qdev_prop_set_chr(dev, "chardev", chr);

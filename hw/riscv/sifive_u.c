@@ -783,9 +783,9 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
         SIFIVE_U_PLIC_CONTEXT_STRIDE,
         memmap[SIFIVE_U_DEV_PLIC].size);
     g_free(plic_hart_config);
-    sifive_uart_create(system_memory, memmap[SIFIVE_U_DEV_UART0].base,
+    sifive_uart_create(OBJECT(s), system_memory, memmap[SIFIVE_U_DEV_UART0].base,
         serial_hd(0), qdev_get_gpio_in(DEVICE(s->plic), SIFIVE_U_UART0_IRQ));
-    sifive_uart_create(system_memory, memmap[SIFIVE_U_DEV_UART1].base,
+    sifive_uart_create(OBJECT(s), system_memory, memmap[SIFIVE_U_DEV_UART1].base,
         serial_hd(1), qdev_get_gpio_in(DEVICE(s->plic), SIFIVE_U_UART1_IRQ));
     riscv_aclint_swi_create(OBJECT(dev), memmap[SIFIVE_U_DEV_CLINT].base, 0,
         ms->smp.cpus, false);

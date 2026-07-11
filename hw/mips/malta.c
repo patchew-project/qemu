@@ -569,7 +569,7 @@ static void malta_fgpa_display_event(void *opaque, QEMUChrEvent event)
     }
 }
 
-static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
+static MaltaFPGAState *malta_fpga_init(Object *parent, MemoryRegion *address_space,
          hwaddr base, qemu_irq uart_irq, Chardev *uart_chr)
 {
     MaltaFPGAState *s;
@@ -592,7 +592,7 @@ static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
     qemu_chr_fe_set_handlers(&s->display, NULL, NULL,
                              malta_fgpa_display_event, NULL, s, NULL, true);
 
-    s->uart = serial_mm_init(address_space, base + 0x900, 3, uart_irq,
+    s->uart = serial_mm_init(parent, address_space, base + 0x900, 3, uart_irq,
                              230400, uart_chr, DEVICE_NATIVE_ENDIAN);
 
     malta_fpga_reset(s);
@@ -1133,7 +1133,8 @@ void mips_malta_init(MachineState *machine)
     /* FPGA */
 
     /* The CBUS UART is attached to the MIPS CPU INT2 pin, ie interrupt 4 */
-    malta_fpga_init(system_memory, FPGA_ADDRESS, cbus_irq, serial_hd(2));
+    malta_fpga_init(OBJECT(machine), system_memory, FPGA_ADDRESS, cbus_irq,
+                    serial_hd(2));
 
     /* Load firmware in flash / BIOS. */
     dinfo = drive_get(IF_PFLASH, 0, fl_idx);

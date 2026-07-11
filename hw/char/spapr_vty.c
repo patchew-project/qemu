@@ -154,13 +154,13 @@ static target_ulong h_get_term_char(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_SUCCESS;
 }
 
-void spapr_vty_create(SpaprVioBus *bus, Chardev *chardev)
+void spapr_vty_create(Object *parent, SpaprVioBus *bus, Chardev *chardev)
 {
     DeviceState *dev;
 
-    dev = qdev_new_orphan("spapr-vty");
+    dev = qdev_new(parent, "vty[*]", "spapr-vty");
     qdev_prop_set_chr(dev, "chardev", chardev);
-    qdev_realize_and_unref(dev, &bus->bus, &error_fatal);
+    qdev_realize(dev, &bus->bus, &error_fatal);
 }
 
 static const Property spapr_vty_properties[] = {

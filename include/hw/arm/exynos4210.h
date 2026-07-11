@@ -120,7 +120,7 @@ uint32_t exynos4210_get_irq(uint32_t grp, uint32_t bit);
 /*
  * exynos4210 UART
  */
-DeviceState *exynos4210_uart_create(hwaddr addr,
+DeviceState *exynos4210_uart_create(Object *parent, hwaddr addr,
                                     int fifo_size,
                                     int channel,
                                     Chardev *chr,

@@ -981,7 +981,7 @@ static const MemoryRegionOps ioportF0_io_ops = {
     },
 };
 
-static void pc_superio_init(ISABus *isa_bus, bool create_fdctrl,
+static void pc_superio_init(Object *parent, ISABus *isa_bus, bool create_fdctrl,
                             bool create_i8042, bool no_vmport, Error **errp)
 {
     int i;
@@ -989,8 +989,8 @@ static void pc_superio_init(ISABus *isa_bus, bool create_fdctrl,
     qemu_irq *a20_line;
     ISADevice *i8042, *port92, *vmmouse;
 
-    serial_hds_isa_init(isa_bus, 0, MAX_ISA_SERIAL_PORTS);
-    parallel_hds_isa_init(isa_bus, MAX_PARALLEL_PORTS);
+    serial_hds_isa_init(parent, isa_bus, 0, MAX_ISA_SERIAL_PORTS);
+    parallel_hds_isa_init(parent, isa_bus, MAX_PARALLEL_PORTS);
 
     for (i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);
@@ -1136,7 +1136,7 @@ void pc_basic_device_init(struct PCMachineState *pcms,
     }
 
     /* Super I/O */
-    pc_superio_init(isa_bus, create_fdctrl, pcms->i8042_enabled,
+    pc_superio_init(OBJECT(pcms), isa_bus, create_fdctrl, pcms->i8042_enabled,
                     pcms->vmport != ON_OFF_AUTO_ON, &error_fatal);
 
     pcms->machine_done.notify = pc_machine_done;

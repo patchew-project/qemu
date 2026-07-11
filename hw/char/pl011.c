@@ -33,15 +33,15 @@
 #include "qemu/module.h"
 #include "trace.h"
 
-DeviceState *pl011_create(hwaddr addr, qemu_irq irq, Chardev *chr)
+DeviceState *pl011_create(Object *parent, hwaddr addr, qemu_irq irq, Chardev *chr)
 {
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_new_orphan("pl011");
+    dev = qdev_new(parent, "uart[*]", "pl011");
     s = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", chr);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     sysbus_mmio_map(s, 0, addr);
     sysbus_connect_irq(s, 0, irq);
 

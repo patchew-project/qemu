@@ -532,7 +532,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
 
     sysbus_mmio_map(SYS_BUS_DEVICE(liointc), 0, virt_memmap[VIRT_LIOINTC].base);
 
-    serial_mm_init(address_space_mem, virt_memmap[VIRT_UART].base, 0,
+    serial_mm_init(OBJECT(machine), address_space_mem, virt_memmap[VIRT_UART].base, 0,
                    qdev_get_gpio_in(liointc, UART_IRQ), 115200, serial_hd(0),
                    DEVICE_LITTLE_ENDIAN);
 

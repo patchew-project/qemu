@@ -273,7 +273,7 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     }
 
     if (mms->isa_serial) {
-        serial_hds_isa_init(isa_bus, 0, 1);
+        serial_hds_isa_init(OBJECT(mms), isa_bus, 0, 1);
     }
 
     if (!x86ms->igvm) {

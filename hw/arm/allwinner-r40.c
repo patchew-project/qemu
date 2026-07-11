@@ -489,7 +489,7 @@ static void allwinner_r40_realize(DeviceState *dev, Error **errp)
         };
         const hwaddr addr = s->memmap[AW_R40_DEV_UART0 + i];
 
-        serial_mm_init(get_system_memory(), addr, 2,
+        serial_mm_init(OBJECT(s), get_system_memory(), addr, 2,
                        qdev_get_gpio_in(DEVICE(&s->gic), uart_irqs[i]),
                        115200, serial_hd(i), DEVICE_LITTLE_ENDIAN);
     }

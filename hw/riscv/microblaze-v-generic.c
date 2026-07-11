@@ -100,7 +100,7 @@ static void mb_v_generic_init(MachineState *machine)
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[UARTLITE_IRQ]);
 
     /* Full uart */
-    serial_mm_init(sysmem, UART16550_BASEADDR + 0x1000, 2,
+    serial_mm_init(OBJECT(machine), sysmem, UART16550_BASEADDR + 0x1000, 2,
                    irq[UART16550_IRQ], 115200, serial_hd(1),
                    DEVICE_LITTLE_ENDIAN);
 

@@ -228,7 +228,8 @@ static void virtex_init(MachineState *machine)
         irq[i] = qdev_get_gpio_in(dev, i);
     }
 
-    serial_mm_init(address_space_mem, UART16550_BASEADDR, 2, irq[UART16550_IRQ],
+    serial_mm_init(OBJECT(machine), address_space_mem, UART16550_BASEADDR, 2,
+                   irq[UART16550_IRQ],
                    115200, serial_hd(0), DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 2 @ 62 Mhz.  */

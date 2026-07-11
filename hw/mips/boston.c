@@ -755,7 +755,8 @@ static void boston_mach_init(MachineState *machine)
     memory_region_add_subregion_overlap(sys_mem,
                           boston_memmap[BOSTON_PLATREG].base, platreg, 0);
 
-    s->uart = serial_mm_init(sys_mem, boston_memmap[BOSTON_UART].base, 2,
+    s->uart = serial_mm_init(OBJECT(machine), sys_mem,
+                             boston_memmap[BOSTON_UART].base, 2,
                              get_cps_irq(&s->cps, 3), 10000000,
                              serial_hd(0), DEVICE_LITTLE_ENDIAN);
 

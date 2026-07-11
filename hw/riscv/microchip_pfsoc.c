@@ -346,23 +346,23 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
         qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_EMMC_SD_IRQ));
 
     /* MMUARTs */
-    s->serial0 = mchp_pfsoc_mmuart_create(system_memory,
+    s->serial0 = mchp_pfsoc_mmuart_create(OBJECT(s), system_memory,
         memmap[MICROCHIP_PFSOC_MMUART0].base,
         qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_MMUART0_IRQ),
         serial_hd(0));
-    s->serial1 = mchp_pfsoc_mmuart_create(system_memory,
+    s->serial1 = mchp_pfsoc_mmuart_create(OBJECT(s), system_memory,
         memmap[MICROCHIP_PFSOC_MMUART1].base,
         qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_MMUART1_IRQ),
         serial_hd(1));
-    s->serial2 = mchp_pfsoc_mmuart_create(system_memory,
+    s->serial2 = mchp_pfsoc_mmuart_create(OBJECT(s), system_memory,
         memmap[MICROCHIP_PFSOC_MMUART2].base,
         qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_MMUART2_IRQ),
         serial_hd(2));
-    s->serial3 = mchp_pfsoc_mmuart_create(system_memory,
+    s->serial3 = mchp_pfsoc_mmuart_create(OBJECT(s), system_memory,
         memmap[MICROCHIP_PFSOC_MMUART3].base,
         qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_MMUART3_IRQ),
         serial_hd(3));
-    s->serial4 = mchp_pfsoc_mmuart_create(system_memory,
+    s->serial4 = mchp_pfsoc_mmuart_create(OBJECT(s), system_memory,
         memmap[MICROCHIP_PFSOC_MMUART4].base,
         qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_MMUART4_IRQ),
         serial_hd(4));

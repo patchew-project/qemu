@@ -17,19 +17,19 @@
 #include "hw/char/parallel.h"
 #include "qapi/error.h"
 
-static void parallel_init(ISABus *bus, int index, Chardev *chr)
+static void parallel_init(Object *parent, ISABus *bus, int index, Chardev *chr)
 {
     DeviceState *dev;
     ISADevice *isadev;
 
-    isadev = isa_new_orphan(TYPE_ISA_PARALLEL);
+    isadev = isa_new(parent, "parallel[*]", TYPE_ISA_PARALLEL);
     dev = DEVICE(isadev);
     qdev_prop_set_uint32(dev, "index", index);
     qdev_prop_set_chr(dev, "chardev", chr);
-    isa_realize_and_unref(isadev, bus, &error_fatal);
+    qdev_realize(dev, BUS(bus), &error_fatal);
 }
 
-void parallel_hds_isa_init(ISABus *bus, int n)
+void parallel_hds_isa_init(Object *parent, ISABus *bus, int n)
 {
     int i;
 
@@ -37,7 +37,7 @@ void parallel_hds_isa_init(ISABus *bus, int n)
 
     for (i = 0; i < n; i++) {
         if (parallel_hds[i]) {
-            parallel_init(bus, i, parallel_hds[i]);
+            parallel_init(parent, bus, i, parallel_hds[i]);
         }
     }
 }

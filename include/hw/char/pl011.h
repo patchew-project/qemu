@@ -60,6 +60,6 @@ struct PL011State {
     uint8_t padding_for_rust[16];
 };
 
-DeviceState *pl011_create(hwaddr addr, qemu_irq irq, Chardev *chr);
+DeviceState *pl011_create(Object *parent, hwaddr addr, qemu_irq irq, Chardev *chr);
 
 #endif

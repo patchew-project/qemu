@@ -256,7 +256,7 @@ struct omap_dma_lcd_channel_s {
 #define OMAP_DMA_USB_W2FC_TX2      31
 
 struct omap_uart_s;
-struct omap_uart_s *omap_uart_init(hwaddr base,
+struct omap_uart_s *omap_uart_init(Object *parent, hwaddr base,
                 qemu_irq irq, omap_clk fclk, omap_clk iclk,
                 qemu_irq txdma, qemu_irq rxdma,
                 const char *label, Chardev *chr);
@@ -426,7 +426,7 @@ struct omap_mpu_state_s {
 };
 
 /* omap1.c */
-struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *sdram,
+struct omap_mpu_state_s *omap310_mpu_init(Object *parent, MemoryRegion *sdram,
                 const char *core);
 
 #define OMAP_BAD_REG(paddr)        \

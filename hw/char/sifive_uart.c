@@ -393,16 +393,16 @@ type_init(sifive_uart_register_types)
 /*
  * Create UART device.
  */
-SiFiveUARTState *sifive_uart_create(MemoryRegion *address_space, hwaddr base,
-    Chardev *chr, qemu_irq irq)
+SiFiveUARTState *sifive_uart_create(Object *parent, MemoryRegion *address_space,
+    hwaddr base, Chardev *chr, qemu_irq irq)
 {
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_new_orphan("riscv.sifive.uart");
+    dev = qdev_new(parent, "uart[*]", "riscv.sifive.uart");
     s = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", chr);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     memory_region_add_subregion(address_space, base,
                                 sysbus_mmio_get_region(s, 0));
     sysbus_connect_irq(s, 0, irq);

@@ -112,7 +112,7 @@ static void xiangshan_kmh_soc_realize(DeviceState *dev, Error **errp)
     s->irqchip = xiangshan_kmh_create_aia(OBJECT(dev), num_harts);
 
     /* UART */
-    serial_mm_init(system_memory, memmap[XIANGSHAN_KMH_UART0].base, 2,
+    serial_mm_init(OBJECT(s), system_memory, memmap[XIANGSHAN_KMH_UART0].base, 2,
                    qdev_get_gpio_in(s->irqchip, XIANGSHAN_KMH_UART0_IRQ),
                    115200, serial_hd(0), DEVICE_LITTLE_ENDIAN);
 

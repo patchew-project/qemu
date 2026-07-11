@@ -637,8 +637,8 @@ static void integratorcp_init(MachineState *machine)
     sysbus_create_varargs_orphan("integrator_pit", 0x13000000,
                           pic[5], pic[6], pic[7], NULL);
     sysbus_create_simple_orphan("pl031", 0x15000000, pic[8]);
-    pl011_create(0x16000000, pic[1], serial_hd(0));
-    pl011_create(0x17000000, pic[2], serial_hd(1));
+    pl011_create(OBJECT(machine), 0x16000000, pic[1], serial_hd(0));
+    pl011_create(OBJECT(machine), 0x17000000, pic[2], serial_hd(1));
     icp = sysbus_create_simple_orphan(TYPE_ICP_CONTROL_REGS, 0xcb000000,
                                qdev_get_gpio_in(sic, 3));
     sysbus_create_simple_orphan("pl050_keyboard", 0x18000000, pic[3]);

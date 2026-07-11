@@ -279,10 +279,10 @@ static void versatile_init(MachineState *machine, int board_id)
         n--;
     }
 
-    pl011_create(0x101f1000, pic[12], serial_hd(0));
-    pl011_create(0x101f2000, pic[13], serial_hd(1));
-    pl011_create(0x101f3000, pic[14], serial_hd(2));
-    pl011_create(0x10009000, sic[6], serial_hd(3));
+    pl011_create(OBJECT(machine), 0x101f1000, pic[12], serial_hd(0));
+    pl011_create(OBJECT(machine), 0x101f2000, pic[13], serial_hd(1));
+    pl011_create(OBJECT(machine), 0x101f3000, pic[14], serial_hd(2));
+    pl011_create(OBJECT(machine), 0x10009000, sic[6], serial_hd(3));
 
     dev = qdev_new_orphan("pl080");
     object_property_set_link(OBJECT(dev), "downstream", OBJECT(sysmem),

@@ -125,7 +125,7 @@ static void sx1_init(MachineState *machine, const int version)
 
     memory_region_add_subregion(address_space, OMAP_EMIFF_BASE, machine->ram);
 
-    mpu = omap310_mpu_init(machine->ram, machine->cpu_type);
+    mpu = omap310_mpu_init(OBJECT(machine), machine->ram, machine->cpu_type);
 
     /* External Flash (EMIFS) */
     memory_region_init_rom(flash, NULL, "omap_sx1.flash0-0", flash_size,

@@ -1255,10 +1255,10 @@ static void musicpal_init(MachineState *machine)
     qdev_connect_gpio_out(uart_orgate, 0,
                           qdev_get_gpio_in(pic, MP_UART_SHARED_IRQ));
 
-    serial_mm_init(address_space_mem, MP_UART1_BASE, 2,
+    serial_mm_init(OBJECT(machine), address_space_mem, MP_UART1_BASE, 2,
                    qdev_get_gpio_in(uart_orgate, 0),
                    1825000, serial_hd(0), DEVICE_NATIVE_ENDIAN);
-    serial_mm_init(address_space_mem, MP_UART2_BASE, 2,
+    serial_mm_init(OBJECT(machine), address_space_mem, MP_UART2_BASE, 2,
                    qdev_get_gpio_in(uart_orgate, 1),
                    1825000, serial_hd(1), DEVICE_NATIVE_ENDIAN);
 

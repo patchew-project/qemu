@@ -650,7 +650,7 @@ static const VMStateDescription vmstate_exynos4210_uart = {
     }
 };
 
-DeviceState *exynos4210_uart_create(hwaddr addr,
+DeviceState *exynos4210_uart_create(Object *parent, hwaddr addr,
                                     int fifo_size,
                                     int channel,
                                     Chardev *chr,
@@ -659,7 +659,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
     DeviceState  *dev;
     SysBusDevice *bus;
 
-    dev = qdev_new_orphan(TYPE_EXYNOS4210_UART);
+    dev = qdev_new(parent, "uart[*]", TYPE_EXYNOS4210_UART);
 
     qdev_prop_set_chr(dev, "chardev", chr);
     qdev_prop_set_uint32(dev, "channel", channel);
@@ -667,7 +667,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
     qdev_prop_set_uint32(dev, "tx-size", fifo_size);
 
     bus = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(bus, &error_fatal);
+    sysbus_realize(bus, &error_fatal);
     if (addr != (hwaddr)-1) {
         sysbus_mmio_map(bus, 0, addr);
     }

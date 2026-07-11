@@ -122,7 +122,7 @@ petalogix_ml605_init(MachineState *machine)
         irq[i] = qdev_get_gpio_in(dev, i);
     }
 
-    serial_mm_init(address_space_mem, UART16550_BASEADDR + 0x1000, 2,
+    serial_mm_init(OBJECT(machine), address_space_mem, UART16550_BASEADDR + 0x1000, 2,
                    irq[UART16550_IRQ], 115200, serial_hd(0),
                    DEVICE_LITTLE_ENDIAN);
 

@@ -137,7 +137,7 @@ int spapr_vio_send_crq(SpaprVioDevice *dev, uint8_t *crq);
 
 SpaprVioDevice *vty_lookup(SpaprMachineState *spapr, target_ulong reg);
 void vty_putchars(SpaprVioDevice *sdev, uint8_t *buf, int len);
-void spapr_vty_create(SpaprVioBus *bus, Chardev *chardev);
+void spapr_vty_create(Object *parent, SpaprVioBus *bus, Chardev *chardev);
 void spapr_vlan_create(Object *parent, SpaprVioBus *bus, NICInfo *nd);
 void spapr_vscsi_create(Object *parent, SpaprVioBus *bus);
 

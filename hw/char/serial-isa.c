@@ -160,19 +160,20 @@ static void serial_register_types(void)
 
 type_init(serial_register_types)
 
-static void serial_isa_init(ISABus *bus, int index, Chardev *chr)
+static void serial_isa_init(Object *parent, ISABus *bus, int index,
+                            Chardev *chr)
 {
     DeviceState *dev;
     ISADevice *isadev;
 
-    isadev = isa_new_orphan(TYPE_ISA_SERIAL);
+    isadev = isa_new(parent, "serial[*]", TYPE_ISA_SERIAL);
     dev = DEVICE(isadev);
     qdev_prop_set_uint32(dev, "index", index);
     qdev_prop_set_chr(dev, "chardev", chr);
-    isa_realize_and_unref(isadev, bus, &error_fatal);
+    qdev_realize(dev, BUS(bus), &error_fatal);
 }
 
-void serial_hds_isa_init(ISABus *bus, int from, int to)
+void serial_hds_isa_init(Object *parent, ISABus *bus, int from, int to)
 {
     int i;
 
@@ -181,7 +182,7 @@ void serial_hds_isa_init(ISABus *bus, int from, int to)
 
     for (i = from; i < to; ++i) {
         if (serial_hd(i)) {
-            serial_isa_init(bus, i, serial_hd(i));
+            serial_isa_init(parent, bus, i, serial_hd(i));
         }
     }
 }

@@ -44,7 +44,7 @@ struct SerialMM {
     uint8_t endianness;
 };
 
-SerialMM *serial_mm_init(MemoryRegion *address_space,
+SerialMM *serial_mm_init(Object *parent, MemoryRegion *address_space,
                          hwaddr base, int regshift,
                          qemu_irq irq, int baudbase,
                          Chardev *chr, enum device_endian end);

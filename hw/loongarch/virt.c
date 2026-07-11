@@ -471,7 +471,7 @@ static void virt_devices_init(DeviceState *pch_pic,
     for (i = VIRT_UART_COUNT; i-- > 0;) {
         hwaddr base = VIRT_UART_BASE + i * VIRT_UART_SIZE;
         irq = VIRT_UART_IRQ + i - VIRT_GSI_BASE;
-        serial_mm_init(get_system_memory(), base, 0,
+        serial_mm_init(OBJECT(lvms), get_system_memory(), base, 0,
                        qdev_get_gpio_in(pch_pic, irq),
                        115200, serial_hd(i), DEVICE_LITTLE_ENDIAN);
     }

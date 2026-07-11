@@ -643,10 +643,10 @@ static void vexpress_common_init(MachineState *machine)
     sysbus_create_simple_orphan("pl050_keyboard", map[VE_KMI0], pic[12]);
     sysbus_create_simple_orphan("pl050_mouse", map[VE_KMI1], pic[13]);
 
-    pl011_create(map[VE_UART0], pic[5], serial_hd(0));
-    pl011_create(map[VE_UART1], pic[6], serial_hd(1));
-    pl011_create(map[VE_UART2], pic[7], serial_hd(2));
-    pl011_create(map[VE_UART3], pic[8], serial_hd(3));
+    pl011_create(OBJECT(machine), map[VE_UART0], pic[5], serial_hd(0));
+    pl011_create(OBJECT(machine), map[VE_UART1], pic[6], serial_hd(1));
+    pl011_create(OBJECT(machine), map[VE_UART2], pic[7], serial_hd(2));
+    pl011_create(OBJECT(machine), map[VE_UART3], pic[8], serial_hd(3));
 
     sysbus_create_simple_orphan("sp804", map[VE_TIMER01], pic[2]);
     sysbus_create_simple_orphan("sp804", map[VE_TIMER23], pic[3]);

@@ -266,13 +266,13 @@ static void sifive_e_soc_realize(DeviceState *dev, Error **errp)
                        qdev_get_gpio_in(DEVICE(s->plic),
                                         SIFIVE_E_AON_WDT_IRQ));
 
-    sifive_uart_create(sys_mem, memmap[SIFIVE_E_DEV_UART0].base,
+    sifive_uart_create(OBJECT(s), sys_mem, memmap[SIFIVE_E_DEV_UART0].base,
         serial_hd(0), qdev_get_gpio_in(DEVICE(s->plic), SIFIVE_E_UART0_IRQ));
     create_unimplemented_device("riscv.sifive.e.qspi0",
         memmap[SIFIVE_E_DEV_QSPI0].base, memmap[SIFIVE_E_DEV_QSPI0].size);
     create_unimplemented_device("riscv.sifive.e.pwm0",
         memmap[SIFIVE_E_DEV_PWM0].base, memmap[SIFIVE_E_DEV_PWM0].size);
-    sifive_uart_create(sys_mem, memmap[SIFIVE_E_DEV_UART1].base,
+    sifive_uart_create(OBJECT(s), sys_mem, memmap[SIFIVE_E_DEV_UART1].base,
         serial_hd(1), qdev_get_gpio_in(DEVICE(s->plic), SIFIVE_E_UART1_IRQ));
     create_unimplemented_device("riscv.sifive.e.qspi1",
         memmap[SIFIVE_E_DEV_QSPI1].base, memmap[SIFIVE_E_DEV_QSPI1].size);

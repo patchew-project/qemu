@@ -85,7 +85,7 @@ struct SiFiveUARTState {
     QEMUTimer *fifo_trigger_handle;
 };
 
-SiFiveUARTState *sifive_uart_create(MemoryRegion *address_space, hwaddr base,
-    Chardev *chr, qemu_irq irq);
+SiFiveUARTState *sifive_uart_create(Object *parent, MemoryRegion *address_space,
+    hwaddr base, Chardev *chr, qemu_irq irq);
 
 #endif

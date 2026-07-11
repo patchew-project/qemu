@@ -266,7 +266,7 @@ static void openrisc_sim_serial_init(Or1ksimState *state, hwaddr base,
     } else {
         serial_irq = get_cpu_irq(cpus, 0, irq_pin);
     }
-    serial_mm_init(get_system_memory(), base, 0, serial_irq, 115200,
+    serial_mm_init(OBJECT(state), get_system_memory(), base, 0, serial_irq, 115200,
                    serial_hd(uart_idx),
                    DEVICE_BIG_ENDIAN);
 

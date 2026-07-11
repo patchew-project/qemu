@@ -62,7 +62,7 @@ typedef struct MchpPfSoCMMUartState {
  *
  * @return: a pointer to the device specific control structure
  */
-MchpPfSoCMMUartState *mchp_pfsoc_mmuart_create(MemoryRegion *sysmem,
+MchpPfSoCMMUartState *mchp_pfsoc_mmuart_create(Object *parent, MemoryRegion *sysmem,
     hwaddr base, qemu_irq irq, Chardev *chr);
 
 #endif /* HW_MCHP_PFSOC_MMUART_H */

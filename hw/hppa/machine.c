@@ -607,7 +607,8 @@ static void machine_HP_715_init(MachineState *machine)
                                     SYS_BUS_DEVICE(lasi_dev), 0));
 
     /* Serial ports: Lasi use a 7.272727 MHz clock. */
-    serial_mm_init(addr_space, translate(NULL, LASI_HPA_715 + LASI_UART + 0x800), 0,
+    serial_mm_init(OBJECT(machine), addr_space,
+        translate(NULL, LASI_HPA_715 + LASI_UART + 0x800), 0,
         qdev_get_gpio_in(lasi_dev, LASI_IRQ_UART_HPA), 7272727 / 16,
         serial_hd(0), DEVICE_BIG_ENDIAN);
 
@@ -694,11 +695,13 @@ static void machine_HP_B160L_init(MachineState *machine)
     assert(isa_bus);
 
     /* Serial ports: Lasi and Dino use a 7.272727 MHz clock. */
-    serial_mm_init(addr_space, translate(NULL, LASI_HPA + LASI_UART + 0x800), 0,
+    serial_mm_init(OBJECT(machine), addr_space,
+        translate(NULL, LASI_HPA + LASI_UART + 0x800), 0,
         qdev_get_gpio_in(lasi_dev, LASI_IRQ_UART_HPA), 7272727 / 16,
         serial_hd(0), DEVICE_BIG_ENDIAN);
 
-    serial_mm_init(addr_space, translate(NULL, DINO_UART_HPA + 0x800), 0,
+    serial_mm_init(OBJECT(machine), addr_space,
+        translate(NULL, DINO_UART_HPA + 0x800), 0,
         qdev_get_gpio_in(dino_dev, DINO_IRQ_RS232INT), 7272727 / 16,
         serial_hd(1), DEVICE_BIG_ENDIAN);
 

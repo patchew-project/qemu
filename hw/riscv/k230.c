@@ -137,8 +137,8 @@ static DeviceState *k230_create_plic(Object *parent, int base_hartid,
                               memmap[K230_DEV_PLIC].size);
 }
 
-static void k230_create_uart(MemoryRegion *sys_mem, DeviceState *plic,
-                             int index)
+static void k230_create_uart(Object *parent, MemoryRegion *sys_mem,
+                             DeviceState *plic, int index)
 {
     int uart_dev = K230_DEV_UART0 + index;
     g_autofree char *name = g_strdup_printf("uart%d", index);
@@ -147,7 +147,7 @@ static void k230_create_uart(MemoryRegion *sys_mem, DeviceState *plic,
     create_unimplemented_device(name, memmap[uart_dev].base,
                                 memmap[uart_dev].size);
 
-    serial_mm_init(sys_mem, memmap[uart_dev].base, 2,
+    serial_mm_init(parent, sys_mem, memmap[uart_dev].base, 2,
                    qdev_get_gpio_in(plic, K230_UART0_IRQ + index),
                    399193, serial_hd(index), DEVICE_LITTLE_ENDIAN);
 }
@@ -190,7 +190,7 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
 
     /* UART */
     for (int i = 0; i < K230_UART_COUNT; i++) {
-        k230_create_uart(sys_mem, DEVICE(s->c908_plic), i);
+        k230_create_uart(OBJECT(s), sys_mem, DEVICE(s->c908_plic), i);
     }
 
     /* Watchdog */

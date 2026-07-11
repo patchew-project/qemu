@@ -588,7 +588,7 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
 
     /* UART0..3 (16550 compatible) */
     for (i = 0; i < ARRAY_SIZE(npcm7xx_uart_addr); i++) {
-        serial_mm_init(get_system_memory(), npcm7xx_uart_addr[i], 2,
+        serial_mm_init(OBJECT(s), get_system_memory(), npcm7xx_uart_addr[i], 2,
                        npcm7xx_irq(s, NPCM7XX_UART0_IRQ + i), 115200,
                        serial_hd(i), DEVICE_LITTLE_ENDIAN);
     }
