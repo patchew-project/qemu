@@ -602,10 +602,10 @@ static MaltaFPGAState *malta_fpga_init(Object *parent, MemoryRegion *address_spa
 }
 
 /* Network support */
-static void network_init(PCIBus *pci_bus)
+static void network_init(Object *parent, PCIBus *pci_bus)
 {
     /* The malta board has a PCNet card using PCI SLOT 11 */
-    pci_init_nic_in_slot(pci_bus, "pcnet", NULL, "0b");
+    pci_init_nic_in_slot(parent, pci_bus, "pcnet", NULL, "0b");
     pci_init_nic_devices(pci_bus, "pcnet");
 }
 
@@ -1259,10 +1259,10 @@ void mips_malta_init(MachineState *machine)
                       TYPE_FDC37M81X_SUPERIO);
 
     /* Network card */
-    network_init(pci_bus);
+    network_init(OBJECT(machine), pci_bus);
 
     /* Optional PCI video card */
-    pci_vga_init(pci_bus);
+    pci_vga_init(OBJECT(machine), pci_bus);
 }
 
 static void mips_malta_instance_init(Object *obj)

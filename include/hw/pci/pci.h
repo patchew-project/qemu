@@ -337,9 +337,9 @@ void pci_device_set_intx_routing_notifier(PCIDevice *dev,
 void pci_device_reset(PCIDevice *dev);
 
 void pci_init_nic_devices(PCIBus *bus, const char *default_model);
-bool pci_init_nic_in_slot(PCIBus *rootbus, const char *default_model,
+bool pci_init_nic_in_slot(Object *parent, PCIBus *rootbus, const char *default_model,
                           const char *alias, const char *devaddr);
-PCIDevice *pci_vga_init(PCIBus *bus);
+PCIDevice *pci_vga_init(Object *parent, PCIBus *bus);
 
 static inline PCIBus *pci_get_bus(const PCIDevice *dev)
 {

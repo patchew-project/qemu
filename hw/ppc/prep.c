@@ -357,10 +357,10 @@ static void ibm_40p_init(MachineState *machine)
         qdev_connect_gpio_out(dev, 0, qdev_get_gpio_in(i82378_dev, 13));
 
         /* XXX: s3-trio at PCI_DEVFN(2, 0) */
-        pci_vga_init(pci_bus);
+        pci_vga_init(OBJECT(machine), pci_bus);
 
         /* First PCNET device at PCI_DEVFN(3, 0) */
-        pci_init_nic_in_slot(pci_bus, mc->default_nic, NULL, "3");
+        pci_init_nic_in_slot(OBJECT(machine), pci_bus, mc->default_nic, NULL, "3");
         pci_init_nic_devices(pci_bus, mc->default_nic);
     }
 

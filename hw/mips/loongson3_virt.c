@@ -460,7 +460,7 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
     }
     msi_nonbroken = true;
 
-    pci_vga_init(pci_bus);
+    pci_vga_init(OBJECT(machine), pci_bus);
 
     if (defaults_enabled() && object_class_by_name("pci-ohci")) {
         USBBus *usb_bus;

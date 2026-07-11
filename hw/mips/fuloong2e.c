@@ -201,10 +201,10 @@ static void main_cpu_reset(void *opaque)
 }
 
 /* Network support */
-static void network_init(PCIBus *pci_bus)
+static void network_init(Object *parent, PCIBus *pci_bus)
 {
     /* The Fuloong board has a RTL8139 card using PCI SLOT 7 */
-    pci_init_nic_in_slot(pci_bus, "rtl8139", NULL, "07");
+    pci_init_nic_in_slot(parent, pci_bus, "rtl8139", NULL, "07");
     pci_init_nic_devices(pci_bus, "rtl8139");
 }
 
@@ -326,7 +326,7 @@ static void mips_fuloong2e_init(MachineState *machine)
     smbus_eeprom_init_one(OBJECT(machine), smbus, 0x50, spd_data);
 
     /* Network card: RTL8139D */
-    network_init(pci_bus);
+    network_init(OBJECT(machine), pci_bus);
 }
 
 static void mips_fuloong2e_machine_init(MachineClass *mc)

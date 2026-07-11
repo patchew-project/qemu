@@ -370,7 +370,7 @@ static void amigaone_init(MachineState *machine)
                                                              "pirq", i));
     }
     pci_ide_create_devs(PCI_DEVICE(object_resolve_path_component(via, "ide")));
-    pci_vga_init(pci_bus);
+    pci_vga_init(OBJECT(machine), pci_bus);
 
     if (!machine->kernel_filename) {
         return;

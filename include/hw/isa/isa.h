@@ -89,7 +89,7 @@ ISADevice *isa_try_new_orphan(const char *name);
 bool isa_realize_and_unref(ISADevice *dev, ISABus *bus, Error **errp);
 ISADevice *isa_create_simple_orphan(ISABus *bus, const char *name);
 
-ISADevice *isa_vga_init(ISABus *bus);
+ISADevice *isa_vga_init(Object *parent, ISABus *bus);
 
 qemu_irq isa_get_irq(ISADevice *dev, unsigned isairq);
 void isa_connect_gpio_out(ISADevice *isadev, int gpioirq, unsigned isairq);

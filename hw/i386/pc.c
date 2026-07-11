@@ -946,15 +946,15 @@ uint64_t pc_pci_hole64_start(void)
     return ROUND_UP(hole64_start, 1 * GiB);
 }
 
-DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)
+DeviceState *pc_vga_init(Object *parent, ISABus *isa_bus, PCIBus *pci_bus)
 {
     DeviceState *dev = NULL;
 
     if (pci_bus) {
-        PCIDevice *pcidev = pci_vga_init(pci_bus);
+        PCIDevice *pcidev = pci_vga_init(parent, pci_bus);
         dev = pcidev ? &pcidev->qdev : NULL;
     } else if (isa_bus) {
-        ISADevice *isadev = isa_vga_init(isa_bus);
+        ISADevice *isadev = isa_vga_init(parent, isa_bus);
         dev = isadev ? DEVICE(isadev) : NULL;
     }
 

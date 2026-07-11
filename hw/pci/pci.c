@@ -2083,7 +2083,7 @@ void pci_init_nic_devices(PCIBus *bus, const char *default_model)
                                 "virtio", "virtio-net-pci");
 }
 
-bool pci_init_nic_in_slot(PCIBus *rootbus, const char *model,
+bool pci_init_nic_in_slot(Object *parent, PCIBus *rootbus, const char *model,
                           const char *alias, const char *devaddr)
 {
     NICInfo *nd = qemu_find_nic_info(model, true, alias);
@@ -2118,26 +2118,26 @@ bool pci_init_nic_in_slot(PCIBus *rootbus, const char *model,
         exit(1);
     }
 
-    pci_dev = pci_new_orphan(devfn, model);
+    pci_dev = pci_new(parent, "nic[*]", devfn, model);
     qdev_set_nic_properties(&pci_dev->qdev, nd);
-    pci_realize_and_unref(pci_dev, bus, &error_fatal);
+    qdev_realize(DEVICE(pci_dev), BUS(bus), &error_fatal);
     return true;
 }
 
-PCIDevice *pci_vga_init(PCIBus *bus)
+PCIDevice *pci_vga_init(Object *parent, PCIBus *bus)
 {
     vga_interface_created = true;
     switch (vga_interface_type) {
     case VGA_CIRRUS:
-        return pci_create_simple_orphan(bus, -1, "cirrus-vga");
+        return pci_create_simple(parent, "vga", bus, -1, "cirrus-vga");
     case VGA_QXL:
-        return pci_create_simple_orphan(bus, -1, "qxl-vga");
+        return pci_create_simple(parent, "vga", bus, -1, "qxl-vga");
     case VGA_STD:
-        return pci_create_simple_orphan(bus, -1, "VGA");
+        return pci_create_simple(parent, "vga", bus, -1, "VGA");
     case VGA_VMWARE:
-        return pci_create_simple_orphan(bus, -1, "vmware-svga");
+        return pci_create_simple(parent, "vga", bus, -1, "vmware-svga");
     case VGA_VIRTIO:
-        return pci_create_simple_orphan(bus, -1, "virtio-vga");
+        return pci_create_simple(parent, "vga", bus, -1, "virtio-vga");
     case VGA_NONE:
     default: /* Other non-PCI types. Checking for unsupported types is already
                 done in vl.c. */

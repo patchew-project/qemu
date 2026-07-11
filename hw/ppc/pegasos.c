@@ -267,7 +267,7 @@ static void pegasos_init(MachineState *machine)
     smbus_eeprom_init_one(OBJECT(machine), i2c_bus, 0x57, spd_data);
 
     /* other PC hardware */
-    pci_vga_init(pci_bus);
+    pci_vga_init(OBJECT(machine), pci_bus);
 
     /* pci interrupt routing */
     switch (pm->type) {

@@ -315,7 +315,7 @@ static void r2d_init(MachineState *machine)
                           0x555, 0x2aa, 0);
 
     /* NIC: rtl8139 on-board, and 2 slots. */
-    pci_init_nic_in_slot(pci_bus, mc->default_nic, NULL, "2");
+    pci_init_nic_in_slot(OBJECT(machine), pci_bus, mc->default_nic, NULL, "2");
     pci_init_nic_devices(pci_bus, mc->default_nic);
 
     /* USB keyboard */

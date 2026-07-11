@@ -122,7 +122,7 @@ static void clipper_init(MachineState *machine)
     mc146818_rtc_init(mo, isa_bus, 1900, rtc_irq);
 
     /* VGA setup.  Don't bother loading the bios.  */
-    pci_vga_init(pci_bus);
+    pci_vga_init(OBJECT(machine), pci_bus);
 
     /* Network setup.  e1000 is good enough, failing Tulip support.  */
     pci_init_nic_devices(pci_bus, mc->default_nic);

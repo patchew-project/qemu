@@ -200,17 +200,17 @@ ISABus *isa_bus_from_device(ISADevice *dev)
     return ISA_BUS(qdev_get_parent_bus(DEVICE(dev)));
 }
 
-ISADevice *isa_vga_init(ISABus *bus)
+ISADevice *isa_vga_init(Object *parent, ISABus *bus)
 {
     vga_interface_created = true;
     switch (vga_interface_type) {
     case VGA_CIRRUS:
-        return isa_create_simple_orphan(bus, "isa-cirrus-vga");
+        return isa_create_simple(parent, "vga", bus, "isa-cirrus-vga");
     case VGA_QXL:
         error_report("%s: qxl: no PCI bus", __func__);
         return NULL;
     case VGA_STD:
-        return isa_create_simple_orphan(bus, "isa-vga");
+        return isa_create_simple(parent, "vga", bus, "isa-vga");
     case VGA_VMWARE:
         error_report("%s: vmware_vga: no PCI bus", __func__);
         return NULL;

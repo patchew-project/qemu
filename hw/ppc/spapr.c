@@ -1909,7 +1909,7 @@ static void spapr_rtc_create(SpaprMachineState *spapr)
 }
 
 /* Returns whether we want to use VGA or not */
-static bool spapr_vga_init(PCIBus *pci_bus, Error **errp)
+static bool spapr_vga_init(Object *parent, PCIBus *pci_bus, Error **errp)
 {
     vga_interface_created = true;
     switch (vga_interface_type) {
@@ -1920,7 +1920,7 @@ static bool spapr_vga_init(PCIBus *pci_bus, Error **errp)
     case VGA_STD:
     case VGA_VIRTIO:
     case VGA_CIRRUS:
-        return pci_vga_init(pci_bus) != NULL;
+        return pci_vga_init(parent, pci_bus) != NULL;
     default:
         error_setg(errp,
                    "Unsupported VGA mode, only -vga std or -vga virtio is supported");
@@ -3066,7 +3066,7 @@ static void spapr_machine_init(MachineState *machine)
     }
 
     /* Graphics */
-    has_vga = spapr_vga_init(phb->bus, &error_fatal);
+    has_vga = spapr_vga_init(OBJECT(machine), phb->bus, &error_fatal);
     if (has_vga) {
         spapr->want_stdout_path = !machine->enable_graphics;
         machine->usb |= defaults_enabled() && !machine->usb_disabled;

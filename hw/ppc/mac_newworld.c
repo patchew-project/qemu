@@ -435,7 +435,7 @@ static void ppc_core99_init(MachineState *machine)
         }
     }
 
-    pci_vga_init(pci_bus);
+    pci_vga_init(OBJECT(machine), pci_bus);
 
     if (!graphic_width) {
         graphic_width = 800;

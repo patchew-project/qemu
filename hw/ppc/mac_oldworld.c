@@ -267,7 +267,7 @@ static void ppc_heathrow_init(MachineState *machine)
         }
     }
 
-    pci_vga_init(pci_bus);
+    pci_vga_init(OBJECT(machine), pci_bus);
 
     pci_init_nic_devices(pci_bus, mc->default_nic);
 

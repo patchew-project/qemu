@@ -428,7 +428,8 @@ static void boston_mach_init(MachineState *machine)
     ahci_ide_create_devs(&ich9->ahci, hd);
 
     /* Create e1000e using slot 0 func 1 */
-    pci_init_nic_in_slot(&PCI_BRIDGE(&pcie2->root)->sec_bus, "e1000e", NULL,
+    pci_init_nic_in_slot(OBJECT(machine), &PCI_BRIDGE(&pcie2->root)->sec_bus,
+                         "e1000e", NULL,
                          "00.1");
     pci_init_nic_devices(&PCI_BRIDGE(&pcie2->root)->sec_bus, "e1000e");
 
