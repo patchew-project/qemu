@@ -3636,6 +3636,7 @@ S: Supported
 F: docs/devel/qom.rst
 F: include/qom/
 F: qapi/qom.json
+F: scripts/coccinelle/qom-parent/
 F: scripts/coccinelle/qom-parent-type.cocci
 F: scripts/qom-cast-macro-clean-cocci-gen.py
 F: qom/
