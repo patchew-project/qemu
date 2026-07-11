@@ -1128,7 +1128,7 @@ void pc_basic_device_init(struct PCMachineState *pcms,
         }
         object_property_set_link(OBJECT(pcms->pcspk), "pit",
                                  OBJECT(pit), &error_fatal);
-        isa_realize_and_unref(pcms->pcspk, isa_bus, &error_fatal);
+        qdev_realize(DEVICE(pcms->pcspk), BUS(isa_bus), &error_fatal);
     }
 
     if (pcms->vmport == ON_OFF_AUTO_AUTO) {
@@ -1640,20 +1640,11 @@ static void pc_machine_initfn(Object *obj)
     pcms->default_bus_bypass_iommu = false;
 
     pc_system_flash_create(pcms);
-    pcms->pcspk = isa_new_orphan(TYPE_PC_SPEAKER);
+    pcms->pcspk = isa_new(obj, "pcspk", TYPE_PC_SPEAKER);
     object_property_add_alias(OBJECT(pcms), "pcspk-audiodev",
                               OBJECT(pcms->pcspk), "audiodev");
     if (pcmc->pci_enabled) {
         cxl_machine_init(obj, &pcms->cxl_devices_state);
-    }
-}
-
-static void pc_machine_finalize(Object *obj)
-{
-    PCMachineState *pcms = PC_MACHINE(obj);
-
-    if (pcms->pcspk && !qdev_is_realized(DEVICE(pcms->pcspk))) {
-        object_unref(OBJECT(pcms->pcspk));
     }
 }
 
@@ -1795,7 +1786,6 @@ static const TypeInfo pc_machine_info = {
     .abstract = true,
     .instance_size = sizeof(PCMachineState),
     .instance_init = pc_machine_initfn,
-    .instance_finalize = pc_machine_finalize,
     .class_size = sizeof(PCMachineClass),
     .class_init = pc_machine_class_init,
     .interfaces = (const InterfaceInfo[]) {
