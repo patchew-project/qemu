@@ -606,7 +606,7 @@ static void sifive_u_machine_init(MachineState *machine)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->soc.spi0), 1, flash_cs);
 
     /* Connect an SD card to SPI2 */
-    sd_dev = ssi_create_peripheral(s->soc.spi2.spi, "ssi-sd");
+    sd_dev = ssi_create_peripheral_orphan(s->soc.spi2.spi, "ssi-sd");
 
     sd_cs = qdev_get_gpio_in_named(sd_dev, SSI_GPIO_CS, 0);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->soc.spi2), 1, sd_cs);

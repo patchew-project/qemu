@@ -584,7 +584,23 @@ static inline bool usb_realize_and_unref(USBDevice *dev, USBBus *bus, Error **er
     return qdev_realize_and_unref(&dev->qdev, &bus->qbus, errp);
 }
 
-static inline USBDevice *usb_create_simple(USBBus *bus, const char *name)
+static inline USBDevice *usb_new(Object *parent, const char *id,
+                                  const char *type)
+{
+    return USB_DEVICE(qdev_new(parent, id, type));
+}
+
+static inline USBDevice *usb_create_simple(Object *parent, const char *id,
+                                            USBBus *bus, const char *type)
+{
+    USBDevice *dev = usb_new(parent, id, type);
+
+    qdev_realize(DEVICE(dev), BUS(bus), &error_abort);
+    return dev;
+}
+
+static inline USBDevice *usb_create_simple_orphan(USBBus *bus,
+                                                    const char *name)
 {
     USBDevice *dev = USB_DEVICE(qdev_new_orphan(name));
 

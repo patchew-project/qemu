@@ -398,8 +398,8 @@ static void sam460ex_init(MachineState *machine)
     sysbus_connect_irq(sbdev, 0, qdev_get_gpio_in(uic[2], 30));
     usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
                                                       &error_abort));
-    usb_create_simple(usb_bus, "usb-kbd");
-    usb_create_simple(usb_bus, "usb-mouse");
+    usb_create_simple_orphan(usb_bus, "usb-kbd");
+    usb_create_simple_orphan(usb_bus, "usb-mouse");
 
     /* PCIe buses */
     dev = qdev_new_orphan(TYPE_PPC460EX_PCIE_HOST);

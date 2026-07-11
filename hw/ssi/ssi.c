@@ -138,7 +138,16 @@ bool ssi_realize_and_unref(DeviceState *dev, SSIBus *bus, Error **errp)
     return qdev_realize_and_unref(dev, &bus->parent_obj, errp);
 }
 
-DeviceState *ssi_create_peripheral(SSIBus *bus, const char *name)
+DeviceState *ssi_create_peripheral(Object *parent, const char *id,
+                                    SSIBus *bus, const char *type)
+{
+    DeviceState *dev = qdev_new(parent, id, type);
+
+    qdev_realize(dev, BUS(bus), &error_fatal);
+    return dev;
+}
+
+DeviceState *ssi_create_peripheral_orphan(SSIBus *bus, const char *name)
 {
     DeviceState *dev = qdev_new_orphan(name);
 

@@ -3082,8 +3082,8 @@ static void spapr_machine_init(MachineState *machine)
 
             usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
                                                               &error_abort));
-            usb_create_simple(usb_bus, "usb-kbd");
-            usb_create_simple(usb_bus, "usb-mouse");
+            usb_create_simple_orphan(usb_bus, "usb-kbd");
+            usb_create_simple_orphan(usb_bus, "usb-mouse");
         }
     }
 

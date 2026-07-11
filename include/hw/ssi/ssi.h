@@ -81,7 +81,9 @@ extern const VMStateDescription vmstate_ssi_peripheral;
     .offset     = vmstate_offset_value(_state, _field, SSIPeripheral), \
 }
 
-DeviceState *ssi_create_peripheral(SSIBus *bus, const char *name);
+DeviceState *ssi_create_peripheral(Object *parent, const char *id,
+                                    SSIBus *bus, const char *type);
+DeviceState *ssi_create_peripheral_orphan(SSIBus *bus, const char *name);
 /**
  * ssi_realize_and_unref: realize and unref an SSI peripheral
  * @dev: SSI peripheral to realize
@@ -95,7 +97,7 @@ DeviceState *ssi_create_peripheral(SSIBus *bus, const char *name);
  * This function is useful if you have created @dev via qdev_new_orphan()
  * (which takes a reference to the device it returns to you), so that
  * you can set properties on it before realizing it. If you don't need
- * to set properties then ssi_create_peripheral() is probably better (as it
+ * to set properties then ssi_create_peripheral_orphan() is probably better (as it
  * does the create, init and realize in one step).
  *
  * If you are embedding the SSI peripheral into another QOM device and

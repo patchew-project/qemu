@@ -425,8 +425,8 @@ static void create_pcie(VMAppleMachineState *vms)
 
         usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
                                                           &error_fatal));
-        usb_create_simple(usb_bus, "usb-kbd");
-        usb_create_simple(usb_bus, "usb-tablet");
+        usb_create_simple_orphan(usb_bus, "usb-kbd");
+        usb_create_simple_orphan(usb_bus, "usb-tablet");
     }
 }
 
