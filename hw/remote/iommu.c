@@ -52,8 +52,9 @@ static AddressSpace *remote_iommu_find_add_as(PCIBus *pci_bus,
     }
 
     if (!elem->mr) {
-        elem->mr = MEMORY_REGION(object_new(TYPE_MEMORY_REGION));
-        memory_region_set_size(elem->mr, UINT64_MAX);
+        g_autofree char *name = g_strdup_printf("mr-devfn-%02x", devfn);
+        elem->mr = g_new0(MemoryRegion, 1);
+        memory_region_init(elem->mr, OBJECT(iommu), name, UINT64_MAX);
         address_space_init(&elem->as, elem->mr, NULL);
     }
 

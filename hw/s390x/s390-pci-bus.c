@@ -618,7 +618,13 @@ static S390PCIIOMMU *s390_pci_get_iommu(S390pciState *s, PCIBus *bus,
 
     iommu = table->iommu[PCI_SLOT(devfn)];
     if (!iommu) {
-        iommu = S390_PCI_IOMMU(object_new(TYPE_S390_PCI_IOMMU));
+        char *ch_name = g_strdup_printf("iommu[%02x:%02x.%01x]",
+                                        pci_bus_num(bus),
+                                        PCI_SLOT(devfn),
+                                        PCI_FUNC(devfn));
+        iommu = S390_PCI_IOMMU(object_new_child(OBJECT(s), ch_name,
+                                                TYPE_S390_PCI_IOMMU));
+        g_free(ch_name);
 
         char *mr_name = g_strdup_printf("iommu-root-%02x:%02x.%01x",
                                         pci_bus_num(bus),
