@@ -517,13 +517,13 @@ static void elroy_register_types(void)
 type_init(elroy_register_types)
 
 
-static ElroyState *elroy_init(int num)
+static ElroyState *elroy_init(Object *parent, int num)
 {
     DeviceState *dev;
 
-    dev = qdev_new_orphan(TYPE_ELROY_PCI_HOST_BRIDGE);
+    dev = qdev_new(parent, "elroy[*]", TYPE_ELROY_PCI_HOST_BRIDGE);
     dev->id = g_strdup_printf("elroy%d", num);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     return ELROY_PCI_HOST_BRIDGE(dev);
 }
@@ -1015,7 +1015,7 @@ static void astro_realize(DeviceState *obj, Error **errp)
         addr_offset = elroy_hpa_offsets[i];
         rope = elroy_rope_nr[i];
 
-        elroy = elroy_init(i);
+        elroy = elroy_init(OBJECT(s), i);
         s->elroy[i] = elroy;
         elroy->hpa = ASTRO_HPA + addr_offset;
         elroy->pci_bus_num = i;

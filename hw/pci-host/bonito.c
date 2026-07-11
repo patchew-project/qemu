@@ -733,7 +733,7 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
     pci_set_byte(dev->config + PCI_MAX_LAT, 0x00);
 }
 
-PCIBus *bonito_init(qemu_irq *pic)
+PCIBus *bonito_init(Object *parent, qemu_irq *pic)
 {
     DeviceState *dev;
     BonitoState *pcihost;
@@ -741,17 +741,17 @@ PCIBus *bonito_init(qemu_irq *pic)
     PCIBonitoState *s;
     PCIDevice *d;
 
-    dev = qdev_new_orphan(TYPE_BONITO_PCI_HOST_BRIDGE);
+    dev = qdev_new(parent, "pci-host", TYPE_BONITO_PCI_HOST_BRIDGE);
     phb = PCI_HOST_BRIDGE(dev);
     pcihost = BONITO_PCI_HOST_BRIDGE(dev);
     pcihost->pic = pic;
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
-    d = pci_new_orphan(PCI_DEVFN(0, 0), TYPE_PCI_BONITO);
+    d = pci_new(OBJECT(pcihost), "pci-host", PCI_DEVFN(0, 0), TYPE_PCI_BONITO);
     s = PCI_BONITO(d);
     s->pcihost = pcihost;
     pcihost->pci_dev = s;
-    pci_realize_and_unref(d, phb->bus, &error_fatal);
+    qdev_realize(DEVICE(d), BUS(phb->bus), &error_fatal);
 
     return phb->bus;
 }

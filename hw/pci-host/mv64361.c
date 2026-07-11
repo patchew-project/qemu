@@ -94,7 +94,7 @@ static void mv64361_pcihost_realize(DeviceState *dev, Error **errp)
                                    pci_swizzle_map_irq_fn, dev,
                                    &s->mem, &s->io, 0, 4, TYPE_PCI_BUS);
     g_free(name);
-    pci_create_simple_orphan(h->bus, 0, TYPE_MV64361_PCI_BRIDGE);
+    pci_create_simple(OBJECT(dev), "pci-host", h->bus, 0, TYPE_MV64361_PCI_BRIDGE);
     qdev_init_gpio_out(dev, s->irq, ARRAY_SIZE(s->irq));
 }
 

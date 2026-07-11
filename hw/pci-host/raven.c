@@ -281,7 +281,8 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
                           "pci-intack", 1);
     memory_region_add_subregion(address_space_mem, 0xbffffff0, &s->pci_intack);
 
-    pci_create_simple_orphan(h->bus, PCI_DEVFN(0, 0), TYPE_RAVEN_PCI_DEVICE);
+    pci_create_simple(OBJECT(d), "pci-host", h->bus, PCI_DEVFN(0, 0),
+                      TYPE_RAVEN_PCI_DEVICE);
 
     address_space_init(&s->bm_as, &s->bm, "raven-bm");
     pci_setup_iommu(h->bus, &raven_iommu_ops, s);

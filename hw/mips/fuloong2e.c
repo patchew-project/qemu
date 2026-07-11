@@ -283,7 +283,7 @@ static void mips_fuloong2e_init(MachineState *machine)
     cpu_mips_clock_init(cpu);
 
     /* North bridge, Bonito --> IP2 */
-    pci_bus = bonito_init((qemu_irq *)&(env->irq[2]));
+    pci_bus = bonito_init(OBJECT(machine), (qemu_irq *)&(env->irq[2]));
 
     /* South bridge -> IP5 */
     pci_dev = pci_new_multifunction_orphan(PCI_DEVFN(FULOONG2E_VIA_SLOT, 0),

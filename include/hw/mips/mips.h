@@ -10,7 +10,7 @@
 #include "system/memory.h"
 
 /* bonito.c */
-PCIBus *bonito_init(qemu_irq *pic);
+PCIBus *bonito_init(Object *parent, qemu_irq *pic);
 
 /* rc4030.c */
 typedef struct rc4030DMAState *rc4030_dma;

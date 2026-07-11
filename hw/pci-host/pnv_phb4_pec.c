@@ -180,10 +180,9 @@ static PnvPHB *pnv_pec_default_phb_realize(PnvPhb4PecState *pec,
                                            int stack_no,
                                            Error **errp)
 {
-    PnvPHB *phb = PNV_PHB(qdev_new_orphan(TYPE_PNV_PHB));
+    PnvPHB *phb = PNV_PHB(qdev_new(OBJECT(pec), "phb[*]", TYPE_PNV_PHB));
     int phb_id = pnv_phb4_pec_get_phb_id(pec, stack_no);
 
-    object_property_add_child(OBJECT(pec), "phb[*]", OBJECT(phb));
     object_property_set_link(OBJECT(phb), "pec", OBJECT(pec),
                              &error_abort);
     object_property_set_int(OBJECT(phb), "chip-id", pec->chip_id,
