@@ -122,12 +122,12 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     address_space = get_system_memory();
 
-    memory_region_init_rom(&hms->cfgtable_rom, NULL, "config_table.rom",
+    memory_region_init_rom(&hms->cfgtable_rom, OBJECT(machine), "config_table.rom",
                            sizeof(m_cfg->cfgtable), &error_fatal);
     memory_region_add_subregion(address_space, m_cfg->cfgbase,
                                 &hms->cfgtable_rom);
 
-    memory_region_init_ram(&hms->ram, NULL, "ddr.ram",
+    memory_region_init_ram(&hms->ram, OBJECT(machine), "ddr.ram",
                            machine->ram_size, &error_fatal);
     memory_region_add_subregion(address_space, 0x0, &hms->ram);
 

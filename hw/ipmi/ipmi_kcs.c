@@ -339,7 +339,7 @@ static void ipmi_kcs_init(IPMIInterface *ii, unsigned int min_size,
     }
     ik->size_mask = min_size - 1;
     ik->io_length = 2;
-    memory_region_init_io(&ik->io, NULL, &ipmi_kcs_io_ops, ii, "ipmi-kcs",
+    memory_region_init_io(&ik->io, OBJECT(ii), &ipmi_kcs_io_ops, ii, "ipmi-kcs",
                           min_size);
 }
 

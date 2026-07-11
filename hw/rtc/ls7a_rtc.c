@@ -388,7 +388,7 @@ static void ls7a_rtc_realize(DeviceState *dev, Error **errp)
     int i;
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     LS7ARtcState *d = LS7A_RTC(sbd);
-    memory_region_init_io(&d->iomem, NULL, &ls7a_rtc_ops,
+    memory_region_init_io(&d->iomem, OBJECT(dev), &ls7a_rtc_ops,
                          (void *)d, "ls7a_rtc", 0x100);
 
     sysbus_init_irq(sbd, &d->irq);

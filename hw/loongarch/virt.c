@@ -966,13 +966,13 @@ static void virt_init(MachineState *machine)
         size = VIRT_LOWMEM_SIZE;
     }
 
-    memory_region_init_alias(&lvms->lowmem, NULL, "loongarch.lowram",
+    memory_region_init_alias(&lvms->lowmem, OBJECT(machine), "loongarch.lowram",
                               machine->ram, base, size);
     memory_region_add_subregion(address_space_mem, base, &lvms->lowmem);
     base += size;
     if (ram_size - size) {
         base = VIRT_HIGHMEM_BASE;
-        memory_region_init_alias(&lvms->highmem, NULL, "loongarch.highram",
+        memory_region_init_alias(&lvms->highmem, OBJECT(machine), "loongarch.highram",
                 machine->ram, VIRT_LOWMEM_BASE + size, ram_size - size);
         memory_region_add_subregion(address_space_mem, base, &lvms->highmem);
         base += ram_size - size;

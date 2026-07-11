@@ -74,7 +74,7 @@ static void fdt_add_hvx(HexagonVirtMachineState *vms,
     const MachineState *ms = MACHINE(vms);
     uint32_t vtcm_size_bytes = m_cfg->cfgtable.vtcm_size_kb * 1024;
     if (vtcm_size_bytes > 0) {
-        memory_region_init_ram(&vms->vtcm, NULL, "vtcm.ram", vtcm_size_bytes,
+        memory_region_init_ram(&vms->vtcm, OBJECT(vms), "vtcm.ram", vtcm_size_bytes,
                                &error_fatal);
         memory_region_add_subregion(vms->sys, m_cfg->cfgtable.vtcm_base << 16,
                                     &vms->vtcm);
@@ -250,18 +250,18 @@ static void virt_init(MachineState *ms)
     vms->apb_clk = clock_new(OBJECT(ms), "apb-pclk");
     clock_set_hz(vms->apb_clk, 24000000);
 
-    memory_region_init_ram(&vms->parent_obj.ram, NULL, "ddr.ram",
+    memory_region_init_ram(&vms->parent_obj.ram, OBJECT(ms), "ddr.ram",
                            ms->ram_size, &error_fatal);
     memory_region_add_subregion(vms->sys, 0x0, &vms->parent_obj.ram);
 
     if (m_cfg->l2tcm_size) {
-        memory_region_init_ram(&vms->tcm, NULL, "tcm.ram", m_cfg->l2tcm_size,
+        memory_region_init_ram(&vms->tcm, OBJECT(ms), "tcm.ram", m_cfg->l2tcm_size,
                                &error_fatal);
         memory_region_add_subregion(vms->sys, m_cfg->cfgtable.l2tcm_base << 16,
                                     &vms->tcm);
     }
 
-    memory_region_init_rom(&vms->parent_obj.cfgtable_rom, NULL,
+    memory_region_init_rom(&vms->parent_obj.cfgtable_rom, OBJECT(ms),
                            "config_table.rom", sizeof(m_cfg->cfgtable),
                            &error_fatal);
     memory_region_add_subregion(vms->sys, m_cfg->cfgbase,

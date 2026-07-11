@@ -357,7 +357,7 @@ static void vmapple_firmware_init(VMAppleMachineState *vms,
         exit(1);
     }
 
-    memory_region_init_ram(&vms->fw_mr, NULL, "firmware", size, &error_fatal);
+    memory_region_init_ram(&vms->fw_mr, OBJECT(vms), "firmware", size, &error_fatal);
     image_size = load_image_mr(fname, &vms->fw_mr);
 
     g_free(fname);

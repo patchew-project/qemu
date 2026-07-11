@@ -104,7 +104,7 @@ static ISABus *hppa_isa_bus(Object *parent, hwaddr addr)
     MemoryRegion *isa_region;
 
     isa_region = g_new(MemoryRegion, 1);
-    memory_region_init_io(isa_region, NULL, &hppa_pci_ignore_ops,
+    memory_region_init_io(isa_region, parent, &hppa_pci_ignore_ops,
                           NULL, "isa-io", 0x800);
     memory_region_add_subregion(get_system_memory(), addr, isa_region);
 
@@ -337,7 +337,7 @@ static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
          */
         cflush_name = g_strdup_printf("cpu%u-T600-cacheflush", i);
         cflush = g_new(MemoryRegion, 1);
-        memory_region_init_io(cflush, NULL, &hppa_pci_ignore_ops,
+        memory_region_init_io(cflush, OBJECT(machine), &hppa_pci_ignore_ops,
                               NULL, cflush_name, 4);
         memory_region_add_subregion(addr_space,
                               translate(NULL, CPU_HPA + i * 0x1000 + 0x500),
@@ -498,7 +498,7 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
     }
 
     rom_region = g_new(MemoryRegion, 1);
-    memory_region_init_ram(rom_region, NULL, "firmware",
+    memory_region_init_ram(rom_region, OBJECT(machine), "firmware",
                            (FIRMWARE_END - FIRMWARE_START), &error_fatal);
     memory_region_add_subregion(addr_space,
                                 translate(NULL, FIRMWARE_START), rom_region);

@@ -345,7 +345,7 @@ static void leon3_generic_hw_init(MachineState *machine)
 
     /* Allocate BIOS */
     prom_size = 8 * MiB;
-    memory_region_init_rom(prom, NULL, "Leon3.bios", prom_size, &error_fatal);
+    memory_region_init_rom(prom, OBJECT(machine), "Leon3.bios", prom_size, &error_fatal);
     memory_region_add_subregion(address_space_mem, LEON3_PROM_OFFSET, prom);
 
     /* Load boot prom */

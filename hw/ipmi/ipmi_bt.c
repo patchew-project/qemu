@@ -361,7 +361,7 @@ static void ipmi_bt_init(IPMIInterface *ii, unsigned int min_size, Error **errp)
     ib->size_mask = min_size - 1;
     ib->io_length = 3;
 
-    memory_region_init_io(&ib->io, NULL, &ipmi_bt_io_ops, ii, "ipmi-bt",
+    memory_region_init_io(&ib->io, OBJECT(ii), &ipmi_bt_io_ops, ii, "ipmi-bt",
                           min_size);
 }
 

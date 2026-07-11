@@ -639,7 +639,7 @@ static void bonito_host_realize(DeviceState *dev, Error **errp)
     for (size_t i = 0; i < 3; i++) {
         char *name = g_strdup_printf("pci.lomem%zu", i);
 
-        memory_region_init_alias(&pcimem_lo_alias[i], NULL, name,
+        memory_region_init_alias(&pcimem_lo_alias[i], OBJECT(dev), name,
                                  &bs->pci_mem, i * 64 * MiB, 64 * MiB);
         memory_region_add_subregion(get_system_memory(),
                                     BONITO_PCILO_BASE + i * 64 * MiB,
@@ -713,7 +713,7 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
     create_unimplemented_device(OBJECT(dev), "IOCS[3]", BONITO_DEV_BASE + 3 * 256 * KiB,
                                 256 * KiB);
 
-    memory_region_init_alias(pcimem_alias, NULL, "pci.mem.alias",
+    memory_region_init_alias(pcimem_alias, OBJECT(dev), "pci.mem.alias",
                              &bs->pci_mem, 0, BONITO_PCIHI_SIZE);
     memory_region_add_subregion(host_mem, BONITO_PCIHI_BASE, pcimem_alias);
     create_unimplemented_device(OBJECT(dev), "PCI_2",

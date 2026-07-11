@@ -109,12 +109,12 @@ static void xen_pvh_init_ram(XenPVHMachineState *s,
     }
 
     if (s->cfg.mapcache) {
-        memory_region_init_ram(&xen_memory, NULL, "xen.ram",
+        memory_region_init_ram(&xen_memory, OBJECT(s), "xen.ram",
                                block_len, &error_fatal);
-        memory_region_init_alias(&s->ram.low, NULL, "xen.ram.lo", &xen_memory,
+        memory_region_init_alias(&s->ram.low, OBJECT(s), "xen.ram.lo", &xen_memory,
                                  s->cfg.ram_low.base, ram_size[0]);
         if (ram_size[1] > 0) {
-            memory_region_init_alias(&s->ram.high, NULL, "xen.ram.hi",
+            memory_region_init_alias(&s->ram.high, OBJECT(s), "xen.ram.hi",
                                      &xen_memory,
                                      s->cfg.ram_high.base, ram_size[1]);
         }
@@ -122,11 +122,11 @@ static void xen_pvh_init_ram(XenPVHMachineState *s,
         void *p;
 
         p = xen_map_guest_ram(s, s->cfg.ram_low.base, ram_size[0]);
-        memory_region_init_ram_ptr(&s->ram.low, NULL, "xen.ram.lo",
+        memory_region_init_ram_ptr(&s->ram.low, OBJECT(s), "xen.ram.lo",
                                    ram_size[0], p);
         if (ram_size[1] > 0) {
             p = xen_map_guest_ram(s, s->cfg.ram_high.base, ram_size[1]);
-            memory_region_init_ram_ptr(&s->ram.high, NULL, "xen.ram.hi",
+            memory_region_init_ram_ptr(&s->ram.high, OBJECT(s), "xen.ram.hi",
                                        ram_size[1], p);
         }
     }
@@ -140,7 +140,7 @@ static void xen_pvh_init_ram(XenPVHMachineState *s,
     /* Grants are only supported when the mapcache is on.  */
     if (s->cfg.mapcache) {
         /* Setup support for grants.  */
-        memory_region_init_ram(&xen_grants, NULL, "xen.grants", block_len,
+        memory_region_init_ram(&xen_grants, OBJECT(s), "xen.grants", block_len,
                 &error_fatal);
         memory_region_add_subregion(sysmem, XEN_GRANT_ADDR_OFF, &xen_grants);
     }

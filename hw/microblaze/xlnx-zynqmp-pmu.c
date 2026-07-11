@@ -155,13 +155,13 @@ static void xlnx_zynqmp_pmu_init(MachineState *machine)
     MemoryRegion *pmu_ram = g_new(MemoryRegion, 1);
 
     /* Create the ROM */
-    memory_region_init_rom(pmu_rom, NULL, "xlnx-zynqmp-pmu.rom",
+    memory_region_init_rom(pmu_rom, OBJECT(machine), "xlnx-zynqmp-pmu.rom",
                            XLNX_ZYNQMP_PMU_ROM_SIZE, &error_fatal);
     memory_region_add_subregion(address_space_mem, XLNX_ZYNQMP_PMU_ROM_ADDR,
                                 pmu_rom);
 
     /* Create the RAM */
-    memory_region_init_ram(pmu_ram, NULL, "xlnx-zynqmp-pmu.ram",
+    memory_region_init_ram(pmu_ram, OBJECT(machine), "xlnx-zynqmp-pmu.ram",
                            machine->ram_size, &error_fatal);
     memory_region_add_subregion(address_space_mem, XLNX_ZYNQMP_PMU_RAM_ADDR,
                                 pmu_ram);
