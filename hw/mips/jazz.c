@@ -261,7 +261,7 @@ static void mips_jazz_init(MachineState *machine,
     cpu_mips_clock_init(cpu);
 
     /* Chipset */
-    rc4030 = rc4030_init(&dmas, &rc4030_dma_mr);
+    rc4030 = rc4030_init(OBJECT(machine), &dmas, &rc4030_dma_mr);
     sysbus = SYS_BUS_DEVICE(rc4030);
     sysbus_connect_irq(sysbus, 0, env->irq[6]);
     sysbus_connect_irq(sysbus, 1, env->irq[3]);

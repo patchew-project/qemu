@@ -743,12 +743,13 @@ static void rc4030_register_types(void)
 
 type_init(rc4030_register_types)
 
-DeviceState *rc4030_init(rc4030_dma **dmas, IOMMUMemoryRegion **dma_mr)
+DeviceState *rc4030_init(Object *parent, rc4030_dma **dmas,
+                         IOMMUMemoryRegion **dma_mr)
 {
     DeviceState *dev;
 
-    dev = qdev_new_orphan(TYPE_RC4030);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    dev = qdev_new(parent, "rc4030", TYPE_RC4030);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     *dmas = rc4030_allocate_dmas(dev, 4);
     *dma_mr = &RC4030(dev)->dma_mr;
