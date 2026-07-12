@@ -325,9 +325,12 @@ class QemuSystemTest(QemuBaseTest):
                 resp = tmp_vm.qmp('query-machines')
 
                 machines = resp.get('return', [])
-                cls._machines = [
-                    m.get('name') for m in machines if 'name' in m
-                ]
+                cls._machines = []
+                for m in machines:
+                    if 'name' in m:
+                        cls._machines.append(m['name'])
+                    if 'alias' in m:
+                        cls._machines.append(m['alias'])
 
             finally:
                 try:
