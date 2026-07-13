@@ -104,6 +104,7 @@ the following architecture extensions:
 - FEAT_I8MM (AArch64 Int8 matrix multiplication instructions)
 - FEAT_IDST (ID space trap handling)
 - FEAT_IESB (Implicit error synchronization event)
+- FEAT_IVIPT (The IVIPT Extension)
 - FEAT_JSCVT (JavaScript conversion instructions)
 - FEAT_LittleEnd (Support for little-endian at EL1 and above)
 - FEAT_LittleEndEL0 (Support for little-endian at EL0)
