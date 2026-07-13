@@ -577,12 +577,13 @@ static void xhci_intr_update(XHCIState *xhci, int v)
 static void xhci_intr_raise(XHCIState *xhci, int v)
 {
     bool pending = (xhci->intr[v].erdp_low & ERDP_EHB);
+    bool was_raised = (xhci->intr[v].iman & IMAN_IP);
 
     xhci->intr[v].erdp_low |= ERDP_EHB;
     xhci->intr[v].iman |= IMAN_IP;
     xhci->usbsts |= USBSTS_EINT;
 
-    if (pending) {
+    if (pending && was_raised) {
         return;
     }
     if (!(xhci->intr[v].iman & IMAN_IE)) {
