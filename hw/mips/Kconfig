@@ -67,6 +67,16 @@ config LOONGSON3V
     select FW_CFG_MIPS
     select UNIMP
 
+config MIPS_OCTEON
+    bool
+    default y
+    depends on MIPS64 && TARGET_BIG_ENDIAN
+    imply E1000_PCI
+    imply PCI_DEVICES
+    select PFLASH_CFI02
+    select SERIAL_MM
+    select USB_DWC3
+
 config MIPS_CPS
     bool
     select MIPS_ITU if TCG
