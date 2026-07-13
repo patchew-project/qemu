@@ -4611,7 +4611,7 @@ GIT Data Mining Config
 M: Alex Bennée <alex.bennee@linaro.org>
 S: Odd Fixes
 F: gitdm.config
-F: contrib/gitdm/*
+F: scripts/gitdm/*
 
 Incompatible changes
 L: devel@lists.libvirt.org
