@@ -34,6 +34,7 @@
 #include "qemu/error-report.h"
 
 #define VIRTIO_GPU_VM_VERSION 1
+#define VIRTIO_GPU_MAX_IOVEC 16384
 
 static struct virtio_gpu_simple_resource *
 virtio_gpu_find_check_resource(VirtIOGPU *g, uint32_t resource_id,
@@ -820,10 +821,10 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
     size_t esize, s;
     int e, v;
 
-    if (nr_entries > 16384) {
+    if (nr_entries > VIRTIO_GPU_MAX_IOVEC) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: nr_entries is too big (%d > 16384)\n",
-                      __func__, nr_entries);
+                      "%s: nr_entries is too big (%d > %d)\n",
+                      __func__, nr_entries, VIRTIO_GPU_MAX_IOVEC);
         return -1;
     }
 
@@ -1323,6 +1324,11 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
         res->format = qemu_get_be32(f);
         res->iov_cnt = qemu_get_be32(f);
 
+        if (res->iov_cnt > VIRTIO_GPU_MAX_IOVEC) {
+            g_free(res);
+            return -EINVAL;
+        }
+
         /* allocate */
         pformat = virtio_gpu_get_pixman_format(res->format);
         if (!pformat) {
@@ -1424,6 +1430,12 @@ static int virtio_gpu_blob_load(QEMUFile *f, void *opaque, size_t size,
         res->resource_id = resource_id;
         res->blob_size = qemu_get_be32(f);
         res->iov_cnt = qemu_get_be32(f);
+
+        if (res->iov_cnt > VIRTIO_GPU_MAX_IOVEC) {
+            g_free(res);
+            return -EINVAL;
+        }
+
         res->addrs = g_new(uint64_t, res->iov_cnt);
         res->iov = g_new(struct iovec, res->iov_cnt);
 
