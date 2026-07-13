@@ -1245,6 +1245,16 @@ static int pmbus_write_data(SMBusDevice *smd, uint8_t *buf, uint8_t len)
     pmdev->in_buf_len = len;
     pmdev->in_buf = buf;
 
+    /* clear the output buffer on any new write transaction */
+    if (pmdev->out_buf_len != 0) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: previous read was not completed, %d bytes dropped\n",
+                      __func__, pmdev->out_buf_len);
+
+        pmdev->out_buf_len = 0;
+        memset(pmdev->out_buf, 0, sizeof(pmdev->out_buf));
+    }
+
     pmdev->code = buf[0]; /* PMBus command code */
 
     if (pmdev->code == PMBUS_CLEAR_FAULTS) {
