@@ -147,6 +147,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
+        CPUHexagonState *env = &cpu->env;
         qemu_register_reset(do_cpu_reset, cpu);
 
         /*
@@ -156,6 +157,10 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
         if (i == 0) {
             hexagon_init_bootstrap(dms, cpu);
+            env->g_dir_list = g_malloc0(sizeof(GList *));
+        } else {
+            CPUHexagonState *env0 = cpu_env(qemu_get_cpu(0));
+            env->g_dir_list = env0->g_dir_list;
         }
         object_property_set_link(OBJECT(cpu), "global-regs",
                                  OBJECT(glob_regs_dev), &error_fatal);

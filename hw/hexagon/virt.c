@@ -283,10 +283,12 @@ static void virt_init(MachineState *ms)
     cpu0 = NULL;
     for (int i = 0; i < ms->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(ms->cpu_type));
+        CPUHexagonState *env = &cpu->env;
         qemu_register_reset(do_cpu_reset, cpu);
 
         if (i == 0) {
             cpu0 = DEVICE(cpu);
+            env->g_dir_list = g_malloc0(sizeof(GList *));
             if (ms->kernel_filename) {
                 uint64_t entry = load_kernel(vms);
                 qdev_prop_set_uint32(cpu0, "exec-start-addr", entry);
@@ -294,6 +296,9 @@ static void virt_init(MachineState *ms)
                 uint64_t entry = load_bios(vms);
                 qdev_prop_set_uint32(cpu0, "exec-start-addr", entry);
             }
+        } else {
+            CPUHexagonState *env0 = cpu_env(qemu_get_cpu(0));
+            env->g_dir_list = env0->g_dir_list;
         }
         qdev_prop_set_uint32(DEVICE(cpu), "htid", i);
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));

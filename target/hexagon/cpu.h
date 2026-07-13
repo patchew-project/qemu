@@ -144,6 +144,7 @@ typedef struct CPUArchState {
     uint32_t tlb_lock_count;
     uint32_t k0_lock_count;
     uint64_t t_cycle_count;
+    GList **g_dir_list;
 #endif
     uint32_t next_PC;
     target_ulong new_value_usr;

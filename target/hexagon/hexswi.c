@@ -30,6 +30,9 @@
 #include "semihosting/guestfd.h"
 #include "system/runstate.h"
 
+/* We start from 1 as 0 is used to signal an error from opendir() */
+static const int DIR_INDEX_OFFSET = 1;
+
 /* non-arm-compatible semihosting calls */
 #define HEXAGON_SPECIFIC_SWI_FLAGS \
     DEF_SWI_FLAG(OPEN,             0x01) \
@@ -565,6 +568,82 @@ static void sim_handle_trap0(CPUHexagonState *env)
         common_semi_cb(cs, -1, ENOSYS);
     }
     break;
+
+    case HEX_SYS_OPENDIR:
+    {
+        DIR *dir;
+        char buf[BUFSIZ];
+        int rc = 0, err = 0;
+        int i = 0;
+
+        do {
+            hexagon_read_memory(env, swi_info + i, 1, &buf[i], retaddr);
+            i++;
+        } while ((i < BUFSIZ) && buf[i - 1]);
+
+        dir = opendir(buf);
+        if (dir != NULL) {
+            *env->g_dir_list = g_list_append(*env->g_dir_list, dir);
+            rc = g_list_index(*env->g_dir_list, dir) + DIR_INDEX_OFFSET;
+        } else {
+            err = errno;
+        }
+        common_semi_cb(cs, rc, rc != 0 ? 0 : err);
+        break;
+    }
+
+    case HEX_SYS_READDIR:
+    {
+        struct dirent *host_dir_entry = NULL;
+        int dir_index = swi_info - DIR_INDEX_OFFSET;
+        DIR *dir = g_list_nth_data(*env->g_dir_list, dir_index);
+        uint32_t rc = 0, err = 0;
+
+        if (dir) {
+            errno = 0;
+            host_dir_entry = readdir(dir);
+            if (host_dir_entry == NULL) {
+                err = errno;
+            }
+        } else {
+            err = EBADF;
+        }
+
+        if (host_dir_entry) {
+            uint32_t guest_dir_entry = arch_get_thread_reg(env, HEX_REG_R02);
+            hexagon_write_memory(env, guest_dir_entry, 4, host_dir_entry->d_ino,
+                                 retaddr);
+            for (int i = 0; i < sizeof(host_dir_entry->d_name); i++) {
+                hexagon_write_memory(env, guest_dir_entry + 4 + i, 1,
+                                     host_dir_entry->d_name[i], retaddr);
+                if (!host_dir_entry->d_name[i]) {
+                    break;
+                }
+            }
+            rc = guest_dir_entry;
+        }
+        common_semi_cb(cs, rc, err);
+        break;
+    }
+
+    case HEX_SYS_CLOSEDIR:
+    {
+        DIR *dir;
+        int ret = -1, err = 0;
+        int dir_index = swi_info - DIR_INDEX_OFFSET;
+
+        dir = g_list_nth_data(*env->g_dir_list, dir_index);
+        if (dir != NULL) {
+            ret = closedir(dir);
+            if (ret != 0) {
+                err = errno;
+            }
+        } else {
+            err = EBADF;
+        }
+        common_semi_cb(cs, ret, ret == 0 ? 0 : err);
+        break;
+    }
 
     case HEX_SYS_COREDUMP:
         coredump(env);
