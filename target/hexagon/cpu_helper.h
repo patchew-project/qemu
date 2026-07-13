@@ -7,6 +7,24 @@
 #ifndef HEXAGON_CPU_HELPER_H
 #define HEXAGON_CPU_HELPER_H
 
+static inline void arch_set_thread_reg(CPUHexagonState *env, uint32_t reg,
+                                       uint32_t val)
+{
+    g_assert(reg < TOTAL_PER_THREAD_REGS);
+    env->gpr[reg] = val;
+}
+
+static inline uint32_t arch_get_thread_reg(CPUHexagonState *env, uint32_t reg)
+{
+    g_assert(reg < TOTAL_PER_THREAD_REGS);
+    return env->gpr[reg];
+}
+
+void arch_set_system_reg(CPUHexagonState *env, uint32_t reg, uint32_t val);
+void arch_set_system_reg_masked(CPUHexagonState *env, uint32_t reg,
+                                uint32_t val);
+uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg);
+
 void hexagon_read_memory(CPUHexagonState *env, target_ulong vaddr, int size,
                          void *retptr, uintptr_t retaddr);
 void hexagon_write_memory(CPUHexagonState *env, target_ulong vaddr,

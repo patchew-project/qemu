@@ -27,6 +27,46 @@
 
 #ifndef CONFIG_USER_ONLY
 
+uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg)
+{
+    if (reg == HEX_SREG_PCYCLELO) {
+        return hexagon_get_sys_pcycle_count_low(env);
+    } else if (reg == HEX_SREG_PCYCLEHI) {
+        return hexagon_get_sys_pcycle_count_high(env);
+    }
+
+    g_assert(reg < NUM_SREGS);
+    if (reg < HEX_SREG_GLB_START) {
+        return env->t_sreg[reg];
+    } else {
+        HexagonCPU *cpu = env_archcpu(env);
+        return hexagon_globalreg_read(cpu->globalregs, reg, env->threadId);
+    }
+}
+
+void arch_set_system_reg(CPUHexagonState *env, uint32_t reg, uint32_t val)
+{
+    g_assert(reg < NUM_SREGS);
+    if (reg < HEX_SREG_GLB_START) {
+        env->t_sreg[reg] = val;
+    } else {
+        HexagonCPU *cpu = env_archcpu(env);
+        hexagon_globalreg_write(cpu->globalregs, reg, val, env->threadId);
+    }
+}
+
+void arch_set_system_reg_masked(CPUHexagonState *env, uint32_t reg,
+                                uint32_t val)
+{
+    g_assert(reg < NUM_SREGS);
+    if (reg < HEX_SREG_GLB_START) {
+        env->t_sreg[reg] = val;
+    } else {
+        HexagonCPU *cpu = env_archcpu(env);
+        hexagon_globalreg_write_masked(cpu->globalregs, reg, val);
+    }
+}
+
 static bool hexagon_read_memory_small(CPUHexagonState *env, target_ulong addr,
                                       int byte_count, unsigned char *dstbuf,
                                       int mmu_idx, uintptr_t retaddr)
