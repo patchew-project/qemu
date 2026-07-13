@@ -23,6 +23,8 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
+#include "qemu/timer.h"
+#include "hw/core/clock.h"
 #include "cpu.h"
 #include "internal.h"
 #include "qemu/host-utils.h"
@@ -372,6 +374,14 @@ target_ulong helper_mftc0_tcschefback(CPUMIPSState *env)
 target_ulong helper_mfc0_count(CPUMIPSState *env)
 {
     return (int32_t)cpu_mips_get_count(env);
+}
+
+target_ulong helper_mfc0_cvmcount(CPUMIPSState *env)
+{
+    MIPSCPU *cpu = env_archcpu(env);
+
+    return clock_ns_to_ticks(cpu->clock,
+                             qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 }
 
 target_ulong helper_mftc0_entryhi(CPUMIPSState *env)
