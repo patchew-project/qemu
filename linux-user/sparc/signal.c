@@ -594,6 +594,27 @@ void sparc64_set_context(CPUSPARCState *env)
     unsigned int i;
     unsigned char fenab;
 
+    if (env->regwptr[WREG_O1]) {
+        /*
+         * We're going to set the signal mask; we need to call
+         * block_signals() first, so that process_pending_signals() is
+         * guaranteed to run after the mask change.  Without this, a
+         * guest signal that is pending-and-blocked at setcontext time
+         * is left undelivered even after its mask bit is cleared,
+         * because signal_pending stays 0 and the post-trap
+         * process_pending_signals() loop never enters.
+         *
+         * If block_signals() returns true, this means we have a
+         * pending signal that we could take now; we return early so
+         * the cpu_loop takes that signal.  Eventually the guest will
+         * re-execute the trap insn and we'll come back here to have
+         * another go at set_context. This is the same way that
+         * do_sigprocmask() handles setting the signal mask.
+         */
+        if (block_signals()) {
+            return;
+        }
+    }
     ucp_addr = env->regwptr[WREG_O0];
     if (!lock_user_struct(VERIFY_READ, ucp, ucp_addr, 1)) {
         goto do_sigsegv;
@@ -619,15 +640,6 @@ void sparc64_set_context(CPUSPARCState *env)
             }
         }
         target_to_host_sigset_internal(&set, &target_set);
-        /*
-         * set_sigmask() requires the caller to have first called
-         * block_signals() so that process_pending_signals() is guaranteed
-         * to run after the mask change.  Without this, a guest signal that
-         * is pending-and-blocked at setcontext time is left undelivered
-         * even after its mask bit is cleared, because signal_pending stays
-         * 0 and the post-trap process_pending_signals() loop never enters.
-         */
-        block_signals();
         set_sigmask(&set);
     }
     env->pc = pc;
