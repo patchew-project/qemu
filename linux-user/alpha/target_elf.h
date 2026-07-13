@@ -12,6 +12,7 @@
 #define ELF_MACHINE             EM_ALPHA
 
 #define HAVE_ELF_CORE_DUMP      1
+#define HAVE_ELF_HWCAP          1
 
 /*
  * Matches the kernel's elf_gregset_t (ELF_NGREG = 33):

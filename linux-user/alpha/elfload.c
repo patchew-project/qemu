@@ -6,6 +6,17 @@
 #include "target_elf.h"
 
 
+abi_ulong get_elf_hwcap(CPUState *cs)
+{
+    /*
+     * The Linux kernel computes ELF_HWCAP as ~amask(-1), which clears a bit
+     * for each supported ISA extension.  env->amask stores exactly those bits
+     * set for the extensions supported by the emulated CPU model, matching
+     * the kernel's convention: bit set in AT_HWCAP ↔ extension present.
+     */
+    return cpu_env(cs)->amask;
+}
+
 void elf_core_copy_regs(target_elf_gregset_t *r, const CPUAlphaState *env)
 {
     int i;
