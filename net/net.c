@@ -1385,7 +1385,9 @@ void show_netdevs(void)
         "dgram",
         "hubport",
         "tap",
+#ifdef CONFIG_PASST
         "passt",
+#endif
 #ifdef CONFIG_SLIRP
         "user",
 #endif
