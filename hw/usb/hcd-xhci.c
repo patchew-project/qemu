@@ -1017,7 +1017,8 @@ static XHCIStreamContext *xhci_find_stream(XHCIEPContext *epctx,
         }
         sctx = epctx->pstreams + streamid;
     } else {
-        fprintf(stderr, "xhci: FIXME: secondary streams not implemented yet");
+        qemu_log_mask(LOG_UNIMP,
+                      "xhci: secondary streams not implemented yet\n");
         *cc_error = CC_INVALID_STREAM_TYPE_ERROR;
         return NULL;
     }
