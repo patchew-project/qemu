@@ -427,7 +427,6 @@ static void zynq_slcr_reset_init(Object *obj, ResetType type)
                           = s->regs[R_DDRIOB + 3] = 0x00000e00;
     s->regs[R_DDRIOB + 4] = s->regs[R_DDRIOB + 5] = s->regs[R_DDRIOB + 6]
                           = 0x00000e00;
-    s->regs[R_DDRIOB + 12] = 0x00000021;
 
     s->regs[R_DDRIOB_DCI_CTRL] = 0x00000020;
 }
