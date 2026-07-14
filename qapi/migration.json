@@ -830,7 +830,8 @@
            'zero-page-detection',
            'direct-io',
            { 'name': 'x-rdma-chunk-size', 'features': [ 'unstable' ] },
-           'cpr-exec-command'] }
+           'cpr-exec-command',
+           'local'] }
 
 ##
 # @migrate-set-parameters:
@@ -1012,6 +1013,15 @@
 #     Must be set to the same value on both source and destination
 #     before migration starts.  (Since 11.1)
 #
+# @local: Permit the use of optimizations for local migration.
+#     This must only be set when both the source and destination
+#     QEMU processes are on the same OS and directly connected
+#     with a UNIX domain socket as the migration channel to enable
+#     use of file descriptor passing.  Individual device backends
+#     may need additional configuration flags set  to enable local
+#     migration optimizations.  This will be documented against the
+#     device backends where it applies.  (Since 11.2)
+#
 # Features:
 #
 # @unstable: Members @x-checkpoint-delay, @x-rdma-chunk-size, and
@@ -1053,7 +1063,8 @@
             '*direct-io': 'bool',
             '*x-rdma-chunk-size': { 'type': 'uint64',
                                     'features': [ 'unstable' ] },
-            '*cpr-exec-command': [ 'str' ]} }
+            '*cpr-exec-command': [ 'str' ],
+            '*local': 'bool' } }
 
 ##
 # @query-migrate-parameters:
