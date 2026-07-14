@@ -269,10 +269,19 @@ static void ramblock_pending_bmap_init(void)
 
     RAMBLOCK_FOREACH_NOT_IGNORED(rb) {
         assert(!rb->pending_bmap);
-        size_t size = rb->max_length >> qemu_target_page_bits();
+        size_t size = rb->max_length / qemu_ram_pagesize(rb);
         rb->pending_bmap = bitmap_new(size);
         bitmap_set(rb->pending_bmap, 0, size);
     }
+}
+
+bool ramblock_file_bitmap_page_is_nonzero(RAMBlock *rb, uint64_t page_idx)
+{
+    int page_bits = qemu_ram_pagesize(rb) / qemu_target_page_size();
+    uint64_t bmap_page_start = page_idx * page_bits;
+    uint64_t bmap_page_end = bmap_page_start + page_bits;
+    return find_next_bit(rb->file_bmap, bmap_page_end, bmap_page_start) !=
+           bmap_page_end;
 }
 
 static void ramblock_recv_map_init(void)
