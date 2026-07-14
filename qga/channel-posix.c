@@ -253,6 +253,25 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path,
     return true;
 }
 
+/*
+ * Wait for the channel fd to become writable again after a short write
+ * returned G_IO_STATUS_AGAIN. For a virtio-serial channel this happens when
+ * nothing drains the host-side chardev: the port buffer fills up and every
+ * write() returns EAGAIN. Without this, the caller busy-loops on write() and
+ * pins a CPU at 100% for as long as the host stays disconnected. The read
+ * path (channel_event_cb) already mitigates the same virtio spin with a
+ * sleep; this blocks on POLLOUT so we consume no CPU while waiting, and
+ * returns on HUP/ERR so a real disconnect surfaces as an error instead.
+ */
+static void ga_channel_wait_writable(GAChannel *c)
+{
+    GPollFD pfd = {
+        .fd = g_io_channel_unix_get_fd(c->client_channel),
+        .events = G_IO_OUT | G_IO_ERR | G_IO_HUP,
+    };
+    g_poll(&pfd, 1, -1);
+}
+
 GIOStatus ga_channel_write_all(GAChannel *c, const gchar *buf, gsize size)
 {
     GError *err = NULL;
@@ -266,7 +285,9 @@ GIOStatus ga_channel_write_all(GAChannel *c, const gchar *buf, gsize size)
         if (status == G_IO_STATUS_NORMAL) {
             size -= written;
             buf += written;
-        } else if (status != G_IO_STATUS_AGAIN) {
+        } else if (status == G_IO_STATUS_AGAIN) {
+            ga_channel_wait_writable(c);
+        } else {
             g_warning("error writing to channel: %s", err->message);
             return status;
         }
@@ -274,6 +295,9 @@ GIOStatus ga_channel_write_all(GAChannel *c, const gchar *buf, gsize size)
 
     do {
         status = g_io_channel_flush(c->client_channel, &err);
+        if (status == G_IO_STATUS_AGAIN) {
+            ga_channel_wait_writable(c);
+        }
     } while (status == G_IO_STATUS_AGAIN);
 
     if (status != G_IO_STATUS_NORMAL) {
