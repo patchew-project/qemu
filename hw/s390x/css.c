@@ -1078,6 +1078,12 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
             ret = -EINVAL;
             break;
         }
+        /* Limit the number of TICs in a given channel program */
+        if (sch->ccw_tic_cnt == 255) {
+            ret = -EINVAL;
+            break;
+        }
+        sch->ccw_tic_cnt++;
         sch->channel_prog = ccw.cda;
         ret = -EAGAIN;
         break;
@@ -1129,6 +1135,7 @@ static void sch_handle_start_func_virtual(SubchDev *sch)
         sch->ccw_fmt_1 = !!(orb->ctrl0 & ORB_CTRL0_MASK_FMT);
         schib->scsw.flags |= (sch->ccw_fmt_1) ? SCSW_FLAGS_MASK_FMT : 0;
         sch->ccw_no_data_cnt = 0;
+        sch->ccw_tic_cnt = 0;
         suspend_allowed = !!(orb->ctrl0 & ORB_CTRL0_MASK_SPND);
     } else {
         /* Start Function resumed via rsch */
