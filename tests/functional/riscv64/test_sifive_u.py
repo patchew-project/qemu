@@ -35,9 +35,6 @@ class SifiveU(LinuxKernelTest):
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                'earlycon=sbi console=ttySIF0 '
                                'root=/dev/mmcblk0 ')
-        self.vm.add_args('-kernel', kernel_path,
-                         '-append', kernel_command_line,
-                         '-no-reboot')
         if connect_card:
             kernel_command_line += 'panic=-1 noreboot rootwait '
             self.vm.add_args('-drive', f'file={rootfs_path},if=sd,format=raw')
@@ -46,6 +43,9 @@ class SifiveU(LinuxKernelTest):
             kernel_command_line += 'panic=0 noreboot '
             pattern = 'Cannot open root device "mmcblk0" or unknown-block(0,0)'
 
+        self.vm.add_args('-kernel', kernel_path,
+                         '-append', kernel_command_line,
+                         '-no-reboot')
         self.vm.launch()
         self.wait_for_console_pattern(pattern)
 
