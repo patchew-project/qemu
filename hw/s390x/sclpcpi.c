@@ -97,6 +97,11 @@ static int write_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr)
                                              ebh);
     SCLPEventCPI *e = SCLP_EVENT_CPI(event);
 
+    /* Caller checks sccb length, buffer header checking is our duty */
+    if (be16_to_cpu(evt_buf_hdr->length) != sizeof(ControlProgramIdMsg)) {
+        return SCLP_RC_INCONSISTENT_LENGTHS;
+    }
+
     ascii_put(e->system_type, (char *)cpim->data.system_type,
               sizeof(cpim->data.system_type));
     ascii_put(e->system_name, (char *)cpim->data.system_name,
