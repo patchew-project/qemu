@@ -28,6 +28,33 @@ int ieee_ex_to_loongarch(int xcpt);
 void restore_fp_status(CPULoongArchState *env);
 #endif
 
+static inline uint64_t cpu_csr_estat_get(CPUSysState *sys)
+{
+    return qatomic_read(&sys->CSR_ESTAT);
+}
+
+#define cpu_csr_estat_set(sys, field, val) \
+    do { \
+        uint64_t _estat = cpu_csr_estat_get(sys); \
+        uint64_t _new = FIELD_DP64(_estat, CSR_ESTAT, field, (val)); \
+        if (qatomic_cmpxchg(&(sys)->CSR_ESTAT, _estat, _new) == _estat) { \
+            break; \
+        } \
+    } while (1)
+
+static inline uint64_t cpu_csr_estat_deposit64(CPUSysState *sys, int start,
+                                               int len, uint64_t val)
+{
+    do {
+        uint64_t _estat = cpu_csr_estat_get(sys);
+        uint64_t _new = deposit64(_estat, start, len, val);
+        if (qatomic_cmpxchg(&(sys)->CSR_ESTAT, _estat, _new) == _estat) {
+            return _estat;
+        }
+    } while (1);
+}
+
+
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_loongarch_cpu;
 

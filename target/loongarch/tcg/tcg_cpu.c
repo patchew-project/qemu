@@ -160,10 +160,8 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
         sys->CSR_TLBRERA = FIELD_DP64(sys->CSR_TLBRERA, CSR_TLBRERA,
                                       PC, (env->pc >> 2));
     } else {
-        sys->CSR_ESTAT = FIELD_DP64(sys->CSR_ESTAT, CSR_ESTAT, ECODE,
-                                    EXCODE_MCODE(cause));
-        sys->CSR_ESTAT = FIELD_DP64(sys->CSR_ESTAT, CSR_ESTAT, ESUBCODE,
-                                    EXCODE_SUBCODE(cause));
+        cpu_csr_estat_set(sys, ECODE, EXCODE_MCODE(cause));
+        cpu_csr_estat_set(sys, ESUBCODE, EXCODE_SUBCODE(cause));
         sys->CSR_PRMD = FIELD_DP64(sys->CSR_PRMD, CSR_PRMD, PPLV,
                                    FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, PLV));
         sys->CSR_PRMD = FIELD_DP64(sys->CSR_PRMD, CSR_PRMD, PIE,
@@ -181,7 +179,7 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
     if  (cs->exception_index == EXCCODE_INT) {
         /* Interrupt */
         uint32_t vector = 0;
-        uint32_t pending = FIELD_EX64(sys->CSR_ESTAT, CSR_ESTAT, IS);
+        uint32_t pending = FIELD_EX64(cpu_csr_estat_get(sys), CSR_ESTAT, IS);
         pending &= FIELD_EX64(sys->CSR_ECFG, CSR_ECFG, LIE);
 
         /* Find the highest-priority interrupt. */
@@ -195,7 +193,7 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
                       TARGET_FMT_lx "\n",
                       __func__, env->pc, sys->CSR_ERA,
                       cause, sys->CSR_BADV, sys->CSR_DERA, vector,
-                      sys->CSR_ECFG, sys->CSR_ESTAT);
+                      sys->CSR_ECFG, cpu_csr_estat_get(sys));
         qemu_plugin_vcpu_interrupt_cb(cs, last_pc);
     } else {
         if (tlbfill) {
@@ -210,7 +208,7 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
                       "BADI " TARGET_FMT_lx " SYS_NUM " TARGET_FMT_lu
                       " cpu %d asid " TARGET_FMT_lx "\n", __func__, env->pc,
                       tlbfill ? sys->CSR_TLBRERA : sys->CSR_ERA,
-                      cause, tlbfill ? "(refill)" : "", sys->CSR_ESTAT,
+                      cause, tlbfill ? "(refill)" : "", cpu_csr_estat_get(sys),
                       sys->CSR_ECFG,
                       tlbfill ? sys->CSR_TLBRBADV : sys->CSR_BADV,
                       sys->CSR_BADI, env->gpr[11], cs->cpu_index,

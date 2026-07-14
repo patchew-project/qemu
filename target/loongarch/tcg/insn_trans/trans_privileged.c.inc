@@ -75,7 +75,7 @@ static bool set_csr_trans_func(unsigned int csr_num, GenCSRRead readfn,
 void loongarch_csr_translate_init(void)
 {
     SET_CSR_FUNC(STLBPS, NULL, gen_helper_csrwr_stlbps);
-    SET_CSR_FUNC(ESTAT, NULL, gen_helper_csrwr_estat);
+    SET_CSR_FUNC(ESTAT, gen_helper_csrrd_estat, gen_helper_csrwr_estat);
     SET_CSR_FUNC(ASID,  NULL, gen_helper_csrwr_asid);
     SET_CSR_FUNC(PGD,   gen_helper_csrrd_pgd, NULL);
     SET_CSR_FUNC(PWCL,  NULL, gen_helper_csrwr_pwcl);
@@ -187,7 +187,16 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
         return false;
     }
 
-    /* So far only readonly csrs have readfn. */
+    if (a->csr == LOONGARCH_CSR_ESTAT) {
+        src1 = gpr_src(ctx, a->rd, EXT_NONE);
+        mask = gpr_src(ctx, a->rj, EXT_NONE);
+        oldv = tcg_temp_new();
+        gen_helper_csrxhg_estat(oldv, tcg_env, src1, mask);
+        gen_set_gpr(a->rd, oldv, EXT_NONE);
+        return true;
+    }
+
+    /* So far only readonly csrs have readfn, except ESTAT. */
     assert(csr->readfn == NULL);
 
     src1 = gpr_src(ctx, a->rd, EXT_NONE);

@@ -90,7 +90,7 @@ target_ulong helper_csrrd_msgir(CPULoongArchState *env)
             return irq;
         }
 
-        sys->CSR_ESTAT = FIELD_DP64(sys->CSR_ESTAT, CSR_ESTAT, MSGINT, 0);
+        cpu_csr_estat_set(sys, MSGINT, 0);
     } else {
         /* bit 31 set 1 for no invalid irq */
         irq = BIT(31);
@@ -99,15 +99,31 @@ target_ulong helper_csrrd_msgir(CPULoongArchState *env)
     return irq;
 }
 
+target_ulong helper_csrrd_estat(CPULoongArchState *env)
+{
+    CPUSysState *sys = env_sys(env);
+    return cpu_csr_estat_get(sys);
+}
+
 target_ulong helper_csrwr_estat(CPULoongArchState *env, target_ulong val)
 {
     CPUSysState *sys = env_sys(env);
-    int64_t old_v = sys->CSR_ESTAT;
+    return cpu_csr_estat_deposit64(sys, 0, 2, val);
+}
 
-    /* Only IS[1:0] can be written */
-    sys->CSR_ESTAT = deposit64(sys->CSR_ESTAT, 0, 2, val);
-
-    return old_v;
+target_ulong helper_csrxhg_estat(CPULoongArchState *env, target_ulong val,
+                                 target_ulong mask)
+{
+    CPUSysState *sys = env_sys(env);
+    mask &= MAKE_64BIT_MASK(0, 2);
+    val &= mask;
+    do {
+        uint64_t _estat = cpu_csr_estat_get(sys);
+        uint64_t _new = (_estat & ~mask) | val;
+        if (qatomic_cmpxchg(&(sys)->CSR_ESTAT, _estat, _new) == _estat) {
+            return _estat;
+        }
+    } while (1);
 }
 
 target_ulong helper_csrwr_asid(CPULoongArchState *env, target_ulong val)

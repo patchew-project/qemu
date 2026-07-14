@@ -71,8 +71,8 @@ void loongarch_cpu_set_irq(void *opaque, int irq, int level)
     if (kvm_enabled()) {
         kvm_loongarch_set_interrupt(cpu, irq, level);
     } else if (tcg_enabled()) {
-        sys->CSR_ESTAT = deposit64(sys->CSR_ESTAT, irq, 1, level != 0);
-        if (FIELD_EX64(sys->CSR_ESTAT, CSR_ESTAT, IS)) {
+        cpu_csr_estat_deposit64(sys, irq, 1, level != 0);
+        if (FIELD_EX64(cpu_csr_estat_get(sys), CSR_ESTAT, IS)) {
             cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         } else {
             cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
@@ -87,7 +87,7 @@ bool cpu_loongarch_hw_interrupts_pending(CPULoongArchState *env)
     uint32_t status;
     CPUSysState *sys = env_sys(env);
 
-    pending = FIELD_EX64(sys->CSR_ESTAT, CSR_ESTAT, IS);
+    pending = FIELD_EX64(cpu_csr_estat_get(sys), CSR_ESTAT, IS);
     status  = FIELD_EX64(sys->CSR_ECFG, CSR_ECFG, LIE);
 
     return (pending & status) != 0;
@@ -641,7 +641,7 @@ static void loongarch_cpu_reset_hold(Object *obj, ResetType type)
     sys->CSR_ECFG = FIELD_DP64(sys->CSR_ECFG, CSR_ECFG, VS, 0);
     sys->CSR_ECFG = FIELD_DP64(sys->CSR_ECFG, CSR_ECFG, LIE, 0);
 
-    sys->CSR_ESTAT = sys->CSR_ESTAT & (~MAKE_64BIT_MASK(0, 2));
+    qatomic_and(&sys->CSR_ESTAT, ~MAKE_64BIT_MASK(0, 2));
     sys->CSR_RVACFG = FIELD_DP64(sys->CSR_RVACFG, CSR_RVACFG, RBITS, 0);
     sys->CSR_CPUID = cs->cpu_index;
     sys->CSR_TCFG = FIELD_DP64(sys->CSR_TCFG, CSR_TCFG, EN, 0);
