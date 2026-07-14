@@ -633,7 +633,8 @@ static uint64_t gicr_cdia_read(CPUARMState *env, const ARMCPRegInfo *ri)
     switch (type) {
     case GICV5_PPI:
     {
-        uint32_t ppireg, ppibit;
+        uint32_t ppireg;
+        uint64_t ppibit;
 
         assert(id < GICV5_NUM_PPIS);
         ppireg = id / 64;
