@@ -16,6 +16,7 @@
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_tlb.h"
+#include "hw/intc/hex-l2vic.h"
 #include "hw/core/loader.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -111,6 +112,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     MemoryRegion *address_space;
     DeviceState *glob_regs_dev;
     DeviceState *tlb_dev;
+    DeviceState *cpu0 = NULL;
 
     memset(&hexagon_binfo, 0, sizeof(hexagon_binfo));
     if (machine->kernel_filename) {
@@ -131,11 +133,21 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                            machine->ram_size, &error_fatal);
     memory_region_add_subregion(address_space, 0x0, &hms->ram);
 
+    hms->l2vic_dev = qdev_new(TYPE_HEX_L2VIC);
+    object_property_add_child(OBJECT(machine), "l2vic",
+                              OBJECT(hms->l2vic_dev));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(hms->l2vic_dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(hms->l2vic_dev), 0, m_cfg->l2vic_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(hms->l2vic_dev), 1,
+                    m_cfg->cfgtable.fastl2vic_base << 16);
+
     glob_regs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
     object_property_add_child(OBJECT(machine), "global-regs",
                               OBJECT(glob_regs_dev));
     qdev_prop_set_uint64(glob_regs_dev, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(glob_regs_dev, "dsp-rev", rev);
+    object_property_set_link(OBJECT(glob_regs_dev), "l2vic",
+                             OBJECT(hms->l2vic_dev), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), &error_fatal);
 
     tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
@@ -154,13 +166,21 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
          */
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
         if (i == 0) {
+            cpu0 = DEVICE(cpu);
             hexagon_init_bootstrap(dms, cpu);
         }
         object_property_set_link(OBJECT(cpu), "global-regs",
                                  OBJECT(glob_regs_dev), &error_fatal);
         object_property_set_link(OBJECT(cpu), "tlb",
                                  OBJECT(tlb_dev), &error_fatal);
+        object_property_set_link(OBJECT(cpu), "l2vic",
+                                 OBJECT(hms->l2vic_dev), &error_fatal);
         qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
+    }
+
+    for (int i = 0; i < 8; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(hms->l2vic_dev), i,
+                           qdev_get_gpio_in(cpu0, i));
     }
 
     rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
