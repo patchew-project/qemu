@@ -214,6 +214,13 @@ void migration_channel_process_incoming(QIOChannel *ioc)
     trace_migration_set_incoming_channel(
         ioc, object_get_typename(OBJECT(ioc)));
 
+    if (migrate_local() &&
+        !qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_FD_PASS)) {
+        error_setg(&local_err,
+                   "local migration requires a UNIX domain socket channel");
+        goto out;
+    }
+
     if (migrate_channel_requires_tls_upgrade(ioc)) {
         migration_tls_channel_process_incoming(ioc, &local_err);
     } else {
@@ -240,6 +247,16 @@ out:
 void migration_channel_connect_outgoing(MigrationState *s, QIOChannel *ioc)
 {
     trace_migration_set_outgoing_channel(ioc, object_get_typename(OBJECT(ioc)));
+
+    if (migrate_local() &&
+        !qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_FD_PASS)) {
+        Error *local_err = NULL;
+
+        error_setg(&local_err,
+                   "local migration requires a UNIX domain socket channel");
+        migration_connect_error_propagate(s, local_err);
+        return;
+    }
 
     if (migrate_channel_requires_tls_upgrade(ioc)) {
         Error *local_err = NULL;
