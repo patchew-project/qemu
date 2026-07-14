@@ -767,6 +767,9 @@ endif
 add_project_arguments(cc.get_supported_arguments(qemu_common_flags + qemu_cflags + warn_flags),
                       native: false, language: 'c')
 add_global_link_arguments(qemu_ldflags, native: false, language: all_languages)
+if have_rust
+  add_global_link_arguments(qemu_ldflags, native: false, language: 'rust')
+endif
 
 if 'cpp' in all_languages
   add_project_arguments(cxx.get_supported_arguments(qemu_common_flags + qemu_cxxflags),
