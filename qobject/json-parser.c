@@ -29,9 +29,10 @@
  * object, an error, or NULL (if the object is incomplete and no error
  * happened) after every token.  Therefore it has an explicit
  * representation of its parser stack; each stack entry consists of a
- * parser state and a QObject: - a QList, for an array that is being
- * added to - a QDict, for a dictionary that is being added to - a
- * QString, for the key of the next pair that will be added to a QDict
+ * parser state and a QObject:
+ * - a QList, for an array that is being added to
+ * - a QDict, for a dictionary that is being added to
+ * - a QString, for the key of the next pair that will be added to a QDict
  *
  * The stack represents an arbitrary nesting of arrays and dictionaries
  * (whose next key has been parsed); it can also have a dictionary whose
