@@ -139,6 +139,7 @@ enum {
     TRANSLATE_PMP_FAIL,
     TRANSLATE_G_STAGE_FAIL,
     TRANSLATE_PMA_FAIL,
+    TRANSLATE_MPT_FAIL
 };
 
 /* Extension context status */
@@ -184,6 +185,7 @@ extern RISCVCPUImpliedExtsRule *riscv_multi_ext_implied_rules[];
 
 #if !defined(CONFIG_USER_ONLY)
 #include "tcg/pmp.h"
+#include "riscv_smmpt.h"
 #endif
 
 #define RV_VLEN_MAX 1024
@@ -521,6 +523,12 @@ struct CPUArchState {
     uint64_t rnmip;
     uint64_t rnmi_irqvec;
     uint64_t rnmi_excpvec;
+
+    /* Smsdid */
+    uint32_t mptmode;
+    uint32_t sdid;
+    uint64_t mptppn;
+    uint32_t msdcfg;
 #endif
 
     /* Fields from here on are preserved across CPU reset. */

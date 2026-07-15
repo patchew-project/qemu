@@ -1166,4 +1166,28 @@ typedef enum CTRType {
 #define MCONTEXT64                         0x0000000000001FFFULL
 #define MCONTEXT32_HCONTEXT                0x0000007F
 #define MCONTEXT64_HCONTEXT                0x0000000000003FFFULL
+
+/* Smsdid */
+#define CSR_MMPT        0x382
+#define CSR_MSDCFG      0x74E
+
+/*
+ * MMPT register layout for MXLEN=32:
+ * MODE[31:30], 0[29:28], SDID[27:22], PPN[21:0]
+ */
+#define MMPT_MODE_MASK_32   0xC0000000
+#define MMPT_MODE_SHIFT_32  30
+#define MMPT_SDID_MASK_32   0x0FC00000
+#define MMPT_SDID_SHIFT_32  22
+#define MMPT_PPN_MASK_32    0x003FFFFF
+
+/*
+ * MMPT register layout for MXLEN=64:
+ * MODE[63:60], 0[59:58], SDID[57:52], 0[51:44], PPN[43:0]
+ */
+#define MMPT_MODE_MASK_64   0xF000000000000000ULL
+#define MMPT_MODE_SHIFT_64  60
+#define MMPT_SDID_MASK_64   0x03F0000000000000ULL
+#define MMPT_SDID_SHIFT_64  52
+#define MMPT_PPN_MASK_64    0x00000FFFFFFFFFFFULL
 #endif
