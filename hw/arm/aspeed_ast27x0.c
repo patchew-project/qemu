@@ -39,6 +39,7 @@ static const hwaddr aspeed_soc_ast2700_memmap[] = {
     [ASPEED_DEV_EHCI2]     =  0x12063000,
     [ASPEED_DEV_HACE]      =  0x12070000,
     [ASPEED_DEV_EMMC]      =  0x12090000,
+    [ASPEED_DEV_UFS]       =  0x12c08200,
     [ASPEED_DEV_PCIE0]     =  0x120E0000,
     [ASPEED_DEV_PCIE1]     =  0x120F0000,
     [ASPEED_DEV_INTC]      =  0x12100000,
@@ -116,6 +117,7 @@ static const int aspeed_soc_ast2700a1_irqmap[] = {
     [ASPEED_DEV_SCU]       = 12,
     [ASPEED_DEV_RTC]       = 13,
     [ASPEED_DEV_EMMC]      = 15,
+    [ASPEED_DEV_UFS]       = 118,
     [ASPEED_DEV_TIMER1]    = 16,
     [ASPEED_DEV_TIMER2]    = 17,
     [ASPEED_DEV_TIMER3]    = 18,
@@ -532,6 +534,8 @@ static void aspeed_soc_ast2700_init(Object *obj)
 
     object_initialize_child(obj, "emmc-controller.sdhci", &s->emmc.slots[0],
                             TYPE_SYSBUS_SDHCI);
+
+    object_initialize_child(obj, "ufs", &s->ufs, TYPE_ASPEED_UFS);
 
     snprintf(typename, sizeof(typename), "aspeed.timer-%s", socname);
     object_initialize_child(obj, "timerctrl", &s->timerctrl, typename);
@@ -1038,6 +1042,15 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
                     sc->memmap[ASPEED_DEV_EMMC]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->emmc), 0,
                        aspeed_soc_ast2700_get_irq(s, ASPEED_DEV_EMMC));
+
+    /* UFS */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ufs), errp)) {
+        return;
+    }
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&s->ufs), 0,
+                    sc->memmap[ASPEED_DEV_UFS]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->ufs), 0,
+                       aspeed_soc_ast2700_get_irq(s, ASPEED_DEV_UFS));
 
     /* Timer */
     object_property_set_link(OBJECT(&s->timerctrl), "scu", OBJECT(&s->scu),

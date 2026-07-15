@@ -184,6 +184,18 @@ static void aspeed_machine_init(MachineState *machine)
         object_property_set_int(OBJECT(bmc->soc), "hw-prot-key",
                                 ASPEED_SCU_PROT_KEY, &error_abort);
     }
+    /*
+     * Attach the UFS backing drive before realizing the SoC so that
+     * the UFS controller can read the drive size during realization.
+     */
+    {
+        DriveInfo *ufs_dinfo = drive_get(IF_NONE, 0, 0);
+        if (ufs_dinfo) {
+            qdev_prop_set_drive_err(DEVICE(&bmc->soc->ufs), "drive",
+                                    blk_by_legacy_dinfo(ufs_dinfo),
+                                    &error_fatal);
+        }
+    }
     aspeed_connect_serial_hds_to_uarts(bmc);
     qdev_realize(DEVICE(bmc->soc), NULL, &error_abort);
 
