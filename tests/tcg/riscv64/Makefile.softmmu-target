@@ -45,5 +45,13 @@ EXTRA_RUNS += run-test-smmpt
 run-test-smmpt: test-smmpt
 	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)x-smmpt=true $(QEMU_OPTS)$<)
 
+EXTRA_RUNS += run-test-smmpt52
+run-test-smmpt52: test-smmpt52
+	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)x-smmpt=true $(QEMU_OPTS)$<)
+
+EXTRA_RUNS += run-test-smmpt64
+run-test-smmpt64: test-smmpt64
+	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)x-smmpt=true $(QEMU_OPTS)$<)
+
 # We don't currently support the multiarch system tests
 undefine MULTIARCH_TESTS
