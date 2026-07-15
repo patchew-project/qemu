@@ -1171,6 +1171,9 @@ typedef enum CTRType {
 #define CSR_MMPT        0x382
 #define CSR_MSDCFG      0x74E
 
+/* Maximal number of implemented SDID bits (SDIDMAX) */
+#define MMPT_SDIDLEN_MAX    6
+
 /*
  * MMPT register layout for MXLEN=32:
  * MODE[31:30], 0[29:28], SDID[27:22], PPN[21:0]
