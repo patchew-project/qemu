@@ -21,6 +21,7 @@
 #define OCTEON_MIO_BOOT_REG_CFG_COUNT 8
 #define OCTEON_MIO_BOOT_LOC_SIZE    0x100
 #define OCTEON_MIO_EMM_BUF_SIZE     512
+#define OCTEON_LMC_COUNT            4
 #define OCTEON_TWSI_COUNT           2
 #define OCTEON_TWSI_STAT_IDLE       0xf8
 #define OCTEON_SPD_EEPROM_SIZE      139
@@ -42,6 +43,7 @@ typedef struct OcteonMioState OcteonMioState;
 typedef struct OcteonEmmState OcteonEmmState;
 typedef struct OcteonRstState OcteonRstState;
 typedef struct OcteonIntcState OcteonIntcState;
+typedef struct OcteonLmcState OcteonLmcState;
 typedef struct OcteonCsrBankState OcteonCsrBankState;
 
 typedef struct OcteonCPUState {
@@ -73,6 +75,7 @@ struct OcteonState {
     OcteonEmmState *emm;
     OcteonRstState *rst;
     OcteonIntcState *intc;
+    OcteonLmcState *lmc[OCTEON_LMC_COUNT];
     OcteonCsrBankState *csr_bank;
     OcteonSpdEepromState *spd[OCTEON_SPD_EEPROM_COUNT];
     SerialMM *uart;
