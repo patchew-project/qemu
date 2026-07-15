@@ -903,9 +903,9 @@ void riscv_cpu_set_mode(CPURISCVState *env, privilege_mode_t newpriv,
  * @access_type: The type of MMU access
  * @mode: Indicates current privilege level.
  */
-static int get_physical_address_pmp(CPURISCVState *env, int *prot, hwaddr addr,
-                                    int size, MMUAccessType access_type,
-                                    privilege_mode_t mode)
+int get_physical_address_pmp(CPURISCVState *env, int *prot, hwaddr addr,
+                             int size, MMUAccessType access_type,
+                             privilege_mode_t mode)
 {
     pmp_priv_t pmp_priv;
     bool pmp_has_privs;
