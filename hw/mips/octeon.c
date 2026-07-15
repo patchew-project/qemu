@@ -20,9 +20,12 @@
 #include "hw/mips/mips.h"
 #include "system/blockdev.h"
 #include "system/address-spaces.h"
+#include "system/cpus.h"
 #include "system/memory.h"
 #include "system/reset.h"
+#include "exec/cpu-interrupt.h"
 #include "qemu/error-report.h"
+#include "qemu/atomic.h"
 #include "hw/mips/octeon_internal.h"
 #include "target/mips/cpu.h"
 
@@ -35,6 +38,10 @@ OBJECT_DECLARE_TYPE(OcteonPeripheralState, OcteonPeripheralClass,
 
 #define TYPE_OCTEON_RST "octeon-rst"
 OBJECT_DECLARE_SIMPLE_TYPE(OcteonRstState, OCTEON_RST)
+#define TYPE_OCTEON_INTC "octeon-intc"
+OBJECT_DECLARE_SIMPLE_TYPE(OcteonIntcState, OCTEON_INTC)
+
+#define OCTEON_CSR_64BIT_SIZE       8
 
 /*
  * Clock defaults follow a Ubiquiti E1000 EBB7304 U-Boot banner.
@@ -60,6 +67,13 @@ OBJECT_DECLARE_SIMPLE_TYPE(OcteonRstState, OCTEON_RST)
 #define OCTEON_DR0_SIZE             (256 * MiB)
 #define OCTEON_DR1_BASE             0x020000000ULL
 #define OCTEON_DR1_SIZE             (OCTEON_MAX_PHY_MEM_SIZE - OCTEON_DR0_SIZE)
+
+#define OCTEON_CIU3_BASE            0x1010000000000ULL
+#define OCTEON_CIU3_SIZE            0xb0000000ULL
+#define OCTEON_CIU3_PP_RST          0x100
+#define OCTEON_CIU3_PP_RST_PENDING  0x110
+#define OCTEON_CIU3_NMI             0x160
+#define OCTEON_CIU3_FUSE            0x1a0
 
 /*
  * QEMU-only backing for per-core CVMSEG. Keep it outside guest DRAM;
@@ -108,6 +122,59 @@ struct OcteonRstState {
     uint64_t rst_pp_power;
 };
 
+struct OcteonIntcState {
+    OcteonPeripheralState parent_obj;
+    MemoryRegion ciu3;
+    uint64_t ciu3_pp_rst;
+};
+
+uint64_t octeon_read64(uint64_t value, hwaddr addr, unsigned size)
+{
+    if (size == 4) {
+        if (addr & 4) {
+            return value & 0xffffffffU;
+        }
+        return value >> 32;
+    }
+
+    return value;
+}
+
+uint64_t octeon_write64(uint64_t old, hwaddr addr,
+                        uint64_t value, unsigned size)
+{
+    if (size == 4) {
+        if (addr & 4) {
+            return (old & 0xffffffff00000000ULL) | (value & 0xffffffffU);
+        }
+        return (old & 0xffffffffULL) | ((value & 0xffffffffU) << 32);
+    }
+
+    return value;
+}
+
+static uint64_t octeon_atomic_write64(uint64_t *ptr, hwaddr addr,
+                                      uint64_t value, unsigned size,
+                                      uint64_t and_mask, uint64_t or_mask,
+                                      uint64_t *oldp)
+{
+    uint64_t old;
+    uint64_t new;
+    uint64_t cmp = qatomic_read(ptr);
+
+    do {
+        old = cmp;
+        new = (octeon_write64(old, addr, value, size) & and_mask) | or_mask;
+        cmp = qatomic_cmpxchg(ptr, old, new);
+    } while (old != cmp);
+
+    if (oldp) {
+        *oldp = old;
+    }
+
+    return new;
+}
+
 static void octeon_validate_clocks(OcteonMachineState *oms)
 {
     if (!oms->cpu_hz || !oms->ref_hz || !oms->io_hz || !oms->ddr_hz) {
@@ -132,6 +199,140 @@ static uint64_t octeon_secondary_cpu_mask(OcteonState *s)
     return octeon_present_cpu_mask(s) & ~1ULL;
 }
 
+static void octeon_cpu_park_now(MIPSCPU *cpu)
+{
+    CPUMIPSState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+
+    env->active_tc.CP0_TCHalt = 1;
+    env->tcs[0].CP0_TCHalt = 1;
+    cs->halted = 1;
+    cpu_reset_interrupt(cs, CPU_INTERRUPT_WAKE);
+}
+
+static void octeon_cpu_park_work(CPUState *cs, run_on_cpu_data data)
+{
+    octeon_cpu_park_now(MIPS_CPU(cs));
+}
+
+static void octeon_cpu_start_work(CPUState *cs, run_on_cpu_data data)
+{
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
+
+    cpu->mvp->CP0_MVPControl |= (1 << CP0MVPCo_EVP);
+    env->CP0_VPEConf0 |= (1 << CP0VPEC0_MVP) | (1 << CP0VPEC0_VPA);
+    env->active_tc.CP0_TCHalt = 0;
+    env->tcs[0].CP0_TCHalt = 0;
+    env->active_tc.CP0_TCStatus = (1 << CP0TCSt_A);
+    env->tcs[0].CP0_TCStatus = (1 << CP0TCSt_A);
+    env->active_tc.PC = cpu_mips_phys_to_kseg1(NULL, OCTEON_FLASH_RESET_BASE);
+    cs->halted = 0;
+    cpu_interrupt(cs, CPU_INTERRUPT_WAKE | CPU_INTERRUPT_EXITTB);
+}
+
+static void octeon_start_cpu(OcteonState *s, unsigned int cpu_index)
+{
+    MIPSCPU *cpu;
+
+    if (cpu_index >= s->cpu_count || !s->cpu[cpu_index].cpu) {
+        return;
+    }
+
+    cpu = s->cpu[cpu_index].cpu;
+    async_run_on_cpu(CPU(cpu), octeon_cpu_start_work, RUN_ON_CPU_NULL);
+}
+
+static void octeon_ciu3_start_cpu(OcteonState *s, unsigned int cpu_index)
+{
+    if (qatomic_read(&s->intc->ciu3_pp_rst) & (1ULL << cpu_index)) {
+        return;
+    }
+
+    octeon_start_cpu(s, cpu_index);
+}
+
+static void octeon_ciu3_nmi(OcteonState *s, uint64_t mask)
+{
+    unsigned int cpu;
+
+    for (cpu = 1; cpu < s->cpu_count; cpu++) {
+        if (mask & (1ULL << cpu)) {
+            octeon_ciu3_start_cpu(s, cpu);
+        }
+    }
+}
+
+static uint64_t octeon_ciu3_read(void *opaque, hwaddr addr, unsigned size)
+{
+    OcteonState *s = opaque;
+    hwaddr reg = addr & ~7ULL;
+    uint64_t value;
+
+    if (reg == OCTEON_CIU3_PP_RST) {
+        return octeon_read64(qatomic_read(&s->intc->ciu3_pp_rst), addr, size);
+    }
+
+    if (reg == OCTEON_CIU3_PP_RST_PENDING) {
+        return 0;
+    }
+
+    if (reg == OCTEON_CIU3_NMI) {
+        return 0;
+    }
+
+    if (reg == OCTEON_CIU3_FUSE) {
+        value = octeon_present_cpu_mask(s);
+        return octeon_read64(value, addr, size);
+    }
+
+    return 0;
+}
+
+static void octeon_ciu3_write(void *opaque, hwaddr addr,
+                              uint64_t value, unsigned size)
+{
+    OcteonState *s = opaque;
+    hwaddr reg = addr & ~7ULL;
+    uint64_t old;
+    unsigned int cpu;
+
+    if (reg == OCTEON_CIU3_PP_RST) {
+        value = octeon_atomic_write64(&s->intc->ciu3_pp_rst, addr, value, size,
+                                      octeon_present_cpu_mask(s), 0, &old);
+
+        for (cpu = 1; cpu < s->cpu_count; cpu++) {
+            uint64_t mask = 1ULL << cpu;
+
+            if (!((old ^ value) & mask)) {
+                continue;
+            }
+            if (value & mask) {
+                async_run_on_cpu(CPU(s->cpu[cpu].cpu), octeon_cpu_park_work,
+                                 RUN_ON_CPU_NULL);
+            } else {
+                octeon_ciu3_start_cpu(s, cpu);
+            }
+        }
+        return;
+    }
+
+    if (reg == OCTEON_CIU3_NMI) {
+        octeon_ciu3_nmi(s, octeon_write64(0, addr, value, size));
+        return;
+    }
+}
+
+static const MemoryRegionOps octeon_ciu3_ops = {
+    .read = octeon_ciu3_read,
+    .write = octeon_ciu3_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 8,
+    },
+};
+
 static void octeon_cpu_after_reset(OcteonCPUState *cs)
 {
     CPUMIPSState *env = &cs->cpu->env;
@@ -139,7 +340,13 @@ static void octeon_cpu_after_reset(OcteonCPUState *cs)
     env->CP0_CvmMemCtl = 0x100;
     env->CP0_CvmCtl = 0;
 
-    if (cs->boot_cpu && cs->board->firmware_entry) {
+    if (!cs->boot_cpu) {
+        /* Secondary cores are released by the Octeon reset controller. */
+        octeon_cpu_park_now(cs->cpu);
+        return;
+    }
+
+    if (cs->board->firmware_entry) {
         env->active_tc.PC = cs->board->firmware_entry;
     }
 }
@@ -151,6 +358,8 @@ static void octeon_create_cpus(OcteonState *s)
     s->cpuclk = clock_new(OBJECT(s->machine), "cpu-refclk");
     clock_set_hz(s->cpuclk, s->cpu_hz);
     s->cpu_count = s->machine->smp.cpus;
+    qatomic_set(&s->intc->ciu3_pp_rst, octeon_secondary_cpu_mask(s));
+
     for (i = 0; i < s->cpu_count; i++) {
         DeviceState *dev = qdev_new(s->machine->cpu_type);
 
@@ -348,6 +557,19 @@ static void octeon_rst_reset_hold(Object *obj, ResetType type)
     rst->rst_pp_power = octeon_secondary_cpu_mask(rst->parent_obj.board);
 }
 
+static void octeon_intc_reset_hold(Object *obj, ResetType type)
+{
+    OcteonPeripheralClass *opc = OCTEON_PERIPHERAL_GET_CLASS(obj);
+    OcteonIntcState *intc = OCTEON_INTC(obj);
+    OcteonState *s = intc->parent_obj.board;
+
+    if (opc->parent_phases.hold) {
+        opc->parent_phases.hold(obj, type);
+    }
+
+    qatomic_set(&intc->ciu3_pp_rst, octeon_secondary_cpu_mask(s));
+}
+
 static void octeon_peripheral_class_init(ObjectClass *klass,
                                           const void *data)
 {
@@ -362,6 +584,15 @@ static void octeon_rst_class_init(ObjectClass *klass, const void *data)
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     resettable_class_set_parent_phases(rc, NULL, octeon_rst_reset_hold,
+                                       NULL, &opc->parent_phases);
+}
+
+static void octeon_intc_class_init(ObjectClass *klass, const void *data)
+{
+    OcteonPeripheralClass *opc = OCTEON_PERIPHERAL_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+
+    resettable_class_set_parent_phases(rc, NULL, octeon_intc_reset_hold,
                                        NULL, &opc->parent_phases);
 }
 
@@ -380,6 +611,7 @@ static OcteonPeripheralState *octeon_new_peripheral(OcteonState *s,
 static void octeon_create_peripherals(OcteonState *s)
 {
     s->rst = OCTEON_RST(octeon_new_peripheral(s, TYPE_OCTEON_RST, 0));
+    s->intc = OCTEON_INTC(octeon_new_peripheral(s, TYPE_OCTEON_INTC, 0));
 }
 
 static void octeon_realize_peripheral(OcteonPeripheralState *dev)
@@ -389,6 +621,7 @@ static void octeon_realize_peripheral(OcteonPeripheralState *dev)
 
 static void octeon_realize_peripherals(OcteonState *s)
 {
+    octeon_realize_peripheral(&s->intc->parent_obj);
     octeon_realize_peripheral(&s->rst->parent_obj);
 }
 
@@ -417,6 +650,12 @@ static void mips_octeon_init(MachineState *machine)
     octeon_init_flash(s);
     octeon_load_firmware(s);
     octeon_create_cpus(s);
+
+    memory_region_init_io(&s->intc->ciu3, OBJECT(s->intc),
+                          &octeon_ciu3_ops, s,
+                          "octeon.ciu3", OCTEON_CIU3_SIZE);
+    memory_region_add_subregion(get_system_memory(), OCTEON_CIU3_BASE,
+                                &s->intc->ciu3);
 
     octeon_realize_peripherals(s);
 }
@@ -489,6 +728,12 @@ static const TypeInfo octeon_machine_types[] = {
         .parent = TYPE_OCTEON_PERIPHERAL,
         .instance_size = sizeof(OcteonRstState),
         .class_init = octeon_rst_class_init,
+    },
+    {
+        .name = TYPE_OCTEON_INTC,
+        .parent = TYPE_OCTEON_PERIPHERAL,
+        .instance_size = sizeof(OcteonIntcState),
+        .class_init = octeon_intc_class_init,
     },
     {
         .name = TYPE_OCTEON_MACHINE,
