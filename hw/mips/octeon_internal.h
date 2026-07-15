@@ -22,6 +22,7 @@
 #define OCTEON_MIO_BOOT_LOC_SIZE    0x100
 #define OCTEON_MIO_EMM_BUF_SIZE     512
 #define OCTEON_LMC_COUNT            4
+#define OCTEON_USB_COUNT            2
 #define OCTEON_TWSI_COUNT           2
 #define OCTEON_TWSI_STAT_IDLE       0xf8
 #define OCTEON_SPD_EEPROM_SIZE      139
@@ -29,11 +30,15 @@
 
 typedef enum OcteonIRQ {
     OCTEON_IRQ_UART,
+    OCTEON_IRQ_USB0,
+    OCTEON_IRQ_USB1,
     OCTEON_IRQ_COUNT,
 } OcteonIRQ;
 
 typedef enum OcteonCiu3Source {
     OCTEON_CIU3_SRC_UART0,
+    OCTEON_CIU3_SRC_USB0,
+    OCTEON_CIU3_SRC_USB1,
     OCTEON_CIU3_SRC_MBOX0,
     OCTEON_CIU3_SRC_COUNT = OCTEON_CIU3_SRC_MBOX0 + OCTEON_MAX_CPUS,
 } OcteonCiu3Source;
@@ -103,5 +108,6 @@ void octeon_irq_set(void *opaque, int irq, int level);
 void octeon_validate_ram_size(uint64_t ram_size);
 void octeon_init_spd(OcteonState *s);
 void octeon_init_twsi(OcteonState *s);
+void octeon_init_usb(OcteonState *s);
 
 #endif
