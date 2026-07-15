@@ -7,6 +7,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bswap.h"
 #include "qapi/error.h"
 #include "hw/core/resettable.h"
 #include "hw/core/sysbus.h"
@@ -14,6 +15,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
 #include "qemu/module.h"
+#include "system/address-spaces.h"
 #include "system/memory.h"
 
 #define TYPE_OCTEON_PCI_HOST "octeon-pci-host"
@@ -29,7 +31,15 @@ OBJECT_DECLARE_TYPE(OcteonPCIHostState, OcteonPCIHostClass,
     (OCTEON_PCIE_SLI_CFG_PORTS * OCTEON_PCIE_SLI_CFG_PORT_SIZE)
 #define OCTEON_PCIE0_IO_BASE        0x11a0400000000ULL
 #define OCTEON_PCIE0_IO_SIZE        (1ULL << 32)
+#define OCTEON_PCIE0_MEM_BASE       0x11b0000000000ULL
 #define OCTEON_PCIE0_MEM_SIZE       (1ULL << 32)
+#define OCTEON_SLI_MEM_ACCESS_SUBID_BASE   0x000000e0
+#define OCTEON_SLI_MEM_ACCESS_SUBID_STRIDE 16
+#define OCTEON_SLI_MEM_ACCESS_SUBID_ESR_M  0x0000003000000000ULL
+#define OCTEON_SLI_MEM_ACCESS_SUBID_ESR_S  36
+#define OCTEON_SLI_MEM_ACCESS_SUBID_ESW_M  0x0000000c00000000ULL
+#define OCTEON_SLI_MEM_ACCESS_SUBID_ESW_S  34
+#define OCTEON_SLI_MEM_ACCESS_SWAP         3
 #define OCTEON_PCIE0_ENDPOINT_DEVFN PCI_DEVFN(0x0b, 0)
 #define OCTEON_PEMX_CFG_WR0         0xc0000028
 #define OCTEON_PEMX_CFG_RD0         0xc0000030
@@ -45,6 +55,7 @@ struct OcteonPCIHostState {
     uint32_t pem_cfg_rd_addr;
     uint64_t pem_cfg_wr;
     GHashTable *root_cfg;
+    GHashTable *pexp_regs;
 };
 
 struct OcteonPCIHostClass {
@@ -64,6 +75,7 @@ static void octeon_pci_host_reset_hold(Object *obj, ResetType type)
     host->pem_cfg_rd_addr = 0;
     host->pem_cfg_wr = 0;
     g_hash_table_remove_all(host->root_cfg);
+    g_hash_table_remove_all(host->pexp_regs);
 }
 
 static OcteonPCIHostState *octeon_pci_host(OcteonState *s)
@@ -158,6 +170,34 @@ void octeon_pci_pem_write(OcteonState *s, hwaddr reg, hwaddr addr,
     default:
         g_assert_not_reached();
     }
+}
+
+uint64_t octeon_pci_pexp_read(OcteonState *s, hwaddr addr, unsigned size)
+{
+    OcteonPCIHostState *host = octeon_pci_host(s);
+    uint64_t reg = OCTEON_PEXP_BASE + (addr & ~7ULL);
+    uint64_t value;
+
+    if (!octeon_reg_lookup(host->pexp_regs, reg, &value)) {
+        value = 0;
+    }
+
+    return octeon_read64(value, addr, size);
+}
+
+void octeon_pci_pexp_write(OcteonState *s, hwaddr addr,
+                           uint64_t value, unsigned size)
+{
+    OcteonPCIHostState *host = octeon_pci_host(s);
+    uint64_t reg = OCTEON_PEXP_BASE + (addr & ~7ULL);
+    uint64_t old;
+
+    if (!octeon_reg_lookup(host->pexp_regs, reg, &old)) {
+        old = 0;
+    }
+
+    octeon_reg_store(host->pexp_regs, reg,
+                     octeon_write64(old, addr, value, size));
 }
 
 static uint64_t octeon_pci_absent(unsigned size)
@@ -256,6 +296,130 @@ static const MemoryRegionOps octeon_pcie_sli_cfg_ops = {
     },
 };
 
+static uint64_t octeon_pcie_bswap(uint64_t value, unsigned size)
+{
+    switch (size) {
+    case 1:
+        return value;
+    case 2:
+        return bswap16(value);
+    case 4:
+        return bswap32(value);
+    case 8:
+        return bswap64(value);
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint64_t octeon_pcie_mem_subid_reg(hwaddr addr)
+{
+    unsigned int subid = (addr >> 28) & 3;
+
+    return OCTEON_PEXP_BASE + OCTEON_SLI_MEM_ACCESS_SUBID_BASE +
+           subid * OCTEON_SLI_MEM_ACCESS_SUBID_STRIDE;
+}
+
+static bool octeon_pcie_mem_swap_enabled(OcteonPCIHostState *host,
+                                         hwaddr addr, bool write)
+{
+    uint64_t value;
+    uint64_t mask = write ? OCTEON_SLI_MEM_ACCESS_SUBID_ESW_M :
+                            OCTEON_SLI_MEM_ACCESS_SUBID_ESR_M;
+    unsigned int shift = write ? OCTEON_SLI_MEM_ACCESS_SUBID_ESW_S :
+                                 OCTEON_SLI_MEM_ACCESS_SUBID_ESR_S;
+
+    if (!octeon_reg_lookup(host->pexp_regs,
+                           octeon_pcie_mem_subid_reg(addr), &value)) {
+        return false;
+    }
+
+    return ((value & mask) >> shift) == OCTEON_SLI_MEM_ACCESS_SWAP;
+}
+
+static uint64_t octeon_pcie0_mem_read(void *opaque, hwaddr addr,
+                                      unsigned size)
+{
+    OcteonState *s = opaque;
+    OcteonPCIHostState *host = octeon_pci_host(s);
+    uint64_t value;
+
+    switch (size) {
+    case 1:
+        value = address_space_ldub(&s->pcie0_mem_as, addr,
+                                   MEMTXATTRS_UNSPECIFIED, NULL);
+        break;
+    case 2:
+        value = address_space_lduw_le(&s->pcie0_mem_as, addr,
+                                      MEMTXATTRS_UNSPECIFIED, NULL);
+        break;
+    case 4:
+        value = address_space_ldl_le(&s->pcie0_mem_as, addr,
+                                     MEMTXATTRS_UNSPECIFIED, NULL);
+        break;
+    case 8:
+        value = address_space_ldq_le(&s->pcie0_mem_as, addr,
+                                     MEMTXATTRS_UNSPECIFIED, NULL);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    if (TARGET_BIG_ENDIAN &&
+        !octeon_pcie_mem_swap_enabled(host, addr, false)) {
+        value = octeon_pcie_bswap(value, size);
+    }
+
+    return value;
+}
+
+static void octeon_pcie0_mem_write(void *opaque, hwaddr addr,
+                                   uint64_t value, unsigned size)
+{
+    OcteonState *s = opaque;
+    OcteonPCIHostState *host = octeon_pci_host(s);
+
+    if (TARGET_BIG_ENDIAN &&
+        !octeon_pcie_mem_swap_enabled(host, addr, true)) {
+        value = octeon_pcie_bswap(value, size);
+    }
+
+    switch (size) {
+    case 1:
+        address_space_stb(&s->pcie0_mem_as, addr, value,
+                          MEMTXATTRS_UNSPECIFIED, NULL);
+        break;
+    case 2:
+        address_space_stw_le(&s->pcie0_mem_as, addr, value,
+                             MEMTXATTRS_UNSPECIFIED, NULL);
+        break;
+    case 4:
+        address_space_stl_le(&s->pcie0_mem_as, addr, value,
+                             MEMTXATTRS_UNSPECIFIED, NULL);
+        break;
+    case 8:
+        address_space_stq_le(&s->pcie0_mem_as, addr, value,
+                             MEMTXATTRS_UNSPECIFIED, NULL);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static const MemoryRegionOps octeon_pcie0_mem_ops = {
+    .read = octeon_pcie0_mem_read,
+    .write = octeon_pcie0_mem_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
 static int octeon_pci_map_irq(PCIDevice *pci_dev, int irq_num)
 {
     return 0;
@@ -273,6 +437,9 @@ static void octeon_pci_host_init(Object *obj)
     host->root_cfg = g_hash_table_new_full(octeon_uint64_hash,
                                            octeon_uint64_equal,
                                            g_free, g_free);
+    host->pexp_regs = g_hash_table_new_full(octeon_uint64_hash,
+                                            octeon_uint64_equal,
+                                            g_free, g_free);
 }
 
 static void octeon_pci_host_finalize(Object *obj)
@@ -280,6 +447,7 @@ static void octeon_pci_host_finalize(Object *obj)
     OcteonPCIHostState *host = OCTEON_PCI_HOST(obj);
 
     g_hash_table_destroy(host->root_cfg);
+    g_hash_table_destroy(host->pexp_regs);
 }
 
 static void octeon_pci_host_class_init(ObjectClass *klass, const void *data)
@@ -353,4 +521,10 @@ void octeon_init_pci(OcteonState *s)
     memory_region_add_subregion(get_system_memory(), OCTEON_PCIE0_IO_BASE,
                                 &s->pcie0_io);
 
+    address_space_init(&s->pcie0_mem_as, &host->mem,
+                       "octeon.pcie0-mem-as");
+    memory_region_init_io(&s->pcie0_mem, NULL, &octeon_pcie0_mem_ops, s,
+                          "octeon.pcie0-mem", OCTEON_PCIE0_MEM_SIZE);
+    memory_region_add_subregion(get_system_memory(), OCTEON_PCIE0_MEM_BASE,
+                                &s->pcie0_mem);
 }
