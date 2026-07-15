@@ -8,30 +8,337 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "qemu/datadir.h"
+#include "qapi/error.h"
+#include "hw/core/clock.h"
 #include "hw/core/boards.h"
+#include "hw/core/qdev-clock.h"
 #include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
+#include "hw/core/sysbus.h"
+#include "hw/block/flash.h"
+#include "hw/mips/mips.h"
+#include "system/blockdev.h"
+#include "system/address-spaces.h"
+#include "system/memory.h"
+#include "system/reset.h"
+#include "qemu/error-report.h"
 #include "hw/mips/octeon_internal.h"
 #include "target/mips/cpu.h"
 
 #define TYPE_OCTEON_MACHINE MACHINE_TYPE_NAME("octeon3")
 OBJECT_DECLARE_SIMPLE_TYPE(OcteonMachineState, OCTEON_MACHINE)
 
+/*
+ * Clock defaults follow a Ubiquiti E1000 EBB7304 U-Boot banner.
+ * DDR follows the upstream EBB7304 U-Boot board default.
+ */
 #define OCTEON_DEFAULT_CPU_HZ       1800000000
 #define OCTEON_DEFAULT_REF_HZ       50000000
 #define OCTEON_DEFAULT_IO_HZ        1000000000
 #define OCTEON_DEFAULT_DDR_HZ       800000000
+
+/*
+ * The physical layout follows U-Boot's generic Octeon III
+ * OCTEON_MAX_PHY_MEM_SIZE value. Keep 1 GiB as the tested default.
+ */
 #define OCTEON_DEFAULT_RAM_SIZE     (1 * GiB)
+#define OCTEON_MAX_PHY_MEM_SIZE     (512 * GiB)
+
+/*
+ * The EBB7304 FDT exposes DRAM below and above the
+ * 0x10000000..0x1fffffff boot-bus/EJTAG hole.
+ */
+#define OCTEON_DR0_BASE             0x000000000ULL
+#define OCTEON_DR0_SIZE             (256 * MiB)
+#define OCTEON_DR1_BASE             0x020000000ULL
+#define OCTEON_DR1_SIZE             (OCTEON_MAX_PHY_MEM_SIZE - OCTEON_DR0_SIZE)
+
+/*
+ * QEMU-only backing for per-core CVMSEG. Keep it outside guest DRAM;
+ * the guest sees the virtual CVMSEG window, not this physical address.
+ */
+#define OCTEON_CVMSEG_BASE          0x10000000000ULL
+#define OCTEON_CVMSEG_SIZE          0x4000
+#define OCTEON_CVMSEG_TOTAL_SIZE    (OCTEON_MAX_CPUS * OCTEON_CVMSEG_SIZE)
+
+#define OCTEON_FLASH_BASE           0x1f400000ULL
+#define OCTEON_FLASH_RESET_BASE     0x1fc00000ULL
+#define OCTEON_FLASH_RESET_SIZE     (4 * MiB)
+#define OCTEON_FLASH_MAIN_SECTORS   127
+#define OCTEON_FLASH_MAIN_SECTOR_SIZE (64 * KiB)
+#define OCTEON_FLASH_ENV_SECTORS    8
+#define OCTEON_FLASH_ENV_SECTOR_SIZE 0x2000
+#define OCTEON_FLASH_SIZE           \
+    (OCTEON_FLASH_MAIN_SECTORS * OCTEON_FLASH_MAIN_SECTOR_SIZE + \
+     OCTEON_FLASH_ENV_SECTORS * OCTEON_FLASH_ENV_SECTOR_SIZE)
+#define OCTEON_FLASH_ENV_OFFSET     \
+    (OCTEON_FLASH_SIZE - OCTEON_FLASH_ENV_SECTOR_SIZE)
+#define OCTEON_FLASH_WIDTH          2
 
 struct OcteonMachineState {
     MachineState parent_obj;
+    OcteonState *board;
     uint64_t cpu_hz;
     uint64_t ref_hz;
     uint64_t io_hz;
     uint64_t ddr_hz;
 };
 
+static void octeon_validate_clocks(OcteonMachineState *oms)
+{
+    if (!oms->cpu_hz || !oms->ref_hz || !oms->io_hz || !oms->ddr_hz) {
+        error_report("octeon3 clock frequencies must be non-zero");
+        exit(1);
+    }
+
+    if (oms->cpu_hz % oms->ref_hz || oms->io_hz % oms->ref_hz) {
+        error_report("octeon3 CPU and IO clocks must be multiples of "
+                     "ref-clock-hz");
+        exit(1);
+    }
+}
+
+static void octeon_cpu_after_reset(OcteonCPUState *cs)
+{
+    CPUMIPSState *env = &cs->cpu->env;
+
+    env->CP0_CvmMemCtl = 0x100;
+    env->CP0_CvmCtl = 0;
+
+    if (cs->boot_cpu && cs->board->firmware_entry) {
+        env->active_tc.PC = cs->board->firmware_entry;
+    }
+}
+
+static void octeon_create_cpus(OcteonState *s)
+{
+    unsigned int i;
+
+    s->cpuclk = clock_new(OBJECT(s->machine), "cpu-refclk");
+    clock_set_hz(s->cpuclk, s->cpu_hz);
+    s->cpu_count = s->machine->smp.cpus;
+    for (i = 0; i < s->cpu_count; i++) {
+        DeviceState *dev = qdev_new(s->machine->cpu_type);
+
+        s->cpu[i].board = s;
+        s->cpu[i].boot_cpu = i == 0;
+        object_property_set_bool(OBJECT(dev), "big-endian", TARGET_BIG_ENDIAN,
+                                 &error_abort);
+        object_property_set_bool(OBJECT(dev), "start-powered-off", i != 0,
+                                 &error_abort);
+        qdev_connect_clock_in(dev, "clk-in", s->cpuclk);
+        qdev_realize(dev, NULL, &error_abort);
+        s->cpu[i].cpu = MIPS_CPU(dev);
+
+        cpu_mips_irq_init_cpu(s->cpu[i].cpu);
+        cpu_mips_clock_init(s->cpu[i].cpu);
+        qemu_register_resettable(OBJECT(dev));
+    }
+}
+
+static uint64_t octeon_map_ram_alias(OcteonState *s, MemoryRegion *alias,
+                                     const char *name, hwaddr base,
+                                     uint64_t offset, uint64_t size)
+{
+    MemoryRegion *sysmem = get_system_memory();
+
+    if (!size) {
+        return offset;
+    }
+
+    memory_region_init_alias(alias, NULL, name, s->machine->ram, offset, size);
+    memory_region_add_subregion(sysmem, base, alias);
+    return offset + size;
+}
+
+static void octeon_map_ram(OcteonState *s)
+{
+    MemoryRegion *sysmem = get_system_memory();
+    uint64_t offset = 0;
+    uint64_t remaining = s->machine->ram_size;
+    uint64_t size;
+
+    size = MIN(remaining, (uint64_t)OCTEON_DR0_SIZE);
+    offset = octeon_map_ram_alias(s, &s->dr0, "octeon.dr0",
+                                  OCTEON_DR0_BASE, offset, size);
+    remaining -= size;
+
+    size = MIN(remaining, (uint64_t)OCTEON_DR1_SIZE);
+    octeon_map_ram_alias(s, &s->dr1, "octeon.dr1",
+                         OCTEON_DR1_BASE, offset, size);
+
+    memory_region_init_ram(&s->cvmseg, NULL, "octeon.cvmseg",
+                           OCTEON_CVMSEG_TOTAL_SIZE, &error_fatal);
+    memory_region_add_subregion(sysmem, OCTEON_CVMSEG_BASE, &s->cvmseg);
+}
+
+static void octeon_load_firmware(OcteonState *s)
+{
+    g_autofree char *filename = NULL;
+    g_autofree gchar *contents = NULL;
+    g_autoptr(GError) err = NULL;
+    gsize len;
+    uint8_t *flash;
+
+    if (!s->machine->firmware) {
+        return;
+    }
+    if (!s->flash) {
+        error_report("Octeon boot flash is not initialized");
+        exit(1);
+    }
+
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, s->machine->firmware);
+    if (!filename) {
+        error_report("Could not find Octeon firmware '%s'",
+                     s->machine->firmware);
+        exit(1);
+    }
+
+    if (!g_file_get_contents(filename, &contents, &len, &err)) {
+        error_report("Could not load Octeon firmware '%s': %s",
+                     filename, err->message);
+        exit(1);
+    }
+
+    if (len == 0 || len > OCTEON_FLASH_ENV_OFFSET) {
+        error_report("Octeon firmware '%s' has invalid size %" G_GSIZE_FORMAT,
+                     filename, len);
+        exit(1);
+    }
+
+    flash = memory_region_get_ram_ptr(s->flash);
+    memcpy(flash, contents, len);
+    s->firmware_entry = cpu_mips_phys_to_kseg1(NULL, OCTEON_FLASH_RESET_BASE);
+}
+
+static MemTxResult octeon_boot_flash_read(void *opaque, hwaddr addr,
+                                          uint64_t *data, unsigned size,
+                                          MemTxAttrs attrs)
+{
+    OcteonState *s = opaque;
+    uint8_t buf[8];
+    MemTxResult result = MEMTX_OK;
+    unsigned int i;
+
+    for (i = 0; i < size; i++) {
+        uint64_t value;
+
+        result |= memory_region_dispatch_read(s->flash, addr + i, &value,
+                                              MO_8, attrs);
+        buf[i] = value;
+    }
+    *data = ldn_be_p(buf, size);
+    return result;
+}
+
+static MemTxResult octeon_boot_flash_write(void *opaque, hwaddr addr,
+                                           uint64_t value, unsigned size,
+                                           MemTxAttrs attrs)
+{
+    OcteonState *s = opaque;
+    unsigned access_size = MIN(size, 4);
+
+    if (size > access_size) {
+        access_size = OCTEON_FLASH_WIDTH;
+    }
+    return memory_region_dispatch_write(s->flash, addr, value,
+                                        size_memop(access_size) | MO_BE,
+                                        attrs);
+}
+
+static const MemoryRegionOps octeon_boot_flash_ops = {
+    .read_with_attrs = octeon_boot_flash_read,
+    .write_with_attrs = octeon_boot_flash_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
+static void octeon_init_flash(OcteonState *s)
+{
+    DriveInfo *dinfo = drive_get(IF_PFLASH, 0, 0);
+    DeviceState *dev;
+    uint8_t *flash;
+
+    dev = qdev_new(TYPE_PFLASH_CFI02);
+    if (dinfo) {
+        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo));
+    }
+    qdev_prop_set_uint32(dev, "num-blocks0", OCTEON_FLASH_MAIN_SECTORS);
+    qdev_prop_set_uint32(dev, "sector-length0",
+                         OCTEON_FLASH_MAIN_SECTOR_SIZE);
+    qdev_prop_set_uint32(dev, "num-blocks1", OCTEON_FLASH_ENV_SECTORS);
+    qdev_prop_set_uint32(dev, "sector-length1",
+                         OCTEON_FLASH_ENV_SECTOR_SIZE);
+    qdev_prop_set_uint8(dev, "width", OCTEON_FLASH_WIDTH);
+    qdev_prop_set_uint8(dev, "mappings", 1);
+    qdev_prop_set_uint8(dev, "big-endian", TARGET_BIG_ENDIAN);
+    qdev_prop_set_uint16(dev, "id0", 0x01);
+    qdev_prop_set_uint16(dev, "id1", 0x7e);
+    qdev_prop_set_uint16(dev, "id2", 0x00);
+    qdev_prop_set_uint16(dev, "id3", 0x00);
+    qdev_prop_set_uint16(dev, "unlock-addr0", 0x555);
+    qdev_prop_set_uint16(dev, "unlock-addr1", 0x2aa);
+    qdev_prop_set_string(dev, "name", "octeon.bootbus-flash");
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    s->flash = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
+    if (!dinfo) {
+        flash = memory_region_get_ram_ptr(s->flash);
+        memset(flash, 0xff, OCTEON_FLASH_SIZE);
+    }
+    memory_region_init_io(&s->boot_flash, NULL, &octeon_boot_flash_ops, s,
+                          "octeon.bootbus-flash-window", OCTEON_FLASH_SIZE);
+    memory_region_add_subregion(get_system_memory(), OCTEON_FLASH_BASE,
+                                &s->boot_flash);
+
+    memory_region_init_alias(&s->boot_flash_alias, NULL,
+                             "octeon.bootbus-flash-reset-alias",
+                             &s->boot_flash, 0, OCTEON_FLASH_RESET_SIZE);
+    memory_region_add_subregion(get_system_memory(), OCTEON_FLASH_RESET_BASE,
+                                &s->boot_flash_alias);
+}
+
 static void mips_octeon_init(MachineState *machine)
 {
+    OcteonMachineState *oms = OCTEON_MACHINE(machine);
+    OcteonState *s = g_new0(OcteonState, 1);
+
+    octeon_validate_clocks(oms);
+
+    oms->board = s;
+    s->machine = machine;
+    s->cpu_hz = oms->cpu_hz;
+    s->ref_hz = oms->ref_hz;
+    s->io_hz = oms->io_hz;
+    s->ddr_hz = oms->ddr_hz;
+
+    if (machine->kernel_filename) {
+        error_report("-kernel is not implemented for octeon3; "
+                     "boot via -bios and U-Boot");
+        exit(1);
+    }
+
+    octeon_map_ram(s);
+    octeon_init_flash(s);
+    octeon_load_firmware(s);
+    octeon_create_cpus(s);
+
+}
+
+static void octeon_machine_reset(MachineState *machine, ResetType type)
+{
+    OcteonState *s = OCTEON_MACHINE(machine)->board;
+    unsigned int i;
+
+    qemu_devices_reset(type);
+    for (i = 0; i < s->cpu_count; i++) {
+        octeon_cpu_after_reset(&s->cpu[i]);
+    }
 }
 
 static void octeon_machine_instance_init(Object *obj)
@@ -70,6 +377,7 @@ static void octeon_machine_class_init(ObjectClass *oc, const void *data)
 
     mc->desc = "Cavium Octeon III / EBB7304 EVK";
     mc->init = mips_octeon_init;
+    mc->reset = octeon_machine_reset;
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("OcteonCN73XX");
     mc->default_ram_size = OCTEON_DEFAULT_RAM_SIZE;
     mc->default_ram_id = "octeon.ram";
