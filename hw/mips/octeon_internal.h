@@ -20,6 +20,10 @@
 #define OCTEON_CIU3_IDT_COUNT       (OCTEON_MAX_CPUS * 4)
 #define OCTEON_MIO_BOOT_REG_CFG_COUNT 8
 #define OCTEON_MIO_BOOT_LOC_SIZE    0x100
+#define OCTEON_TWSI_COUNT           2
+#define OCTEON_TWSI_STAT_IDLE       0xf8
+#define OCTEON_SPD_EEPROM_SIZE      139
+#define OCTEON_SPD_EEPROM_COUNT     1
 
 typedef enum OcteonIRQ {
     OCTEON_IRQ_UART,
@@ -44,6 +48,8 @@ typedef struct OcteonCPUState {
     bool boot_cpu;
 } OcteonCPUState;
 
+typedef struct OcteonSpdEepromState OcteonSpdEepromState;
+
 struct OcteonState {
     MachineState *machine;
     Clock *cpuclk;
@@ -65,6 +71,7 @@ struct OcteonState {
     OcteonRstState *rst;
     OcteonIntcState *intc;
     OcteonCsrBankState *csr_bank;
+    OcteonSpdEepromState *spd[OCTEON_SPD_EEPROM_COUNT];
     SerialMM *uart;
     MemoryRegion uart_alias;
     MemoryRegion uart_tx;
@@ -80,5 +87,9 @@ bool octeon_reg_lookup(GHashTable *regs, uint64_t reg, uint64_t *value);
 void octeon_reg_store(GHashTable *regs, uint64_t reg, uint64_t value);
 bool octeon_csr_lookup(OcteonState *s, uint64_t reg, uint64_t *value);
 void octeon_irq_set(void *opaque, int irq, int level);
+
+void octeon_validate_ram_size(uint64_t ram_size);
+void octeon_init_spd(OcteonState *s);
+void octeon_init_twsi(OcteonState *s);
 
 #endif
