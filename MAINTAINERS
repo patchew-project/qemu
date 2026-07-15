@@ -2157,6 +2157,11 @@ S: Maintained
 F: hw/misc/edu.c
 F: docs/specs/edu.rst
 
+xiic-fpga-i2c
+M: Nodoka Shibasaki <nodokaorganized@gmail.com>
+S: Maintained
+F: hw/misc/xiic_fpga_i2c.c
+
 IDE
 M: John Snow <jsnow@redhat.com>
 L: qemu-block@nongnu.org

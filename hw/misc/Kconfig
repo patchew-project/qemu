@@ -25,6 +25,12 @@ config PCI_TESTDEV
     default y if TEST_DEVICES
     depends on PCI
 
+config XIIC_FPGA_I2C
+    bool
+    default y if TEST_DEVICES
+    depends on PCI
+    select I2C
+
 config IOMMU_TESTDEV
     bool
     default y if TEST_DEVICES
