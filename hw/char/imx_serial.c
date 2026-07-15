@@ -43,14 +43,15 @@
 
 static const VMStateDescription vmstate_imx_serial = {
     .name = TYPE_IMX_SERIAL,
-    .version_id = 3,
-    .minimum_version_id = 3,
+    .version_id = 4,
+    .minimum_version_id = 4,
     .fields = (const VMStateField[]) {
         VMSTATE_FIFO32(rx_fifo, IMXSerialState),
         VMSTATE_TIMER(ageing_timer, IMXSerialState),
         VMSTATE_UINT32(usr1, IMXSerialState),
         VMSTATE_UINT32(usr2, IMXSerialState),
         VMSTATE_UINT32(ucr1, IMXSerialState),
+        VMSTATE_UINT32(ucr2, IMXSerialState),
         VMSTATE_UINT32(uts1, IMXSerialState),
         VMSTATE_UINT32(onems, IMXSerialState),
         VMSTATE_UINT32(ufcr, IMXSerialState),
