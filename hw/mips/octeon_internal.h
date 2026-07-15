@@ -17,6 +17,8 @@
 #define OCTEON_CIU_GPIO_COUNT       32
 #define OCTEON_CIU3_CP0_IRQ_COUNT   4
 #define OCTEON_CIU3_IDT_COUNT       (OCTEON_MAX_CPUS * 4)
+#define OCTEON_MIO_BOOT_REG_CFG_COUNT 8
+#define OCTEON_MIO_BOOT_LOC_SIZE    0x100
 
 typedef enum OcteonIRQ {
     OCTEON_IRQ_UART,
@@ -30,6 +32,7 @@ typedef enum OcteonCiu3Source {
 } OcteonCiu3Source;
 
 typedef struct OcteonState OcteonState;
+typedef struct OcteonMioState OcteonMioState;
 typedef struct OcteonRstState OcteonRstState;
 typedef struct OcteonIntcState OcteonIntcState;
 typedef struct OcteonCsrBankState OcteonCsrBankState;
@@ -57,6 +60,7 @@ struct OcteonState {
     MemoryRegion boot_flash;
     MemoryRegion boot_flash_alias;
     MemoryRegion cvmseg;
+    OcteonMioState *mio;
     OcteonRstState *rst;
     OcteonIntcState *intc;
     OcteonCsrBankState *csr_bank;
