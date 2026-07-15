@@ -15,6 +15,7 @@
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_tlb.h"
+#include "hw/intc/hex-l2vic.h"
 #include "hw/core/loader.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-clock.h"
@@ -268,10 +269,22 @@ static void virt_init(MachineState *ms)
                                 &vms->parent_obj.cfgtable_rom);
     fdt_add_hvx(vms, m_cfg);
 
+    vms->parent_obj.l2vic_dev = qdev_new(TYPE_HEX_L2VIC);
+    object_property_add_child(OBJECT(ms), "l2vic",
+                              OBJECT(vms->parent_obj.l2vic_dev));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(vms->parent_obj.l2vic_dev),
+                             &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(vms->parent_obj.l2vic_dev), 0,
+                    m_cfg->l2vic_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(vms->parent_obj.l2vic_dev), 1,
+                    m_cfg->cfgtable.fastl2vic_base << 16);
+
     gsregs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
     object_property_add_child(OBJECT(ms), "global-regs", OBJECT(gsregs_dev));
     qdev_prop_set_uint64(gsregs_dev, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(gsregs_dev, "dsp-rev", v68_rev);
+    object_property_set_link(OBJECT(gsregs_dev), "l2vic",
+                             OBJECT(vms->parent_obj.l2vic_dev), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(gsregs_dev), &error_fatal);
 
     tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
@@ -301,9 +314,18 @@ static void virt_init(MachineState *ms)
                                  OBJECT(gsregs_dev), &error_fatal);
         object_property_set_link(OBJECT(cpu), "tlb",
                                  OBJECT(tlb_dev), &error_fatal);
+        object_property_set_link(OBJECT(cpu), "l2vic",
+                                 OBJECT(vms->parent_obj.l2vic_dev),
+                                 &error_fatal);
 
         qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
     }
+
+    for (int i = 0; i < 8; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(vms->parent_obj.l2vic_dev), i,
+                           qdev_get_gpio_in(cpu0, i));
+    }
+
     fdt_add_cpu_nodes(vms);
     clk_phandle = fdt_add_clocks(vms);
     fdt_add_uart(vms, VIRT_UART0, clk_phandle);
