@@ -39,4 +39,5 @@ guest hardware that is specific to QEMU.
    riscv-iommu
    riscv-aia
    aspeed-intc
+   ucd90320
    iommu-testdev

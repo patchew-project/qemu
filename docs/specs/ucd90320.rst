@@ -1,0 +1,36 @@
+Texas Instruments UCD90320 Power Sequencer
+==========================================
+
+The UCD90320 is a 24-rail PMBus power sequencer. QEMU models it as a PMBus
+device (``"ucd90320"``) so the Linux ``ucd9000`` driver can bind and create
+``hwmon`` sysfs entries.
+
+The model configures 24 PMBus pages (one per rail) with ``VOUT_MODE = 0x00``
+(linear, exponent 0). ``READ_VOUT`` and ``MFR_STATUS`` return zero on all
+pages.
+
+Vendor-specific commands handled:
+
++------+---------------------------+--------------------------------------------+
+| Code | Name                      | Response                                   |
++======+===========================+============================================+
+| 0xD5 | ``UCD9000_MONITOR_CONFIG``| Block: one byte ``0x00``                   |
++------+---------------------------+--------------------------------------------+
+| 0xD6 | ``UCD9000_NUM_PAGES``     | Byte: ``24``                               |
++------+---------------------------+--------------------------------------------+
+| 0xF3 | ``UCD9000_MFR_STATUS``    | Block: four bytes ``0x00 0x00 0x00 0x00``  |
++------+---------------------------+--------------------------------------------+
+| 0xFD | ``UCD9000_DEVICE_ID``     | Block: ASCII string ``"UCD90320"``         |
++------+---------------------------+--------------------------------------------+
+
+``DEVICE_ID`` uses the vendor-specific code ``0xFD`` rather than the standard
+``PMBUS_IC_DEVICE_ID`` (``0xAD``), matching the Linux ``ucd9000`` probe
+sequence.
+
+The UCD90320 is instantiated automatically in the ``huygens-bmc`` machine on
+I2C bus 5 at address ``0x11``. To instantiate on a different Aspeed machine:
+
+.. code-block:: c
+
+  i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 5),
+                          "ucd90320", 0x11);
