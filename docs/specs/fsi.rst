@@ -120,3 +120,61 @@ from the BMC. (see the `pdbg source repository`_ for more details)
 
 .. _pdbg source repository:
    https://github.com/open-power/pdbg
+
+CFAM-S model (AST2700)
+----------------------
+
+The AST2700 uses a CFAM variant known as the CFAM-S, required by the new
+Linux FSI responder framework. A dedicated QOM type, ``TYPE_FSI_CFAM_S``
+(``"cfam-s"``), implements this alongside the existing ``TYPE_FSI_CFAM``
+(``"cfam"``) used by the AST2600 machines.
+
+``FSIMasterState`` realizes both ``cfam`` and ``cfam-s``. The regular
+``cfam`` is mapped at offset 0 into the OPB-to-FSI aperture; ``cfam-s`` is
+mapped at offset 2 MiB. The DTS overrides ``fsim0`` with
+``compatible = "aspeed,ast2600-fsi-master"`` and ``reg = <0x21800000>``,
+pointing the kernel FSI driver at the QEMU APB-to-OPB bridge, which routes
+through the FSI master's OPB-to-FSI window to reach the CFAM-S.
+
+The CFAM-S model presents an 8 MiB region and folds the SID bits ``[22:21]``
+so both the SID_BREAK enumeration view (``0x600000``) and the runtime view
+(``0x000000``) address the same register space. The config table at folded
+offset ``0x000`` contains three CRC4-valid words: a chip_id word with
+``MAJOR=9`` (selecting the ``cfam_s`` kernel driver), a responder engine
+entry (``TYPE=0x3``), and a mailbox v1 engine entry (``TYPE=0x14``) at
+engine address ``0x800``.
+
+The responder registers at folded offset ``0x400`` implement ``SMODE``,
+``SSTAT``, ``SRES``, ``SSISM``, and ``SLBUS`` with store-on-write semantics.
+The mailbox scratch registers at folded offset ``0x8e0`` are five stateful
+32-bit registers served to the ``ibm,mbox-cfam-s`` kernel driver, which
+creates ``/dev/fsi/mbox0``.
+
+The following commands start the ``huygens-bmc`` machine with the built-in
+CFAM-S model. There are no model specific arguments. Please check this
+document to learn more about Aspeed ``huygens-bmc`` machine:
+(:doc:`../../system/arm/aspeed`)
+
+.. code-block:: console
+
+  qemu-system-aarch64 -M huygens-bmc \
+    -drive file=image-bmc,if=mtd,format=raw \
+    -drive file=ufs.img,if=none,format=raw \
+    -nographic
+
+The CFAM-S appears as follows in the QEMU device tree:
+
+.. code-block:: console
+
+  (qemu) info qtree
+  bus: main-system-bus
+    type System
+    ...
+    dev: aspeed.apb2opb, id ""
+      mmio 0000000021800000/0000000000001000
+      bus: opb.0
+        type opb
+        dev: fsi.master, id ""
+          bus: fsi.bus.0
+            type fsi.bus
+            dev: cfam-s, id ""

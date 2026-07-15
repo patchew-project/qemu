@@ -17,6 +17,7 @@
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "hw/i2c/aspeed_i2c.h"
+#include "hw/fsi/aspeed_apb2opb.h"
 #include "net/net.h"
 #include "system/qtest.h"
 #include "system/system.h"
@@ -98,6 +99,8 @@ static const hwaddr aspeed_soc_ast2700_memmap[] = {
     [ASPEED_DEV_PCIE_MMIO0] = 0x60000000,
     [ASPEED_DEV_PCIE_MMIO1] = 0x80000000,
     [ASPEED_DEV_PCIE_MMIO2] = 0xA0000000,
+    [ASPEED_DEV_FSI1]      =  0x21800000,
+    [ASPEED_DEV_FSI2]      =  0x23800000,
     [ASPEED_DEV_SPI_BOOT]  =  0x100000000,
     [ASPEED_DEV_SDRAM]     =  0x400000000,
 };
@@ -557,6 +560,11 @@ static void aspeed_soc_ast2700_init(Object *obj)
                                 TYPE_ASPEED_AST1700);
         qdev_prop_set_uint32(DEVICE(&s->ioexp[i]), "silicon-rev",
                              sc->silicon_rev);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->fsi); i++) {
+        object_initialize_child(obj, "fsi[*]", &s->fsi[i],
+                                TYPE_ASPEED_APB2OPB);
     }
 
     object_initialize_child(obj, "dpmcu", &s->dpmcu,
@@ -1131,6 +1139,16 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
                                0, irq);
         }
     }
+
+    /* FSI / OPB */
+    for (i = 0; i < ARRAY_SIZE(s->fsi); i++) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->fsi[i]), errp)) {
+            return;
+        }
+        aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&s->fsi[i]), 0,
+                        sc->memmap[ASPEED_DEV_FSI1 + i]);
+    }
+
 
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->dpmcu),
                                   "aspeed.dpmcu",
