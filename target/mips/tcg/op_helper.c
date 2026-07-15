@@ -268,7 +268,7 @@ target_ulong helper_rdhwr_cvmcount(CPUMIPSState *env)
 #ifdef CONFIG_USER_ONLY
     return cpu_get_host_ticks();
 #else
-    return (uint32_t)cpu_mips_get_count(env);
+    return helper_mfc0_cvmcount(env);
 #endif
 }
 
