@@ -615,9 +615,10 @@ static void gen_start_packet(DisasContext *ctx)
     }
     for (i = 0; i < ctx->sreg_log_idx; i++) {
         int reg_num = ctx->sreg_log[i];
-        if (reg_num < HEX_SREG_GLB_START &&
-            (ctx->need_commit || reg_num == HEX_SREG_SSR)) {
+        if (reg_num < HEX_SREG_GLB_START) {
             ctx->t_sreg_new_value[reg_num] = tcg_temp_new();
+            tcg_gen_mov_tl(ctx->t_sreg_new_value[reg_num],
+                          hex_t_sreg[reg_num]);
         }
     }
     for (i = 0; i < NUM_GREGS; i++) {
