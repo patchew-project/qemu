@@ -1121,6 +1121,13 @@ void riscv_trigger_unrealize(CPURISCVState *env)
     g_free(env->itrigger_timer);
 }
 
+void riscv_cpu_debug_change_priv(CPURISCVState *env)
+{
+    if (!icount_enabled()) {
+        env->itrigger_enabled = riscv_itrigger_enabled(env);
+    }
+}
+
 void riscv_trigger_reset_hold(CPURISCVState *env)
 {
     target_ulong tdata1 = build_tdata1(env, TRIGGER_TYPE_AD_MATCH, 0, 0);

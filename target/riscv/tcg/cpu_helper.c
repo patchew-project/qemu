@@ -844,9 +844,12 @@ void riscv_ctr_add_entry(CPURISCVState *env, uint64_t src, uint64_t dst,
 void riscv_cpu_set_mode(CPURISCVState *env, privilege_mode_t newpriv,
                         bool virt_en)
 {
+    bool change = false;
+
     g_assert(newpriv <= PRV_M && newpriv != PRV_RESERVED);
 
     if (newpriv != env->priv || env->virt_enabled != virt_en) {
+        change = true;
         if (icount_enabled()) {
             riscv_itrigger_update_priv(env);
         }
@@ -888,6 +891,10 @@ void riscv_cpu_set_mode(CPURISCVState *env, privilege_mode_t newpriv,
              */
             riscv_cpu_update_mip(env, 0, 0);
         }
+    }
+
+    if (change) {
+        riscv_cpu_debug_change_priv(env);
     }
 }
 

@@ -153,4 +153,7 @@ void riscv_trigger_reset_hold(CPURISCVState *env);
 
 bool riscv_itrigger_enabled(CPURISCVState *env);
 void riscv_itrigger_update_priv(CPURISCVState *env);
+
+void riscv_cpu_debug_change_priv(CPURISCVState *env);
+
 #endif /* RISCV_DEBUG_H */
