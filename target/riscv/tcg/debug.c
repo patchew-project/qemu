@@ -958,8 +958,13 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
 
 target_ulong tinfo_csr_read(CPURISCVState *env)
 {
-    /* assume all triggers support the same types of triggers */
+    /*
+     * Assume all triggers support the same types of triggers
+     * TODO: set 1 (version 1.0) in the version field when we're
+     * ready to support it along with 0.13.
+     */
     return BIT(TRIGGER_TYPE_AD_MATCH) |
+           BIT(TRIGGER_TYPE_INST_CNT) |
            BIT(TRIGGER_TYPE_AD_MATCH6);
 }
 
