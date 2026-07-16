@@ -383,8 +383,15 @@ static void usb_uas_send_status_bh(void *opaque)
 
 static void usb_uas_queue_status(UASDevice *uas, UASStatus *st, int length)
 {
-    USBPacket *p = uas_using_streams(uas) ?
-        uas->status3[st->stream] : uas->status2;
+    USBPacket *p = NULL;
+
+    if (!uas_using_streams(uas)) {
+        p = uas->status2;
+    } else if (st->stream <= UAS_MAX_STREAMS) {
+        p = uas->status3[st->stream];
+    } else {
+        warn_report_once(TYPE_USB_UAS ": bad stream ID 0x%x", st->stream);
+    }
 
     st->length += length;
     QTAILQ_INSERT_TAIL(&uas->results, st, next);
