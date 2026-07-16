@@ -155,6 +155,14 @@ typedef struct VirtioNetRssData {
     uint16_t default_queue;
 } VirtioNetRssData;
 
+/* Interrupt notification coalescing parameters */
+typedef struct VirtIONetCoal {
+    uint32_t usecs;    /* Timeout in microseconds */
+    uint32_t packets;  /* Packet count threshold */
+    uint32_t pkt_cnt;  /* Current packet count since last notification */
+    QEMUTimer *timer;  /* Coalescing timer */
+} VirtIONetCoal;
+
 typedef struct VirtIONetQueue {
     VirtQueue *rx_vq;
     VirtQueue *tx_vq;
@@ -165,6 +173,8 @@ typedef struct VirtIONetQueue {
         VirtQueueElement *elem;
     } async_tx;
     struct VirtIONet *n;
+    VirtIONetCoal rx_coal;
+    VirtIONetCoal tx_coal;
 } VirtIONetQueue;
 
 struct VirtIONet {
