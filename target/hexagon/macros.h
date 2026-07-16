@@ -576,8 +576,8 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
     } while (0)
 
 #ifdef QEMU_GENERATE
-#define fGETHALF(N, SRC)  gen_get_half(HALF, N, SRC, true)
-#define fGETUHALF(N, SRC) gen_get_half(HALF, N, SRC, false)
+#define fGETHALF(N, SRC)  gen_get_half(tmp_half, N, SRC, true)
+#define fGETUHALF(N, SRC) gen_get_half(tmp_half, N, SRC, false)
 #else
 #define fGETHALF(N, SRC) ((int16_t)((SRC >> ((N) * 16)) & 0xffff))
 #define fGETUHALF(N, SRC) ((uint16_t)((SRC >> ((N) * 16)) & 0xffff))

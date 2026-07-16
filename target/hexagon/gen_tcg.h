@@ -414,7 +414,7 @@
 
 #define fGEN_TCG_STORE(SHORTCODE) \
     do { \
-        TCGv HALF G_GNUC_UNUSED = tcg_temp_new(); \
+        TCGv tmp_half G_GNUC_UNUSED = tcg_temp_new(); \
         TCGv BYTE G_GNUC_UNUSED = tcg_temp_new(); \
         SHORTCODE; \
     } while (0)
@@ -422,7 +422,7 @@
 #define fGEN_TCG_STORE_pcr(SHIFT, STORE) \
     do { \
         TCGv ireg = tcg_temp_new(); \
-        TCGv HALF G_GNUC_UNUSED = tcg_temp_new(); \
+        TCGv tmp_half G_GNUC_UNUSED = tcg_temp_new(); \
         TCGv BYTE G_GNUC_UNUSED = tcg_temp_new(); \
         tcg_gen_mov_tl(EA, RxV); \
         gen_read_ireg(ireg, MuV, SHIFT); \
