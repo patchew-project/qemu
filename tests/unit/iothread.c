@@ -30,12 +30,21 @@ struct IOThread {
     bool stopping;
 };
 
+AioContext *iothread_get_aio_context(IOThread *iothread, IOThreadHolder *holder)
+{
+    return iothread->ctx;
+}
+
+void iothread_put_aio_context(IOThread *iothread, IOThreadHolder *holder)
+{
+}
+
 static void iothread_init_gcontext(IOThread *iothread)
 {
     GSource *source;
 
     iothread->worker_context = g_main_context_new();
-    source = aio_get_g_source(iothread_get_aio_context(iothread));
+    source = aio_get_g_source(iothread->ctx);
     g_source_attach(source, iothread->worker_context);
     g_source_unref(source);
     iothread->main_loop = g_main_loop_new(iothread->worker_context, TRUE);
@@ -112,9 +121,4 @@ IOThread *iothread_new(void)
     }
     qemu_mutex_unlock(&iothread->init_done_lock);
     return iothread;
-}
-
-AioContext *iothread_get_aio_context(IOThread *iothread)
-{
-    return iothread->ctx;
 }
