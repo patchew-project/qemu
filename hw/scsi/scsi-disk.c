@@ -2627,6 +2627,7 @@ static void scsi_cd_realize(SCSIDevice *dev, Error **errp)
         dev->conf.blk = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
         ret = blk_attach_dev(dev->conf.blk, &dev->qdev);
         assert(ret == 0);
+        blk_unref(dev->conf.blk);
     }
 
     if (dev->conf.physical_block_size != 0) {
