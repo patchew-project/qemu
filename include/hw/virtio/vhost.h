@@ -312,7 +312,7 @@ bool vhost_virtqueue_pending(struct vhost_dev *hdev, int n);
 
 /* Mask/unmask events from this vq.
  */
-void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
+int vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
                           bool mask);
 
 /**
