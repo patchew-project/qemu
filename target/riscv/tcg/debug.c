@@ -282,7 +282,8 @@ static target_ulong textra_validate(CPURISCVState *env, target_ulong tdata3)
     return textra;
 }
 
-static void do_trigger_action(CPURISCVState *env, target_ulong trigger_index)
+/* Return true if an exception should be raised */
+static bool do_trigger_action(CPURISCVState *env, target_ulong trigger_index)
 {
     trigger_action_t action = get_trigger_action(env, trigger_index);
 
@@ -290,8 +291,7 @@ static void do_trigger_action(CPURISCVState *env, target_ulong trigger_index)
     case DBG_ACTION_NONE:
         break;
     case DBG_ACTION_BP:
-        riscv_raise_exception(env, RISCV_EXCP_BREAKPOINT, 0);
-        break;
+        return true;
     case DBG_ACTION_DBG_MODE:
     case DBG_ACTION_TRACE0:
     case DBG_ACTION_TRACE1:
@@ -304,6 +304,7 @@ static void do_trigger_action(CPURISCVState *env, target_ulong trigger_index)
     default:
         g_assert_not_reached();
     }
+    return false;
 }
 
 /*
@@ -720,7 +721,9 @@ void helper_itrigger_match(CPURISCVState *env)
         }
         itrigger_set_count(env, i, count--);
         if (!count) {
-            do_trigger_action(env, i);
+            if (do_trigger_action(env, i)) {
+                riscv_raise_exception(env, RISCV_EXCP_BREAKPOINT, 0);
+            }
         } else {
             enabled = true;
         }
@@ -967,11 +970,11 @@ void riscv_cpu_debug_excp_handler(CPUState *cs)
 
     if (cs->watchpoint_hit) {
         if (cs->watchpoint_hit->flags & BP_CPU) {
-            do_trigger_action(env, DBG_ACTION_BP);
+            riscv_raise_exception(env, RISCV_EXCP_BREAKPOINT, 0);
         }
     } else {
         if (cpu_breakpoint_test(cs, env->pc, BP_CPU)) {
-            do_trigger_action(env, DBG_ACTION_BP);
+            riscv_raise_exception(env, RISCV_EXCP_BREAKPOINT, 0);
         }
     }
 }
@@ -1008,8 +1011,10 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
                 pc = env->tdata2[i];
 
                 if ((ctrl & TYPE2_EXEC) && (bp->pc == pc)) {
-                    env->badaddr = pc;
-                    return true;
+                    if (do_trigger_action(env, i)) {
+                        env->badaddr = pc;
+                        return true;
+                    }
                 }
                 break;
             case TRIGGER_TYPE_AD_MATCH6:
@@ -1017,8 +1022,10 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
                 pc = env->tdata2[i];
 
                 if ((ctrl & TYPE6_EXEC) && (bp->pc == pc)) {
-                    env->badaddr = pc;
-                    return true;
+                    if (do_trigger_action(env, i)) {
+                        env->badaddr = pc;
+                        return true;
+                    }
                 }
                 break;
             default:
@@ -1069,7 +1076,9 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
             }
 
             if ((wp->flags & flags) && (wp->vaddr == addr)) {
-                return true;
+                if (do_trigger_action(env, i)) {
+                    return true;
+                }
             }
             break;
         case TRIGGER_TYPE_AD_MATCH6:
@@ -1085,7 +1094,9 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
             }
 
             if ((wp->flags & flags) && (wp->vaddr == addr)) {
-                return true;
+                if (do_trigger_action(env, i)) {
+                    return true;
+                }
             }
             break;
         default:
