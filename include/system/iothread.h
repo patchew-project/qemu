@@ -78,6 +78,15 @@ IOThread *iothread_by_id(const char *id);
  * thread-safe and must be called under the Big QEMU Lock (BQL).
  */
 AioContext *iothread_get_aio_context(IOThread *iothread);
+/*
+ * Normally the IOThread's AioContext is fetched using
+ * iothread_ref_and_get_aio_context(), but there are legacy callers
+ * without a clear ref/unref lifecycle. They cannot unref (e.g. because
+ * they do not have an IOThread pointer), so provide an unsafe way to
+ * fetch the AioContext without holding a reference count. This unsafe
+ * API serves legacy callers - do not use it in new code.
+ */
+AioContext *iothread_unsafe_get_aio_context(IOThread *iothread);
 AioContext *iothread_ref_and_get_aio_context(IOThread *iothread,
                                              const IOThreadHolder *holder);
 void iothread_put_aio_context(IOThread *iothread, const IOThreadHolder *holder);
