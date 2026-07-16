@@ -763,6 +763,7 @@ static void xen_cdrom_realize(XenBlockDevice *blockdev, Error **errp)
 
         rc = blk_attach_dev(conf->blk, DEVICE(blockdev));
         assert(rc == 0);
+        blk_unref(conf->blk);
     }
 
     blockdev->info = VDISK_READONLY | VDISK_CDROM;
