@@ -748,7 +748,7 @@ static void monitor_complete(UserCreatable *uc, Error **errp)
             .u.qom_object.qom_path = path,
         };
 
-        mon->ctx = iothread_ref_and_get_aio_context(mon_iothread, &io_holder);
+        mon->ctx = iothread_get_aio_context(mon_iothread, &io_holder);
     } else {
         mon->ctx = qemu_get_aio_context();
     }
