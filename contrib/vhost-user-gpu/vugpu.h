@@ -163,6 +163,14 @@ struct virtio_gpu_ctrl_command {
     QTAILQ_ENTRY(virtio_gpu_ctrl_command) next;
 };
 
+/*
+ * With 4 KiB pages and QEMU's VIRTQUEUE_MAX_SIZE (1024) mapped-iov
+ * limit, the largest inline command is ~4 MiB.  Cap submit_3d
+ * allocations to this value to prevent a malicious guest from
+ * triggering an OOM abort via an inflated cs.size field.
+ */
+#define VIRTIO_GPU_MAX_CMD_SUBMIT_SIZE (4 * 1024 * 1024)
+
 #define VUGPU_FILL_CMD(out) do {                                \
         size_t vugpufillcmd_s_ =                                \
             iov_to_buf(cmd->elem.out_sg, cmd->elem.out_num, 0,  \
