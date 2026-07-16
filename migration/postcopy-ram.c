@@ -1093,7 +1093,11 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
         /*
          * Account how many concurrent faults on this vCPU we trapped.  See
          * comments above vcpu_faults_current[] on why it can be more than one.
+         *
+         * vcpu_faults_current[] is uint8_t, so assert before incrementing to
+         * catch overflow before it wraps.
          */
+        assert(dc->vcpu_faults_current[cpu] < 255);
         if (dc->vcpu_faults_current[cpu]++ == 0) {
             dc->smp_cpus_down++;
             /*
@@ -1103,9 +1107,6 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
              */
             dc->last_begin = current;
         }
-
-        /* Making sure it won't overflow - it really should never! */
-        assert(dc->vcpu_faults_current[cpu] <= 255);
     } else {
         /*
          * For non-vCPU thread faults, we don't care about tid or cpu index
