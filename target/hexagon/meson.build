@@ -262,6 +262,9 @@ hexagon_softmmu_ss.add(files(
     'machine.c',
 ))
 
+hexagon_softmmu_ss.add(when: 'CONFIG_ARM_COMPATIBLE_SEMIHOSTING',
+                       if_true: files('common-semi-target.c'))
+
 #
 # Step 4.5
 # We use flex/bison based idef-parser to generate TCG code for a lot
