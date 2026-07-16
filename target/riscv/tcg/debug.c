@@ -1157,6 +1157,20 @@ void riscv_cpu_debug_change_priv(CPURISCVState *env)
 
 void riscv_cpu_debug_post_load(CPURISCVState *env)
 {
+    for (int i = 0; i < env->num_triggers; i++) {
+        int trigger_type = get_trigger_type(env, i);
+
+        switch (trigger_type) {
+        case TRIGGER_TYPE_AD_MATCH:
+            type2_breakpoint_insert(env, i);
+            break;
+        case TRIGGER_TYPE_AD_MATCH6:
+            type6_breakpoint_insert(env, i);
+            break;
+        default:
+            break;
+        }
+    }
     if (!icount_enabled()) {
         env->itrigger_enabled = riscv_itrigger_enabled(env);
     }
