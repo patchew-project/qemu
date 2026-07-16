@@ -67,6 +67,56 @@
 ##
 { 'command': 'query-name', 'returns': 'NameInfo', 'allow-preconfig': true }
 
+
+##
+# @IOThreadHolderBlockExport:
+#
+# @export-name: Name of the block export.
+#
+# Since: 11.1
+#
+##
+{ 'struct': 'IOThreadHolderBlockExport',
+  'data': { 'export-name': 'str' } }
+
+##
+# @IOThreadHolderQomObject:
+#
+# @qom-path: Path to the object in the QOM tree.
+#
+# Since: 11.1
+#
+##
+{ 'struct': 'IOThreadHolderQomObject',
+  'data': { 'qom-path': 'str' } }
+
+##
+# @IOThreadHolderKind:
+#
+# @block-export: A block export.
+# @qom-object: A QOM Object.
+#
+# Since: 11.1
+##
+{ 'enum': 'IOThreadHolderKind',
+  'data': [ 'block-export', 'qom-object' ] }
+
+##
+# @IOThreadHolder:
+#
+# The block export or QOM object holding the I/O thread.
+#
+# @type: the kind of I/O thread holder.
+#
+# Since: 11.1
+##
+{ 'union': 'IOThreadHolder',
+  'base': { 'type': 'IOThreadHolderKind' },
+  'discriminator': 'type',
+  'data': {
+    'block-export': 'IOThreadHolderBlockExport',
+    'qom-object': 'IOThreadHolderQomObject' } }
+
 ##
 # @IOThreadInfo:
 #
@@ -75,6 +125,11 @@
 # @id: the identifier of the iothread
 #
 # @thread-id: ID of the underlying host thread
+#
+# @holders: the QOM objects or block nodes currently
+#     associated with this iothread.  When an associated component is
+#     detached or destroyed, it is removed from this list.
+#     (Since 11.1)
 #
 # @poll-max-ns: maximum polling time in ns, 0 means polling is
 #     disabled (since 2.9)
@@ -98,6 +153,7 @@
 { 'struct': 'IOThreadInfo',
   'data': {'id': 'str',
            'thread-id': 'int',
+           'holders': ['IOThreadHolder'],
            'poll-max-ns': 'int',
            'poll-grow': 'int',
            'poll-shrink': 'int',
@@ -124,6 +180,8 @@
 #              {
 #                 "id":"iothread0",
 #                 "thread-id":3134,
+#                 "holders":[{"qom-path": "/machine/peripheral/blk1/virtio-backend", "type": "qom-object"},
+#                            {"qom-path": "/machine/peripheral/blk2/virtio-backend", "type": "qom-object"}],
 #                 "poll-max-ns":32768,
 #                 "poll-grow":0,
 #                 "poll-shrink":0,
@@ -132,6 +190,7 @@
 #              {
 #                 "id":"iothread1",
 #                 "thread-id":3135,
+#                 "holders":[{"export-name": "fmt_qcow2", "type": "block-export"}],
 #                 "poll-max-ns":32768,
 #                 "poll-grow":0,
 #                 "poll-shrink":0,
