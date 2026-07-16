@@ -954,6 +954,14 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
         for (i = 0; i < env->num_triggers; i++) {
             trigger_type = get_trigger_type(env, i);
 
+            switch (trigger_type) {
+            case TRIGGER_TYPE_AD_MATCH:
+            case TRIGGER_TYPE_AD_MATCH6:
+                break;
+            default:
+                continue; /* No other types match breakpoint */
+            }
+
             if (!trigger_common_match(env, trigger_type, i)) {
                 continue;
             }
@@ -978,8 +986,7 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
                 }
                 break;
             default:
-                /* other trigger types are not supported or irrelevant */
-                break;
+                g_assert_not_reached();
             }
         }
     }
@@ -999,6 +1006,14 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
 
     for (i = 0; i < env->num_triggers; i++) {
         trigger_type = get_trigger_type(env, i);
+
+        switch (trigger_type) {
+        case TRIGGER_TYPE_AD_MATCH:
+        case TRIGGER_TYPE_AD_MATCH6:
+            break;
+        default:
+            continue; /* No other types match watchpoint */
+        }
 
         if (!trigger_common_match(env, trigger_type, i)) {
             continue;
@@ -1038,8 +1053,7 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
             }
             break;
         default:
-            /* other trigger types are not supported */
-            break;
+            g_assert_not_reached();
         }
     }
 
