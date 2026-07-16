@@ -969,7 +969,7 @@ static void colo_compare_iothread(CompareState *s)
         .u.qom_object.qom_path = (char *)path,
     };
 
-    AioContext *ctx = iothread_ref_and_get_aio_context(s->iothread, &io_holder);
+    AioContext *ctx = iothread_get_aio_context(s->iothread, &io_holder);
 
     s->iothread_ctx = ctx;
     s->worker_context = iothread_get_g_main_context(s->iothread);
