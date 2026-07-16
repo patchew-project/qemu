@@ -33,6 +33,7 @@
 #include "exec/gdbstub.h"
 #include "accel/accel-cpu-ops.h"
 #include "system/hw_accel.h"
+#include "system/memory.h"
 #include "exec/cpu-common.h"
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
@@ -382,6 +383,14 @@ static void sigbus_reraise(void)
 static void sigbus_handler(int n, siginfo_t *siginfo, void *ctx)
 {
     if (siginfo->si_code != BUS_MCEERR_AO && siginfo->si_code != BUS_MCEERR_AR) {
+        /*
+         * Not an MCE. If this is a racing MMIO into a passed-through vfio BAR
+         * whose PCI_COMMAND.MEM was just cleared (mmap invalidated by the
+         * kernel), complete it as an Unsupported Request instead of aborting.
+         * memory_region_ram_device_on_sigbus() longjmps back into the
+         * ram_device access and does not return when it recovers.
+         */
+        memory_region_ram_device_on_sigbus(siginfo->si_addr, siginfo->si_code);
         sigbus_reraise();
     }
 

@@ -280,6 +280,7 @@ static void vfio_subregion_unmap(VFIORegion *region, int index)
                             region->mmaps[index].offset +
                             region->mmaps[index].size - 1);
     memory_region_del_subregion(region->mem, &region->mmaps[index].mem);
+    memory_region_ram_device_del_range(region->mmaps[index].mmap);
     munmap(region->mmaps[index].mmap, region->mmaps[index].size);
     object_unparent(OBJECT(&region->mmaps[index].mem));
     region->mmaps[index].mmap = NULL;
@@ -428,6 +429,9 @@ int vfio_region_mmap(VFIORegion *region)
                                           memory_region_owner(region->mem),
                                           name, region->mmaps[i].size,
                                           region->mmaps[i].mmap);
+        /* track the mmap host range for disabled-BAR SIGBUS -> UR recovery */
+        memory_region_ram_device_add_range(region->mmaps[i].mmap,
+                                           region->mmaps[i].size);
         g_free(name);
         memory_region_add_subregion(region->mem, region->mmaps[i].offset,
                                     &region->mmaps[i].mem);
@@ -495,6 +499,7 @@ void vfio_region_finalize(VFIORegion *region)
 
     for (i = 0; i < region->nr_mmaps; i++) {
         if (region->mmaps[i].mmap) {
+            memory_region_ram_device_del_range(region->mmaps[i].mmap);
             munmap(region->mmaps[i].mmap, region->mmaps[i].size);
         }
     }

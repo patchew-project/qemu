@@ -1278,6 +1278,19 @@ void memory_region_init_ram_device_ptr(MemoryRegion *mr,
                                        uint64_t size,
                                        void *ptr);
 
+/*
+ * vfio disabled-BAR SIGBUS recovery (see system/memory.c). vfio registers each
+ * BAR mmap host range so a racing MMIO into a just-invalidated mmap can be
+ * completed as an Unsupported Request instead of aborting qemu.
+ */
+void memory_region_ram_device_add_range(void *host, size_t size);
+void memory_region_ram_device_del_range(void *host);
+/*
+ * called from the SIGBUS handler; longjmps (no return) when it recovers.
+ * Recovers only for a BUS_ADRERR fault address in a tracked range.
+ */
+bool memory_region_ram_device_on_sigbus(void *addr, int si_code);
+
 /**
  * memory_region_init_alias: Initialize a memory region that aliases all or a
  *                           part of another memory region.
