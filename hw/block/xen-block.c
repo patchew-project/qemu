@@ -762,10 +762,7 @@ static void xen_cdrom_realize(XenBlockDevice *blockdev, Error **errp)
         conf->blk = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
 
         rc = blk_attach_dev(conf->blk, DEVICE(blockdev));
-        if (!rc) {
-            error_setg_errno(errp, -rc, "failed to create drive");
-            return;
-        }
+        assert(rc == 0);
     }
 
     blockdev->info = VDISK_READONLY | VDISK_CDROM;
