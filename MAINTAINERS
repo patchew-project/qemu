@@ -1357,6 +1357,7 @@ F: hw/hexagon/
 F: include/hw/hexagon/
 F: configs/devices/hexagon-softmmu/default.mak
 F: docs/system/hexagon/
+F: tests/functional/hexagon/
 F: docs/devel/hexagon-sys.rst
 
 LoongArch Machines
