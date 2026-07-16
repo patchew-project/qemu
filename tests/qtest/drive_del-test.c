@@ -320,6 +320,62 @@ static void test_empty_device_del(void)
     qtest_quit(qts);
 }
 
+static void test_insert_medium_and_device_del(void)
+{
+    QTestState *qts;
+    QDict *response;
+
+    if (!has_device_builtin("virtio-scsi")) {
+        g_test_skip("Device virtio-scsi is not available");
+        return;
+    }
+
+    /* An empty scsi-cd creates an anonymous BlockBackend at realize. */
+    qts = qtest_initf("-device virtio-scsi-%s -device scsi-cd,id=dev0",
+                      qvirtio_get_dev_type());
+
+    /* Create the blockdev node to be inserted as a medium. */
+    blockdev_add_with_media(qts);
+
+    /* Open tray. */
+    response = qtest_qmp(qts, "{'execute': 'blockdev-open-tray',"
+                              " 'arguments': {'id': 'dev0'}}");
+    g_assert(response);
+    g_assert(qdict_haskey(response, "return"));
+    qobject_unref(response);
+
+    /*
+     * Insert a medium into the empty drive.  This adds a reference from
+     * the anonymous BlockBackend to the blockdev node.
+     */
+    response = qtest_qmp(qts, "{'execute': 'blockdev-insert-medium',"
+                              " 'arguments': {'id': 'dev0',"
+                              "               'node-name': 'drive0'}}");
+    g_assert(response);
+    g_assert(qdict_haskey(response, "return"));
+    qobject_unref(response);
+
+    /*
+     * Unplug the device.  This drops the last reference to the anonymous
+     * BlockBackend, so it is deleted and releases its reference to the
+     * blockdev node.
+     */
+    device_del(qts, false);
+
+    /*
+     * If the BlockBackend leaked, drive0 is still in use here and
+     * blockdev-del fails.
+     */
+    response = qtest_qmp(qts, "{'execute': 'blockdev-del',"
+                              " 'arguments': {'node-name': 'drive0'}}");
+    g_assert(response);
+    g_assert(qdict_haskey(response, "return"));
+    qobject_unref(response);
+    g_assert(!has_blockdev(qts));
+
+    qtest_quit(qts);
+}
+
 static void test_device_add_and_del(void)
 {
     QTestState *qts;
@@ -516,6 +572,8 @@ int main(int argc, char **argv)
                        test_drive_add_device_add_and_del);
         qtest_add_func("/device_del/empty",
                        test_empty_device_del);
+        qtest_add_func("/device_del/insert_medium",
+                       test_insert_medium_and_device_del);
         qtest_add_func("/device_del/blockdev",
                        test_blockdev_add_device_add_and_del);
 
