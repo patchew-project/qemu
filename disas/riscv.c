@@ -2887,25 +2887,25 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             case 0: op = rv_op_fence; break;
             case 1: op = rv_op_fence_i; break;
             case 2:
-               /*
-                * 'lq' shares the "(...) 010 ..... 0001111" opcode space
-                * with 'cbo' insns.  Check the next 5 bits to select
-                * what we want:
-                *
-                * cbo_inval  0000000 00000 ..... 010 00000 0001111
-                * cbo_clean  0000000 00001 ..... 010 00000 0001111
-                * cbo_flush  0000000 00010 ..... 010 00000 0001111
-                * cbo_zero   0000000 00100 ..... 010 00000 0001111
-                *
-                * Anything that doesn't match these will default to 'lq'.
-                */
-               switch ((inst >> 17) & 0b11111) {
-               case 0: op = rv_op_cbo_inval; break;
-               case 1: op = rv_op_cbo_clean; break;
-               case 2: op = rv_op_cbo_flush; break;
-               case 4: op = rv_op_cbo_zero; break;
-               default: op = rv_op_lq; break;
-               }
+                /*
+                 * 'lq' shares the "(...) 010 ..... 0001111" opcode space
+                 * with 'cbo' insns.  Check the next 5 bits to select
+                 * what we want:
+                 *
+                 * cbo_inval  0000000 00000 ..... 010 00000 0001111
+                 * cbo_clean  0000000 00001 ..... 010 00000 0001111
+                 * cbo_flush  0000000 00010 ..... 010 00000 0001111
+                 * cbo_zero   0000000 00100 ..... 010 00000 0001111
+                 *
+                 * Anything that doesn't match these will default to 'lq'.
+                 */
+                switch ((inst >> 17) & 0b11111) {
+                case 0: op = rv_op_cbo_inval; break;
+                case 1: op = rv_op_cbo_clean; break;
+                case 2: op = rv_op_cbo_flush; break;
+                case 4: op = rv_op_cbo_zero; break;
+                default: op = rv_op_lq; break;
+                }
             }
             break;
         case 4:
