@@ -1998,17 +1998,17 @@ vhost_user_backend_handle_shmem_map(struct vhost_dev *dev,
     }
 
 send_reply_commit:
-    /* Send reply and commit after transaction started */
+    /* Commit before reply so the KVM memory slot exists before guest access */
+    memory_region_transaction_commit();
+
     if (hdr->flags & VHOST_USER_NEED_REPLY_MASK) {
         payload->u64 = !!ret;
         hdr->size = sizeof(payload->u64);
         if (!vhost_user_send_resp(ioc, hdr, payload, &local_err)) {
             error_report_err(local_err);
-            memory_region_transaction_commit();
             return -EFAULT;
         }
     }
-    memory_region_transaction_commit();
     return 0;
 
 send_reply:
