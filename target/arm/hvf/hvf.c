@@ -13,6 +13,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 
+#include "syndrome.h"
 #include "system/runstate.h"
 #include "system/hvf.h"
 #include "system/hvf_int.h"
@@ -37,6 +38,7 @@
 #include "target/arm/multiprocessing.h"
 #include "target/arm/gtimer.h"
 #include "target/arm/trace.h"
+#include "target/arm/helper.h"
 #include "trace.h"
 #include "migration/vmstate.h"
 
@@ -2328,11 +2330,14 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
 {
     CPUARMState *env = cpu_env(cpu);
     ARMCPU *arm_cpu = env_archcpu(env);
-    uint64_t syndrome = excp->syndrome;
-    uint32_t ec = syn_get_ec(syndrome);
+    uint64_t syndrome;
+    uint32_t ec;
     bool advance_pc = false;
     hv_return_t r;
     int ret = 0;
+
+    syndrome = excp->syndrome;
+    ec = syn_get_ec(syndrome);
 
     switch (ec) {
     case EC_SOFTWARESTEP: {
@@ -2379,29 +2384,22 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
         break;
     }
     case EC_DATAABORT: {
-        bool isv = FIELD_EX32(syndrome, DABORT_ISS, ISV);
-        bool iswrite = FIELD_EX32(syndrome, DABORT_ISS, WNR);
-        bool s1ptw = FIELD_EX32(syndrome, DABORT_ISS, S1PTW);
-        bool sse = FIELD_EX32(syndrome, DABORT_ISS, SSE);
-        uint32_t sas = FIELD_EX32(syndrome, DABORT_ISS, SAS);
-        uint32_t len = 1 << sas;
-        uint32_t srt = FIELD_EX32(syndrome, DABORT_ISS, SRT);
-        uint32_t cm = FIELD_EX32(syndrome, DABORT_ISS, CM);
-        uint64_t val = 0;
+        EsrEl2 esr_el2 = { .raw = syndrome };
+        IssDataAbort iss = { .raw = esr_el2.iss };
         uint64_t ipa = excp->physical_address;
         AddressSpace *as = cpu_get_address_space(cpu, ARMASIdx_NS);
 
-        trace_hvf_data_abort(excp->virtual_address, ipa, isv,
-                             iswrite, s1ptw, len, srt);
+        trace_hvf_data_abort(excp->virtual_address, ipa, iss.isv,
+                             iss.wnr, iss.s1ptw, 1ULL << iss.sas, iss.srt);
 
-        if (cm) {
+        if (iss.cm) {
             /* We don't cache MMIO regions */
             advance_pc = true;
             break;
         }
 
         /* Handle dirty page logging for ram. */
-        if (iswrite) {
+        if (iss.wnr) {
             hwaddr xlat;
             MemoryRegion *mr = address_space_translate(as, ipa, &xlat,
                                                        NULL, true,
@@ -2428,28 +2426,25 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
          * TODO: If s1ptw, this is an error in the guest os page tables.
          * Inject the exception into the guest.
          */
-        assert(!s1ptw);
-
-        /*
-         * TODO: ISV will be 0 for SIMD or SVE accesses.
-         * Inject the exception into the guest.
-         */
-        assert(isv);
+        assert(!iss.s1ptw);
 
         /*
          * Emulate MMIO.
          * TODO: Inject faults for errors.
          */
-        if (iswrite) {
-            val = hvf_get_reg(cpu, srt);
-            address_space_write(as, ipa, MEMTXATTRS_UNSPECIFIED, &val, len);
-        } else {
-            address_space_read(as, ipa, MEMTXATTRS_UNSPECIFIED, &val, len);
-            if (sse) {
-                val = sextract64(val, 0, len * 8);
-            }
-            hvf_set_reg(cpu, srt, val);
+
+        static const struct arm_emul_ops hvf_arm_emul_ops = {
+            .get_reg = hvf_get_reg,
+            .set_reg = hvf_set_reg,
+        };
+
+        ret = arm_emulate_mmio(cpu, esr_el2, ipa, &hvf_arm_emul_ops);
+        if (ret < 0) {
+            error_report("Failed to emulate MMIO, syndrome=0x%llx, gpa=0x%llx",
+                         esr_el2.raw, ipa);
+            return -1;
         }
+
         advance_pc = true;
         break;
     }

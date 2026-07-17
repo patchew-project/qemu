@@ -34,6 +34,8 @@
 #endif
 #include "cpregs.h"
 #include "target/arm/gtimer.h"
+#include "target/arm/helper.h"
+#include "target/arm/syndrome.h"
 #include "qemu/plugin.h"
 
 static void switch_mode(CPUARMState *env, int mode);
@@ -9226,6 +9228,66 @@ static void arm_cpu_do_interrupt_aarch32(CPUState *cs)
     }
 
     take_aarch32_exception(env, new_mode, mask, offset, addr);
+}
+
+/*
+ * Emulate a data abort syndrome for MMIO/guest memory access
+ */
+int arm_emulate_mmio(CPUState *cpu, EsrEl2 syndrome, uint64_t gpa,
+                     const struct arm_emul_ops *ops)
+{
+    int ret;
+    IssDataAbort iss = { 0 };
+    iss.raw = syndrome.iss;
+
+    if (!(syndrome.ec == data_abort_lower || syndrome.ec == data_abort)) {
+        error_report("Unknown exception class 0x%x", syndrome.ec);
+        return -1;
+    }
+
+    if (!iss.isv) {
+        error_report("Cannot emulate MMIO. ISS not valid.");
+        return -1;
+    }
+
+    AddressSpace *as = cpu_get_address_space(cpu, ARMASIdx_NS);
+    uint64_t len = 1ULL << iss.sas;
+    bool sign_extend = iss.sse;
+    uint64_t reg_index = iss.srt;
+
+    if (iss.wnr) {
+        uint8_t data[8];
+        uint64_t val = reg_index < 31 ? ops->get_reg(cpu, reg_index) : 0ULL;
+        val = cpu_to_le64(val);
+        memcpy(data, &val, sizeof(val));
+        ret = address_space_write(as, gpa, MEMTXATTRS_UNSPECIFIED, data, len);
+        if (ret != MEMTX_OK) {
+            error_report("Failed to write guest memory");
+            return -1;
+        }
+    } else {
+        uint8_t data[8] = { 0 };
+        ret = address_space_read(as, gpa, MEMTXATTRS_UNSPECIFIED, data, len);
+        if (ret != MEMTX_OK) {
+            error_report("Failed to read guest memory");
+            return -1;
+        }
+        uint64_t val;
+        memcpy(&val, data, sizeof(val));
+        val = le64_to_cpu(val);
+        if (sign_extend) {
+            uint64_t shift = 64 - (len * 8);
+            val = (((int64_t)val << shift) >> shift);
+        }
+        if (!iss.sf) {
+            val &= 0xffffffff;
+        }
+        if (reg_index < 31) {
+            ops->set_reg(cpu, reg_index, val);
+        }
+    }
+
+    return 0;
 }
 
 static int aarch64_regnum(CPUARMState *env, int aarch32_reg)

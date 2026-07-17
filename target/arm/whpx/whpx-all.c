@@ -28,6 +28,8 @@
 
 #include "syndrome.h"
 #include "target/arm/cpregs.h"
+#include "target/arm/helper.h"
+#include "target/arm/syndrome.h"
 #include "internals.h"
 
 #include "system/whpx-internal.h"
@@ -349,34 +351,23 @@ static void whpx_set_gp_reg(CPUState *cpu, int rt, uint64_t val)
 
 static int whpx_handle_mmio(CPUState *cpu, WHV_MEMORY_ACCESS_CONTEXT *ctx)
 {
-    uint64_t syndrome = ctx->Syndrome;
+    int ret = 0;
+    EsrEl2 esr = { .raw = ctx->Syndrome };
+    uint32_t cm = (esr.iss >> 8) & 0x1;
 
-    bool isv = FIELD_EX32(syndrome, DABORT_ISS, ISV);
-    bool iswrite = FIELD_EX32(syndrome, DABORT_ISS, WNR);
-    bool sse = FIELD_EX32(syndrome, DABORT_ISS, SSE);
-    uint32_t sas = FIELD_EX32(syndrome, DABORT_ISS, SAS);
-    uint32_t len = 1 << sas;
-    uint32_t srt = FIELD_EX32(syndrome, DABORT_ISS, SRT);
-    uint32_t cm = FIELD_EX32(syndrome, DABORT_ISS, CM);
-    uint64_t val = 0;
-
-    assert(syn_get_ec(syndrome) == EC_DATAABORT);
+    assert(syn_get_ec(esr.raw) == EC_DATAABORT);
     assert(!cm);
-    assert(isv);
 
-    if (iswrite) {
-        val = whpx_get_gp_reg(cpu, srt);
-        address_space_write(&address_space_memory,
-                            ctx->Gpa,
-                            MEMTXATTRS_UNSPECIFIED, &val, len);
-    } else {
-        address_space_read(&address_space_memory,
-                           ctx->Gpa,
-                           MEMTXATTRS_UNSPECIFIED, &val, len);
-        if (sse) {
-            val = sextract64(val, 0, len * 8);
-        }
-        whpx_set_gp_reg(cpu, srt, val);
+    static const struct arm_emul_ops whpx_arm_emul_ops = {
+        .get_reg = whpx_get_gp_reg,
+        .set_reg = whpx_set_gp_reg,
+    };
+
+    ret = arm_emulate_mmio(cpu, esr, ctx->Gpa, &whpx_arm_emul_ops);
+    if (ret < 0) {
+        error_report("WHPX: Failed to handle MMIO, syndrome=0x%llx, gpa=0x%llx",
+                     esr.raw, ctx->Gpa);
+        return -1;
     }
 
     return 0;
