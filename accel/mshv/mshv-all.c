@@ -188,8 +188,10 @@ static int create_partition(int mshv_fd, int *vm_fd)
 {
     int ret;
     uint64_t pt_flags, host_proc_features;
-    union hv_partition_processor_xsave_features disabled_xsave_features;
     union hv_partition_processor_features disabled_partition_features = {0};
+#if defined(__x86_64__)
+    union hv_partition_processor_xsave_features disabled_xsave_features;
+#endif
 
     struct mshv_create_partition_v2 args = {0};
 
@@ -201,8 +203,10 @@ static int create_partition(int mshv_fd, int *vm_fd)
                (1ULL << MSHV_PT_BIT_GPA_SUPER_PAGES) |
                (1ULL << MSHV_PT_BIT_CPU_AND_XSAVE_FEATURES);
 
-    /* enable all */
+#if defined(__x86_64__)
+    /* enable all xsave features (0 = enabled) */
     disabled_xsave_features.as_uint64 = 0;
+#endif
 
     /*
      * query host for supported processor features and disable unsupported
@@ -234,7 +238,9 @@ static int create_partition(int mshv_fd, int *vm_fd)
     /* populate args structure */
     args.pt_flags = pt_flags;
     args.pt_isolation = MSHV_PT_ISOLATION_NONE;
+#if defined(__x86_64__)
     args.pt_disabled_xsave = disabled_xsave_features.as_uint64;
+#endif
     args.pt_num_cpu_fbanks = MSHV_NUM_CPU_FEATURES_BANKS;
 
     ret = ioctl(mshv_fd, MSHV_CREATE_PARTITION, &args);
