@@ -2655,3 +2655,81 @@ GEN_PSIMD_QMUL(mulq, uint32_t, int32_t, int64_t, uint32_t,
 GEN_PSIMD_QMUL(mulqr, uint32_t, int32_t, int64_t, uint32_t,
                EXTRACT32, INSERT32, ELEMS_W, 31, 1LL << 30, INT32_MIN,
                INT32_MAX)
+
+
+/* Q-Format Multiply-Accumulate Operations */
+
+GEN_PSIMD_QMUL_ACC_INDEXED(mqacc_h00, uint32_t, int16_t, int16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT16,
+                           EXTRACT32, INSERT32, ELEMS_W, 0, 0, 0, 15, 0,
+                           PSIMD_MUL_S64)
+GEN_PSIMD_QMUL_ACC_INDEXED(mqacc_h01, uint32_t, int16_t, int16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT16,
+                           EXTRACT32, INSERT32, ELEMS_W, 0, 0, 1, 15, 0,
+                           PSIMD_MUL_S64)
+GEN_PSIMD_QMUL_ACC_INDEXED(mqacc_h11, uint32_t, int16_t, int16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT16,
+                           EXTRACT32, INSERT32, ELEMS_W, 0, 1, 1, 15, 0,
+                           PSIMD_MUL_S64)
+GEN_PSIMD_QMUL_ACC_INDEXED(mqracc_h00, uint32_t, int16_t, int16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT16,
+                           EXTRACT32, INSERT32, ELEMS_W, 0, 0, 0, 15,
+                           1LL << 14, PSIMD_MUL_S64)
+GEN_PSIMD_QMUL_ACC_INDEXED(mqracc_h01, uint32_t, int16_t, int16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT16,
+                           EXTRACT32, INSERT32, ELEMS_W, 0, 0, 1, 15,
+                           1LL << 14, PSIMD_MUL_S64)
+GEN_PSIMD_QMUL_ACC_INDEXED(mqracc_h11, uint32_t, int16_t, int16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT16,
+                           EXTRACT32, INSERT32, ELEMS_W, 0, 1, 1, 15,
+                           1LL << 14, PSIMD_MUL_S64)
+
+GEN_PSIMD_QMUL_ACC_INDEXED(mqacc_w00, uint64_t, int32_t, int32_t,
+                           int64_t, int64_t, int64_t, uint64_t, EXTRACT32,
+                           EXTRACT64, INSERT64, ELEMS_D, 0, 0, 0, 31, 0,
+                           PSIMD_MUL_S64)
+GEN_PSIMD_QMUL_ACC_INDEXED(mqacc_w01, uint64_t, int32_t, int32_t,
+                           int64_t, int64_t, int64_t, uint64_t, EXTRACT32,
+                           EXTRACT64, INSERT64, ELEMS_D, 0, 0, 1, 31, 0,
+                           PSIMD_MUL_S64)
+GEN_PSIMD_QMUL_ACC_INDEXED(mqacc_w11, uint64_t, int32_t, int32_t,
+                           int64_t, int64_t, int64_t, uint64_t, EXTRACT32,
+                           EXTRACT64, INSERT64, ELEMS_D, 0, 1, 1, 31, 0,
+                           PSIMD_MUL_S64)
+GEN_PSIMD_QMUL_ACC_INDEXED(mqracc_w00, uint64_t, int32_t, int32_t,
+                           int64_t, int64_t, int64_t, uint64_t, EXTRACT32,
+                           EXTRACT64, INSERT64, ELEMS_D, 0, 0, 0, 31,
+                           1LL << 30, PSIMD_MUL_S64)
+GEN_PSIMD_QMUL_ACC_INDEXED(mqracc_w01, uint64_t, int32_t, int32_t,
+                           int64_t, int64_t, int64_t, uint64_t, EXTRACT32,
+                           EXTRACT64, INSERT64, ELEMS_D, 0, 0, 1, 31,
+                           1LL << 30, PSIMD_MUL_S64)
+GEN_PSIMD_QMUL_ACC_INDEXED(mqracc_w11, uint64_t, int32_t, int32_t,
+                           int64_t, int64_t, int64_t, uint64_t, EXTRACT32,
+                           EXTRACT64, INSERT64, ELEMS_D, 0, 1, 1, 31,
+                           1LL << 30, PSIMD_MUL_S64)
+
+GEN_PSIMD_QMUL_ACC_INDEXED(pmqacc_w_h00, uint64_t, int16_t, int16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT16,
+                           EXTRACT32, INSERT32, ELEMS_W, 2, 0, 0, 15, 0,
+                           PSIMD_MUL_S64)
+GEN_PSIMD_QMUL_ACC_INDEXED(pmqacc_w_h01, uint64_t, int16_t, int16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT16,
+                           EXTRACT32, INSERT32, ELEMS_W, 2, 0, 1, 15, 0,
+                           PSIMD_MUL_S64)
+GEN_PSIMD_QMUL_ACC_INDEXED(pmqacc_w_h11, uint64_t, int16_t, int16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT16,
+                           EXTRACT32, INSERT32, ELEMS_W, 2, 1, 1, 15, 0,
+                           PSIMD_MUL_S64)
+GEN_PSIMD_QMUL_ACC_INDEXED(pmqracc_w_h00, uint64_t, int16_t, int16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT16,
+                           EXTRACT32, INSERT32, ELEMS_W, 2, 0, 0, 15,
+                           1LL << 14, PSIMD_MUL_S64)
+GEN_PSIMD_QMUL_ACC_INDEXED(pmqracc_w_h01, uint64_t, int16_t, int16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT16,
+                           EXTRACT32, INSERT32, ELEMS_W, 2, 0, 1, 15,
+                           1LL << 14, PSIMD_MUL_S64)
+GEN_PSIMD_QMUL_ACC_INDEXED(pmqracc_w_h11, uint64_t, int16_t, int16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT16,
+                           EXTRACT32, INSERT32, ELEMS_W, 2, 1, 1, 15,
+                           1LL << 14, PSIMD_MUL_S64)
