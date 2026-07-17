@@ -306,6 +306,8 @@ extern const size_t pc_compat_4_1_len;
         mc->init = MACHINE_VER_SYM(init, namesym, __VA_ARGS__); \
         MACHINE_VER_DEPRECATION(__VA_ARGS__); \
         mc->is_default = isdefault; \
+        /* latest non-default family machine (e.g. q35) is the fallback default */ \
+        mc->is_default_fallback = (malias != NULL) && !isdefault; \
         mc->alias = malias; \
     } \
     static const TypeInfo MACHINE_VER_SYM(info, namesym, __VA_ARGS__) = \
