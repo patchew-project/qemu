@@ -259,6 +259,7 @@ int mshv_irqchip_update_msi_route(int virq, MSIMessage msg, PCIDevice *dev)
     return 0;
 }
 
+#if defined(__x86_64__)
 int mshv_request_interrupt(MshvState *mshv_state, uint32_t interrupt_type, uint32_t vector,
                            uint32_t vp_index, bool logical_dest_mode,
                            bool level_triggered)
@@ -295,6 +296,7 @@ int mshv_request_interrupt(MshvState *mshv_state, uint32_t interrupt_type, uint3
     }
     return 0;
 }
+#endif
 
 void mshv_irqchip_commit_routes(MshvState *s)
 {
