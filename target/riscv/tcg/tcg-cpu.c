@@ -563,10 +563,8 @@ static void riscv_cpu_validate_p(RISCVCPU *cpu, Error **errp)
         return;
     }
 
-    if (!(cpu->cfg.ext_zmmul && cpu->cfg.ext_zba && cpu->cfg.ext_zbb &&
-          cpu->cfg.ext_zbkb)) {
-        error_setg(errp, "P extension requires zmmul, zba, zbb and zbkb "
-                         "extensions");
+    if (!(cpu->cfg.ext_zmmul && cpu->cfg.ext_zba && cpu->cfg.ext_zbb)) {
+        error_setg(errp, "P extension requires zmmul, zba and zbb extensions");
         return;
     }
 }

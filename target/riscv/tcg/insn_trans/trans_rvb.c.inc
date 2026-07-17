@@ -527,7 +527,9 @@ static bool trans_brev8(DisasContext *ctx, arg_brev8 *a)
 
 static bool trans_pack(DisasContext *ctx, arg_pack *a)
 {
-    REQUIRE_ZBKB(ctx);
+    if (!has_ext(ctx, RVP) && !ctx->cfg_ptr->ext_zbkb) {
+        return false;
+    }
     return gen_arith(ctx, a, EXT_NONE, gen_pack, NULL);
 }
 
