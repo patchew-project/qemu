@@ -902,3 +902,27 @@ GEN_SIMD_TRANS_ACC_64(pm4adda_h)
 GEN_SIMD_TRANS_ACC_64(pm4addasu_h)
 GEN_SIMD_TRANS_ACC_64(pm4addau_h)
 
+#define GEN_PLI(NAME, PRE_REQ, IMM_TYPE, LIMIT, SHIFT, ADDEND) \
+static bool trans_##NAME(DisasContext *ctx, arg_##NAME * a)    \
+{                                                              \
+    PRE_REQ                                                    \
+    REQUIRE_RVP(ctx);                                          \
+    int i = 1;                                                 \
+    IMM_TYPE imm = a->imm;                                     \
+    while (i < (LIMIT)) {                                      \
+        imm = (imm << (SHIFT)) + (ADDEND);                     \
+        i++;                                                   \
+    }                                                          \
+    gen_set_gpri(ctx, a->rd, imm);                             \
+    return true;                                               \
+}
+
+GEN_PLI(pli_b, , target_long, TARGET_LONG_SIZE, 8, a->imm)
+GEN_PLI(pli_h, , target_long, TARGET_LONG_SIZE / 2, 16,
+        a->imm & 0xFFFF)
+GEN_PLI(plui_h, , target_long, TARGET_LONG_SIZE / 2, 16,
+        a->imm & 0xFFFF)
+GEN_PLI(pli_w, REQUIRE_64BIT(ctx); , int64_t, TARGET_LONG_SIZE / 4, 32,
+        a->imm & 0xFFFFFFFF)
+GEN_PLI(plui_w, REQUIRE_64BIT(ctx); , int64_t, TARGET_LONG_SIZE / 4, 32,
+        a->imm & 0xFFFFFFFF)
