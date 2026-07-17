@@ -2890,3 +2890,276 @@ GEN_PSIMD_4WAY_MUL_ACC(pm4addasu_h, uint64_t, int16_t, uint16_t,
 GEN_PSIMD_4WAY_MUL_ACC(pm4addau_h, uint64_t, uint16_t, uint16_t,
                        uint64_t, uint64_t, uint64_t, EXTRACT16, EXTRACT64,
                        INSERT64, ELEMS_D, 0, PSIMD_MUL_U64)
+
+/* Double-Width Operations (RV32 only, register pairs) */
+
+GEN_PSIMD_WIDEN_BINOP(pwadd_b, int8_t, int16_t, uint16_t,
+                      4, 8, 16, 0xFF, PSIMD_COMB_ADD)
+GEN_PSIMD_WIDEN_BINOP_ACC(pwadda_b, int8_t, int16_t, uint16_t,
+                          4, 8, 16, 0xFF, 0xFFFF, PSIMD_COMB_ADD)
+GEN_PSIMD_WIDEN_BINOP(pwaddu_b, uint8_t, uint16_t, uint16_t,
+                      4, 8, 16, 0xFF, PSIMD_COMB_ADD)
+GEN_PSIMD_WIDEN_BINOP_ACC(pwaddau_b, uint8_t, uint16_t, uint16_t,
+                          4, 8, 16, 0xFF, 0xFFFF, PSIMD_COMB_ADD)
+GEN_PSIMD_WIDEN_BINOP(pwsub_b, int8_t, int16_t, uint16_t,
+                      4, 8, 16, 0xFF, PSIMD_COMB_SUB)
+GEN_PSIMD_WIDEN_BINOP_ACC(pwsuba_b, int8_t, int16_t, uint16_t,
+                          4, 8, 16, 0xFF, 0xFFFF, PSIMD_COMB_SUB)
+GEN_PSIMD_WIDEN_BINOP(pwsubu_b, uint8_t, uint16_t, uint16_t,
+                      4, 8, 16, 0xFF, PSIMD_COMB_SUB)
+GEN_PSIMD_WIDEN_BINOP_ACC(pwsubau_b, uint8_t, uint16_t, uint16_t,
+                          4, 8, 16, 0xFF, 0xFFFF, PSIMD_COMB_SUB)
+
+GEN_PSIMD_WIDEN_SHIFT(pwslli_b, uint8_t, uint16_t, uint16_t,
+                      4, 8, 16, 0xFF, 0x0F)
+GEN_PSIMD_WIDEN_SHIFT(pwsll_bs, uint8_t, uint16_t, uint16_t,
+                      4, 8, 16, 0xFF, 0x1F)
+GEN_PSIMD_WIDEN_SHIFT(pwslai_b, int8_t, int16_t, uint16_t,
+                      4, 8, 16, 0xFF, 0x0F)
+GEN_PSIMD_WIDEN_SHIFT(pwsla_bs, int8_t, int16_t, uint16_t,
+                      4, 8, 16, 0xFF, 0x1F)
+
+GEN_PSIMD_WIDEN_BINOP(pwadd_h, int16_t, int32_t, uint32_t,
+                      2, 16, 32, 0xFFFF, PSIMD_COMB_ADD)
+GEN_PSIMD_WIDEN_BINOP_ACC(pwadda_h, int16_t, int32_t, uint32_t,
+                          2, 16, 32, 0xFFFF, 0xFFFFFFFFULL,
+                          PSIMD_COMB_ADD)
+GEN_PSIMD_WIDEN_BINOP(pwaddu_h, uint16_t, uint32_t, uint32_t,
+                      2, 16, 32, 0xFFFF, PSIMD_COMB_ADD)
+GEN_PSIMD_WIDEN_BINOP_ACC(pwaddau_h, uint16_t, uint32_t, uint32_t,
+                          2, 16, 32, 0xFFFF, 0xFFFFFFFFULL,
+                          PSIMD_COMB_ADD)
+GEN_PSIMD_WIDEN_BINOP(pwsub_h, int16_t, int32_t, uint32_t,
+                      2, 16, 32, 0xFFFF, PSIMD_COMB_SUB)
+GEN_PSIMD_WIDEN_BINOP_ACC(pwsuba_h, int16_t, int32_t, uint32_t,
+                          2, 16, 32, 0xFFFF, 0xFFFFFFFFULL,
+                          PSIMD_COMB_SUB)
+GEN_PSIMD_WIDEN_BINOP(pwsubu_h, uint16_t, uint32_t, uint32_t,
+                      2, 16, 32, 0xFFFF, PSIMD_COMB_SUB)
+GEN_PSIMD_WIDEN_BINOP_ACC(pwsubau_h, uint16_t, uint32_t, uint32_t,
+                          2, 16, 32, 0xFFFF, 0xFFFFFFFFULL,
+                          PSIMD_COMB_SUB)
+
+GEN_PSIMD_WIDEN_SHIFT(pwslli_h, uint16_t, uint32_t, uint32_t,
+                      2, 16, 32, 0xFFFF, 0x1F)
+GEN_PSIMD_WIDEN_SHIFT(pwsll_hs, uint16_t, uint32_t, uint32_t,
+                      2, 16, 32, 0xFFFF, 0x1F)
+GEN_PSIMD_WIDEN_SHIFT(pwslai_h, int16_t, int32_t, uint32_t,
+                      2, 16, 32, 0xFFFF, 0x1F)
+GEN_PSIMD_WIDEN_SHIFT(pwsla_hs, int16_t, int32_t, uint32_t,
+                      2, 16, 32, 0xFFFF, 0x1F)
+
+GEN_PSIMD_WIDEN_BINOP(wadd, int32_t, int64_t, uint64_t,
+                      1, 32, 64, 0xFFFFFFFF, PSIMD_COMB_ADD)
+GEN_PSIMD_WIDEN_BINOP_ACC(wadda, int32_t, int64_t, uint64_t,
+                          1, 32, 64, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFFULL,
+                          PSIMD_COMB_ADD)
+GEN_PSIMD_WIDEN_BINOP(waddu, uint32_t, uint64_t, uint64_t,
+                      1, 32, 64, 0xFFFFFFFF, PSIMD_COMB_ADD)
+GEN_PSIMD_WIDEN_BINOP_ACC(waddau, uint32_t, uint64_t, uint64_t,
+                          1, 32, 64, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFFULL,
+                          PSIMD_COMB_ADD)
+GEN_PSIMD_WIDEN_BINOP(wsub, int32_t, int64_t, uint64_t,
+                      1, 32, 64, 0xFFFFFFFF, PSIMD_COMB_SUB)
+GEN_PSIMD_WIDEN_BINOP_ACC(wsuba, int32_t, int64_t, uint64_t,
+                          1, 32, 64, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFFULL,
+                          PSIMD_COMB_SUB)
+GEN_PSIMD_WIDEN_BINOP(wsubu, uint32_t, uint64_t, uint64_t,
+                      1, 32, 64, 0xFFFFFFFF, PSIMD_COMB_SUB)
+GEN_PSIMD_WIDEN_BINOP_ACC(wsubau, uint32_t, uint64_t, uint64_t,
+                          1, 32, 64, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFFULL,
+                          PSIMD_COMB_SUB)
+
+GEN_PSIMD_WIDEN_SHIFT(wslli, uint32_t, uint64_t, uint64_t,
+                      1, 32, 64, 0xFFFFFFFF, 0x3F)
+GEN_PSIMD_WIDEN_SHIFT(wsll, uint32_t, uint64_t, uint64_t,
+                      1, 32, 64, 0xFFFFFFFF, 0x3F)
+GEN_PSIMD_WIDEN_SHIFT(wslai, int32_t, int64_t, uint64_t,
+                      1, 32, 64, 0xFFFFFFFF, 0x3F)
+GEN_PSIMD_WIDEN_SHIFT(wsla, int32_t, int64_t, uint64_t,
+                      1, 32, 64, 0xFFFFFFFF, 0x3F)
+
+GEN_PSIMD_DW_ZIP(wzip8p, EXTRACT8, 4, 16, 8)
+GEN_PSIMD_DW_ZIP(wzip16p, EXTRACT16, 2, 32, 16)
+
+GEN_PSIMD_DW_REDSUM(predsum_dbs, int64_t, int32_t, int8_t, EXTRACT8, 8)
+GEN_PSIMD_DW_REDSUM(predsumu_dbs, uint64_t, uint32_t, uint8_t, EXTRACT8, 8)
+GEN_PSIMD_DW_REDSUM(predsum_dhs, int64_t, int32_t, int16_t, EXTRACT16, 4)
+GEN_PSIMD_DW_REDSUM(predsumu_dhs, uint64_t, uint32_t, uint16_t, EXTRACT16, 4)
+
+
+/* Narrowing Operations (RV32 only, register pair sources) */
+
+GEN_PSIMD_NARROW_SRL(pnsrli_b, uint16_t, uint8_t,
+                     4, 16, 8, 0xFFFF, 0x0F)
+GEN_PSIMD_NARROW_SRL(pnsrl_bs, uint16_t, uint8_t,
+                     4, 16, 8, 0xFFFF, 0x1F)
+GEN_PSIMD_NARROW_SRA_PACK(pnsrai_b, int16_t, int32_t, uint8_t,
+                          4, 16, 8, 0xFFFF, 0x0F)
+GEN_PSIMD_NARROW_SRA_PACK(pnsra_bs, int16_t, int32_t, uint8_t,
+                          4, 16, 8, 0xFFFF, 0x1F)
+GEN_PSIMD_NARROW_RNDSRA_PACK(pnsrari_b, int16_t, int32_t, uint8_t,
+                             4, 16, 8, 0xFFFF, 0x0F, 0x1FF)
+GEN_PSIMD_NARROW_RNDSRA_PACK(pnsrar_bs, int16_t, int32_t, uint8_t,
+                             4, 16, 8, 0xFFFF, 0x1F, 0x1FF)
+GEN_PSIMD_NCLIP_SIGNED_PACK(pnclipi_b, int16_t, int32_t, int16_t,
+                            uint8_t, 4, 16, 8, 0xFFFF, 0x0F,
+                            -128, 127, 0x80, 0x7F)
+GEN_PSIMD_NCLIPR_SIGNED_PACK(pnclipri_b, int16_t, int32_t, int16_t,
+                             uint8_t, 4, 16, 8, 0xFFFF, 0x0F, 0x1FFFF,
+                             -128, 127, 0x80, 0x7F)
+GEN_PSIMD_NCLIP_UNSIGNED_PACK(pnclipiu_b, uint16_t, uint16_t, uint8_t,
+                              4, 16, 8, 0xFFFF, 0x0F, 0x00FF)
+GEN_PSIMD_NCLIPR_UNSIGNED_PACK(pnclipriu_b, uint16_t, uint32_t, uint8_t,
+                               4, 16, 8, 0xFFFF, 0x0F, 0x00FF)
+GEN_PSIMD_NCLIP_SIGNED_PACK(pnclip_bs, int16_t, int32_t, int16_t,
+                            uint8_t, 4, 16, 8, 0xFFFF, 0x1F,
+                            -128, 127, 0x80, 0x7F)
+GEN_PSIMD_NCLIPR_SIGNED_PACK(pnclipr_bs, int16_t, int32_t, int16_t,
+                             uint8_t, 4, 16, 8, 0xFFFF, 0x1F, 0x1FFFF,
+                             -128, 127, 0x80, 0x7F)
+GEN_PSIMD_NCLIP_UNSIGNED_PACK(pnclipu_bs, uint16_t, uint32_t, uint8_t,
+                              4, 16, 8, 0xFFFF, 0x1F, 0x00FF)
+GEN_PSIMD_NCLIPR_UNSIGNED_PACK(pnclipru_bs, uint16_t, uint64_t, uint8_t,
+                               4, 16, 8, 0xFFFF, 0x1F, 0x00FF)
+
+GEN_PSIMD_NARROW_SRL(pnsrli_h, uint32_t, uint16_t,
+                     2, 32, 16, 0xFFFFFFFFULL, 0x1F)
+GEN_PSIMD_NARROW_SRA_PACK(pnsrai_h, int32_t, int64_t, uint16_t,
+                          2, 32, 16, 0xFFFFFFFFULL, 0x1F)
+GEN_PSIMD_NARROW_RNDSRA_PACK(pnsrari_h, int32_t, int64_t, uint16_t,
+                             2, 32, 16, 0xFFFFFFFFULL, 0x1F, 0x1FFFF)
+
+GEN_PSIMD_NARROW_SRL(pnsrl_hs, uint32_t, uint16_t,
+                     2, 32, 16, 0xFFFFFFFFULL, 0x1F)
+
+GEN_PSIMD_NARROW_ALIAS(pnsra_hs, pnsrai_h)
+GEN_PSIMD_NARROW_ALIAS(pnsrar_hs, pnsrari_h)
+
+GEN_PSIMD_NCLIP_SIGNED_PACK(pnclip_hs, int32_t, int64_t, int32_t,
+                            uint16_t, 2, 32, 16, 0xFFFFFFFFULL, 0x1F,
+                            -32768, 32767, 0x8000, 0x7FFF)
+GEN_PSIMD_NCLIPR_SIGNED_PACK(pnclipr_hs, int32_t, int64_t, int32_t,
+                             uint16_t, 2, 32, 16, 0xFFFFFFFFULL, 0x1F,
+                             0x1FFFFFFFF, -32768, 32767, 0x8000, 0x7FFF)
+
+GEN_PSIMD_NARROW_ALIAS(pnclipi_h, pnclip_hs)
+GEN_PSIMD_NARROW_ALIAS(pnclipri_h, pnclipr_hs)
+
+GEN_PSIMD_NCLIP_UNSIGNED_PACK(pnclipu_hs, uint32_t, uint32_t, uint16_t,
+                              2, 32, 16, 0xFFFFFFFFULL, 0x1F, 0xFFFF)
+GEN_PSIMD_NCLIPR_UNSIGNED_PACK(pnclipru_hs, uint32_t, uint64_t, uint16_t,
+                               2, 32, 16, 0xFFFFFFFFULL, 0x1F, 0xFFFF)
+
+GEN_PSIMD_NARROW_ALIAS(pnclipiu_h, pnclipu_hs)
+GEN_PSIMD_NARROW_ALIAS(pnclipriu_h, pnclipru_hs)
+
+GEN_PSIMD_NARROW_SRL(nsrli, uint64_t, uint32_t,
+                     1, 64, 32, 0xFFFFFFFFFFFFFFFFULL, 0x3F)
+
+GEN_PSIMD_NARROW_SRA(nsrai)
+GEN_PSIMD_NARROW_RNDSRA(nsrari)
+
+GEN_PSIMD_NARROW_SRL(nsrl, uint64_t, uint32_t,
+                     1, 64, 32, 0xFFFFFFFFFFFFFFFFULL, 0x3F)
+
+GEN_PSIMD_NARROW_SRA(nsra)
+GEN_PSIMD_NARROW_RNDSRA(nsrar)
+
+GEN_PSIMD_NCLIP(nclipi)
+GEN_PSIMD_NCLIPR(nclipri)
+GEN_PSIMD_NCLIPU(nclipiu)
+GEN_PSIMD_NCLIPRU(nclipriu)
+
+GEN_PSIMD_NCLIP(nclip)
+GEN_PSIMD_NCLIPR(nclipr)
+GEN_PSIMD_NCLIPU(nclipu)
+GEN_PSIMD_NCLIPRU(nclipru)
+
+/* Multiplication with Even-Odd Register Pairs as Destination (RV32 only) */
+
+GEN_PSIMD_WIDEN_QMUL_ACC(pmqwacc_h, int16_t, int32_t, int64_t,
+                         int32_t, uint32_t, 2, EXTRACT16, EXTRACT32,
+                         2, 0, 15, 0, 32, PSIMD_MUL_S64)
+GEN_PSIMD_WIDEN_QMUL_ACC(pmqrwacc_h, int16_t, int32_t, int64_t,
+                         int32_t, uint32_t, 2, EXTRACT16, EXTRACT32,
+                         2, 0, 15, 1LL << 14, 32, PSIMD_MUL_S64)
+
+GEN_PSIMD_WIDEN_MUL(pwmul_b, int8_t, int8_t, int16_t, uint16_t,
+                    4, EXTRACT8, 16, PSIMD_MUL_S32)
+GEN_PSIMD_WIDEN_MUL(pwmulsu_b, int8_t, uint8_t, int16_t, uint16_t,
+                    4, EXTRACT8, 16, PSIMD_MUL_SU16)
+GEN_PSIMD_WIDEN_MUL(pwmulu_b, uint8_t, uint8_t, uint16_t, uint16_t,
+                    4, EXTRACT8, 16, PSIMD_MUL_U32)
+GEN_PSIMD_WIDEN_MUL(pwmul_h, int16_t, int16_t, int32_t, uint32_t,
+                    2, EXTRACT16, 32, PSIMD_MUL_S32)
+GEN_PSIMD_WIDEN_MUL(pwmulsu_h, int16_t, uint16_t, int32_t, uint32_t,
+                    2, EXTRACT16, 32, PSIMD_MUL_SU32)
+GEN_PSIMD_WIDEN_MUL(pwmulu_h, uint16_t, uint16_t, uint32_t, uint32_t,
+                    2, EXTRACT16, 32, PSIMD_MUL_U32)
+
+GEN_PSIMD_WIDEN_MUL_ACC(pwmacc_h, int16_t, int16_t, int32_t,
+                        int32_t, uint32_t, 2, EXTRACT16, EXTRACT32, 32,
+                        PSIMD_MUL_S32)
+GEN_PSIMD_WIDEN_MUL_ACC(pwmaccsu_h, int16_t, uint16_t, int32_t,
+                        int32_t, uint32_t, 2, EXTRACT16, EXTRACT32, 32,
+                        PSIMD_MUL_SU32)
+GEN_PSIMD_WIDEN_MUL_ACC(pwmaccu_h, uint16_t, uint16_t, uint32_t,
+                        uint32_t, uint32_t, 2, EXTRACT16, EXTRACT32, 32,
+                        PSIMD_MUL_U32)
+
+GEN_PSIMD_WIDEN_QMUL_ACC(mqwacc, int32_t, int64_t, int64_t,
+                         int64_t, uint64_t, 1, EXTRACT32, EXTRACT64,
+                         0, 0, 31, 0, 64, PSIMD_MUL_S64)
+GEN_PSIMD_WIDEN_QMUL_ACC(mqrwacc, int32_t, int64_t, int64_t,
+                         int64_t, uint64_t, 1, EXTRACT32, EXTRACT64,
+                         0, 0, 31, 1LL << 30, 64, PSIMD_MUL_S64)
+
+GEN_PSIMD_WIDEN_MUL(wmul, int32_t, int32_t, int64_t, uint64_t,
+                    1, EXTRACT32, 64, PSIMD_MUL_S64)
+GEN_PSIMD_WIDEN_MUL(wmulsu, int32_t, uint32_t, int64_t, uint64_t,
+                    1, EXTRACT32, 64, PSIMD_MUL_SU64)
+GEN_PSIMD_WIDEN_MUL(wmulu, uint32_t, uint32_t, uint64_t, uint64_t,
+                    1, EXTRACT32, 64, PSIMD_MUL_U64)
+
+GEN_PSIMD_WIDEN_MUL_ACC(wmacc, int32_t, int32_t, int64_t,
+                        int64_t, uint64_t, 1, EXTRACT32, EXTRACT64, 64,
+                        PSIMD_MUL_S64)
+GEN_PSIMD_WIDEN_MUL_ACC(wmaccsu, int32_t, uint32_t, int64_t,
+                        int64_t, uint64_t, 1, EXTRACT32, EXTRACT64, 64,
+                        PSIMD_MUL_SU64)
+GEN_PSIMD_WIDEN_MUL_ACC(wmaccu, uint32_t, uint32_t, uint64_t,
+                        uint64_t, uint64_t, 1, EXTRACT32, EXTRACT64, 64,
+                        PSIMD_MUL_U64)
+
+GEN_PSIMD_DW_2WAY_MUL(pm2wadd_h, int16_t, int16_t, int64_t,
+                      EXTRACT16, 0, 1, 0, 1, PSIMD_MUL_S64, PSIMD_COMB_ADD)
+GEN_PSIMD_DW_2WAY_MUL(pm2waddsu_h, int16_t, uint16_t, int64_t,
+                      EXTRACT16, 0, 1, 0, 1, PSIMD_MUL_SU64,
+                      PSIMD_COMB_ADD)
+GEN_PSIMD_DW_2WAY_MUL(pm2waddu_h, uint16_t, uint16_t, uint64_t,
+                      EXTRACT16, 0, 1, 0, 1, PSIMD_MUL_U64, PSIMD_COMB_ADD)
+GEN_PSIMD_DW_2WAY_MUL_ACC(pm2wadda_h, int16_t, int16_t, int64_t, int64_t,
+                          EXTRACT16, 0, 1, 0, 1, PSIMD_MUL_S64,
+                          PSIMD_COMB_ADD)
+GEN_PSIMD_DW_2WAY_MUL_ACC(pm2waddasu_h, int16_t, uint16_t, int64_t,
+                          int64_t, EXTRACT16, 0, 1, 0, 1, PSIMD_MUL_SU64,
+                          PSIMD_COMB_ADD)
+GEN_PSIMD_DW_2WAY_MUL_ACC(pm2waddau_h, uint16_t, uint16_t, uint64_t,
+                          uint64_t, EXTRACT16, 0, 1, 0, 1, PSIMD_MUL_U64,
+                          PSIMD_COMB_ADD)
+GEN_PSIMD_DW_2WAY_MUL(pm2wadd_hx, int16_t, int16_t, int64_t,
+                      EXTRACT16, 0, 1, 1, 0, PSIMD_MUL_S64, PSIMD_COMB_ADD)
+GEN_PSIMD_DW_2WAY_MUL_ACC(pm2wadda_hx, int16_t, int16_t, int64_t, int64_t,
+                          EXTRACT16, 0, 1, 1, 0, PSIMD_MUL_S64,
+                          PSIMD_COMB_ADD)
+GEN_PSIMD_DW_2WAY_MUL(pm2wsub_h, int16_t, int16_t, int64_t,
+                      EXTRACT16, 0, 1, 0, 1, PSIMD_MUL_S64, PSIMD_COMB_SUB)
+GEN_PSIMD_DW_2WAY_MUL(pm2wsub_hx, int16_t, int16_t, int64_t,
+                      EXTRACT16, 0, 1, 1, 0, PSIMD_MUL_S64, PSIMD_COMB_SUB)
+GEN_PSIMD_DW_2WAY_MUL_ACC(pm2wsuba_h, int16_t, int16_t, int64_t, int64_t,
+                          EXTRACT16, 0, 1, 0, 1, PSIMD_MUL_S64,
+                          PSIMD_COMB_SUB)
+GEN_PSIMD_DW_2WAY_MUL_ACC(pm2wsuba_hx, int16_t, int16_t, int64_t, int64_t,
+                          EXTRACT16, 0, 1, 1, 0, PSIMD_MUL_S64,
+                          PSIMD_COMB_SUB)
