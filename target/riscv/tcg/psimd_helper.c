@@ -1808,3 +1808,98 @@ GEN_PSIMD_AVG_BINOP(asub, uint32_t, int32_t, int64_t,
 GEN_PSIMD_AVG_BINOP(asubu, uint32_t, uint32_t, uint64_t,
                     EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_SUB)
 
+/* Absolute value operations */
+
+GEN_PSIMD_ABS(psabs_b, target_ulong, int8_t,
+              EXTRACT8, INSERT8, ELEMS_B, INT8_MIN, INT8_MAX)
+GEN_PSIMD_ABS(psabs_h, target_ulong, int16_t,
+              EXTRACT16, INSERT16, ELEMS_H, INT16_MIN, INT16_MAX)
+
+GEN_PSIMD_SCALAR_ABS(abs, target_ulong, target_long, target_ulong)
+GEN_PSIMD_SCALAR_ABS(absw, uint64_t, int32_t, uint32_t)
+
+/* Absolute difference operations */
+
+GEN_PSIMD_BINOP(pabd_b, target_ulong, int8_t, uint8_t,
+                EXTRACT8, INSERT8, ELEMS_B, PSIMD_DO_ABD)
+GEN_PSIMD_BINOP(pabdu_b, target_ulong, uint8_t, uint8_t,
+                EXTRACT8, INSERT8, ELEMS_B, PSIMD_DO_ABD)
+GEN_PSIMD_BINOP(pabd_h, target_ulong, int16_t, uint16_t,
+                EXTRACT16, INSERT16, ELEMS_H, PSIMD_DO_ABD)
+GEN_PSIMD_BINOP(pabdu_h, target_ulong, uint16_t, uint16_t,
+                EXTRACT16, INSERT16, ELEMS_H, PSIMD_DO_ABD)
+
+/**
+ * PABDSUMU.B - Sum of unsigned absolute differences
+ * Returns sum(|rs1[i] - rs2[i]|) for all bytes
+ */
+target_ulong HELPER(pabdsumu_b)(CPURISCVState *env,
+                                target_ulong rs1, target_ulong rs2)
+{
+    return psimd_abdsumu_b(rs1, rs2, 0);
+}
+
+/**
+ * PABDSUMAU.B - Accumulated sum of unsigned absolute differences
+ * rd = rd + sum(|rs1[i] - rs2[i]|)
+ */
+target_ulong HELPER(pabdsumau_b)(CPURISCVState *env, target_ulong rs1,
+                                 target_ulong rs2, target_ulong rd)
+{
+    return psimd_abdsumu_b(rs1, rs2, rd);
+}
+
+/* Comparison operations (producing masks) */
+
+GEN_PSIMD_BINOP(pmseq_b, target_ulong, uint8_t, uint8_t,
+                EXTRACT8, INSERT8, ELEMS_B, PSIMD_DO_EQ_MASK)
+GEN_PSIMD_BINOP(pmslt_b, target_ulong, int8_t, uint8_t,
+                EXTRACT8, INSERT8, ELEMS_B, PSIMD_DO_LT_MASK)
+GEN_PSIMD_BINOP(pmsltu_b, target_ulong, uint8_t, uint8_t,
+                EXTRACT8, INSERT8, ELEMS_B, PSIMD_DO_LT_MASK)
+GEN_PSIMD_BINOP(pmin_b, target_ulong, int8_t, int8_t,
+                EXTRACT8, INSERT8, ELEMS_B, PSIMD_DO_MIN)
+GEN_PSIMD_BINOP(pminu_b, target_ulong, uint8_t, uint8_t,
+                EXTRACT8, INSERT8, ELEMS_B, PSIMD_DO_MIN)
+GEN_PSIMD_BINOP(pmax_b, target_ulong, int8_t, int8_t,
+                EXTRACT8, INSERT8, ELEMS_B, PSIMD_DO_MAX)
+GEN_PSIMD_BINOP(pmaxu_b, target_ulong, uint8_t, uint8_t,
+                EXTRACT8, INSERT8, ELEMS_B, PSIMD_DO_MAX)
+
+GEN_PSIMD_BINOP(pmseq_h, target_ulong, uint16_t, uint16_t,
+                EXTRACT16, INSERT16, ELEMS_H, PSIMD_DO_EQ_MASK)
+GEN_PSIMD_BINOP(pmslt_h, target_ulong, int16_t, uint16_t,
+                EXTRACT16, INSERT16, ELEMS_H, PSIMD_DO_LT_MASK)
+GEN_PSIMD_BINOP(pmsltu_h, target_ulong, uint16_t, uint16_t,
+                EXTRACT16, INSERT16, ELEMS_H, PSIMD_DO_LT_MASK)
+GEN_PSIMD_BINOP(pmin_h, target_ulong, int16_t, int16_t,
+                EXTRACT16, INSERT16, ELEMS_H, PSIMD_DO_MIN)
+GEN_PSIMD_BINOP(pminu_h, target_ulong, uint16_t, uint16_t,
+                EXTRACT16, INSERT16, ELEMS_H, PSIMD_DO_MIN)
+GEN_PSIMD_BINOP(pmax_h, target_ulong, int16_t, int16_t,
+                EXTRACT16, INSERT16, ELEMS_H, PSIMD_DO_MAX)
+GEN_PSIMD_BINOP(pmaxu_h, target_ulong, uint16_t, uint16_t,
+                EXTRACT16, INSERT16, ELEMS_H, PSIMD_DO_MAX)
+
+GEN_PSIMD_BINOP(pmseq_w, uint64_t, uint32_t, uint32_t,
+                EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_EQ_MASK)
+GEN_PSIMD_BINOP(pmslt_w, uint64_t, int32_t, uint32_t,
+                EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_LT_MASK)
+GEN_PSIMD_BINOP(pmsltu_w, uint64_t, uint32_t, uint32_t,
+                EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_LT_MASK)
+GEN_PSIMD_BINOP(pmin_w, uint64_t, int32_t, int32_t,
+                EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_MIN)
+GEN_PSIMD_BINOP(pminu_w, uint64_t, uint32_t, uint32_t,
+                EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_MIN)
+GEN_PSIMD_BINOP(pmax_w, uint64_t, int32_t, int32_t,
+                EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_MAX)
+GEN_PSIMD_BINOP(pmaxu_w, uint64_t, uint32_t, uint32_t,
+                EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_MAX)
+
+GEN_PSIMD_BINOP(mseq, uint32_t, uint32_t, uint32_t,
+                EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_EQ_MASK)
+GEN_PSIMD_BINOP(mslt, uint32_t, int32_t, uint32_t,
+                EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_LT_MASK)
+GEN_PSIMD_BINOP(msltu, uint32_t, uint32_t, uint32_t,
+                EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_LT_MASK)
+
