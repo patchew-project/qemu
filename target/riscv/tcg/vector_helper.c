@@ -176,13 +176,15 @@ static void probe_pages(CPURISCVState *env, target_ulong addr, target_ulong len,
                      mmu_index, ra);
     }
 
-    if (len > curlen) {
+    while (len > curlen) {
         addr += curlen;
-        curlen = len - curlen;
+        len -= curlen;
+        curlen = MIN(-(addr | TARGET_PAGE_MASK), len);
         if (flags != NULL) {
+            void *page_host;
             *flags |= probe_access_flags(env, adjust_addr(env, addr), curlen,
                                          access_type, mmu_index, nonfault,
-                                         host, ra);
+                                         &page_host, ra);
         } else {
             probe_access(env, adjust_addr(env, addr), curlen, access_type,
                          mmu_index, ra);
@@ -480,8 +482,8 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
     }
 
     /* Load/store elements in the second page */
-    if (unlikely(env->vstart < evl)) {
-        /* Cross page element */
+    while (unlikely(env->vstart < evl)) {
+        /* Element crossing the page boundary */
         if (unlikely(page_split % msize)) {
             for (k = 0; k < nf; k++) {
                 addr = base + ((env->vstart * nf + k) << log2_esz);
@@ -489,15 +491,21 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
                         env->vstart + k * max_elems, vd, ra);
             }
             env->vstart++;
+            if (env->vstart >= evl) {
+                break;
+            }
         }
 
         addr = base + ((env->vstart * nf) << log2_esz);
-        /* Get number of elements of second page */
-        elems = evl - env->vstart;
-
-        /* Load/store elements in the second page */
-        vext_page_ldst_us(env, vd, addr, elems, nf, max_elems, log2_esz,
-                          is_load, mmu_index, ldst_tlb, ldst_host, ra);
+        page_split = -(addr | TARGET_PAGE_MASK);
+        elems = page_split / msize;
+        if (env->vstart + elems >= evl) {
+            elems = evl - env->vstart;
+        }
+        if (likely(elems)) {
+            vext_page_ldst_us(env, vd, addr, elems, nf, max_elems, log2_esz,
+                              is_load, mmu_index, ldst_tlb, ldst_host, ra);
+        }
     }
 
     env->vstart = 0;

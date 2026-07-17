@@ -1190,9 +1190,10 @@ static bool ldst_whole_trans(uint32_t vd, uint32_t rs1, uint32_t nf,
      * Update vstart with the number of processed elements.
      * Use the helper function if either:
      * - vstart is not 0.
+     * - total transfer size potentially exceeding emittable buffer length.
      */
 
-    bool use_helper_fn = !s->vstart_eq_zero;
+    bool use_helper_fn = !s->vstart_eq_zero || ((s->cfg_ptr->vlenb * nf) > 512);
 
     if (!use_helper_fn) {
         uint32_t size = s->cfg_ptr->vlenb * nf;
