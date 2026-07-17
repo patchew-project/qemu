@@ -2443,3 +2443,198 @@ GEN_PSIMD_MUL_ELEM_SCALAR(mulu_w01, uint64_t, uint32_t, uint32_t,
 GEN_PSIMD_MUL_ELEM_SCALAR(mulu_w11, uint64_t, uint32_t, uint32_t,
                           uint64_t, EXTRACT32, 1, 1, PSIMD_MUL_U64)
 
+/* Multiply-Accumulate Operations */
+
+GEN_PSIMD_MUL_HIGH_ACC(pmhacc_h, target_ulong, int16_t, int16_t, int16_t,
+                       int32_t, int16_t, uint16_t, EXTRACT16, INSERT16,
+                       ELEMS_H, 16, 0, PSIMD_MUL_S32)
+GEN_PSIMD_MUL_HIGH_ACC(pmhaccsu_h, target_ulong, int16_t, uint16_t, int16_t,
+                       int32_t, int16_t, uint16_t, EXTRACT16, INSERT16,
+                       ELEMS_H, 16, 0, PSIMD_MUL_SU32)
+GEN_PSIMD_MUL_HIGH_ACC(pmhaccu_h, target_ulong, uint16_t, uint16_t, uint16_t,
+                       uint32_t, uint16_t, uint16_t, EXTRACT16, INSERT16,
+                       ELEMS_H, 16, 0, PSIMD_MUL_U32)
+GEN_PSIMD_MUL_HIGH_ACC(pmhracc_h, target_ulong, int16_t, int16_t, int16_t,
+                       int32_t, int16_t, uint16_t, EXTRACT16, INSERT16,
+                       ELEMS_H, 16, 1 << 15, PSIMD_MUL_S32)
+GEN_PSIMD_MUL_HIGH_ACC(pmhraccsu_h, target_ulong, int16_t, uint16_t, int16_t,
+                       int32_t, int16_t, uint16_t, EXTRACT16, INSERT16,
+                       ELEMS_H, 16, 1 << 15, PSIMD_MUL_SU32)
+GEN_PSIMD_MUL_HIGH_ACC(pmhraccu_h, target_ulong, uint16_t, uint16_t,
+                       uint16_t, uint32_t, uint16_t, uint16_t,
+                       EXTRACT16, INSERT16, ELEMS_H, 16, 1 << 15,
+                       PSIMD_MUL_U32)
+
+GEN_PSIMD_MUL_HIGH_ACC(pmhacc_w, uint64_t, int32_t, int32_t, int32_t,
+                       int64_t, int32_t, uint32_t, EXTRACT32, INSERT32,
+                       ELEMS_W, 32, 0, PSIMD_MUL_S64)
+GEN_PSIMD_MUL_HIGH_ACC(pmhracc_w, uint64_t, int32_t, int32_t, int32_t,
+                       int64_t, int32_t, uint32_t, EXTRACT32, INSERT32,
+                       ELEMS_W, 32, 1LL << 31, PSIMD_MUL_S64)
+GEN_PSIMD_MUL_HIGH_ACC(pmhaccsu_w, uint64_t, int32_t, uint32_t, int32_t,
+                       int64_t, int32_t, uint32_t, EXTRACT32, INSERT32,
+                       ELEMS_W, 32, 0, PSIMD_MUL_SU64)
+GEN_PSIMD_MUL_HIGH_ACC(pmhraccsu_w, uint64_t, int32_t, uint32_t, int32_t,
+                       int64_t, int32_t, uint32_t, EXTRACT32, INSERT32,
+                       ELEMS_W, 32, 1LL << 31, PSIMD_MUL_SU64)
+GEN_PSIMD_MUL_HIGH_ACC(pmhaccu_w, uint64_t, uint32_t, uint32_t, uint32_t,
+                       uint64_t, uint32_t, uint32_t, EXTRACT32, INSERT32,
+                       ELEMS_W, 32, 0, PSIMD_MUL_U64)
+GEN_PSIMD_MUL_HIGH_ACC(pmhraccu_w, uint64_t, uint32_t, uint32_t, uint32_t,
+                       uint64_t, uint32_t, uint32_t, EXTRACT32, INSERT32,
+                       ELEMS_W, 32, 1LL << 31, PSIMD_MUL_U64)
+
+GEN_PSIMD_MUL_HIGH_ACC(mhacc, uint32_t, int32_t, int32_t, int32_t,
+                       int64_t, int32_t, uint32_t, EXTRACT32, INSERT32,
+                       ELEMS_W, 32, 0, PSIMD_MUL_S64)
+GEN_PSIMD_MUL_HIGH_ACC(mhracc, uint32_t, int32_t, int32_t, int32_t,
+                       int64_t, int32_t, uint32_t, EXTRACT32, INSERT32,
+                       ELEMS_W, 32, 1LL << 31, PSIMD_MUL_S64)
+GEN_PSIMD_MUL_HIGH_ACC(mhaccsu, uint32_t, int32_t, uint32_t, int32_t,
+                       int64_t, int32_t, uint32_t, EXTRACT32, INSERT32,
+                       ELEMS_W, 32, 0, PSIMD_MUL_SU64)
+GEN_PSIMD_MUL_HIGH_ACC(mhraccsu, uint32_t, int32_t, uint32_t, int32_t,
+                       int64_t, int32_t, uint32_t, EXTRACT32, INSERT32,
+                       ELEMS_W, 32, 1LL << 31, PSIMD_MUL_SU64)
+GEN_PSIMD_MUL_HIGH_ACC(mhaccu, uint32_t, uint32_t, uint32_t, uint32_t,
+                       uint64_t, uint32_t, uint32_t, EXTRACT32, INSERT32,
+                       ELEMS_W, 32, 0, PSIMD_MUL_U64)
+GEN_PSIMD_MUL_HIGH_ACC(mhraccu, uint32_t, uint32_t, uint32_t, uint32_t,
+                       uint64_t, uint32_t, uint32_t, EXTRACT32, INSERT32,
+                       ELEMS_W, 32, 1LL << 31, PSIMD_MUL_U64)
+
+GEN_PSIMD_MUL_HIGH_ACC_SEL(pmhacc_h_b0, target_ulong, int16_t, int8_t,
+                           int16_t, int32_t, int16_t, uint16_t, EXTRACT16,
+                           EXTRACT8, INSERT16, ELEMS_H, 2, 0, 8,
+                           PSIMD_MUL_S32)
+GEN_PSIMD_MUL_HIGH_ACC_SEL(pmhacc_h_b1, target_ulong, int16_t, int8_t,
+                           int16_t, int32_t, int16_t, uint16_t, EXTRACT16,
+                           EXTRACT8, INSERT16, ELEMS_H, 2, 1, 8,
+                           PSIMD_MUL_S32)
+GEN_PSIMD_MUL_HIGH_ACC_SEL(pmhaccsu_h_b0, target_ulong, int16_t, uint8_t,
+                           int16_t, int32_t, int16_t, uint16_t, EXTRACT16,
+                           EXTRACT8, INSERT16, ELEMS_H, 2, 0, 8,
+                           PSIMD_MUL_SU32)
+GEN_PSIMD_MUL_HIGH_ACC_SEL(pmhaccsu_h_b1, target_ulong, int16_t, uint8_t,
+                           int16_t, int32_t, int16_t, uint16_t, EXTRACT16,
+                           EXTRACT8, INSERT16, ELEMS_H, 2, 1, 8,
+                           PSIMD_MUL_SU32)
+
+GEN_PSIMD_MUL_HIGH_ACC_SEL(mhacc_h0, uint32_t, int32_t, int16_t, int32_t,
+                           int64_t, int32_t, uint32_t, EXTRACT32,
+                           EXTRACT16, INSERT32, ELEMS_W, 0, 0, 16,
+                           PSIMD_MUL_S64)
+GEN_PSIMD_MUL_HIGH_ACC_SEL(mhacc_h1, uint32_t, int32_t, int16_t, int32_t,
+                           int64_t, int32_t, uint32_t, EXTRACT32,
+                           EXTRACT16, INSERT32, ELEMS_W, 0, 1, 16,
+                           PSIMD_MUL_S64)
+GEN_PSIMD_MUL_HIGH_ACC_SEL(mhaccsu_h0, uint32_t, int32_t, uint16_t, int32_t,
+                           int64_t, int32_t, uint32_t, EXTRACT32,
+                           EXTRACT16, INSERT32, ELEMS_W, 0, 0, 16,
+                           PSIMD_MUL_SU64)
+GEN_PSIMD_MUL_HIGH_ACC_SEL(mhaccsu_h1, uint32_t, int32_t, uint16_t, int32_t,
+                           int64_t, int32_t, uint32_t, EXTRACT32,
+                           EXTRACT16, INSERT32, ELEMS_W, 0, 1, 16,
+                           PSIMD_MUL_SU64)
+
+GEN_PSIMD_MUL_HIGH_ACC_SEL(pmhacc_w_h0, uint64_t, int32_t, int16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT32,
+                           EXTRACT16, INSERT32, ELEMS_W, 2, 0, 16,
+                           PSIMD_MUL_S64)
+GEN_PSIMD_MUL_HIGH_ACC_SEL(pmhacc_w_h1, uint64_t, int32_t, int16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT32,
+                           EXTRACT16, INSERT32, ELEMS_W, 2, 1, 16,
+                           PSIMD_MUL_S64)
+GEN_PSIMD_MUL_HIGH_ACC_SEL(pmhaccsu_w_h0, uint64_t, int32_t, uint16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT32,
+                           EXTRACT16, INSERT32, ELEMS_W, 2, 0, 16,
+                           PSIMD_MUL_SU64)
+GEN_PSIMD_MUL_HIGH_ACC_SEL(pmhaccsu_w_h1, uint64_t, int32_t, uint16_t,
+                           int32_t, int64_t, int32_t, uint32_t, EXTRACT32,
+                           EXTRACT16, INSERT32, ELEMS_W, 2, 1, 16,
+                           PSIMD_MUL_SU64)
+
+GEN_PSIMD_MUL_ACC_INDEXED(pmacc_w_h00, uint64_t, int16_t, int16_t,
+                          int32_t, int32_t, uint32_t, EXTRACT16, EXTRACT32,
+                          INSERT32, ELEMS_W, 2, 0, 0, PSIMD_MUL_S32)
+GEN_PSIMD_MUL_ACC_INDEXED(pmacc_w_h01, uint64_t, int16_t, int16_t,
+                          int32_t, int32_t, uint32_t, EXTRACT16, EXTRACT32,
+                          INSERT32, ELEMS_W, 2, 0, 1, PSIMD_MUL_S32)
+GEN_PSIMD_MUL_ACC_INDEXED(pmacc_w_h11, uint64_t, int16_t, int16_t,
+                          int32_t, int32_t, uint32_t, EXTRACT16, EXTRACT32,
+                          INSERT32, ELEMS_W, 2, 1, 1, PSIMD_MUL_S32)
+GEN_PSIMD_MUL_ACC_INDEXED(pmaccsu_w_h00, uint64_t, int16_t, uint16_t,
+                          int32_t, int32_t, uint32_t, EXTRACT16, EXTRACT32,
+                          INSERT32, ELEMS_W, 2, 0, 0, PSIMD_MUL_SU32)
+GEN_PSIMD_MUL_ACC_INDEXED(pmaccsu_w_h11, uint64_t, int16_t, uint16_t,
+                          int32_t, int32_t, uint32_t, EXTRACT16, EXTRACT32,
+                          INSERT32, ELEMS_W, 2, 1, 1, PSIMD_MUL_SU32)
+GEN_PSIMD_MUL_ACC_INDEXED(pmaccu_w_h00, uint64_t, uint16_t, uint16_t,
+                          uint32_t, uint32_t, uint32_t, EXTRACT16,
+                          EXTRACT32, INSERT32, ELEMS_W, 2, 0, 0,
+                          PSIMD_MUL_U32)
+GEN_PSIMD_MUL_ACC_INDEXED(pmaccu_w_h01, uint64_t, uint16_t, uint16_t,
+                          uint32_t, uint32_t, uint32_t, EXTRACT16,
+                          EXTRACT32, INSERT32, ELEMS_W, 2, 0, 1,
+                          PSIMD_MUL_U32)
+GEN_PSIMD_MUL_ACC_INDEXED(pmaccu_w_h11, uint64_t, uint16_t, uint16_t,
+                          uint32_t, uint32_t, uint32_t, EXTRACT16,
+                          EXTRACT32, INSERT32, ELEMS_W, 2, 1, 1,
+                          PSIMD_MUL_U32)
+
+GEN_PSIMD_MUL_ACC_INDEXED(macc_h00, uint32_t, int16_t, int16_t,
+                          int32_t, int32_t, uint32_t, EXTRACT16, EXTRACT32,
+                          INSERT32, ELEMS_W, 0, 0, 0, PSIMD_MUL_S32)
+GEN_PSIMD_MUL_ACC_INDEXED(macc_h01, uint32_t, int16_t, int16_t,
+                          int32_t, int32_t, uint32_t, EXTRACT16, EXTRACT32,
+                          INSERT32, ELEMS_W, 0, 0, 1, PSIMD_MUL_S32)
+GEN_PSIMD_MUL_ACC_INDEXED(macc_h11, uint32_t, int16_t, int16_t,
+                          int32_t, int32_t, uint32_t, EXTRACT16, EXTRACT32,
+                          INSERT32, ELEMS_W, 0, 1, 1, PSIMD_MUL_S32)
+GEN_PSIMD_MUL_ACC_INDEXED(maccsu_h00, uint32_t, int16_t, uint16_t,
+                          int32_t, int32_t, uint32_t, EXTRACT16, EXTRACT32,
+                          INSERT32, ELEMS_W, 0, 0, 0, PSIMD_MUL_SU32)
+GEN_PSIMD_MUL_ACC_INDEXED(maccsu_h11, uint32_t, int16_t, uint16_t,
+                          int32_t, int32_t, uint32_t, EXTRACT16, EXTRACT32,
+                          INSERT32, ELEMS_W, 0, 1, 1, PSIMD_MUL_SU32)
+GEN_PSIMD_MUL_ACC_INDEXED(maccu_h00, uint32_t, uint16_t, uint16_t,
+                          uint32_t, uint32_t, uint32_t, EXTRACT16,
+                          EXTRACT32, INSERT32, ELEMS_W, 0, 0, 0,
+                          PSIMD_MUL_U32)
+GEN_PSIMD_MUL_ACC_INDEXED(maccu_h01, uint32_t, uint16_t, uint16_t,
+                          uint32_t, uint32_t, uint32_t, EXTRACT16,
+                          EXTRACT32, INSERT32, ELEMS_W, 0, 0, 1,
+                          PSIMD_MUL_U32)
+GEN_PSIMD_MUL_ACC_INDEXED(maccu_h11, uint32_t, uint16_t, uint16_t,
+                          uint32_t, uint32_t, uint32_t, EXTRACT16,
+                          EXTRACT32, INSERT32, ELEMS_W, 0, 1, 1,
+                          PSIMD_MUL_U32)
+
+GEN_PSIMD_MUL_ACC_INDEXED(macc_w00, uint64_t, int32_t, int32_t,
+                          int64_t, int64_t, uint64_t, EXTRACT32, EXTRACT64,
+                          INSERT64, ELEMS_D, 0, 0, 0, PSIMD_MUL_S64)
+GEN_PSIMD_MUL_ACC_INDEXED(macc_w01, uint64_t, int32_t, int32_t,
+                          int64_t, int64_t, uint64_t, EXTRACT32, EXTRACT64,
+                          INSERT64, ELEMS_D, 0, 0, 1, PSIMD_MUL_S64)
+GEN_PSIMD_MUL_ACC_INDEXED(macc_w11, uint64_t, int32_t, int32_t,
+                          int64_t, int64_t, uint64_t, EXTRACT32, EXTRACT64,
+                          INSERT64, ELEMS_D, 0, 1, 1, PSIMD_MUL_S64)
+GEN_PSIMD_MUL_ACC_INDEXED(maccsu_w00, uint64_t, int32_t, uint32_t,
+                          int64_t, int64_t, uint64_t, EXTRACT32, EXTRACT64,
+                          INSERT64, ELEMS_D, 0, 0, 0, PSIMD_MUL_SU64)
+GEN_PSIMD_MUL_ACC_INDEXED(maccsu_w11, uint64_t, int32_t, uint32_t,
+                          int64_t, int64_t, uint64_t, EXTRACT32, EXTRACT64,
+                          INSERT64, ELEMS_D, 0, 1, 1, PSIMD_MUL_SU64)
+GEN_PSIMD_MUL_ACC_INDEXED(maccu_w00, uint64_t, uint32_t, uint32_t,
+                          uint64_t, uint64_t, uint64_t, EXTRACT32,
+                          EXTRACT64, INSERT64, ELEMS_D, 0, 0, 0,
+                          PSIMD_MUL_U64)
+GEN_PSIMD_MUL_ACC_INDEXED(maccu_w01, uint64_t, uint32_t, uint32_t,
+                          uint64_t, uint64_t, uint64_t, EXTRACT32,
+                          EXTRACT64, INSERT64, ELEMS_D, 0, 0, 1,
+                          PSIMD_MUL_U64)
+GEN_PSIMD_MUL_ACC_INDEXED(maccu_w11, uint64_t, uint32_t, uint32_t,
+                          uint64_t, uint64_t, uint64_t, EXTRACT32,
+                          EXTRACT64, INSERT64, ELEMS_D, 0, 1, 1,
+                          PSIMD_MUL_U64)
+
