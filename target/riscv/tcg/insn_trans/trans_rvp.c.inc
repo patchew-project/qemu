@@ -826,3 +826,11 @@ GEN_SIMD_TRANS_ACC_64(maccu_w00)
 GEN_SIMD_TRANS_ACC_64(maccu_w01)
 GEN_SIMD_TRANS_ACC_64(maccu_w11)
 
+/* Packed SIMD - Q-Format Multiplication Operations */
+GEN_SIMD_TRANS_VXSAT(pmulq_h)
+GEN_SIMD_TRANS_VXSAT(pmulqr_h)
+GEN_SIMD_TRANS_64_VXSAT(pmulq_w)
+GEN_SIMD_TRANS_64_VXSAT(pmulqr_w)
+GEN_SIMD_TRANS_32_VXSAT(mulq)
+GEN_SIMD_TRANS_32_VXSAT(mulqr)
+

@@ -1680,3 +1680,11 @@ DEF_HELPER_4(maccsu_w11, i64, env, i64, i64, i64)
 DEF_HELPER_4(maccu_w00, i64, env, i64, i64, i64)
 DEF_HELPER_4(maccu_w01, i64, env, i64, i64, i64)
 DEF_HELPER_4(maccu_w11, i64, env, i64, i64, i64)
+
+/* Packed SIMD - Q-Format Multiplication Operations */
+DEF_HELPER_3(pmulq_h, tl, env, tl, tl)
+DEF_HELPER_3(pmulqr_h, tl, env, tl, tl)
+DEF_HELPER_3(pmulq_w, i64, env, i64, i64)
+DEF_HELPER_3(pmulqr_w, i64, env, i64, i64)
+DEF_HELPER_3(mulq, i32, env, i32, i32)
+DEF_HELPER_3(mulqr, i32, env, i32, i32)

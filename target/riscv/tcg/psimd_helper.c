@@ -2638,3 +2638,20 @@ GEN_PSIMD_MUL_ACC_INDEXED(maccu_w11, uint64_t, uint32_t, uint32_t,
                           EXTRACT64, INSERT64, ELEMS_D, 0, 1, 1,
                           PSIMD_MUL_U64)
 
+/* Q-Format Multiplication Operations */
+
+GEN_PSIMD_QMUL(pmulq_h, target_ulong, int16_t, int32_t, uint16_t,
+               EXTRACT16, INSERT16, ELEMS_H, 15, 0, INT16_MIN, INT16_MAX)
+GEN_PSIMD_QMUL(pmulqr_h, target_ulong, int16_t, int32_t, uint16_t,
+               EXTRACT16, INSERT16, ELEMS_H, 15, 1 << 14, INT16_MIN,
+               INT16_MAX)
+GEN_PSIMD_QMUL(pmulq_w, uint64_t, int32_t, int64_t, uint32_t,
+               EXTRACT32, INSERT32, ELEMS_W, 31, 0, INT32_MIN, INT32_MAX)
+GEN_PSIMD_QMUL(pmulqr_w, uint64_t, int32_t, int64_t, uint32_t,
+               EXTRACT32, INSERT32, ELEMS_W, 31, 1LL << 30, INT32_MIN,
+               INT32_MAX)
+GEN_PSIMD_QMUL(mulq, uint32_t, int32_t, int64_t, uint32_t,
+               EXTRACT32, INSERT32, ELEMS_W, 31, 0, INT32_MIN, INT32_MAX)
+GEN_PSIMD_QMUL(mulqr, uint32_t, int32_t, int64_t, uint32_t,
+               EXTRACT32, INSERT32, ELEMS_W, 31, 1LL << 30, INT32_MIN,
+               INT32_MAX)
