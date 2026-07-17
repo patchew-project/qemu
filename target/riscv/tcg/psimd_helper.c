@@ -1903,3 +1903,152 @@ GEN_PSIMD_BINOP(mslt, uint32_t, int32_t, uint32_t,
 GEN_PSIMD_BINOP(msltu, uint32_t, uint32_t, uint32_t,
                 EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_LT_MASK)
 
+/* Shift operations (immediate and register) */
+
+GEN_PSIMD_SHIFTOP(pslli_b, target_ulong, uint8_t, uint8_t,
+                  EXTRACT8, INSERT8, ELEMS_B, 0x07, PSIMD_DO_SLL)
+GEN_PSIMD_SHIFTOP(psll_bs, target_ulong, uint8_t, uint8_t,
+                  EXTRACT8, INSERT8, ELEMS_B, 0x07, PSIMD_DO_SLL)
+GEN_PSIMD_SHIFTOP(pslli_h, target_ulong, uint16_t, uint16_t,
+                  EXTRACT16, INSERT16, ELEMS_H, 0x0f, PSIMD_DO_SLL)
+GEN_PSIMD_SHIFTOP(psll_hs, target_ulong, uint16_t, uint16_t,
+                  EXTRACT16, INSERT16, ELEMS_H, 0x0f, PSIMD_DO_SLL)
+GEN_PSIMD_SHIFTOP(pslli_w, uint64_t, uint32_t, uint32_t,
+                  EXTRACT32, INSERT32, ELEMS_W, 0x1f, PSIMD_DO_SLL)
+GEN_PSIMD_SHIFTOP(psll_ws, uint64_t, uint32_t, uint32_t,
+                  EXTRACT32, INSERT32, ELEMS_W, 0x1f, PSIMD_DO_SLL)
+
+GEN_PSIMD_SHIFTOP(psrli_b, target_ulong, uint8_t, uint8_t,
+                  EXTRACT8, INSERT8, ELEMS_B, 0x07, PSIMD_DO_SRL)
+GEN_PSIMD_SHIFTOP(psrl_bs, target_ulong, uint8_t, uint8_t,
+                  EXTRACT8, INSERT8, ELEMS_B, 0x07, PSIMD_DO_SRL)
+GEN_PSIMD_SHIFTOP(psrli_h, target_ulong, uint16_t, uint16_t,
+                  EXTRACT16, INSERT16, ELEMS_H, 0x0f, PSIMD_DO_SRL)
+GEN_PSIMD_SHIFTOP(psrl_hs, target_ulong, uint16_t, uint16_t,
+                  EXTRACT16, INSERT16, ELEMS_H, 0x0f, PSIMD_DO_SRL)
+GEN_PSIMD_SHIFTOP(psrli_w, uint64_t, uint32_t, uint32_t,
+                  EXTRACT32, INSERT32, ELEMS_W, 0x1f, PSIMD_DO_SRL)
+GEN_PSIMD_SHIFTOP(psrl_ws, uint64_t, uint32_t, uint32_t,
+                  EXTRACT32, INSERT32, ELEMS_W, 0x1f, PSIMD_DO_SRL)
+
+GEN_PSIMD_SHIFTOP(psrai_b, target_ulong, int8_t, uint8_t,
+                  EXTRACT8, INSERT8, ELEMS_B, 0x07, PSIMD_DO_SRA)
+GEN_PSIMD_SHIFTOP(psra_bs, target_ulong, int8_t, uint8_t,
+                  EXTRACT8, INSERT8, ELEMS_B, 0x07, PSIMD_DO_SRA)
+GEN_PSIMD_SHIFTOP(psrai_h, target_ulong, int16_t, uint16_t,
+                  EXTRACT16, INSERT16, ELEMS_H, 0x0f, PSIMD_DO_SRA)
+GEN_PSIMD_SHIFTOP(psra_hs, target_ulong, int16_t, uint16_t,
+                  EXTRACT16, INSERT16, ELEMS_H, 0x0f, PSIMD_DO_SRA)
+GEN_PSIMD_SHIFTOP(psrai_w, uint64_t, int32_t, uint32_t,
+                  EXTRACT32, INSERT32, ELEMS_W, 0x1f, PSIMD_DO_SRA)
+GEN_PSIMD_SHIFTOP(psra_ws, uint64_t, int32_t, uint32_t,
+                  EXTRACT32, INSERT32, ELEMS_W, 0x1f, PSIMD_DO_SRA)
+
+/* Saturating shift operations */
+
+GEN_PSIMD_SAT_SHIFTOP(psslai_h, target_ulong, int16_t, int32_t,
+                      EXTRACT16, INSERT16, ELEMS_H, 0x0f,
+                      signed_saturate_h)
+GEN_PSIMD_SAT_SHIFTOP(psslai_w, uint64_t, int32_t, int64_t,
+                      EXTRACT32, INSERT32, ELEMS_W, 0x1f,
+                      signed_saturate_w)
+
+GEN_PSIMD_SAT_SHIFTOP(sslai, uint32_t, int32_t, int64_t,
+                      EXTRACT32, INSERT32, ELEMS_W, 0x1f,
+                      signed_saturate_w)
+
+/* Rounding shift operations */
+
+GEN_PSIMD_ROUND_SRAI(psrari_h, target_ulong, int16_t, int32_t,
+                     EXTRACT16, INSERT16, ELEMS_H, 0x0f)
+GEN_PSIMD_ROUND_SRAI(psrari_w, uint64_t, int32_t, int64_t,
+                     EXTRACT32, INSERT32, ELEMS_W, 0x1f)
+
+GEN_PSIMD_ROUND_SRAI(srari_32, uint32_t, int32_t, int64_t,
+                     EXTRACT32, INSERT32, ELEMS_W, 0x1f)
+
+/**
+ * SRARI_64 - 64-bit scalar arithmetic shift right with rounding
+ */
+uint64_t HELPER(srari_64)(CPURISCVState *env, uint64_t rs1, uint64_t imm)
+{
+    int64_t a = (int64_t)rs1;
+    uint8_t shamt = imm & 0x3F;
+
+    if (shamt == 0) {
+        return rs1;
+    }
+
+    return (uint64_t)(((a >> (shamt - 1)) + 1) >> 1);
+}
+
+/* Variable shift operations (with saturation and rounding) */
+
+GEN_PSIMD_VAR_SSHA(pssha_hs, target_ulong, int16_t, int32_t,
+                   EXTRACT16, INSERT16, ELEMS_H, 16, signed_saturate_h)
+GEN_PSIMD_VAR_SSHA(pssha_ws, uint64_t, int32_t, int64_t,
+                   EXTRACT32, INSERT32, ELEMS_W, 32, signed_saturate_w)
+
+GEN_PSIMD_VAR_SSHAR(psshar_hs, target_ulong, int16_t, int32_t,
+                    EXTRACT16, INSERT16, ELEMS_H, 16, SAT_MIN_H, SAT_MAX_H,
+                    signed_saturate_h)
+GEN_PSIMD_VAR_SSHAR(psshar_ws, uint64_t, int32_t, int64_t,
+                    EXTRACT32, INSERT32, ELEMS_W, 32, SAT_MIN_W, SAT_MAX_W,
+                    signed_saturate_w)
+
+GEN_PSIMD_VAR_SSHA(ssha, uint32_t, int32_t, int64_t,
+                   EXTRACT32, INSERT32, ELEMS_W, 32, signed_saturate_w)
+
+/**
+ * SSHAR - 32-bit scalar variable shift with rounding and saturation
+ */
+uint32_t HELPER(sshar)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int32_t a = (int32_t)rs1;
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+    int sat = 0;
+    int32_t res;
+
+    if (shamt >= 0) {
+        int64_t shifted = (int64_t)a << shamt;
+        res = signed_saturate_w(shifted, &sat);
+    } else {
+        int right = -shamt;
+        if (right >= 32) {
+            res = (a < 0) ? -1 : 0;
+        } else {
+            int64_t rounded = ((a >> (right - 1)) + 1) >> 1;
+            res = (int32_t)rounded;
+        }
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return (uint32_t)res;
+}
+
+GEN_PSIMD_VAR_SRA64(sha, PSIMD_DO_SRA64)
+GEN_PSIMD_VAR_SRA64(shar, PSIMD_DO_RNDSRA64)
+
+GEN_PSIMD_VAR_USHL(psshl_hs, target_ulong, uint16_t, uint32_t,
+                   EXTRACT16, INSERT16, ELEMS_H, 16, unsigned_saturate_h)
+
+GEN_PSIMD_VAR_USHLR(psshlr_hs, target_ulong, uint16_t, uint32_t,
+                    EXTRACT16, INSERT16, ELEMS_H, 16, unsigned_saturate_h)
+
+GEN_PSIMD_VAR_USHL(psshl_ws, uint64_t, uint32_t, uint64_t,
+                   EXTRACT32, INSERT32, ELEMS_W, 32, unsigned_saturate_w)
+
+GEN_PSIMD_VAR_USHLR(psshlr_ws, uint64_t, uint32_t, uint64_t,
+                    EXTRACT32, INSERT32, ELEMS_W, 32, unsigned_saturate_w)
+
+GEN_PSIMD_VAR_USHL(sshl, uint32_t, uint32_t, uint64_t,
+                   EXTRACT32, INSERT32, ELEMS_W, 32, unsigned_saturate_w)
+
+GEN_PSIMD_VAR_USHLR(sshlr, uint32_t, uint32_t, uint64_t,
+                    EXTRACT32, INSERT32, ELEMS_W, 32, unsigned_saturate_w)
+
+GEN_PSIMD_VAR_SRL64(shl, PSIMD_DO_SRL64)
+GEN_PSIMD_VAR_SRL64(shlr, PSIMD_DO_RNDSRL64)
+
