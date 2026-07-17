@@ -105,6 +105,7 @@ void mshv_arch_amend_proc_features(
 void mshv_arch_disable_partition_proc_features(
      union hv_partition_processor_features *disabled_features);
 int mshv_arch_accel_init(AccelState *as, MachineState *ms, int mshv_fd);
+int mshv_arch_pre_init_vm(int vm_fd);
 int mshv_arch_post_init_vm(int vm_fd);
 void mshv_setup_hvcall_args(AccelCPUState *state);
 

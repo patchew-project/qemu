@@ -2713,7 +2713,7 @@ static void finalize_gic_version(VirtMachineState *vms)
         /* KVM w/o kernel irqchip can only deal with GICv2 */
         gics_supported |= VIRT_GIC_VERSION_2_MASK;
         accel_name = "KVM with kernel-irqchip=off";
-    } else if (whpx_enabled()) {
+    } else if (whpx_enabled() || mshv_enabled()) {
         gics_supported |= VIRT_GIC_VERSION_3_MASK;
     } else if (hvf_enabled()) {
         if (!hvf_irqchip_in_kernel()) {
@@ -2767,7 +2767,7 @@ static void finalize_msi_controller(VirtMachineState *vms)
     if (vms->msi_controller == VIRT_MSI_CTRL_AUTO) {
         if (vms->gic_version == VIRT_GIC_VERSION_2) {
             vms->msi_controller = VIRT_MSI_CTRL_GICV2M;
-        } else if (whpx_enabled()) {
+        } else if (whpx_enabled() || mshv_enabled()) {
             vms->msi_controller = VIRT_MSI_CTRL_GICV2M;
         }  else if (hvf_enabled() && hvf_irqchip_in_kernel()) {
             vms->msi_controller = VIRT_MSI_CTRL_GICV2M;
@@ -2795,6 +2795,10 @@ static void finalize_msi_controller(VirtMachineState *vms)
         }
         if (whpx_enabled()) {
             error_report("ITS not supported on WHPX.");
+            exit(1);
+        }
+        if (mshv_enabled()) {
+            error_report("ITS not supported on MSHV.");
             exit(1);
         }
         if (hvf_enabled() && hvf_irqchip_in_kernel()) {

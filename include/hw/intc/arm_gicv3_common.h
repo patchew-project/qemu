@@ -316,6 +316,7 @@ DECLARE_OBJ_CHECKERS(GICv3State, ARMGICv3CommonClass,
 /* Types for GICv3 kernel-irqchip */
 #define TYPE_WHPX_GICV3 "whpx-arm-gicv3"
 #define TYPE_HVF_GICV3 "hvf-arm-gicv3"
+#define TYPE_MSHV_GICV3 "mshv-arm-gicv3"
 
 struct ARMGICv3CommonClass {
     /*< private >*/
