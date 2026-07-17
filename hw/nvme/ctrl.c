@@ -8569,6 +8569,11 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
             }
 
             nvme_irq_deassert(n, cq);
+        } else {
+            if (n->dbbuf_enabled) {
+                nvme_update_cq_eventidx(cq);
+                nvme_update_cq_head(cq);
+            }
         }
     } else {
         /* Submission queue doorbell write */
