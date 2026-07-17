@@ -1512,3 +1512,11 @@ DEF_HELPER_3(psas_wx, i64, env, i64, i64)
 DEF_HELPER_3(pssa_wx, i64, env, i64, i64)
 DEF_HELPER_3(paas_wx, i64, env, i64, i64)
 DEF_HELPER_3(pasa_wx, i64, env, i64, i64)
+
+/* Packed SIMD - Horizontal Reduction Operations */
+DEF_HELPER_3(predsum_bs, tl, env, tl, tl)
+DEF_HELPER_3(predsumu_bs, tl, env, tl, tl)
+DEF_HELPER_3(predsum_hs, tl, env, tl, tl)
+DEF_HELPER_3(predsumu_hs, tl, env, tl, tl)
+DEF_HELPER_3(predsum_ws, i64, env, i64, i64)
+DEF_HELPER_3(predsumu_ws, i64, env, i64, i64)

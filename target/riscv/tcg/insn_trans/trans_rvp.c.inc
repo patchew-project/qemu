@@ -658,3 +658,11 @@ GEN_SIMD_TRANS_64_VXSAT(pssa_wx)
 GEN_SIMD_TRANS_64(paas_wx)
 GEN_SIMD_TRANS_64(pasa_wx)
 
+/* Packed SIMD - Horizontal Reduction Operations */
+GEN_SIMD_TRANS(predsum_bs)
+GEN_SIMD_TRANS(predsumu_bs)
+GEN_SIMD_TRANS(predsum_hs)
+GEN_SIMD_TRANS(predsumu_hs)
+GEN_SIMD_TRANS_64(predsum_ws)
+GEN_SIMD_TRANS_64(predsumu_ws)
+

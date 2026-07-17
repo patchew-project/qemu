@@ -2096,3 +2096,18 @@ GEN_PSIMD_XPAIR_AVG_BINOP(pasa_wx, uint64_t, int32_t, int64_t,
                           EXTRACT32, INSERT32, ELEMS_W,
                           PSIMD_DO_ADD, PSIMD_DO_SUB)
 
+/* Horizontal sum operations */
+
+GEN_PSIMD_REDSUM(predsum_bs, target_ulong, int64_t, int8_t,
+                 EXTRACT8, ELEMS_B, (int64_t)(int32_t)rs2)
+GEN_PSIMD_REDSUM(predsumu_bs, target_ulong, uint64_t, uint8_t,
+                 EXTRACT8, ELEMS_B, rs2)
+GEN_PSIMD_REDSUM(predsum_hs, target_ulong, int64_t, int16_t,
+                 EXTRACT16, ELEMS_H, (int64_t)(int32_t)rs2)
+GEN_PSIMD_REDSUM(predsumu_hs, target_ulong, uint64_t, uint16_t,
+                 EXTRACT16, ELEMS_H, rs2)
+GEN_PSIMD_REDSUM(predsum_ws, uint64_t, int64_t, int32_t,
+                 EXTRACT32, ELEMS_W, (int64_t)rs2)
+GEN_PSIMD_REDSUM(predsumu_ws, uint64_t, uint64_t, uint32_t,
+                 EXTRACT32, ELEMS_W, rs2)
+
