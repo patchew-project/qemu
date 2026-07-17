@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "trace.h"
@@ -20,7 +21,12 @@ static bool xhci_sysbus_intr_raise(XHCIState *xhci, int n, bool level)
 {
     XHCISysbusState *s = container_of(xhci, XHCISysbusState, xhci);
 
-    qemu_set_irq(s->irq[n], level);
+    if (n < xhci->numintrs) {
+        qemu_set_irq(s->irq[n], level);
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "unexpected IRQ #%i raised on xhci\n", n);
+    }
 
     return false;
 }
