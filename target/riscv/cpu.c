@@ -46,7 +46,7 @@
 /* RISC-V CPU definitions */
 static const char riscv_single_letter_exts[] = "IEMAFDQCBPVH";
 const uint32_t misa_bits[] = {RVI, RVE, RVM, RVA, RVF, RVD, RVV,
-                              RVC, RVS, RVU, RVH, RVG, RVB, 0};
+                              RVC, RVS, RVU, RVH, RVG, RVB, RVP, 0};
 #define RISCV_CPU_MVENDORID 0
 #define RISCV_CPU_MIMPID 0
 /*
@@ -1489,7 +1489,8 @@ static const MISAExtInfo misa_ext_info_arr[] = {
     MISA_EXT_INFO(RVH, "h", "Hypervisor"),
     MISA_EXT_INFO(RVV, "v", "Vector operations"),
     MISA_EXT_INFO(RVG, "g", "General purpose (IMAFD_Zicsr_Zifencei)"),
-    MISA_EXT_INFO(RVB, "b", "Bit manipulation (Zba_Zbb_Zbs)")
+    MISA_EXT_INFO(RVB, "b", "Bit manipulation (Zba_Zbb_Zbs)"),
+    MISA_EXT_INFO(RVP, "x-p", "Packed-SIMD instructions")
 };
 
 static void riscv_cpu_validate_misa_mxl(RISCVCPUClass *mcc)

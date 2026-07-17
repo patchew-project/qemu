@@ -109,6 +109,24 @@ static RISCVException vs(CPURISCVState *env, int csrno)
     return RISCV_EXCP_ILLEGAL_INST;
 }
 
+/* vxsat is also architectural state when P is implemented without Zve*. */
+static RISCVException vxsat(CPURISCVState *env, int csrno)
+{
+    if (riscv_cpu_cfg(env)->ext_zve32x) {
+        return vs(env, csrno);
+    }
+
+    if (riscv_has_ext(env, RVP)) {
+#if !defined(CONFIG_USER_ONLY)
+        return smstateen_acc_ok(env, 0, SMSTATEEN0_VXSAT);
+#else
+        return RISCV_EXCP_NONE;
+#endif
+    }
+
+    return RISCV_EXCP_ILLEGAL_INST;
+}
+
 static RISCVException ctr(CPURISCVState *env, int csrno)
 {
 #if !defined(CONFIG_USER_ONLY)
@@ -1013,7 +1031,12 @@ static RISCVException write_vxsat(CPURISCVState *env, int csrno,
                                   target_ulong val, uintptr_t ra)
 {
 #if !defined(CONFIG_USER_ONLY)
-    env->mstatus |= MSTATUS_VS;
+    if (riscv_cpu_cfg(env)->ext_zve32x) {
+        env->mstatus |= MSTATUS_VS;
+        if (env->virt_enabled) {
+            env->mstatus_hs |= MSTATUS_VS;
+        }
+    }
 #endif
     env->vxsat = val & BIT(0);
     return RISCV_EXCP_NONE;
@@ -3494,6 +3517,10 @@ static RISCVException write_mstateen0(CPURISCVState *env, int csrno,
                                       target_ulong new_val, uintptr_t ra)
 {
     uint64_t wr_mask = SMSTATEEN_STATEEN | SMSTATEEN0_HSENVCFG;
+
+    if (riscv_has_ext(env, RVP) && !riscv_cpu_cfg(env)->ext_zve32x) {
+        wr_mask |= SMSTATEEN0_VXSAT;
+    }
     if (!riscv_has_ext(env, RVF)) {
         wr_mask |= SMSTATEEN0_FCSR;
     }
@@ -3616,6 +3643,10 @@ static RISCVException write_hstateen0(CPURISCVState *env, int csrno,
                                       target_ulong new_val, uintptr_t ra)
 {
     uint64_t wr_mask = SMSTATEEN_STATEEN | SMSTATEEN0_HSENVCFG;
+
+    if (riscv_has_ext(env, RVP) && !riscv_cpu_cfg(env)->ext_zve32x) {
+        wr_mask |= SMSTATEEN0_VXSAT;
+    }
 
     if (!riscv_has_ext(env, RVF)) {
         wr_mask |= SMSTATEEN0_FCSR;
@@ -3745,6 +3776,10 @@ static RISCVException write_sstateen0(CPURISCVState *env, int csrno,
                                       target_ulong new_val, uintptr_t ra)
 {
     uint64_t wr_mask = 0;
+
+    if (riscv_has_ext(env, RVP) && !riscv_cpu_cfg(env)->ext_zve32x) {
+        wr_mask |= SMSTATEEN0_VXSAT;
+    }
 
     if (!riscv_has_ext(env, RVF)) {
         wr_mask |= SMSTATEEN0_FCSR;
@@ -5916,7 +5951,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_FCSR]     = { "fcsr",     fs,     read_fcsr,    write_fcsr   },
     /* Vector CSRs */
     [CSR_VSTART]   = { "vstart",   vs,     read_vstart,  write_vstart },
-    [CSR_VXSAT]    = { "vxsat",    vs,     read_vxsat,   write_vxsat  },
+    [CSR_VXSAT]    = { "vxsat",    vxsat,  read_vxsat,   write_vxsat  },
     [CSR_VXRM]     = { "vxrm",     vs,     read_vxrm,    write_vxrm   },
     [CSR_VCSR]     = { "vcsr",     vs,     read_vcsr,    write_vcsr   },
     [CSR_VL]       = { "vl",       vs,     read_vl                    },

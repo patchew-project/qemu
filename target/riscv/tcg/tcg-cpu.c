@@ -160,6 +160,8 @@ static TCGTBCPUState riscv_get_tb_cpu_state(CPUState *cs)
     fs = EXT_STATUS_DIRTY;
     vs = EXT_STATUS_DIRTY;
 #else
+    RISCVException p_vxsat_excp;
+
     flags = FIELD_DP32(flags, TB_FLAGS, PRIV, env->priv);
 
     flags |= riscv_env_mmu_index(env, 0);
@@ -180,6 +182,23 @@ static TCGTBCPUState riscv_get_tb_cpu_state(CPUState *cs)
     if (!riscv_has_ext(env, RVF)) {
         fs = (smstateen_acc_ok(env, 0, SMSTATEEN0_FCSR) == RISCV_EXCP_NONE)
              ? EXT_STATUS_DIRTY : EXT_STATUS_DISABLED;
+    }
+
+    /*
+     * Without Zve*, all P instructions in the OP-32 and OP-IMM-32
+     * spaces are controlled by stateen0.VXSAT.  Preserve the exception
+     * class in the TB flags so translated code can distinguish an illegal
+     * instruction from a virtual-instruction exception.
+     */
+    p_vxsat_excp = smstateen_acc_ok(env, 0, SMSTATEEN0_VXSAT);
+    if (riscv_has_ext(env, RVP) && !riscv_cpu_cfg(env)->ext_zve32x) {
+        if (p_vxsat_excp == RISCV_EXCP_VIRT_INSTRUCTION_FAULT) {
+            ext_flags = FIELD_DP64(ext_flags, EXT_TB_FLAGS, P_VXSAT_EXCP,
+                                   P_VXSAT_EXCP_VIRTUAL);
+        } else if (p_vxsat_excp != RISCV_EXCP_NONE) {
+            ext_flags = FIELD_DP64(ext_flags, EXT_TB_FLAGS, P_VXSAT_EXCP,
+                                   P_VXSAT_EXCP_ILLEGAL);
+        }
     }
 
     if (cpu->cfg.debug && !icount_enabled()) {
@@ -530,6 +549,28 @@ static void riscv_cpu_validate_b(RISCVCPU *cpu)
     }
 }
 
+static void riscv_cpu_validate_p(RISCVCPU *cpu, Error **errp)
+{
+    CPURISCVState *env = &cpu->env;
+
+    if (!riscv_has_ext(env, RVP)) {
+        return;
+    }
+
+    if (riscv_cpu_mxl(env) != MXL_RV32 &&
+        riscv_cpu_mxl(env) != MXL_RV64) {
+        error_setg(errp, "P extension requires RV32 or RV64");
+        return;
+    }
+
+    if (!(cpu->cfg.ext_zmmul && cpu->cfg.ext_zba && cpu->cfg.ext_zbb &&
+          cpu->cfg.ext_zbkb)) {
+        error_setg(errp, "P extension requires zmmul, zba, zbb and zbkb "
+                         "extensions");
+        return;
+    }
+}
+
 /*
  * Check consistency between chosen extensions while setting
  * cpu->cfg accordingly.
@@ -609,6 +650,12 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
 
     if (riscv_has_ext(env, RVD) && !riscv_has_ext(env, RVF)) {
         error_setg(errp, "D extension requires F extension");
+        return;
+    }
+
+    riscv_cpu_validate_p(cpu, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
         return;
     }
 
@@ -1414,6 +1461,7 @@ static const RISCVCPUMisaExtConfig misa_ext_cfgs[] = {
     MISA_CFG(RVV, false),
     MISA_CFG(RVG, false),
     MISA_CFG(RVB, false),
+    MISA_CFG(RVP, false),
 };
 
 /*

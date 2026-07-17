@@ -158,6 +158,24 @@ static const VMStateDescription vmstate_vector = {
     }
 };
 
+static bool p_vxsat_needed(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+
+    return riscv_has_ext(&cpu->env, RVP) && !cpu->cfg.ext_zve32x;
+}
+
+static const VMStateDescription vmstate_p_vxsat = {
+    .name = "cpu/p-vxsat",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = p_vxsat_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT8(env.vxsat, RISCVCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool pointermasking_needed(void *opaque)
 {
     return false;
@@ -518,6 +536,7 @@ const VMStateDescription vmstate_riscv_cpu = {
         &vmstate_pmp,
         &vmstate_hyper,
         &vmstate_vector,
+        &vmstate_p_vxsat,
         &vmstate_pointermasking,
         &vmstate_rv128,
 #ifdef CONFIG_KVM

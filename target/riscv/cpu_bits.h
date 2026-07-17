@@ -355,6 +355,8 @@
 #define SMSTATEEN0_CS       (1ULL << 0)
 #define SMSTATEEN0_FCSR     (1ULL << 1)
 #define SMSTATEEN0_JVT      (1ULL << 2)
+/* Packed-SIMD draft: enable access to vxsat when misa.V = 0. */
+#define SMSTATEEN0_VXSAT    (1ULL << 3)
 #define SMSTATEEN0_CTR      (1ULL << 54)
 #define SMSTATEEN0_P1P13    (1ULL << 56)
 #define SMSTATEEN0_HSCONTXT (1ULL << 57)
