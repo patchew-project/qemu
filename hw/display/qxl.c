@@ -2203,7 +2203,8 @@ static void qxl_realize_common(PCIQXLDevice *qxl, Error **errp)
         error_report_err(err);
     }
 
-    qemu_add_vm_change_state_handler(qxl_vm_change_state_handler, qxl);
+    qxl->vmstate_handler =
+        qemu_add_vm_change_state_handler(qxl_vm_change_state_handler, qxl);
 
     qxl->update_irq = qemu_bh_new_guarded(qxl_update_irq_bh, qxl,
                                           &DEVICE(qxl)->mem_reentrancy_guard);
@@ -2475,6 +2476,31 @@ static const Property qxl_properties[] = {
         DEFINE_PROP_UINT32("yres", PCIQXLDevice, yres, 0),
 };
 
+static void qxl_exit(PCIDevice *dev)
+{
+    PCIQXLDevice *qxl = PCI_QXL(dev);
+
+    if (qxl->vmstate_handler) {
+        qemu_del_vm_change_state_handler(qxl->vmstate_handler);
+        qxl->vmstate_handler = NULL;
+    }
+    if (qxl->update_irq) {
+        qemu_bh_delete(qxl->update_irq);
+        qxl->update_irq = NULL;
+    }
+    if (qxl->update_area_bh) {
+        qemu_bh_delete(qxl->update_area_bh);
+        qxl->update_area_bh = NULL;
+    }
+    if (qxl->ssd.cursor_bh) {
+        qemu_bh_delete(qxl->ssd.cursor_bh);
+        qxl->ssd.cursor_bh = NULL;
+    }
+
+    g_free(qxl->guest_surfaces.cmds);
+    qxl->guest_surfaces.cmds = NULL;
+}
+
 static void qxl_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -2482,6 +2508,7 @@ static void qxl_pci_class_init(ObjectClass *klass, const void *data)
 
     k->vendor_id = REDHAT_PCI_VENDOR_ID;
     k->device_id = QXL_DEVICE_ID_STABLE;
+    k->exit = qxl_exit;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     device_class_set_legacy_reset(dc, qxl_reset_handler);
     dc->vmsd = &qxl_vmstate;
