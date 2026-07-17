@@ -2052,3 +2052,47 @@ GEN_PSIMD_VAR_USHLR(sshlr, uint32_t, uint32_t, uint64_t,
 GEN_PSIMD_VAR_SRL64(shl, PSIMD_DO_SRL64)
 GEN_PSIMD_VAR_SRL64(shlr, PSIMD_DO_RNDSRL64)
 
+/* Exchange operations (AS/SA/AS/SA with X suffix) */
+
+GEN_PSIMD_XPAIR_BINOP(pas_hx, target_ulong, int16_t,
+                      EXTRACT16, INSERT16, ELEMS_H,
+                      PSIMD_DO_SUB, PSIMD_DO_ADD)
+GEN_PSIMD_XPAIR_BINOP(psa_hx, target_ulong, int16_t,
+                      EXTRACT16, INSERT16, ELEMS_H,
+                      PSIMD_DO_ADD, PSIMD_DO_SUB)
+
+GEN_PSIMD_XPAIR_SAT_BINOP(psas_hx, target_ulong, int16_t, int32_t,
+                          EXTRACT16, INSERT16, ELEMS_H,
+                          PSIMD_DO_SUB, PSIMD_DO_ADD, signed_saturate_h)
+GEN_PSIMD_XPAIR_SAT_BINOP(pssa_hx, target_ulong, int16_t, int32_t,
+                          EXTRACT16, INSERT16, ELEMS_H,
+                          PSIMD_DO_ADD, PSIMD_DO_SUB, signed_saturate_h)
+
+GEN_PSIMD_XPAIR_AVG_BINOP(paas_hx, target_ulong, int16_t, int32_t,
+                          EXTRACT16, INSERT16, ELEMS_H,
+                          PSIMD_DO_SUB, PSIMD_DO_ADD)
+GEN_PSIMD_XPAIR_AVG_BINOP(pasa_hx, target_ulong, int16_t, int32_t,
+                          EXTRACT16, INSERT16, ELEMS_H,
+                          PSIMD_DO_ADD, PSIMD_DO_SUB)
+
+GEN_PSIMD_XPAIR_BINOP(pas_wx, uint64_t, int32_t,
+                      EXTRACT32, INSERT32, ELEMS_W,
+                      PSIMD_DO_SUB, PSIMD_DO_ADD)
+GEN_PSIMD_XPAIR_BINOP(psa_wx, uint64_t, int32_t,
+                      EXTRACT32, INSERT32, ELEMS_W,
+                      PSIMD_DO_ADD, PSIMD_DO_SUB)
+
+GEN_PSIMD_XPAIR_SAT_BINOP(psas_wx, uint64_t, int32_t, int64_t,
+                          EXTRACT32, INSERT32, ELEMS_W,
+                          PSIMD_DO_SUB, PSIMD_DO_ADD, signed_saturate_w)
+GEN_PSIMD_XPAIR_SAT_BINOP(pssa_wx, uint64_t, int32_t, int64_t,
+                          EXTRACT32, INSERT32, ELEMS_W,
+                          PSIMD_DO_ADD, PSIMD_DO_SUB, signed_saturate_w)
+
+GEN_PSIMD_XPAIR_AVG_BINOP(paas_wx, uint64_t, int32_t, int64_t,
+                          EXTRACT32, INSERT32, ELEMS_W,
+                          PSIMD_DO_SUB, PSIMD_DO_ADD)
+GEN_PSIMD_XPAIR_AVG_BINOP(pasa_wx, uint64_t, int32_t, int64_t,
+                          EXTRACT32, INSERT32, ELEMS_W,
+                          PSIMD_DO_ADD, PSIMD_DO_SUB)
+

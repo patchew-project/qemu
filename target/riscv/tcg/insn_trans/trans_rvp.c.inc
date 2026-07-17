@@ -644,3 +644,17 @@ GEN_SIMD_TRANS_32_VXSAT(sshlr)
 GEN_SIMD_TRANS_64(shl)
 GEN_SIMD_TRANS_64(shlr)
 
+/* Packed SIMD - Exchange Operations */
+GEN_SIMD_TRANS(pas_hx)
+GEN_SIMD_TRANS(psa_hx)
+GEN_SIMD_TRANS_VXSAT(psas_hx)
+GEN_SIMD_TRANS_VXSAT(pssa_hx)
+GEN_SIMD_TRANS(paas_hx)
+GEN_SIMD_TRANS(pasa_hx)
+GEN_SIMD_TRANS_64(pas_wx)
+GEN_SIMD_TRANS_64(psa_wx)
+GEN_SIMD_TRANS_64_VXSAT(psas_wx)
+GEN_SIMD_TRANS_64_VXSAT(pssa_wx)
+GEN_SIMD_TRANS_64(paas_wx)
+GEN_SIMD_TRANS_64(pasa_wx)
+
