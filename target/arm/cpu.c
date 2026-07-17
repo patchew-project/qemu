@@ -47,6 +47,7 @@
 #include "system/tcg.h"
 #include "system/qtest.h"
 #include "system/hw_accel.h"
+#include "system/mshv.h"
 #include "kvm_arm.h"
 #include "disas/capstone.h"
 #include "fpu/softfloat.h"
@@ -1829,8 +1830,9 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
      * this is the first point where we can report it.
      */
     if (cpu->host_cpu_probe_failed) {
-        if (!kvm_enabled() && !hvf_enabled() && !whpx_enabled()) {
-            error_setg(errp, "The 'host' CPU type can only be used with KVM, HVF or WHPX");
+        if (!kvm_enabled() && !hvf_enabled() && !whpx_enabled() && !mshv_enabled()) {
+            error_setg(errp,
+                       "The 'host' CPU type can only be used with KVM, HVF, WHPX, or MSHV");
         } else {
             error_setg(errp, "Failed to retrieve host CPU features");
         }
