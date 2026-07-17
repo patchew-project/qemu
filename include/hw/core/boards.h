@@ -294,6 +294,7 @@ struct MachineClass {
         pci_allow_0_address:1;
     bool auto_create_sdcard;
     bool is_default;
+    bool is_default_fallback;
     const char *default_machine_opts;
     const char *default_boot_order;
     const char *default_display;

@@ -862,6 +862,7 @@ static MachineClass *find_default_machine(GSList *machines)
 {
     GSList *el;
     MachineClass *default_machineclass = NULL;
+    MachineClass *fallback_machineclass = NULL;
 
     for (el = machines; el; el = el->next) {
         MachineClass *mc = el->data;
@@ -869,10 +870,14 @@ static MachineClass *find_default_machine(GSList *machines)
         if (mc->is_default) {
             assert(default_machineclass == NULL && "Multiple default machines");
             default_machineclass = mc;
+        } else if (mc->is_default_fallback) {
+            assert(fallback_machineclass == NULL &&
+                   "Multiple fallback default machines");
+            fallback_machineclass = mc;
         }
     }
 
-    return default_machineclass;
+    return default_machineclass ? default_machineclass : fallback_machineclass;
 }
 
 static void version(void)
