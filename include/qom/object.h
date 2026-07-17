@@ -2038,18 +2038,18 @@ ObjectProperty *object_property_add_uint8_ptr(Object *obj, const char *name,
                                               ObjectPropertyFlags flags);
 
 /**
- * object_class_property_add_uint8_ptr:
- * @klass: the object class to add a property to
+ * object_class_static_property_add_uint8_ptr:
+ * @klass: the object class to add a static property to
  * @name: the name of the property
  * @v: pointer to value
  * @flags: bitwise-or'd ObjectPropertyFlags
  *
- * Add an integer property in memory.  This function will add a
+ * Add a static integer property in memory.  This function will add a
  * property of type 'uint8'.
  *
  * Returns: The newly added property on success, or %NULL on failure.
  */
-ObjectProperty *object_class_property_add_uint8_ptr(ObjectClass *klass,
+ObjectProperty *object_class_static_property_add_uint8_ptr(ObjectClass *klass,
                                          const char *name,
                                          const uint8_t *v,
                                          ObjectPropertyFlags flags);
@@ -2071,18 +2071,18 @@ ObjectProperty *object_property_add_uint16_ptr(Object *obj, const char *name,
                                     ObjectPropertyFlags flags);
 
 /**
- * object_class_property_add_uint16_ptr:
- * @klass: the object class to add a property to
+ * object_class_static_property_add_uint16_ptr:
+ * @klass: the object class to add a static property to
  * @name: the name of the property
  * @v: pointer to value
  * @flags: bitwise-or'd ObjectPropertyFlags
  *
- * Add an integer property in memory.  This function will add a
+ * Add a static integer property in memory.  This function will add a
  * property of type 'uint16'.
  *
  * Returns: The newly added property on success, or %NULL on failure.
  */
-ObjectProperty *object_class_property_add_uint16_ptr(ObjectClass *klass,
+ObjectProperty *object_class_static_property_add_uint16_ptr(ObjectClass *klass,
                                           const char *name,
                                           const uint16_t *v,
                                           ObjectPropertyFlags flags);
@@ -2104,18 +2104,18 @@ ObjectProperty *object_property_add_uint32_ptr(Object *obj, const char *name,
                                     ObjectPropertyFlags flags);
 
 /**
- * object_class_property_add_uint32_ptr:
- * @klass: the object class to add a property to
+ * object_class_static_property_add_uint32_ptr:
+ * @klass: the object class to add a static property to
  * @name: the name of the property
  * @v: pointer to value
  * @flags: bitwise-or'd ObjectPropertyFlags
  *
- * Add an integer property in memory.  This function will add a
+ * Add a static integer property in memory.  This function will add a
  * property of type 'uint32'.
  *
  * Returns: The newly added property on success, or %NULL on failure.
  */
-ObjectProperty *object_class_property_add_uint32_ptr(ObjectClass *klass,
+ObjectProperty *object_class_static_property_add_uint32_ptr(ObjectClass *klass,
                                           const char *name,
                                           const uint32_t *v,
                                           ObjectPropertyFlags flags);
@@ -2137,18 +2137,18 @@ ObjectProperty *object_property_add_uint64_ptr(Object *obj, const char *name,
                                     ObjectPropertyFlags flags);
 
 /**
- * object_class_property_add_uint64_ptr:
- * @klass: the object class to add a property to
+ * object_class_static_property_add_uint64_ptr:
+ * @klass: the object class to add a static property to
  * @name: the name of the property
  * @v: pointer to value
  * @flags: bitwise-or'd ObjectPropertyFlags
  *
- * Add an integer property in memory.  This function will add a
+ * Add a static integer property in memory.  This function will add a
  * property of type 'uint64'.
  *
  * Returns: The newly added property on success, or %NULL on failure.
  */
-ObjectProperty *object_class_property_add_uint64_ptr(ObjectClass *klass,
+ObjectProperty *object_class_static_property_add_uint64_ptr(ObjectClass *klass,
                                           const char *name,
                                           const uint64_t *v,
                                           ObjectPropertyFlags flags);
