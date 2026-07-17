@@ -2733,3 +2733,119 @@ GEN_PSIMD_QMUL_ACC_INDEXED(pmqracc_w_h11, uint64_t, int16_t, int16_t,
                            int32_t, int64_t, int32_t, uint32_t, EXTRACT16,
                            EXTRACT32, INSERT32, ELEMS_W, 2, 1, 1, 15,
                            1LL << 14, PSIMD_MUL_S64)
+
+/* Two-Way Multiply and Accumulate Operations */
+
+GEN_PSIMD_Q2ADD(pmq2add_h, target_ulong, int16_t, int32_t, int64_t,
+                uint32_t, EXTRACT16, INSERT32, ELEMS_W, 2, 15, 0,
+                PSIMD_MUL_S32)
+GEN_PSIMD_Q2ADD(pmqr2add_h, target_ulong, int16_t, int32_t, int64_t,
+                uint32_t, EXTRACT16, INSERT32, ELEMS_W, 2, 15, 1LL << 14,
+                PSIMD_MUL_S32)
+GEN_PSIMD_Q2ADDA(pmq2adda_h, target_ulong, int16_t, int32_t, int32_t,
+                 int64_t, uint32_t, EXTRACT16, EXTRACT32, INSERT32,
+                 ELEMS_W, 2, 15, 0, PSIMD_MUL_S32)
+GEN_PSIMD_Q2ADDA(pmqr2adda_h, target_ulong, int16_t, int32_t, int32_t,
+                 int64_t, uint32_t, EXTRACT16, EXTRACT32, INSERT32,
+                 ELEMS_W, 2, 15, 1LL << 14, PSIMD_MUL_S32)
+
+GEN_PSIMD_Q2ADD(pmq2add_w, uint64_t, int32_t, int64_t, int64_t,
+                uint64_t, EXTRACT32, INSERT64, ELEMS_D, 0, 31, 0,
+                PSIMD_MUL_S64)
+GEN_PSIMD_Q2ADD(pmqr2add_w, uint64_t, int32_t, int64_t, int64_t,
+                uint64_t, EXTRACT32, INSERT64, ELEMS_D, 0, 31, 1LL << 30,
+                PSIMD_MUL_S64)
+GEN_PSIMD_Q2ADDA(pmq2adda_w, uint64_t, int32_t, int64_t, int64_t,
+                 int64_t, uint64_t, EXTRACT32, EXTRACT64, INSERT64,
+                 ELEMS_D, 0, 31, 0, PSIMD_MUL_S64)
+GEN_PSIMD_Q2ADDA(pmqr2adda_w, uint64_t, int32_t, int64_t, int64_t,
+                 int64_t, uint64_t, EXTRACT32, EXTRACT64, INSERT64,
+                 ELEMS_D, 0, 31, 1LL << 30, PSIMD_MUL_S64)
+
+GEN_PSIMD_2WAY_MUL(pm2add_h, target_ulong, int16_t, int16_t,
+                   int32_t, uint32_t, EXTRACT16, INSERT32, ELEMS_W, 2,
+                   0, 1, 0, 1, PSIMD_MUL_S32, PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL(pm2addsu_h, target_ulong, int16_t, uint16_t,
+                   int32_t, uint32_t, EXTRACT16, INSERT32, ELEMS_W, 2,
+                   0, 1, 0, 1, PSIMD_MUL_SU32, PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL(pm2addu_h, target_ulong, uint16_t, uint16_t,
+                   uint32_t, uint32_t, EXTRACT16, INSERT32, ELEMS_W, 2,
+                   0, 1, 0, 1, PSIMD_MUL_U32, PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL(pm2add_hx, target_ulong, int16_t, int16_t,
+                   int32_t, uint32_t, EXTRACT16, INSERT32, ELEMS_W, 2,
+                   0, 1, 1, 0, PSIMD_MUL_S32, PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL(pm2sub_h, target_ulong, int16_t, int16_t,
+                   int32_t, uint32_t, EXTRACT16, INSERT32, ELEMS_W, 2,
+                   0, 1, 0, 1, PSIMD_MUL_S32, PSIMD_COMB_SUB)
+GEN_PSIMD_2WAY_MUL(pm2sub_hx, target_ulong, int16_t, int16_t,
+                   int32_t, uint32_t, EXTRACT16, INSERT32, ELEMS_W, 2,
+                   0, 1, 1, 0, PSIMD_MUL_S32, PSIMD_COMB_SUB)
+
+GEN_PSIMD_2WAY_MUL_ACC(pm2adda_h, target_ulong, int16_t, int16_t,
+                       int32_t, int32_t, uint32_t, EXTRACT16, EXTRACT32,
+                       INSERT32, ELEMS_W, 2, 0, 1, 0, 1, PSIMD_MUL_S32,
+                       PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL_ACC(pm2addasu_h, target_ulong, int16_t, uint16_t,
+                       int32_t, int32_t, uint32_t, EXTRACT16, EXTRACT32,
+                       INSERT32, ELEMS_W, 2, 0, 1, 0, 1, PSIMD_MUL_SU32,
+                       PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL_ACC(pm2addau_h, target_ulong, uint16_t, uint16_t,
+                       uint32_t, uint32_t, uint32_t, EXTRACT16, EXTRACT32,
+                       INSERT32, ELEMS_W, 2, 0, 1, 0, 1, PSIMD_MUL_U32,
+                       PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL_ACC(pm2adda_hx, target_ulong, int16_t, int16_t,
+                       int32_t, int32_t, uint32_t, EXTRACT16, EXTRACT32,
+                       INSERT32, ELEMS_W, 2, 0, 1, 1, 0, PSIMD_MUL_S32,
+                       PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL_ACC(pm2suba_h, target_ulong, int16_t, int16_t,
+                       int32_t, int32_t, uint32_t, EXTRACT16, EXTRACT32,
+                       INSERT32, ELEMS_W, 2, 0, 1, 0, 1, PSIMD_MUL_S32,
+                       PSIMD_COMB_SUB)
+GEN_PSIMD_2WAY_MUL_ACC(pm2suba_hx, target_ulong, int16_t, int16_t,
+                       int32_t, int32_t, uint32_t, EXTRACT16, EXTRACT32,
+                       INSERT32, ELEMS_W, 2, 0, 1, 1, 0, PSIMD_MUL_S32,
+                       PSIMD_COMB_SUB)
+
+GEN_PSIMD_2WAY_MUL(pm2add_w, uint64_t, int32_t, int32_t,
+                   int64_t, uint64_t, EXTRACT32, INSERT64, ELEMS_D, 0,
+                   0, 1, 0, 1, PSIMD_MUL_S64, PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL(pm2addsu_w, uint64_t, int32_t, uint32_t,
+                   int64_t, uint64_t, EXTRACT32, INSERT64, ELEMS_D, 0,
+                   0, 1, 0, 1, PSIMD_MUL_SU64, PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL(pm2addu_w, uint64_t, uint32_t, uint32_t,
+                   uint64_t, uint64_t, EXTRACT32, INSERT64, ELEMS_D, 0,
+                   0, 1, 0, 1, PSIMD_MUL_U64, PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL(pm2add_wx, uint64_t, int32_t, int32_t,
+                   int64_t, uint64_t, EXTRACT32, INSERT64, ELEMS_D, 0,
+                   0, 1, 1, 0, PSIMD_MUL_S64, PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL(pm2sub_w, uint64_t, int32_t, int32_t,
+                   int64_t, uint64_t, EXTRACT32, INSERT64, ELEMS_D, 0,
+                   0, 1, 0, 1, PSIMD_MUL_S64, PSIMD_COMB_SUB)
+GEN_PSIMD_2WAY_MUL(pm2sub_wx, uint64_t, int32_t, int32_t,
+                   int64_t, uint64_t, EXTRACT32, INSERT64, ELEMS_D, 0,
+                   0, 1, 1, 0, PSIMD_MUL_S64, PSIMD_COMB_SUB)
+
+GEN_PSIMD_2WAY_MUL_ACC(pm2adda_w, uint64_t, int32_t, int32_t,
+                       int64_t, int64_t, uint64_t, EXTRACT32, EXTRACT64,
+                       INSERT64, ELEMS_D, 0, 0, 1, 0, 1, PSIMD_MUL_S64,
+                       PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL_ACC(pm2addasu_w, uint64_t, int32_t, uint32_t,
+                       int64_t, int64_t, uint64_t, EXTRACT32, EXTRACT64,
+                       INSERT64, ELEMS_D, 0, 0, 1, 0, 1, PSIMD_MUL_SU64,
+                       PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL_ACC(pm2addau_w, uint64_t, uint32_t, uint32_t,
+                       uint64_t, uint64_t, uint64_t, EXTRACT32, EXTRACT64,
+                       INSERT64, ELEMS_D, 0, 0, 1, 0, 1, PSIMD_MUL_U64,
+                       PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL_ACC(pm2adda_wx, uint64_t, int32_t, int32_t,
+                       int64_t, int64_t, uint64_t, EXTRACT32, EXTRACT64,
+                       INSERT64, ELEMS_D, 0, 0, 1, 1, 0, PSIMD_MUL_S64,
+                       PSIMD_COMB_ADD)
+GEN_PSIMD_2WAY_MUL_ACC(pm2suba_w, uint64_t, int32_t, int32_t,
+                       int64_t, int64_t, uint64_t, EXTRACT32, EXTRACT64,
+                       INSERT64, ELEMS_D, 0, 0, 1, 0, 1, PSIMD_MUL_S64,
+                       PSIMD_COMB_SUB)
+GEN_PSIMD_2WAY_MUL_ACC(pm2suba_wx, uint64_t, int32_t, int32_t,
+                       int64_t, int64_t, uint64_t, EXTRACT32, EXTRACT64,
+                       INSERT64, ELEMS_D, 0, 0, 1, 1, 0, PSIMD_MUL_S64,
+                       PSIMD_COMB_SUB)
