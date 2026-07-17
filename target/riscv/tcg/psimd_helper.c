@@ -1654,3 +1654,117 @@ uint32_t HELPER(NAME)(CPURISCVState *env, uint64_t s1, uint32_t shamt)    \
 
 /* Basic addition operations (non-saturating) */
 
+GEN_PSIMD_BINOP(padd_b, target_ulong, uint8_t, uint8_t,
+                EXTRACT8, INSERT8, ELEMS_B, PSIMD_DO_ADD)
+GEN_PSIMD_BINOP(padd_h, target_ulong, uint16_t, uint16_t,
+                EXTRACT16, INSERT16, ELEMS_H, PSIMD_DO_ADD)
+GEN_PSIMD_BINOP(padd_w, uint64_t, uint32_t, uint32_t,
+                EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_ADD)
+
+GEN_PSIMD_BINOP_SCALAR(padd_bs, target_ulong, uint8_t,
+                       EXTRACT8, INSERT8, ELEMS_B, PSIMD_DO_ADD)
+GEN_PSIMD_BINOP_SCALAR(padd_hs, target_ulong, uint16_t,
+                       EXTRACT16, INSERT16, ELEMS_H, PSIMD_DO_ADD)
+GEN_PSIMD_BINOP_SCALAR(padd_ws, uint64_t, uint32_t,
+                       EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_ADD)
+
+/* Basic subtraction operations (non-saturating) */
+
+GEN_PSIMD_BINOP(psub_b, target_ulong, uint8_t, uint8_t,
+                EXTRACT8, INSERT8, ELEMS_B, PSIMD_DO_SUB)
+GEN_PSIMD_BINOP(psub_h, target_ulong, uint16_t, uint16_t,
+                EXTRACT16, INSERT16, ELEMS_H, PSIMD_DO_SUB)
+GEN_PSIMD_BINOP(psub_w, uint64_t, uint32_t, uint32_t,
+                EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_SUB)
+
+/* Shift-left-by-one and add operations */
+
+GEN_PSIMD_SHADD(psh1add_h, target_ulong, uint16_t,
+                EXTRACT16, INSERT16, ELEMS_H, 1)
+GEN_PSIMD_SHADD(psh1add_w, uint64_t, uint32_t,
+                EXTRACT32, INSERT32, ELEMS_W, 1)
+
+GEN_PSIMD_SAT_SHADD(pssh1sadd_h, target_ulong, int16_t, int32_t,
+                    EXTRACT16, INSERT16, ELEMS_H, 1, -0x4000, 0x3fff,
+                    SAT_MIN_H, SAT_MAX_H, signed_saturate_h)
+GEN_PSIMD_SAT_SHADD(pssh1sadd_w, uint64_t, int32_t, int64_t,
+                    EXTRACT32, INSERT32, ELEMS_W, 1, -0x40000000,
+                    0x3fffffff, SAT_MIN_W, SAT_MAX_W, signed_saturate_w)
+
+GEN_PSIMD_SAT_SHADD(ssh1sadd, uint32_t, int32_t, int64_t,
+                    EXTRACT32, INSERT32, ELEMS_W, 1, -0x40000000,
+                    0x3fffffff, SAT_MIN_W, SAT_MAX_W, signed_saturate_w)
+
+/* Saturating addition operations */
+
+GEN_PSIMD_SAT_BINOP(psadd_b, target_ulong, int8_t, int32_t,
+                    EXTRACT8, INSERT8, ELEMS_B, PSIMD_DO_ADD,
+                    signed_saturate_b)
+GEN_PSIMD_SAT_BINOP(psadd_h, target_ulong, int16_t, int32_t,
+                    EXTRACT16, INSERT16, ELEMS_H, PSIMD_DO_ADD,
+                    signed_saturate_h)
+GEN_PSIMD_SAT_BINOP(psadd_w, uint64_t, int32_t, int64_t,
+                    EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_ADD,
+                    signed_saturate_w)
+
+GEN_PSIMD_SAT_BINOP(psaddu_b, target_ulong, uint8_t, uint32_t,
+                    EXTRACT8, INSERT8, ELEMS_B, PSIMD_DO_ADD,
+                    unsigned_saturate_b)
+GEN_PSIMD_SAT_BINOP(psaddu_h, target_ulong, uint16_t, uint32_t,
+                    EXTRACT16, INSERT16, ELEMS_H, PSIMD_DO_ADD,
+                    unsigned_saturate_h)
+GEN_PSIMD_SAT_BINOP(psaddu_w, uint64_t, uint32_t, uint64_t,
+                    EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_ADD,
+                    unsigned_saturate_w)
+
+GEN_PSIMD_SAT_BINOP(sadd, uint32_t, int32_t, int64_t,
+                    EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_ADD,
+                    signed_saturate_w)
+GEN_PSIMD_SAT_BINOP(saddu, uint32_t, uint32_t, uint64_t,
+                    EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_ADD,
+                    unsigned_saturate_w)
+
+/* Saturating subtraction operations */
+
+GEN_PSIMD_SAT_BINOP(pssub_b, target_ulong, int8_t, int32_t,
+                    EXTRACT8, INSERT8, ELEMS_B, PSIMD_DO_SUB,
+                    signed_saturate_b)
+GEN_PSIMD_SAT_BINOP(pssub_h, target_ulong, int16_t, int32_t,
+                    EXTRACT16, INSERT16, ELEMS_H, PSIMD_DO_SUB,
+                    signed_saturate_h)
+GEN_PSIMD_SAT_BINOP(pssub_w, uint64_t, int32_t, int64_t,
+                    EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_SUB,
+                    signed_saturate_w)
+
+GEN_PSIMD_USUB_SAT(pssubu_b, target_ulong, uint8_t,
+                   EXTRACT8, INSERT8, ELEMS_B)
+GEN_PSIMD_USUB_SAT(pssubu_h, target_ulong, uint16_t,
+                   EXTRACT16, INSERT16, ELEMS_H)
+GEN_PSIMD_USUB_SAT(pssubu_w, uint64_t, uint32_t,
+                   EXTRACT32, INSERT32, ELEMS_W)
+
+GEN_PSIMD_SAT_BINOP(ssub, uint32_t, int32_t, int64_t,
+                    EXTRACT32, INSERT32, ELEMS_W, PSIMD_DO_SUB,
+                    signed_saturate_w)
+GEN_PSIMD_USUB_SAT(ssubu, uint32_t, uint32_t,
+                   EXTRACT32, INSERT32, ELEMS_W)
+
+/* Saturation instructions (SAT, USAT) */
+
+GEN_PSIMD_SATI(psati_h, target_ulong, int16_t, int64_t,
+               EXTRACT16, INSERT16, ELEMS_H, 0x0f)
+GEN_PSIMD_USATI(pusati_h, target_ulong, int16_t, uint16_t, uint32_t,
+                EXTRACT16, INSERT16, ELEMS_H, 1U)
+GEN_PSIMD_SATI(psati_w, uint64_t, int32_t, int64_t,
+               EXTRACT32, INSERT32, ELEMS_W, 0x1f)
+GEN_PSIMD_USATI(pusati_w, uint64_t, int32_t, uint32_t, uint64_t,
+                EXTRACT32, INSERT32, ELEMS_W, 1ULL)
+GEN_PSIMD_SATI(sati_32, uint32_t, int32_t, int64_t,
+               EXTRACT32, INSERT32, ELEMS_W, 0x1f)
+GEN_PSIMD_USATI(usati_32, uint32_t, int32_t, uint32_t, uint32_t,
+                EXTRACT32, INSERT32, ELEMS_W, 1U)
+GEN_PSIMD_SATI(sati_64, uint64_t, int64_t, int64_t,
+               EXTRACT64, INSERT64, ELEMS_D, 0x3f)
+GEN_PSIMD_USATI(usati_64, uint64_t, int64_t, uint64_t, uint64_t,
+                EXTRACT64, INSERT64, ELEMS_D, 1ULL)
+
