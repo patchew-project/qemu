@@ -259,6 +259,17 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
 }
 
 /*
+ * Convert kvmid to cpreg_id but keep secure mask.
+ */
+static inline uint32_t kvm_to_cpreg_id_with_secure(uint64_t kvmid)
+{
+    uint32_t cpregid = kvm_to_cpreg_id(kvmid);
+    cpregid &= ~CP_REG_AA32_NS_MASK;
+    cpregid |= (kvmid & CP_REG_AA32_NS_MASK);
+    return cpregid;
+}
+
+/*
  * Valid values for ARMCPRegInfo state field, indicating which of
  * the AArch32 and AArch64 execution states this register is visible in.
  * If the reginfo doesn't explicitly specify then it is AArch32 only.

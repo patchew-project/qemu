@@ -160,7 +160,12 @@ bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync)
     bool ok = true;
 
     for (i = 0; i < cpu->cpreg_array_len; i++) {
-        uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
+        uint32_t regidx;
+        if (kvm_enabled()) {
+            regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
+        } else {
+            regidx = kvm_to_cpreg_id_with_secure(cpu->cpreg_indexes[i]);
+        }
         const ARMCPRegInfo *ri;
         uint64_t newval;
 
@@ -205,7 +210,12 @@ bool write_list_to_cpustate(ARMCPU *cpu)
     bool ok = true;
 
     for (i = 0; i < cpu->cpreg_array_len; i++) {
-        uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
+        uint32_t regidx;
+        if (kvm_enabled()) {
+            regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
+        } else {
+            regidx = kvm_to_cpreg_id_with_secure(cpu->cpreg_indexes[i]);
+        }
         uint64_t v = cpu->cpreg_values[i];
         const ARMCPRegInfo *ri;
 
