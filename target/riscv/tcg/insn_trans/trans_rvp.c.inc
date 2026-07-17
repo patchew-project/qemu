@@ -888,3 +888,17 @@ GEN_SIMD_TRANS_ACC_64(pm2adda_wx)
 GEN_SIMD_TRANS_ACC_64(pm2suba_w)
 GEN_SIMD_TRANS_ACC_64(pm2suba_wx)
 
+/* Packed SIMD - Four-Way Multiply and Accumulate Operations */
+GEN_SIMD_TRANS(pm4add_b)
+GEN_SIMD_TRANS(pm4addsu_b)
+GEN_SIMD_TRANS(pm4addu_b)
+GEN_SIMD_TRANS_ACC(pm4adda_b)
+GEN_SIMD_TRANS_ACC(pm4addasu_b)
+GEN_SIMD_TRANS_ACC(pm4addau_b)
+GEN_SIMD_TRANS_64(pm4add_h)
+GEN_SIMD_TRANS_64(pm4addsu_h)
+GEN_SIMD_TRANS_64(pm4addu_h)
+GEN_SIMD_TRANS_ACC_64(pm4adda_h)
+GEN_SIMD_TRANS_ACC_64(pm4addasu_h)
+GEN_SIMD_TRANS_ACC_64(pm4addau_h)
+

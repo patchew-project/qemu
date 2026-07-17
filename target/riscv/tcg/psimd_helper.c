@@ -2849,3 +2849,44 @@ GEN_PSIMD_2WAY_MUL_ACC(pm2suba_wx, uint64_t, int32_t, int32_t,
                        int64_t, int64_t, uint64_t, EXTRACT32, EXTRACT64,
                        INSERT64, ELEMS_D, 0, 0, 1, 1, 0, PSIMD_MUL_S64,
                        PSIMD_COMB_SUB)
+
+
+/* Four-Way Multiply and Accumulate Operations */
+
+GEN_PSIMD_4WAY_MUL(pm4add_b, target_ulong, int8_t, int8_t,
+                   int32_t, uint32_t, EXTRACT8, INSERT32, ELEMS_W, 4,
+                   PSIMD_MUL_S32)
+GEN_PSIMD_4WAY_MUL(pm4addsu_b, target_ulong, int8_t, uint8_t,
+                   int32_t, uint32_t, EXTRACT8, INSERT32, ELEMS_W, 4,
+                   PSIMD_MUL_SU32)
+GEN_PSIMD_4WAY_MUL(pm4addu_b, target_ulong, uint8_t, uint8_t,
+                   uint32_t, uint32_t, EXTRACT8, INSERT32, ELEMS_W, 4,
+                   PSIMD_MUL_U32)
+GEN_PSIMD_4WAY_MUL_ACC(pm4adda_b, target_ulong, int8_t, int8_t,
+                       int32_t, int32_t, uint32_t, EXTRACT8, EXTRACT32,
+                       INSERT32, ELEMS_W, 4, PSIMD_MUL_S32)
+GEN_PSIMD_4WAY_MUL_ACC(pm4addasu_b, target_ulong, int8_t, uint8_t,
+                       int32_t, int32_t, uint32_t, EXTRACT8, EXTRACT32,
+                       INSERT32, ELEMS_W, 4, PSIMD_MUL_SU32)
+GEN_PSIMD_4WAY_MUL_ACC(pm4addau_b, target_ulong, uint8_t, uint8_t,
+                       uint32_t, uint32_t, uint32_t, EXTRACT8, EXTRACT32,
+                       INSERT32, ELEMS_W, 4, PSIMD_MUL_U32)
+
+GEN_PSIMD_4WAY_MUL(pm4add_h, uint64_t, int16_t, int16_t,
+                   int64_t, uint64_t, EXTRACT16, INSERT64, ELEMS_D, 0,
+                   PSIMD_MUL_S64)
+GEN_PSIMD_4WAY_MUL(pm4addsu_h, uint64_t, int16_t, uint16_t,
+                   int64_t, uint64_t, EXTRACT16, INSERT64, ELEMS_D, 0,
+                   PSIMD_MUL_SU64)
+GEN_PSIMD_4WAY_MUL(pm4addu_h, uint64_t, uint16_t, uint16_t,
+                   uint64_t, uint64_t, EXTRACT16, INSERT64, ELEMS_D, 0,
+                   PSIMD_MUL_U64)
+GEN_PSIMD_4WAY_MUL_ACC(pm4adda_h, uint64_t, int16_t, int16_t,
+                       int64_t, int64_t, uint64_t, EXTRACT16, EXTRACT64,
+                       INSERT64, ELEMS_D, 0, PSIMD_MUL_S64)
+GEN_PSIMD_4WAY_MUL_ACC(pm4addasu_h, uint64_t, int16_t, uint16_t,
+                       int64_t, int64_t, uint64_t, EXTRACT16, EXTRACT64,
+                       INSERT64, ELEMS_D, 0, PSIMD_MUL_SU64)
+GEN_PSIMD_4WAY_MUL_ACC(pm4addau_h, uint64_t, uint16_t, uint16_t,
+                       uint64_t, uint64_t, uint64_t, EXTRACT16, EXTRACT64,
+                       INSERT64, ELEMS_D, 0, PSIMD_MUL_U64)
