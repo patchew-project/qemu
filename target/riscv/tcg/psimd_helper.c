@@ -2111,3 +2111,151 @@ GEN_PSIMD_REDSUM(predsum_ws, uint64_t, int64_t, int32_t,
 GEN_PSIMD_REDSUM(predsumu_ws, uint64_t, uint64_t, uint32_t,
                  EXTRACT32, ELEMS_W, rs2)
 
+/* Packing/unpacking operations */
+
+GEN_PSIMD_PAIR_PACK(ppaire_b, target_ulong, uint16_t,
+                    EXTRACT16, INSERT16, ELEMS_H, 0x00ff, 8,
+                    PSIMD_PAIR_LO, PSIMD_PAIR_LO)
+GEN_PSIMD_PAIR_PACK(ppaireo_b, target_ulong, uint16_t,
+                    EXTRACT16, INSERT16, ELEMS_H, 0x00ff, 8,
+                    PSIMD_PAIR_HI, PSIMD_PAIR_LO)
+GEN_PSIMD_PAIR_PACK(ppairoe_b, target_ulong, uint16_t,
+                    EXTRACT16, INSERT16, ELEMS_H, 0x00ff, 8,
+                    PSIMD_PAIR_LO, PSIMD_PAIR_HI)
+GEN_PSIMD_PAIR_PACK(ppairo_b, target_ulong, uint16_t,
+                    EXTRACT16, INSERT16, ELEMS_H, 0x00ff, 8,
+                    PSIMD_PAIR_HI, PSIMD_PAIR_HI)
+
+GEN_PSIMD_PAIR_PACK(ppaire_h, uint64_t, uint32_t,
+                    EXTRACT32, INSERT32, ELEMS_W, 0x0000ffff, 16,
+                    PSIMD_PAIR_LO, PSIMD_PAIR_LO)
+GEN_PSIMD_PAIR_PACK(ppaireo_h, target_ulong, uint32_t,
+                    EXTRACT32, INSERT32, ELEMS_W, 0x0000ffff, 16,
+                    PSIMD_PAIR_HI, PSIMD_PAIR_LO)
+GEN_PSIMD_PAIR_PACK(ppairoe_h, target_ulong, uint32_t,
+                    EXTRACT32, INSERT32, ELEMS_W, 0x0000ffff, 16,
+                    PSIMD_PAIR_LO, PSIMD_PAIR_HI)
+GEN_PSIMD_PAIR_PACK(ppairo_h, target_ulong, uint32_t,
+                    EXTRACT32, INSERT32, ELEMS_W, 0x0000ffff, 16,
+                    PSIMD_PAIR_HI, PSIMD_PAIR_HI)
+
+GEN_PSIMD_PAIR_WORD(ppaireo_w, 0, 1)
+GEN_PSIMD_PAIR_WORD(ppairoe_w, 1, 0)
+GEN_PSIMD_PAIR_WORD(ppairo_w, 1, 1)
+
+GEN_PSIMD_SIGN_EXTEND(psext_h_b, target_ulong, int8_t, int16_t,
+                      EXTRACT8, INSERT16, ELEMS_H, 2)
+GEN_PSIMD_SIGN_EXTEND(psext_w_b, uint64_t, int8_t, int32_t,
+                      EXTRACT8, INSERT32, ELEMS_W, 4)
+GEN_PSIMD_SIGN_EXTEND(psext_w_h, uint64_t, int16_t, int32_t,
+                      EXTRACT16, INSERT32, ELEMS_W, 2)
+
+/**
+ * REV - Reverse all bits
+ */
+target_ulong HELPER(rev)(CPURISCVState *env, target_ulong rs1)
+{
+    target_ulong rd = 0;
+
+    for (int i = 0; i < TARGET_LONG_BITS; i++) {
+        rd = (rd << 1) | (rs1 & 1);
+        rs1 >>= 1;
+    }
+
+    return rd;
+}
+
+/**
+ * REV16 - Reverse 16-bit chunks (RV64 only)
+ */
+uint64_t HELPER(rev16)(CPURISCVState *env, uint64_t rs1)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t chunk = EXTRACT16(rs1, i);
+        rd = (rd << 16) | chunk;
+    }
+
+    return rd;
+}
+
+GEN_PSIMD_ZIP(zip8p, uint8_t, EXTRACT8, 4, 8, 3)
+GEN_PSIMD_ZIP(zip8hp, uint8_t, EXTRACT8, 4, 8, 7)
+GEN_PSIMD_UNZIP(unzip8p, EXTRACT8, 4, 8, 0)
+GEN_PSIMD_UNZIP(unzip8hp, EXTRACT8, 4, 8, 1)
+
+GEN_PSIMD_ZIP(zip16p, uint16_t, EXTRACT16, 2, 16, 1)
+GEN_PSIMD_ZIP(zip16hp, uint16_t, EXTRACT16, 2, 16, 3)
+GEN_PSIMD_UNZIP(unzip16p, EXTRACT16, 2, 16, 0)
+GEN_PSIMD_UNZIP(unzip16hp, EXTRACT16, 2, 16, 1)
+
+/* Merge and mask operations */
+
+/**
+ * SLX - Shift left extended (concatenate rd and rs1, shift left, take upper)
+ */
+target_ulong HELPER(slx)(CPURISCVState *env, target_ulong rs1,
+                         target_ulong rs2, target_ulong rd)
+{
+    int shamt = (TARGET_LONG_BITS == 32) ? (rs2 & 0x1F) : (rs2 & 0x3F);
+    target_ulong xrs1 = 0;
+    target_ulong xrd = 0;
+
+    if (shamt <= TARGET_LONG_BITS) {
+        xrs1 = rs1 >> (TARGET_LONG_BITS - shamt);
+        xrd = (rd << shamt) + xrs1;
+    } else {
+        xrd = rs1 << (shamt - TARGET_LONG_BITS);
+    }
+
+    return xrd;
+}
+
+/**
+ * SRX - Shift right extended (concatenate rs1 and rd, shift right, take lower)
+ */
+target_ulong HELPER(srx)(CPURISCVState *env, target_ulong rs1,
+                         target_ulong rs2, target_ulong rd)
+{
+    int shamt = (TARGET_LONG_BITS == 32) ? (rs2 & 0x1F) : (rs2 & 0x3F);
+    target_ulong xrs1 = 0;
+    target_ulong xrd = 0;
+
+    if (shamt <= TARGET_LONG_BITS) {
+        xrs1 = rs1 << (TARGET_LONG_BITS - shamt);
+        xrd = (rd >> shamt) + xrs1;
+    } else {
+        xrd = rs1 >> (shamt - TARGET_LONG_BITS);
+    }
+
+    return xrd;
+}
+
+GEN_PSIMD_BIT_SELECT(mvm, rs2, rs1, rd)
+GEN_PSIMD_BIT_SELECT(mvmn, rs2, rd, rs1)
+GEN_PSIMD_BIT_SELECT(merge, rd, rs2, rs1)
+
+GEN_PSIMD_NCLIP_PACK(pnclipp_b, int16_t, int8_t,
+                     EXTRACT16, INSERT8, 4, signed_saturate_b)
+GEN_PSIMD_NCLIP_PACK(pnclipup_b, uint16_t, uint8_t,
+                     EXTRACT16, INSERT8, 4, unsigned_saturate_b)
+GEN_PSIMD_NCLIP_PACK(pnclipp_h, int32_t, int16_t,
+                     EXTRACT32, INSERT16, 2, signed_saturate_h)
+GEN_PSIMD_NCLIP_PACK(pnclipup_h, uint32_t, uint16_t,
+                     EXTRACT32, INSERT16, 2, unsigned_saturate_h)
+GEN_PSIMD_NCLIP_PACK(pnclipp_w, int64_t, int32_t,
+                     EXTRACT64, INSERT32_64, 1, signed_saturate_w)
+GEN_PSIMD_NCLIP_PACK(pnclipup_w, uint64_t, uint32_t,
+                     EXTRACT64, INSERT32_64, 1, unsigned_saturate_w)
+
+/* Count leading operations */
+
+#if TARGET_LONG_BITS == 64
+GEN_PSIMD_CLS(cls, target_ulong, uint64_t, clrsb64)
+#else
+GEN_PSIMD_CLS(cls, target_ulong, uint32_t, clrsb32)
+#endif
+
+GEN_PSIMD_CLS(clsw, uint64_t, uint32_t, clrsb32)
+
