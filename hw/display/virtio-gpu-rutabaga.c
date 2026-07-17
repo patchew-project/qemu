@@ -303,6 +303,14 @@ rutabaga_cmd_set_scanout(VirtIOGPU *g, struct virtio_gpu_ctrl_command *cmd)
                                      ss.r.width, ss.r.height, ss.r.x, ss.r.y);
 
     CHECK(ss.scanout_id < VIRTIO_GPU_MAX_SCANOUTS, cmd);
+
+    if (ss.scanout_id >= vb->conf.max_outputs) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal scanout id specified %d",
+                      __func__, ss.scanout_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_SCANOUT_ID;
+        return;
+    }
+
     scanout = &vb->scanout[ss.scanout_id];
 
     if (ss.resource_id == 0) {
