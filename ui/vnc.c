@@ -2271,6 +2271,11 @@ static void set_pixel_format(VncState *vs, uint8_t bits_per_pixel,
         return;
     }
 
+    if (red_max > UINT8_MAX || green_max > UINT8_MAX || blue_max > UINT8_MAX) {
+        vnc_client_error(vs);
+        return;
+    }
+
     if (red_shift >= bits_per_pixel || red_shift >= 32 ||
         green_shift >= bits_per_pixel || green_shift >= 32 ||
         blue_shift >= bits_per_pixel || blue_shift >= 32) {
