@@ -54,6 +54,8 @@ struct AMDVIAddressSpace {
     IOVATree *iova_tree;
     /* DMA address translation active */
     bool addr_translation;
+    /* Permissions for direct map when DMA address translation is not active */
+    unsigned passthrough_perms;
 };
 
 /* AMDVI cache entry */
@@ -1162,34 +1164,16 @@ static void amdvi_switch_address_space(AMDVIAddressSpace *amdvi_as)
 {
     AMDVIState *s = amdvi_as->iommu_state;
 
-    if (s->dma_remap && amdvi_as->addr_translation) {
-        /* Enabling DMA region */
-        memory_region_set_enabled(&amdvi_as->iommu_nodma, false);
-        memory_region_set_enabled(MEMORY_REGION(&amdvi_as->iommu), true);
-    } else {
-        /* Disabling DMA region, using passthrough */
-        memory_region_set_enabled(MEMORY_REGION(&amdvi_as->iommu), false);
-        memory_region_set_enabled(&amdvi_as->iommu_nodma, true);
+    if (!(s->dma_remap && amdvi_as->addr_translation)) {
+        if (amdvi_as->passthrough_perms == (AMDVI_PERM_READ | AMDVI_PERM_WRITE)) {
+            memory_region_set_enabled(MEMORY_REGION(&amdvi_as->iommu), false);
+            memory_region_set_enabled(&amdvi_as->iommu_nodma, true);
+            return;
+        }
     }
-}
 
-/*
- * For all existing address spaces managed by the IOMMU, enable/disable the
- * corresponding memory regions to reset the address translation mode and
- * use passthrough by default.
- */
-static void amdvi_reset_address_translation_all(AMDVIState *s)
-{
-    AMDVIAddressSpace *iommu_as;
-    GHashTableIter as_it;
-
-    g_hash_table_iter_init(&as_it, s->address_spaces);
-
-    while (g_hash_table_iter_next(&as_it, NULL, (void **)&iommu_as)) {
-        /* Use passthrough as default mode after reset */
-        iommu_as->addr_translation = false;
-        amdvi_switch_address_space(iommu_as);
-    }
+    memory_region_set_enabled(&amdvi_as->iommu_nodma, false);
+    memory_region_set_enabled(MEMORY_REGION(&amdvi_as->iommu), true);
 }
 
 static void enable_dma_mode(AMDVIAddressSpace *as, bool inval_current)
@@ -1222,21 +1206,41 @@ static void enable_dma_mode(AMDVIAddressSpace *as, bool inval_current)
  * - invalidate all existing mappings
  * - switch to no_dma memory region
  */
-static void enable_nodma_mode(AMDVIAddressSpace *as)
+static void enable_nodma_mode(AMDVIAddressSpace *as, unsigned perms)
 {
     IOMMUNotifier *n;
 
-    if (!as->addr_translation) {
+    if (!as->addr_translation && as->passthrough_perms == perms) {
         /* passthrough is already active, nothing to do */
         return;
     }
 
-    as->addr_translation = false;
     IOMMU_NOTIFIER_FOREACH(n, &as->iommu) {
         /* Drop all mappings for the address space */
         amdvi_address_space_unmap(as, n);
     }
+
+    as->addr_translation = false;
+    as->passthrough_perms = perms;
     amdvi_switch_address_space(as);
+}
+
+/*
+ * For all existing address spaces managed by the IOMMU, enable/disable the
+ * corresponding memory regions to reset the address translation mode and
+ * use passthrough by default.
+ */
+static void amdvi_reset_address_translation_all(AMDVIState *s)
+{
+    AMDVIAddressSpace *iommu_as;
+    GHashTableIter as_it;
+
+    g_hash_table_iter_init(&as_it, s->address_spaces);
+
+    while (g_hash_table_iter_next(&as_it, NULL, (void **)&iommu_as)) {
+        /* Use passthrough as default mode after reset */
+        enable_nodma_mode(iommu_as, AMDVI_PERM_READ | AMDVI_PERM_WRITE);
+    }
 }
 
 /*
@@ -1252,6 +1256,7 @@ static void amdvi_update_addr_translation_mode(AMDVIState *s, uint16_t devid)
     AMDVIAddressSpace *as;
     uint64_t dte[4] = { 0 };
     int ret;
+    unsigned perms;
 
     as = amdvi_get_as_by_devid(s, devid);
     if (!as) {
@@ -1268,14 +1273,16 @@ static void amdvi_update_addr_translation_mode(AMDVIState *s, uint16_t devid)
     case 0:
         /* DTE was successfully retrieved */
         if (!dte_mode) {
-            enable_nodma_mode(as); /* DTE[V]=1 && DTE[Mode]=0 => passthrough */
+            /* DTE[V]=1 && DTE[Mode]=0 => passthrough */
+            perms = amdvi_get_perms(dte[0]);
+            enable_nodma_mode(as, perms);
         } else {
             enable_dma_mode(as, false); /* Enable DMA translation */
         }
         break;
     case -AMDVI_FR_DTE_V:
         /* DTE[V]=0, address is passed untranslated */
-        enable_nodma_mode(as);
+        enable_nodma_mode(as, AMDVI_PERM_READ | AMDVI_PERM_WRITE);
         break;
     case -AMDVI_FR_DTE_RTR_ERR:
     case -AMDVI_FR_DTE_TV:
@@ -1889,14 +1896,44 @@ static void amdvi_mmio_write(void *opaque, hwaddr addr, uint64_t val,
     }
 }
 
+static void amdvi_fill_iotlb_entry_passthrough(IOMMUTLBEntry *entry,
+                                               AMDVIAddressSpace *as,
+                                               unsigned passthrough_perms,
+                                               hwaddr addr,
+                                               IOMMUAccessFlags flag)
+{
+    unsigned perms = 0;
+
+    if (flag & IOMMU_RO) {
+        perms |= AMDVI_PERM_READ;
+    }
+    if (flag & IOMMU_WO) {
+        perms |= AMDVI_PERM_WRITE;
+    }
+
+    if ((passthrough_perms & perms) != perms) {
+        amdvi_page_fault(as->iommu_state, as->devfn, addr, perms);
+        trace_amdvi_page_fault(addr, pci_bus_num(as->bus), PCI_SLOT(as->devfn),
+                               PCI_FUNC(as->devfn), perms);
+        return;
+    }
+
+    entry->iova = addr & AMDVI_PAGE_MASK_4K;
+    entry->translated_addr = addr & AMDVI_PAGE_MASK_4K;
+    entry->addr_mask = ~AMDVI_PAGE_MASK_4K;
+    entry->perm = flag & IOMMU_RW;
+}
+
 static void amdvi_page_walk(AMDVIAddressSpace *as, uint64_t *dte,
                             IOMMUTLBEntry *ret, unsigned perms,
-                            hwaddr addr)
+                            hwaddr addr, bool *update_iotlb)
 {
     hwaddr page_mask, pagesize = 0;
     uint8_t mode;
     uint64_t pte;
     int fetch_ret;
+
+    *update_iotlb = false;
 
     /* make sure the DTE has TV = 1 */
     if (!(dte[0] & AMDVI_DEV_TRANSLATION_VALID)) {
@@ -1916,7 +1953,9 @@ static void amdvi_page_walk(AMDVIAddressSpace *as, uint64_t *dte,
         return;
     }
     if (mode == 0) {
-        goto no_remap;
+        amdvi_fill_iotlb_entry_passthrough(ret, as, amdvi_get_perms(dte[0]),
+            addr, perms == AMDVI_PERM_WRITE ? IOMMU_WO : IOMMU_RO);
+        return;
     }
 
     /* Attempt to fetch the PTE to determine if a valid mapping exists */
@@ -1931,7 +1970,8 @@ static void amdvi_page_walk(AMDVIAddressSpace *as, uint64_t *dte,
         perms != (perms & amdvi_get_perms(pte))) {
 
         amdvi_page_fault(as->iommu_state, as->devfn, addr, perms);
-        trace_amdvi_page_fault(addr);
+        trace_amdvi_page_fault(addr, pci_bus_num(as->bus), PCI_SLOT(as->devfn),
+                               PCI_FUNC(as->devfn), perms);
         return;
     }
 
@@ -1944,13 +1984,7 @@ static void amdvi_page_walk(AMDVIAddressSpace *as, uint64_t *dte,
     ret->translated_addr = (pte & AMDVI_DEV_PT_ROOT_MASK) & page_mask;
     ret->addr_mask = ~page_mask;
     ret->perm = amdvi_get_perms(pte);
-    return;
-
-no_remap:
-    ret->iova = addr & AMDVI_PAGE_MASK_4K;
-    ret->translated_addr = addr & AMDVI_PAGE_MASK_4K;
-    ret->addr_mask = ~AMDVI_PAGE_MASK_4K;
-    ret->perm = amdvi_get_perms(dte[0]);
+    *update_iotlb = true;
 }
 
 static void amdvi_do_translate(AMDVIAddressSpace *as, hwaddr addr,
@@ -1961,6 +1995,7 @@ static void amdvi_do_translate(AMDVIAddressSpace *as, hwaddr addr,
     AMDVIIOTLBEntry *iotlb_entry = amdvi_iotlb_lookup(s, addr, devid);
     uint64_t entry[4];
     int dte_ret;
+    bool update_iotlb;
 
     if (iotlb_entry) {
         trace_amdvi_iotlb_hit(PCI_BUS_NUM(devid), PCI_SLOT(devid),
@@ -1983,10 +2018,14 @@ static void amdvi_do_translate(AMDVIAddressSpace *as, hwaddr addr,
     }
 
     amdvi_page_walk(as, entry, ret,
-                    is_write ? AMDVI_PERM_WRITE : AMDVI_PERM_READ, addr);
+                    is_write ? AMDVI_PERM_WRITE : AMDVI_PERM_READ, addr,
+                    &update_iotlb);
 
-    amdvi_update_iotlb(s, devid, addr, *ret,
-                       entry[1] & AMDVI_DEV_DOMID_ID_MASK);
+    if (update_iotlb) {
+        amdvi_update_iotlb(s, devid, addr, *ret,
+                           entry[1] & AMDVI_DEV_DOMID_ID_MASK);
+    }
+
     return;
 
 out:
@@ -2031,7 +2070,13 @@ static IOMMUTLBEntry amdvi_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
         return ret;
     }
 
-    amdvi_do_translate(as, addr, flag & IOMMU_WO, &ret);
+    if (!as->addr_translation) {
+        amdvi_fill_iotlb_entry_passthrough(&ret, as, as->passthrough_perms,
+                                           addr, flag);
+    } else {
+        amdvi_do_translate(as, addr, flag & IOMMU_WO, &ret);
+    }
+
     trace_amdvi_translation_result(pci_bus_num(as->bus), PCI_SLOT(as->devfn),
             PCI_FUNC(as->devfn), addr, ret.translated_addr);
     return ret;
@@ -2423,6 +2468,7 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
         amdvi_dev_as->notifier_flags = IOMMU_NOTIFIER_NONE;
         amdvi_dev_as->iova_tree = iova_tree_new();
         amdvi_dev_as->addr_translation = false;
+        amdvi_dev_as->passthrough_perms = AMDVI_PERM_READ | AMDVI_PERM_WRITE;
         key->bus = bus;
         key->devfn = devfn;
 
