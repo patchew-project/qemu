@@ -623,6 +623,12 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case CP_RB_WPTR:
         val = s->regs.cp_rb_wptr;
         break;
+    case CP_IB_BASE:
+        val = s->regs.cp_ib_base;
+        break;
+    case CP_IB_BUFSZ:
+        val = s->regs.cp_ib_bufsz;
+        break;
     default:
         break;
     }
@@ -1172,6 +1178,22 @@ void ati_mm_write(void *opaque, hwaddr addr,
                             s->regs.cp_rb_rptr * sizeof(uint32_t);
             ati_pkt_receive_data(s, &s->cur_packet, ati_mc_read(s, offs));
             s->regs.cp_rb_rptr = (s->regs.cp_rb_rptr + 1) & size_msk;
+        }
+        break;
+    }
+    case CP_IB_BASE:
+        s->regs.cp_ib_base = data & 0xfffffffc;
+        break;
+    case CP_IB_BUFSZ: {
+        uint32_t bufsz = data & 0x007fffff;
+        uint32_t base = s->regs.cp_ib_base;
+        ATIPktState ib_pkt = {0};
+        uint32_t dwords = 0;
+        s->regs.cp_ib_bufsz = bufsz;
+        while (dwords < bufsz) {
+            uint32_t offs = base + dwords * sizeof(uint32_t);
+            ati_pkt_receive_data(s, &ib_pkt, ati_mc_read(s, offs));
+            dwords += 1;
         }
         break;
     }

@@ -134,7 +134,9 @@
 #define PM4_VC_VLOFF                            0x0730
 #define PM4_VC_VLSIZE                           0x0734
 #define PM4_IW_INDOFF                           0x0738
+#define CP_IB_BASE                              0x0738
 #define PM4_IW_INDSIZE                          0x073c
+#define CP_IB_BUFSZ                             0x073c
 #define PM4_FPU_FPX0                            0x0740
 #define CP_CSQ_CNTL                             0x0740
 #define PM4_FPU_FPY0                            0x0744
