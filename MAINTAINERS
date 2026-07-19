@@ -2378,6 +2378,7 @@ USB
 S: Orphan
 F: hw/usb/*
 F: tests/qtest/usb-*-test.c
+F: tests/qtest/xhci-*-test.c
 F: docs/system/devices/usb.rst
 F: include/hw/usb/usb.h
 F: include/hw/usb/

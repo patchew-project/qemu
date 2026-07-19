@@ -326,6 +326,7 @@ qos_test_ss.add(
   'tmp105-test.c',
   'emc141x-test.c',
   'usb-hcd-ohci-test.c',
+  'xhci-event-ring-test.c',
   'virtio-test.c',
   'virtio-blk-test.c',
   'virtio-net-test.c',
