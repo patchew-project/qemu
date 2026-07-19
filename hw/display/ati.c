@@ -626,7 +626,7 @@ static inline void ati_reg_write_offs(uint32_t *reg, int offs,
     }
 }
 
-static void ati_mm_write(void *opaque, hwaddr addr,
+void ati_mm_write(void *opaque, hwaddr addr,
                            uint64_t data, unsigned int size)
 {
     ATIVGAState *s = opaque;
@@ -1251,6 +1251,7 @@ static void ati_vga_reset(DeviceState *dev)
     s->host_data.next = 0;
     s->host_data.row = 0;
     s->host_data.col = 0;
+    memset(&s->cur_packet, 0, sizeof(s->cur_packet));
 }
 
 static void ati_vga_exit(PCIDevice *dev)

@@ -1,0 +1,151 @@
+/*
+ * QEMU ATI SVGA emulation
+ * Packet processing functions
+ *
+ * Copyright (c) 2026 Chad Jablonski
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#include "qemu/osdep.h"
+#include "ati_regs.h"
+#include "ati_int.h"
+#include "trace.h"
+#include "qemu/log.h"
+
+static inline uint32_t ati_pkt_dwords_remaining(const ATIPktState *p)
+{
+    switch (p->type) {
+    case ATI_PKT_TYPE0:
+        return p->t0.count - p->dwords_processed;
+    case ATI_PKT_TYPE1:
+        return 2 - p->dwords_processed;
+    case ATI_PKT_TYPE2:
+        return 0;
+    case ATI_PKT_TYPE3:
+        return p->t3.count - p->dwords_processed;
+    default:
+        /* This should never happen, type is 2-bits wide */
+        g_assert_not_reached();
+        return 0;
+    }
+}
+
+static void ati_pkt_parse_header(ATIPktState *p, uint32_t header)
+{
+    p->dwords_processed = 0;
+    p->type = (header & ATI_PKT_TYPE_MASK) >> ATI_PKT_TYPE_SHIFT;
+    switch (p->type) {
+    case ATI_PKT_TYPE0: {
+        ATIType0Header t0 = {
+            /* Packet stores base_reg as word offset, convert to byte offset */
+            .base_reg = ((header & ATI_PKT_TYPE0_BASE_REG_MASK) >>
+                        ATI_PKT_TYPE0_BASE_REG_SHIFT) << 2,
+            /* Packet stores count as n-1, convert to actual count */
+            .count = ((header & ATI_PKT_TYPE0_COUNT_MASK) >>
+                     ATI_PKT_TYPE0_COUNT_SHIFT) + 1,
+            .one_reg_wr = !!(header & ATI_PKT_TYPE0_ONE_REG_WR),
+        };
+        p->t0 = t0;
+        trace_ati_pkt_type0(t0.base_reg, ati_reg_name(t0.base_reg),
+                            t0.count, t0.one_reg_wr);
+        break;
+    }
+    case ATI_PKT_TYPE1: {
+        ATIType1Header t1 = {
+            /* Packet stores reg0 as word offset, convert to byte offset */
+            .reg0 = ((header & ATI_PKT_TYPE1_REG0_MASK) >>
+                    ATI_PKT_TYPE1_REG0_SHIFT) << 2,
+            /* Packet stores reg1 as word offset, convert to byte offset */
+            .reg1 = ((header & ATI_PKT_TYPE1_REG1_MASK) >>
+                    ATI_PKT_TYPE1_REG1_SHIFT) << 2,
+        };
+        p->t1 = t1;
+        trace_ati_pkt_type1(t1.reg0, t1.reg1);
+        break;
+    }
+    case ATI_PKT_TYPE2: {
+        /* Type-2 is a no-op, it has no header state */
+        trace_ati_pkt_type2();
+        break;
+    }
+    case ATI_PKT_TYPE3: {
+        ATIType3Header t3 = {
+            .opcode = (header & ATI_PKT_TYPE3_OPCODE_MASK) >>
+                      ATI_PKT_TYPE3_OPCODE_SHIFT,
+            /* Packet stores count as n-1, convert to actual count */
+            .count = ((header & ATI_PKT_TYPE3_COUNT_MASK) >>
+                     ATI_PKT_TYPE3_COUNT_SHIFT) + 1,
+        };
+        p->t3 = t3;
+        qemu_log_mask(LOG_UNIMP, "Type-3 CCE packets not yet implemented\n");
+        trace_ati_pkt_type3(t3.opcode, t3.count);
+        break;
+    }
+    default:
+        /* This should never happen, type is 2-bits wide */
+        g_assert_not_reached();
+        break;
+    }
+}
+
+static void ati_pkt_type0_data(ATIVGAState *s, ATIPktState *p, uint32_t data)
+{
+    uint32_t offset = p->t0.one_reg_wr ? 0 :
+                      (p->dwords_processed * sizeof(uint32_t));
+    uint32_t reg = p->t0.base_reg + offset;
+    trace_ati_pkt_type0_data(p->dwords_processed, reg, ati_reg_name(reg), data);
+    ati_mm_write(s, reg, data, sizeof(uint32_t));
+}
+
+static void ati_pkt_type1_data(ATIVGAState *s, ATIPktState *p, uint32_t data)
+{
+    uint32_t reg = p->dwords_processed == 0 ? p->t1.reg0 : p->t1.reg1;
+    trace_ati_pkt_type1_data(p->dwords_processed, reg, data);
+    ati_mm_write(s, reg, data, sizeof(uint32_t));
+}
+
+static void ati_pkt_type3_data(ATIVGAState *s, ATIPktState *p, uint32_t data)
+{
+    uint32_t opcode = p->t3.opcode;
+    trace_ati_pkt_type3_data(p->dwords_processed, opcode, data);
+}
+
+static void ati_pkt_data(ATIVGAState *s, ATIPktState *p, uint32_t data)
+{
+    switch (p->type) {
+    case ATI_PKT_TYPE0: {
+        ati_pkt_type0_data(s, p, data);
+        p->dwords_processed += 1;
+        break;
+    }
+    case ATI_PKT_TYPE1: {
+        ati_pkt_type1_data(s, p, data);
+        p->dwords_processed += 1;
+        break;
+    }
+    case ATI_PKT_TYPE2:
+        /* Type-2 packets have no data, we should never end up here */
+        g_assert_not_reached();
+        break;
+    case ATI_PKT_TYPE3: {
+        ati_pkt_type3_data(s, p, data);
+        p->dwords_processed += 1;
+        break;
+    }
+    default:
+        /* This should never happen, type is 2-bits wide */
+        g_assert_not_reached();
+        break;
+    }
+}
+
+void ati_pkt_receive_data(ATIVGAState *s, ATIPktState *p, uint32_t data)
+{
+    uint32_t remaining = ati_pkt_dwords_remaining(p);
+    if (remaining == 0) {
+        /* We're ready to start processing a new packet header */
+        ati_pkt_parse_header(p, data);
+        return;
+    }
+    ati_pkt_data(s, p, data);
+}
