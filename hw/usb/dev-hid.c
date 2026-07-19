@@ -1699,6 +1699,577 @@ static const TypeInfo usb_apple_magic_kbd_info = {
     .class_init    = usb_apple_magic_kbd_class_initfn,
 };
 
+
+/*
+ * apple-mighty-mouse (USB type name; legacy alias `apple-magic-tablet`)
+ * --------------------------------------------------------------------
+ *
+ * Internal symbols carry the historic `amt` / `apple_magic_tablet` /
+ * `USBAppleMagicTabletState` prefixes — kept to minimize diff churn
+ * since this file's user-facing identity flipped during the 2026-05-09
+ * fresh-eyes rewrite (see header below). Only the `-device` string and
+ * vmstate name are user-visible and were renamed.
+ */
+
+enum {
+    STR_AMT_MFR = 1,
+    STR_AMT_PRODUCT,
+    STR_AMT_SERIAL,
+    STR_AMT_INTERFACE,
+};
+
+static const USBDescStrings desc_strings_amt = {
+    [STR_AMT_MFR]       = "Apple Inc.",
+    [STR_AMT_PRODUCT]   = "Apple Mighty Mouse",
+    [STR_AMT_SERIAL]    = "CC2916600VBJ2XQA5",
+    [STR_AMT_INTERFACE] = "Mouse",
+};
+
+/*
+ * apple-mighty-mouse device — FRESH-EYES REWRITE 2026-05-09.
+ *
+ * Goal: macOS sees a USB HID mouse from Apple that "just works" for cursor
+ * motion. Not Magic Trackpad multitouch — that path needs deep RE we don't
+ * have ground-truth wire bytes for. Instead, present as **Apple Mighty
+ * Mouse (PID 0x0304)** — Apple's wired ball mouse. macOS' generic
+ * AppleHIDMouseEventDriver / IOHIDPointing chain handles standard boot
+ * mouse reports natively; cursor motion works without any vendor-specific
+ * SET_REPORT / multitouch protocol.
+ *
+ * Why this works where Magic Trackpad emulation didn't:
+ *   - Mighty Mouse PID 0x0304 does NOT match AppleMultitouchTrackpadHID
+ *     EventDriver (which is the driver gating cursor on PID 0x0265).
+ *   - Mighty Mouse uses standard USB HID boot mouse protocol (3-byte
+ *     reports: button + dx + dy) — no proprietary 1387-byte Report 0x44.
+ *   - Single USB interface — no SET_REPORT-gated multitouch enable path.
+ *   - bSubClass=1 bProto=2 (boot mouse) — guaranteed-binding driver match
+ *     across every macOS version.
+ *
+ * Single interface, single IN endpoint, simple 3-byte boot-mouse reports.
+ */
+
+/* Boot-mouse + scroll HID Report Descriptor — 5-byte report (no Report ID).
+ *   byte 0: 3-bit button mask + 5-bit padding
+ *   byte 1: signed int8 dX
+ *   byte 2: signed int8 dY
+ *   byte 3: signed int8 vertical wheel
+ *   byte 4: signed int8 horizontal wheel (Mighty Mouse scroll ball X)
+ * macOS' generic mouse driver parses this without quirks; this is the
+ * standard layout for any USB HID mouse with a scroll wheel/ball. */
+static const uint8_t amt_boot_mouse_report_desc[] = {
+    0x05, 0x01,             /* Usage Page (Generic Desktop) */
+    0x09, 0x02,             /* Usage (Mouse) */
+    0xa1, 0x01,             /* Collection (Application) */
+      0x09, 0x01,           /*   Usage (Pointer) */
+      0xa1, 0x00,           /*   Collection (Physical) */
+        0x05, 0x09,         /*     Usage Page (Buttons) */
+        0x19, 0x01,         /*     Usage Minimum (1) */
+        0x29, 0x03,         /*     Usage Maximum (3) */
+        0x15, 0x00,         /*     Logical Min (0) */
+        0x25, 0x01,         /*     Logical Max (1) */
+        0x95, 0x03,         /*     Report Count (3) */
+        0x75, 0x01,         /*     Report Size (1) */
+        0x81, 0x02,         /*     Input (Data, Var, Abs) — 3 button bits */
+        0x95, 0x01,         /*     Report Count (1) */
+        0x75, 0x05,         /*     Report Size (5) */
+        0x81, 0x03,         /*     Input (Const, Var, Abs) — 5 padding bits */
+        0x05, 0x01,         /*     Usage Page (Generic Desktop) */
+        0x09, 0x30,         /*     Usage (X) */
+        0x09, 0x31,         /*     Usage (Y) */
+        0x09, 0x38,         /*     Usage (Wheel — vertical) */
+        0x15, 0x81,         /*     Logical Min (-127) */
+        0x25, 0x7f,         /*     Logical Max (127) */
+        0x75, 0x08,         /*     Report Size (8) */
+        0x95, 0x03,         /*     Report Count (3) */
+        0x81, 0x06,         /*     Input (Data, Var, Rel) — X, Y, Wheel */
+        0x05, 0x0c,         /*     Usage Page (Consumer) */
+        0x0a, 0x38, 0x02,   /*     Usage (AC Pan — horizontal scroll) */
+        0x15, 0x81,         /*     Logical Min (-127) */
+        0x25, 0x7f,         /*     Logical Max (127) */
+        0x75, 0x08,         /*     Report Size (8) */
+        0x95, 0x01,         /*     Report Count (1) */
+        0x81, 0x06,         /*     Input (Data, Var, Rel) — HWheel */
+      0xc0,                 /*   End Collection (Physical) */
+    0xc0,                   /* End Collection (Application) */
+};
+
+static const USBDescIface desc_iface_apple_magic_tablet = {
+    .bInterfaceNumber              = 0,
+    .bNumEndpoints                 = 1,
+    .bInterfaceClass               = USB_CLASS_HID,
+    .bInterfaceSubClass            = 0x01,    /* Boot subclass */
+    .bInterfaceProtocol            = 0x02,    /* Mouse protocol */
+    .iInterface                    = STR_AMT_INTERFACE,
+    .ndesc                         = 1,
+    .descs = (USBDescOther[]) {
+        {
+            .data = (uint8_t[]) {
+                0x09,                             /* bLength */
+                USB_DT_HID,                       /* bDescriptorType */
+                0x10, 0x01,                       /* bcdHID 1.10 */
+                0x00,                             /* bCountryCode */
+                0x01,                             /* bNumDescriptors */
+                USB_DT_REPORT,
+                sizeof(amt_boot_mouse_report_desc) & 0xff,
+                sizeof(amt_boot_mouse_report_desc) >> 8,
+            },
+        },
+    },
+    .eps = (USBDescEndpoint[]) {
+        {
+            .bEndpointAddress      = USB_DIR_IN | 0x01,
+            .bmAttributes          = USB_ENDPOINT_XFER_INT,
+            .wMaxPacketSize        = 8,
+            .bInterval             = 8,
+        },
+    },
+};
+
+static const USBDescDevice desc_device_apple_magic_tablet = {
+    .bcdUSB                        = 0x0200,
+    .bMaxPacketSize0               = 64,
+    .bNumConfigurations            = 1,
+    .confs = (USBDescConfig[]) {
+        {
+            .bNumInterfaces        = 1,
+            .bConfigurationValue   = 1,
+            .iConfiguration        = STR_AMT_PRODUCT,
+            .bmAttributes          = USB_CFG_ATT_ONE,
+            .bMaxPower             = 50,    /* 100 mA — Mighty Mouse is wired */
+            .nif                   = 1,
+            .ifs                   = &desc_iface_apple_magic_tablet,
+        },
+    },
+};
+
+static const USBDesc desc_apple_magic_tablet = {
+    .id = {
+        .idVendor          = 0x05ac,    /* Apple Inc. */
+        .idProduct         = 0x0304,    /* Apple Mighty Mouse (M9087) */
+        .bcdDevice         = 0x0150,    /* fw rev 1.5 — looks plausible */
+        .iManufacturer     = STR_AMT_MFR,
+        .iProduct          = STR_AMT_PRODUCT,
+        .iSerialNumber     = STR_AMT_SERIAL,
+    },
+    /*
+     * Real Magic Trackpad runs at USB full-speed (12 Mb/s) despite
+     * declaring bcdUSB=0x0200 — same gotcha as Magic Keyboard.
+     * Advertise the same config under both .full and .high so QEMU's
+     * USB stack can pick whichever speed the host controller
+     * (qemu-xhci) negotiates.
+     */
+    .full = &desc_device_apple_magic_tablet,
+    .high = &desc_device_apple_magic_tablet,
+    .str  = desc_strings_amt,
+};
+
+/* Maximum queued boot-mouse reports waiting for the host to poll EP1.
+ * Must be a power of two. With dx/dy clamped to int8, a single large
+ * VNC pointer move (e.g. 2000 px) drains across ~16 reports — bumping
+ * to 64 keeps headroom for fast motion. */
+#define AMT_QUEUE_DEPTH      64
+#define AMT_REPORT_LEN       5      /* button + dx + dy + wheel + hwheel */
+
+typedef struct USBAppleMagicTabletReport {
+    uint8_t data[AMT_REPORT_LEN];
+} USBAppleMagicTabletReport;
+
+typedef struct USBAppleMagicTabletState {
+    USBDevice dev;
+    USBEndpoint *intr;
+
+    /* Pending input accumulation (drained on .sync). */
+    int32_t  pending_dx;
+    int32_t  pending_dy;
+    int32_t  pending_wheel;     /* vertical scroll, REL clicks */
+    int32_t  pending_hwheel;    /* horizontal scroll, REL clicks */
+    bool     button_left;
+    bool     button_right;
+    bool     button_middle;
+    bool     pending_event;
+
+    /* ABS→REL conversion state (VNC/SPICE/SDL deliver ABS). -1 = none yet. */
+    int32_t  last_abs_x;
+    int32_t  last_abs_y;
+
+    /* Ring queue of pending boot-mouse reports. */
+    USBAppleMagicTabletReport queue[AMT_QUEUE_DEPTH];
+    unsigned q_head;
+    unsigned q_tail;
+
+    /* QEMU input handler binding. */
+    QemuInputHandlerState *input_handler;
+} USBAppleMagicTabletState;
+
+/*
+ * Canonical type name is `apple-mighty-mouse` (this device emulates Apple
+ * Mighty Mouse PID 0x0304 — the wired ball mouse). Historic name
+ * `apple-magic-tablet` predates the 2026-05-09 fresh-eyes rewrite and is
+ * preserved as a legacy alias (registered below) for in-tree mos-docker
+ * `test.sh` back-compat. Internal symbols (`USBAppleMagicTabletState`,
+ * `usb_apple_magic_tablet_*`, `USB_APPLE_MAGIC_TABLET()` cast) keep their
+ * historic names to minimize diff churn — the rename is purely the
+ * user-facing `-device` string.
+ */
+#define TYPE_USB_APPLE_MAGIC_TABLET "apple-mighty-mouse"
+#define TYPE_USB_APPLE_MAGIC_TABLET_LEGACY "apple-magic-tablet"
+OBJECT_DECLARE_SIMPLE_TYPE(USBAppleMagicTabletState, USB_APPLE_MAGIC_TABLET)
+
+static inline unsigned amt_q_count(USBAppleMagicTabletState *s)
+{
+    return (s->q_head - s->q_tail) & (AMT_QUEUE_DEPTH - 1);
+}
+
+static inline bool amt_q_empty(USBAppleMagicTabletState *s)
+{
+    return s->q_head == s->q_tail;
+}
+
+static inline bool amt_q_full(USBAppleMagicTabletState *s)
+{
+    return amt_q_count(s) == AMT_QUEUE_DEPTH - 1;
+}
+
+static void amt_enqueue(USBAppleMagicTabletState *s, const uint8_t *data)
+{
+    if (amt_q_full(s)) {
+        /* Queue full — drop oldest. Latest motion matters more than stale. */
+        s->q_tail = (s->q_tail + 1) & (AMT_QUEUE_DEPTH - 1);
+    }
+    USBAppleMagicTabletReport *r = &s->queue[s->q_head];
+    memcpy(r->data, data, AMT_REPORT_LEN);
+    s->q_head = (s->q_head + 1) & (AMT_QUEUE_DEPTH - 1);
+}
+
+static int8_t amt_clamp_i8(int32_t v)
+{
+    if (v >  127) return  127;
+    if (v < -127) return -127;
+    return (int8_t)v;
+}
+
+/*
+ * Boot-mouse 3-byte report (no Report ID, per HID 1.11 boot mouse spec):
+ *   byte 0: 3-bit button mask (bit 0 = left, 1 = right, 2 = middle) + padding
+ *   byte 1: signed int8 dX
+ *   byte 2: signed int8 dY
+ *
+ * macOS' generic IOHIDPointing / AppleHIDMouseEventDriver consumes this
+ * directly as cursor motion. Apple Mighty Mouse (PID 0x0304) uses exactly
+ * this layout for its primary HID interface.
+ */
+static void amt_emit_boot_mouse(USBAppleMagicTabletState *s)
+{
+    uint8_t buf[AMT_REPORT_LEN];
+    int8_t dx = amt_clamp_i8(s->pending_dx);
+    int8_t dy = amt_clamp_i8(s->pending_dy);
+    int8_t wheel = amt_clamp_i8(s->pending_wheel);
+    int8_t hwheel = amt_clamp_i8(s->pending_hwheel);
+
+    s->pending_dx -= dx;
+    s->pending_dy -= dy;
+    s->pending_wheel -= wheel;
+    s->pending_hwheel -= hwheel;
+
+    buf[0] = (s->button_left   ? 0x01 : 0x00) |
+             (s->button_right  ? 0x02 : 0x00) |
+             (s->button_middle ? 0x04 : 0x00);
+    buf[1] = (uint8_t)dx;
+    buf[2] = (uint8_t)dy;
+    buf[3] = (uint8_t)wheel;
+    buf[4] = (uint8_t)hwheel;
+
+    amt_enqueue(s, buf);
+    usb_wakeup(s->intr, 0);
+}
+
+/* QemuInputHandler.event — accumulate per-event state. */
+static void amt_input_event(DeviceState *dev, QemuConsole *src,
+                            InputEvent *evt)
+{
+    USBAppleMagicTabletState *s = USB_APPLE_MAGIC_TABLET(dev);
+
+    switch (evt->type) {
+    case INPUT_EVENT_KIND_REL: {
+        InputMoveEvent *move = evt->u.rel.data;
+        if (move->axis == INPUT_AXIS_X) {
+            s->pending_dx += move->value;
+        } else if (move->axis == INPUT_AXIS_Y) {
+            s->pending_dy += move->value;
+        }
+        s->pending_event = true;
+        break;
+    }
+    case INPUT_EVENT_KIND_ABS: {
+        /* VNC/SPICE/SDL deliver ABS (0..0x7fff). Convert to REL by diffing
+         * against the prior ABS position; first ABS event seeds the anchor
+         * but emits no delta. Scale 0..32767 → 0..1920/1080 px. */
+        InputMoveEvent *move = evt->u.abs.data;
+        if (move->axis == INPUT_AXIS_X) {
+            int32_t scaled = (move->value * 1920) / 0x7fff;
+            if (s->last_abs_x >= 0) {
+                s->pending_dx += scaled - s->last_abs_x;
+            }
+            s->last_abs_x = scaled;
+        } else if (move->axis == INPUT_AXIS_Y) {
+            int32_t scaled = (move->value * 1080) / 0x7fff;
+            if (s->last_abs_y >= 0) {
+                s->pending_dy += scaled - s->last_abs_y;
+            }
+            s->last_abs_y = scaled;
+        }
+        s->pending_event = true;
+        break;
+    }
+    case INPUT_EVENT_KIND_BTN: {
+        InputBtnEvent *btn = evt->u.btn.data;
+        switch (btn->button) {
+        case INPUT_BUTTON_LEFT:
+            s->button_left = btn->down;
+            s->pending_event = true;
+            break;
+        case INPUT_BUTTON_RIGHT:
+            s->button_right = btn->down;
+            s->pending_event = true;
+            break;
+        case INPUT_BUTTON_MIDDLE:
+            s->button_middle = btn->down;
+            s->pending_event = true;
+            break;
+        case INPUT_BUTTON_WHEEL_UP:
+            if (btn->down) {
+                s->pending_wheel += 1;
+                s->pending_event = true;
+            }
+            break;
+        case INPUT_BUTTON_WHEEL_DOWN:
+            if (btn->down) {
+                s->pending_wheel -= 1;
+                s->pending_event = true;
+            }
+            break;
+        case INPUT_BUTTON_WHEEL_LEFT:
+            if (btn->down) {
+                s->pending_hwheel -= 1;
+                s->pending_event = true;
+            }
+            break;
+        case INPUT_BUTTON_WHEEL_RIGHT:
+            if (btn->down) {
+                s->pending_hwheel += 1;
+                s->pending_event = true;
+            }
+            break;
+        default:
+            break;
+        }
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+/* QemuInputHandler.sync — drain pending_dx/dy in 3-byte boot-mouse reports.
+ *
+ * Each report's dx/dy is clamped to int8 (±127). Large motions (e.g.,
+ * a single VNC ABS event mapping to a 1000+ px delta after diffing
+ * against the prior absolute position) need multiple reports to drain.
+ * Loop until both axes are zero, queueing a report per iteration.
+ *
+ * Cap the loop at a reasonable max so a runaway delta can't lock us up;
+ * the queue depth + bInterval naturally back-pressure if the host falls
+ * behind. */
+static void amt_input_sync(DeviceState *dev)
+{
+    USBAppleMagicTabletState *s = USB_APPLE_MAGIC_TABLET(dev);
+
+    if (!s->pending_event) {
+        return;
+    }
+    s->pending_event = false;
+
+    /* Always emit at least once (catches button-only changes with no motion). */
+    int loops = 0;
+    do {
+        amt_emit_boot_mouse(s);
+        loops++;
+    } while ((s->pending_dx != 0 || s->pending_dy != 0 ||
+              s->pending_wheel != 0 || s->pending_hwheel != 0) && loops < 64);
+}
+
+static QemuInputHandler amt_input_handler = {
+    .name  = "Apple Mighty Mouse",
+    /*
+     * Accept both REL and ABS pointer events. SDL/SPICE/HMP sendkey
+     * tend to send REL; VNC sends ABS. amt_input_event maps both onto
+     * the device's int8 dX/dY wire format.
+     */
+    .mask  = INPUT_EVENT_MASK_REL | INPUT_EVENT_MASK_ABS |
+             INPUT_EVENT_MASK_BTN,
+    .event = amt_input_event,
+    .sync  = amt_input_sync,
+};
+
+static void usb_apple_magic_tablet_realize(USBDevice *dev, Error **errp)
+{
+    USBAppleMagicTabletState *s = USB_APPLE_MAGIC_TABLET(dev);
+
+    usb_desc_create_serial(dev);
+    usb_desc_init(dev);
+    s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
+
+    s->q_head = s->q_tail = 0;
+    s->pending_dx = s->pending_dy = 0;
+    s->pending_wheel = s->pending_hwheel = 0;
+    s->button_left = s->button_right = s->button_middle = false;
+    s->last_abs_x = -1;
+    s->last_abs_y = -1;
+    s->pending_event = false;
+
+    s->input_handler = qemu_input_handler_register(DEVICE(dev),
+                                                   &amt_input_handler);
+    /* q35's built-in i8042 PS/2 mouse claims the input first; mark our
+     * handler active so VNC pointer events reach us. */
+    qemu_input_handler_activate(s->input_handler);
+}
+
+static void usb_apple_magic_tablet_unrealize(USBDevice *dev)
+{
+    USBAppleMagicTabletState *s = USB_APPLE_MAGIC_TABLET(dev);
+
+    if (s->input_handler) {
+        qemu_input_handler_unregister(s->input_handler);
+        s->input_handler = NULL;
+    }
+}
+
+static void usb_apple_magic_tablet_handle_reset(USBDevice *dev)
+{
+    USBAppleMagicTabletState *s = USB_APPLE_MAGIC_TABLET(dev);
+
+    s->q_head = s->q_tail = 0;
+    s->pending_dx = s->pending_dy = 0;
+    s->pending_wheel = s->pending_hwheel = 0;
+    s->button_left = s->button_right = s->button_middle = false;
+    s->pending_event = false;
+    s->last_abs_x = -1;
+    s->last_abs_y = -1;
+}
+
+static void usb_apple_magic_tablet_handle_control(USBDevice *dev, USBPacket *p,
+                                                  int request, int value,
+                                                  int index, int length,
+                                                  uint8_t *data)
+{
+    int ret;
+
+    ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
+    if (ret >= 0) {
+        return;
+    }
+
+    switch (request) {
+    case InterfaceRequest | USB_REQ_GET_DESCRIPTOR:
+        if ((value >> 8) == 0x22) {
+            uint16_t rd_len = sizeof(amt_boot_mouse_report_desc);
+            uint16_t copy = length < rd_len ? length : rd_len;
+            memcpy(data, amt_boot_mouse_report_desc, copy);
+            p->actual_length = copy;
+            return;
+        }
+        break;
+    case HID_GET_IDLE:
+        data[0] = 0;
+        p->actual_length = 1;
+        return;
+    case HID_SET_IDLE:
+        return;
+    case HID_GET_PROTOCOL:
+        data[0] = 1;       /* report protocol */
+        p->actual_length = 1;
+        return;
+    case HID_SET_PROTOCOL:
+        return;
+    case HID_GET_REPORT: {
+        uint16_t reply_len = (length > 0 && length <= 64) ? length : 1;
+        if (reply_len > length) {
+            reply_len = length;
+        }
+        memset(data, 0, reply_len);
+        p->actual_length = reply_len;
+        return;
+    }
+    case HID_SET_REPORT:
+        /* Silently accept any host-pushed report (LED state etc.) */
+        p->actual_length = length;
+        return;
+    }
+
+    p->status = USB_RET_STALL;
+}
+
+static void usb_apple_magic_tablet_handle_data(USBDevice *dev, USBPacket *p)
+{
+    USBAppleMagicTabletState *s = USB_APPLE_MAGIC_TABLET(dev);
+
+    if (p->pid != USB_TOKEN_IN || p->ep->nr != 1) {
+        p->status = USB_RET_STALL;
+        return;
+    }
+    if (amt_q_empty(s)) {
+        p->status = USB_RET_NAK;
+        return;
+    }
+
+    USBAppleMagicTabletReport *r = &s->queue[s->q_tail];
+    s->q_tail = (s->q_tail + 1) & (AMT_QUEUE_DEPTH - 1);
+    usb_packet_copy(p, r->data, AMT_REPORT_LEN);
+}
+
+static const VMStateDescription vmstate_apple_magic_tablet = {
+    .name = "apple-mighty-mouse",
+    .unmigratable = 1,
+};
+
+static void usb_apple_magic_tablet_class_initfn(ObjectClass *klass,
+                                                const void *data)
+{
+    DeviceClass    *dc = DEVICE_CLASS(klass);
+    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+
+    uc->realize        = usb_apple_magic_tablet_realize;
+    uc->product_desc   = "Apple Mighty Mouse";
+    uc->usb_desc       = &desc_apple_magic_tablet;
+    uc->handle_reset   = usb_apple_magic_tablet_handle_reset;
+    uc->handle_control = usb_apple_magic_tablet_handle_control;
+    uc->handle_data    = usb_apple_magic_tablet_handle_data;
+    uc->unrealize      = usb_apple_magic_tablet_unrealize;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+    dc->desc           = "Apple Mighty Mouse (USB HID boot mouse, "
+                         "VID 0x05ac PID 0x0304)";
+    dc->vmsd           = &vmstate_apple_magic_tablet;
+}
+
+static const TypeInfo usb_apple_magic_tablet_info = {
+    .name          = TYPE_USB_APPLE_MAGIC_TABLET,
+    .parent        = TYPE_USB_DEVICE,
+    .instance_size = sizeof(USBAppleMagicTabletState),
+    .class_init    = usb_apple_magic_tablet_class_initfn,
+};
+
+/*
+ * Legacy alias: `-device apple-magic-tablet` resolves to the same Mighty
+ * Mouse implementation. Inheriting via .parent reuses the parent's
+ * class_init and instance_size — no code duplication. Drop this alias
+ * after all in-tree consumers (mos-docker test.sh TABLET_DEVICE env) move
+ * to the canonical `apple-mighty-mouse`.
+ */
+static const TypeInfo usb_apple_magic_tablet_legacy_info = {
+    .name   = TYPE_USB_APPLE_MAGIC_TABLET_LEGACY,
+    .parent = TYPE_USB_APPLE_MAGIC_TABLET,
+};
+
 static void usb_hid_register_types(void)
 {
     type_register_static(&usb_hid_type_info);
@@ -1709,6 +2280,8 @@ static void usb_hid_register_types(void)
     type_register_static(&usb_keyboard_info);
     usb_legacy_register("usb-kbd", "keyboard", NULL);
     type_register_static(&usb_apple_magic_kbd_info);
+    type_register_static(&usb_apple_magic_tablet_info);
+    type_register_static(&usb_apple_magic_tablet_legacy_info);
 }
 
 type_init(usb_hid_register_types)
