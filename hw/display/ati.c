@@ -895,23 +895,25 @@ static void ati_mm_write(void *opaque, hwaddr addr,
                               (data & 0x4000) << 16;
         s->regs.dp_mix = (data & GMC_ROP3_MASK) | (data & 0x7000000) >> 16;
 
-        if (!(data & GMC_SRC_PITCH_OFFSET_CNTL)) {
-            s->regs.src_offset = s->regs.default_offset;
-            s->regs.src_pitch = s->regs.default_pitch;
-        }
-        if (!(data & GMC_DST_PITCH_OFFSET_CNTL)) {
-            s->regs.dst_offset = s->regs.default_offset;
-            s->regs.dst_pitch = s->regs.default_pitch;
-        }
-        if (!(data & GMC_SRC_CLIPPING)) {
-            s->regs.src_sc_right = s->regs.default_sc_right;
-            s->regs.src_sc_bottom = s->regs.default_sc_bottom;
-        }
-        if (!(data & GMC_DST_CLIPPING)) {
-            s->regs.sc_top = 0;
-            s->regs.sc_left = 0;
-            s->regs.sc_right = s->regs.default_sc_right;
-            s->regs.sc_bottom = s->regs.default_sc_bottom;
+        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+            if (!(data & GMC_SRC_PITCH_OFFSET_CNTL)) {
+                s->regs.src_offset = s->regs.default_offset;
+                s->regs.src_pitch = s->regs.default_pitch;
+            }
+            if (!(data & GMC_DST_PITCH_OFFSET_CNTL)) {
+                s->regs.dst_offset = s->regs.default_offset;
+                s->regs.dst_pitch = s->regs.default_pitch;
+            }
+            if (!(data & GMC_SRC_CLIPPING)) {
+                s->regs.src_sc_right = s->regs.default_sc_right;
+                s->regs.src_sc_bottom = s->regs.default_sc_bottom;
+            }
+            if (!(data & GMC_DST_CLIPPING)) {
+                s->regs.sc_top = 0;
+                s->regs.sc_left = 0;
+                s->regs.sc_right = s->regs.default_sc_right;
+                s->regs.sc_bottom = s->regs.default_sc_bottom;
+            }
         }
         break;
     case DST_WIDTH_X:

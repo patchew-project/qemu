@@ -104,18 +104,26 @@ static void setup_2d_blt_ctx(ATIVGAState *s, ATI2DCtx *ctx)
     ctx->top_to_bottom = s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM;
     ctx->need_swap = (HOST_BIG_ENDIAN != s->vga.big_endian_fb);
     ctx->frgd_clr = s->regs.dp_brush_frgd_clr;
-    ctx->dst_offset = s->regs.dst_offset;
 
     if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
         /* r128 scissor values are inclusive */
         ctx->scissor.width = s->regs.sc_right - s->regs.sc_left + 1;
         ctx->scissor.height = s->regs.sc_bottom - s->regs.sc_top + 1;
+        ctx->scissor.x = s->regs.sc_left;
+        ctx->scissor.y = s->regs.sc_top;
     } else {
-        ctx->scissor.width = s->regs.sc_right - s->regs.sc_left;
-        ctx->scissor.height = s->regs.sc_bottom - s->regs.sc_top;
+        if (s->regs.dp_gui_master_cntl & GMC_DST_CLIPPING) {
+            ctx->scissor.x = s->regs.sc_left;
+            ctx->scissor.y = s->regs.sc_top;
+            ctx->scissor.width = s->regs.sc_right - s->regs.sc_left;
+            ctx->scissor.height = s->regs.sc_bottom - s->regs.sc_top;
+        } else {
+            ctx->scissor.x = 0;
+            ctx->scissor.y = 0;
+            ctx->scissor.width = s->regs.default_sc_right;
+            ctx->scissor.height = s->regs.default_sc_bottom;
+        }
     }
-    ctx->scissor.x = s->regs.sc_left;
-    ctx->scissor.y = s->regs.sc_top;
 
     ctx->dst.width = s->regs.dst_width;
     ctx->dst.height = s->regs.dst_height;
@@ -123,20 +131,30 @@ static void setup_2d_blt_ctx(ATIVGAState *s, ATI2DCtx *ctx)
                  s->regs.dst_x : s->regs.dst_x + 1 - ctx->dst.width);
     ctx->dst.y = (ctx->top_to_bottom ?
                  s->regs.dst_y : s->regs.dst_y + 1 - ctx->dst.height);
-    ctx->dst_stride = s->regs.dst_pitch;
-    ctx->dst_bits = s->vga.vram_ptr + s->regs.dst_offset;
     if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-        ctx->dst_stride *= ctx->bpp;
+        ctx->dst_stride = s->regs.dst_pitch * ctx->bpp;
+        ctx->dst_offset = s->regs.dst_offset;
+    } else {
+        ctx->dst_stride = s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL
+                          ? s->regs.dst_pitch : s->regs.default_pitch;
+        ctx->dst_offset = s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL
+                          ? s->regs.dst_offset : s->regs.default_offset;
     }
+    ctx->dst_bits = s->vga.vram_ptr + ctx->dst_offset;
 
     ctx->src.x = (ctx->left_to_right ?
                  s->regs.src_x : s->regs.src_x + 1 - ctx->dst.width);
     ctx->src.y = (ctx->top_to_bottom ?
                  s->regs.src_y : s->regs.src_y + 1 - ctx->dst.height);
-    ctx->src_stride = s->regs.src_pitch;
-    ctx->src_bits = s->vga.vram_ptr + s->regs.src_offset;
     if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-        ctx->src_stride *= ctx->bpp;
+        ctx->src_stride = s->regs.src_pitch * ctx->bpp;
+        ctx->src_bits = s->vga.vram_ptr + s->regs.src_offset;
+    } else {
+        ctx->src_stride = s->regs.dp_gui_master_cntl & GMC_SRC_PITCH_OFFSET_CNTL
+                          ? s->regs.src_pitch : s->regs.default_pitch;
+        ctx->src_bits = s->vga.vram_ptr +
+                        (s->regs.dp_gui_master_cntl & GMC_SRC_PITCH_OFFSET_CNTL
+                        ? s->regs.src_offset : s->regs.default_offset);
     }
     DPRINTF("%d %d %d, %d %d %d, (%d,%d) -> (%d,%d) %dx%d %c %c\n",
             s->regs.src_offset, s->regs.dst_offset, s->regs.default_offset,
@@ -181,6 +199,7 @@ static bool ati_2d_do_blt(const ATI2DCtx *ctx, uint8_t use_pixman)
     qemu_rect_intersect(&ctx->dst, &ctx->scissor, &vis_dst);
     if (!vis_dst.height || !vis_dst.width) {
         /* Nothing is visible, completely clipped */
+        DPRINTF("entire blt clipped, nothing drawn\n");
         return false;
     }
     /*
