@@ -101,6 +101,15 @@ struct KVMDirtyRingReaper {
     volatile uint64_t reaper_iteration; /* iteration number of reaper thr */
     volatile enum KVMDirtyRingReaperState reaper_state; /* reap thr state */
 };
+
+typedef enum KVMPMU {
+    KVM_PMU_UNSET,
+    KVM_PMU_NONE,
+    KVM_PMU_DEFAULT,
+    KVM_PMU_EVENT_SOURCE,
+    KVM_PMU_FIXED_COUNTERS_ONLY
+} KVMPMU;
+
 struct KVMState
 {
     AccelState parent_obj;
@@ -157,6 +166,10 @@ struct KVMState
     uint64_t kvm_dirty_ring_bytes;  /* Size of the per-vcpu dirty ring */
     uint32_t kvm_dirty_ring_size;   /* Number of dirty GFNs per ring */
     bool kvm_dirty_ring_with_bitmap;
+    bool pmu_backcompat;
+    KVMPMU pmu;
+    uint32_t pmu_effective_event_source;
+    uint64_t pmu_user_event_source;
     uint64_t kvm_eager_split_size;  /* Eager Page Splitting chunk size */
     struct KVMDirtyRingReaper reaper;
     struct KVMMsrEnergy msr_energy;

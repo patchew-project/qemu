@@ -242,6 +242,7 @@ DEF("accel", HAS_ARG, QEMU_OPTION_accel,
     "                tb-size=n (TCG translation block cache size)\n"
     "                dirty-ring-size=n (KVM dirty ring GFN count, default 0)\n"
     "                eager-split-size=n (KVM Eager Page Split chunk size, default 0, disabled. ARM only)\n"
+    "                pmu=n (KVM PMU event type. ARM only)\n"
     "                notify-vmexit=run|internal-error|disable,notify-window=n (enable notify VM exit and set notify window, x86 only)\n"
     "                thread=single|multi (enable multi-threaded TCG)\n"
     "                device=path (KVM device path, default /dev/kvm)\n", QEMU_ARCH_ALL)
@@ -314,6 +315,29 @@ SRST
         PAGE_SIZE respectively. Be wary of specifying a higher size as it will
         have an impact on the memory. By default, this feature is disabled
         (eager-split-size=0).
+
+    ``pmu=n``
+        Specifies the event source to be used for Arm PMUv3 emulation. The value
+        specified here is identical to the one used in perf_event_open(2), but
+        not all event sources are compatible.
+
+        Since QEMU 11.1, the default behavior is to select a backend that
+        supports all host CPUs. First, QEMU looks for an event source that
+        covers all host CPUs. If none is found and KVM supports
+        fixed-counters-only emulation, QEMU requests that mode. It has no
+        programmable event counters, and KVM may use different event sources
+        as the vCPU migrates. If neither automatic backend is available, PMU
+        emulation is disabled by default.
+
+        Use this property to choose a specific event source. If you specify an
+        event source that only supports a subset of host CPUs, you must ensure
+        that guest CPUs run exclusively on those supported host CPUs.
+
+        Prior to 11.1, KVM chose an arbitrary host PMU that supports at least
+        one CPU in the process's affinity.
+
+        Ensure that the CPU's ``pmu`` property is also set to ``on`` to enable
+        the emulation when setting this property.
 
     ``notify-vmexit=run|internal-error|disable,notify-window=n``
         Enables or disables notify VM exit support on x86 host and specify
