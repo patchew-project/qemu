@@ -222,6 +222,12 @@
 #define CLR_CMP_MASK                            0x15cc
 #define DP_SRC_FRGD_CLR                         0x15d8
 #define DP_SRC_BKGD_CLR                         0x15dc
+#define SCRATCH_REG0                            0x15e0
+#define SCRATCH_REG1                            0x15e4
+#define SCRATCH_REG2                            0x15e8
+#define SCRATCH_REG3                            0x15ec
+#define SCRATCH_REG4                            0x15f0
+#define SCRATCH_REG5                            0x15f4
 #define DST_BRES_ERR                            0x1628
 #define DST_BRES_INC                            0x162c
 #define DST_BRES_DEC                            0x1630

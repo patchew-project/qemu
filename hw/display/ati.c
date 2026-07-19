@@ -629,6 +629,14 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case CP_IB_BUFSZ:
         val = s->regs.cp_ib_bufsz;
         break;
+    case SCRATCH_REG0:
+    case SCRATCH_REG1:
+    case SCRATCH_REG2:
+    case SCRATCH_REG3:
+    case SCRATCH_REG4:
+    case SCRATCH_REG5:
+        val = s->regs.scratch_reg[(addr - SCRATCH_REG0) / sizeof(uint32_t)];
+        break;
     default:
         break;
     }
@@ -1195,6 +1203,17 @@ void ati_mm_write(void *opaque, hwaddr addr,
             ati_pkt_receive_data(s, &ib_pkt, ati_mc_read(s, offs));
             dwords += 1;
         }
+        break;
+    }
+    case SCRATCH_REG0:
+    case SCRATCH_REG1:
+    case SCRATCH_REG2:
+    case SCRATCH_REG3:
+    case SCRATCH_REG4:
+    case SCRATCH_REG5:
+    {
+        int reg_idx = (addr - SCRATCH_REG0) / sizeof(uint32_t);
+        s->regs.scratch_reg[reg_idx] = data;
         break;
     }
     default:

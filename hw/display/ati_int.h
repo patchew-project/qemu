@@ -131,6 +131,7 @@ typedef struct ATIVGARegs {
     uint32_t cp_rb_wptr;
     uint32_t cp_ib_base;
     uint32_t cp_ib_bufsz;
+    uint32_t scratch_reg[6];
 } ATIVGARegs;
 
 typedef struct ATIHostDataState {
