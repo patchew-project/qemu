@@ -27,6 +27,9 @@
 #include <net/ethernet.h>
 #endif
 #include <paths.h>
+#ifdef CONFIG_FREEBSD
+#include <devstat.h>
+#endif
 
 #if defined(CONFIG_FSFREEZE) || defined(CONFIG_FSTRIM)
 bool build_fs_mount_list(FsMountList *mounts, Error **errp)
@@ -178,3 +181,127 @@ bool guest_get_hw_addr(struct ifaddrs *ifa, unsigned char *buf,
     return true;
 }
 #endif /* HAVE_GETIFADDRS */
+
+#ifdef CONFIG_FREEBSD
+static uint64_t bintime_to_msec(const struct bintime *bt)
+{
+    return (uint64_t)bt->sec * 1000ULL + (((bt->frac >> 32) * 1000ULL) >> 32);
+}
+
+static void guest_diskstats_append(GuestDiskStatsInfoList ***tailp,
+                                   const struct devstat *dev)
+{
+    GuestDiskStatsInfoList **tail = *tailp;
+    g_autofree GuestDiskStatsInfo *diskstatinfo = NULL;
+    g_autofree GuestDiskStats *diskstat = NULL;
+
+    diskstatinfo = g_new0(GuestDiskStatsInfo, 1);
+    diskstatinfo->name = g_strdup_printf("%s%d", dev->device_name,
+                                         dev->unit_number);
+    /*
+     * devstat does not expose Linux-style major/minor numbers.  Report the
+     * devstat device number and unit number in these mandatory QAPI fields.
+     */
+    diskstatinfo->major = dev->device_number;
+    diskstatinfo->minor = dev->unit_number;
+
+    diskstat = g_new0(GuestDiskStats, 1);
+    diskstat->has_read_ios = true;
+    diskstat->read_ios = dev->operations[DEVSTAT_READ];
+    diskstat->has_read_sectors = true;
+    diskstat->read_sectors = dev->bytes[DEVSTAT_READ] / BDRV_SECTOR_SIZE;
+    diskstat->has_read_ticks = true;
+    diskstat->read_ticks = bintime_to_msec(&dev->duration[DEVSTAT_READ]);
+
+    diskstat->has_write_ios = true;
+    diskstat->write_ios = dev->operations[DEVSTAT_WRITE];
+    diskstat->has_write_sectors = true;
+    diskstat->write_sectors = dev->bytes[DEVSTAT_WRITE] / BDRV_SECTOR_SIZE;
+    diskstat->has_write_ticks = true;
+    diskstat->write_ticks = bintime_to_msec(&dev->duration[DEVSTAT_WRITE]);
+
+    diskstat->has_discard_ios = true;
+    diskstat->discard_ios = dev->operations[DEVSTAT_FREE];
+    diskstat->has_discard_sectors = true;
+    diskstat->discard_sectors = dev->bytes[DEVSTAT_FREE] / BDRV_SECTOR_SIZE;
+    diskstat->has_discard_ticks = true;
+    diskstat->discard_ticks = bintime_to_msec(&dev->duration[DEVSTAT_FREE]);
+
+    diskstat->has_ios_pgr = true;
+    if (dev->start_count >= dev->end_count) {
+        diskstat->ios_pgr = dev->start_count - dev->end_count;
+    }
+
+    diskstat->has_total_ticks = true;
+    diskstat->total_ticks = bintime_to_msec(&dev->busy_time);
+
+    diskstatinfo->stats = g_steal_pointer(&diskstat);
+    QAPI_LIST_APPEND(tail, diskstatinfo);
+    diskstatinfo = NULL;
+
+    *tailp = tail;
+}
+
+static GuestDiskStatsInfoList *guest_get_diskstats(Error **errp)
+{
+    GuestDiskStatsInfoList *head = NULL, **tail = &head;
+    struct devinfo dinfo = { 0 };
+    struct statinfo stats = { .dinfo = &dinfo };
+    struct device_selection *dev_select = NULL;
+    struct devstat_match matches[] = {
+        {
+            .match_fields = DEVSTAT_MATCH_TYPE,
+            .device_type = DEVSTAT_TYPE_DIRECT,
+            .num_match_categories = 1,
+        },
+    };
+    int num_selected = 0;
+    int num_selections = 0;
+    long select_generation = 0;
+    int i;
+
+    if (devstat_checkversion(NULL) == -1) {
+        error_setg(errp, "%s", devstat_errbuf);
+        return NULL;
+    }
+
+    if (devstat_getdevs(NULL, &stats) == -1) {
+        error_setg(errp, "%s", devstat_errbuf);
+        return NULL;
+    }
+
+    if (devstat_selectdevs(&dev_select, &num_selected, &num_selections,
+                           &select_generation, stats.dinfo->generation,
+                           stats.dinfo->devices, stats.dinfo->numdevs,
+                           matches, ARRAY_SIZE(matches), NULL, 0,
+                           DS_SELECT_ONLY,
+                           stats.dinfo->numdevs, 0) == -1) {
+        error_setg(errp, "%s", devstat_errbuf);
+        goto error;
+    }
+
+    for (i = 0; i < num_selections; i++) {
+        if (dev_select[i].selected == 0) {
+            continue;
+        }
+
+        guest_diskstats_append(&tail,
+                               &stats.dinfo->devices[dev_select[i].position]);
+    }
+
+    free(stats.dinfo->mem_ptr);
+    free(dev_select);
+    return head;
+
+error:
+    qapi_free_GuestDiskStatsInfoList(head);
+    free(stats.dinfo->mem_ptr);
+    free(dev_select);
+    return NULL;
+}
+
+GuestDiskStatsInfoList *qmp_guest_get_diskstats(Error **errp)
+{
+    return guest_get_diskstats(errp);
+}
+#endif /* CONFIG_FREEBSD */
