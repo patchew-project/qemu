@@ -135,10 +135,13 @@ static void setup_2d_blt_ctx(ATIVGAState *s, ATI2DCtx *ctx)
         ctx->dst_stride = s->regs.dst_pitch * ctx->bpp;
         ctx->dst_offset = s->regs.dst_offset;
     } else {
+        ATIMemRoute res = ati_mc_route(s, s->regs.dp_gui_master_cntl &
+                                       GMC_DST_PITCH_OFFSET_CNTL
+                                       ? s->regs.dst_offset
+                                       : s->regs.default_offset);
         ctx->dst_stride = s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL
                           ? s->regs.dst_pitch : s->regs.default_pitch;
-        ctx->dst_offset = s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL
-                          ? s->regs.dst_offset : s->regs.default_offset;
+        ctx->dst_offset = res.addr;
     }
     ctx->dst_bits = s->vga.vram_ptr + ctx->dst_offset;
 
@@ -150,11 +153,13 @@ static void setup_2d_blt_ctx(ATIVGAState *s, ATI2DCtx *ctx)
         ctx->src_stride = s->regs.src_pitch * ctx->bpp;
         ctx->src_bits = s->vga.vram_ptr + s->regs.src_offset;
     } else {
+        uint32_t src = s->regs.dp_gui_master_cntl & GMC_SRC_PITCH_OFFSET_CNTL
+                       ? s->regs.src_offset
+                       : s->regs.default_offset;
+        ATIMemRoute res = ati_mc_route(s, src);
         ctx->src_stride = s->regs.dp_gui_master_cntl & GMC_SRC_PITCH_OFFSET_CNTL
                           ? s->regs.src_pitch : s->regs.default_pitch;
-        ctx->src_bits = s->vga.vram_ptr +
-                        (s->regs.dp_gui_master_cntl & GMC_SRC_PITCH_OFFSET_CNTL
-                        ? s->regs.src_offset : s->regs.default_offset);
+        ctx->src_bits = s->vga.vram_ptr + res.addr;
     }
     DPRINTF("%d %d %d, %d %d %d, (%d,%d) -> (%d,%d) %dx%d %c %c\n",
             s->regs.src_offset, s->regs.dst_offset, s->regs.default_offset,
