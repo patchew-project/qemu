@@ -282,6 +282,16 @@ void cpu_loop (CPUSPARCState *env)
             break;
         case TT_TRAP + 0x6f:
             flush_windows(env);
+            /*
+             * If we have a pending signal, sparc64_set_context() may
+             * return early without changing register state (like a
+             * syscall that returns -QEMU_ERESTARTSYS). We will then
+             * take the pending signal via process_pending_signals()
+             * below and eventually re-execute the trap. We don't need
+             * the function to return a different value for the
+             * "restart" case because this main loop code does the
+             * same thing in both cases.
+             */
             sparc64_set_context(env);
             break;
 #endif
