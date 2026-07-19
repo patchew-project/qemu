@@ -825,9 +825,11 @@ static void ati_mm_write(void *opaque, hwaddr addr,
             s->regs.dst_offset = data & 0xfffffff0;
         break;
     case DST_PITCH:
-            s->regs.dst_pitch = data & 0x3fff;
         if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+            s->regs.dst_pitch = data & 0x3fff;
             s->regs.dst_tile = (data >> 16) & 1;
+        } else {
+            s->regs.dst_pitch = data & 0x3ff0;
         }
         break;
     case DST_TILE:
@@ -942,9 +944,11 @@ static void ati_mm_write(void *opaque, hwaddr addr,
             s->regs.src_offset = data & 0xfffffff0;
         break;
     case SRC_PITCH:
-            s->regs.src_pitch = data & 0x3fff;
         if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+            s->regs.src_pitch = data & 0x3fff;
             s->regs.src_tile = (data >> 16) & 1;
+        } else {
+            s->regs.src_pitch = data & 0x3ff0;
         }
         break;
     case DP_BRUSH_BKGD_CLR:
