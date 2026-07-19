@@ -95,6 +95,11 @@ typedef struct ATIVGARegs {
     uint16_t default_sc_bottom;
     uint16_t default_sc_right;
     uint32_t default_tile;
+    uint32_t aic_ctrl;
+    uint32_t aic_pt_base;
+    uint32_t aic_lo_addr;
+    uint32_t aic_hi_addr;
+    uint32_t mc_fb_location;
 } ATIVGARegs;
 
 typedef struct ATIHostDataState {
@@ -127,8 +132,14 @@ struct ATIVGAState {
     ATIHostDataState host_data;
 };
 
+typedef struct {
+    bool is_vram;
+    hwaddr addr;
+} ATIMemRoute;
+
 const char *ati_reg_name(int num);
 
+ATIMemRoute ati_mc_route(ATIVGAState *s, uint32_t gpu_addr);
 void ati_2d_blt(ATIVGAState *s);
 bool ati_host_data_flush(ATIVGAState *s);
 void ati_host_data_finish(ATIVGAState *s);

@@ -73,6 +73,10 @@
 #define MPP_TB_CONFIG                           0x01C0
 #define MPP_GP_CONFIG                           0x01C8
 #define VIPH_CONTROL                            0x01D0
+#define AIC_CTRL                                0x01D0
+#define AIC_PT_BASE                             0x01D8
+#define AIC_LO_ADDR                             0x01DC
+#define AIC_HI_ADDR                             0x01E0
 #define CRTC_H_TOTAL_DISP                       0x0200
 #define CRTC_H_SYNC_STRT_WID                    0x0204
 #define CRTC_V_TOTAL_DISP                       0x0208
@@ -476,6 +480,9 @@
 
 /* CRTC2_GEN_CNTL constants */
 #define CRTC2_EN                                0x02000000
+
+/* AIC_CTRL constants */
+#define PCIGART_TRANSLATE_EN                    0x00000001
 
 /* POWER_MANAGEMENT constants */
 #define PWR_MGT_ON                              0x00000001

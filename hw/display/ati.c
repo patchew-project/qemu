@@ -277,6 +277,55 @@ static inline uint32_t ati_reg_read_offs(uint32_t reg, int offs,
     }
 }
 
+ATIMemRoute ati_mc_route(ATIVGAState *s, uint32_t gpu_addr)
+{
+    uint32_t fb_start = (s->regs.mc_fb_location & 0xffff) << 16;
+    uint32_t fb_top = s->regs.mc_fb_location | 0xffff;
+
+    /* Framebuffer */
+    if (gpu_addr >= fb_start && gpu_addr <= fb_top) {
+        uint32_t offs = (gpu_addr - fb_start) % s->vga.vram_size;
+        return (ATIMemRoute) { .is_vram = true, .addr = offs };
+    }
+
+    /* PCI GART */
+    if ((s->regs.aic_ctrl & PCIGART_TRANSLATE_EN) &&
+       /* aic_{lo,hi}_addr are page-aligned and inclusive */
+       gpu_addr >= s->regs.aic_lo_addr &&
+       gpu_addr < s->regs.aic_hi_addr + 0x1000) {
+        uint32_t pg_idx = (gpu_addr - s->regs.aic_lo_addr) >> 12;
+        uint32_t pte;
+        if (ldl_le_pci_dma(&s->dev,
+                           s->regs.aic_pt_base + pg_idx * sizeof(uint32_t),
+                           &pte, MEMTXATTRS_UNSPECIFIED)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "PCI GART pte read failed\n");
+            return (ATIMemRoute) { .is_vram = false, .addr = 0 };
+        }
+        return (ATIMemRoute) {
+            .is_vram = false,
+            .addr = (pte & 0xfffff000) | (gpu_addr & 0xfff),
+        };
+    }
+
+    /* System memory */
+    return (ATIMemRoute) { .is_vram = false, .addr = gpu_addr };
+}
+
+static uint32_t ati_mc_read(ATIVGAState *s, uint32_t gpu_addr)
+{
+    ATIMemRoute route = ati_mc_route(s, gpu_addr);
+    uint32_t val;
+
+    if (route.is_vram) {
+        return ldl_le_p(s->vga.vram_ptr + route.addr);
+    }
+    if (ldl_le_pci_dma(&s->dev, route.addr, &val, MEMTXATTRS_UNSPECIFIED)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "MC DMA read failed\n");
+        return 0;
+    }
+    return val;
+}
+
 static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
 {
     ATIVGAState *s = opaque;
@@ -541,6 +590,21 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case SRC_SC_BOTTOM_RIGHT:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Read from write-only register 0x%x\n", (unsigned)addr);
+        break;
+    case AIC_CTRL:
+        val = s->regs.aic_ctrl;
+        break;
+    case AIC_PT_BASE:
+        val = s->regs.aic_pt_base;
+        break;
+    case AIC_LO_ADDR:
+        val = s->regs.aic_lo_addr;
+        break;
+    case AIC_HI_ADDR:
+        val = s->regs.aic_hi_addr;
+        break;
+    case MC_FB_LOCATION:
+        val = s->regs.mc_fb_location;
         break;
     default:
         break;
@@ -1045,6 +1109,25 @@ static void ati_mm_write(void *opaque, hwaddr addr,
             ati_host_data_flush(s);
             s->host_data.next = 0;
         }
+        break;
+    case AIC_CTRL:
+        s->regs.aic_ctrl = data;
+        break;
+    case AIC_PT_BASE:
+        s->regs.aic_pt_base = data & 0xfffff000;
+        break;
+    case AIC_LO_ADDR:
+        s->regs.aic_lo_addr = data & 0xfffff000;
+        break;
+    case AIC_HI_ADDR:
+        s->regs.aic_hi_addr = data & 0xfffff000;
+        break;
+    case MC_FB_LOCATION:
+        /*
+         * The bottom 6 bits of fb start are hard-wired to 0
+         * and the bottom 6 bits of fb top are hard-wired to 1
+         */
+        s->regs.mc_fb_location = (data & 0xffc0ffc0) | 0x003f0000;
         break;
     default:
         break;
