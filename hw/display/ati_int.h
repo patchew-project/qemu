@@ -124,6 +124,11 @@ typedef struct ATIVGARegs {
     uint32_t aic_lo_addr;
     uint32_t aic_hi_addr;
     uint32_t mc_fb_location;
+    uint32_t cp_csq_cntl;
+    uint32_t cp_rb_base;
+    uint32_t cp_rb_cntl;
+    uint32_t cp_rb_rptr;
+    uint32_t cp_rb_wptr;
 } ATIVGARegs;
 
 typedef struct ATIHostDataState {

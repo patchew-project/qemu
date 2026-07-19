@@ -606,6 +606,23 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case MC_FB_LOCATION:
         val = s->regs.mc_fb_location;
         break;
+    case CP_CSQ_CNTL:
+        if (s->dev_id == PCI_DEVICE_ID_ATI_RADEON_QY) {
+            val = s->regs.cp_csq_cntl;
+        }
+        break;
+    case CP_RB_BASE:
+        val = s->regs.cp_rb_base;
+        break;
+    case CP_RB_CNTL:
+        val = s->regs.cp_rb_cntl;
+        break;
+    case CP_RB_RPTR:
+        val = s->regs.cp_rb_rptr;
+        break;
+    case CP_RB_WPTR:
+        val = s->regs.cp_rb_wptr;
+        break;
     default:
         break;
     }
@@ -1129,6 +1146,35 @@ void ati_mm_write(void *opaque, hwaddr addr,
          */
         s->regs.mc_fb_location = (data & 0xffc0ffc0) | 0x003f0000;
         break;
+    case CP_CSQ_CNTL:
+        if (s->dev_id == PCI_DEVICE_ID_ATI_RADEON_QY) {
+            s->regs.cp_csq_cntl = data & 0xf0000000;
+        }
+        break;
+    case CP_RB_BASE:
+        s->regs.cp_rb_base = data & 0xfffffffc;
+        break;
+    case CP_RB_CNTL:
+        s->regs.cp_rb_cntl = data & 0x880f3f3f;
+        break;
+    case CP_RB_WPTR:
+    {
+        uint32_t size_l2qw = s->regs.cp_rb_cntl & 0x3f;
+        /*
+         * RPTR and WPTR are only 23 bits wide, sizes larger
+         * than this make no sense.
+         */
+        unsigned shift = size_l2qw > 22 ? 23 : size_l2qw + 1;
+        uint32_t size_msk = (1U << shift) - 1;
+        s->regs.cp_rb_wptr = data & size_msk;
+        while (s->regs.cp_rb_rptr != s->regs.cp_rb_wptr) {
+            uint32_t offs = s->regs.cp_rb_base +
+                            s->regs.cp_rb_rptr * sizeof(uint32_t);
+            ati_pkt_receive_data(s, &s->cur_packet, ati_mc_read(s, offs));
+            s->regs.cp_rb_rptr = (s->regs.cp_rb_rptr + 1) & size_msk;
+        }
+        break;
+    }
     default:
         break;
     }
@@ -1251,6 +1297,10 @@ static void ati_vga_reset(DeviceState *dev)
     s->host_data.next = 0;
     s->host_data.row = 0;
     s->host_data.col = 0;
+    s->regs.cp_rb_rptr = 0;
+    s->regs.cp_rb_wptr = 0;
+    s->regs.cp_rb_base = 0;
+    s->regs.cp_rb_cntl = 0;
     memset(&s->cur_packet, 0, sizeof(s->cur_packet));
 }
 

@@ -117,11 +117,15 @@
 #define OV0_SCALE_CNTL                          0x0420
 #define SUBPIC_CNTL                             0x0540
 #define PM4_BUFFER_OFFSET                       0x0700
+#define CP_RB_BASE                              0x0700
 #define PM4_BUFFER_CNTL                         0x0704
+#define CP_RB_CNTL                              0x0704
 #define PM4_BUFFER_WM_CNTL                      0x0708
 #define PM4_BUFFER_DL_RPTR_ADDR                 0x070c
 #define PM4_BUFFER_DL_RPTR                      0x0710
+#define CP_RB_RPTR                              0x0710
 #define PM4_BUFFER_DL_WPTR                      0x0714
+#define CP_RB_WPTR                              0x0714
 #define PM4_VC_FPU_SETUP                        0x071c
 #define PM4_FPU_CNTL                            0x0720
 #define PM4_VC_FORMAT                           0x0724
@@ -132,6 +136,7 @@
 #define PM4_IW_INDOFF                           0x0738
 #define PM4_IW_INDSIZE                          0x073c
 #define PM4_FPU_FPX0                            0x0740
+#define CP_CSQ_CNTL                             0x0740
 #define PM4_FPU_FPY0                            0x0744
 #define PM4_FPU_FPX1                            0x0748
 #define PM4_FPU_FPY1                            0x074c
