@@ -218,10 +218,15 @@ enum {
 #define SVGA_FIFO_FLAG_NONE             0
 #define SVGA_FIFO_FLAG_ACCELFRONT       (1 << 0)
 
-/* These values can probably be changed arbitrarily.  */
+/*
+ * Raise the software-side geometry cap to 5K (5120x2880) so modern
+ * macOS/Linux guests can negotiate Retina-class modes. The VRAM BAR
+ * still bounds what the guest can actually allocate; this is an upper
+ * bound for mode validation.
+ */
 #define SVGA_SCRATCH_SIZE               0x8000
-#define SVGA_MAX_WIDTH                  2368
-#define SVGA_MAX_HEIGHT                 1770
+#define SVGA_MAX_WIDTH                  5120
+#define SVGA_MAX_HEIGHT                 2880
 
 #ifdef VERBOSE
 # define GUEST_OS_BASE          0x5001
