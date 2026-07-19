@@ -10,7 +10,8 @@
  * nothing about how a library is thunked. Any toolchain can implement the
  * userspace side. Lorelei is one end-to-end implementation (guest/host
  * runtimes plus a thunk compiler that generates thunks from a library's
- * headers):
+ * headers), and how it handles argument marshalling, callbacks and variadic
+ * functions can serve as a reference:
  * https://github.com/rover2024/lorelei
  *
  * See docs/about/emulation.rst|Dynamic Linking Call for details and examples.
@@ -20,12 +21,13 @@
  * execution in the QEMU host process. It is NOT a sandbox and provides no
  * isolation; only load it for guests you fully trust.
  *
- * WARNING: requires guest_base == 0, which is qemu-user's default. Pointer
- * operands are dereferenced as host addresses directly, and the invoked host
- * functions dereference guest pointers with no address translation, so guest
- * and host must share a single address space. A non-zero guest_base (e.g. set
- * via -B/-R) would make every pointer off by guest_base and hit unrelated
- * host memory.
+ * WARNING: requires guest_base == 0, which is qemu-user's default, and a
+ * guest whose pointer width and endianness match the host's. Pointer operands
+ * are dereferenced as host addresses directly, and the invoked host functions
+ * dereference guest pointers with no address translation, so guest and host
+ * must share a single address space and agree on how a pointer is stored. A
+ * non-zero guest_base (e.g. set via -B/-R) would make every pointer off by
+ * guest_base and hit unrelated host memory.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -46,8 +48,18 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
  *
  * It defaults to DLCALL_SYSCALL_DEFAULT and can be overridden at load time
  * with the "syscall_num=N" argument. To avoid hijacking a real syscall the
- * guest might issue, N must be at least DLCALL_SYSCALL_MIN: every Linux ABI
- * keeps its syscall numbers well below this; numbers from here up are free.
+ * guest might issue, N must be at least DLCALL_SYSCALL_MIN, which most Linux
+ * ABIs keep their syscall numbers well below.
+ *
+ * N also has to reach the filter at all, which bounds it from above in a
+ * target specific way: arm32 answers anything past ARM_NR_BASE (0xf0000) with
+ * ENOSYS or SIGILL before do_syscall() runs, while aarch64 has no such bound.
+ *
+ * MIPS O32 bases its numbering at 4000, so the default is a real syscall there
+ * (getpriority). Raising N does not help either, because O32 rejects numbers
+ * its table does not define, again before the filter runs, which leaves no
+ * number that is both free and reachable on that ABI. Its N32 and N64 ABIs
+ * base at 6000 and 5000 and have no such gate, so they are unaffected.
  */
 enum {
     DLCALL_SYSCALL_DEFAULT = 4096,
@@ -168,6 +180,7 @@ static bool vcpu_syscall_filter(unsigned int vcpu_index,
         case DLCALL_ID_FREE_LIBRARY: {
             void *handle = (void *) a2;
             int *ret_ptr = (int *) a3;
+            assert(ret_ptr);
             *ret_ptr = dlclose(handle);
             *sysret = 0;
             break;
@@ -176,6 +189,7 @@ static bool vcpu_syscall_filter(unsigned int vcpu_index,
         /* Get the last error message for a library event. */
         case DLCALL_ID_GET_LIBRARY_ERROR: {
             const char **error_ptr = (const char **) a2;
+            assert(error_ptr);
             *error_ptr = dlerror();
             *sysret = 0;
             break;
