@@ -106,8 +106,14 @@ static void setup_2d_blt_ctx(ATIVGAState *s, ATI2DCtx *ctx)
     ctx->frgd_clr = s->regs.dp_brush_frgd_clr;
     ctx->dst_offset = s->regs.dst_offset;
 
-    ctx->scissor.width = s->regs.sc_right - s->regs.sc_left + 1;
-    ctx->scissor.height = s->regs.sc_bottom - s->regs.sc_top + 1;
+    if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+        /* r128 scissor values are inclusive */
+        ctx->scissor.width = s->regs.sc_right - s->regs.sc_left + 1;
+        ctx->scissor.height = s->regs.sc_bottom - s->regs.sc_top + 1;
+    } else {
+        ctx->scissor.width = s->regs.sc_right - s->regs.sc_left;
+        ctx->scissor.height = s->regs.sc_bottom - s->regs.sc_top;
+    }
     ctx->scissor.x = s->regs.sc_left;
     ctx->scissor.y = s->regs.sc_top;
 
