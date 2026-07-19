@@ -901,7 +901,18 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
         break;
 
     case SVGA_REG_CAPABILITIES:
-        caps = SVGA_CAP_PITCHLOCK | SVGA_CAP_EXTENDED_FIFO;
+        /*
+         * Advertise the capability bits that modern VMware SVGA II guest
+         * drivers (Linux vmwgfx, macOS 10.13+, Windows 10+) expect at a
+         * minimum. PITCHLOCK lets the guest pin the scanout pitch across
+         * mode changes; EXTENDED_FIFO exposes the pitchlock/fence/3d-hw
+         * FIFO registers above SVGA_FIFO_STOP; 8BIT_EMULATION advertises
+         * legacy palette support; ALPHA_BLEND / ALPHA_CURSOR are
+         * required for the 32-bit ARGB hardware cursor path.
+         */
+        caps = SVGA_CAP_PITCHLOCK | SVGA_CAP_EXTENDED_FIFO |
+               SVGA_CAP_8BIT_EMULATION | SVGA_CAP_ALPHA_BLEND |
+               SVGA_CAP_ALPHA_CURSOR;
 #ifdef HW_RECT_ACCEL
         caps |= SVGA_CAP_RECT_COPY;
 #endif
