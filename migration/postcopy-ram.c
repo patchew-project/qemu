@@ -1368,7 +1368,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
                 }
             }
             if (msg.event != UFFD_EVENT_PAGEFAULT) {
-                error_report("%s: Read unexpected event %ud from userfaultfd",
+                error_report("%s: Read unexpected event %u from userfaultfd",
                              __func__, msg.event);
                 continue; /* It's not a page fault, shouldn't happen */
             }
@@ -1443,7 +1443,7 @@ retry:
                     }
                 }
                 if (msg.event != UFFD_EVENT_PAGEFAULT) {
-                    error_report("%s: Read unexpected event %ud "
+                    error_report("%s: Read unexpected event %u "
                                  "from userfaultfd (shared)",
                                  __func__, msg.event);
                     continue; /* It's not a page fault, shouldn't happen */
