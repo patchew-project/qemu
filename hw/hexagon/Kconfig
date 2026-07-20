@@ -2,6 +2,7 @@ config HEX_DSP
     bool
     default y
     depends on HEXAGON
+    select ARM_COMPATIBLE_SEMIHOSTING
 
 config HEX_VIRT
     bool
