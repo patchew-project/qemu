@@ -1846,28 +1846,14 @@ void HELPER(setimask)(CPUHexagonState *env, uint32_t tid, uint32_t imask)
 void HELPER(sreg_write_masked)(CPUHexagonState *env, uint32_t reg, uint32_t val)
 {
     BQL_LOCK_GUARD();
-    if (reg < HEX_SREG_GLB_START) {
-        env->t_sreg[reg] = val;
-    } else {
-        HexagonCPU *cpu = env_archcpu(env);
-        if (cpu->globalregs) {
-            hexagon_globalreg_write_masked(cpu->globalregs, reg, val);
-        }
-    }
+    arch_set_system_reg_masked(env, reg, val);
 }
 
 static inline QEMU_ALWAYS_INLINE uint32_t sreg_read(CPUHexagonState *env,
                                                     uint32_t reg)
 {
-    HexagonCPU *cpu;
-
     g_assert(bql_locked());
-    if (reg < HEX_SREG_GLB_START) {
-        return env->t_sreg[reg];
-    }
-    cpu = env_archcpu(env);
-    return cpu->globalregs ?
-        hexagon_globalreg_read(cpu->globalregs, reg, env->threadId) : 0;
+    return arch_get_system_reg(env, reg);
 }
 
 uint32_t HELPER(sreg_read)(CPUHexagonState *env, uint32_t reg)
