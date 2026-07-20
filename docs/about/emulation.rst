@@ -1072,14 +1072,13 @@ syscall, so the real kernel never sees it.
    Trusted guests only. The guest can load arbitrary host libraries and run
    arbitrary code in the QEMU host process. The plugin is not a sandbox and
    provides no isolation. It also requires ``guest_base == 0`` (qemu-user's
-   default), as guest pointers are dereferenced as host addresses with no
-   translation.
+   default) and a guest whose pointer width and endianness match the host's, as
+   guest pointers are dereferenced as host addresses with no translation.
 
 The plugin intentionally keeps the QEMU side lightweight and knows nothing
-about any particular library or its calling convention. Turning a real library
-into working thunks, including argument marshalling, callbacks and variadic
-functions, is done entirely in userspace, and any toolchain can implement the
-interface.
+about any particular library or its calling convention. Producing the thunks
+for a real library is done entirely in userspace, and any toolchain can
+implement the interface.
 
 Loading the plugin is all that is required from QEMU's side:
 
@@ -1087,11 +1086,21 @@ Loading the plugin is all that is required from QEMU's side:
 
    qemu-x86_64 -plugin contrib/plugins/libdlcall.so <guest-program> ...
 
+If the default number does not suit the guest ABI, pick another one, and build
+the userspace side to issue the same one:
+
+.. code-block:: shell
+
+   qemu-x86_64 -plugin contrib/plugins/libdlcall.so,syscall_num=8192 \
+       <guest-program> ...
+
 `Lorelei <https://github.com/rover2024/lorelei>`_ is one end-to-end userspace
 implementation of this: it provides the guest and host runtimes and an
 automated toolchain that generates the thunks from a library's headers, so guest
-library calls run on the host's native libraries. It supports an x86_64 guest
-running on an x86_64, aarch64 or riscv64 host.
+library calls run on the host's native libraries. How it handles the parts the
+plugin leaves out, including argument marshalling, callbacks and variadic
+functions, can serve as a reference. It supports an x86_64 guest running on an
+x86_64, aarch64 or riscv64 host.
 
 A minimal end-to-end example uses a one-function library, ``libhello.so``, built
 two ways: the guest build tags its output ``(from the guest)`` and the host
@@ -1201,8 +1210,10 @@ which prints::
   * - Option
     - Description
   * - syscall_num=N
-    - The magic syscall number the guest issues (default 4096). Must be high
-      enough not to clash with a real syscall.
+    - The magic syscall number the guest issues (default 4096). It must be a
+      number the guest ABI does not use for a real syscall, and does not
+      reject before the plugin sees it, which bounds the choice from both
+      sides.
 
 Other emulation features
 ------------------------
