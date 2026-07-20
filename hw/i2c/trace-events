@@ -61,3 +61,32 @@ pca954x_read_data(uint8_t value) "PCA954X read data: 0x%02x"
 
 imx_i2c_read(const char *id, const char *reg, uint64_t ofs, uint64_t value) "%s:[%s (0x%" PRIx64 ")] -> 0x%02" PRIx64
 imx_i2c_write(const char *id, const char *reg, uint64_t ofs, uint64_t value) "%s:[%s (0x%" PRIx64 ")] <- 0x%02" PRIx64
+
+# remote-i2c-master.c
+remote_i2c_master_realize(void) "device realized"
+remote_i2c_master_reset_enter(void) "reset enter"
+remote_i2c_master_backend_select(const char *backend) "selected backend: %s"
+
+# remote-i2c-fsm.c
+remote_i2c_master_bus_state_change(const char *old, const char *new) "bus State: %s -> %s"
+remote_i2c_master_async_ack(void) "async ACK received"
+remote_i2c_master_abort(int error, uint8_t addr, const char *reason) "transaction ABORTED (errno=%d) addr=0x%02x, reason: %s"
+remote_i2c_master_timeout(uint16_t timeout) "watchdog timer expired (timeout_ms=%d)"
+remote_i2c_master_stretch_delay(uint16_t delay) "master simulating stretch delay: %d"
+remote_i2c_master_send_byte(uint8_t byte) "wire TX: 0x%02x"
+remote_i2c_master_recv_byte(uint8_t byte) "wire RX: 0x%02x"
+remote_i2c_master_arbitration_lost(const char *abort_transaction) "arbitration lost, %s"
+
+# remote-i2c-cuse.c
+remote_i2c_master_fuse_export(void) "FUSE session setup complete"
+remote_i2c_master_fuse_io_read(void) "FUSE event loop: reading buf"
+remote_i2c_master_i2cdev_init(void) "CUSE init"
+remote_i2c_master_i2cdev_open(void) "CUSE open"
+remote_i2c_master_i2cdev_release(void) "CUSE release"
+remote_i2c_master_i2cdev_ioctl(int cmd) "IOCTL Start cmd: 0x%x"
+remote_i2c_master_i2cdev_ioctl_finished(int cmd) "IOCTL Finish cmd: 0x%x"
+remote_i2c_master_i2cdev_functional(void) "IOCTL: Query Functionality"
+remote_i2c_master_i2cdev_address(uint32_t address) "IOCTL: Set slave address: 0x%x"
+remote_i2c_master_i2cdev_smbus(uint8_t state) "IOCTL: SMBus machine state: 0x%x"
+remote_i2c_master_i2cdev_send(uint32_t size) "TX start size: 0x%x"
+remote_i2c_master_i2cdev_receive(uint32_t size) "RX start size: 0x%x"
