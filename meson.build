@@ -274,6 +274,7 @@ else
   host_arch = cpu
 endif
 
+kvm_host = true
 if cpu == 'x86_64'
   kvm_targets = ['i386-softmmu', 'x86_64-softmmu']
 elif cpu == 'aarch64'
@@ -288,6 +289,7 @@ elif cpu == 'loongarch64'
   kvm_targets = ['loongarch64-softmmu']
 else
   kvm_targets = []
+  kvm_host = false
 endif
 accelerator_targets = { 'CONFIG_KVM': kvm_targets }
 
@@ -2254,6 +2256,8 @@ endif
 #################
 
 config_host_data = configuration_data()
+
+config_host_data.set('CONFIG_KVM_HOST', kvm_host)
 
 config_host_data.set('CONFIG_HAVE_RUST', have_rust)
 audio_drivers_selected = []

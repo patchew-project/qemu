@@ -64,3 +64,6 @@ config HAVE_RUST
 
 config MAC_PVG
     bool
+
+config KVM_HOST
+    bool
