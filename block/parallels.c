@@ -142,8 +142,9 @@ static uint32_t host_cluster_index(BDRVParallelsState *s, int64_t off)
     return off / s->cluster_size;
 }
 
-static int64_t block_status(BDRVParallelsState *s, int64_t sector_num,
-                            int nb_sectors, int *pnum)
+static int64_t coroutine_fn
+block_status(BDRVParallelsState *s, int64_t sector_num,
+             int nb_sectors, int *pnum)
 {
     int64_t start_off = -2, prev_end_off = -2;
 
