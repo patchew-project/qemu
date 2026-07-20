@@ -128,6 +128,16 @@ static int vfio_user_get_region_info(VFIOUserProxy *proxy,
         error_printf("vfio_user_get_region_info argsz too small\n");
         return -E2BIG;
     }
+
+    /*
+     * Ensure that size doesn't overflow, otherwise we'll allocate a much
+     * smaller buffer than we need.
+     */
+    if (__builtin_add_overflow(info->argsz, sizeof(VFIOUserHdr), &size)) {
+        error_printf("vfio_user_get_region_info argsz too large\n");
+        return -E2BIG;
+    }
+
     if (fds != NULL && fds->send_fds != 0) {
         error_printf("vfio_user_get_region_info can't send FDs\n");
         return -EINVAL;
