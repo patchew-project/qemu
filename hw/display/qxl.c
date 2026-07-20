@@ -1496,6 +1496,7 @@ static void qxl_create_guest_primary(PCIQXLDevice *qxl, int loadvm,
     QXLSurfaceCreate *sc = &qxl->guest_primary.surface;
     uint32_t requested_height = le32_to_cpu(sc->height);
     int requested_stride = le32_to_cpu(sc->stride);
+    uint32_t bytes_pp;
 
     if (requested_stride == INT32_MIN ||
         abs(requested_stride) * (uint64_t)requested_height
@@ -1529,6 +1530,34 @@ static void qxl_create_guest_primary(PCIQXLDevice *qxl, int loadvm,
     if ((surface.stride & 0x3) != 0) {
         qxl_set_guest_bug(qxl, "primary surface stride = %d %% 4 != 0",
                           surface.stride);
+        return;
+    }
+
+    switch (surface.format) {
+    case SPICE_SURFACE_FMT_16_555:
+    case SPICE_SURFACE_FMT_16_565:
+        bytes_pp = 2;
+        break;
+    case SPICE_SURFACE_FMT_32_xRGB:
+    case SPICE_SURFACE_FMT_32_ARGB:
+        bytes_pp = 4;
+        break;
+    default:
+        qxl_set_guest_bug(qxl, "%s: unhandled format %d",
+                          __func__, surface.format);
+        return;
+    }
+
+    if (surface.width == 0 || surface.height == 0) {
+        qxl_set_guest_bug(qxl, "%s: zero dimension %ux%u",
+                          __func__, surface.width, surface.height);
+        return;
+    }
+
+    if ((uint64_t)surface.width * bytes_pp > abs(surface.stride)) {
+        qxl_set_guest_bug(qxl, "%s: stride too small for width:"
+                          " stride %d width %u bpp %u",
+                          __func__, surface.stride, surface.width, bytes_pp);
         return;
     }
 
