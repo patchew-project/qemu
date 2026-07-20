@@ -1469,6 +1469,8 @@ static void gem_reset(DeviceState *d)
 
     /* Set post reset register values */
     memset(&s->regs[0], 0, sizeof(s->regs));
+    memset(&s->rx_desc_addr[0], 0, sizeof(s->rx_desc_addr));
+    memset(&s->tx_desc_addr[0], 0, sizeof(s->tx_desc_addr));
     s->regs[R_NWCFG] = 0x00080000;
     s->regs[R_NWSTATUS] = 0x00000006;
     s->regs[R_DMACFG] = 0x00020784;
@@ -1593,9 +1595,22 @@ static uint64_t gem_read(void *opaque, hwaddr offset, unsigned size)
     offset >>= 2;
     retval = s->regs[offset];
 
-    DB_PRINT("offset: 0x%04x read: 0x%08x\n", (unsigned)offset*4, retval);
+    DB_PRINT("offset: 0x%04x read: 0x%08x\n", (unsigned)offset * 4,
+             retval);
 
     switch (offset) {
+    case R_RXQBASE:
+        retval = s->rx_desc_addr[0];
+        break;
+    case R_TXQBASE:
+        retval = s->tx_desc_addr[0];
+        break;
+    case R_TRANSMIT_Q1_PTR ... R_TRANSMIT_Q7_PTR:
+        retval = s->tx_desc_addr[offset - R_TRANSMIT_Q1_PTR + 1];
+        break;
+    case R_RECEIVE_Q1_PTR ... R_RECEIVE_Q7_PTR:
+        retval = s->rx_desc_addr[offset - R_RECEIVE_Q1_PTR + 1];
+        break;
     case R_ISR:
         DB_PRINT("lowering irqs on ISR read\n");
         /* The interrupts get updated at the end of the function. */
