@@ -23,9 +23,12 @@ int main(int argc, char *argv[])
      * "linux-user/arm/cpu_loop.c:cpu_loop".
      * As well, some arch expect a minimum, like 4000 for mips 32 bits.
      *
-     * Therefore, we pick 4096 because, as of now, no ISA in Linux uses this
-     * number. This is just a test case; replace this number as needed in the
-     * future.
+     * Therefore, we pick 4096, which sits between those bounds. It is not
+     * unused everywhere though: mips 32 bits numbers from 4000, so 4096 is its
+     * getpriority. This test is unaffected because the filter also requires
+     * the first argument to be 0x66CCFF, so a real syscall carrying this
+     * number falls through untouched. This is just a test case, so replace
+     * this number as needed in the future.
      *
      * The corresponding syscall filter is implemented in
      * "tests/tcg/plugins/syscall.c".
