@@ -154,12 +154,63 @@ static void do_preload(CPUHexagonState *env, target_ulong swi_info, bool load)
     hexagon_peek_memory_range(env, addr, count, retaddr);
 }
 
+/* Hexagon semihosting errno values */
+#define HEX_EINVAL          22
+#define HEX_ERRNOS \
+    HEX_ERRNO(EPERM,        1) \
+    HEX_ERRNO(ENOENT,       2) \
+    HEX_ERRNO(EINTR,        4) \
+    HEX_ERRNO(EIO,          5) \
+    HEX_ERRNO(ENXIO,        6) \
+    HEX_ERRNO(EBADF,        9) \
+    HEX_ERRNO(EAGAIN,       11) \
+    HEX_ERRNO(ENOMEM,       12) \
+    HEX_ERRNO(EACCES,       13) \
+    HEX_ERRNO(EFAULT,       14) \
+    HEX_ERRNO(EBUSY,        16) \
+    HEX_ERRNO(EEXIST,       17) \
+    HEX_ERRNO(EXDEV,        18) \
+    HEX_ERRNO(ENODEV,       19) \
+    HEX_ERRNO(ENOTDIR,      20) \
+    HEX_ERRNO(EISDIR,       21) \
+    HEX_ERRNO(EINVAL,       HEX_EINVAL) \
+    HEX_ERRNO(ENFILE,       23) \
+    HEX_ERRNO(EMFILE,       24) \
+    HEX_ERRNO(ENOTTY,       25) \
+    HEX_ERRNO(ETXTBSY,      26) \
+    HEX_ERRNO(EFBIG,        27) \
+    HEX_ERRNO(ENOSPC,       28) \
+    HEX_ERRNO(ESPIPE,       29) \
+    HEX_ERRNO(EROFS,        30) \
+    HEX_ERRNO(EMLINK,       31) \
+    HEX_ERRNO(EPIPE,        32) \
+    HEX_ERRNO(ERANGE,       34) \
+    HEX_ERRNO(ENAMETOOLONG, 36) \
+    HEX_ERRNO(ENOSYS,       38) \
+    HEX_ERRNO(ELOOP,        40) \
+    HEX_ERRNO(EOVERFLOW,    75)
+
+/* Map host errno to hexagon semihosting errno */
+static void semi_cb(CPUState *cs, uint64_t ret, int err)
+{
+#define HEX_ERRNO(NAME, CODE) case NAME: err = CODE; break;
+    switch (err) {
+    case 0:
+        break;
+    HEX_ERRNOS
+    default:
+        err = HEX_EINVAL;
+        break;
+    }
+    common_semi_cb(cs, ret, err);
+}
+
 static void common_semi_ftell_cb(CPUState *cs, uint64_t ret, int err)
 {
     if (err) {
         ret = -1;
     }
-    common_semi_cb(cs, ret, err);
+    semi_cb(cs, ret, err);
 }
 
 static void coredump(CPUHexagonState *env)
@@ -378,7 +429,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: filename too large (%d)\n",
                           __func__, length);
-            common_semi_cb(cs, -1, ENAMETOOLONG);
+            semi_cb(cs, -1, ENAMETOOLONG);
             break;
         }
 
@@ -395,7 +446,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: invalid OPEN mode: %u\n",
                           __func__, filemode);
-            common_semi_cb(cs, -1, EINVAL);
+            semi_cb(cs, -1, EINVAL);
             break;
         }
 
@@ -414,7 +465,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
                 ret = guestfd;
             }
         }
-        common_semi_cb(cs, ret, err);
+        semi_cb(cs, ret, err);
     }
     break;
 
@@ -433,7 +484,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
     {
         int fd;
         hexagon_read_memory(env, swi_info, 4, &fd, retaddr);
-        common_semi_cb(cs, isatty(fd), 0);
+        semi_cb(cs, isatty(fd), 0);
     }
     break;
 
@@ -503,7 +554,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
             hexagon_write_memory(env, statBufferAddr + i, 1, st_bufptr[i],
                                  retaddr);
         }
-        common_semi_cb(cs, rc, rc == 0 ? 0 : err);
+        semi_cb(cs, rc, rc == 0 ? 0 : err);
     }
     break;
 
@@ -513,7 +564,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
         off_t size_limit;
         hexagon_read_memory(env, swi_info, 4, &fd, retaddr);
         hexagon_read_memory(env, swi_info + 4, 8, &size_limit, retaddr);
-        semihost_sys_ftruncate(cs, common_semi_cb, fd, size_limit);
+        semihost_sys_ftruncate(cs, semi_cb, fd, size_limit);
     }
     break;
 
@@ -537,7 +588,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
         hexagon_read_memory(env, swi_info + 4, 4, &BufferMode, retaddr);
 
         rc = access(filename, BufferMode);
-        common_semi_cb(cs, rc,  rc == 0 ? 0 : errno);
+        semi_cb(cs, rc,  rc == 0 ? 0 : errno);
     }
     break;
 
@@ -565,14 +616,14 @@ static void sim_handle_trap0(CPUHexagonState *env)
                 rc = BufferAddr;
             }
         }
-        common_semi_cb(cs, rc, rc != 0 ? 0 : err);
+        semi_cb(cs, rc, rc != 0 ? 0 : err);
         break;
     }
 
     case HEX_SYS_EXEC:
     {
         qemu_log_mask(LOG_UNIMP, "SYS_EXEC is deprecated\n");
-        common_semi_cb(cs, -1, ENOSYS);
+        semi_cb(cs, -1, ENOSYS);
     }
     break;
 
@@ -611,7 +662,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
     case HEX_SYS_PROF_STATSRESET:
     case HEX_SYS_DUMP_PMU_STATS:
     case HEX_SYS_HEAPINFO:
-        common_semi_cb(cs, -1, ENOSYS);
+        semi_cb(cs, -1, ENOSYS);
         qemu_log_mask(LOG_UNIMP,
                       "SWI call %" PRIx32
                       " is unimplemented in QEMU\n",
@@ -622,7 +673,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
         qemu_log_mask(LOG_GUEST_ERROR,
                       "unknown swi request: 0x%" PRIx32 "\n",
                       (uint32_t)what_swi);
-        common_semi_cb(cs, -1, ENOSYS);
+        semi_cb(cs, -1, ENOSYS);
     }
 }
 
