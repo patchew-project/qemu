@@ -89,6 +89,36 @@ void HELPER(sve2_pmull_d)(void *vd, void *vn, void *vm, uint32_t desc)
     }
 }
 
+void HELPER(sve_pmull_q)(void *vd, void *vn, void *vm, uint32_t desc)
+{
+    intptr_t opr_sz = simd_oprsz(desc);
+    uint64_t *n = vn, *m = vm;
+    Int128 *d0 = vd;
+    Int128 *d1 = vd + sizeof(ARMVectorReg);
+
+    for (intptr_t i = 0; i < opr_sz / 16; ++i) {
+        Int128 rl = clmul_64(n[2 * i + 0], m[2 * i + 0]);
+        Int128 rh = clmul_64(n[2 * i + 1], m[2 * i + 1]);
+        d0[i] = rl;
+        d1[i] = rh;
+    }
+}
+
+void HELPER(sve_pmlal_q)(void *vd, void *vn, void *vm, uint32_t desc)
+{
+    intptr_t opr_sz = simd_oprsz(desc);
+    uint64_t *n = vn, *m = vm;
+    Int128 *d0 = vd;
+    Int128 *d1 = vd + sizeof(ARMVectorReg);
+
+    for (intptr_t i = 0; i < opr_sz / 16; ++i) {
+        Int128 rl = clmul_64(n[2 * i + 0], m[2 * i + 0]);
+        Int128 rh = clmul_64(n[2 * i + 1], m[2 * i + 1]);
+        d0[i] = int128_xor(d0[i], rl);
+        d1[i] = int128_xor(d1[i], rh);
+    }
+}
+
 DO_3OP_PAIR(gvec_ah_fmaxp_h, helper_vfp_ah_maxh, float16, H2)
 DO_3OP_PAIR(gvec_ah_fmaxp_s, helper_vfp_ah_maxs, float32, H4)
 DO_3OP_PAIR(gvec_ah_fmaxp_d, helper_vfp_ah_maxd, float64, /**/)
