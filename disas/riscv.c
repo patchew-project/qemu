@@ -27,6 +27,7 @@
 #include "disas/riscv-xthead.h"
 #include "disas/riscv-xventana.h"
 #include "disas/riscv-xlrbr.h"
+#include "disas/riscv-xsf.h"
 
 typedef enum {
     /* 0 is reserved for rv_op_illegal. */
@@ -5454,6 +5455,7 @@ static GString *disasm_inst(rv_isa isa, uint64_t pc, rv_inst inst,
         { has_xtheadsync_p, xthead_opcode_data, decode_xtheadsync },
         { has_XVentanaCondOps_p, ventana_opcode_data, decode_xventanacondops },
         { has_xlrbr_p, rv_xlrbr_opcode_data, decode_xlrbr },
+        { has_xsf_p, xsf_opcode_data, decode_xsf },
     };
 
     for (size_t i = 0; i < ARRAY_SIZE(decoders); i++) {
