@@ -87,6 +87,10 @@ vfio_user_device_io_device_feature(VFIODevice *vbasedev,
         error_printf("vfio_user_device_io_device_feature argsz too large\n");
         return -E2BIG;
     }
+    if (size > proxy->max_xfer_size) {
+        error_printf("vfio_user_device_io_device_feature argsz too large\n");
+        return -E2BIG;
+    }
 
     msgp = g_malloc0(size);
 
