@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "cpu-qom.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
@@ -151,6 +152,14 @@ static void k230_create_uart(MemoryRegion *sys_mem, DeviceState *plic,
                    399193, serial_hd(index), DEVICE_LITTLE_ENDIAN);
 }
 
+static void k230_sram_create(K230SoCState *s)
+{
+    memory_region_init_ram(&s->sram, OBJECT(s), "k230.sram",
+                           memmap[K230_DEV_SRAM].size, &error_fatal);
+    memory_region_add_subregion(get_system_memory(),
+                                memmap[K230_DEV_SRAM].base, &s->sram);
+}
+
 static void k230_soc_realize(DeviceState *dev, Error **errp)
 {
     K230SoCState *s = RISCV_K230_SOC(dev);
@@ -162,10 +171,7 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
     c908_cpus = s->c908_cpu.num_harts;
 
     /* SRAM */
-    memory_region_init_ram(&s->sram, OBJECT(dev), "sram",
-                           memmap[K230_DEV_SRAM].size, &error_fatal);
-    memory_region_add_subregion(sys_mem, memmap[K230_DEV_SRAM].base,
-                                &s->sram);
+    k230_sram_create(s);
 
     /* BootROM */
     memory_region_init_rom(&s->bootrom, OBJECT(dev), "bootrom",

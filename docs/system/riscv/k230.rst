@@ -2,7 +2,7 @@ Kendryte K230 virt reference platform (``k230``)
 ==========================================================================
 The ``k230`` machine is compatible with the Kendryte K230 SDK.
 
-The K230 is a chip from the AIoT SoC series made by Kendryte ® — a part of
+The K230 is a chip from the AIoT SoC series made by Kendryte (R) -- a part of
 Canaan Inc. It uses a brand-new multi-heterogeneous unit accelerated computing
 structure.
 
@@ -111,3 +111,4 @@ this machine does not emulate those controllers yet. Replace ``${INITRD_END}``
 with the host-calculated value above when typing the command. ``cma=0`` avoids
 the SDK kernel reserving too much of the little-core memory window for initramfs
 boot.
+
