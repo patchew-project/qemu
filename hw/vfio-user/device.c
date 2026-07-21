@@ -79,9 +79,14 @@ vfio_user_device_io_device_feature(VFIODevice *vbasedev,
                                    struct vfio_device_feature *feature)
 {
     g_autofree VFIOUserDeviceFeature *msgp = NULL;
-    int size = sizeof(VFIOUserHdr) + feature->argsz;
     VFIOUserProxy *proxy = vbasedev->proxy;
     Error *local_err = NULL;
+    int size;
+
+    if (__builtin_add_overflow(feature->argsz, sizeof(VFIOUserHdr), &size)) {
+        error_printf("vfio_user_device_io_device_feature argsz too large\n");
+        return -E2BIG;
+    }
 
     msgp = g_malloc0(size);
 
