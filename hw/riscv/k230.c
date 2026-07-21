@@ -29,7 +29,6 @@
 #include "hw/riscv/machines-qom.h"
 #include "hw/intc/riscv_aclint.h"
 #include "hw/intc/sifive_plic.h"
-#include "hw/char/serial-mm.h"
 #include "hw/misc/unimp.h"
 
 /* Align K230_SDK k230_canmv_defconfig */
@@ -111,6 +110,11 @@ static void k230_soc_init(Object *obj)
     object_initialize_child(obj, "k230-wdt0", &s->wdt[0], TYPE_K230_WDT);
     object_initialize_child(obj, "k230-wdt1", &s->wdt[1], TYPE_K230_WDT);
 
+    for (int i = 0; i < K230_UART_COUNT; i++) {
+        g_autofree char *name = g_strdup_printf("k230-uart%d", i);
+        object_initialize_child(obj, name, &s->uart[i], TYPE_K230_UART);
+    }
+
     qdev_prop_set_uint32(DEVICE(cpu0), "hartid-base", 0);
     qdev_prop_set_string(DEVICE(cpu0), "cpu-type", TYPE_RISCV_CPU_THEAD_C908);
     qdev_prop_set_uint64(DEVICE(cpu0), "resetvec",
@@ -136,19 +140,26 @@ static DeviceState *k230_create_plic(int base_hartid, int hartid_count)
                               memmap[K230_DEV_PLIC].size);
 }
 
-static void k230_create_uart(MemoryRegion *sys_mem, DeviceState *plic,
-                             int index)
+static void k230_create_uart(K230SoCState *s, DeviceState *plic, int index)
 {
     int uart_dev = K230_DEV_UART0 + index;
-    g_autofree char *name = g_strdup_printf("uart%d", index);
+    g_autofree char *unimpl_name = g_strdup_printf("uart%d", index);
+    DeviceState *dev = DEVICE(&s->uart[index]);
+
+    qdev_prop_set_chr(dev, "chardev", serial_hd(index));
+
+    if (!sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal)) {
+        return;
+    }
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, memmap[uart_dev].base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                       qdev_get_gpio_in(plic, K230_UART0_IRQ + index));
 
     /* Cover the non-16550 part of the SDK's 0x1000 UART window. */
-    create_unimplemented_device(name, memmap[uart_dev].base,
-                                memmap[uart_dev].size);
-
-    serial_mm_init(sys_mem, memmap[uart_dev].base, 2,
-                   qdev_get_gpio_in(plic, K230_UART0_IRQ + index),
-                   399193, serial_hd(index), DEVICE_LITTLE_ENDIAN);
+    create_unimplemented_device(unimpl_name,
+                                memmap[uart_dev].base + 0x100,
+                                memmap[uart_dev].size - 0x100);
 }
 
 static void k230_soc_realize(DeviceState *dev, Error **errp)
@@ -188,7 +199,7 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
 
     /* UART */
     for (int i = 0; i < K230_UART_COUNT; i++) {
-        k230_create_uart(sys_mem, DEVICE(s->c908_plic), i);
+        k230_create_uart(s, DEVICE(s->c908_plic), i);
     }
 
     /* Watchdog */
