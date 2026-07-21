@@ -90,7 +90,7 @@ int accel_irqchip_remove_irqfd_notifier_gsi(EventNotifier *n, int virq)
     return -ENOSYS;
 }
 
-inline AccelRouteChange accel_irqchip_begin_route_changes(void)
+AccelRouteChange accel_irqchip_begin_route_changes(void)
 {
     if (mshv_msi_via_irqfd_enabled()) {
         return (AccelRouteChange) {
