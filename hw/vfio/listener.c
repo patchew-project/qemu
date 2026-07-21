@@ -20,7 +20,6 @@
 
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
-#include <linux/kvm.h>
 #include <linux/vfio.h>
 
 #include "exec/target_page.h"
