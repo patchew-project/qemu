@@ -49,6 +49,55 @@
  * Device state interfaces
  */
 
+/*
+ * Defer the VFIO_IOMMU_UNMAP_DMA for a "ram device" (passthrough device
+ * MMIO/BAR) region instead of doing it immediately. See the comment on
+ * VFIOPendingRamDeviceUnmap in vfio-container.h for why.
+ */
+static void vfio_defer_ram_device_unmap(VFIOContainer *bcontainer,
+                                        MemoryRegion *mr, hwaddr iova,
+                                        hwaddr size, void *vaddr,
+                                        bool readonly)
+{
+    VFIOPendingRamDeviceUnmap *pending = g_malloc0(sizeof(*pending));
+
+    pending->mr = mr;
+    pending->iova = iova;
+    pending->size = size;
+    pending->vaddr = vaddr;
+    pending->readonly = readonly;
+    QLIST_INSERT_HEAD(&bcontainer->pending_ram_device_unmap_list, pending,
+                      next);
+}
+
+/*
+ * If a deferred unmap exactly matching this (mr, iova, size, vaddr,
+ * readonly) is pending, cancel it (drop it without ever issuing the
+ * VFIO_IOMMU_UNMAP_DMA) and report success -- the caller should skip
+ * mapping, since the host-side mapping was never actually removed.
+ * Returns false if there was no matching pending unmap, in which case
+ * the caller must map normally.
+ */
+static bool vfio_cancel_pending_ram_device_unmap(VFIOContainer *bcontainer,
+                                                 MemoryRegion *mr,
+                                                 hwaddr iova, hwaddr size,
+                                                 void *vaddr, bool readonly)
+{
+    VFIOPendingRamDeviceUnmap *pending;
+
+    QLIST_FOREACH(pending, &bcontainer->pending_ram_device_unmap_list, next) {
+        if (pending->mr == mr && pending->iova == iova &&
+            pending->size == size && pending->vaddr == vaddr &&
+            pending->readonly == readonly) {
+            QLIST_REMOVE(pending, next);
+            g_free(pending);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 
 static bool vfio_log_sync_needed(const VFIOContainer *bcontainer)
 {
@@ -608,6 +657,22 @@ void vfio_container_region_add(VFIOContainer *bcontainer,
                 pgmask + 1);
             return;
         }
+
+        /*
+         * If region_del deferred an identical unmap for this exact region
+         * (same MemoryRegion, iova, size, vaddr, readonly), the underlying
+         * VFIO_IOMMU_MAP_DMA mapping is still live host-side -- cancel the
+         * deferred unmap and skip re-mapping. This is what makes toggling
+         * a passthrough device's PCI_COMMAND memory-decode bit off and
+         * back on (which normal PCI enumeration/attribute code does,
+         * sometimes several times per device) cheap instead of repeating
+         * a possibly multi-second VFIO_IOMMU_MAP_DMA for huge BARs.
+         */
+        if (vfio_cancel_pending_ram_device_unmap(bcontainer, section->mr,
+                                                 iova, int128_get64(llsize),
+                                                 vaddr, section->readonly)) {
+            return;
+        }
     }
 
     if (memory_region_skip_iommu_map(section->mr)) {
@@ -714,6 +779,17 @@ static void vfio_listener_region_del(MemoryListener *listener,
 
         pgmask = (1ULL << ctz64(bcontainer->pgsizes)) - 1;
         try_unmap = !((iova & pgmask) || (int128_get64(llsize) & pgmask));
+
+        if (try_unmap) {
+            void *vaddr = memory_region_get_ram_ptr(section->mr) +
+                         section->offset_within_region +
+                         (iova - section->offset_within_address_space);
+
+            vfio_defer_ram_device_unmap(bcontainer, section->mr, iova,
+                                        int128_get64(llsize), vaddr,
+                                        section->readonly);
+            try_unmap = false;
+        }
     } else if (memory_region_has_ram_discard_manager(section->mr)) {
         vfio_ram_discard_unregister_listener(bcontainer, section);
         /* Unregistering will trigger an unmap. */

@@ -298,6 +298,56 @@ GList *vfio_container_get_iova_ranges(const VFIOContainer *bcontainer)
     return g_list_copy_deep(bcontainer->iova_ranges, copy_iova_range, NULL);
 }
 
+/*
+ * Actually unmap (and free the bookkeeping for) any deferred "ram
+ * device" unmaps still pending on this container. Must be called
+ * before the container's fd is closed/reused, and is safe to call at
+ * any time (e.g. also from a specific device's exit path, to avoid
+ * leaking a mapping if that device is hot-unplugged while the
+ * container otherwise stays alive for other devices).
+ */
+void vfio_flush_pending_ram_device_unmaps(VFIOContainer *bcontainer)
+{
+    VFIOPendingRamDeviceUnmap *pending, *tmp;
+
+    QLIST_FOREACH_SAFE(pending, &bcontainer->pending_ram_device_unmap_list,
+                       next, tmp) {
+        int ret = vfio_container_dma_unmap(bcontainer, pending->iova,
+                                            pending->size, NULL, false);
+        if (ret) {
+            error_report("vfio_container_dma_unmap(%p, 0x%"HWADDR_PRIx", "
+                         "0x%"HWADDR_PRIx") = %d (%s)",
+                         bcontainer, pending->iova, pending->size, ret,
+                         strerror(-ret));
+        }
+        QLIST_REMOVE(pending, next);
+        g_free(pending);
+    }
+}
+
+void vfio_flush_pending_ram_device_unmaps_for_mr(VFIOContainer *bcontainer,
+                                                   MemoryRegion *mr)
+{
+    VFIOPendingRamDeviceUnmap *pending, *tmp;
+
+    QLIST_FOREACH_SAFE(pending, &bcontainer->pending_ram_device_unmap_list,
+                       next, tmp) {
+        if (pending->mr != mr) {
+            continue;
+        }
+        int ret = vfio_container_dma_unmap(bcontainer, pending->iova,
+                                            pending->size, NULL, false);
+        if (ret) {
+            error_report("vfio_container_dma_unmap(%p, 0x%"HWADDR_PRIx", "
+                         "0x%"HWADDR_PRIx") = %d (%s)",
+                         bcontainer, pending->iova, pending->size, ret,
+                         strerror(-ret));
+        }
+        QLIST_REMOVE(pending, next);
+        g_free(pending);
+    }
+}
+
 static void vfio_container_instance_finalize(Object *obj)
 {
     VFIOContainer *bcontainer = VFIO_IOMMU(obj);
@@ -312,6 +362,8 @@ static void vfio_container_instance_finalize(Object *obj)
         g_free(giommu);
     }
 
+    vfio_flush_pending_ram_device_unmaps(bcontainer);
+
     g_list_free_full(bcontainer->iova_ranges, g_free);
 }
 
@@ -325,6 +377,7 @@ static void vfio_container_instance_init(Object *obj)
     bcontainer->iova_ranges = NULL;
     QLIST_INIT(&bcontainer->giommu_list);
     QLIST_INIT(&bcontainer->vrdl_list);
+    QLIST_INIT(&bcontainer->pending_ram_device_unmap_list);
 }
 
 static const TypeInfo types[] = {

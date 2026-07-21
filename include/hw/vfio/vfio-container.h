@@ -48,6 +48,7 @@ struct VFIOContainer {
     bool dirty_pages_started; /* Protected by BQL */
     QLIST_HEAD(, VFIOGuestIOMMU) giommu_list;
     QLIST_HEAD(, VFIORamDiscardListener) vrdl_list;
+    QLIST_HEAD(, VFIOPendingRamDeviceUnmap) pending_ram_device_unmap_list;
     QLIST_ENTRY(VFIOContainer) next;
     QLIST_HEAD(, VFIODevice) device_list;
     GList *iova_ranges;
@@ -75,6 +76,29 @@ typedef struct VFIORamDiscardListener {
     RamDiscardListener listener;
     QLIST_ENTRY(VFIORamDiscardListener) next;
 } VFIORamDiscardListener;
+
+/*
+ * A "ram device" region (a passthrough device's own MMIO/BAR range,
+ * mapped into the IOMMU for peer-to-peer DMA) that region_del wants to
+ * unmap. The actual VFIO_IOMMU_UNMAP_DMA is deferred: if a matching
+ * region_add for the identical region shows up again (e.g. the guest
+ * toggled PCI_COMMAND memory-decode off then back on, which is common
+ * and can happen several times per device during firmware/OS PCI
+ * enumeration), the map is still valid host-side and both the unmap and
+ * the re-map can be skipped entirely. This avoids repeating the
+ * (potentially multi-second, for huge BARs) VFIO_IOMMU_MAP_DMA ioctl for
+ * no functional reason. Any mapping still pending here when the
+ * container is finally torn down gets a real unmap first, so nothing
+ * is ever leaked.
+ */
+typedef struct VFIOPendingRamDeviceUnmap {
+    MemoryRegion *mr;
+    hwaddr iova;
+    hwaddr size;
+    void *vaddr;
+    bool readonly;
+    QLIST_ENTRY(VFIOPendingRamDeviceUnmap) next;
+} VFIOPendingRamDeviceUnmap;
 
 VFIOAddressSpace *vfio_address_space_get(AddressSpace *as);
 void vfio_address_space_put(VFIOAddressSpace *space);
@@ -266,5 +290,9 @@ VFIORamDiscardListener *vfio_find_ram_discard_listener(
 
 void vfio_container_region_add(VFIOContainer *bcontainer,
                                MemoryRegionSection *section, bool cpr_remap);
+
+void vfio_flush_pending_ram_device_unmaps(VFIOContainer *bcontainer);
+void vfio_flush_pending_ram_device_unmaps_for_mr(VFIOContainer *bcontainer,
+                                                   MemoryRegion *mr);
 
 #endif /* HW_VFIO_VFIO_CONTAINER_H */

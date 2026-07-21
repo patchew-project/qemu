@@ -30,6 +30,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-properties-system.h"
 #include "hw/vfio/vfio-cpr.h"
+#include "hw/vfio/vfio-container.h"
 #include "migration/vmstate.h"
 #include "migration/cpr.h"
 #include "qobject/qdict.h"
@@ -2042,6 +2043,16 @@ static void vfio_bars_finalize(VFIOPCIDevice *vdev)
         vfio_region_finalize(&bar->region);
         if (bar->mr) {
             assert(bar->size);
+            /*
+             * If a PCI_COMMAND memory-decode toggle deferred this BAR's
+             * unmap (see vfio_defer_ram_device_unmap()), this device is
+             * now really going away -- flush it for real so the mapping
+             * isn't leaked for the remaining lifetime of the container.
+             */
+            if (vdev->vbasedev.bcontainer) {
+                vfio_flush_pending_ram_device_unmaps_for_mr(
+                    vdev->vbasedev.bcontainer, bar->region.mem);
+            }
             g_free(bar->mr);
             bar->mr = NULL;
         }
