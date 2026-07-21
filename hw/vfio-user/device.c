@@ -293,7 +293,10 @@ static int vfio_user_device_io_set_irqs(VFIODevice *vbasedev,
      * Handle simple case
      */
     if ((irq->flags & VFIO_IRQ_SET_DATA_EVENTFD) == 0) {
-        size = sizeof(VFIOUserHdr) + irq->argsz;
+        if (__builtin_add_overflow(irq->argsz, sizeof(VFIOUserHdr), &size)) {
+            error_printf("vfio_user_set_irqs argsz too large\n");
+            return -E2BIG;
+        }
         msgp = g_malloc0(size);
 
         vfio_user_request_msg(&msgp->hdr, VFIO_USER_DEVICE_SET_IRQS, size, 0);
