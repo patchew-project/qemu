@@ -41,5 +41,12 @@ comma:= ,
 run-test-crc32: test-crc32
 	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)xlrbr=true $(QEMU_OPTS)$<)
 
+# The SiFive int8 matmul instructions are reserved unless VLEN >= 256, so the
+# runner selects vlen=256 along with both extensions.
+EXTRA_RUNS += run-test-xsfvqmacc
+XSFVQMACC_CPU = rv64$(comma)v=true$(comma)vlen=256$(comma)xsfvqmaccdod=true$(comma)xsfvqmaccqoq=true
+run-test-xsfvqmacc: test-xsfvqmacc
+	$(call run-test, $<, $(QEMU) -cpu $(XSFVQMACC_CPU) $(QEMU_OPTS)$<)
+
 # We don't currently support the multiarch system tests
 undefine MULTIARCH_TESTS
