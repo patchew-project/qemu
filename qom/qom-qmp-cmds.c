@@ -211,7 +211,7 @@ ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
 
         /* Skip Object and DeviceState properties */
         if (strcmp(prop->name, "type") == 0 ||
-            strcmp(prop->name, "realized") == 0 ||
+            strcmp(prop->name, "phase") == 0 ||
             strcmp(prop->name, "hotpluggable") == 0 ||
             strcmp(prop->name, "hotplugged") == 0 ||
             strcmp(prop->name, "parent_bus") == 0) {

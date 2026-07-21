@@ -1,6 +1,7 @@
 #ifndef QDEV_CORE_H
 #define QDEV_CORE_H
 
+#include "qapi/qapi-types-common.h"
 #include "qemu/atomic.h"
 #include "qemu/queue.h"
 #include "qemu/bitmap.h"
@@ -29,8 +30,9 @@
  * 3) device realization
  *
  * #TypeInfo.instance_init may not fail. #DeviceClass.realize can
- * fail, returning error information to the caller. A device realize
- * method should handle being called again after it has failed once.
+ * fail, returning error information to the caller. A device's realize
+ * method is called at most once, even if realization fails or the
+ * device is later unrealized.
  * #TypeInfo.instance_init should add instance properties but must not
  * have any side effect not contained in the instance, since it happens
  * during device introspection already. Any operations without special
@@ -239,9 +241,9 @@ struct DeviceState {
      */
     char *canonical_path;
     /**
-     * @realized: has device been realized?
+     * @phase: the current phase
      */
-    bool realized;
+    DevicePhase phase;
     /**
      * @pending_deleted_event: track pending deletion events during unplug
      */
@@ -445,7 +447,7 @@ DeviceState *qdev_try_new(const char *name);
  */
 static inline bool qdev_is_realized(const DeviceState *dev)
 {
-    return qatomic_load_acquire(&dev->realized);
+    return qatomic_load_acquire(&dev->phase) == DEVICE_PHASE_REALIZED;
 }
 
 /**

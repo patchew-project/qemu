@@ -30,7 +30,7 @@ static NamedClockList *qdev_init_clocklist(DeviceState *dev, const char *name,
      * Clock must be added before realize() so that we can compute the
      * clock's canonical path during device_realize().
      */
-    assert(!dev->realized);
+    assert(dev->phase != DEVICE_PHASE_REALIZED);
 
     /*
      * The ncl structure is freed by qdev_finalize_clocklist() which will
@@ -186,6 +186,6 @@ Clock *qdev_alias_clock(DeviceState *dev, const char *name,
 
 void qdev_connect_clock_in(DeviceState *dev, const char *name, Clock *source)
 {
-    assert(!dev->realized);
+    assert(dev->phase != DEVICE_PHASE_REALIZED);
     clock_set_source(qdev_get_clock_in(dev, name), source);
 }

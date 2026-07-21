@@ -57,8 +57,8 @@ static SCSIDevice *do_scsi_device_find(SCSIBus *bus,
     /*
      * This function might run on the IO thread and we might race against
      * main thread hot-plugging the device.
-     * We assume that as soon as .realized is set to true we can let
-     * the user access the device.
+     * We assume that as soon as the device is realized we can let
+     * the user access it.
      */
 
     if (retval && !include_unrealized && !qdev_is_realized(&retval->qdev)) {

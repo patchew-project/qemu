@@ -134,7 +134,7 @@ bool qdev_set_parent_bus(DeviceState *dev, BusState *bus, Error **errp)
     dev->parent_bus = bus;
     object_ref(OBJECT(bus));
     bus_add_child(bus, dev);
-    if (dev->realized) {
+    if (dev->phase == DEVICE_PHASE_REALIZED) {
         resettable_change_parent(OBJECT(dev), OBJECT(bus),
                                  OBJECT(old_parent_bus));
     }
@@ -230,7 +230,7 @@ bool qdev_should_hide_device(const QDict *opts, bool from_json, Error **errp)
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version)
 {
-    assert(!dev->realized);
+    assert(dev->phase != DEVICE_PHASE_REALIZED);
     dev->instance_id_alias = alias_id;
     dev->alias_required_for_version = required_for_version;
 }
@@ -286,7 +286,7 @@ bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp)
         assert(!DEVICE_GET_CLASS(dev)->bus_type);
     }
 
-    if (object_property_set_bool(OBJECT(dev), "realized", true, errp)) {
+    if (object_property_set_str(OBJECT(dev), "phase", "realized", errp)) {
         return true;
     }
 
@@ -314,7 +314,7 @@ bool qdev_realize_and_unref(DeviceState *dev, BusState *bus, Error **errp)
 
 void qdev_unrealize(DeviceState *dev)
 {
-    object_property_set_bool(OBJECT(dev), "realized", false, &error_abort);
+    object_property_set_str(OBJECT(dev), "phase", "retired", &error_abort);
 }
 
 static int qdev_assert_realized_properly_cb(Object *obj, void *opaque)
@@ -324,7 +324,7 @@ static int qdev_assert_realized_properly_cb(Object *obj, void *opaque)
 
     if (dev) {
         dc = DEVICE_GET_CLASS(dev);
-        assert(dev->realized);
+        assert(dev->phase == DEVICE_PHASE_REALIZED);
         assert(dev->parent_bus || !dc->bus_type);
     }
     return 0;
@@ -477,10 +477,10 @@ bool qdev_unplug_blocked(DeviceState *dev, Error **errp)
     return false;
 }
 
-static bool device_get_realized(Object *obj, Error **errp)
+static int device_get_phase(Object *obj, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
-    return dev->realized;
+    return dev->phase;
 }
 
 static bool check_only_migratable(Object *obj, Error **errp)
@@ -497,14 +497,29 @@ static bool check_only_migratable(Object *obj, Error **errp)
     return true;
 }
 
-static void device_set_realized(Object *obj, bool value, Error **errp)
+static void device_set_phase(Object *obj, int value, Error **errp)
 {
+    ERRP_GUARD();
     DeviceState *dev = DEVICE(obj);
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    DevicePhase old_value = dev->phase;
     HotplugHandler *hotplug_ctrl;
     BusState *bus;
     NamedClockList *ncl;
-    Error *local_err = NULL;
+
+    if (value == old_value) {
+        return;
+    }
+
+    if (old_value == DEVICE_PHASE_REALIZING) {
+        error_setg(errp, "The device is currently realizing");
+        return;
+    }
+
+    if (old_value == DEVICE_PHASE_RETIRED) {
+        error_setg(errp, "A device cannot transition from retired to another phase");
+        return;
+    }
 
     if (dev->hotplugged && !dc->hotpluggable) {
         error_setg(errp, "Device '%s' does not support hotplugging",
@@ -512,22 +527,33 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         return;
     }
 
-    if (value && !dev->realized) {
+    switch (value) {
+    case DEVICE_PHASE_INITIALIZED:
+        error_setg(errp, "A device cannot transition from another phase to initialized");
+        return;
+
+    case DEVICE_PHASE_REALIZING:
+        error_setg(errp, "The realizing phase cannot be set via property");
+        return;
+
+    case DEVICE_PHASE_REALIZED:
+       qatomic_set(&dev->phase, DEVICE_PHASE_REALIZING);
+
         if (!check_only_migratable(obj, errp)) {
             goto fail;
         }
 
         hotplug_ctrl = qdev_get_hotplug_handler(dev);
         if (hotplug_ctrl) {
-            hotplug_handler_pre_plug(hotplug_ctrl, dev, &local_err);
-            if (local_err != NULL) {
+            hotplug_handler_pre_plug(hotplug_ctrl, dev, errp);
+            if (*errp) {
                 goto fail;
             }
         }
 
         if (dc->realize) {
-            dc->realize(dev, &local_err);
-            if (local_err != NULL) {
+            dc->realize(dev, errp);
+            if (*errp) {
                 goto fail;
             }
         }
@@ -554,7 +580,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
                                                qdev_get_vmsd(dev), dev,
                                                dev->instance_id_alias,
                                                dev->alias_required_for_version,
-                                               &local_err) < 0) {
+                                               errp) < 0) {
                 goto post_realize_fail;
             }
         }
@@ -583,25 +609,30 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         dev->pending_deleted_event = false;
 
         if (hotplug_ctrl) {
-            hotplug_handler_plug(hotplug_ctrl, dev, &local_err);
-            if (local_err != NULL) {
+            hotplug_handler_plug(hotplug_ctrl, dev, errp);
+            if (*errp) {
                 goto child_realize_fail;
             }
        }
 
-       qatomic_store_release(&dev->realized, value);
+       qatomic_store_release(&dev->phase, value);
+       return;
 
-    } else if (!value && dev->realized) {
-
+    case DEVICE_PHASE_RETIRED:
         /*
          * Change the value so that any concurrent users are aware
-         * that the device is going to be unrealized
+         * that the device is going to be retired
          *
-         * TODO: change .realized property to enum that states
-         * each phase of the device realization/unrealization
+         * TODO: change .phase property to state
+         * each sub-phase of the device realization/unrealization
          */
 
-        qatomic_set(&dev->realized, value);
+        qatomic_set(&dev->phase, value);
+
+        if (old_value == DEVICE_PHASE_INITIALIZED) {
+            return;
+        }
+
         /*
          * Ensure that concurrent users see this update prior to
          * any other changes done by unrealize.
@@ -619,10 +650,11 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         }
         dev->pending_deleted_event = true;
         DEVICE_LISTENER_CALL(unrealize, Reverse, dev);
-    }
+        return;
 
-    assert(local_err == NULL);
-    return;
+    default:
+        g_assert_not_reached();
+    }
 
 child_realize_fail:
     QLIST_FOREACH(bus, &dev->child_bus, sibling) {
@@ -641,7 +673,7 @@ post_realize_fail:
     }
 
 fail:
-    error_propagate(errp, local_err);
+    qatomic_store_release(&dev->phase, DEVICE_PHASE_RETIRED);
 }
 
 static bool device_get_hotpluggable(Object *obj, Error **errp)
@@ -670,7 +702,6 @@ static void device_initfn(Object *obj)
     }
 
     dev->instance_id_alias = -1;
-    dev->realized = false;
     dev->allow_unplug_during_migration = false;
 
     QLIST_INIT(&dev->gpios);
@@ -736,7 +767,7 @@ static void device_unparent(Object *obj)
     DeviceState *dev = DEVICE(obj);
     BusState *bus;
 
-    if (dev->realized) {
+    if (dev->phase == DEVICE_PHASE_REALIZED) {
         qdev_unrealize(dev);
     }
     while (dev->num_child_bus) {
@@ -768,7 +799,7 @@ static void device_class_init(ObjectClass *class, const void *data)
 
     /* by default all devices were considered as hotpluggable,
      * so with intent to check it in generic qdev_unplug() /
-     * device_set_realized() functions make every device
+     * device_set_phase() functions make every device
      * hotpluggable. Devices that shouldn't be hotpluggable,
      * should override it in their class_init()
      */
@@ -786,8 +817,9 @@ static void device_class_init(ObjectClass *class, const void *data)
      */
     dc->legacy_reset = NULL;
 
-    object_class_property_add_bool(class, "realized",
-                                   device_get_realized, device_set_realized);
+    object_class_property_add_enum(class, "phase", "DevicePhase",
+                                   &DevicePhase_lookup,
+                                   device_get_phase, device_set_phase);
     object_class_property_add_bool(class, "hotpluggable",
                                    device_get_hotpluggable, NULL);
     object_class_property_add_bool(class, "hotplugged",

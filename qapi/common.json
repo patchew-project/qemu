@@ -8,6 +8,25 @@
 ##
 
 ##
+# @DevicePhase:
+#
+# An enumeration of the device phases
+#
+# @initialized: the initial phase
+#
+# @realizing: the phase during realization
+#
+# @realized: the phase after realization
+#
+# @retired: the terminal phase entered when unrealization begins or
+#           realization fails after starting
+#
+# Since: 11.1
+##
+{ 'enum': 'DevicePhase',
+  'data': [ 'initialized', 'realizing', 'realized', 'retired' ] }
+
+##
 # @IoOperationType:
 #
 # An enumeration of the I/O operation types

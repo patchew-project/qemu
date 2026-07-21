@@ -596,7 +596,7 @@ const char *qdev_set_id(DeviceState *dev, char *id, Error **errp)
 {
     ObjectProperty *prop;
 
-    assert(!dev->id && !dev->realized);
+    assert(!dev->id && dev->phase != DEVICE_PHASE_REALIZED);
 
     /*
      * object_property_[try_]add_child() below will assert the device
@@ -1078,7 +1078,8 @@ static int qdev_add_hotpluggable_device(Object *obj, void *opaque)
         return 0;
     }
 
-    if (dev->realized && object_property_get_bool(obj, "hotpluggable", NULL)) {
+    if (dev->phase == DEVICE_PHASE_REALIZED &&
+        object_property_get_bool(obj, "hotpluggable", NULL)) {
         *list = g_slist_append(*list, dev);
     }
 
