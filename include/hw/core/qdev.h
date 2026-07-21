@@ -22,27 +22,35 @@
  * Realization
  * -----------
  *
- * Devices are constructed in two stages:
+ * Devices are constructed in the following order:
  *
- * 1) object instantiation via object_initialize() and
- * 2) device realization via the #DeviceState.realized property
+ * 1) #TypeInfo.instance_init
+ * 2) pre-realize property value setting
+ * 3) device realization
  *
- * The former may not fail (and must not abort or exit, since it is called
- * during device introspection already), and the latter may return error
- * information to the caller and must be re-entrant.
- * Trivial field initializations should go into #TypeInfo.instance_init.
- * Operations depending on @props static properties should go into @realize.
+ * #TypeInfo.instance_init may not fail. #DeviceClass.realize can
+ * fail, returning error information to the caller. A device realize
+ * method should handle being called again after it has failed once.
+ * #TypeInfo.instance_init should add instance properties but must not
+ * have any side effect not contained in the instance, since it happens
+ * during device introspection already. Any operations without special
+ * requirements should go @realize so that they can be skipped during
+ * device introspection.
  * After successful realization, setting static properties will fail.
  *
- * As an interim step, the #DeviceState.realized property can also be
- * set with qdev_realize(). In the future, devices will propagate this
- * state change to their children and along busses they expose. The
- * point in time will be deferred to machine creation, so that values
- * set in @realize will not be introspectable beforehand. Therefore
- * devices must not create children during @realize; they should
- * initialize them via object_initialize() in their own
- * #TypeInfo.instance_init and forward the realization events
- * appropriately.
+ * In the future, devices will propagate this state change to their
+ * children and along busses they expose. The point in time will be
+ * deferred to machine creation, so that values set in @realize will not
+ * be introspectable beforehand. Therefore devices should not create
+ * children during @realize; they should initialize them (e.g. by
+ * calling object_initialize_child()) in their own
+ * #TypeInfo.instance_init method, and then realize them (e.g. by
+ * calling qdev_realize()) in their own #DeviceClass.realize method.
+ *
+ * Occasionally a device may need to decide whether or not to create
+ * a child object based on the value of a property. In this case it
+ * will need to both create and realize the child in its realize method,
+ * because the property value is not known until that point.
  *
  * Any type may override the @realize and/or @unrealize callbacks but needs
  * to call the parent type's implementation if keeping their functionality
@@ -101,10 +109,8 @@ typedef int (*DeviceSyncConfig)(DeviceState *dev, Error **errp);
 /**
  * struct DeviceClass - The base class for all devices.
  * @props: Properties accessing state fields.
- * @realize: Callback function invoked when the #DeviceState:realized
- * property is changed to %true.
- * @unrealize: Callback function invoked when the #DeviceState:realized
- * property is changed to %false.
+ * @realize: Callback function to realize the device.
+ * @unrealize: Callback function to unrealize the device.
  * @sync_config: Callback function invoked when QMP command device-sync-config
  * is called. Should synchronize device configuration from host to guest part
  * and notify the guest about the change.
