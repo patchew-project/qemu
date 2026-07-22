@@ -253,6 +253,14 @@ static bool do_typeb_val(DisasContext *dc, arg_typeb *arg, bool side_effects,
     return true;
 }
 
+/*
+ * Helpers for implementing sets of trans_* functions.
+ * Defer the implementation of NAME to FUNC, with optional extra arguments.
+ */
+#define TRANS(NAME, FUNC, ...) \
+    static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a) \
+    { return FUNC(ctx, a, __VA_ARGS__); }
+
 #define DO_TYPEA(NAME, SE, FN) \
     static bool trans_##NAME(DisasContext *dc, arg_typea *a) \
     { return do_typea(dc, a, SE, FN); }
@@ -738,6 +746,16 @@ static bool do_load(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
     return true;
 }
 
+static bool trans_ld_typeb(DisasContext *dc, arg_typeb *arg, const MemOp mop)
+{
+    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    return do_load(dc, arg->rd, addr, mop, dc->mem_index);
+}
+
+TRANS(lbui, trans_ld_typeb, MO_UB)
+TRANS(lhui, trans_ld_typeb, MO_UW)
+TRANS(lwi,  trans_ld_typeb, MO_UL)
+
 static bool trans_lbu(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
@@ -762,12 +780,6 @@ static bool trans_lbuea(DisasContext *dc, arg_typea *arg)
     gen_helper_lbuea(reg_for_write(dc, arg->rd), tcg_env, addr);
     return true;
 #endif
-}
-
-static bool trans_lbui(DisasContext *dc, arg_typeb *arg)
-{
-    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
-    return do_load(dc, arg->rd, addr, MO_UB, dc->mem_index);
 }
 
 static bool trans_lhu(DisasContext *dc, arg_typea *arg)
@@ -798,12 +810,6 @@ static bool trans_lhuea(DisasContext *dc, arg_typea *arg)
 #endif
 }
 
-static bool trans_lhui(DisasContext *dc, arg_typeb *arg)
-{
-    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
-    return do_load(dc, arg->rd, addr, MO_UW, dc->mem_index);
-}
-
 static bool trans_lw(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
@@ -830,12 +836,6 @@ static bool trans_lwea(DisasContext *dc, arg_typea *arg)
         (reg_for_write(dc, arg->rd), tcg_env, addr);
     return true;
 #endif
-}
-
-static bool trans_lwi(DisasContext *dc, arg_typeb *arg)
-{
-    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
-    return do_load(dc, arg->rd, addr, MO_UL, dc->mem_index);
 }
 
 static bool trans_lwx(DisasContext *dc, arg_typea *arg)
@@ -893,6 +893,16 @@ static bool do_store(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
     return true;
 }
 
+static bool trans_st_typeb(DisasContext *dc, arg_typeb *arg, const MemOp mop)
+{
+    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    return do_store(dc, arg->rd, addr, mop, dc->mem_index);
+}
+
+TRANS(sbi,  trans_st_typeb, MO_UB)
+TRANS(shi,  trans_st_typeb, MO_UW)
+TRANS(swi,  trans_st_typeb, MO_UL)
+
 static bool trans_sb(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
@@ -917,12 +927,6 @@ static bool trans_sbea(DisasContext *dc, arg_typea *arg)
     gen_helper_sbea(tcg_env, reg_for_read(dc, arg->rd), addr);
     return true;
 #endif
-}
-
-static bool trans_sbi(DisasContext *dc, arg_typeb *arg)
-{
-    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
-    return do_store(dc, arg->rd, addr, MO_UB, dc->mem_index);
 }
 
 static bool trans_sh(DisasContext *dc, arg_typea *arg)
@@ -953,12 +957,6 @@ static bool trans_shea(DisasContext *dc, arg_typea *arg)
 #endif
 }
 
-static bool trans_shi(DisasContext *dc, arg_typeb *arg)
-{
-    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
-    return do_store(dc, arg->rd, addr, MO_UW, dc->mem_index);
-}
-
 static bool trans_sw(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
@@ -985,12 +983,6 @@ static bool trans_swea(DisasContext *dc, arg_typea *arg)
         (tcg_env, reg_for_read(dc, arg->rd), addr);
     return true;
 #endif
-}
-
-static bool trans_swi(DisasContext *dc, arg_typeb *arg)
-{
-    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
-    return do_store(dc, arg->rd, addr, MO_UL, dc->mem_index);
 }
 
 static bool trans_swx(DisasContext *dc, arg_typea *arg)
