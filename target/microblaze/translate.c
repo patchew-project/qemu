@@ -716,8 +716,6 @@ static bool do_load(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
 {
     MemOp size = mop & MO_SIZE;
 
-    mop |= mo_endian(dc);
-
     /*
      * When doing reverse accesses we need to byteswap the data
      * lanes on the way back into the CPU core.
@@ -749,13 +747,13 @@ static bool do_load(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
 static bool trans_ld_typea(DisasContext *dc, arg_typea *arg, const MemOp mop)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
-    return do_load(dc, arg->rd, addr, mop, dc->mem_index);
+    return do_load(dc, arg->rd, addr, mop | mo_endian(dc), dc->mem_index);
 }
 
 static bool trans_ld_typeb(DisasContext *dc, arg_typeb *arg, const MemOp mop)
 {
     TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
-    return do_load(dc, arg->rd, addr, mop, dc->mem_index);
+    return do_load(dc, arg->rd, addr, mop | mo_endian(dc), dc->mem_index);
 }
 
 TRANS(lbu,  trans_ld_typea, MO_UB)
@@ -839,8 +837,6 @@ static bool do_store(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
 {
     MemOp size = mop & MO_SIZE;
 
-    mop |= mo_endian(dc);
-
     /*
      * When doing reverse accesses we need to byteswap the data
      * lanes on the way back into the CPU core.
@@ -872,13 +868,13 @@ static bool do_store(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
 static bool trans_st_typea(DisasContext *dc, arg_typea *arg, const MemOp mop)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
-    return do_store(dc, arg->rd, addr, mop, dc->mem_index);
+    return do_store(dc, arg->rd, addr, mop | mo_endian(dc), dc->mem_index);
 }
 
 static bool trans_st_typeb(DisasContext *dc, arg_typeb *arg, const MemOp mop)
 {
     TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
-    return do_store(dc, arg->rd, addr, mop, dc->mem_index);
+    return do_store(dc, arg->rd, addr, mop | mo_endian(dc), dc->mem_index);
 }
 
 TRANS(sb,   trans_st_typea, MO_UB)
