@@ -240,19 +240,21 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
 
     if (status != SCSI_STATUS_GOOD) {
         iTask->err_code = -EIO;
-        if (iTask->retries++ < ISCSI_CMD_RETRIES) {
+        if (status == SCSI_STATUS_TIMEOUT) {
+            /*
+             * Do not retry timed-out commands. Retries keep in-flight I/O
+             * alive across a dead session and can block blk_drain_all()
+             * (and thus QEMU exit) for minutes or indefinitely. Kick
+             * reconnect and fail this request.
+             */
+            error_report("iSCSI timed out: %s", iscsi_get_error(iscsi));
+            iscsilun->request_timed_out = true;
+        } else if (iTask->retries++ < ISCSI_CMD_RETRIES) {
             if (status == SCSI_STATUS_BUSY ||
-                status == SCSI_STATUS_TIMEOUT ||
                 status == SCSI_STATUS_TASK_SET_FULL) {
                 unsigned retry_time =
                     exp_random(iscsi_retry_times[iTask->retries - 1]);
-                if (status == SCSI_STATUS_TIMEOUT) {
-                    /* make sure the request is rescheduled AFTER the
-                     * reconnect is initiated */
-                    retry_time = EVENT_INTERVAL * 2;
-                    iTask->iscsilun->request_timed_out = true;
-                }
-                error_report("iSCSI Busy/TaskSetFull/TimeOut"
+                error_report("iSCSI Busy/TaskSetFull"
                              " (retry #%u in %u ms): %s",
                              iTask->retries, retry_time,
                              iscsi_get_error(iscsi));
