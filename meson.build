@@ -3117,6 +3117,14 @@ config_host_data.set('CONFIG_ARM_AES_BUILTIN', cc.compiles('''
     void foo(uint8x16_t *p) { *p = vaesmcq_u8(*p); }
   '''))
 
+config_host_data.set('CONFIG_ARM_LS64_BUILTIN', cc.compiles('''
+    #include <arm_acle.h>
+    #ifndef __ARM_FEATURE_LS64
+    __attribute__((target("+ls64")))
+    #endif
+    void foo(void *p, void *q) { __arm_st64b(q, __arm_ld64b(p)); }
+  '''))
+
 if get_option('membarrier').disabled()
   have_membarrier = false
 elif host_os == 'windows'

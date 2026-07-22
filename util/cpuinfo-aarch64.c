@@ -13,9 +13,6 @@
 #  include <asm/hwcap.h>
 #  include "elf.h"
 # endif
-# ifndef HWCAP2_BTI
-#  define HWCAP2_BTI 0  /* added in glibc 2.32 */
-# endif
 #endif
 #ifdef CONFIG_ELF_AUX_INFO
 #include <sys/auxv.h>
@@ -27,6 +24,13 @@
 # include <machine/armreg.h>
 # include <machine/cpu.h>
 # include <sys/sysctl.h>
+#endif
+
+#ifndef HWCAP2_BTI
+# define HWCAP2_BTI 0  /* added in glibc 2.32 */
+#endif
+#ifndef HWCAP3_LS64
+# define HWCAP3_LS64 0 /* added in glibc 2.44 */
 #endif
 
 unsigned cpuinfo;
@@ -72,6 +76,9 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
 
     unsigned long hwcap2 = qemu_getauxval(AT_HWCAP2);
     info |= (hwcap2 & HWCAP2_BTI ? CPUINFO_BTI : 0);
+
+    unsigned long hwcap3 = qemu_getauxval(AT_HWCAP3);
+    info |= (hwcap3 & HWCAP3_LS64 ? CPUINFO_LS64 : 0);
 #endif
 #ifdef CONFIG_DARWIN
     info |= sysctl_for_bool("hw.optional.arm.FEAT_LSE") * CPUINFO_LSE;
@@ -79,6 +86,7 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
     info |= sysctl_for_bool("hw.optional.arm.FEAT_AES") * CPUINFO_AES;
     info |= sysctl_for_bool("hw.optional.arm.FEAT_PMULL") * CPUINFO_PMULL;
     info |= sysctl_for_bool("hw.optional.arm.FEAT_BTI") * CPUINFO_BTI;
+    info |= sysctl_for_bool("hw.optional.arm.FEAT_LS64") * CPUINFO_LS64;
 #endif
 #if defined(__OpenBSD__) && !defined(CONFIG_ELF_AUX_INFO)
     int mib[2];
