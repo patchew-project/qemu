@@ -103,6 +103,8 @@ typedef struct IscsiLun {
     bool dpofua;
     bool has_write_same;
     bool request_timed_out;
+    /* Consecutive NOP-Outs without a successful NOP-In reply. */
+    int nop_failures;
 } IscsiLun;
 
 typedef struct IscsiTask {
@@ -1398,17 +1400,37 @@ static char *get_initiator_name(QemuOpts *opts)
     return iscsi_name;
 }
 
+static void iscsi_nop_cb(struct iscsi_context *iscsi, int status,
+                         void *command_data, void *opaque)
+{
+    IscsiLun *iscsilun = opaque;
+
+    if (status == SCSI_STATUS_GOOD) {
+        iscsilun->nop_failures = 0;
+    }
+}
+
 static void iscsi_nop_timed_event(void *opaque)
 {
     IscsiLun *iscsilun = opaque;
 
     QEMU_LOCK_GUARD(&iscsilun->mutex);
-    if (iscsi_get_nops_in_flight(iscsilun->iscsi) >= MAX_NOP_FAILURES) {
+    /*
+     * Prefer libiscsi's counter when it works; also track locally because
+     * some libiscsi builds leave nops_in_flight at 0 across a dead TCP
+     * session, which disabled disconnect detection entirely.
+     */
+    if (iscsilun->nop_failures >= MAX_NOP_FAILURES ||
+        iscsi_get_nops_in_flight(iscsilun->iscsi) >= MAX_NOP_FAILURES) {
         error_report("iSCSI: NOP timeout. Reconnecting...");
         iscsilun->request_timed_out = true;
-    } else if (iscsi_nop_out_async(iscsilun->iscsi, NULL, NULL, 0, NULL) != 0) {
+        iscsilun->nop_failures = 0;
+    } else if (iscsi_nop_out_async(iscsilun->iscsi, iscsi_nop_cb, NULL, 0,
+                                   iscsilun) != 0) {
         error_report("iSCSI: failed to sent NOP-Out. Disabling NOP messages.");
         return;
+    } else {
+        iscsilun->nop_failures++;
     }
 
     timer_mod(iscsilun->nop_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + NOP_INTERVAL);
