@@ -5053,3 +5053,9 @@ if not actually_reloc and (host_os == 'windows' or get_option('relocatable'))
   message('QEMU will have to be installed under ' + get_option('prefix') + '.')
   message('Use --disable-relocatable to remove this warning.')
 endif
+
+if get_option('crypto_afalg').enabled()
+    warning('Use of the AF_ALG crypto backend is deprecated, ' +
+            'since Linux 7.1 has deprecated the AF_ALG interface ' +
+            'and removed its ability to use hardware accelerators.')
+endif
