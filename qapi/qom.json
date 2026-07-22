@@ -841,6 +841,31 @@
                   '*log': 'str' } }
 
 ##
+# @RemoteI2CBackendCuseProperties:
+#
+# Properties for the CUSE remote I2C backend.  See
+# :doc:`/system/devices/remote-i2c-master` for detailed
+# usage information.
+#
+# @devname: The name of the character device node to create under /dev
+#     (e.g., 'i2c-33' creates /dev/i2c-33).  The node is accessible
+#     via the standard Linux I2C device interface and usable directly
+#     with i2c-tools and the Linux i2c-dev API.
+#
+# @fuse-opts: Options passed verbatim to the FUSE/CUSE session at
+#     mount time, one option (or argument) per list element.  For
+#     example ['-d'] enables debug tracing, and ['-o', 'allow_other']
+#     grants other users access.  See the libfuse documentation for
+#     the full list of supported options.
+#
+# Since: 11.2
+##
+{ 'struct': 'RemoteI2CBackendCuseProperties',
+  'data': { 'devname': 'str',
+            '*fuse-opts': ['str'] },
+  'if': 'CONFIG_LINUX' }
+
+##
 # @RemoteObjectProperties:
 #
 # Properties for x-remote-object objects.
@@ -1319,6 +1344,8 @@
     'tls-creds-psk',
     'tls-creds-x509',
     'tls-cipher-suites',
+    { 'name': 'remote-i2c-backend-cuse',
+      'if': 'CONFIG_LINUX' },
     { 'name': 'x-remote-object', 'features': [ 'unstable' ] },
     { 'name': 'x-vfio-user-server', 'features': [ 'unstable' ] }
   ] }
@@ -1397,6 +1424,8 @@
       'tls-creds-psk':              'TlsCredsPskProperties',
       'tls-creds-x509':             'TlsCredsX509Properties',
       'tls-cipher-suites':          'TlsCredsProperties',
+      'remote-i2c-backend-cuse':    { 'type': 'RemoteI2CBackendCuseProperties',
+                                      'if': 'CONFIG_LINUX' },
       'x-remote-object':            'RemoteObjectProperties',
       'x-vfio-user-server':         'VfioUserServerProperties'
   } }

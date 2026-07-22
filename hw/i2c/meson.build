@@ -19,4 +19,10 @@ i2c_ss.add(when: 'CONFIG_PPC4XX', if_true: files('ppc4xx_i2c.c'))
 i2c_ss.add(when: 'CONFIG_PCA954X', if_true: files('i2c_mux_pca954x.c'))
 i2c_ss.add(when: 'CONFIG_PMBUS', if_true: files('pmbus_device.c'))
 i2c_ss.add(when: 'CONFIG_BCM2835_I2C', if_true: files('bcm2835_i2c.c'))
+i2c_ss.add(when: 'CONFIG_REMOTE_I2C_MASTER', if_true: files(
+    'remote-i2c-master.c',
+    'remote-i2c-backend.c',
+    'remote-i2c-cuse.c',
+    'remote-i2c-fsm.c'
+))
 system_ss.add_all(when: 'CONFIG_I2C', if_true: i2c_ss)
