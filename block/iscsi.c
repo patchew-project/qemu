@@ -381,6 +381,12 @@ static void iscsi_timed_check_events(void *opaque)
 
         if (iscsilun->request_timed_out) {
             iscsilun->request_timed_out = false;
+            /*
+             * Drop local in-flight tasks so coroutines waiting on a dead
+             * session wake with CANCELLED instead of blocking drain forever
+             * (especially when command timeout is disabled).
+             */
+            iscsi_scsi_cancel_all_tasks(iscsilun->iscsi);
             iscsi_reconnect(iscsilun->iscsi);
         }
 
@@ -1427,6 +1433,7 @@ static void iscsi_nop_timed_event(void *opaque)
         error_report("iSCSI: NOP timeout. Reconnecting...");
         iscsilun->request_timed_out = true;
         iscsilun->nop_failures = 0;
+        iscsi_scsi_cancel_all_tasks(iscsilun->iscsi);
     } else if (iscsi_nop_out_async(iscsilun->iscsi, iscsi_nop_cb, NULL, 0,
                                    iscsilun) != 0) {
         error_report("iSCSI: failed to sent NOP-Out. Disabling NOP messages.");
