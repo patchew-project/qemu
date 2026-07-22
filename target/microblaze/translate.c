@@ -607,7 +607,24 @@ static bool trans_wdic(DisasContext *dc, arg_wdic *a)
 DO_TYPEA(xor, false, tcg_gen_xor_i32)
 DO_TYPEBI(xori, false, tcg_gen_xori_i32)
 
-static TCGv_i32 compute_ldst_addr_typea(DisasContext *dc, int ra, int rb)
+static TCGv_i32 reverse_ldst_addr(TCGv_i32 addr, MemOp mop)
+{
+    MemOp mo_size = mop & MO_SIZE;
+
+    /*
+     * When doing reverse accesses we need to byteswap the data
+     * lanes on the way back into the CPU core.
+     */
+
+    if (mo_size < MO_32) {
+        tcg_gen_xori_i32(addr, addr, 3 - mo_size);
+    }
+
+    return addr;
+}
+
+static TCGv_i32 compute_ldst_addr_typea(DisasContext *dc, int ra, int rb,
+                                        MemOp mop)
 {
     TCGv_i32 ret;
 
@@ -622,6 +639,7 @@ static TCGv_i32 compute_ldst_addr_typea(DisasContext *dc, int ra, int rb)
     } else {
         ret = tcg_constant_i32(0);
     }
+    ret = reverse_ldst_addr(ret, mop);
 
     if ((ra == 1 || rb == 1) && dc->cfg->stackprot) {
         gen_helper_stackprot(tcg_env, ret);
@@ -629,7 +647,8 @@ static TCGv_i32 compute_ldst_addr_typea(DisasContext *dc, int ra, int rb)
     return ret;
 }
 
-static TCGv_i32 compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm)
+static TCGv_i32 compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm,
+                                        MemOp mop)
 {
     TCGv_i32 ret;
 
@@ -642,6 +661,7 @@ static TCGv_i32 compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm)
     } else {
         ret = tcg_constant_i32(imm);
     }
+    ret = reverse_ldst_addr(ret, mop);
 
     if (ra == 1 && dc->cfg->stackprot) {
         gen_helper_stackprot(tcg_env, ret);
@@ -714,24 +734,14 @@ static inline MemOp mo_endian(DisasContext *dc)
 static bool do_load(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
                     int mem_index)
 {
-    MemOp size = mop & MO_SIZE;
-
-    /*
-     * When doing reverse accesses we need to byteswap the data
-     * lanes on the way back into the CPU core.
-     */
-    if (mop & MO_BSWAP) {
-        if (size < MO_32) {
-            tcg_gen_xori_i32(addr, addr, 3 - size);
-        }
-    }
-
     /*
      * For system mode, enforce alignment if the cpu configuration
      * requires it.  For user-mode, the Linux kernel will have fixed up
      * any unaligned access, so emulate that by *not* setting MO_ALIGN.
      */
 #ifndef CONFIG_USER_ONLY
+    MemOp size = mop & MO_SIZE;
+
     if (size > MO_8 &&
         (dc->tb_flags & MSR_EE) &&
         dc->cfg->unaligned_exceptions) {
@@ -746,13 +756,13 @@ static bool do_load(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
 
 static bool trans_ld_typea(DisasContext *dc, arg_typea *arg, const MemOp mop)
 {
-    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb, mop);
     return do_load(dc, arg->rd, addr, mop | mo_endian(dc), dc->mem_index);
 }
 
 static bool trans_ld_typeb(DisasContext *dc, arg_typeb *arg, const MemOp mop)
 {
-    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm, mop);
     return do_load(dc, arg->rd, addr, mop | mo_endian(dc), dc->mem_index);
 }
 
@@ -815,7 +825,7 @@ static bool trans_lwea(DisasContext *dc, arg_typea *arg)
 static bool trans_lwx(DisasContext *dc, arg_typea *arg)
 {
     const MemOp mop = mo_endian(dc) | MO_UL;
-    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb, mop);
 
     /* lwx does not throw unaligned access errors, so force alignment */
     tcg_gen_andi_i32(addr, addr, ~3);
@@ -835,24 +845,14 @@ static bool trans_lwx(DisasContext *dc, arg_typea *arg)
 static bool do_store(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
                      int mem_index)
 {
-    MemOp size = mop & MO_SIZE;
-
-    /*
-     * When doing reverse accesses we need to byteswap the data
-     * lanes on the way back into the CPU core.
-     */
-    if (mop & MO_BSWAP) {
-        if (size < MO_32) {
-            tcg_gen_xori_i32(addr, addr, 3 - size);
-        }
-    }
-
     /*
      * For system mode, enforce alignment if the cpu configuration
      * requires it.  For user-mode, the Linux kernel will have fixed up
      * any unaligned access, so emulate that by *not* setting MO_ALIGN.
      */
 #ifndef CONFIG_USER_ONLY
+    MemOp size = mop & MO_SIZE;
+
     if (size > MO_8 &&
         (dc->tb_flags & MSR_EE) &&
         dc->cfg->unaligned_exceptions) {
@@ -867,13 +867,13 @@ static bool do_store(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
 
 static bool trans_st_typea(DisasContext *dc, arg_typea *arg, const MemOp mop)
 {
-    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb, mop);
     return do_store(dc, arg->rd, addr, mop | mo_endian(dc), dc->mem_index);
 }
 
 static bool trans_st_typeb(DisasContext *dc, arg_typeb *arg, const MemOp mop)
 {
-    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm, mop);
     return do_store(dc, arg->rd, addr, mop | mo_endian(dc), dc->mem_index);
 }
 
@@ -936,7 +936,7 @@ static bool trans_swea(DisasContext *dc, arg_typea *arg)
 static bool trans_swx(DisasContext *dc, arg_typea *arg)
 {
     const MemOp mop = mo_endian(dc) | MO_UL;
-    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb, mop);
     TCGLabel *swx_done = gen_new_label();
     TCGLabel *swx_fail = gen_new_label();
     TCGv_i32 tval;
