@@ -59,11 +59,11 @@ static int iova_tree_compare(gconstpointer a, gconstpointer b, gpointer data)
 {
     const DMAMap *m1 = a, *m2 = b;
 
-    if (m1->iova > m2->iova + m2->size) {
+    if (m1->iova >= m2->iova + m2->size) {
         return 1;
     }
 
-    if (m1->iova + m1->size < m2->iova) {
+    if (m1->iova + m1->size <= m2->iova) {
         return -1;
     }
 
@@ -96,8 +96,8 @@ static gboolean iova_tree_find_address_iterator(gpointer key, gpointer value,
     g_assert(key == value);
 
     needle = args->needle;
-    if (map->translated_addr + map->size < needle->translated_addr ||
-        needle->translated_addr + needle->size < map->translated_addr) {
+    if (map->translated_addr + map->size <= needle->translated_addr ||
+        needle->translated_addr + needle->size <= map->translated_addr) {
         return false;
     }
 
@@ -125,7 +125,7 @@ int iova_tree_insert(IOVATree *tree, const DMAMap *map)
 {
     DMAMap *new;
 
-    if (map->iova + map->size < map->iova || map->perm == IOMMU_NONE) {
+    if (map->iova + map->size <= map->iova || map->perm == IOMMU_NONE) {
         return IOVA_ERR_INVALID;
     }
 
@@ -174,14 +174,14 @@ static void iova_tree_alloc_map_in_hole(struct IOVATreeAllocArgs *args)
     const DMAMap *prev = args->prev, *this = args->this;
     uint64_t hole_start, hole_last;
 
-    if (this && this->iova + this->size < args->iova_begin) {
+    if (this && this->iova + this->size <= args->iova_begin) {
         return;
     }
 
-    hole_start = MAX(prev ? prev->iova + prev->size + 1 : 0, args->iova_begin);
-    hole_last = this ? this->iova : HWADDR_MAX;
+    hole_start = MAX(prev ? prev->iova + prev->size : 0, args->iova_begin);
+    hole_last = this ? this->iova - 1 : HWADDR_MAX;
 
-    if (hole_last - hole_start > args->new_size) {
+    if (hole_last - hole_start + 1 > args->new_size) {
         args->iova_result = hole_start;
         args->iova_found = true;
     }
@@ -244,7 +244,7 @@ int iova_tree_alloc_map(IOVATree *tree, DMAMap *map, hwaddr iova_begin,
         iova_tree_alloc_map_in_hole(&args);
     }
 
-    if (!args.iova_found || args.iova_result + map->size > iova_last) {
+    if (!args.iova_found || args.iova_result + map->size - 1 > iova_last) {
         return IOVA_ERR_NOMEM;
     }
 
@@ -262,11 +262,11 @@ static int gpa_tree_compare(gconstpointer a, gconstpointer b, gpointer data)
 {
     const DMAMap *m1 = a, *m2 = b;
 
-    if (m1->translated_addr > m2->translated_addr + m2->size) {
+    if (m1->translated_addr >= m2->translated_addr + m2->size) {
         return 1;
     }
 
-    if (m1->translated_addr + m1->size < m2->translated_addr) {
+    if (m1->translated_addr + m1->size <= m2->translated_addr) {
         return -1;
     }
 
@@ -287,7 +287,7 @@ int gpa_tree_insert(IOVATree *tree, const DMAMap *map)
 {
     DMAMap *new;
 
-    if (map->translated_addr + map->size < map->translated_addr ||
+    if (map->translated_addr + map->size <= map->translated_addr ||
         map->perm == IOMMU_NONE) {
         return IOVA_ERR_INVALID;
     }
