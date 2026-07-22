@@ -189,6 +189,23 @@ Int128 cpu_ld16_mmu(CPUArchState *env, vaddr addr,
     return ret;
 }
 
+Value64 cpu_atomic_ld64_mmu(CPUArchState *env, vaddr addr,
+                            MemOpIdx oi, uintptr_t ra)
+{
+    MemOp mop = get_memop(oi);
+
+    tcg_debug_assert((mop & MO_SIZE) == MO_512);
+    tcg_debug_assert(memop_alignment_bits(mop) == MO_512);
+    tcg_debug_assert((mop & MO_BSWAP) == 0);
+
+    {
+        Value64 ret = do_atomic_ld64_mmu(env_cpu(env), addr, oi, ra);
+        /* TODO: 48 other bytes unreported to plugins. */
+        plugin_load_cb(env, addr, ret.l[0], ret.l[1], oi);
+        return ret;
+    }
+}
+
 /*
  * Store helpers for cpu_ldst.h
  */
@@ -242,4 +259,18 @@ void cpu_st16_mmu(CPUArchState *env, vaddr addr, Int128 val,
     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_128);
     do_st16_mmu(env_cpu(env), addr, val, oi, retaddr);
     plugin_store_cb(env, addr, int128_getlo(val), int128_gethi(val), oi);
+}
+
+void cpu_atomic_st64_mmu(CPUArchState *env, vaddr addr, const Value64 *val,
+                         MemOpIdx oi, uintptr_t retaddr)
+{
+    MemOp mop = get_memop(oi);
+
+    tcg_debug_assert((mop & MO_SIZE) == MO_512);
+    tcg_debug_assert(memop_alignment_bits(mop) == MO_512);
+    tcg_debug_assert((mop & MO_BSWAP) == 0);
+
+    do_atomic_st64_mmu(env_cpu(env), addr, val, oi, retaddr);
+    /* TODO: 48 other bytes unreported to plugins. */
+    plugin_store_cb(env, addr, val->l[0], val->l[1], oi);
 }

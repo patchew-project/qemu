@@ -42,6 +42,7 @@
 #include "exec/tlb-flags.h"
 #include "qemu/atomic.h"
 #include "qemu/atomic128.h"
+#include "qemu/atomic512.h"
 #include "tb-internal.h"
 #include "trace.h"
 #include "tb-hash.h"
@@ -2429,6 +2430,20 @@ static Int128 do_ld16_mmu(CPUState *cpu, vaddr addr,
     return ret;
 }
 
+static Value64 do_atomic_ld64_mmu(CPUState *cpu, vaddr addr,
+                                  MemOpIdx oi, uintptr_t ra)
+{
+    MMULookupLocals l;
+
+    cpu_req_mo(cpu, TCG_MO_LD_LD | TCG_MO_ST_LD);
+    mmu_lookup(cpu, addr, oi, ra, MMU_DATA_LOAD, &l);
+
+    if (likely(HAVE_ATOMIC512_LD && !(l.page[0].flags & TLB_MMIO))) {
+        return atomic64_read(l.page[0].haddr);
+    }
+    cpu_loop_exit_atomic(cpu, ra);
+}
+
 /*
  * Store Helpers
  */
@@ -2822,6 +2837,21 @@ static void do_st16_mmu(CPUState *cpu, vaddr addr, Int128 val,
     } else {
         b = do_st16_leN(cpu, &l.page[0], val, l.mmu_idx, l.memop, ra);
         do_st_leN(cpu, &l.page[1], b, l.mmu_idx, l.memop, ra);
+    }
+}
+
+static void do_atomic_st64_mmu(CPUState *cpu, vaddr addr, const Value64 *val,
+                               MemOpIdx oi, uintptr_t ra)
+{
+    MMULookupLocals l;
+
+    cpu_req_mo(cpu, TCG_MO_LD_ST | TCG_MO_ST_ST);
+    mmu_lookup(cpu, addr, oi, ra, MMU_DATA_LOAD, &l);
+
+    if (likely(HAVE_ATOMIC512_ST && !(l.page[0].flags & TLB_MMIO))) {
+        atomic64_set(l.page[0].haddr, val);
+    } else {
+        cpu_loop_exit_atomic(cpu, ra);
     }
 }
 

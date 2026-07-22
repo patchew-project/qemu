@@ -15,6 +15,7 @@
 #include "exec/vaddr.h"
 #include "exec/mmu-access-type.h"
 #include "qemu/int128.h"
+#include "qemu/value64.h"
 
 uint8_t cpu_ldb_mmu(CPUArchState *env, vaddr ptr, MemOpIdx oi, uintptr_t ra);
 uint16_t cpu_ldw_mmu(CPUArchState *env, vaddr ptr, MemOpIdx oi, uintptr_t ra);
@@ -116,5 +117,10 @@ uint32_t cpu_ldl_code_mmu(CPUArchState *env, vaddr addr,
                           MemOpIdx oi, uintptr_t ra);
 uint64_t cpu_ldq_code_mmu(CPUArchState *env, vaddr addr,
                           MemOpIdx oi, uintptr_t ra);
+
+Value64 cpu_atomic_ld64_mmu(CPUArchState *env, vaddr ptr,
+                            MemOpIdx oi, uintptr_t ra);
+void cpu_atomic_st64_mmu(CPUArchState *env, vaddr ptr, const Value64 *val,
+                         MemOpIdx oi, uintptr_t ra);
 
 #endif /* ACCEL_TCG_CPU_LDST_COMMON_H */

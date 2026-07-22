@@ -35,6 +35,7 @@
 #include "exec/page-protection.h"
 #include "exec/helper-proto-common.h"
 #include "qemu/atomic128.h"
+#include "qemu/atomic512.h"
 #include "qemu/bswap.h"
 #include "qemu/int128.h"
 #include "trace.h"
@@ -1116,6 +1117,22 @@ static Int128 do_ld16_mmu(CPUState *cpu, vaddr addr,
     return ret;
 }
 
+static Value64 do_atomic_ld64_mmu(CPUState *cpu, vaddr addr,
+                                  MemOpIdx oi, uintptr_t ra)
+{
+    void *haddr;
+
+    cpu_req_mo(cpu, TCG_MO_LD_LD | TCG_MO_ST_LD);
+    haddr = cpu_mmu_lookup(cpu, addr, get_memop(oi), ra, MMU_DATA_LOAD);
+
+    if (HAVE_ATOMIC512_LD) {
+        Value64 ret = atomic64_read(haddr);
+        clear_helper_retaddr();
+        return ret;
+    }
+    cpu_loop_exit_atomic(cpu, ra);
+}
+
 static void do_st1_mmu(CPUState *cpu, vaddr addr, uint8_t val,
                        MemOpIdx oi, uintptr_t ra)
 {
@@ -1189,6 +1206,22 @@ static void do_st16_mmu(CPUState *cpu, vaddr addr, Int128 val,
     }
     store_atom_16(cpu, ra, haddr, mop, val);
     clear_helper_retaddr();
+}
+
+static void do_atomic_st64_mmu(CPUState *cpu, vaddr addr, const Value64 *val,
+                               MemOpIdx oi, uintptr_t ra)
+{
+    void *haddr;
+
+    cpu_req_mo(cpu, TCG_MO_LD_ST | TCG_MO_ST_ST);
+    haddr = cpu_mmu_lookup(cpu, addr, get_memop(oi), ra, MMU_DATA_LOAD);
+
+    if (HAVE_ATOMIC512_ST) {
+        atomic64_set(haddr, val);
+        clear_helper_retaddr();
+    } else {
+        cpu_loop_exit_atomic(cpu, ra);
+    }
 }
 
 uint8_t cpu_ldb_code_mmu(CPUArchState *env, vaddr addr,
