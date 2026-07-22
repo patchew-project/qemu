@@ -814,13 +814,13 @@ static bool trans_lwea(DisasContext *dc, arg_typea *arg)
 
 static bool trans_lwx(DisasContext *dc, arg_typea *arg)
 {
+    const MemOp mop = mo_endian(dc) | MO_UL;
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
 
     /* lwx does not throw unaligned access errors, so force alignment */
     tcg_gen_andi_i32(addr, addr, ~3);
 
-    tcg_gen_qemu_ld_i32(cpu_res_val, addr, dc->mem_index,
-                        mo_endian(dc) | MO_UL);
+    tcg_gen_qemu_ld_i32(cpu_res_val, addr, dc->mem_index, mop);
     tcg_gen_mov_i32(cpu_res_addr, addr);
 
     if (arg->rd) {
@@ -935,6 +935,7 @@ static bool trans_swea(DisasContext *dc, arg_typea *arg)
 
 static bool trans_swx(DisasContext *dc, arg_typea *arg)
 {
+    const MemOp mop = mo_endian(dc) | MO_UL;
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
     TCGLabel *swx_done = gen_new_label();
     TCGLabel *swx_fail = gen_new_label();
@@ -959,7 +960,7 @@ static bool trans_swx(DisasContext *dc, arg_typea *arg)
 
     tcg_gen_atomic_cmpxchg_i32(tval, cpu_res_addr, cpu_res_val,
                                reg_for_write(dc, arg->rd),
-                               dc->mem_index, mo_endian(dc) | MO_UL);
+                               dc->mem_index, mop);
 
     tcg_gen_brcond_i32(TCG_COND_NE, cpu_res_val, tval, swx_fail);
 
