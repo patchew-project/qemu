@@ -103,6 +103,12 @@ typedef struct IscsiLun {
     bool dpofua;
     bool has_write_same;
     bool request_timed_out;
+    /*
+     * Set when the transport is known to be down (command or NOP timeout).
+     * New I/O fails immediately until libiscsi reports logged-in again after
+     * reconnect. Prevents drain/shutdown from waiting forever on a dead target.
+     */
+    bool fail_io;
     /* Consecutive NOP-Outs without a successful NOP-In reply. */
     int nop_failures;
 } IscsiLun;
@@ -245,10 +251,12 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
              * Do not retry timed-out commands. Retries keep in-flight I/O
              * alive across a dead session and can block blk_drain_all()
              * (and thus QEMU exit) for minutes or indefinitely. Kick
-             * reconnect and fail this request.
+             * reconnect and fail this request; further I/O is rejected via
+             * fail_io until the session is logged in again.
              */
             error_report("iSCSI timed out: %s", iscsi_get_error(iscsi));
             iscsilun->request_timed_out = true;
+            iscsilun->fail_io = true;
         } else if (iTask->retries++ < ISCSI_CMD_RETRIES) {
             if (status == SCSI_STATUS_BUSY ||
                 status == SCSI_STATUS_TASK_SET_FULL) {
@@ -277,6 +285,9 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
                 }
             }
         }
+    } else {
+        iscsilun->fail_io = false;
+        iscsilun->nop_failures = 0;
     }
 
     /*
@@ -378,6 +389,10 @@ static void iscsi_timed_check_events(void *opaque)
     WITH_QEMU_LOCK_GUARD(&iscsilun->mutex) {
         /* check for timed out requests */
         iscsi_service(iscsilun->iscsi, 0);
+
+        if (iscsilun->fail_io && iscsi_is_logged_in(iscsilun->iscsi)) {
+            iscsilun->fail_io = false;
+        }
 
         if (iscsilun->request_timed_out) {
             iscsilun->request_timed_out = false;
@@ -604,6 +619,15 @@ static void coroutine_fn iscsi_co_wait_for_task(IscsiTask *iTask,
     qemu_mutex_lock(&iscsilun->mutex);
 }
 
+/* Called with iscsilun->mutex held. */
+static int iscsi_co_reject_if_failing(IscsiLun *iscsilun)
+{
+    if (iscsilun->fail_io) {
+        return -EIO;
+    }
+    return 0;
+}
+
 static int coroutine_fn
 iscsi_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
                 QEMUIOVector *iov, int flags)
@@ -631,6 +655,10 @@ iscsi_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     iscsi_co_init_iscsitask(iscsilun, &iTask);
     qemu_mutex_lock(&iscsilun->mutex);
 retry:
+    if (iscsi_co_reject_if_failing(iscsilun)) {
+        r = -EIO;
+        goto out_unlock;
+    }
     if (iscsilun->use_16_for_rw) {
 #if LIBISCSI_API_VERSION >= (20160603)
         iTask.task = iscsi_write16_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
@@ -730,6 +758,10 @@ static int coroutine_fn iscsi_co_block_status(BlockDriverState *bs,
 
     qemu_mutex_lock(&iscsilun->mutex);
 retry:
+    if (iscsi_co_reject_if_failing(iscsilun)) {
+        ret = -EIO;
+        goto out_unlock;
+    }
     if (iscsi_get_lba_status_task(iscsilun->iscsi, iscsilun->lun,
                                   lba, 8 + 16, iscsi_co_generic_cb,
                                   &iTask) == NULL) {
@@ -861,6 +893,10 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
     iscsi_co_init_iscsitask(iscsilun, &iTask);
     qemu_mutex_lock(&iscsilun->mutex);
 retry:
+    if (iscsi_co_reject_if_failing(iscsilun)) {
+        qemu_mutex_unlock(&iscsilun->mutex);
+        return -EIO;
+    }
     if (iscsilun->use_16_for_rw) {
 #if LIBISCSI_API_VERSION >= (20160603)
         iTask.task = iscsi_read16_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
@@ -927,6 +963,10 @@ static int coroutine_fn iscsi_co_flush(BlockDriverState *bs)
     iscsi_co_init_iscsitask(iscsilun, &iTask);
     qemu_mutex_lock(&iscsilun->mutex);
 retry:
+    if (iscsi_co_reject_if_failing(iscsilun)) {
+        qemu_mutex_unlock(&iscsilun->mutex);
+        return -EIO;
+    }
     if (iscsi_synchronizecache10_task(iscsilun->iscsi, iscsilun->lun, 0, 0, 0,
                                       0, iscsi_co_generic_cb, &iTask) == NULL) {
         qemu_mutex_unlock(&iscsilun->mutex);
@@ -1170,6 +1210,10 @@ coroutine_fn iscsi_co_pdiscard(BlockDriverState *bs, int64_t offset,
     iscsi_co_init_iscsitask(iscsilun, &iTask);
     qemu_mutex_lock(&iscsilun->mutex);
 retry:
+    if (iscsi_co_reject_if_failing(iscsilun)) {
+        r = -EIO;
+        goto out_unlock;
+    }
     if (iscsi_unmap_task(iscsilun->iscsi, iscsilun->lun, 0, 0, &list, 1,
                          iscsi_co_generic_cb, &iTask) == NULL) {
         r = -ENOMEM;
@@ -1255,6 +1299,10 @@ coroutine_fn iscsi_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
     qemu_mutex_lock(&iscsilun->mutex);
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
+    if (iscsi_co_reject_if_failing(iscsilun)) {
+        qemu_mutex_unlock(&iscsilun->mutex);
+        return -EIO;
+    }
     if (use_16_for_ws) {
         /*
          * iscsi_writesame16_task num_blocks argument is uint32_t. We rely here
@@ -1423,6 +1471,10 @@ static void iscsi_nop_timed_event(void *opaque)
     IscsiLun *iscsilun = opaque;
 
     QEMU_LOCK_GUARD(&iscsilun->mutex);
+    if (iscsilun->fail_io && iscsi_is_logged_in(iscsilun->iscsi)) {
+        iscsilun->fail_io = false;
+    }
+
     /*
      * Prefer libiscsi's counter when it works; also track locally because
      * some libiscsi builds leave nops_in_flight at 0 across a dead TCP
@@ -1432,6 +1484,7 @@ static void iscsi_nop_timed_event(void *opaque)
         iscsi_get_nops_in_flight(iscsilun->iscsi) >= MAX_NOP_FAILURES) {
         error_report("iSCSI: NOP timeout. Reconnecting...");
         iscsilun->request_timed_out = true;
+        iscsilun->fail_io = true;
         iscsilun->nop_failures = 0;
         iscsi_scsi_cancel_all_tasks(iscsilun->iscsi);
     } else if (iscsi_nop_out_async(iscsilun->iscsi, iscsi_nop_cb, NULL, 0,
@@ -2398,6 +2451,10 @@ iscsi_co_copy_range_to(BlockDriverState *bs,
     qemu_mutex_lock(&dst_lun->mutex);
     iscsi_task.task = iscsi_xcopy_task(data.size);
 retry:
+    if (iscsi_co_reject_if_failing(dst_lun)) {
+        r = -EIO;
+        goto out_unlock;
+    }
     if (iscsi_scsi_command_async(dst_lun->iscsi, dst_lun->lun,
                                  iscsi_task.task, iscsi_co_generic_cb,
                                  &data,
