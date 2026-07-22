@@ -648,6 +648,13 @@ static void flash_erase(Flash *s, int offset, FlashCMD cmd)
         qemu_log_mask(LOG_GUEST_ERROR, "M25P80: erase with write protect!\n");
         return;
     }
+
+    if (offset + len >= s->size) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "M25P80: erase operation overflowing storage size!\n");
+        return;
+    }
+
     memset(s->storage + offset, 0xff, len);
     flash_sync_area(s, offset, len);
 }
