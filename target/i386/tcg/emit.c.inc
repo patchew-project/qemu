@@ -3424,7 +3424,9 @@ static void gen_rot_overflow(X86DecodedInsn *decode, TCGv result, TCGv old,
 /*
  * RCx operations are invariant modulo 8*operand_size+1.  For 8 and 16-bit operands,
  * this is less than 0x1f (the mask applied by gen_shift_count) so reduce further.
- * FIXME: are flags updated if the count is nonzero, but a multiple of (8 << op) + 1?
+ * A count that is a nonzero multiple of (8 << op) + 1 reduces to 0 and leaves
+ * CF and OF unmodified (confirmed against hardware that rcl $9,%al behaves
+ * exactly like rcl $0,%al).
  */
 static MemOp gen_rotc_count(DisasContext *s, X86DecodedInsn *decode,
                             bool *can_be_zero, TCGv *count, int unit)
