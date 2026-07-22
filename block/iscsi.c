@@ -290,6 +290,20 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
         iscsilun->nop_failures = 0;
     }
 
+    if (status != SCSI_STATUS_GOOD && !iTask->do_retry && !iTask->err_str) {
+        const char *e = iscsi_get_error(iscsi);
+
+        if (e && e[0]) {
+            iTask->err_str = g_strdup(e);
+        } else if (status == SCSI_STATUS_CANCELLED) {
+            iTask->err_str = g_strdup("task cancelled");
+        } else if (status == SCSI_STATUS_TIMEOUT) {
+            iTask->err_str = g_strdup("command timed out");
+        } else {
+            iTask->err_str = g_strdup("I/O error");
+        }
+    }
+
     /*
      * aio_co_wake() is safe to call: iscsi_service(), which called us, is only
      * run from the event_timer and/or the FD handlers, never from the request
