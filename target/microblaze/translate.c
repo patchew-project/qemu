@@ -617,7 +617,10 @@ static TCGv_i32 reverse_ldst_addr(TCGv_i32 addr, MemOp mop)
      */
 
     if (mo_size < MO_32) {
-        tcg_gen_xori_i32(addr, addr, 3 - mo_size);
+        TCGv_i32 new_addr = tcg_temp_new_i32();
+
+        tcg_gen_xori_i32(new_addr, addr, 3 - mo_size);
+        return new_addr;
     }
 
     return addr;
@@ -637,7 +640,7 @@ static TCGv_i32 compute_ldst_addr_typea(DisasContext *dc, int ra, int rb,
     } else if (rb) {
         ret = cpu_R[rb];
     } else {
-        ret = tcg_constant_i32(0);
+        return tcg_constant_i32(0);
     }
     ret = reverse_ldst_addr(ret, mop);
 
@@ -659,7 +662,7 @@ static TCGv_i32 compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm,
     } else if (ra) {
         ret = cpu_R[ra];
     } else {
-        ret = tcg_constant_i32(imm);
+        return tcg_constant_i32(imm);
     }
     ret = reverse_ldst_addr(ret, mop);
 
