@@ -28,6 +28,7 @@
 #define CPUINFO_AES             (1u << 18)
 #define CPUINFO_PCLMUL          (1u << 19)
 #define CPUINFO_GFNI            (1u << 20)
+#define CPUINFO_MOVDIR64B       (1u << 21)
 
 /* Initialized with a constructor. */
 extern unsigned cpuinfo;

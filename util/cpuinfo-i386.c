@@ -29,6 +29,7 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
         __cpuid_count(7, 0, a, b7, c7, d);
         info |= (b7 & bit_BMI ? CPUINFO_BMI1 : 0);
         info |= (b7 & bit_BMI2 ? CPUINFO_BMI2 : 0);
+        info |= (c7 & bit_MOVDIR64B ? CPUINFO_MOVDIR64B : 0);
     }
 
     if (max >= 1) {

@@ -71,6 +71,9 @@
 #ifndef bit_GFNI
 #define bit_GFNI        (1 << 8)
 #endif
+#ifndef bit_MOVDIR64B
+#define bit_MOVDIR64B   (1 << 28)
+#endif
 
 /* Leaf 0x80000001, %ecx */
 #ifndef bit_LZCNT
