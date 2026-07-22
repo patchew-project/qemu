@@ -704,22 +704,17 @@ static inline MemOp mo_endian(DisasContext *dc)
 }
 
 static bool do_load(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
-                    int mem_index, bool rev)
+                    int mem_index)
 {
     MemOp size = mop & MO_SIZE;
 
     mop |= mo_endian(dc);
 
     /*
-     * When doing reverse accesses we need to do two things.
-     *
-     * 1. Reverse the address wrt endianness.
-     * 2. Byteswap the data lanes on the way back into the CPU core.
+     * When doing reverse accesses we need to byteswap the data
+     * lanes on the way back into the CPU core.
      */
-    if (rev) {
-        if (size > MO_8) {
-            mop ^= MO_BSWAP;
-        }
+    if (mop & MO_BSWAP) {
         if (size < MO_32) {
             tcg_gen_xori_i32(addr, addr, 3 - size);
         }
@@ -746,13 +741,13 @@ static bool do_load(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
 static bool trans_lbu(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
-    return do_load(dc, arg->rd, addr, MO_UB, dc->mem_index, false);
+    return do_load(dc, arg->rd, addr, MO_UB, dc->mem_index);
 }
 
 static bool trans_lbur(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
-    return do_load(dc, arg->rd, addr, MO_UB, dc->mem_index, true);
+    return do_load(dc, arg->rd, addr, MO_UB ^ MO_BSWAP, dc->mem_index);
 }
 
 static bool trans_lbuea(DisasContext *dc, arg_typea *arg)
@@ -772,19 +767,19 @@ static bool trans_lbuea(DisasContext *dc, arg_typea *arg)
 static bool trans_lbui(DisasContext *dc, arg_typeb *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
-    return do_load(dc, arg->rd, addr, MO_UB, dc->mem_index, false);
+    return do_load(dc, arg->rd, addr, MO_UB, dc->mem_index);
 }
 
 static bool trans_lhu(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
-    return do_load(dc, arg->rd, addr, MO_UW, dc->mem_index, false);
+    return do_load(dc, arg->rd, addr, MO_UW, dc->mem_index);
 }
 
 static bool trans_lhur(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
-    return do_load(dc, arg->rd, addr, MO_UW, dc->mem_index, true);
+    return do_load(dc, arg->rd, addr, MO_UW ^ MO_BSWAP, dc->mem_index);
 }
 
 static bool trans_lhuea(DisasContext *dc, arg_typea *arg)
@@ -806,19 +801,19 @@ static bool trans_lhuea(DisasContext *dc, arg_typea *arg)
 static bool trans_lhui(DisasContext *dc, arg_typeb *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
-    return do_load(dc, arg->rd, addr, MO_UW, dc->mem_index, false);
+    return do_load(dc, arg->rd, addr, MO_UW, dc->mem_index);
 }
 
 static bool trans_lw(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
-    return do_load(dc, arg->rd, addr, MO_UL, dc->mem_index, false);
+    return do_load(dc, arg->rd, addr, MO_UL, dc->mem_index);
 }
 
 static bool trans_lwr(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
-    return do_load(dc, arg->rd, addr, MO_UL, dc->mem_index, true);
+    return do_load(dc, arg->rd, addr, MO_UL ^ MO_BSWAP, dc->mem_index);
 }
 
 static bool trans_lwea(DisasContext *dc, arg_typea *arg)
@@ -840,7 +835,7 @@ static bool trans_lwea(DisasContext *dc, arg_typea *arg)
 static bool trans_lwi(DisasContext *dc, arg_typeb *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
-    return do_load(dc, arg->rd, addr, MO_UL, dc->mem_index, false);
+    return do_load(dc, arg->rd, addr, MO_UL, dc->mem_index);
 }
 
 static bool trans_lwx(DisasContext *dc, arg_typea *arg)
@@ -864,22 +859,17 @@ static bool trans_lwx(DisasContext *dc, arg_typea *arg)
 }
 
 static bool do_store(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
-                     int mem_index, bool rev)
+                     int mem_index)
 {
     MemOp size = mop & MO_SIZE;
 
     mop |= mo_endian(dc);
 
     /*
-     * When doing reverse accesses we need to do two things.
-     *
-     * 1. Reverse the address wrt endianness.
-     * 2. Byteswap the data lanes on the way back into the CPU core.
+     * When doing reverse accesses we need to byteswap the data
+     * lanes on the way back into the CPU core.
      */
-    if (rev) {
-        if (size > MO_8) {
-            mop ^= MO_BSWAP;
-        }
+    if (mop & MO_BSWAP) {
         if (size < MO_32) {
             tcg_gen_xori_i32(addr, addr, 3 - size);
         }
@@ -906,13 +896,13 @@ static bool do_store(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
 static bool trans_sb(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
-    return do_store(dc, arg->rd, addr, MO_UB, dc->mem_index, false);
+    return do_store(dc, arg->rd, addr, MO_UB, dc->mem_index);
 }
 
 static bool trans_sbr(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
-    return do_store(dc, arg->rd, addr, MO_UB, dc->mem_index, true);
+    return do_store(dc, arg->rd, addr, MO_UB ^ MO_BSWAP, dc->mem_index);
 }
 
 static bool trans_sbea(DisasContext *dc, arg_typea *arg)
@@ -932,19 +922,19 @@ static bool trans_sbea(DisasContext *dc, arg_typea *arg)
 static bool trans_sbi(DisasContext *dc, arg_typeb *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
-    return do_store(dc, arg->rd, addr, MO_UB, dc->mem_index, false);
+    return do_store(dc, arg->rd, addr, MO_UB, dc->mem_index);
 }
 
 static bool trans_sh(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
-    return do_store(dc, arg->rd, addr, MO_UW, dc->mem_index, false);
+    return do_store(dc, arg->rd, addr, MO_UW, dc->mem_index);
 }
 
 static bool trans_shr(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
-    return do_store(dc, arg->rd, addr, MO_UW, dc->mem_index, true);
+    return do_store(dc, arg->rd, addr, MO_UW ^ MO_BSWAP, dc->mem_index);
 }
 
 static bool trans_shea(DisasContext *dc, arg_typea *arg)
@@ -966,19 +956,19 @@ static bool trans_shea(DisasContext *dc, arg_typea *arg)
 static bool trans_shi(DisasContext *dc, arg_typeb *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
-    return do_store(dc, arg->rd, addr, MO_UW, dc->mem_index, false);
+    return do_store(dc, arg->rd, addr, MO_UW, dc->mem_index);
 }
 
 static bool trans_sw(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
-    return do_store(dc, arg->rd, addr, MO_UL, dc->mem_index, false);
+    return do_store(dc, arg->rd, addr, MO_UL, dc->mem_index);
 }
 
 static bool trans_swr(DisasContext *dc, arg_typea *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
-    return do_store(dc, arg->rd, addr, MO_UL, dc->mem_index, true);
+    return do_store(dc, arg->rd, addr, MO_UL ^ MO_BSWAP, dc->mem_index);
 }
 
 static bool trans_swea(DisasContext *dc, arg_typea *arg)
@@ -1000,7 +990,7 @@ static bool trans_swea(DisasContext *dc, arg_typea *arg)
 static bool trans_swi(DisasContext *dc, arg_typeb *arg)
 {
     TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
-    return do_store(dc, arg->rd, addr, MO_UL, dc->mem_index, false);
+    return do_store(dc, arg->rd, addr, MO_UL, dc->mem_index);
 }
 
 static bool trans_swx(DisasContext *dc, arg_typea *arg)
