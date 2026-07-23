@@ -29,5 +29,8 @@ const DMAMap *vhost_iova_tree_find_gpa(const VhostIOVATree *iova_tree,
 int vhost_iova_tree_map_alloc_gpa(VhostIOVATree *iova_tree, DMAMap *map,
                                   hwaddr taddr);
 void vhost_iova_tree_remove_gpa(VhostIOVATree *iova_tree, DMAMap map);
+void vhost_iova_tree_foreach(VhostIOVATree *tree, GTraverseFunc func,
+                               gpointer data);
+
 
 #endif

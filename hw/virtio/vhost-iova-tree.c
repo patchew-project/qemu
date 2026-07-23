@@ -189,3 +189,18 @@ void vhost_iova_tree_remove_gpa(VhostIOVATree *iova_tree, DMAMap map)
     iova_tree_remove(iova_tree->gpa_iova_map, map);
     iova_tree_remove(iova_tree->iova_map, map);
 }
+
+
+/**
+ * Traverse through the iova tree in sorted order
+ *
+ * @tree: The VhostIOVATree
+ * @func: Function called at every node.  A false return value ends traversal
+ * @data: An argument passed to func
+ */
+void vhost_iova_tree_foreach(VhostIOVATree *tree,
+                             GTraverseFunc func,
+                             gpointer data)
+{
+    iova_tree_foreach(tree->iova_map, func, data);
+}
