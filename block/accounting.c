@@ -194,17 +194,19 @@ int block_latency_histogram_set(BlockAcctStats *stats, enum BlockAcctType type,
         return -EINVAL;
     }
 
-    hist->nbins = new_nbins;
-    g_free(hist->boundaries);
-    hist->boundaries = g_new(uint64_t, hist->nbins - 1);
-    for (entry = boundaries, ptr = hist->boundaries; entry;
-         entry = entry->next, ptr++)
-    {
-        *ptr = entry->value;
-    }
+    WITH_QEMU_LOCK_GUARD(&stats->lock) {
+        hist->nbins = new_nbins;
+        g_free(hist->boundaries);
+        hist->boundaries = g_new(uint64_t, hist->nbins - 1);
+        for (entry = boundaries, ptr = hist->boundaries; entry;
+             entry = entry->next, ptr++)
+        {
+            *ptr = entry->value;
+        }
 
-    g_free(hist->bins);
-    hist->bins = g_new0(uint64_t, hist->nbins);
+        g_free(hist->bins);
+        hist->bins = g_new0(uint64_t, hist->nbins);
+    }
 
     return 0;
 }
@@ -213,11 +215,13 @@ void block_latency_histograms_clear(BlockAcctStats *stats)
 {
     int i;
 
-    for (i = 0; i < BLOCK_MAX_IOTYPE; i++) {
-        BlockLatencyHistogram *hist = &stats->latency_histogram[i];
-        g_free(hist->bins);
-        g_free(hist->boundaries);
-        memset(hist, 0, sizeof(*hist));
+    WITH_QEMU_LOCK_GUARD(&stats->lock) {
+        for (i = 0; i < BLOCK_MAX_IOTYPE; i++) {
+            BlockLatencyHistogram *hist = &stats->latency_histogram[i];
+            g_free(hist->bins);
+            g_free(hist->boundaries);
+            memset(hist, 0, sizeof(*hist));
+        }
     }
 }
 
