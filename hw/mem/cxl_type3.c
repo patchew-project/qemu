@@ -1361,6 +1361,16 @@ static void ct3d_reset_hold(Object *obj, ResetType type)
     }
     cxl_initialize_t3_ld_cci(&ct3d->ld0_cci, DEVICE(ct3d), DEVICE(ct3d),
                              512); /* Max payload made up */
+
+    /*
+     * Free any in-flight sanitize state unconditionally.  The background
+     * timer that would advance it lives in the CCI just torn down and
+     * re-initialized above, so the operation can never complete after this
+     * point regardless of the reset type; keeping the heap state would only
+     * leak it on the next allocation.
+     */
+    g_free(ct3d->media_op_sanitize);
+    ct3d->media_op_sanitize = NULL;
 }
 
 static const Property ct3_props[] = {
