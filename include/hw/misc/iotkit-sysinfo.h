@@ -16,6 +16,7 @@
  * QEMU interface:
  *  + QOM property "SYS_VERSION": value to use for SYS_VERSION register
  *  + QOM property "SYS_CONFIG": value to use for SYS_CONFIG register
+ *  + QOM property "SYS_CONFIG2": value to use for SYS_CONFIG2 register
  *  + sysbus MMIO region 0: the system information register bank
  */
 
@@ -38,6 +39,7 @@ struct IoTKitSysInfo {
     /* Properties */
     uint32_t sys_version;
     uint32_t sys_config;
+    uint32_t sys_config2;
     uint32_t sse_version;
     uint32_t iidr;
 };

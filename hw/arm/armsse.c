@@ -806,6 +806,22 @@ static uint32_t armsse_sys_config_value(ARMSSE *s, const ARMSSEInfo *info)
     return sys_config;
 }
 
+static uint32_t armsse_sys_config2_value(ARMSSE *s, const ARMSSEInfo *info)
+{
+    /* Return the SYS_CONFIG2 value for this SSE */
+    uint32_t sys_config2;
+
+    switch (info->sse_version) {
+    case ARMSSE_SSE310:
+        sys_config2 = 0;
+        sys_config2 = deposit32(sys_config2, 0, 3, 1); /* NPU0 = Ethos-U55 */
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return sys_config2;
+}
+
 /* Clock frequency in HZ of the 32KHz "slow clock" */
 #define S32KCLK (32 * 1000)
 
@@ -1496,6 +1512,11 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                                     info->sse_version, &error_abort);
             object_property_set_int(OBJECT(&s->sysinfo), "IIDR",
                                     info->iidr, &error_abort);
+            if (info->sse_version == ARMSSE_SSE310) {
+                object_property_set_int(OBJECT(&s->sysinfo), "SYS_CONFIG2",
+                                        armsse_sys_config2_value(s, info),
+                                        &error_abort);
+            }
             if (!sysbus_realize(sbd, errp)) {
                 return;
             }
