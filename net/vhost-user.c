@@ -459,6 +459,7 @@ int net_init_vhost_user(const Netdev *netdev, const char *name,
     int queues;
     const NetdevVhostUserOptions *vhost_user_opts;
     Chardev *chr;
+    bool memory_isolation G_GNUC_UNUSED;
 
     assert(netdev->type == NET_CLIENT_DRIVER_VHOST_USER);
     vhost_user_opts = &netdev->u.vhost_user;
@@ -475,6 +476,9 @@ int net_init_vhost_user(const Netdev *netdev, const char *name,
                    MAX_QUEUE_NUM);
         return -1;
     }
+
+    memory_isolation = vhost_user_opts->has_memory_isolation ?
+                       vhost_user_opts->memory_isolation : false;
 
     return net_vhost_user_init(peer, "vhost_user", name, chr, queues);
 }
