@@ -5608,6 +5608,11 @@ static RISCVException write_mmpt(CPURISCVState *env, int csrno,
                                  target_ulong val, uintptr_t ra)
 {
     uint32_t mode_value = 0;
+    /*
+     * Only the least-significant SDIDLEN bits of the SDID field are
+     * writable; the remaining bits are WARL and read as zero.
+     */
+    uint64_t sdid_mask = MAKE_64BIT_MASK(0, riscv_cpu_cfg(env)->sdidlen);
     if (!riscv_cpu_cfg(env)->ext_smmpt) {
         goto set_remaining_fields_zero;
     }
@@ -5621,7 +5626,8 @@ static RISCVException write_mmpt(CPURISCVState *env, int csrno,
             /* Only write the legal value */
             env->mptmode = mode_value;
         }
-        env->sdid = (val & MMPT_SDID_MASK_32) >> MMPT_SDID_SHIFT_32;
+        env->sdid = ((val & MMPT_SDID_MASK_32) >> MMPT_SDID_SHIFT_32)
+                    & sdid_mask;
         env->mptppn = val & MMPT_PPN_MASK_32;
     } else if (riscv_cpu_xlen(env) == 64) {
         mode_value = (val & MMPT_MODE_MASK_64) >> MMPT_MODE_SHIFT_64;
@@ -5632,7 +5638,8 @@ static RISCVException write_mmpt(CPURISCVState *env, int csrno,
             mode_value += SMMPT43 - SMMPT34;
             env->mptmode = mode_value;
         }
-        env->sdid = (val & MMPT_SDID_MASK_64) >> MMPT_SDID_SHIFT_64;
+        env->sdid = (((uint64_t)val & MMPT_SDID_MASK_64) >> MMPT_SDID_SHIFT_64)
+                    & sdid_mask;
         env->mptppn = val & MMPT_PPN_MASK_64;
         /* Smmpt64: root table PPN bits 2:0 must be zero (32KiB alignment) */
         if (env->mptmode == SMMPT64) {

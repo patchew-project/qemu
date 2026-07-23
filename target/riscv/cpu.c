@@ -1434,6 +1434,7 @@ static void riscv_cpu_init(Object *obj)
     cpu->cfg.pmu_mask = MAKE_64BIT_MASK(3, 16);
     cpu->cfg.vlenb = 128 >> 3;
     cpu->cfg.elen = 64;
+    cpu->cfg.sdidlen = MMPT_SDIDLEN_MAX;
     cpu->cfg.cbom_blocksize = 64;
     cpu->cfg.cbop_blocksize = 64;
     cpu->cfg.cboz_blocksize = 64;
@@ -1937,6 +1938,48 @@ static const PropertyInfo prop_vlen = {
     .description = "vlen",
     .get = prop_vlen_get,
     .set = prop_vlen_set,
+};
+
+static void prop_sdidlen_set(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
+{
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    uint8_t value;
+
+    if (!visit_type_uint8(v, name, &value, errp)) {
+        return;
+    }
+
+    if (value > MMPT_SDIDLEN_MAX) {
+        error_setg(errp, "smmpt-sdidlen must be between 0 and %d",
+                   MMPT_SDIDLEN_MAX);
+        return;
+    }
+
+    if (value != cpu->cfg.sdidlen && riscv_cpu_is_vendor(obj)) {
+        cpu_set_prop_err(cpu, name, errp);
+        error_append_hint(errp, "Current '%s' val: %u\n",
+                          name, cpu->cfg.sdidlen);
+        return;
+    }
+
+    cpu_option_add_user_setting(cpu, name);
+    cpu->cfg.sdidlen = value;
+}
+
+static void prop_sdidlen_get(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
+{
+    uint8_t value = RISCV_CPU(obj)->cfg.sdidlen;
+
+    visit_type_uint8(v, name, &value, errp);
+}
+
+static const PropertyInfo prop_sdidlen = {
+    .type = "uint8",
+    .description = "smmpt-sdidlen",
+    .get = prop_sdidlen_get,
+    .set = prop_sdidlen_set,
 };
 
 static void prop_elen_set(Object *obj, Visitor *v, const char *name,
@@ -2852,6 +2895,8 @@ static const Property riscv_cpu_properties[] = {
 
     {.name = "vlen", .info = &prop_vlen},
     {.name = "elen", .info = &prop_elen},
+
+    {.name = "smmpt-sdidlen", .info = &prop_sdidlen},
 
     {.name = "cbom_blocksize", .info = &prop_cbom_blksize},
     {.name = "cbop_blocksize", .info = &prop_cbop_blksize},
