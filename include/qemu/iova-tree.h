@@ -161,4 +161,17 @@ int iova_tree_alloc_map(IOVATree *tree, DMAMap *map, hwaddr iova_begin,
  */
 void iova_tree_destroy(IOVATree *tree);
 
+/**
+ * iova_tree_foreach:
+ *
+ * @tree: the iova tree to traverse
+ * @func: the function called at every node. A true return value ends traversal
+ * @data: an argument passed to func
+ *
+ * Wrapper to call g_tree_foreach on underlying g_tree
+ *
+ * Return: None
+ */
+void iova_tree_foreach(IOVATree *tree, GTraverseFunc func, gpointer data);
+
 #endif
