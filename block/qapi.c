@@ -535,49 +535,67 @@ static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
     BlockAcctTimedStats *ts = NULL;
     BlockLatencyHistogram *hgram;
 
-    ds->rd_bytes = stats->nr_bytes[BLOCK_ACCT_READ];
-    ds->wr_bytes = stats->nr_bytes[BLOCK_ACCT_WRITE];
-    ds->zone_append_bytes = stats->nr_bytes[BLOCK_ACCT_ZONE_APPEND];
-    ds->unmap_bytes = stats->nr_bytes[BLOCK_ACCT_UNMAP];
-    ds->rd_operations = stats->nr_ops[BLOCK_ACCT_READ];
-    ds->wr_operations = stats->nr_ops[BLOCK_ACCT_WRITE];
-    ds->zone_append_operations = stats->nr_ops[BLOCK_ACCT_ZONE_APPEND];
-    ds->unmap_operations = stats->nr_ops[BLOCK_ACCT_UNMAP];
+    /*
+     * nr_bytes[] etc. are mutated under stats->lock by block_account_one_io()
+     * from an iothread, and latency_histogram[].{nbins,boundaries,bins} can
+     * be freed and reallocated by a concurrent block_latency_histogram_set()
+     * on the monitor thread, so every read here needs the same lock.
+     */
+    WITH_QEMU_LOCK_GUARD(&stats->lock) {
+        ds->rd_bytes = stats->nr_bytes[BLOCK_ACCT_READ];
+        ds->wr_bytes = stats->nr_bytes[BLOCK_ACCT_WRITE];
+        ds->zone_append_bytes = stats->nr_bytes[BLOCK_ACCT_ZONE_APPEND];
+        ds->unmap_bytes = stats->nr_bytes[BLOCK_ACCT_UNMAP];
+        ds->rd_operations = stats->nr_ops[BLOCK_ACCT_READ];
+        ds->wr_operations = stats->nr_ops[BLOCK_ACCT_WRITE];
+        ds->zone_append_operations = stats->nr_ops[BLOCK_ACCT_ZONE_APPEND];
+        ds->unmap_operations = stats->nr_ops[BLOCK_ACCT_UNMAP];
 
-    ds->failed_rd_operations = stats->failed_ops[BLOCK_ACCT_READ];
-    ds->failed_wr_operations = stats->failed_ops[BLOCK_ACCT_WRITE];
-    ds->failed_zone_append_operations =
-        stats->failed_ops[BLOCK_ACCT_ZONE_APPEND];
-    ds->failed_flush_operations = stats->failed_ops[BLOCK_ACCT_FLUSH];
-    ds->failed_unmap_operations = stats->failed_ops[BLOCK_ACCT_UNMAP];
+        ds->failed_rd_operations = stats->failed_ops[BLOCK_ACCT_READ];
+        ds->failed_wr_operations = stats->failed_ops[BLOCK_ACCT_WRITE];
+        ds->failed_zone_append_operations =
+            stats->failed_ops[BLOCK_ACCT_ZONE_APPEND];
+        ds->failed_flush_operations = stats->failed_ops[BLOCK_ACCT_FLUSH];
+        ds->failed_unmap_operations = stats->failed_ops[BLOCK_ACCT_UNMAP];
 
-    ds->invalid_rd_operations = stats->invalid_ops[BLOCK_ACCT_READ];
-    ds->invalid_wr_operations = stats->invalid_ops[BLOCK_ACCT_WRITE];
-    ds->invalid_zone_append_operations =
-        stats->invalid_ops[BLOCK_ACCT_ZONE_APPEND];
-    ds->invalid_flush_operations =
-        stats->invalid_ops[BLOCK_ACCT_FLUSH];
-    ds->invalid_unmap_operations = stats->invalid_ops[BLOCK_ACCT_UNMAP];
+        ds->invalid_rd_operations = stats->invalid_ops[BLOCK_ACCT_READ];
+        ds->invalid_wr_operations = stats->invalid_ops[BLOCK_ACCT_WRITE];
+        ds->invalid_zone_append_operations =
+            stats->invalid_ops[BLOCK_ACCT_ZONE_APPEND];
+        ds->invalid_flush_operations =
+            stats->invalid_ops[BLOCK_ACCT_FLUSH];
+        ds->invalid_unmap_operations = stats->invalid_ops[BLOCK_ACCT_UNMAP];
 
-    ds->rd_merged = stats->merged[BLOCK_ACCT_READ];
-    ds->wr_merged = stats->merged[BLOCK_ACCT_WRITE];
-    ds->zone_append_merged = stats->merged[BLOCK_ACCT_ZONE_APPEND];
-    ds->unmap_merged = stats->merged[BLOCK_ACCT_UNMAP];
-    ds->flush_operations = stats->nr_ops[BLOCK_ACCT_FLUSH];
-    ds->wr_total_time_ns = stats->total_time_ns[BLOCK_ACCT_WRITE];
-    ds->zone_append_total_time_ns =
-        stats->total_time_ns[BLOCK_ACCT_ZONE_APPEND];
-    ds->rd_total_time_ns = stats->total_time_ns[BLOCK_ACCT_READ];
-    ds->flush_total_time_ns = stats->total_time_ns[BLOCK_ACCT_FLUSH];
-    ds->unmap_total_time_ns = stats->total_time_ns[BLOCK_ACCT_UNMAP];
+        ds->rd_merged = stats->merged[BLOCK_ACCT_READ];
+        ds->wr_merged = stats->merged[BLOCK_ACCT_WRITE];
+        ds->zone_append_merged = stats->merged[BLOCK_ACCT_ZONE_APPEND];
+        ds->unmap_merged = stats->merged[BLOCK_ACCT_UNMAP];
+        ds->flush_operations = stats->nr_ops[BLOCK_ACCT_FLUSH];
+        ds->wr_total_time_ns = stats->total_time_ns[BLOCK_ACCT_WRITE];
+        ds->zone_append_total_time_ns =
+            stats->total_time_ns[BLOCK_ACCT_ZONE_APPEND];
+        ds->rd_total_time_ns = stats->total_time_ns[BLOCK_ACCT_READ];
+        ds->flush_total_time_ns = stats->total_time_ns[BLOCK_ACCT_FLUSH];
+        ds->unmap_total_time_ns = stats->total_time_ns[BLOCK_ACCT_UNMAP];
 
-    ds->has_idle_time_ns = stats->last_access_time_ns > 0;
-    if (ds->has_idle_time_ns) {
-        ds->idle_time_ns = block_acct_idle_time_ns(stats);
+        ds->has_idle_time_ns = stats->last_access_time_ns > 0;
+        if (ds->has_idle_time_ns) {
+            ds->idle_time_ns = block_acct_idle_time_ns(stats);
+        }
+
+        ds->account_invalid = stats->account_invalid;
+        ds->account_failed = stats->account_failed;
+
+        hgram = stats->latency_histogram;
+        ds->rd_latency_histogram
+            = bdrv_latency_histogram_stats(&hgram[BLOCK_ACCT_READ]);
+        ds->wr_latency_histogram
+            = bdrv_latency_histogram_stats(&hgram[BLOCK_ACCT_WRITE]);
+        ds->zone_append_latency_histogram
+            = bdrv_latency_histogram_stats(&hgram[BLOCK_ACCT_ZONE_APPEND]);
+        ds->flush_latency_histogram
+            = bdrv_latency_histogram_stats(&hgram[BLOCK_ACCT_FLUSH]);
     }
-
-    ds->account_invalid = stats->account_invalid;
-    ds->account_failed = stats->account_failed;
 
     while ((ts = block_acct_interval_next(stats, ts))) {
         BlockDeviceTimedStats *dev_stats = g_malloc0(sizeof(*dev_stats));
