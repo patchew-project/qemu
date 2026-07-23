@@ -1,5 +1,5 @@
 /*
- * ARM V2M MPS2 board emulation, trustzone aware FPGA images
+ * Arm V2M MPS2 and MPS3 board emulation, trustzone aware FPGA images
  *
  * Copyright (c) 2017 Linaro Limited
  * Written by Peter Maydell
@@ -18,12 +18,13 @@
  *  "mps2-an521" -- Dual Cortex-M33 as documented in Application Note AN521
  *  "mps2-an524" -- Dual Cortex-M33 as documented in Application Note AN524
  *  "mps2-an547" -- Single Cortex-M55 as documented in Application Note AN547
+ *  "mps3-an555" -- Single Cortex-M85 as documented in Application Note AN555
  *
  * Links to the TRM for the board itself and to the various Application
  * Notes which document the FPGA images can be found here:
  * https://developer.arm.com/products/system-design/development-boards/fpga-prototyping-boards/mps2
  *
- * Board TRM:
+ * MPS2 and MPS2+ Board TRM:
  * https://developer.arm.com/documentation/100112/latest/
  * Application Note AN505:
  * https://developer.arm.com/documentation/dai0505/latest/
@@ -31,8 +32,12 @@
  * https://developer.arm.com/documentation/dai0521/latest/
  * Application Note AN524:
  * https://developer.arm.com/documentation/dai0524/latest/
+ * MPS3 Board TRM:
+ * https://developer.arm.com/documentation/100765/latest/
  * Application Note AN547:
  * https://developer.arm.com/documentation/dai0547/latest/
+ * Application Note AN555:
+ * https://developer.arm.com/documentation/107642/latest/
  *
  * The AN505 defers to the Cortex-M33 processor ARMv8M IoT Kit FVP User Guide
  * (ARM ECM0601256) for the details of some of the device layout:
@@ -42,6 +47,8 @@
  *  https://developer.arm.com/documentation/101104/latest/
  * and the AN547 uses the SSE-300, whose layout is in the SSE-300 TRM:
  *  https://developer.arm.com/documentation/101773/latest/
+ * and the AN555 uses the SSE-310, whose layout is in the SSE-310 TRM:
+ *  https://developer.arm.com/documentation/102778/latest/
  */
 
 #include "qemu/osdep.h"
@@ -77,7 +84,7 @@
 #include "qom/object.h"
 #include "hw/core/irq.h"
 
-#define MPS2TZ_NUMIRQ_MAX 96
+#define MPS2TZ_NUMIRQ_MAX 100
 #define MPS2TZ_RAM_MAX 5
 
 typedef enum MPS2TZFPGAType {
@@ -85,6 +92,7 @@ typedef enum MPS2TZFPGAType {
     FPGA_AN521,
     FPGA_AN524,
     FPGA_AN547,
+    FPGA_AN555,
 } MPS2TZFPGAType;
 
 /*
@@ -173,6 +181,7 @@ struct MPS2TZMachineState {
 #define TYPE_MPS2TZ_AN521_MACHINE MACHINE_TYPE_NAME("mps2-an521")
 #define TYPE_MPS3TZ_AN524_MACHINE MACHINE_TYPE_NAME("mps3-an524")
 #define TYPE_MPS3TZ_AN547_MACHINE MACHINE_TYPE_NAME("mps3-an547")
+#define TYPE_MPS3TZ_AN555_MACHINE MACHINE_TYPE_NAME("mps3-an555")
 
 OBJECT_DECLARE_TYPE(MPS2TZMachineState, MPS2TZMachineClass, MPS2TZ_MACHINE)
 
@@ -202,6 +211,15 @@ static const uint32_t an524_oscclk[] = {
     24000000,
     32000000,
     50000000,
+    50000000,
+    24576000,
+    23750000,
+};
+
+static const uint32_t an555_oscclk[] = {
+    24000000,
+    25000000,
+    30000000,
     50000000,
     24576000,
     23750000,
@@ -1103,6 +1121,72 @@ static void mps2tz_common_init(MachineState *machine)
         },
     };
 
+    const PPCInfo an555_ppcs[] = { {
+            .name = "apb_ppcexp0",
+            .ports = {
+                { "ssram-mpc", make_mpc, &mms->mpc[0], 0x57000000, 0x1000 },
+                { "qspi-mpc", make_mpc, &mms->mpc[1], 0x57001000, 0x1000 },
+                { "ddr-mpc", make_mpc, &mms->mpc[2], 0x57002000, 0x1000 },
+            },
+        }, {
+            .name = "apb_ppcexp1",
+            .ports = {
+                { "i2c0", make_i2c, &mms->i2c[0], 0x49200000, 0x1000, {},
+                  { .i2c_internal = true /* touchscreen */ } },
+                { "i2c1", make_i2c, &mms->i2c[1], 0x49201000, 0x1000, {},
+                  { .i2c_internal = true /* audio conf */ } },
+                { "spi0", make_spi, &mms->spi[0], 0x49202000, 0x1000, { 53 } },
+                { "spi1", make_spi, &mms->spi[1], 0x49203000, 0x1000, { 54 } },
+                { "spi2", make_spi, &mms->spi[2], 0x49204000, 0x1000, { 55 } },
+                { "i2c2", make_i2c, &mms->i2c[2], 0x49205000, 0x1000, {},
+                  { .i2c_internal = false /* shield 0 */ } },
+                { "i2c3", make_i2c, &mms->i2c[3], 0x49206000, 0x1000, {},
+                  { .i2c_internal = false /* shield 1 */ } },
+                { /* port 7 reserved */ },
+                { "i2c4", make_i2c, &mms->i2c[4], 0x49208000, 0x1000, {},
+                  { .i2c_internal = true /* DDR4 EEPROM */ } },
+            },
+        }, {
+            .name = "apb_ppcexp2",
+            .ports = {
+                { "scc", make_scc, &mms->scc, 0x49300000, 0x1000 },
+                { "i2s-audio", make_unimp_dev, &mms->i2s_audio, 0x49301000, 0x1000 },
+                { "fpgaio", make_fpgaio, &mms->fpgaio, 0x49302000, 0x1000 },
+                { "uart0", make_uart, &mms->uart[0], 0x49303000, 0x1000, { 33, 34, 43 } },
+                { "uart1", make_uart, &mms->uart[1], 0x49304000, 0x1000, { 35, 36, 44 } },
+                { "uart2", make_uart, &mms->uart[2], 0x49305000, 0x1000, { 37, 38, 45 } },
+                { "uart3", make_uart, &mms->uart[3], 0x49306000, 0x1000, { 39, 40, 46 } },
+                { "uart4", make_uart, &mms->uart[4], 0x49307000, 0x1000, { 41, 42, 47 } },
+                { "uart5", make_uart, &mms->uart[5], 0x49308000, 0x1000, { 125, 126, 127 } },
+
+                { /* port 9 reserved */ },
+                { "clcd", make_unimp_dev, &mms->cldc, 0x4930a000, 0x1000 },
+                { "rtc", make_rtc, &mms->rtc, 0x4930b000, 0x1000 },
+            },
+        }, {
+            .name = "ahb_ppcexp0",
+            .ports = {
+                { "gpio0", make_unimp_dev, &mms->gpio[0], 0x41100000, 0x1000 },
+                { "gpio1", make_unimp_dev, &mms->gpio[1], 0x41101000, 0x1000 },
+                { "gpio2", make_unimp_dev, &mms->gpio[2], 0x41102000, 0x1000 },
+                { "gpio3", make_unimp_dev, &mms->gpio[3], 0x41103000, 0x1000 },
+                { /* port 4 USER AHB interface 0 */ },
+                { /* port 5 USER AHB interface 1 */ },
+                { /* port 6 USER AHB interface 2 */ },
+                { /* port 7 USER AHB interface 3 */ },
+                { "eth-usb", make_eth_usb, NULL, 0x41400000, 0x200000, { 49 } },
+            },
+        }, {
+            .name = "ahb_ppcexp1",
+            .ports = {
+                { "dma0", make_dma, &mms->dma[0], 0x41200000, 0x1000, { 59, 57, 58 } },
+                { "dma1", make_dma, &mms->dma[1], 0x41201000, 0x1000, { 62, 60, 61 } },
+                { "dma2", make_dma, &mms->dma[2], 0x41202000, 0x1000, { 65, 63, 64 } },
+                { "dma3", make_dma, &mms->dma[3], 0x41203000, 0x1000, { 68, 66, 67 } },
+            },
+        },
+    };
+
     switch (mmc->fpga_type) {
     case FPGA_AN505:
     case FPGA_AN521:
@@ -1116,6 +1200,10 @@ static void mps2tz_common_init(MachineState *machine)
     case FPGA_AN547:
         ppcs = an547_ppcs;
         num_ppcs = ARRAY_SIZE(an547_ppcs);
+        break;
+    case FPGA_AN555:
+        ppcs = an555_ppcs;
+        num_ppcs = ARRAY_SIZE(an555_ppcs);
         break;
     default:
         g_assert_not_reached();
@@ -1198,6 +1286,12 @@ static void mps2tz_common_init(MachineState *machine)
     if (mmc->fpga_type == FPGA_AN547) {
         create_unimplemented_device("U55 timing adapter 0", 0x48102000, 0x1000);
         create_unimplemented_device("U55 timing adapter 1", 0x48103000, 0x1000);
+    }
+
+    if (mmc->fpga_type == FPGA_AN555) {
+        create_unimplemented_device("FPGA SRAM timing adapter", 0x41700000, 0x1000);
+        create_unimplemented_device("QSPI timing adapter", 0x41701000, 0x1000);
+        create_unimplemented_device("DDR4 timing adapter", 0x41702000, 0x1000);
     }
 
     create_non_mpc_ram(mms);
@@ -1447,6 +1541,41 @@ static void mps3tz_an547_class_init(ObjectClass *oc, const void *data)
     mps2tz_set_default_ram_info(mmc);
 }
 
+static void mps3tz_an555_class_init(ObjectClass *oc, const void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_CLASS(oc);
+    static const char * const valid_cpu_types[] = {
+        ARM_CPU_TYPE_NAME("cortex-m85"),
+        NULL
+    };
+
+    mc->desc = "ARM MPS3 with AN555 FPGA image for Cortex-M85";
+    mc->default_cpus = 1;
+    mc->min_cpus = mc->default_cpus;
+    mc->max_cpus = mc->default_cpus;
+    mmc->fpga_type = FPGA_AN555;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m85");
+    mc->valid_cpu_types = valid_cpu_types;
+    mmc->scc_id = 0x41055551;
+    mmc->sysclk_frq = 25 * 1000 * 1000; /* 25MHz */
+    mmc->apb_periph_frq = 25 * 1000 * 1000; /* 25MHz */
+    mmc->oscclk = an555_oscclk;
+    mmc->len_oscclk = ARRAY_SIZE(an555_oscclk);
+    mmc->fpgaio_num_leds = 10;
+    mmc->fpgaio_has_switches = true;
+    mmc->fpgaio_has_dbgctrl = true;
+    mmc->numirq = 100;
+    mmc->uart_overflow_irq = 48;
+    mmc->init_svtor = 0x00000000;
+    mmc->cpu0_mpu_s = mmc->cpu0_mpu_ns = 8;
+    mmc->sram_addr_width = 21;
+    mmc->raminfo = an547_raminfo; /* same as AN547*/
+    mmc->armsse_type = TYPE_SSE310;
+    mmc->boot_ram_size = 512 * KiB;
+    mps2tz_set_default_ram_info(mmc);
+}
+
 static const TypeInfo mps2tz_info = {
     .name = TYPE_MPS2TZ_MACHINE,
     .parent = TYPE_MACHINE,
@@ -1488,6 +1617,13 @@ static const TypeInfo mps3tz_an547_info = {
     .interfaces = arm_machine_interfaces,
 };
 
+static const TypeInfo mps3tz_an555_info = {
+    .name = TYPE_MPS3TZ_AN555_MACHINE,
+    .parent = TYPE_MPS2TZ_MACHINE,
+    .class_init = mps3tz_an555_class_init,
+    .interfaces = arm_machine_interfaces,
+};
+
 static void mps2tz_machine_init(void)
 {
     type_register_static(&mps2tz_info);
@@ -1495,6 +1631,7 @@ static void mps2tz_machine_init(void)
     type_register_static(&mps2tz_an521_info);
     type_register_static(&mps3tz_an524_info);
     type_register_static(&mps3tz_an547_info);
+    type_register_static(&mps3tz_an555_info);
 }
 
 type_init(mps2tz_machine_init);
