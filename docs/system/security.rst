@@ -133,6 +133,16 @@ an issue as a normal bug.
   that affect the level 0 QEMU process. While these bugs should be
   fixed, they will not be triaged as security flaws at this time.
 
+* **uninitialized stack variables**. If the bug scenario relies on
+  undefined behaviour from stack variables that lack explicit
+  initialization, it will not usually be considered a security flaw.
+  The build system adds '-ftrivial-auto-var-init=zero', which is
+  available in both the supported compilers (GCC and CLang) and
+  ensures all stack variables have implicit zero-initializers.
+  This eliminates undefined behaviour and usually gives the
+  correct desired initialization value, eliminating most of the
+  bug scenarios wrt uninitialized stack variables.
+
 * **low severity impact**. As a catch all rule, issues which
   are judged to have a "low" severity impact on the system will
   usually not justify handling as security bugs, nor assignment
