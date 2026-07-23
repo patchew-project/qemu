@@ -18,6 +18,7 @@
 #include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-net.h"
+#include "hw/virtio/vhost-iova-tree.h"
 #include "chardev/char-fe.h"
 #include "io/channel-socket.h"
 #include "system/kvm.h"
@@ -25,6 +26,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/uuid.h"
 #include "qemu/sockets.h"
+#include "qemu/memfd.h"
 #include "system/runstate.h"
 #include "system/cryptodev.h"
 #include "migration/postcopy-ram.h"
@@ -320,6 +322,13 @@ static VhostUserMsg m __attribute__ ((unused));
 /* The version of the protocol we support */
 #define VHOST_USER_VERSION    (0x1)
 
+typedef struct IsolationRegion {
+    uint64_t base_addr;
+    uint64_t vring_base_addr;
+    uint64_t size;
+    int iso_fd;
+} IsolationRegion;
+
 struct vhost_user {
     struct vhost_dev *dev;
     /* Shared between vhost devs of the same virtio device */
@@ -353,6 +362,10 @@ struct vhost_user {
      * by the backend (see @features).
      */
     uint64_t protocol_features;
+
+    /* Isolated memory data*/
+    struct IsolationRegion iso_memory;
+    VhostIOVATree *iso_iova_tree;
 };
 
 struct scrub_regions {
@@ -1107,6 +1120,121 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
         if (ret < 0) {
             return ret;
         }
+    }
+
+    return 0;
+}
+
+/* TODO: Is there any notifier cleanup required here?*/
+static void cleanup_isolation_regions(struct vhost_dev *dev)
+{
+    struct vhost_user *u = dev->opaque;
+    if (u->iso_memory.base_addr) {
+        vhost_iova_tree_delete(u->iso_iova_tree);
+        u->iso_iova_tree = NULL;
+        memset(&u->iso_memory, 0, sizeof(IsolationRegion));
+        qemu_memfd_free((gpointer) u->iso_memory.base_addr, u->iso_memory.size,
+                         u->iso_memory.iso_fd);
+        u->iso_memory.base_addr = 0;
+    }
+}
+
+__attribute__((unused))
+static int init_isolation_regions(struct vhost_dev *dev,
+                                  VhostUserMsg *msg,
+                                  int *fds, size_t *fd_num)
+{
+    Error *err = NULL;
+    struct vhost_user *u = dev->opaque;
+    uint32_t nregions = dev->mem->nregions;
+    uint64_t buffer_reg_size = 0;
+    DMAMap newEntry = {
+        .perm = IOMMU_RW
+    };
+    g_autoptr(GArray) buffer_regions =
+        g_array_new(FALSE, TRUE, sizeof(DMAMap));
+
+    msg->hdr.request = VHOST_USER_SET_MEM_TABLE;
+
+    /* In case of reset, clear old regions*/
+    if (u->iso_memory.base_addr != 0) {
+        cleanup_isolation_regions(dev);
+        vhost_iova_tree_delete(u->iso_iova_tree);
+    }
+
+    /* Gather information for bounce buffers to be mapped */
+    for (int i = 0; i < nregions; i++) {
+        struct vhost_memory_region *dev_region = &dev->mem->regions[i];
+        hwaddr size = ROUND_UP(dev_region->memory_size,
+                      qemu_real_host_page_size());
+        newEntry.translated_addr = dev_region->guest_phys_addr;
+        newEntry.size = size - 1;
+        buffer_reg_size += size;
+        g_array_append_val(buffer_regions, newEntry);
+    }
+
+    int num;
+    size_t desc_size;
+    size_t avail_size;
+    size_t driver_area_size;
+    size_t device_area_size;
+    size_t total_vring_size = 0;
+    size_t total_mmap_size;
+
+    /* Get space required for all vrings */
+    for (int j = 0; j < dev->nvqs; j++) {
+        num = virtio_queue_get_num(dev->vdev, dev->vq_index + j);
+        desc_size = sizeof(vring_desc_t) * num;
+        avail_size = offsetof(vring_avail_t, ring[num]) +
+                        sizeof(uint16_t);
+        driver_area_size = ROUND_UP(desc_size + avail_size,
+                            qemu_real_host_page_size());
+        device_area_size = ROUND_UP(offsetof(vring_used_t, ring[num]) +
+                                    sizeof(uint16_t),
+                                    qemu_real_host_page_size());
+        total_vring_size += driver_area_size + device_area_size;
+    }
+
+    total_mmap_size = buffer_reg_size + total_vring_size;
+
+    /* Allocate and map an anonymous file to hold the isolation region */
+    u->iso_memory.base_addr = (uint64_t) qemu_memfd_alloc("iso_r",
+                              total_mmap_size,
+                              F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
+                              &u->iso_memory.iso_fd, &err);
+    u->iso_memory.size = total_mmap_size;
+
+    if (err) {
+        error_report_err(err);
+        cleanup_isolation_regions(dev);
+        return -1;
+    }
+
+    uint64_t last_addr = int128_get64(int128_add(u->iso_memory.base_addr,
+                                                 total_mmap_size - 1));
+
+    /*
+     * Instantiates iova tree sized to map bounce buffers and vrings to the
+     * isolation region in host va.
+     */
+    u->iso_iova_tree = vhost_iova_tree_new(u->iso_memory.base_addr, last_addr);
+
+    assert(&u->iso_memory.iso_fd >= 0);
+    DMAMap *map;
+    DMAMap vring_map = {
+        .perm = IOMMU_RW,
+        .size = total_vring_size - 1,
+        /*vrings are allocated on tree first, so will be assigned base addr*/
+        .translated_addr = u->iso_memory.base_addr
+    };
+
+    vhost_iova_tree_map_alloc(u->iso_iova_tree, &vring_map,
+                              vring_map.translated_addr);
+    u->iso_memory.vring_base_addr = vring_map.iova;
+    for (int i = 0; i < buffer_regions->len; i++) {
+        map = &g_array_index(buffer_regions, DMAMap, i);
+        vhost_iova_tree_map_alloc_gpa(u->iso_iova_tree, map,
+                                      map->translated_addr);
     }
 
     return 0;
@@ -2684,6 +2812,7 @@ static int vhost_user_backend_cleanup(struct vhost_dev *dev)
     g_free(u->region_rb_offset);
     u->region_rb_offset = NULL;
     u->region_rb_len = 0;
+    cleanup_isolation_regions(dev);
     g_free(u);
     dev->opaque = 0;
 
