@@ -18,6 +18,7 @@
 #include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-net.h"
+#include "hw/virtio/vhost-shadow-virtqueue.h"
 #include "hw/virtio/vhost-iova-tree.h"
 #include "chardev/char-fe.h"
 #include "io/channel-socket.h"
@@ -365,7 +366,9 @@ struct vhost_user {
 
     /* Isolated memory data*/
     struct IsolationRegion iso_memory;
+    GPtrArray *shadow_vqs;
     VhostIOVATree *iso_iova_tree;
+    bool svqs_allocated;
 };
 
 struct scrub_regions {
@@ -1696,6 +1699,24 @@ static int vhost_set_vring_file(struct vhost_dev *dev,
 static int vhost_user_set_vring_kick(struct vhost_dev *dev,
                                      struct vhost_vring_file *file)
 {
+    struct vhost_user *u = dev->opaque;
+    int svq_idx = file->index - dev->vq_index;
+    if (u->user->memory_isolation) {
+        VhostShadowVirtqueue *svq = g_ptr_array_index(u->shadow_vqs,
+                                                      svq_idx);
+        vhost_svq_set_svq_kick_fd(svq, file->fd);
+
+        if (svq->hdev_kick.initialized == false) {
+            int r = event_notifier_init(&svq->hdev_kick, 0);
+            if (r) {
+                error_report("Failed to create kick event notifier");
+                return r;
+            }
+        }
+
+        file->fd = event_notifier_get_fd(&svq->hdev_kick);
+    }
+
     int ret = vhost_set_vring_file(dev, VHOST_USER_SET_VRING_KICK, file);
     if (ret < 0) {
         return ret;
@@ -1724,6 +1745,24 @@ static int vhost_user_set_vring_kick(struct vhost_dev *dev,
 static int vhost_user_set_vring_call(struct vhost_dev *dev,
                                      struct vhost_vring_file *file)
 {
+    struct vhost_user *u = dev->opaque;
+    int svq_idx = file->index - dev->vq_index;
+    if (u->user->memory_isolation) {
+        VhostShadowVirtqueue *svq = g_ptr_array_index(u->shadow_vqs,
+                                                      svq_idx);
+        vhost_svq_set_svq_call_fd(svq, file->fd);
+
+        if (svq->hdev_call.initialized == false) {
+            int r = event_notifier_init(&svq->hdev_call, 0);
+            if (r) {
+                error_report("Failed to create call event notifier");
+                return r;
+            }
+        }
+
+        file->fd = event_notifier_get_fd(&svq->hdev_call);
+    }
+
     return vhost_set_vring_file(dev, VHOST_USER_SET_VRING_CALL, file);
 }
 
@@ -2718,6 +2757,17 @@ static int vhost_user_postcopy_notifier(NotifierWithReturn *notifier,
     return 0;
 }
 
+static void vhost_user_init_svq(struct vhost_dev *dev, struct vhost_user *u)
+{
+    /*Modified from vhost-vdpa*/
+    u->shadow_vqs = g_ptr_array_new_full(dev->nvqs, vhost_svq_free);
+    for (int i = 0; i < dev->nvqs; i++) {
+        VhostShadowVirtqueue *svq;
+        svq = vhost_svq_new(NULL, NULL);
+        g_ptr_array_add(u->shadow_vqs, svq);
+    }
+}
+
 static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
                                    Error **errp)
 {
@@ -2861,6 +2911,10 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
 
     u->postcopy_notifier.notify = vhost_user_postcopy_notifier;
     postcopy_add_notifier(&u->postcopy_notifier);
+
+    if (vus->memory_isolation) {
+        vhost_user_init_svq(dev, u);
+    }
 
     return 0;
 }
