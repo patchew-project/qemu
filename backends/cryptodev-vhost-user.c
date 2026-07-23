@@ -49,6 +49,7 @@ struct CryptoDevBackendVhostUser {
     CharFrontend chr;
     char *chr_name;
     bool opened;
+    bool memory_isolation;
     CryptoDevBackendVhost *vhost_crypto[MAX_CRYPTO_QUEUE_NUM];
 };
 
@@ -392,6 +393,23 @@ static void cryptodev_vhost_user_finalize(Object *obj)
     g_free(s->chr_name);
 }
 
+static void cryptodev_vhost_user_set_mem_isolation(Object *obj, bool value,
+                                                   Error **errp)
+{
+    CryptoDevBackendVhostUser *s =
+                      CRYPTODEV_BACKEND_VHOST_USER(obj);
+
+    s->memory_isolation = value;
+}
+
+static bool cryptodev_vhost_user_get_mem_isolation(Object *obj, Error **errp)
+{
+    CryptoDevBackendVhostUser *s =
+                      CRYPTODEV_BACKEND_VHOST_USER(obj);
+
+    return s->memory_isolation;
+}
+
 static void
 cryptodev_vhost_user_class_init(ObjectClass *oc, const void *data)
 {
@@ -406,6 +424,10 @@ cryptodev_vhost_user_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc, "chardev",
                                   cryptodev_vhost_user_get_chardev,
                                   cryptodev_vhost_user_set_chardev);
+
+    object_class_property_add_bool(oc, "memory-isolation",
+                                   cryptodev_vhost_user_get_mem_isolation,
+                                   cryptodev_vhost_user_set_mem_isolation);
 
 }
 
