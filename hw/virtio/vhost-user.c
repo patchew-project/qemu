@@ -3121,13 +3121,16 @@ static void vhost_user_state_destroy(gpointer data)
     vhost_user_host_notifier_remove(n, NULL, true);
 }
 
-bool vhost_user_init(VhostUserState *user, CharFrontend *chr, Error **errp)
+bool vhost_user_init(VhostUserState *user, CharFrontend *chr,
+                     bool memory_isolation,
+                     Error **errp)
 {
     if (user->chr) {
         error_setg(errp, "Cannot initialize vhost-user state");
         return false;
     }
     user->chr = chr;
+    user->memory_isolation = memory_isolation;
     user->memory_slots = 0;
     user->notifiers = g_ptr_array_new_full(VIRTIO_QUEUE_MAX / 4,
                                            &vhost_user_state_destroy);

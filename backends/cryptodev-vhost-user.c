@@ -214,7 +214,7 @@ static void cryptodev_vhost_user_init(
         }
     }
 
-    if (!vhost_user_init(&s->vhost_user, &s->chr, errp)) {
+    if (!vhost_user_init(&s->vhost_user, &s->chr, s->memory_isolation, errp)) {
         return;
     }
 

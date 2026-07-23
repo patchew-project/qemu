@@ -433,7 +433,9 @@ static void passt_vhost_user_event(void *opaque, QEMUChrEvent event)
     }
 }
 
-static int net_passt_vhost_user_init(NetPasstState *s, Error **errp)
+static int net_passt_vhost_user_init(NetPasstState *s,
+                                     bool memory_isolation,
+                                     Error **errp)
 {
     Chardev *chr;
     int sv[2];
@@ -457,7 +459,8 @@ static int net_passt_vhost_user_init(NetPasstState *s, Error **errp)
 
     s->vhost_user = g_new0(struct VhostUserState, 1);
     if (!qemu_chr_fe_init(&s->vhost_chr, chr, errp) ||
-        !vhost_user_init(s->vhost_user, &s->vhost_chr, errp)) {
+        !vhost_user_init(s->vhost_user, &s->vhost_chr, memory_isolation,
+                         errp)) {
         goto err;
     }
 
@@ -735,14 +738,14 @@ int net_init_passt(const Netdev *netdev, const char *name,
     s->pidfile = pidfile;
 
     if (netdev->u.passt.has_vhost_user && netdev->u.passt.vhost_user) {
-        bool memory_isolation G_GNUC_UNUSED = false;
+        bool memory_isolation = false;
 
         if (netdev->u.passt.has_memory_isolation &&
-           netdev->u.passt.memory_isolation) {
+            netdev->u.passt.memory_isolation) {
             memory_isolation = true;
         }
 
-        if (net_passt_vhost_user_init(s, errp) == -1) {
+        if (net_passt_vhost_user_init(s, memory_isolation, errp) == -1) {
             qemu_del_net_client(nc);
             return -1;
         }

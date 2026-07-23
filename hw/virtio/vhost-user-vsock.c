@@ -106,7 +106,8 @@ static void vuv_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!vhost_user_init(&vsock->vhost_user, &vsock->conf.chardev, errp)) {
+    if (!vhost_user_init(&vsock->vhost_user, &vsock->conf.chardev,
+                         vsock->conf.memory_isolation, errp)) {
         return;
     }
 

@@ -370,7 +370,7 @@ static void net_vhost_user_event(void *opaque, QEMUChrEvent event)
 
 static int net_vhost_user_init(NetClientState *peer, const char *device,
                                const char *name, Chardev *chr,
-                               int queues)
+                               int queues, bool memory_isolation)
 {
     Error *err = NULL;
     NetClientState *nc, *nc0 = NULL;
@@ -390,7 +390,7 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
             nc0 = nc;
             s = DO_UPCAST(NetVhostUserState, nc, nc);
             if (!qemu_chr_fe_init(&s->chr, chr, &err) ||
-                !vhost_user_init(user, &s->chr, &err)) {
+                !vhost_user_init(user, &s->chr, memory_isolation, &err)) {
                 error_report_err(err);
                 goto err;
             }
@@ -459,7 +459,7 @@ int net_init_vhost_user(const Netdev *netdev, const char *name,
     int queues;
     const NetdevVhostUserOptions *vhost_user_opts;
     Chardev *chr;
-    bool memory_isolation G_GNUC_UNUSED;
+    bool memory_isolation;
 
     assert(netdev->type == NET_CLIENT_DRIVER_VHOST_USER);
     vhost_user_opts = &netdev->u.vhost_user;
@@ -480,5 +480,6 @@ int net_init_vhost_user(const Netdev *netdev, const char *name,
     memory_isolation = vhost_user_opts->has_memory_isolation ?
                        vhost_user_opts->memory_isolation : false;
 
-    return net_vhost_user_init(peer, "vhost_user", name, chr, queues);
+    return net_vhost_user_init(peer, "vhost_user", name, chr, queues,
+                               memory_isolation);
 }

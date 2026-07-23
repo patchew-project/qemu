@@ -317,7 +317,8 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
         vub->vhost_user.supports_config = true;
     }
 
-    if (!vhost_user_init(&vub->vhost_user, &vub->chardev, errp)) {
+    if (!vhost_user_init(&vub->vhost_user, &vub->chardev,
+                         vub->memory_isolation, errp)) {
         return;
     }
 

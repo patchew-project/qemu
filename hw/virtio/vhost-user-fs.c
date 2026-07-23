@@ -238,7 +238,8 @@ static void vuf_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!vhost_user_init(&fs->vhost_user, &fs->conf.chardev, errp)) {
+    if (!vhost_user_init(&fs->vhost_user, &fs->conf.chardev,
+                         fs->conf.memory_isolation, errp)) {
         return;
     }
 

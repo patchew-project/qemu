@@ -505,7 +505,8 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!vhost_user_init(&s->vhost_user, &s->chardev, errp)) {
+    if (!vhost_user_init(&s->vhost_user, &s->chardev,
+                         s->memory_isolation, errp)) {
         return;
     }
 

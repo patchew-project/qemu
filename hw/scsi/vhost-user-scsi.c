@@ -276,7 +276,8 @@ static void vhost_user_scsi_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!vhost_user_init(&s->vhost_user, &vs->conf.chardev, errp)) {
+    if (!vhost_user_init(&s->vhost_user, &vs->conf.chardev,
+                         vs->conf.memory_isolation, errp)) {
         goto free_virtio;
     }
 

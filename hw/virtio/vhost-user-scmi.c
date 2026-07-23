@@ -244,7 +244,8 @@ static void vu_scmi_device_realize(DeviceState *dev, Error **errp)
 
     vdev->host_features |= (1ULL << VIRTIO_SCMI_F_P2A_CHANNELS);
 
-    if (!vhost_user_init(&scmi->vhost_user, &scmi->chardev, errp)) {
+    if (!vhost_user_init(&scmi->vhost_user, &scmi->chardev,
+                         scmi->memory_isolation, errp)) {
         return;
     }
 
