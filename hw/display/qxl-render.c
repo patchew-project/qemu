@@ -27,6 +27,7 @@
 static void qxl_blit(PCIQXLDevice *qxl, QXLRect *rect)
 {
     DisplaySurface *surface = qemu_console_surface(qxl->vga.con);
+    int dst_stride = surface_stride(surface);
     uint8_t *dst = surface_data(surface);
     uint8_t *src;
     int len, i;
@@ -45,14 +46,14 @@ static void qxl_blit(PCIQXLDevice *qxl, QXLRect *rect)
     } else {
         src += rect->top * qxl->guest_primary.abs_stride;
     }
-    dst += rect->top  * qxl->guest_primary.abs_stride;
+    dst += rect->top  * dst_stride;
     src += rect->left * qxl->guest_primary.bytes_pp;
     dst += rect->left * qxl->guest_primary.bytes_pp;
     len  = (rect->right - rect->left) * qxl->guest_primary.bytes_pp;
 
     for (i = rect->top; i < rect->bottom; i++) {
         memcpy(dst, src, len);
-        dst += qxl->guest_primary.abs_stride;
+        dst += dst_stride;
         src += qxl->guest_primary.qxl_stride;
     }
 }
@@ -102,6 +103,12 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
     int width = qxl->guest_head0_width ?: qxl->guest_primary.surface.width;
     int height = qxl->guest_head0_height ?: qxl->guest_primary.surface.height;
     int i;
+
+    if (qxl->guest_primary.bytes_pp > 0) {
+        int max_width = qxl->guest_primary.abs_stride
+                        / qxl->guest_primary.bytes_pp;
+        width = MIN(width, max_width);
+    }
 
     if (qxl->guest_primary.resized) {
         qxl->guest_primary.resized = 0;
