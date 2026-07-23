@@ -625,6 +625,21 @@ static void vhost_user_fill_msg_region(struct vhost_dev *dev,
     dst->mmap_offset = mmap_offset;
 }
 
+static void vhost_user_fill_msg_region_iso(VhostUserMemoryRegion *dst,
+                                           const struct vhost_user *u,
+                                           const struct vhost_memory_region
+                                           *iova_reg)
+{
+    assert(u != NULL && dst != NULL && iova_reg != NULL);
+    uint64_t offset;
+
+    offset = iova_reg->userspace_addr - u->iso_memory.base_addr;
+    dst->userspace_addr = iova_reg->userspace_addr;
+    dst->memory_size = iova_reg->memory_size;
+    dst->guest_phys_addr = iova_reg->userspace_addr;
+    dst->mmap_offset = offset;
+}
+
 static int vhost_user_fill_set_mem_table_msg(struct vhost_user *u,
                                              struct vhost_dev *dev,
                                              VhostUserMsg *msg,
@@ -1139,7 +1154,33 @@ static void cleanup_isolation_regions(struct vhost_dev *dev)
     }
 }
 
-__attribute__((unused))
+struct iova_tree_traversal_args {
+    VhostUserMsg *msg;
+    struct vhost_user *u;
+    int *fds;
+    size_t *fd_num;
+};
+
+static gboolean vhost_user_iova_tree_traverse_funct(gpointer key,
+                                                    gpointer value,
+                                                    gpointer data)
+{
+    struct iova_tree_traversal_args *args = data;
+    struct vhost_memory_region msg_region;
+    VhostUserMemoryRegion region_buffer;
+    DMAMap *map = key;
+    args->fds[*args->fd_num] = args->u->iso_memory.iso_fd;
+
+    msg_region.guest_phys_addr = map->iova;
+    msg_region.memory_size = map->size + 1;
+    msg_region.userspace_addr = map->iova;
+    vhost_user_fill_msg_region_iso(&region_buffer, args->u, &msg_region);
+    args->msg->payload.memory.regions[*args->fd_num] = region_buffer;
+    (*args->fd_num)++;
+
+    return false;
+}
+
 static int init_isolation_regions(struct vhost_dev *dev,
                                   VhostUserMsg *msg,
                                   int *fds, size_t *fd_num)
@@ -1237,6 +1278,24 @@ static int init_isolation_regions(struct vhost_dev *dev,
                                       map->translated_addr);
     }
 
+    struct iova_tree_traversal_args args = {
+        .fd_num = fd_num,
+        .fds = fds,
+        .msg = msg,
+        .u = u
+    };
+
+    vhost_iova_tree_foreach(u->iso_iova_tree,
+                            vhost_user_iova_tree_traverse_funct, &args);
+
+    msg->payload.memory.nregions = *fd_num;
+
+    assert(*fd_num != 0);
+
+    msg->hdr.size = sizeof(msg->payload.memory.nregions);
+    msg->hdr.size += sizeof(msg->payload.memory.padding);
+    msg->hdr.size += *fd_num * sizeof(VhostUserMemoryRegion);
+
     return 0;
 }
 
@@ -1244,6 +1303,7 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
                                     struct vhost_memory *mem)
 {
     struct vhost_user *u = dev->opaque;
+    bool memory_isolation = u->user->memory_isolation;
     int fds[VHOST_MEMORY_BASELINE_NREGIONS];
     size_t fd_num = 0;
     bool do_postcopy = u->postcopy_listen && u->postcopy_fd.handler;
@@ -1269,6 +1329,24 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
 
     if (reply_supported) {
         msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
+    }
+
+    if (memory_isolation) {
+        ret = init_isolation_regions(dev, &msg, fds, &fd_num);
+        if (ret < 0) {
+            return ret;
+        }
+
+        ret = vhost_user_write(dev, &msg, fds, fd_num);
+        if (ret < 0) {
+            return ret;
+        }
+
+        if (reply_supported) {
+            return process_message_reply(dev, &msg);
+        }
+
+        return 0;
     }
 
     if (config_mem_slots) {
