@@ -1081,6 +1081,7 @@ void riscv_trigger_unrealize(CPURISCVState *env)
 
     for (int i = 0; i < env->num_triggers; i++) {
         timer_del(env->itrigger_timer[i]);
+        timer_free(env->itrigger_timer[i]);
     }
     g_free(env->itrigger_timer);
 }
