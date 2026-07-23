@@ -148,6 +148,9 @@ typedef struct VhostShadowVirtqueue {
 
     /* Size of SVQ vring free descriptors */
     uint16_t num_free;
+
+    /* Location assigned to vrings if not in default anon memory map*/
+    hwaddr *base_addr;
 } VhostShadowVirtqueue;
 
 bool vhost_svq_valid_features(uint64_t features, Error **errp);
