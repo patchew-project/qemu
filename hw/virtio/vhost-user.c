@@ -1143,6 +1143,15 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
     return 0;
 }
 
+static void vhost_user_svq_cleanup(struct vhost_user *u)
+{
+    for (int i = 0; i < u->shadow_vqs->len; i++) {
+        vhost_svq_stop(g_ptr_array_index(u->shadow_vqs, i));
+    }
+
+    g_ptr_array_free(u->shadow_vqs, true);
+}
+
 /* TODO: Is there any notifier cleanup required here?*/
 static void cleanup_isolation_regions(struct vhost_dev *dev)
 {
@@ -1150,6 +1159,7 @@ static void cleanup_isolation_regions(struct vhost_dev *dev)
     if (u->iso_memory.base_addr) {
         vhost_iova_tree_delete(u->iso_iova_tree);
         u->iso_iova_tree = NULL;
+        vhost_user_svq_cleanup(u);
         memset(&u->iso_memory, 0, sizeof(IsolationRegion));
         qemu_memfd_free((gpointer) u->iso_memory.base_addr, u->iso_memory.size,
                          u->iso_memory.iso_fd);
