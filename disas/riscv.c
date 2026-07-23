@@ -990,6 +990,8 @@ typedef enum {
     rv_op_cbo_flush = 958,
     rv_op_cbo_zero = 959,
     rv_op_mnret = 960,
+    rv_op_mfence_pa = 961,
+    rv_op_minval_pa = 962,
 } rv_op;
 
 /* register names */
@@ -2265,6 +2267,8 @@ const rv_opcode_data rvi_opcode_data[] = {
    { "cbo.flush", rv_codec_r, rv_fmt_rs1, NULL, 0, 0, 0 },
    { "cbo.zero", rv_codec_r, rv_fmt_rs1, NULL, 0, 0, 0 },
    { "mnret", rv_codec_none, rv_fmt_none, NULL, 0, 0, 0 },
+   { "mfence.pa", rv_codec_r, rv_fmt_rs1_rs2, NULL, 0, 0, 0 },
+   { "minval.pa", rv_codec_r, rv_fmt_rs1_rs2, NULL, 0, 0, 0 },
 };
 
 /* CSR names */
@@ -2356,7 +2360,7 @@ static const char *csr_name(int csrno)
     case 0x0344: return "mip";
     case 0x0380: return "mbase";
     case 0x0381: return "mbound";
-    case 0x0382: return "mibase";
+    case 0x0382: return "mmpt";
     case 0x0383: return "mibound";
     case 0x0384: return "mdbase";
     case 0x0385: return "mdbound";
@@ -2440,6 +2444,7 @@ static const char *csr_name(int csrno)
     case 0x03ed: return "pmpaddr61";
     case 0x03ee: return "pmpaddr62";
     case 0x03ef: return "pmpaddr63";
+    case 0x074e: return "msdcfg";
     case 0x0780: return "mtohost";
     case 0x0781: return "mfromhost";
     case 0x0782: return "mreset";
@@ -4079,6 +4084,8 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
                     case 64: op = rv_op_mret; break;
                     }
                     break;
+                case 800: op = rv_op_mfence_pa; break;
+                case 864: op = rv_op_minval_pa; break;
                 case 1792:
                     switch ((inst >> 15) & 0b1111111111) {
                     case 64: op = rv_op_mnret; break;
