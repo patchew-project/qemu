@@ -41,5 +41,9 @@ comma:= ,
 run-test-crc32: test-crc32
 	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)xlrbr=true $(QEMU_OPTS)$<)
 
+EXTRA_RUNS += run-test-smmpt
+run-test-smmpt: test-smmpt
+	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)x-smmpt=true $(QEMU_OPTS)$<)
+
 # We don't currently support the multiarch system tests
 undefine MULTIARCH_TESTS
