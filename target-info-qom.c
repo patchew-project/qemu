@@ -28,14 +28,6 @@ static const TypeInfo target_info_types[] = {
         .class_size     = sizeof(TargetSpecificClass),
     },
     {
-        .name           = TYPE_TARGET_ARM_MACHINE,
-        .parent         = TYPE_INTERFACE,
-    },
-    {
-        .name           = TYPE_TARGET_AARCH64_MACHINE,
-        .parent         = TYPE_INTERFACE,
-    },
-    {
         .name           = TYPE_TARGET_RISCV32_MACHINE,
         .parent         = TYPE_INTERFACE,
     },

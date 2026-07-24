@@ -266,7 +266,6 @@ static const TypeInfo nitro_machine_info = {
     .interfaces = (const InterfaceInfo[]) {
         /* x86_64 and aarch64 only */
         { TYPE_TARGET_SPECIFIC },
-        { TYPE_TARGET_AARCH64_MACHINE },
         { }
     },
 };

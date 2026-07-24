@@ -151,7 +151,6 @@ static const TypeInfo remote_machine = {
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { TYPE_TARGET_SPECIFIC },
-        { TYPE_TARGET_AARCH64_MACHINE },
         { }
     }
 };
