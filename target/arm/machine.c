@@ -12,7 +12,6 @@
 #include "migration/vmstate.h"
 #include "qemu/target-info-qom.h"
 #include "target/arm/gtimer.h"
-#include "hw/arm/machines-qom.h"
 
 static bool vfp_needed(void *opaque)
 {
