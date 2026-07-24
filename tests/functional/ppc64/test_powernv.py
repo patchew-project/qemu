@@ -11,6 +11,8 @@ from qemu_test import LinuxKernelTest, Asset
 from qemu_test import wait_for_console_pattern
 from qemu_test import exec_command_and_wait_for_pattern
 
+from qemu.machine.machine import VMLaunchFailure
+
 class PowernvMachine(LinuxKernelTest):
 
     timeout = 90
@@ -112,7 +114,11 @@ class PowernvMachine(LinuxKernelTest):
             f'file={rootfs_path},format=raw,if=none,id=drive0,readonly=on',
             '-append', 'root=/dev/nvme0n1 console=hvc0',
             '-device', 'nvme,drive=drive0,bus=pcie.2,addr=0x0,serial=1234')
-        self.vm.launch()
+        try:
+            self.vm.launch()
+        except VMLaunchFailure:
+            # Maybe not compiled with netuser backend
+            self.skipTest(f'Could not find -net user')
 
         # Wait for boot to complete
         console_pattern = 'CPU maps initialized for 1 thread per core'
