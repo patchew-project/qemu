@@ -1241,7 +1241,7 @@ RISC-V default machine (removed in 11.1)
 ''''''''''''''''''''''''''''''''''''''''
 
 RISC-V used to define ``spike`` as the default machine if no machine option
-was given via the command line.  This happend because ``spike`` was the first
+was given via the command line.  This happened because ``spike`` was the first
 RISC-V machine implemented in QEMU and setting it as default was
 convenient at that time.  Now we have 7 riscv64 and 6 riscv32 machines
 and having ``spike`` as a default is no longer justified.

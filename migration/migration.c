@@ -2806,7 +2806,7 @@ static bool migration_switchover_prepare(MigrationState *s)
     bql_lock();
     /*
      * After BQL released and retaken, the state can be CANCELLING if it
-     * happend during sem_wait().. Only change the state if it's still
+     * happened during sem_wait().. Only change the state if it's still
      * pre-switchover.
      */
     migrate_set_state(&s->state, MIGRATION_STATUS_PRE_SWITCHOVER,

@@ -270,8 +270,8 @@
 #     (Since 10.1)
 #
 # @postcopy-non-vcpu-latency: average remote page fault latency for
-#     all faults happend in non-vCPU threads (in ns).  It has the same
-#     definition of @postcopy-latency but this only provides
+#     all faults happened in non-vCPU threads (in ns).  It has the
+#     same definition of @postcopy-latency but this only provides
 #     statistics to non-vCPU faults.  This is only present when the
 #     postcopy-blocktime migration capability is enabled.
 #     (Since 10.1)
