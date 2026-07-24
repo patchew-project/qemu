@@ -23,9 +23,6 @@
   'data': { 'enum1': 'EnumOne',   # Intentional forward reference
             '*enum2': 'EnumOne', 'enum3': 'EnumOne', '*enum4': 'EnumOne' } }
 
-# An empty enum, although unusual, is currently acceptable
-{ 'enum': 'MyEnum', 'data': [ ] }
-
 # Likewise for an empty struct, including an empty base
 { 'struct': 'Empty1', 'data': { } }
 { 'struct': 'Empty2', 'base': 'Empty1', 'data': { } }

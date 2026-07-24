@@ -196,6 +196,7 @@ schemas = [
   'union-clash-member.json',
   'union-discriminator-bad-name.json',
   'union-empty.json',
+  'union-empty-if.json',
   'union-inline-invalid-dict.json',
   'union-int-branch.json',
   'union-invalid-base.json',

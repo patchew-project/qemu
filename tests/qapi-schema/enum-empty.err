@@ -1,0 +1,2 @@
+enum-empty.json: In enum 'TestEmpty':
+enum-empty.json:2: enum 'TestEmpty' must have at least one value

@@ -1,2 +1,2 @@
-union-empty.json: In union 'Union':
-union-empty.json:4: union has no branches
+union-empty.json: In enum 'Empty':
+union-empty.json:2: enum 'Empty' must have at least one value

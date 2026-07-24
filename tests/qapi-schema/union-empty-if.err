@@ -1,0 +1,2 @@
+union-empty-if.json: In struct 'Base':
+union-empty-if.json:5: enum type 'Empty' of member 'type' has a conditional first value and must be optional
