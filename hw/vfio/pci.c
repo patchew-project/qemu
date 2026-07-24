@@ -1174,8 +1174,13 @@ static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
         }
     }
 
-    memcpy(&val, vdev->rom + addr,
-           (addr < vdev->rom_size) ? MIN(size, vdev->rom_size - addr) : 0);
+    /* If ROM loading failed, return 0xff pattern */
+    if (vdev->rom_read_failed) {
+        memset(&val, 0xff, sizeof(val));
+    } else {
+        memcpy(&val, vdev->rom + addr,
+               (addr < vdev->rom_size) ? MIN(size, vdev->rom_size - addr) : 0);
+    }
 
     switch (size) {
     case 1:
