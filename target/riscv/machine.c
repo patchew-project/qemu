@@ -25,7 +25,6 @@
 #include "migration/cpu.h"
 #include "exec/icount.h"
 #include "target/riscv/tcg/debug.h"
-#include "hw/riscv/machines-qom.h"
 
 static bool pmp_needed(void *opaque)
 {
