@@ -13,6 +13,7 @@
 #include "qemu/target-info-init.h"
 #include "qemu/target-info-qom.h"
 #include "hw/arm/machines-qom.h"
+#include "hw/core/boards.h"
 #include "hw/riscv/machines-qom.h"
 
 static const TypeInfo target_info_types[] = {
@@ -67,7 +68,7 @@ static GSList *filter_types_available(GSList *types)
 
 GSList *get_machine_types_available(void)
 {
-    GSList *machines = object_class_get_list_sorted(target_machine_typename(), false);
+    GSList *machines = object_class_get_list_sorted(TYPE_MACHINE, false);
 
     return filter_types_available(machines);
 }
