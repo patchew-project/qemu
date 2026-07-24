@@ -1223,8 +1223,9 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define CPUID_8000_0021_ECX_TSA_L1_NO  (1U << 2)
 
 /* Performance Monitoring Version 2 */
-#define CPUID_8000_0022_EAX_PERFMON_V2  (1U << 0)
-#define CPUID_8000_0022_EAX_LBREXT_V2   (1U << 1)
+#define CPUID_8000_0022_EAX_PERFMON_V2      (1U << 0)
+#define CPUID_8000_0022_EAX_LBREXT_V2       (1U << 1)
+#define CPUID_8000_0022_EAX_LBR_PMC_FREEZE  (1U << 2)
 
 #define CPUID_XSAVE_XSAVEOPT   (1U << 0)
 #define CPUID_XSAVE_XSAVEC     (1U << 1)
