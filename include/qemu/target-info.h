@@ -100,9 +100,23 @@ bool target_ppc64(void);
 bool target_s390x(void);
 
 /**
+ * target_base_riscv:
+ *
+ * Returns whether the target architecture is RISC-V 32-bit or 64-bit.
+ */
+bool target_base_riscv(void);
+
+/**
+ * target_riscv32:
+ *
+ * Returns whether the target architecture is RISC-V 32-bit.
+ */
+bool target_riscv32(void);
+
+/**
  * target_riscv64:
  *
- * Returns whether the target architecture is riscv64
+ * Returns whether the target architecture is RISC-V 64-bit.
  */
 bool target_riscv64(void);
 
