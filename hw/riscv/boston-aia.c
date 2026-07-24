@@ -475,4 +475,4 @@ static void boston_mach_class_init(MachineClass *mc)
     mc->default_cpu_type = TYPE_RISCV_CPU_MIPS_P8700;
 }
 
-DEFINE_MACHINE_RISCV64("boston-aia", boston_mach_class_init)
+DEFINE_MACHINE_TARGET_SPECIFIC("boston-aia", boston_mach_class_init)
