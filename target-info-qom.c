@@ -17,6 +17,11 @@
 
 static const TypeInfo target_info_types[] = {
     {
+        .name           = TYPE_TARGET_SPECIFIC,
+        .parent         = TYPE_INTERFACE,
+        .class_size     = sizeof(TargetSpecificClass),
+    },
+    {
         .name           = TYPE_TARGET_ARM_MACHINE,
         .parent         = TYPE_INTERFACE,
     },

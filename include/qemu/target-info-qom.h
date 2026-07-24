@@ -14,6 +14,21 @@
 
 #define TYPE_TARGET_INFO "target-info"
 
+#define TYPE_TARGET_SPECIFIC "target-specific"
+
+typedef struct TargetSpecific TargetSpecific;
+
+typedef struct TargetSpecificClass {
+    InterfaceClass parent_class;
+
+    bool (*is_available)(void);
+} TargetSpecificClass;
+
+#define TARGET_SPECIFIC(obj) \
+    INTERFACE_CHECK(TargetSpecific, (obj), TYPE_TARGET_SPECIFIC)
+DECLARE_CLASS_CHECKERS(TargetSpecificClass, TARGET_SPECIFIC,
+                       TYPE_TARGET_SPECIFIC)
+
 typedef struct TargetInfoQom {
     Object parent_obj;
 } TargetInfoQom;
