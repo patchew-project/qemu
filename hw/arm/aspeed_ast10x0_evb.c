@@ -121,12 +121,12 @@ static const TypeInfo aspeed_ast10x0_evb_types[] = {
         .name           = MACHINE_TYPE_NAME("ast1030-evb"),
         .parent         = TYPE_ASPEED_MACHINE,
         .class_init     = aspeed_minibmc_machine_ast1030_evb_class_init,
-        .interfaces     = arm_machine_interfaces,
+        .interfaces     = type_target_specific,
     }, {
         .name           = MACHINE_TYPE_NAME("ast1060-evb"),
         .parent         = TYPE_ASPEED_MACHINE,
         .class_init     = aspeed_minibmc_machine_ast1060_evb_class_init,
-        .interfaces     = arm_machine_interfaces,
+        .interfaces     = type_target_specific,
     }
 };
 

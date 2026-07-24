@@ -1429,7 +1429,7 @@ static const TypeInfo lm3s811evb_type = {
     .name = MACHINE_TYPE_NAME("lm3s811evb"),
     .parent = TYPE_MACHINE,
     .class_init = lm3s811evb_class_init,
-    .interfaces = arm_machine_interfaces,
+    .interfaces = type_target_specific,
 };
 
 /*
@@ -1452,7 +1452,7 @@ static const TypeInfo lm3s6965evb_type = {
     .name = MACHINE_TYPE_NAME("lm3s6965evb"),
     .parent = TYPE_MACHINE,
     .class_init = lm3s6965evb_class_init,
-    .interfaces = arm_machine_interfaces,
+    .interfaces = type_target_specific,
 };
 
 static void stellaris_machine_init(void)

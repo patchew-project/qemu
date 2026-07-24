@@ -221,7 +221,7 @@ static const TypeInfo sx1_machine_v2_type = {
     .name = MACHINE_TYPE_NAME("sx1"),
     .parent = TYPE_MACHINE,
     .class_init = sx1_machine_v2_class_init,
-    .interfaces = arm_machine_interfaces,
+    .interfaces = type_target_specific,
 };
 
 static void sx1_machine_v1_class_init(ObjectClass *oc, const void *data)
@@ -242,7 +242,7 @@ static const TypeInfo sx1_machine_v1_type = {
     .name = MACHINE_TYPE_NAME("sx1-v1"),
     .parent = TYPE_MACHINE,
     .class_init = sx1_machine_v1_class_init,
-    .interfaces = arm_machine_interfaces,
+    .interfaces = type_target_specific,
 };
 
 static void sx1_machine_init(void)

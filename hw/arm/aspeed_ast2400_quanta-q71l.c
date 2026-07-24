@@ -80,7 +80,7 @@ static const TypeInfo aspeed_ast2400_quanta_q71l_types[] = {
         .name          = MACHINE_TYPE_NAME("quanta-q71l-bmc"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_quanta_q71l_class_init,
-        .interfaces    = arm_machine_interfaces,
+        .interfaces    = type_target_specific,
     }
 };
 

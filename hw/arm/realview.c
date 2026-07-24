@@ -432,7 +432,7 @@ static const TypeInfo realview_eb_type = {
     .name = MACHINE_TYPE_NAME("realview-eb"),
     .parent = TYPE_MACHINE,
     .class_init = realview_eb_class_init,
-    .interfaces = arm_machine_interfaces,
+    .interfaces = type_target_specific,
 };
 
 static void realview_eb_mpcore_class_init(ObjectClass *oc, const void *data)
@@ -455,7 +455,7 @@ static const TypeInfo realview_eb_mpcore_type = {
     .name = MACHINE_TYPE_NAME("realview-eb-mpcore"),
     .parent = TYPE_MACHINE,
     .class_init = realview_eb_mpcore_class_init,
-    .interfaces = arm_machine_interfaces,
+    .interfaces = type_target_specific,
 };
 
 static void realview_pb_a8_class_init(ObjectClass *oc, const void *data)
@@ -476,7 +476,7 @@ static const TypeInfo realview_pb_a8_type = {
     .name = MACHINE_TYPE_NAME("realview-pb-a8"),
     .parent = TYPE_MACHINE,
     .class_init = realview_pb_a8_class_init,
-    .interfaces = arm_machine_interfaces,
+    .interfaces = type_target_specific,
 };
 
 static void realview_pbx_a9_class_init(ObjectClass *oc, const void *data)
@@ -498,7 +498,7 @@ static const TypeInfo realview_pbx_a9_type = {
     .name = MACHINE_TYPE_NAME("realview-pbx-a9"),
     .parent = TYPE_MACHINE,
     .class_init = realview_pbx_a9_class_init,
-    .interfaces = arm_machine_interfaces,
+    .interfaces = type_target_specific,
 };
 
 static void realview_machine_init(void)

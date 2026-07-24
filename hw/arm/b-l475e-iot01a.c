@@ -133,7 +133,7 @@ static const TypeInfo bl475e_machine_type[] = {
         .parent         = TYPE_MACHINE,
         .instance_size  = sizeof(Bl475eMachineState),
         .class_init     = bl475e_machine_init,
-        .interfaces     = arm_machine_interfaces,
+        .interfaces     = type_target_specific,
     }
 };
 

@@ -85,7 +85,7 @@ static const TypeInfo aspeed_ast2500_yosemitev2_types[] = {
         .name          = MACHINE_TYPE_NAME("yosemitev2-bmc"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_yosemitev2_class_init,
-        .interfaces    = arm_machine_interfaces,
+        .interfaces    = type_target_specific,
     }
 };
 

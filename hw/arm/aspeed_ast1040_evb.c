@@ -82,7 +82,7 @@ static const TypeInfo aspeed_ast1040_evb_types[] = {
         .name           = MACHINE_TYPE_NAME("ast1040-evb"),
         .parent         = TYPE_ASPEED_MACHINE,
         .class_init     = aspeed_machine_ast1040_evb_class_init,
-        .interfaces     = arm_machine_interfaces,
+        .interfaces     = type_target_specific,
     }
 };
 

@@ -127,7 +127,7 @@ static const TypeInfo raspi4b_machine_type = {
     .parent         = TYPE_RASPI_BASE_MACHINE,
     .instance_size  = sizeof(Raspi4bMachineState),
     .class_init     = raspi4b_machine_class_init,
-    .interfaces     = aarch64_machine_interfaces,
+    .interfaces     = type_target_specific,
 };
 
 static void raspi4b_machine_register_type(void)

@@ -432,7 +432,7 @@ static const TypeInfo versatilepb_type = {
     .name = MACHINE_TYPE_NAME("versatilepb"),
     .parent = TYPE_MACHINE,
     .class_init = versatilepb_class_init,
-    .interfaces = arm_machine_interfaces,
+    .interfaces = type_target_specific,
 };
 
 static void versatileab_class_init(ObjectClass *oc, const void *data)
@@ -455,7 +455,7 @@ static const TypeInfo versatileab_type = {
     .name = MACHINE_TYPE_NAME("versatileab"),
     .parent = TYPE_MACHINE,
     .class_init = versatileab_class_init,
-    .interfaces = arm_machine_interfaces,
+    .interfaces = type_target_specific,
 };
 
 static void versatile_machine_init(void)
