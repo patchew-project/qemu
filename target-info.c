@@ -119,3 +119,8 @@ bool target_config_multiprocess(void)
 {
     return target_info()->config_multiprocess;
 }
+
+bool target_config_xen(void)
+{
+    return target_info()->config_xen;
+}

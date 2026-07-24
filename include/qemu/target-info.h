@@ -127,4 +127,11 @@ bool target_riscv64(void);
  */
 bool target_config_multiprocess(void);
 
+/**
+ * target_config_xen:
+ *
+ * Returns true if target defines CONFIG_XEN.
+ */
+bool target_config_xen(void);
+
 #endif

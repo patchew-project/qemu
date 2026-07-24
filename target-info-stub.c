@@ -51,6 +51,11 @@ static const TargetInfo target_info_stub = {
 # else
     .config_multiprocess = false,
 # endif
+# ifdef CONFIG_XEN
+    .config_xen = true,
+# else
+    .config_xen = false,
+# endif
 #endif
 };
 
