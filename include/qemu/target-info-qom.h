@@ -49,4 +49,6 @@ void target_info_qom_set_target(void);
  */
 GSList *get_machine_types_available(void);
 
+extern const InterfaceInfo type_target_specific[];
+
 #endif /* QEMU_TARGET_INFO_QOM_H */

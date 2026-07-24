@@ -16,6 +16,11 @@
 #include "hw/core/boards.h"
 #include "hw/riscv/machines-qom.h"
 
+const InterfaceInfo type_target_specific[] = {
+    { TYPE_TARGET_SPECIFIC },
+    { }
+};
+
 static const TypeInfo target_info_types[] = {
     {
         .name           = TYPE_TARGET_SPECIFIC,
