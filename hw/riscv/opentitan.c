@@ -339,7 +339,7 @@ static const TypeInfo open_titan_types[] = {
         .parent         = TYPE_MACHINE,
         .instance_size  = sizeof(OpenTitanState),
         .class_init     = opentitan_machine_class_init,
-        .interfaces     = riscv32_machine_interfaces,
+        .interfaces     = type_target_specific,
     }
 };
 

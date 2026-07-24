@@ -520,7 +520,7 @@ static const TypeInfo k230_machine_typeinfo = {
     .class_init = k230_machine_class_init,
     .instance_init = k230_machine_instance_init,
     .instance_size = sizeof(K230MachineState),
-    .interfaces = riscv64_machine_interfaces,
+    .interfaces = type_target_specific,
 };
 
 static void k230_machine_init_register_types(void)

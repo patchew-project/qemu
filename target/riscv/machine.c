@@ -536,17 +536,3 @@ const VMStateDescription vmstate_riscv_cpu = {
         NULL
     }
 };
-
-const InterfaceInfo riscv32_machine_interfaces[] = {
-    { TYPE_TARGET_SPECIFIC },
-    { }
-};
-
-const InterfaceInfo riscv64_machine_interfaces[] = {
-    { TYPE_TARGET_SPECIFIC },
-    { }
-};
-
-const InterfaceInfo riscv32_64_machine_interfaces[] = {
-    { }
-};
