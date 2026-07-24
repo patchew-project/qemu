@@ -1,0 +1,6 @@
+# Enum with conditional first value cannot be used in required fields
+{ 'enum': 'TestEnum',
+  'data': [ { 'name': 'member1', 'if': 'CONFIG_FOO' },
+            'member2' ] }
+{ 'struct': 'TestStruct',
+  'data': { 'field': 'TestEnum' } }

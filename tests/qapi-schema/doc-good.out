@@ -10,10 +10,10 @@ enum QType
     member qbool
 module doc-good.json
 enum Enum
+    member zero
     member one
         if IFONE
         feature enum-member-feat
-    member two
     if IFCOND
     feature enum-feat
 object Base
@@ -24,12 +24,12 @@ object Variant1
         if IFSTR
         feature member-feat
     feature variant1-feat
-object Variant2
+object Variant0
 object Object
     base Base
     tag base1
     case one: Variant1
-    case two: Variant2
+    case zero: Variant0
         if {'any': ['IFONE', 'IFTWO']}
     feature union-feat1
 alternate Alternate
@@ -110,14 +110,14 @@ doc symbol=Enum
 
     Member=one
 The _one_ {and only}, description on the same line
-    Member=two
+    Member=zero
 
     Feature=enum-feat
 Also _one_ {and only}
     Feature=enum-member-feat
 a member feature
     Plain
-@two is undocumented
+@zero is undocumented
 doc symbol=Base
     Intro
 
@@ -139,7 +139,7 @@ Another paragraph
 a feature
     Feature=member-feat
 a member feature
-doc symbol=Variant2
+doc symbol=Variant0
     Intro
 
 doc symbol=Object

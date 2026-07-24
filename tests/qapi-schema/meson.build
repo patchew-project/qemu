@@ -97,6 +97,7 @@ schemas = [
   'enum-bad-prefix.json',
   'enum-clash-member.json',
   'enum-dict-member-unknown.json',
+  'enum-if-first-required.json',
   'enum-if-invalid.json',
   'enum-int-member.json',
   'enum-member-case.json',

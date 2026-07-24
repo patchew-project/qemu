@@ -963,6 +963,14 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
         assert self.defined_in
         self.type = schema.resolve_type(self._type_name, self.info,
                                         self.describe)
+        if (not self.optional
+                and isinstance(self.type, QAPISchemaEnumType)
+                and self.type.members[0].ifcond.is_present()):
+            raise QAPISemError(
+                self.info,
+                "enum type '%s' of %s has a conditional first value"
+                " and must be optional"
+                % (self.type.name, self.describe(self.info)))
         seen: Dict[str, QAPISchemaMember] = {}
         for f in self.features:
             f.check_clash(self.info, seen)

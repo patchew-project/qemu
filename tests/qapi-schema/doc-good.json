@@ -73,12 +73,12 @@
 # @enum-feat: Also _one_ {and only}
 # @enum-member-feat: a member feature
 #
-# @two is undocumented
+# @zero is undocumented
 ##
 { 'enum': 'Enum',
-  'data': [ { 'name': 'one', 'if': 'IFONE',
-              'features': [ 'enum-member-feat' ] },
-            'two' ],
+  'data': [ 'zero',
+            { 'name': 'one', 'if': 'IFONE',
+               'features': [ 'enum-member-feat' ] } ],
   'features': [ 'enum-feat' ],
   'if': 'IFCOND' }
 
@@ -112,10 +112,10 @@
                       'if': 'IFSTR' } } }
 
 ##
-# @Variant2:
+# @Variant0:
 #
 ##
-{ 'struct': 'Variant2', 'data': {} }
+{ 'struct': 'Variant0', 'data': {} }
 
 ##
 # @Object:
@@ -128,8 +128,8 @@
   'base': 'Base',
   'discriminator': 'base1',
   'data': { 'one': 'Variant1',
-            'two': { 'type': 'Variant2',
-                     'if': { 'any': ['IFONE', 'IFTWO'] } } } }
+            'zero': { 'type': 'Variant0',
+                      'if': { 'any': ['IFONE', 'IFTWO'] } } } }
 
 ##
 # @Alternate:
