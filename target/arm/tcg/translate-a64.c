@@ -2675,9 +2675,17 @@ static void gen_sysreg_undef(DisasContext *s, bool isread,
      */
     uint32_t syndrome;
 
-    if (isread && dc_isar_feature(aa64_idst, s) &&
-        arm_cpreg_encoding_in_idspace(op0, op1, op2, crn, crm)) {
+    if (isread && arm_cpreg_encoding_in_idspace(op0, op1, op2, crn, crm)) {
         syndrome = syn_aa64_sysregtrap(op0, op1, op2, crn, crm, rt, isread);
+        if (s->current_el == 1 &&
+            arm_cpreg_encoding_in_tid3(op0, op1, op2, crn, crm)) {
+            gen_a64_update_pc(s, 0);
+            gen_helper_tid3_udef_el1(tcg_env, tcg_constant_i32(syndrome));
+            return;
+        }
+        if (!dc_isar_feature(aa64_idst, s)) {
+            syndrome = syn_uncategorized();
+        }
     } else {
         syndrome = syn_uncategorized();
     }

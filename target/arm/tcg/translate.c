@@ -1824,6 +1824,14 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
                           isread ? "read" : "write", cpnum, opc1, crn,
                           crm, opc2, s->ns ? "non-secure" : "secure");
         }
+        if (isread
+            && s->current_el == 1
+            && cpnum == 15
+            && arm_cpreg_encoding_in_tid3(3, opc1, opc2, crn, crm)) {
+            gen_set_condexec(s);
+            gen_update_pc(s, 0);
+            gen_helper_tid3_udef_el1(tcg_env, tcg_constant_i32(syndrome));
+        }
         unallocated_encoding(s);
         return;
     }

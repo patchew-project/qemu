@@ -1187,6 +1187,25 @@ const void *HELPER(lookup_cp_reg)(CPUARMState *env, uint32_t key)
     return ri;
 }
 
+/* Raise an exception for an unimplemented sysreg in TID3 space, from EL1. */
+void HELPER(tid3_udef_el1)(CPUARMState *env, uint32_t syndrome)
+{
+    int target_el = 1;
+    int excp = EXCP_UDEF;
+
+    if (arm_hcr_el2_eff(env) & HCR_TID3) {
+        target_el = 2;
+        excp = EXCP_HYP_TRAP;
+    } else if (is_a64(env)) {
+        if (!cpu_isar_feature(aa64_idst, env_archcpu(env))) {
+            syndrome = syn_uncategorized();
+        }
+    } else {
+        syndrome = syn_uncategorized();
+    }
+    raise_exception(env, excp, syndrome, target_el);
+}
+
 /*
  * Test for HCR_EL2.TIDCP at EL1.
  * Since implementation defined registers are rare, and within QEMU
