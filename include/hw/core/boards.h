@@ -8,6 +8,7 @@
 #include "system/blockdev.h"
 #include "qapi/qapi-types-machine.h"
 #include "qemu/module.h"
+#include "qemu/target-info-qom.h"
 #include "qom/compat-properties.h"
 #include "qom/object.h"
 #include "hw/core/cpu.h"
@@ -546,6 +547,9 @@ struct MachineState {
     DEFINE_MACHINE_WITH_INTERFACE_ARRAY(namestr, machine_initfn, \
                                         (const InterfaceInfo[]) { __VA_ARGS__ })
 
+#define DEFINE_MACHINE_TARGET_SPECIFIC(namestr, machine_initfn) \
+        DEFINE_MACHINE_WITH_INTERFACE_ARRAY(namestr, machine_initfn, \
+                                            type_target_specific)
 /*
  * Helper for dispatching different macros based on how
  * many __VA_ARGS__ are passed. Supports 1 to 5 variadic
