@@ -103,10 +103,24 @@ static int vmstate_size(void *opaque, const VMStateField *field)
     int size;
 
     if (field->flags & VMS_VBUFFER) {
-        size = *(int32_t *)(opaque + field->size_offset);
-        if (field->flags & VMS_MULTIPLY) {
-            size *= field->size;
+        uint64_t usize64;
+
+        if (field->flags & VMS_VBUFFER_UINT64) {
+            usize64 = *(uint64_t *)(opaque + field->size_offset);
+        } else {
+            int32_t ssize32 = *(int32_t *)(opaque + field->size_offset);
+            if (ssize32 < 0) {
+                return -1;
+            }
+            usize64 = ssize32;
         }
+        if (field->flags & VMS_MULTIPLY) {
+            usize64 *= field->size;
+        }
+        if (usize64 > INT_MAX) {
+            return -1;
+        }
+        size = usize64;
     } else if (field->flags & VMS_ARRAY_OF_POINTER) {
         /*
          * For an array of pointer, the each element is always size of a
@@ -337,6 +351,11 @@ bool vmstate_load_vmsd(QEMUFile *f, const VMStateDescription *vmsd,
             void *first_elem = opaque + field->offset;
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
+            if (size < 0) {
+                error_setg(errp, "VMState field '%s': invalid size",
+                           field->name);
+                return false;
+            }
 
             vmstate_handle_alloc(first_elem, field, opaque);
             if (field->flags & VMS_POINTER) {
@@ -661,6 +680,12 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
             bool use_dynamic_array =
                 field->flags & VMS_ARRAY_OF_POINTER_AUTO_ALLOC;
 
+            if (size < 0) {
+                error_setg(errp, "VMState field '%s': invalid size",
+                           field->name);
+                ok = false;
+                goto out;
+            }
             trace_vmstate_save_state_loop(vmsd->name, field->name, n_elems);
             if (field->flags & VMS_POINTER) {
                 first_elem = *(void **)first_elem;

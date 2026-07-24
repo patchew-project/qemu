@@ -168,6 +168,9 @@ enum VMStateFlags {
      */
     VMS_ARRAY_OF_POINTER_AUTO_ALLOC = 0x10000,
 
+    /* Use a uint64_t size field for VMS_VBUFFER instead of int32_t. */
+    VMS_VBUFFER_UINT64              = 0x40000,
+
     /* Marker for end of list */
     VMS_END                         = 0x20000,
 };
@@ -788,7 +791,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
     .field_exists = (_test),                                         \
     .size_offset  = vmstate_offset_value(_state, _field_size, uint64_t),\
     .info         = &vmstate_info_buffer,                            \
-    .flags        = VMS_VBUFFER | VMS_POINTER,                       \
+    .flags        = VMS_VBUFFER | VMS_VBUFFER_UINT64 | VMS_POINTER,  \
     .offset       = offsetof(_state, _field),                        \
 }
 
