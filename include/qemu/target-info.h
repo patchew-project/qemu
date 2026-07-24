@@ -128,6 +128,13 @@ bool target_riscv64(void);
 bool target_config_multiprocess(void);
 
 /**
+ * target_config_nitro:
+ *
+ * Returns true if target defines CONFIG_NITRO.
+ */
+bool target_config_nitro(void);
+
+/**
  * target_config_xen:
  *
  * Returns true if target defines CONFIG_XEN.

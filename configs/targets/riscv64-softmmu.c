@@ -31,6 +31,11 @@ static const TargetInfo target_info_riscv64_system = {
 # else
     .config_multiprocess = false,
 # endif
+# ifdef CONFIG_NITRO
+    .config_nitro = true,
+# else
+    .config_nitro = false,
+# endif
 # ifdef CONFIG_XEN
     .config_xen = true,
 # else

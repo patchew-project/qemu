@@ -35,6 +35,8 @@ typedef struct TargetInfo {
 
     /* CONFIG_MULTIPROCESS */
     bool config_multiprocess;
+    /* CONFIG_NITRO */
+    bool config_nitro;
     /* CONFIG_XEN */
     bool config_xen;
 } TargetInfo;
