@@ -267,7 +267,7 @@ static void virt_init(MachineState *ms)
         }
         qdev_prop_set_uint32(DEVICE(cpu), "htid", i);
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
-        hex_subsys_realize_cpu(&vms->parent_obj, DEVICE(cpu));
+        hex_subsys_realize_cpu(&vms->parent_obj, DEVICE(cpu), (i == 0));
     }
 
     hex_subsys_realize_cluster(&vms->parent_obj);

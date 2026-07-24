@@ -130,7 +130,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         if (i == 0) {
             hexagon_init_bootstrap(dms, cpu);
         }
-        hex_subsys_realize_cpu(hms, DEVICE(cpu));
+        hex_subsys_realize_cpu(hms, DEVICE(cpu), (i == 0));
     }
 
     hex_subsys_realize_cluster(hms);
