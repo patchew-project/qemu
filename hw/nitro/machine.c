@@ -248,6 +248,7 @@ out:
 
 static void nitro_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_config_nitro;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Nitro Enclave";
@@ -264,6 +265,7 @@ static const TypeInfo nitro_machine_info = {
     .class_init = nitro_machine_class_init,
     .interfaces = (const InterfaceInfo[]) {
         /* x86_64 and aarch64 only */
+        { TYPE_TARGET_SPECIFIC },
         { TYPE_TARGET_AARCH64_MACHINE },
         { }
     },
