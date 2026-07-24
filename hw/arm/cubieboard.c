@@ -127,4 +127,4 @@ static void cubieboard_machine_init(MachineClass *mc)
     mc->auto_create_sdcard = true;
 }
 
-DEFINE_MACHINE_ARM("cubieboard", cubieboard_machine_init)
+DEFINE_MACHINE_TARGET_SPECIFIC("cubieboard", cubieboard_machine_init)

@@ -146,4 +146,4 @@ static void bpim2u_machine_init(MachineClass *mc)
     mc->auto_create_sdcard = true;
 }
 
-DEFINE_MACHINE_ARM("bpim2u", bpim2u_machine_init)
+DEFINE_MACHINE_TARGET_SPECIFIC("bpim2u", bpim2u_machine_init)

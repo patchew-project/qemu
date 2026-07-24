@@ -128,4 +128,4 @@ static void imx8mm_evk_machine_init(MachineClass *mc)
     mc->get_default_cpu_type = imx8mm_evk_get_default_cpu_type;
 }
 
-DEFINE_MACHINE_AARCH64("imx8mm-evk", imx8mm_evk_machine_init)
+DEFINE_MACHINE_TARGET_SPECIFIC("imx8mm-evk", imx8mm_evk_machine_init)

@@ -126,4 +126,4 @@ static void orangepi_machine_init(MachineClass *mc)
     mc->auto_create_sdcard = true;
 }
 
-DEFINE_MACHINE_ARM("orangepi-pc", orangepi_machine_init)
+DEFINE_MACHINE_TARGET_SPECIFIC("orangepi-pc", orangepi_machine_init)
