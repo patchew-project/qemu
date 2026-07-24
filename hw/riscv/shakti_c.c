@@ -78,6 +78,7 @@ static void shakti_c_machine_instance_init(Object *obj)
 
 static void shakti_c_machine_class_init(ObjectClass *klass, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(klass)->is_available = target_riscv64;
     MachineClass *mc = MACHINE_CLASS(klass);
     static const char * const valid_cpu_types[] = {
         RISCV_CPU_TYPE_NAME("shakti-c"),

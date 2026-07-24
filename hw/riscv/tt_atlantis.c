@@ -590,6 +590,7 @@ static void tt_atlantis_machine_init(MachineState *machine)
 
 static void tt_atlantis_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_riscv64;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Tenstorrent Atlantis RISC-V SoC (Experimental)";

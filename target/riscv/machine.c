@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "qemu/error-report.h"
+#include "qemu/target-info-qom.h"
 #include "system/kvm.h"
 #include "system/tcg.h"
 #include "migration/cpu.h"
@@ -537,11 +538,13 @@ const VMStateDescription vmstate_riscv_cpu = {
 };
 
 const InterfaceInfo riscv32_machine_interfaces[] = {
+    { TYPE_TARGET_SPECIFIC },
     { TYPE_TARGET_RISCV32_MACHINE },
     { }
 };
 
 const InterfaceInfo riscv64_machine_interfaces[] = {
+    { TYPE_TARGET_SPECIFIC },
     { TYPE_TARGET_RISCV64_MACHINE },
     { }
 };

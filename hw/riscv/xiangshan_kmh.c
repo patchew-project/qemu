@@ -196,6 +196,7 @@ static void xiangshan_kmh_machine_init(MachineState *machine)
 
 static void xiangshan_kmh_machine_class_init(ObjectClass *klass, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(klass)->is_available = target_riscv64;
     MachineClass *mc = MACHINE_CLASS(klass);
     static const char *const valid_cpu_types[] = {
         TYPE_RISCV_CPU_XIANGSHAN_KMH,

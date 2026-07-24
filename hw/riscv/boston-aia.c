@@ -465,6 +465,7 @@ static void boston_mach_init(MachineState *machine)
 
 static void boston_mach_class_init(MachineClass *mc)
 {
+    TARGET_SPECIFIC_CLASS(mc)->is_available = target_riscv64;
     mc->desc = "MIPS Boston-aia";
     mc->init = boston_mach_init;
     mc->block_default_type = IF_IDE;

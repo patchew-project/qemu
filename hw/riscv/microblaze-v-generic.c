@@ -179,6 +179,7 @@ static void mb_v_generic_init(MachineState *machine)
 
 static void mb_v_generic_machine_init(MachineClass *mc)
 {
+    TARGET_SPECIFIC_CLASS(mc)->is_available = target_base_riscv;
     mc->desc = "AMD Microblaze-V generic platform";
     mc->init = mb_v_generic_init;
     mc->min_cpus = 1;

@@ -504,6 +504,7 @@ static void k230_machine_instance_init(Object *obj)
 
 static void k230_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_riscv64;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "RISC-V Board compatible with Kendryte K230 SDK";

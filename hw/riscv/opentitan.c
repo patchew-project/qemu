@@ -117,6 +117,7 @@ static void opentitan_machine_init(MachineState *machine)
 
 static void opentitan_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_riscv32;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "RISC-V Board compatible with OpenTitan";

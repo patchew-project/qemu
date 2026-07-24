@@ -653,6 +653,7 @@ static void sifive_u_machine_instance_init(Object *obj)
 
 static void sifive_u_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_riscv;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "RISC-V Board compatible with SiFive U SDK";
