@@ -41,6 +41,37 @@ static const TypeInfo target_info_types[] = {
 
 DEFINE_TYPES(target_info_types)
 
+static GSList *filter_types_available(GSList *types)
+{
+    GSList **link = &types;
+
+    while (*link) {
+        ObjectClass *oc = (*link)->data;
+        TargetSpecificClass *tsc = (TargetSpecificClass *)
+            object_class_dynamic_cast(oc, TYPE_TARGET_SPECIFIC);
+
+        if (tsc && !tsc->is_available) {
+            error_setg(&error_fatal,
+                       "%s is target specific, but does not "
+                       "implement interface", object_class_get_name(oc));
+        }
+        if (tsc && !tsc->is_available()) {
+            *link = g_slist_delete_link(*link, *link);
+        } else {
+            link = &(*link)->next;
+        }
+    }
+
+    return types;
+}
+
+GSList *get_machine_types_available(void)
+{
+    GSList *machines = object_class_get_list_sorted(target_machine_typename(), false);
+
+    return filter_types_available(machines);
+}
+
 static void target_info_qom_class_init(ObjectClass *oc, const void * data)
 {
     TargetInfoQomClass *klass = TARGET_INFO_CLASS(oc);
