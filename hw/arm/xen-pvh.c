@@ -51,6 +51,7 @@ static void xen_pvh_set_pci_intx_irq(void *opaque, int intx_irq, int level)
 
 static void xen_arm_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_config_xen;
     XenPVHMachineClass *xpc = XEN_PVH_MACHINE_CLASS(oc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
