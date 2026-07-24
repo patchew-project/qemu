@@ -686,6 +686,7 @@ static void integratorcp_init(MachineState *machine)
 
 static void integratorcp_machine_init(MachineClass *mc)
 {
+    TARGET_SPECIFIC_CLASS(mc)->is_available = target_base_arm;
     mc->desc = "ARM Integrator/CP (ARM926EJ-S)";
     mc->init = integratorcp_init;
     mc->ignore_memory_transaction_failures = true;

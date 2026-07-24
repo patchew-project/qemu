@@ -227,6 +227,7 @@ static void npcm8xx_machine_class_init(ObjectClass *oc, const void *data)
 
 static void npcm845_evb_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_aarch64;
     NPCM8xxMachineClass *nmc = NPCM8XX_MACHINE_CLASS(oc);
     MachineClass *mc = MACHINE_CLASS(oc);
 

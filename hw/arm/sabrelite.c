@@ -137,6 +137,7 @@ static void sabrelite_machine_instance_init(Object *obj)
 
 static void sabrelite_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Freescale i.MX6 Quad SABRE Lite Board (Cortex-A9)";

@@ -144,6 +144,7 @@ static void imx8mp_evk_machine_init(Object *obj)
 
 static void imx8mp_evk_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_aarch64;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "NXP i.MX 8M Plus EVK Board";

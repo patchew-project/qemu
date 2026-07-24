@@ -905,6 +905,7 @@ static void sbsa_ref_instance_finalize(Object *obj)
 
 static void sbsa_ref_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_aarch64;
     MachineClass *mc = MACHINE_CLASS(oc);
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-a57"),

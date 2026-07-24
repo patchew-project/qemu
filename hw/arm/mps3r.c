@@ -593,6 +593,7 @@ static void mps3r_class_init(ObjectClass *oc, const void *data)
 
 static void mps3r_an536_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS3RMachineClass *mmc = MPS3R_MACHINE_CLASS(oc);
     static const char * const valid_cpu_types[] = {

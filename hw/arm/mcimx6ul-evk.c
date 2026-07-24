@@ -71,6 +71,7 @@ static void mcimx6ul_evk_init(MachineState *machine)
 
 static void mcimx6ul_evk_machine_init(MachineClass *mc)
 {
+    TARGET_SPECIFIC_CLASS(mc)->is_available = target_base_arm;
     mc->desc = "Freescale i.MX6UL Evaluation Kit (Cortex-A7)";
     mc->init = mcimx6ul_evk_init;
     mc->max_cpus = FSL_IMX6UL_NUM_CPUS;

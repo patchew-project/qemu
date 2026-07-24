@@ -339,6 +339,7 @@ static void raspi_machine_class_init(MachineClass *mc,
 
 static void raspi0_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     RaspiBaseMachineClass *rmc = RASPI_BASE_MACHINE_CLASS(oc);
 
@@ -349,6 +350,7 @@ static void raspi0_machine_class_init(ObjectClass *oc, const void *data)
 
 static void raspi1ap_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     RaspiBaseMachineClass *rmc = RASPI_BASE_MACHINE_CLASS(oc);
 
@@ -359,6 +361,7 @@ static void raspi1ap_machine_class_init(ObjectClass *oc, const void *data)
 
 static void raspi2b_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     RaspiBaseMachineClass *rmc = RASPI_BASE_MACHINE_CLASS(oc);
 
@@ -369,6 +372,7 @@ static void raspi2b_machine_class_init(ObjectClass *oc, const void *data)
 
 static void raspi3ap_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_aarch64;
     MachineClass *mc = MACHINE_CLASS(oc);
     RaspiBaseMachineClass *rmc = RASPI_BASE_MACHINE_CLASS(oc);
 
@@ -379,6 +383,7 @@ static void raspi3ap_machine_class_init(ObjectClass *oc, const void *data)
 
 static void raspi3b_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_aarch64;
     MachineClass *mc = MACHINE_CLASS(oc);
     RaspiBaseMachineClass *rmc = RASPI_BASE_MACHINE_CLASS(oc);
 

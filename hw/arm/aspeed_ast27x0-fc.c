@@ -207,6 +207,7 @@ static void ast2700fc_init(MachineState *machine)
 
 static void ast2700fc_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_aarch64;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "ast2700 full core support";

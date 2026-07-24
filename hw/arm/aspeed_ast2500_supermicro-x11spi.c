@@ -50,6 +50,7 @@ static void supermicro_x11spi_bmc_i2c_init(AspeedMachineState *bmc)
 static void aspeed_machine_supermicro_x11spi_bmc_class_init(ObjectClass *oc,
                                                             const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
 

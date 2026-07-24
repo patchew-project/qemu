@@ -1416,6 +1416,7 @@ static void lm3s6965evb_init(MachineState *machine)
  */
 static void lm3s811evb_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Stellaris LM3S811EVB (Cortex-M3)";
@@ -1437,6 +1438,7 @@ static const TypeInfo lm3s811evb_type = {
  */
 static void lm3s6965evb_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Stellaris LM3S6965EVB (Cortex-M3)";

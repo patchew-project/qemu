@@ -475,6 +475,7 @@ static void npcm7xx_machine_class_init(ObjectClass *oc, const void *data)
  */
 static void npcm750_evb_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     NPCM7xxMachineClass *nmc = NPCM7XX_MACHINE_CLASS(oc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -488,6 +489,7 @@ static void npcm750_evb_machine_class_init(ObjectClass *oc, const void *data)
 
 static void gsj_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     NPCM7xxMachineClass *nmc = NPCM7XX_MACHINE_CLASS(oc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -501,6 +503,7 @@ static void gsj_machine_class_init(ObjectClass *oc, const void *data)
 
 static void gbs_bmc_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     NPCM7xxMachineClass *nmc = NPCM7XX_MACHINE_CLASS(oc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -514,6 +517,7 @@ static void gbs_bmc_machine_class_init(ObjectClass *oc, const void *data)
 
 static void kudo_bmc_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     NPCM7xxMachineClass *nmc = NPCM7XX_MACHINE_CLASS(oc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -527,6 +531,7 @@ static void kudo_bmc_machine_class_init(ObjectClass *oc, const void *data)
 
 static void mori_bmc_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     NPCM7xxMachineClass *nmc = NPCM7XX_MACHINE_CLASS(oc);
     MachineClass *mc = MACHINE_CLASS(oc);
 

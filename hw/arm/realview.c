@@ -415,6 +415,7 @@ static void realview_pbx_a9_init(MachineState *machine)
 
 static void realview_eb_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "ARM RealView Emulation Baseboard (ARM926EJ-S)";
@@ -436,6 +437,7 @@ static const TypeInfo realview_eb_type = {
 
 static void realview_eb_mpcore_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "ARM RealView Emulation Baseboard (ARM11MPCore)";
@@ -458,6 +460,7 @@ static const TypeInfo realview_eb_mpcore_type = {
 
 static void realview_pb_a8_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "ARM RealView Platform Baseboard for Cortex-A8";
@@ -478,6 +481,7 @@ static const TypeInfo realview_pb_a8_type = {
 
 static void realview_pbx_a9_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "ARM RealView Platform Baseboard Explore for Cortex-A9";

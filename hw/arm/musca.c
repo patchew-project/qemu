@@ -612,6 +612,7 @@ static void musca_class_init(ObjectClass *oc, const void *data)
 
 static void musca_a_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     MuscaMachineClass *mmc = MUSCA_MACHINE_CLASS(oc);
 
@@ -626,6 +627,7 @@ static void musca_a_class_init(ObjectClass *oc, const void *data)
 
 static void musca_b1_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     MuscaMachineClass *mmc = MUSCA_MACHINE_CLASS(oc);
 

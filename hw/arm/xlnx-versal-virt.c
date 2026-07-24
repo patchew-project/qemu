@@ -367,6 +367,7 @@ static void versal_virt_machine_class_init_common(ObjectClass *oc)
 
 static void versal_virt_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_aarch64;
     MachineClass *mc = MACHINE_CLASS(oc);
     VersalVirtClass *vvc = XLNX_VERSAL_VIRT_BASE_MACHINE_CLASS(oc);
 
@@ -379,6 +380,7 @@ static void versal_virt_machine_class_init(ObjectClass *oc, const void *data)
 
 static void versal2_virt_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_aarch64;
     MachineClass *mc = MACHINE_CLASS(oc);
     VersalVirtClass *vvc = XLNX_VERSAL_VIRT_BASE_MACHINE_CLASS(oc);
 

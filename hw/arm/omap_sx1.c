@@ -205,6 +205,7 @@ static void sx1_init_v2(MachineState *machine)
 
 static void sx1_machine_v2_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Siemens SX1 (OMAP310) V2";
@@ -225,6 +226,7 @@ static const TypeInfo sx1_machine_v2_type = {
 
 static void sx1_machine_v1_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Siemens SX1 (OMAP310) V1";

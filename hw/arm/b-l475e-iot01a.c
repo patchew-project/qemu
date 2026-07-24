@@ -113,6 +113,7 @@ static void bl475e_init(MachineState *machine)
 
 static void bl475e_machine_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     static const char *machine_valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-m4"),

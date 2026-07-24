@@ -79,6 +79,7 @@ static void ast1030_evb_i2c_init(AspeedMachineState *bmc)
 static void aspeed_minibmc_machine_ast1030_evb_class_init(ObjectClass *oc,
                                                           const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
 
@@ -99,6 +100,7 @@ static void aspeed_minibmc_machine_ast1030_evb_class_init(ObjectClass *oc,
 static void aspeed_minibmc_machine_ast1060_evb_class_init(ObjectClass *oc,
                                                           const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
 

@@ -63,6 +63,7 @@ static void microbit_init(MachineState *machine)
 
 static void microbit_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "BBC micro:bit (Cortex-M0)";

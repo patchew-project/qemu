@@ -157,6 +157,7 @@ static const char * const valid_cpu_types[] = {
 
 static void nuri_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Samsung NURI board (Exynos4210)";
@@ -178,6 +179,7 @@ static const TypeInfo nuri_type = {
 
 static void smdkc210_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Samsung SMDKC210 board (Exynos4210)";

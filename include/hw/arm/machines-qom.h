@@ -10,6 +10,8 @@
 #define HW_ARM_MACHINES_QOM_H
 
 #include "hw/core/boards.h"
+#include "qemu/target-info.h"
+#include "qemu/target-info-qom.h"
 
 #define TYPE_TARGET_ARM_MACHINE \
         "target-info-arm-machine"

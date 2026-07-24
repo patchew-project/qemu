@@ -64,6 +64,7 @@ static void yosemitev2_bmc_i2c_init(AspeedMachineState *bmc)
 static void aspeed_machine_yosemitev2_class_init(ObjectClass *oc,
                                                  const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
 

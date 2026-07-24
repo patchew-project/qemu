@@ -269,6 +269,7 @@ static void xlnx_zcu102_machine_instance_init(Object *obj)
 
 static void xlnx_zcu102_machine_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_aarch64;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Xilinx ZynqMP ZCU102 board with 4xA53s and 2xR5Fs based on " \

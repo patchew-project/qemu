@@ -10,6 +10,7 @@
 #include "cpu-features.h"
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
+#include "qemu/target-info-qom.h"
 #include "target/arm/gtimer.h"
 #include "hw/arm/machines-qom.h"
 
@@ -1348,18 +1349,21 @@ const VMStateDescription vmstate_arm_cpu = {
 };
 
 const InterfaceInfo arm_machine_interfaces[] = {
+    { TYPE_TARGET_SPECIFIC },
     { TYPE_TARGET_ARM_MACHINE },
     { TYPE_TARGET_AARCH64_MACHINE },
     { }
 };
 
 const InterfaceInfo arm_aarch64_machine_interfaces[] = {
+    { TYPE_TARGET_SPECIFIC },
     { TYPE_TARGET_ARM_MACHINE },
     { TYPE_TARGET_AARCH64_MACHINE },
     { }
 };
 
 const InterfaceInfo aarch64_machine_interfaces[] = {
+    { TYPE_TARGET_SPECIFIC },
     { TYPE_TARGET_AARCH64_MACHINE },
     { }
 };

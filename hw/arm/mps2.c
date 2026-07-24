@@ -481,6 +481,7 @@ static void mps2_class_init(ObjectClass *oc, const void *data)
 
 static void mps2_an385_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2MachineClass *mmc = MPS2_MACHINE_CLASS(oc);
     static const char * const valid_cpu_types[] = {
@@ -500,6 +501,7 @@ static void mps2_an385_class_init(ObjectClass *oc, const void *data)
 
 static void mps2_an386_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2MachineClass *mmc = MPS2_MACHINE_CLASS(oc);
     static const char * const valid_cpu_types[] = {
@@ -519,6 +521,7 @@ static void mps2_an386_class_init(ObjectClass *oc, const void *data)
 
 static void mps2_an500_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2MachineClass *mmc = MPS2_MACHINE_CLASS(oc);
     static const char * const valid_cpu_types[] = {
@@ -538,6 +541,7 @@ static void mps2_an500_class_init(ObjectClass *oc, const void *data)
 
 static void mps2_an511_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2MachineClass *mmc = MPS2_MACHINE_CLASS(oc);
     static const char * const valid_cpu_types[] = {

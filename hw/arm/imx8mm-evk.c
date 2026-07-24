@@ -118,6 +118,7 @@ static const char *imx8mm_evk_get_default_cpu_type(const MachineState *ms)
 
 static void imx8mm_evk_machine_init(MachineClass *mc)
 {
+    TARGET_SPECIFIC_CLASS(mc)->is_available = target_aarch64;
     mc->desc = "NXP i.MX 8MM EVK Board";
     mc->init = imx8mm_evk_init;
     mc->max_cpus = FSL_IMX8MM_NUM_CPUS;

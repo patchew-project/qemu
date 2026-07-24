@@ -414,6 +414,7 @@ static void vab_init(MachineState *machine)
 
 static void versatilepb_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "ARM Versatile/PB (ARM926EJ-S)";
@@ -436,6 +437,7 @@ static const TypeInfo versatilepb_type = {
 
 static void versatileab_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "ARM Versatile/AB (ARM926EJ-S)";

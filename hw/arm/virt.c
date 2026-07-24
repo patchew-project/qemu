@@ -119,6 +119,7 @@ static void arm_virt_compat_default_set(MachineClass *mc)
         ObjectClass *oc, \
         const void *data) \
     { \
+        TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm; \
         MachineClass *mc = MACHINE_CLASS(oc); \
         arm_virt_compat_default_set(mc); \
         MACHINE_VER_SYM(options, virt, __VA_ARGS__)(mc); \
