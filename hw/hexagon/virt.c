@@ -13,8 +13,7 @@
 #include "hw/core/clock.h"
 #include "hw/core/sysbus-fdt.h"
 #include "hw/hexagon/hexagon.h"
-#include "hw/hexagon/hexagon_globalreg.h"
-#include "hw/hexagon/hexagon_tlb.h"
+#include "hw/hexagon/hex-subsys.h"
 #include "hw/core/loader.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-clock.h"
@@ -74,11 +73,6 @@ static void fdt_add_hvx(HexagonVirtMachineState *vms,
     const MachineState *ms = MACHINE(vms);
     uint32_t vtcm_size_bytes = m_cfg->cfgtable.vtcm_size_kb * 1024;
     if (vtcm_size_bytes > 0) {
-        memory_region_init_ram(&vms->vtcm, NULL, "vtcm.ram", vtcm_size_bytes,
-                               &error_fatal);
-        memory_region_add_subregion(vms->sys, m_cfg->cfgtable.vtcm_base << 16,
-                                    &vms->vtcm);
-
         qemu_fdt_add_subnode(ms->fdt, "/soc/vtcm");
         qemu_fdt_setprop_string(ms->fdt, "/soc/vtcm", "compatible",
                                 "qcom,hexagon_vtcm");
@@ -237,9 +231,6 @@ static void virt_init(MachineState *ms)
 {
     HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(ms);
     const struct hexagon_machine_config *m_cfg = &v68n_1024;
-    DeviceState *gsregs_dev;
-    DeviceState *tlb_dev;
-    DeviceState *cpu0;
     int32_t clk_phandle;
 
     qemu_fdt_setprop_string(ms->fdt, "/chosen", "bootargs", ms->kernel_cmdline);
@@ -250,9 +241,7 @@ static void virt_init(MachineState *ms)
     vms->apb_clk = clock_new(OBJECT(ms), "apb-pclk");
     clock_set_hz(vms->apb_clk, 24000000);
 
-    memory_region_init_ram(&vms->parent_obj.ram, NULL, "ddr.ram",
-                           ms->ram_size, &error_fatal);
-    memory_region_add_subregion(vms->sys, 0x0, &vms->parent_obj.ram);
+    hex_subsys_create(&vms->parent_obj, m_cfg, v68_rev);
 
     if (m_cfg->l2tcm_size) {
         memory_region_init_ram(&vms->tcm, NULL, "tcm.ram", m_cfg->l2tcm_size,
@@ -261,56 +250,31 @@ static void virt_init(MachineState *ms)
                                     &vms->tcm);
     }
 
-    memory_region_init_rom(&vms->parent_obj.cfgtable_rom, NULL,
-                           "config_table.rom", sizeof(m_cfg->cfgtable),
-                           &error_fatal);
-    memory_region_add_subregion(vms->sys, m_cfg->cfgbase,
-                                &vms->parent_obj.cfgtable_rom);
     fdt_add_hvx(vms, m_cfg);
 
-    gsregs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
-    object_property_add_child(OBJECT(ms), "global-regs", OBJECT(gsregs_dev));
-    qdev_prop_set_uint64(gsregs_dev, "config-table-addr", m_cfg->cfgbase);
-    qdev_prop_set_uint32(gsregs_dev, "dsp-rev", v68_rev);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(gsregs_dev), &error_fatal);
-
-    tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
-    object_property_add_child(OBJECT(ms), "tlb", OBJECT(tlb_dev));
-    qdev_prop_set_uint32(tlb_dev, "num-entries",
-                         m_cfg->cfgtable.jtlb_size_entries);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(tlb_dev), &error_fatal);
-
-    cpu0 = NULL;
     for (int i = 0; i < ms->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(ms->cpu_type));
         qemu_register_reset(do_cpu_reset, cpu);
 
         if (i == 0) {
-            cpu0 = DEVICE(cpu);
             if (ms->kernel_filename) {
                 uint64_t entry = load_kernel(vms);
-                qdev_prop_set_uint32(cpu0, "exec-start-addr", entry);
+                qdev_prop_set_uint32(DEVICE(cpu), "exec-start-addr", entry);
             } else if (ms->firmware) {
                 uint64_t entry = load_bios(vms);
-                qdev_prop_set_uint32(cpu0, "exec-start-addr", entry);
+                qdev_prop_set_uint32(DEVICE(cpu), "exec-start-addr", entry);
             }
         }
         qdev_prop_set_uint32(DEVICE(cpu), "htid", i);
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
-        object_property_set_link(OBJECT(cpu), "global-regs",
-                                 OBJECT(gsregs_dev), &error_fatal);
-        object_property_set_link(OBJECT(cpu), "tlb",
-                                 OBJECT(tlb_dev), &error_fatal);
-
-        qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
+        hex_subsys_realize_cpu(&vms->parent_obj, DEVICE(cpu));
     }
+
+    hex_subsys_realize_cluster(&vms->parent_obj);
+
     fdt_add_cpu_nodes(vms);
     clk_phandle = fdt_add_clocks(vms);
     fdt_add_uart(vms, VIRT_UART0, clk_phandle);
-
-    rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
-                          sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
-                          &address_space_memory);
 
     hexagon_load_fdt(vms);
 }
