@@ -26,14 +26,6 @@ static const TypeInfo target_info_types[] = {
         .parent         = TYPE_INTERFACE,
         .class_size     = sizeof(TargetSpecificClass),
     },
-    {
-        .name           = TYPE_TARGET_RISCV32_MACHINE,
-        .parent         = TYPE_INTERFACE,
-    },
-    {
-        .name           = TYPE_TARGET_RISCV64_MACHINE,
-        .parent         = TYPE_INTERFACE,
-    },
 };
 
 DEFINE_TYPES(target_info_types)

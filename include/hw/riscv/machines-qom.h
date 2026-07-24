@@ -13,12 +13,6 @@
 #include "qemu/target-info.h"
 #include "qemu/target-info-qom.h"
 
-#define TYPE_TARGET_RISCV32_MACHINE \
-        "target-info-riscv32-machine"
-
-#define TYPE_TARGET_RISCV64_MACHINE \
-        "target-info-riscv64-machine"
-
 /*
  * Interfaces specifying whether a given QOM object is available in
  * qemu-system-riscv32, qemu-system-riscv64, or both.
