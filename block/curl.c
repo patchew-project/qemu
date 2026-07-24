@@ -482,6 +482,8 @@ static int curl_init_state(BDRVCURLState *s, CURLState *state)
             }
         }
         if (curl_easy_setopt(state->curl, CURLOPT_TIMEOUT, (long)s->timeout) ||
+            curl_easy_setopt(state->curl, CURLOPT_USERAGENT,
+                             "QEMU/" QEMU_VERSION) ||
             curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION,
                              (void *)curl_read_cb) ||
             curl_easy_setopt(state->curl, CURLOPT_WRITEDATA, (void *)state) ||
