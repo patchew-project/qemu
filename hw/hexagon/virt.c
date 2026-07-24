@@ -30,11 +30,20 @@
 
 enum {
     VIRT_UART0,
+    VIRT_MMIO,
     VIRT_FDT,
 };
 
+static const int VIRTIO_DEV_COUNT = 8;
+/*
+ * Virtio IRQs run from VIRTIO_IRQ_BASE to
+ * VIRTIO_IRQ_BASE + VIRTIO_DEV_COUNT - 1
+ */
+static const int VIRTIO_IRQ_BASE = 16;
+
 static const MemMapEntry base_memmap[] = {
     [VIRT_UART0] = { 0x10000000, 0x00000200 },
+    [VIRT_MMIO] = { 0x11000000, 0x00001000 },
     [VIRT_FDT] = { 0x99800000, 0x00400000 },
 };
 
@@ -167,7 +176,24 @@ static void fdt_add_cpu_nodes(const HexagonVirtMachineState *vms)
     }
 }
 
+static void create_virtio_devices(const HexagonVirtMachineState *vms)
+{
+    hwaddr size = base_memmap[VIRT_MMIO].size;
 
+    for (int i = 0; i < VIRTIO_DEV_COUNT; i++) {
+        int irq = VIRTIO_IRQ_BASE + i;
+        hwaddr base = base_memmap[VIRT_MMIO].base + i * size;
+        DeviceState *dev = qdev_new("virtio-mmio");
+        SysBusDevice *s = SYS_BUS_DEVICE(dev);
+
+        object_property_add_child(OBJECT(MACHINE(vms)), "virtio-mmio[*]",
+                                  OBJECT(dev));
+        sysbus_realize_and_unref(s, &error_fatal);
+        sysbus_mmio_map(s, 0, base);
+        sysbus_connect_irq(s, 0,
+                           qdev_get_gpio_in(vms->parent_obj.l2vic, irq));
+    }
+}
 
 static void virt_instance_init(Object *obj)
 {
@@ -251,6 +277,8 @@ static void virt_init(MachineState *ms)
     }
 
     fdt_add_hvx(vms, m_cfg);
+
+    create_virtio_devices(vms);
 
     for (int i = 0; i < ms->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(ms->cpu_type));
