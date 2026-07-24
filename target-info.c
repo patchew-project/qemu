@@ -114,3 +114,8 @@ bool target_riscv64(void)
 {
     return target_arch() == SYS_EMU_TARGET_RISCV64;
 }
+
+bool target_config_multiprocess(void)
+{
+    return target_info()->config_multiprocess;
+}

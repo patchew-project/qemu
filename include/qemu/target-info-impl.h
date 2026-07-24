@@ -32,6 +32,9 @@ typedef struct TargetInfo {
     unsigned page_bits_init;
     /* runtime equivalent of TARGET_PAGE_BITS_VARY definition */
     bool page_bits_vary;
+
+    /* CONFIG_MULTIPROCESS */
+    bool config_multiprocess;
 } TargetInfo;
 
 /**

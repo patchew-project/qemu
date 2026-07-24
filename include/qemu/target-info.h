@@ -120,4 +120,11 @@ bool target_riscv32(void);
  */
 bool target_riscv64(void);
 
+/**
+ * target_config_multiprocess:
+ *
+ * Returns true if target defines CONFIG_MULTIPROCESS.
+ */
+bool target_config_multiprocess(void);
+
 #endif

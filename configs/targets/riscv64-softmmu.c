@@ -12,6 +12,9 @@
 #include "hw/riscv/machines-qom.h"
 #include "target/riscv/cpu-qom.h"
 #include "target/riscv/cpu-param.h"
+#ifndef CONFIG_USER_ONLY
+#include CONFIG_DEVICES
+#endif
 
 static const TargetInfo target_info_riscv64_system = {
     .target_name = "riscv64",
@@ -21,6 +24,14 @@ static const TargetInfo target_info_riscv64_system = {
     .machine_typename = TYPE_TARGET_RISCV64_MACHINE,
     .endianness = ENDIAN_MODE_LITTLE,
     .page_bits_init = TARGET_PAGE_BITS,
+
+#ifndef CONFIG_USER_ONLY
+# ifdef CONFIG_MULTIPROCESS
+    .config_multiprocess = true,
+# else
+    .config_multiprocess = false,
+# endif
+#endif
 };
 
 target_info_init(target_info_riscv64_system)
