@@ -1,5 +1,5 @@
 /*
- * QEMU target info stubs (target specific)
+ * QEMU target info definition (target specific)
  *
  *  Copyright (c) Linaro
  *
@@ -28,7 +28,7 @@ QEMU_BUILD_BUG_ON(offsetof(ArchCPU, env) != sizeof(CPUState));
 QEMU_BUILD_BUG_ON(TARGET_PAGE_BITS < TARGET_PAGE_BITS_MIN);
 #endif
 
-static const TargetInfo target_info_stub = {
+static const TargetInfo target_info_def = {
     .target_name = TARGET_NAME,
     .target_arch = glue(SYS_EMU_TARGET_, TARGET_ARCH),
     .long_bits = TARGET_LONG_BITS,
@@ -63,4 +63,4 @@ static const TargetInfo target_info_stub = {
 #endif
 };
 
-target_info_init(target_info_stub)
+target_info_init(target_info_def)
