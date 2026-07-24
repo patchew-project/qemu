@@ -63,10 +63,11 @@ static void xen_init_pv(MachineState *machine)
 
 static void xenpv_machine_init(MachineClass *mc)
 {
+    TARGET_SPECIFIC_CLASS(mc)->is_available = target_config_xen;
     mc->desc = "Xen Para-virtualized PC";
     mc->init = xen_init_pv;
     mc->max_cpus = 1;
     mc->default_machine_opts = "accel=xen";
 }
 
-DEFINE_MACHINE("xenpv", xenpv_machine_init)
+DEFINE_MACHINE_TARGET_SPECIFIC("xenpv", xenpv_machine_init)
