@@ -91,6 +91,7 @@ class PowernvMachine(LinuxKernelTest):
     def test_linux_remote_interrupts(self):
         self.require_accelerator("tcg")
         self.set_machine('powernv')
+        self.require_netdev('user')
 
         # Have below setup in this test:
         # 1. e1000e attached to pcie.6, which is from 7th PHB, belonging to 2nd
