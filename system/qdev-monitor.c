@@ -746,6 +746,16 @@ err_del_dev:
     object_unparent(OBJECT(dev));
     object_unref(OBJECT(dev));
 
+    /*
+     * Drain all pending RCU callbacks. This is done because some bus
+     * related operations can delay a device removal (in this case this
+     * can happen if device is added and then removed due to a
+     * configuration error) to a RCU callback, but a caller might expect
+     * the failed device to be fully torn down once this function
+     * returns.
+     */
+    drain_call_rcu();
+
     return NULL;
 }
 
@@ -870,18 +880,6 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
     DeviceState *dev;
 
     dev = qdev_device_add_from_qdict(qdict, true, errp);
-    if (!dev) {
-        /*
-         * Drain all pending RCU callbacks. This is done because
-         * some bus related operations can delay a device removal
-         * (in this case this can happen if device is added and then
-         * removed due to a configuration error)
-         * to a RCU callback, but user might expect that this interface
-         * will finish its job completely once qmp command returns result
-         * to the user
-         */
-        drain_call_rcu();
-    }
     object_unref(OBJECT(dev));
 }
 
@@ -1017,17 +1015,6 @@ void hmp_device_add(Monitor *mon, const QDict *qdict)
     }
     dev = qdev_device_add(opts, &err);
     if (!dev) {
-        /*
-         * Drain all pending RCU callbacks. This is done because
-         * some bus related operations can delay a device removal
-         * (in this case this can happen if device is added and then
-         * removed due to a configuration error)
-         * to a RCU callback, but user might expect that this interface
-         * will finish its job completely once qmp command returns result
-         * to the user
-         */
-        drain_call_rcu();
-
         qemu_opts_del(opts);
     }
     object_unref(dev);
