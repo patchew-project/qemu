@@ -69,7 +69,7 @@ else
     # or "Invalid parameter 'fuse'", depending on whether there is
     # FUSE support or not.
     error=$($QSD --export fuse 2>&1)
-    if [[ $error = *"'fuse'"* ]]; then
+    if [[ $error = *"'fuse'"* || $error = *"'id'"* ]]; then
         _notrun 'Passwordless sudo for losetup or FUSE support required, but' \
                 'neither is available'
     fi
