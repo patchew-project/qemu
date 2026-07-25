@@ -27,6 +27,7 @@
 static void qxl_blit(PCIQXLDevice *qxl, QXLRect *rect)
 {
     DisplaySurface *surface = qemu_console_surface(qxl->vga.con);
+    int dst_stride = surface_stride(surface);
     uint8_t *dst = surface_data(surface);
     uint8_t *src;
     int len, i;
@@ -45,14 +46,14 @@ static void qxl_blit(PCIQXLDevice *qxl, QXLRect *rect)
     } else {
         src += rect->top * qxl->guest_primary.abs_stride;
     }
-    dst += rect->top  * qxl->guest_primary.abs_stride;
+    dst += rect->top  * dst_stride;
     src += rect->left * qxl->guest_primary.bytes_pp;
     dst += rect->left * qxl->guest_primary.bytes_pp;
     len  = (rect->right - rect->left) * qxl->guest_primary.bytes_pp;
 
     for (i = rect->top; i < rect->bottom; i++) {
         memcpy(dst, src, len);
-        dst += qxl->guest_primary.abs_stride;
+        dst += dst_stride;
         src += qxl->guest_primary.qxl_stride;
     }
 }
@@ -64,27 +65,9 @@ void qxl_render_resize(PCIQXLDevice *qxl)
     qxl->guest_primary.qxl_stride = sc->stride;
     qxl->guest_primary.abs_stride = abs(sc->stride);
     qxl->guest_primary.resized++;
-    switch (sc->format) {
-    case SPICE_SURFACE_FMT_16_555:
-        qxl->guest_primary.bytes_pp = 2;
-        qxl->guest_primary.bits_pp = 15;
-        break;
-    case SPICE_SURFACE_FMT_16_565:
-        qxl->guest_primary.bytes_pp = 2;
-        qxl->guest_primary.bits_pp = 16;
-        break;
-    case SPICE_SURFACE_FMT_32_xRGB:
-    case SPICE_SURFACE_FMT_32_ARGB:
-        qxl->guest_primary.bytes_pp = 4;
-        qxl->guest_primary.bits_pp = 32;
-        break;
-    default:
-        fprintf(stderr, "%s: unhandled format: %x\n", __func__,
-                qxl->guest_primary.surface.format);
-        qxl->guest_primary.bytes_pp = 4;
-        qxl->guest_primary.bits_pp = 32;
-        break;
-    }
+    /* fallback to default bpp if format is unknown */
+    qxl_format_bpp(qxl, sc->format, &qxl->guest_primary.bytes_pp,
+                   &qxl->guest_primary.bits_pp);
 }
 
 static void qxl_set_rect_to_surface(PCIQXLDevice *qxl, QXLRect *area)
@@ -102,6 +85,23 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
     int width = qxl->guest_head0_width ?: qxl->guest_primary.surface.width;
     int height = qxl->guest_head0_height ?: qxl->guest_primary.surface.height;
     int i;
+
+    if (width <= 0 || height <= 0) {
+        qxl_set_guest_bug(qxl, "%s: invalid dimension %dx%d",
+                          __func__, width, height);
+        goto end;
+    }
+
+    if (qxl->guest_primary.bytes_pp > 0) {
+        int max_width = qxl->guest_primary.abs_stride
+                        / qxl->guest_primary.bytes_pp;
+        width = MIN(width, max_width);
+    }
+
+    if (qxl->guest_primary.abs_stride > 0) {
+        int max_height = qxl->vgamem_size / qxl->guest_primary.abs_stride;
+        height = MIN(height, max_height);
+    }
 
     if (qxl->guest_primary.resized) {
         qxl->guest_primary.resized = 0;
