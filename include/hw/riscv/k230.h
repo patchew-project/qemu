@@ -17,9 +17,12 @@
 
 #include "hw/core/boards.h"
 #include "hw/riscv/riscv_hart.h"
+#include "hw/char/k230_uart.h"
 #include "hw/watchdog/k230_wdt.h"
 
 #define C908_CPU_HARTID   (0)
+
+#define K230_UART_COUNT 5
 
 #define TYPE_RISCV_K230_SOC "riscv.k230.soc"
 #define RISCV_K230_SOC(obj) \
@@ -32,6 +35,7 @@ typedef struct K230SoCState {
     /*< public >*/
     RISCVHartArrayState c908_cpu; /* Small core */
 
+    K230UartState uart[K230_UART_COUNT];
     K230WdtState wdt[2];
     MemoryRegion sram;
     MemoryRegion bootrom;
@@ -130,8 +134,6 @@ enum {
     K230_WDT0_IRQ   = 107,
     K230_WDT1_IRQ   = 108,
 };
-
-#define K230_UART_COUNT 5
 
 /*
  * Integrates with the interrupt controller (PLIC),
