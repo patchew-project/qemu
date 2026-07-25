@@ -352,6 +352,14 @@ static void virtio_gpu_resource_create_blob(VirtIOGPU *g,
         return;
     }
 
+    if (cblob.size > UINT32_MAX) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: blob too large (%" PRIu64 "> %" PRIu32 ")\n",
+                      __func__, cblob.size, UINT32_MAX);
+        cmd->error = VIRTIO_GPU_RESP_ERR_OUT_OF_MEMORY;
+        return;
+    }
+
     if (virtio_gpu_find_resource(g, cblob.resource_id)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: resource already exists %d\n",
                       __func__, cblob.resource_id);
