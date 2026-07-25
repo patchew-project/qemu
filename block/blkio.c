@@ -278,7 +278,7 @@ static bool blkio_completion_fd_poll(void *opaque)
 {
     BlockDriverState *bs = opaque;
     BDRVBlkioState *s = bs->opaque;
-    int ret;
+    int ret = -1;
 
     /* Just in case we already fetched a completion */
     if (s->poll_completion.user_data != NULL) {
@@ -559,7 +559,7 @@ static bool blkio_register_buf(BlockDriverState *bs, void *host, size_t size,
     BDRVBlkioState *s = bs->opaque;
     struct blkio_mem_region region;
     BlkioMemRegionResult region_result;
-    int ret;
+    int ret = -1;
 
     /*
      * Mapping memory regions conflicts with RAM discard (virtio-mem) when

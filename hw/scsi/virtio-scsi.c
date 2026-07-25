@@ -1093,7 +1093,7 @@ static void virtio_scsi_push_event(VirtIOSCSI *s,
 
 static void virtio_scsi_handle_event_vq(VirtIOSCSI *s, VirtQueue *vq)
 {
-    bool events_dropped;
+    bool events_dropped = false;
 
     WITH_QEMU_LOCK_GUARD(&s->event_lock) {
         events_dropped = s->events_dropped;

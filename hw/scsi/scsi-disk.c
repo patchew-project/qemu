@@ -3263,7 +3263,7 @@ static bool scsi_disk_pr_state_needed(void *opaque)
 {
     SCSIDiskState *s = opaque;
     SCSIPRState *pr_state = &s->qdev.pr_state;
-    bool ret;
+    bool ret = false;
 
     if (!s->qdev.migrate_pr) {
         return false;

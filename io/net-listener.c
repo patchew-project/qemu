@@ -54,11 +54,11 @@ static gboolean qio_net_listener_channel_func(QIOChannel *ioc,
                                               gpointer opaque)
 {
     QIONetListener *listener = QIO_NET_LISTENER(opaque);
-    QIOChannelSocket *sioc;
-    QIONetListenerClientFunc io_func;
-    gpointer io_data;
-    GMainContext *context;
-    AioContext *aio_context;
+    QIOChannelSocket *sioc = NULL;
+    QIONetListenerClientFunc io_func = NULL;
+    gpointer io_data = NULL;
+    GMainContext *context = NULL;
+    AioContext *aio_context = NULL;
 
     sioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(ioc),
                                      NULL);

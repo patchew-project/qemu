@@ -838,7 +838,7 @@ static const char *overlap_bool_option_names[QCOW2_OL_MAX_BITNR] = {
 static void coroutine_fn cache_clean_timer(void *opaque)
 {
     BDRVQcow2State *s = opaque;
-    uint64_t wait_ns;
+    uint64_t wait_ns = 0;
 
     WITH_QEMU_LOCK_GUARD(&s->lock) {
         wait_ns = s->cache_clean_interval * NANOSECONDS_PER_SECOND;

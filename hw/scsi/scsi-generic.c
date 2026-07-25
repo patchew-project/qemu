@@ -553,8 +553,8 @@ bool scsi_generic_pr_state_preempt(SCSIDevice *s, Error **errp)
     SCSIPRState *pr_state = &s->pr_state;
     Error *local_err = NULL;
     bool check_stale_key = true;
-    uint64_t key;
-    uint8_t resv_type;
+    uint64_t key = 0;
+    uint8_t resv_type = 0;
 
     /* Get the migrated PR state */
     WITH_QEMU_LOCK_GUARD(&pr_state->mutex) {
