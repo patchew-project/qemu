@@ -246,6 +246,7 @@ static void sifive_plic_write(void *opaque, hwaddr addr, uint64_t value,
         } else if (contextid == 4) {
             if (value < plic->num_sources) {
                 sifive_plic_set_claimed(plic, value, false);
+                sifive_plic_set_pending(plic, value, !!plic->source[value]);
                 sifive_plic_update(plic);
             }
         } else {
@@ -276,6 +277,7 @@ static void sifive_plic_reset(DeviceState *dev)
     int i;
 
     memset(s->source_priority, 0, sizeof(uint32_t) * s->num_sources);
+    memset(s->source, 0, sizeof(uint32_t) * s->num_sources);
     memset(s->target_priority, 0, sizeof(uint32_t) * s->num_addrs);
     memset(s->pending, 0, sizeof(uint32_t) * s->bitfield_words);
     memset(s->claimed, 0, sizeof(uint32_t) * s->bitfield_words);
@@ -353,7 +355,7 @@ static void parse_hart_config(SiFivePLICState *plic)
 static void sifive_plic_irq_request(void *opaque, int irq, int level)
 {
     SiFivePLICState *s = opaque;
-
+    s->source[irq] = !!level;
     if (level > 0) {
         sifive_plic_set_pending(s, irq, true);
         sifive_plic_update(s);

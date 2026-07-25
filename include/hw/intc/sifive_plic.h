@@ -54,6 +54,7 @@ struct SiFivePLICState {
     uint32_t num_enables;
     PLICAddr *addr_config;
     uint32_t *source_priority;
+    uint32_t *source;
     uint32_t *target_priority;
     uint32_t *pending;
     uint32_t *claimed;
