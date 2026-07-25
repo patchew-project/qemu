@@ -92,6 +92,9 @@ output=$(_send_qemu_cmd $QEMU_HANDLE \
 if echo "$output" | grep -q "Parameter 'type' does not accept value 'fuse'"; then
     _notrun 'No FUSE support'
 fi
+if echo "$output" | grep -q "failed to open TEST_DIR/fuse-export: Permission denied"; then
+    _notrun 'No FUSE support'
+fi
 echo "$output"
 
 echo
