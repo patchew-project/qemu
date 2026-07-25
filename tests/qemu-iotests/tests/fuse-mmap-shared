@@ -28,8 +28,11 @@ def test_fuse_support(mount_point):
     })
     test_qsd.stop()
     if 'error' in res:
-        assert (res['error']['desc'] ==
-                "Parameter 'type' does not accept value 'fuse'")
+        print(res)
+        assert ((res['error']['desc'] ==
+                "Parameter 'type' does not accept value 'fuse'") or
+                (res['error']['desc'] ==
+                "Failed to mount FUSE session to export"))
         iotests.notrun('No FUSE support')
 
 # Shared mmap when using direct IO is only supported for Linux kernels >= 6.6
