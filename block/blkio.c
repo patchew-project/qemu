@@ -935,13 +935,13 @@ static int64_t coroutine_fn blkio_co_getlength(BlockDriverState *bs)
 {
     BDRVBlkioState *s = bs->opaque;
     uint64_t capacity;
-    int ret;
+    int ret = -1;
 
     WITH_QEMU_LOCK_GUARD(&s->blkio_lock) {
         ret = blkio_get_uint64(s->blkio, "capacity", &capacity);
     }
     if (ret < 0) {
-        return -ret;
+        return ret;
     }
 
     return capacity;
