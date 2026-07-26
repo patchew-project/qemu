@@ -119,3 +119,9 @@ char *kvm_print_register_name(uint64_t regidx)
 {
     g_assert_not_reached();
 }
+
+bool kvm_idreg_write_scratch_vcpu(int cpufd, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    g_assert_not_reached();
+}
