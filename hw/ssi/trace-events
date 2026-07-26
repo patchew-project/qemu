@@ -62,3 +62,14 @@ allwinner_a10_spi_tx(uint8_t byte) "write 0x%02x"
 allwinner_a10_spi_rx(uint8_t byte) "read 0x%02x"
 allwinner_a10_spi_read(const char* regname, uint32_t value) "reg[%s] => 0x%08x"
 allwinner_a10_spi_write(const char* regname, uint32_t value) "reg[%s] <= 0x%08x"
+
+# k230_dw_ssi.c
+k230_dw_ssi_reg_read(void *dev, uint64_t addr, uint32_t value) "dev=%p addr=0x%" PRIx64 " value=0x%" PRIx32
+k230_dw_ssi_reg_write(void *dev, uint64_t addr, uint32_t value) "dev=%p addr=0x%" PRIx64 " value=0x%" PRIx32
+k230_dw_ssi_irq_update(void *dev, uint32_t irq, uint32_t level) "dev=%p irq=%" PRIu32 " level=%" PRIu32
+k230_dw_ssi_transaction_start(void *dev, uint32_t cs, uint32_t tmod, uint32_t frf, uint32_t tx, uint32_t rx) "dev=%p cs=%" PRIu32 " tmod=%" PRIu32 " frf=%" PRIu32 " tx=%" PRIu32 " rx=%" PRIu32
+k230_dw_ssi_transaction_end(void *dev, uint32_t cs, uint32_t tmod, uint32_t frf, uint32_t tx, uint32_t rx) "dev=%p cs=%" PRIu32 " tmod=%" PRIu32 " frf=%" PRIu32 " tx=%" PRIu32 " rx=%" PRIu32
+k230_dw_ssi_idma_start(void *dev, uint32_t tmod, uint32_t frf, uint32_t frames, uint64_t guest_addr, uint32_t flash_addr) "dev=%p tmod=%" PRIu32 " frf=%" PRIu32 " frames=%" PRIu32 " guest=0x%" PRIx64 " flash=0x%" PRIx32
+k230_dw_ssi_idma_done(void *dev, uint64_t guest_addr, uint32_t frames) "dev=%p guest=0x%" PRIx64 " frames=%" PRIu32
+k230_dw_ssi_idma_error(void *dev, uint32_t stage, uint64_t guest_addr) "dev=%p stage=%" PRIu32 " guest=0x%" PRIx64
+k230_dw_ssi_xip_read(void *dev, uint64_t addr, uint32_t size, uint64_t value) "dev=%p addr=0x%" PRIx64 " size=%" PRIu32 " value=0x%" PRIx64

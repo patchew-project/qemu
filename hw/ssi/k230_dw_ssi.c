@@ -27,6 +27,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "system/dma.h"
+#include "trace.h"
 
 #define K230_DW_SSI_FIFO_CAPACITY 256
 
@@ -285,6 +286,7 @@ static void k230_dw_ssi_write_masked(K230DwSsiState *s, unsigned int reg,
                                      uint32_t value, uint32_t mask)
 {
     s->regs[reg] = (s->regs[reg] & ~mask) | (value & mask);
+    trace_k230_dw_ssi_reg_write(s, reg * sizeof(uint32_t), s->regs[reg]);
 }
 
 static uint32_t k230_dw_ssi_irq_raw_status(K230DwSsiState *s)
@@ -312,6 +314,8 @@ static void k230_dw_ssi_update_irq(K230DwSsiState *s)
                       s->regs[R_IMR] & K230_DW_SSI_IRQ_VALID_MASK;
 
     for (int i = 0; i < K230_DW_SSI_IRQ_COUNT; i++) {
+        trace_k230_dw_ssi_irq_update(
+            s, i, !!(status & k230_dw_ssi_irq_status_mask[i]));
         qemu_set_irq(s->irqs[i], !!(status & k230_dw_ssi_irq_status_mask[i]));
     }
 }
@@ -359,6 +363,11 @@ static void k230_dw_ssi_deselect(K230DwSsiState *s)
         return;
     }
 
+    trace_k230_dw_ssi_transaction_end(
+        s, s->active_cs,
+        FIELD_EX32(s->regs[R_CTRLR0], CTRLR0, TMOD),
+        FIELD_EX32(s->regs[R_CTRLR0], CTRLR0, SPI_FRF),
+        fifo32_num_used(&s->tx_fifo), fifo32_num_used(&s->rx_fifo));
     qemu_irq_raise(s->cs_lines[s->active_cs]);
     s->active_cs = -1;
 }
@@ -380,6 +389,10 @@ static void k230_dw_ssi_select(K230DwSsiState *s, unsigned cs)
     k230_dw_ssi_deselect(s);
     qemu_irq_lower(s->cs_lines[cs]);
     s->active_cs = cs;
+    trace_k230_dw_ssi_transaction_start(
+        s, cs, FIELD_EX32(s->regs[R_CTRLR0], CTRLR0, TMOD),
+        FIELD_EX32(s->regs[R_CTRLR0], CTRLR0, SPI_FRF),
+        fifo32_num_used(&s->tx_fifo), fifo32_num_used(&s->rx_fifo));
 }
 
 static void k230_dw_ssi_update_cs(K230DwSsiState *s)
@@ -776,6 +789,7 @@ static uint64_t k230_dw_ssi_xip_read(void *opaque, hwaddr address,
         value |= (uint64_t)(ssi_transfer(s->spi, 0) & 0xff) << (8 * i);
     }
 
+    trace_k230_dw_ssi_xip_read(s, address, size, value);
     k230_dw_ssi_deselect(s);
     return value;
 }
@@ -907,15 +921,19 @@ static void k230_dw_ssi_try_idma(K230DwSsiState *s)
     s->idma_completed_frames = 0;
 
     if (address > UINT64_MAX - (length - 1)) {
+        trace_k230_dw_ssi_idma_error(s, 0, address);
         k230_dw_ssi_idma_fail(s, "address range");
         return;
     }
 
+    trace_k230_dw_ssi_idma_start(
+        s, command.tmod, command.spi_frf, length, address, command.address);
     buffer = g_malloc(length);
     if (command.tmod == K230_DW_SSI_TMOD_TO) {
         result = dma_memory_read(&address_space_memory, address, buffer,
                                  length, MEMTXATTRS_UNSPECIFIED);
         if (result != MEMTX_OK) {
+            trace_k230_dw_ssi_idma_error(s, 1, address);
             k230_dw_ssi_idma_fail(s, "source");
             return;
         }
@@ -960,6 +978,7 @@ static void k230_dw_ssi_try_idma(K230DwSsiState *s)
         result = dma_memory_write(&address_space_memory, address, buffer,
                                   length, MEMTXATTRS_UNSPECIFIED);
         if (result != MEMTX_OK) {
+            trace_k230_dw_ssi_idma_error(s, 2, address);
             k230_dw_ssi_idma_fail(s, "destination");
             return;
         }
@@ -970,6 +989,7 @@ static void k230_dw_ssi_try_idma(K230DwSsiState *s)
     }
 
     s->idma_completed_frames = length;
+    trace_k230_dw_ssi_idma_done(s, address, length);
     k230_dw_ssi_idma_end(s, R_RISR_DONER_MASK);
 }
 
@@ -1245,6 +1265,7 @@ static uint64_t k230_dw_ssi_read(void *opaque, hwaddr addr, unsigned int size)
     }
 
     if (k230_dw_ssi_is_razwi(addr)) {
+        trace_k230_dw_ssi_reg_read(s, addr, 0);
         return 0;
     }
 
@@ -1334,6 +1355,7 @@ static uint64_t k230_dw_ssi_read(void *opaque, hwaddr addr, unsigned int size)
         break;
     }
 
+    trace_k230_dw_ssi_reg_read(s, addr, value);
     return value;
 }
 
@@ -1352,6 +1374,7 @@ static void k230_dw_ssi_write(void *opaque, hwaddr addr,
     }
 
     if (k230_dw_ssi_is_razwi(addr)) {
+        trace_k230_dw_ssi_reg_write(s, addr, 0);
         return;
     }
 
@@ -1378,10 +1401,12 @@ static void k230_dw_ssi_write(void *opaque, hwaddr addr,
         bool new_enabled = value & R_SSIENR_SSIC_EN_MASK;
 
         if (old_enabled == new_enabled) {
+            trace_k230_dw_ssi_reg_write(s, addr, s->regs[R_SSIENR]);
             return;
         }
 
         s->regs[R_SSIENR] = FIELD_DP32(0, SSIENR, SSIC_EN, new_enabled);
+        trace_k230_dw_ssi_reg_write(s, addr, s->regs[R_SSIENR]);
         if (!new_enabled) {
             k230_dw_ssi_abort_transfer(s);
             s->sleep_status = true;
@@ -1406,6 +1431,7 @@ static void k230_dw_ssi_write(void *opaque, hwaddr addr,
         uint32_t old_ser = s->regs[R_SER];
 
         s->regs[R_SER] = value & MAKE_64BIT_MASK(0, s->num_cs);
+        trace_k230_dw_ssi_reg_write(s, addr, s->regs[R_SER]);
         if (old_ser && !s->regs[R_SER]) {
             k230_dw_ssi_abort_transfer(s);
             break;
