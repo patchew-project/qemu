@@ -13,6 +13,8 @@
 #define K230_SPI0_BASE          0x91584000ULL
 #define K230_SPI1_BASE          0x91582000ULL
 #define K230_SPI2_BASE          0x91583000ULL
+#define K230_PLIC_BASE          0xf00000000ULL
+#define K230_PLIC_PENDING_BASE  0x1000
 #define K230_SSI_CTRLR0          0x000
 #define K230_SSI_CTRLR1          0x004
 #define K230_SSI_SSIENR          0x008
@@ -69,12 +71,18 @@
 #define K230_SSI_INT_AXIE               BIT(8)
 #define K230_SSI_INT_DONE               BIT(11)
 
+#define K230_SSI_IRQ_TXE                0
+#define K230_SSI_IRQ_RXU                5
+#define K230_SSI_IRQ_DONE               7
+#define K230_SSI_IRQ_AXIE               8
+
 #define K230_SSI_FIFO_DEPTH             256
 
 typedef struct K230SsiInstance {
     uint64_t base;
     uint32_t num_cs;
     uint32_t spi_ctrlr0_reset;
+    uint32_t first_irq;
 } K230SsiInstance;
 
 static const K230SsiInstance k230_ssi_instances[3] = {
@@ -82,14 +90,17 @@ static const K230SsiInstance k230_ssi_instances[3] = {
         .base = K230_SPI0_BASE,
         .num_cs = 1,
         .spi_ctrlr0_reset = K230_SSI_SPI_CTRLR0_FMC_RESET,
+        .first_irq = 146,
     }, {
         .base = K230_SPI1_BASE,
         .num_cs = 5,
         .spi_ctrlr0_reset = K230_SSI_SPI_CTRLR0_SPI_RESET,
+        .first_irq = 155,
     }, {
         .base = K230_SPI2_BASE,
         .num_cs = 5,
         .spi_ctrlr0_reset = K230_SSI_SPI_CTRLR0_SPI_RESET,
+        .first_irq = 164,
     },
 };
 
@@ -176,6 +187,14 @@ static void configure_loopback(QTestState *qts, uint32_t tmod,
     ctrlr0 = k230_ssi_readl(qts, K230_SPI1_BASE, K230_SSI_CTRLR0);
     k230_ssi_writel(qts, K230_SPI1_BASE, K230_SSI_CTRLR0,
                     ctrlr0 | K230_SSI_CTRLR0_SRL);
+}
+
+static bool k230_ssi_plic_pending(QTestState *qts, uint32_t irq)
+{
+    uint64_t addr = K230_PLIC_BASE + K230_PLIC_PENDING_BASE +
+                    (irq / 32) * sizeof(uint32_t);
+
+    return qtest_readl(qts, addr) & BIT(irq % 32);
 }
 
 static void test_register_contract(void)
@@ -279,6 +298,34 @@ static void test_interrupt_controller(void)
     qtest_quit(qts);
 }
 
+static void test_plic_routing(void)
+{
+    QTestState *qts = k230_ssi_start();
+    const K230SsiInstance *target = &k230_ssi_instances[1];
+
+    for (int i = 0; i < ARRAY_SIZE(k230_ssi_instances); i++) {
+        const K230SsiInstance *inst = &k230_ssi_instances[i];
+
+        g_assert_true(k230_ssi_plic_pending(qts,
+                                           inst->first_irq +
+                                           K230_SSI_IRQ_TXE));
+        k230_ssi_writel(qts, inst->base, K230_SSI_IMR, 0);
+    }
+
+    k230_ssi_writel(qts, target->base, K230_SSI_IMR, K230_SSI_INT_RXU);
+    (void)k230_ssi_read_frame(qts, target->base);
+    g_assert_true(k230_ssi_plic_pending(qts,
+                                       target->first_irq +
+                                       K230_SSI_IRQ_RXU));
+    for (int i = 0; i < ARRAY_SIZE(k230_ssi_instances); i++) {
+        if (&k230_ssi_instances[i] != target) {
+            g_assert_false(k230_ssi_plic_pending(
+                qts, k230_ssi_instances[i].first_irq + K230_SSI_IRQ_RXU));
+        }
+    }
+    qtest_quit(qts);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -287,5 +334,6 @@ int main(int argc, char **argv)
     qtest_add_func("/k230-dw-ssi/pio-data-path", test_pio_data_path);
     qtest_add_func("/k230-dw-ssi/interrupt-controller",
                    test_interrupt_controller);
+    qtest_add_func("/k230-dw-ssi/plic-routing", test_plic_routing);
     return g_test_run();
 }
