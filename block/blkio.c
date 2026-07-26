@@ -941,7 +941,7 @@ static int64_t coroutine_fn blkio_co_getlength(BlockDriverState *bs)
         ret = blkio_get_uint64(s->blkio, "capacity", &capacity);
     }
     if (ret < 0) {
-        return -ret;
+        return ret;
     }
 
     return capacity;
