@@ -130,11 +130,15 @@ static inline void qemu_lockable_auto_unlock(QemuLockable *x)
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(QemuLockable, qemu_lockable_auto_unlock)
 
-#define WITH_QEMU_LOCK_GUARD_(x, var) \
-    for (g_autoptr(QemuLockable) var = \
-                qemu_lockable_auto_lock(QEMU_MAKE_LOCKABLE_NONNULL((x))); \
-         var; \
-         qemu_lockable_auto_unlock(var), var = NULL)
+#define WITH_QEMU_LOCK_GUARD_(x, var, label)                        \
+    for (g_autoptr(QemuLockable) var =                              \
+            qemu_lockable_auto_lock(                                \
+                QEMU_MAKE_LOCKABLE_NONNULL((x)));                   \
+         ; ({ goto label; }))                                       \
+        if (0) {                                                    \
+        label:                                                      \
+            break;                                                  \
+        } else
 
 /**
  * WITH_QEMU_LOCK_GUARD - Lock a lock object for scope
@@ -158,8 +162,9 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(QemuLockable, qemu_lockable_auto_unlock)
  *       ...
  *   }
  */
-#define WITH_QEMU_LOCK_GUARD(x) \
-    WITH_QEMU_LOCK_GUARD_((x), glue(qemu_lockable_auto, __COUNTER__))
+#define WITH_QEMU_LOCK_GUARD(x)                                     \
+    WITH_QEMU_LOCK_GUARD_((x), glue(qemu_lockable_auto, __COUNTER__), \
+                           glue(qemu_lockable_label_, __COUNTER__))
 
 /**
  * QEMU_LOCK_GUARD - Lock an object until the end of the scope

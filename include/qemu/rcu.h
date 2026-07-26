@@ -178,12 +178,17 @@ static inline void rcu_read_auto_unlock(RCUReadAuto *r)
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(RCUReadAuto, rcu_read_auto_unlock)
 
-#define WITH_RCU_READ_LOCK_GUARD() \
-    WITH_RCU_READ_LOCK_GUARD_(glue(_rcu_read_auto, __COUNTER__))
+#define WITH_RCU_READ_LOCK_GUARD()                                  \
+    WITH_RCU_READ_LOCK_GUARD_(glue(_rcu_read_auto, __COUNTER__),    \
+                              glue(_rcu_read_label_, __COUNTER__))
 
-#define WITH_RCU_READ_LOCK_GUARD_(var) \
-    for (g_autoptr(RCUReadAuto) var = rcu_read_auto_lock(); \
-        (var); rcu_read_auto_unlock(var), (var) = NULL)
+#define WITH_RCU_READ_LOCK_GUARD_(var, label)                       \
+    for (g_autoptr(RCUReadAuto) var = rcu_read_auto_lock();         \
+         ; ({ goto label; }))                                       \
+        if (0) {                                                    \
+        label:                                                      \
+            break;                                                  \
+        } else
 
 #define RCU_READ_LOCK_GUARD() \
     g_autoptr(RCUReadAuto) _rcu_read_auto __attribute__((unused)) = rcu_read_auto_lock()
