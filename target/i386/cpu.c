@@ -7734,7 +7734,7 @@ static void x86_cpuid_get_avx10_version(Object *obj, Visitor *v,
 static bool x86_cpu_apply_avx10_features(X86CPU *cpu, uint8_t version,
                                          Error **errp)
 {
-    const AVX10VersionDefinition *def;
+    const AVX10VersionDefinition *def = NULL;
     CPUX86State *env = &cpu->env;
 
     if (!version) {
@@ -7757,6 +7757,7 @@ static bool x86_cpu_apply_avx10_features(X86CPU *cpu, uint8_t version,
             break;
         }
     }
+    assert(def != NULL);
 
     if (def->version < version) {
         error_setg(errp, "avx10-version can be at most %d", def->version);
