@@ -14,6 +14,8 @@
 #define K230_SPI0_BASE          0x91584000ULL
 #define K230_SPI1_BASE          0x91582000ULL
 #define K230_SPI2_BASE          0x91583000ULL
+#define K230_HI_SYS_BASE        0x91585000ULL
+#define K230_SSI_CTRL_ADDR      (K230_HI_SYS_BASE + 0x68)
 #define K230_PLIC_BASE          0xf00000000ULL
 #define K230_PLIC_PENDING_BASE  0x1000
 #define K230_SSI_CTRLR0          0x000
@@ -52,6 +54,15 @@
 
 #define K230_SSI_CTRLR0_WRITABLE_MASK   0x01cf7f1fU
 #define K230_SSI_BAUDR_WRITABLE_MASK    0x0000fffeU
+
+#define K230_SSI_CTRL_RESET             0x00004000U
+#define K230_SSI_CTRL_IMPLEMENTED_MASK  0x0003fff1U
+#define K230_SSI_CTRL_WRITABLE_MASK     0x0003e001U
+#define K230_SSI_CTRL_XIP_EN            BIT(0)
+#define K230_SSI_CTRL_SPI0_SLEEP        BIT(4)
+#define K230_SSI_CTRL_SPI0_MODE_SHIFT   5
+#define K230_SSI_CTRL_SPI1_MODE_SHIFT   8
+#define K230_SSI_CTRL_SPI2_MODE_SHIFT   11
 
 #define K230_SSI_CTRLR0_DFS_MASK        0x1fU
 #define K230_SSI_CTRLR0_TMOD_SHIFT      10
@@ -767,6 +778,54 @@ static void test_idma(void)
     k230_ssi_flash_image_clear(&image);
 }
 
+static void test_hi_sys(void)
+{
+    QTestState *qts = k230_ssi_start();
+    uint32_t ctrlr0;
+    uint32_t expected_modes;
+
+    g_assert_cmphex(qtest_readl(qts, K230_SSI_CTRL_ADDR),
+                    ==, K230_SSI_CTRL_RESET);
+    qtest_writel(qts, K230_SSI_CTRL_ADDR, UINT32_MAX);
+    g_assert_cmphex(qtest_readl(qts, K230_SSI_CTRL_ADDR) &
+                    K230_SSI_CTRL_IMPLEMENTED_MASK,
+                    ==, (K230_SSI_CTRL_RESET &
+                         ~K230_SSI_CTRL_WRITABLE_MASK) |
+                        K230_SSI_CTRL_WRITABLE_MASK);
+    qtest_system_reset(qts);
+
+    ctrlr0 = k230_ssi_readl(qts, K230_SPI0_BASE, K230_SSI_CTRLR0);
+    k230_ssi_writel(qts, K230_SPI0_BASE, K230_SSI_CTRLR0,
+                    ctrlr0 | (K230_SSI_FRF_QUAD <<
+                              K230_SSI_CTRLR0_SPI_FRF_SHIFT));
+    ctrlr0 = k230_ssi_readl(qts, K230_SPI1_BASE, K230_SSI_CTRLR0);
+    k230_ssi_writel(qts, K230_SPI1_BASE, K230_SSI_CTRLR0,
+                    ctrlr0 | (1U << K230_SSI_CTRLR0_SPI_FRF_SHIFT));
+    ctrlr0 = k230_ssi_readl(qts, K230_SPI2_BASE, K230_SSI_CTRLR0);
+    k230_ssi_writel(qts, K230_SPI2_BASE, K230_SSI_CTRLR0,
+                    ctrlr0 | (K230_SSI_FRF_OCTAL <<
+                              K230_SSI_CTRLR0_SPI_FRF_SHIFT));
+    expected_modes = (K230_SSI_FRF_QUAD <<
+                      K230_SSI_CTRL_SPI0_MODE_SHIFT) |
+                     (1U << K230_SSI_CTRL_SPI1_MODE_SHIFT) |
+                     (K230_SSI_FRF_OCTAL <<
+                      K230_SSI_CTRL_SPI2_MODE_SHIFT);
+    g_assert_cmphex(qtest_readl(qts, K230_SSI_CTRL_ADDR) &
+                    ((3U << K230_SSI_CTRL_SPI0_MODE_SHIFT) |
+                     (3U << K230_SSI_CTRL_SPI1_MODE_SHIFT) |
+                     (3U << K230_SSI_CTRL_SPI2_MODE_SHIFT)),
+                    ==, expected_modes);
+
+    k230_ssi_writel(qts, K230_SPI0_BASE, K230_SSI_SSIENR, 1);
+    g_assert_cmphex(qtest_readl(qts, K230_SSI_CTRL_ADDR) &
+                    K230_SSI_CTRL_SPI0_SLEEP, ==, 0);
+    k230_ssi_disable(qts, K230_SPI0_BASE);
+    g_assert_cmphex(qtest_readl(qts, K230_SSI_CTRL_ADDR) &
+                    K230_SSI_CTRL_SPI0_SLEEP,
+                    ==, K230_SSI_CTRL_SPI0_SLEEP);
+    qtest_quit(qts);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -780,5 +839,6 @@ int main(int argc, char **argv)
     qtest_add_func("/k230-dw-ssi/spi-nor", test_spi_nor);
     qtest_add_func("/k230-dw-ssi/qspi-sdr", test_qspi_sdr);
     qtest_add_func("/k230-dw-ssi/idma", test_idma);
+    qtest_add_func("/k230-dw-ssi/hi-sys", test_hi_sys);
     return g_test_run();
 }

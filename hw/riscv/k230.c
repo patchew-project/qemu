@@ -134,6 +134,8 @@ static void k230_soc_init(Object *obj)
                             TYPE_K230_DW_SSI);
     object_initialize_child(obj, "k230-spi-opi", &s->dw_ssi[2],
                             TYPE_K230_DW_SSI);
+    object_initialize_child(obj, "k230-hi-sys", &s->hi_sys,
+                            TYPE_K230_HI_SYS);
 
     qdev_prop_set_uint32(DEVICE(cpu0), "hartid-base", 0);
     qdev_prop_set_string(DEVICE(cpu0), "cpu-type", TYPE_RISCV_CPU_THEAD_C908);
@@ -254,6 +256,18 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    for (size_t logical_index = 0;
+         logical_index < ARRAY_SIZE(k230_ssi_routes); logical_index++) {
+        const K230SsiRoute *route = &k230_ssi_routes[logical_index];
+
+        k230_hi_sys_set_ssi(&s->hi_sys, logical_index,
+                            &s->dw_ssi[route->ssi_index]);
+    }
+
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->hi_sys), errp)) {
+        return;
+    }
+
     k230_connect_ssi_irqs(s);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt[0]), 0, memmap[K230_DEV_WDT0].base);
@@ -270,6 +284,8 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
                     memmap[K230_DEV_QSPI1].base);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->dw_ssi[2]), 0,
                     memmap[K230_DEV_SPI].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->hi_sys), 0,
+                    memmap[K230_DEV_HI_SYS_CFG].base);
 
     /* unimplemented devices */
     create_unimplemented_device("kpu.l2-cache",
@@ -413,9 +429,6 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
 
     create_unimplemented_device("sd1", memmap[K230_DEV_SD1].base,
                                 memmap[K230_DEV_SD1].size);
-
-    create_unimplemented_device("hi_sys_cfg", memmap[K230_DEV_HI_SYS_CFG].base,
-                                memmap[K230_DEV_HI_SYS_CFG].size);
 
     create_unimplemented_device("ddrc_cfg", memmap[K230_DEV_DDRC_CFG].base,
                                 memmap[K230_DEV_DDRC_CFG].size);

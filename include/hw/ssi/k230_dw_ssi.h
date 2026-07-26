@@ -96,6 +96,10 @@ struct K230DwSsiState {
     uint32_t num_cs;
     uint32_t max_lines;
     int active_cs;
+    bool sleep_status;
 };
+
+uint32_t k230_dw_ssi_get_spi_mode(const K230DwSsiState *s);
+bool k230_dw_ssi_is_sleeping(const K230DwSsiState *s);
 
 #endif /* HW_SSI_K230_DW_SSI_H */
