@@ -6,6 +6,10 @@ config SIFIVE_SPI
     bool
     select SSI
 
+config K230_DW_SSI
+    bool
+    select SSI
+
 config SSI
     bool
 
