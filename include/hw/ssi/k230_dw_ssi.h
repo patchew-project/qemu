@@ -51,7 +51,28 @@ typedef enum K230DwSsiPhase {
     K230_DW_SSI_PHASE_RX_ONLY,
     K230_DW_SSI_PHASE_EEPROM_COMMAND,
     K230_DW_SSI_PHASE_EEPROM_DATA,
+
+    K230_DW_SSI_PHASE_ENHANCED_INSTRUCTION,
+    K230_DW_SSI_PHASE_ENHANCED_ADDRESS,
+    K230_DW_SSI_PHASE_ENHANCED_MODE,
+    K230_DW_SSI_PHASE_ENHANCED_DUMMY,
+    K230_DW_SSI_PHASE_ENHANCED_DATA,
 } K230DwSsiPhase;
+
+typedef struct K230DwSsiEnhancedCommand {
+    uint32_t instruction;
+    uint32_t address;
+    uint32_t mode;
+    uint32_t instruction_bits;
+    uint32_t address_bits;
+    uint32_t mode_bits;
+    uint32_t wait_cycles;
+    uint32_t data_frames;
+    uint32_t spi_frf;
+    uint32_t trans_type;
+    uint32_t tmod;
+    bool mode_bits_enabled;
+} K230DwSsiEnhancedCommand;
 
 struct K230DwSsiState {
     SysBusDevice parent_obj;
@@ -69,6 +90,7 @@ struct K230DwSsiState {
 
     uint32_t phase;
     uint32_t remaining_frames;
+    K230DwSsiEnhancedCommand enhanced;
 
     uint32_t num_cs;
     uint32_t max_lines;

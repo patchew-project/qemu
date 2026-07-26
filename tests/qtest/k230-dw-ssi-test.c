@@ -55,11 +55,22 @@
 #define K230_SSI_CTRLR0_DFS_MASK        0x1fU
 #define K230_SSI_CTRLR0_TMOD_SHIFT      10
 #define K230_SSI_CTRLR0_SRL             BIT(13)
+#define K230_SSI_CTRLR0_SPI_FRF_SHIFT   22
+#define K230_SSI_CTRLR0_SPI_FRF_MASK    (3U << K230_SSI_CTRLR0_SPI_FRF_SHIFT)
 
 #define K230_SSI_TMOD_TR                0
 #define K230_SSI_TMOD_TO                1
 #define K230_SSI_TMOD_RO                2
 #define K230_SSI_TMOD_EEPROM_READ       3
+
+#define K230_SSI_FRF_QUAD               2
+#define K230_SSI_FRF_OCTAL              3
+
+#define K230_SSI_SPI_CTRLR0_TRANS_TYPE(v) ((v) & 0x3U)
+#define K230_SSI_SPI_CTRLR0_ADDR_L(bits)  (((bits) / 4U) << 2)
+#define K230_SSI_SPI_CTRLR0_INST_L_8      (2U << 8)
+#define K230_SSI_SPI_CTRLR0_WAIT(v)       (((v) & 0x1fU) << 11)
+#define K230_SSI_SPI_CTRLR0_SPI_DDR_EN    BIT(16)
 
 #define K230_SSI_SR_BUSY                BIT(0)
 #define K230_SSI_SR_TFNF                BIT(1)
@@ -103,6 +114,8 @@ static const K230SsiInstance k230_ssi_instances[3] = {
         .first_irq = 164,
     },
 };
+
+#define FLASH_CMD_JEDEC         0x9f
 
 static QTestState *k230_ssi_start(void)
 {
@@ -326,6 +339,57 @@ static void test_plic_routing(void)
     qtest_quit(qts);
 }
 
+static void assert_enhanced_config_rejected(QTestState *qts, uint32_t frf,
+                                            uint32_t extra_spi_ctrlr0)
+{
+    uint32_t ctrlr0;
+    uint32_t spi_ctrlr0;
+
+    k230_ssi_configure(qts, K230_SPI0_BASE, K230_SSI_TMOD_RO, 8, 3);
+    ctrlr0 = k230_ssi_readl(qts, K230_SPI0_BASE, K230_SSI_CTRLR0);
+    ctrlr0 |= frf << K230_SSI_CTRLR0_SPI_FRF_SHIFT;
+    spi_ctrlr0 = K230_SSI_SPI_CTRLR0_INST_L_8 | extra_spi_ctrlr0;
+    k230_ssi_writel(qts, K230_SPI0_BASE, K230_SSI_CTRLR0, ctrlr0);
+    k230_ssi_writel(qts, K230_SPI0_BASE, K230_SSI_SPI_CTRLR0, spi_ctrlr0);
+    k230_ssi_enable_cs(qts, K230_SPI0_BASE, BIT(0));
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, FLASH_CMD_JEDEC);
+    g_assert_cmpuint(k230_ssi_readl(qts, K230_SPI0_BASE, K230_SSI_TXFLR),
+                     ==, 1);
+    g_assert_cmpuint(k230_ssi_readl(qts, K230_SPI0_BASE, K230_SSI_RXFLR),
+                     ==, 0);
+    k230_ssi_disable(qts, K230_SPI0_BASE);
+}
+
+static void test_qspi_config(void)
+{
+    QTestState *qts = k230_ssi_start();
+    uint32_t ctrlr0;
+    uint32_t spi_ctrlr0;
+
+    assert_enhanced_config_rejected(qts, K230_SSI_FRF_OCTAL, 0);
+    assert_enhanced_config_rejected(qts, K230_SSI_FRF_QUAD,
+                                    K230_SSI_SPI_CTRLR0_SPI_DDR_EN);
+
+    k230_ssi_configure(qts, K230_SPI0_BASE, K230_SSI_TMOD_RO, 8, 3);
+    ctrlr0 = k230_ssi_readl(qts, K230_SPI0_BASE, K230_SSI_CTRLR0);
+    ctrlr0 |= K230_SSI_FRF_QUAD << K230_SSI_CTRLR0_SPI_FRF_SHIFT;
+    spi_ctrlr0 = K230_SSI_SPI_CTRLR0_TRANS_TYPE(1) |
+                 K230_SSI_SPI_CTRLR0_ADDR_L(24) |
+                 K230_SSI_SPI_CTRLR0_INST_L_8 |
+                 K230_SSI_SPI_CTRLR0_WAIT(8);
+    k230_ssi_writel(qts, K230_SPI0_BASE, K230_SSI_CTRLR0, ctrlr0);
+    k230_ssi_writel(qts, K230_SPI0_BASE, K230_SSI_SPI_CTRLR0, spi_ctrlr0);
+    k230_ssi_enable_cs(qts, K230_SPI0_BASE, BIT(0));
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, FLASH_CMD_JEDEC);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x123456);
+    g_assert_cmpuint(k230_ssi_readl(qts, K230_SPI0_BASE, K230_SSI_RXFLR),
+                     ==, 4);
+    for (int i = 0; i < 4; i++) {
+        g_assert_cmphex(k230_ssi_read_frame(qts, K230_SPI0_BASE), ==, 0);
+    }
+    qtest_quit(qts);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -335,5 +399,6 @@ int main(int argc, char **argv)
     qtest_add_func("/k230-dw-ssi/interrupt-controller",
                    test_interrupt_controller);
     qtest_add_func("/k230-dw-ssi/plic-routing", test_plic_routing);
+    qtest_add_func("/k230-dw-ssi/qspi-config", test_qspi_config);
     return g_test_run();
 }
