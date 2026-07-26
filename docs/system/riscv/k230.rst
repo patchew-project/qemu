@@ -22,6 +22,7 @@ The ``k230`` machine supports the following devices:
 * 5 UART
 * 3 K230 SSI controllers for SPI and QSPI
 * Optional SPI NOR flash on spi0 CS0
+* QSPI IDMA transfers for 8-bit SDR Dual and Quad modes
 
 Boot options
 ------------

@@ -25,6 +25,7 @@
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "system/dma.h"
 
 #define K230_DW_SSI_FIFO_CAPACITY 256
 
@@ -331,7 +332,7 @@ static uint32_t k230_dw_ssi_frame_masked(K230DwSsiState *s)
     return bits == 32 ? UINT32_MAX : MAKE_64BIT_MASK(0, bits);
 }
 
-static bool k230_dw_ssi_enabled(K230DwSsiState *s)
+static bool k230_dw_ssi_enabled(const K230DwSsiState *s)
 {
     return FIELD_EX32(s->regs[R_SSIENR], SSIENR, SSIC_EN);
 }
@@ -408,6 +409,7 @@ static uint32_t k230_dw_ssi_status(K230DwSsiState *s)
     sr = FIELD_DP32(sr, SR, RFNE, rx_used != 0);
     sr = FIELD_DP32(sr, SR, RFF,
                     rx_used == K230_DW_SSI_FIFO_CAPACITY);
+    sr = FIELD_DP32(sr, SR, CMPLTD_DF, s->idma_completed_frames);
 
     return sr;
 }
@@ -621,6 +623,172 @@ static uint32_t k230_dw_ssi_dummy_bytes(uint32_t spi_frf,
     }
 
     return DIV_ROUND_UP(wait_cycles * lines, 8);
+}
+
+static bool k230_dw_ssi_idma_enabled(const K230DwSsiState *s)
+{
+    return FIELD_EX32(s->regs[R_DMACR], DMACR, IDMAE);
+}
+
+static uint64_t k230_dw_ssi_idma_address(const K230DwSsiState *s)
+{
+    return s->regs[R_AXIAR0] | ((uint64_t)s->regs[R_AXIAR1] << 32);
+}
+
+static bool k230_dw_ssi_idma_triggered(const K230DwSsiState *s)
+{
+    uint32_t ser = s->regs[R_SER];
+
+    return k230_dw_ssi_idma_enabled(s) &&
+           k230_dw_ssi_enabled(s) && ser &&
+           !(ser & (ser - 1)) &&
+           s->phase == K230_DW_SSI_PHASE_IDLE;
+}
+
+static void k230_dw_ssi_idma_end(K230DwSsiState *s, uint32_t cause)
+{
+    s->regs[R_SSIENR] = 0;
+    s->phase = K230_DW_SSI_PHASE_IDLE;
+    s->remaining_frames = 0;
+    k230_dw_ssi_deselect(s);
+    s->irq_latched |= cause;
+    k230_dw_ssi_update_irq(s);
+}
+
+static void k230_dw_ssi_idma_fail(K230DwSsiState *s, const char *operation)
+{
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "%s: IDMA %s memory access failed\n",
+                  DEVICE(s)->canonical_path, operation);
+    s->idma_completed_frames = 0;
+    k230_dw_ssi_idma_end(s, R_RISR_AXIER_MASK);
+}
+
+/*
+ * Supported SDK paths observe the final memory contents and DONE/AXIE,
+ * so complete IDMA synchronously without modeling AXI timing or FIFO
+ * backpressure.
+ */
+static void k230_dw_ssi_try_idma(K230DwSsiState *s)
+{
+    K230DwSsiEnhancedCommand command = { 0 };
+    g_autofree uint8_t *buffer = NULL;
+    uint64_t address;
+    uint32_t dummy_bytes;
+    uint32_t length;
+    MemTxResult result;
+
+    if (!k230_dw_ssi_idma_triggered(s)) {
+        return;
+    }
+
+    if (!FIELD_EX32(s->regs[R_DMACR], DMACR, AINC)) {
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: fixed-address IDMA is unsupported\n",
+                      DEVICE(s)->canonical_path);
+        s->idma_completed_frames = 0;
+        k230_dw_ssi_idma_end(s, 0);
+        return;
+    }
+
+    if (!fifo32_is_empty(&s->tx_fifo) ||
+        !fifo32_is_empty(&s->rx_fifo)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: IDMA requires empty TX and RX FIFOs\n",
+                      DEVICE(s)->canonical_path);
+        s->idma_completed_frames = 0;
+        k230_dw_ssi_idma_end(s, 0);
+        return;
+    }
+
+    if (FIELD_EX32(s->regs[R_CTRLR0], CTRLR0, DFS) != 7) {
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: IDMA only supports 8-bit data frames\n",
+                      DEVICE(s)->canonical_path);
+        s->idma_completed_frames = 0;
+        k230_dw_ssi_idma_end(s, 0);
+        return;
+    }
+
+    if (!k230_dw_ssi_decode_enhanced_command(s, &command)) {
+        s->idma_completed_frames = 0;
+        k230_dw_ssi_idma_end(s, 0);
+        return;
+    }
+
+    command.instruction = s->regs[R_SPIDR] &
+        (uint32_t)MAKE_64BIT_MASK(0, command.instruction_bits);
+    command.address = s->regs[R_SPIAR] &
+        (uint32_t)MAKE_64BIT_MASK(0, command.address_bits);
+    length = command.data_frames;
+    address = k230_dw_ssi_idma_address(s);
+    s->idma_completed_frames = 0;
+
+    if (address > UINT64_MAX - (length - 1)) {
+        k230_dw_ssi_idma_fail(s, "address range");
+        return;
+    }
+
+    buffer = g_malloc(length);
+    if (command.tmod == K230_DW_SSI_TMOD_TO) {
+        result = dma_memory_read(&address_space_memory, address, buffer,
+                                 length, MEMTXATTRS_UNSPECIFIED);
+        if (result != MEMTX_OK) {
+            k230_dw_ssi_idma_fail(s, "source");
+            return;
+        }
+    }
+
+    k230_dw_ssi_update_cs(s);
+    if (s->active_cs < 0) {
+        k230_dw_ssi_idma_end(s, 0);
+        return;
+    }
+
+    if (command.instruction_bits != 0) {
+        k230_dw_ssi_send_enhanced_field(s, command.instruction,
+                                         command.instruction_bits);
+    }
+    if (command.address_bits != 0) {
+        k230_dw_ssi_send_enhanced_field(s, command.address,
+                                         command.address_bits);
+    }
+    if (command.mode_bits_enabled) {
+        k230_dw_ssi_send_enhanced_field(s, command.mode,
+                                         command.mode_bits);
+    } else if (command.trans_type == 1 && command.wait_cycles >= 2) {
+        /*
+         * The SDK's 1-4-4 read supplies its mode byte through XIP_MODE_BITS
+         * without XIP_MD_BIT_EN; one Quad byte consumes two wait cycles.
+         */
+        k230_dw_ssi_send_enhanced_field(s, s->regs[R_XIP_MODE_BITS], 8);
+        command.wait_cycles -= 2;
+    }
+
+    dummy_bytes = k230_dw_ssi_dummy_bytes(
+        command.spi_frf, command.trans_type, command.wait_cycles);
+    for (uint32_t i = 0; i < dummy_bytes; i++) {
+        ssi_transfer(s->spi, 0);
+    }
+
+    if (command.tmod == K230_DW_SSI_TMOD_RO) {
+        for (uint32_t i = 0; i < length; i++) {
+            buffer[i] = ssi_transfer(s->spi, 0);
+        }
+        result = dma_memory_write(&address_space_memory, address, buffer,
+                                  length, MEMTXATTRS_UNSPECIFIED);
+        if (result != MEMTX_OK) {
+            k230_dw_ssi_idma_fail(s, "destination");
+            return;
+        }
+    } else {
+        for (uint32_t i = 0; i < length; i++) {
+            ssi_transfer(s->spi, buffer[i]);
+        }
+    }
+
+    s->idma_completed_frames = length;
+    k230_dw_ssi_idma_end(s, R_RISR_DONER_MASK);
 }
 
 static void k230_dw_ssi_run_enhanced_rx_data(K230DwSsiState *s)
@@ -878,6 +1046,10 @@ static uint64_t k230_dw_ssi_read(void *opaque, hwaddr addr, unsigned int size)
     uint32_t value = 0;
 
     if (k230_dw_ssi_is_dr(addr)) {
+        if (k230_dw_ssi_idma_enabled(s)) {
+            return 0;
+        }
+
         if (!fifo32_is_empty(&s->rx_fifo)) {
             value = fifo32_pop(&s->rx_fifo) & k230_dw_ssi_frame_masked(s);
         } else {
@@ -966,8 +1138,10 @@ static uint64_t k230_dw_ssi_read(void *opaque, hwaddr addr, unsigned int size)
                R_RISR_RXOIR_MASK | R_RISR_MSTIR_MASK);
         break;
     case A_AXIECR:
+        value = k230_dw_ssi_irq_read_clear(s, R_RISR_AXIER_MASK);
+        break;
     case A_DONECR:
-        value = 0;
+        value = k230_dw_ssi_irq_read_clear(s, R_RISR_DONER_MASK);
         break;
     default:
         if (addr >= K230_DW_SSI_REGS_SIZE || (addr & 0x3) != 0) {
@@ -987,6 +1161,10 @@ static void k230_dw_ssi_write(void *opaque, hwaddr addr,
     K230DwSsiState *s = K230_DW_SSI(opaque);
 
     if (k230_dw_ssi_is_dr(addr)) {
+        if (k230_dw_ssi_idma_enabled(s)) {
+            return;
+        }
+
         k230_dw_ssi_push_tx(s, value);
         return;
     }
@@ -1028,7 +1206,11 @@ static void k230_dw_ssi_write(void *opaque, hwaddr addr,
         }
 
         k230_dw_ssi_update_cs(s);
-        k230_dw_ssi_run_transfer(s);
+        if (k230_dw_ssi_idma_enabled(s)) {
+            k230_dw_ssi_try_idma(s);
+        } else {
+            k230_dw_ssi_run_transfer(s);
+        }
         k230_dw_ssi_update_irq(s);
         break;
     }
@@ -1046,7 +1228,11 @@ static void k230_dw_ssi_write(void *opaque, hwaddr addr,
         }
 
         k230_dw_ssi_update_cs(s);
-        k230_dw_ssi_run_transfer(s);
+        if (k230_dw_ssi_idma_enabled(s)) {
+            k230_dw_ssi_try_idma(s);
+        } else {
+            k230_dw_ssi_run_transfer(s);
+        }
         k230_dw_ssi_update_irq(s);
         break;
     }
@@ -1085,12 +1271,7 @@ static void k230_dw_ssi_write(void *opaque, hwaddr addr,
     case A_DMACR:
         k230_dw_ssi_write_masked(s, R_DMACR, value,
                                  K230_DW_SSI_DMACR_WRITABLE_MASK);
-        if (FIELD_EX32(s->regs[R_DMACR], DMACR, IDMAE)) {
-            qemu_log_mask(LOG_UNIMP,
-                          "%s: DMACR.IDMAE enabled, internal DMA is not "
-                          "implemented\n",
-                          DEVICE(s)->canonical_path);
-        }
+        k230_dw_ssi_try_idma(s);
         break;
     case A_AXIAWLEN:
         k230_dw_ssi_write_masked(s, R_AXIAWLEN, value,
@@ -1188,6 +1369,7 @@ static void k230_dw_ssi_enter_reset(Object *obj, ResetType type)
     s->phase = K230_DW_SSI_PHASE_IDLE;
     s->remaining_frames = 0;
     s->irq_latched = 0;
+    s->idma_completed_frames = 0;
     memset(&s->enhanced, 0, sizeof(s->enhanced));
 
     s->regs[R_CTRLR0] = K230_DW_SSI_CTRLR0_RESET;
@@ -1250,6 +1432,7 @@ static const VMStateDescription vmstate_k230_dw_ssi = {
         VMSTATE_FIFO32(tx_fifo, K230DwSsiState),
         VMSTATE_FIFO32(rx_fifo, K230DwSsiState),
         VMSTATE_UINT32(irq_latched, K230DwSsiState),
+        VMSTATE_UINT32(idma_completed_frames, K230DwSsiState),
         VMSTATE_UINT32(phase, K230DwSsiState),
         VMSTATE_UINT32(remaining_frames, K230DwSsiState),
         VMSTATE_UINT32(enhanced.instruction, K230DwSsiState),

@@ -87,6 +87,7 @@ struct K230DwSsiState {
     uint32_t regs[K230_DW_SSI_NUM_REGS];
 
     uint32_t irq_latched;
+    uint32_t idma_completed_frames;
 
     uint32_t phase;
     uint32_t remaining_frames;
