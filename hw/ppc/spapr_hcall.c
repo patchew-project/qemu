@@ -1511,6 +1511,7 @@ static target_ulong h_update_dt(PowerPCCPU *cpu, SpaprMachineState *spapr,
     g_free(spapr->fdt_blob);
     spapr->fdt_size = cb;
     spapr->fdt_blob = fdt;
+    MACHINE(spapr)->fdt = fdt;
     trace_spapr_update_dt(cb);
 
     return H_SUCCESS;

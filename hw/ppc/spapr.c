@@ -2137,6 +2137,7 @@ static int spapr_dtb_pre_load(void *opaque)
     g_free(spapr->fdt_blob);
     spapr->fdt_blob = NULL;
     spapr->fdt_size = 0;
+    MACHINE(spapr)->fdt = NULL;
 
     return 0;
 }
