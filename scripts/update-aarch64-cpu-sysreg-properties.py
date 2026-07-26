@@ -81,9 +81,13 @@ def collect_fields(item, bit_offset=0):
 
     # Normal Field Types
     leaf_types = ['Fields.Field', 'Fields.ConstantField',
-                  'Fields.EnumeratedField', 'Fields.Bitfield']
+                  'Fields.EnumeratedField', 'Fields.Bitfield', 'Fields.Reserved']
     if _type in leaf_types:
         field_copy = item.copy()
+
+        if _type == 'Fields.Reserved' and not field_copy.get('name'):
+            field_copy['name'] = item.get('value', 'RES0')
+
         if field_copy.get('rangeset'):
             new_ranges = []
             for r in field_copy['rangeset']:
@@ -96,7 +100,7 @@ def collect_fields(item, bit_offset=0):
         return fields
 
     # Traverse the hierarchy for other cases
-    for key in ['fields', 'values', 'fieldsets']:
+    for key in ['fields', 'values', 'fieldsets', 'constants']:
         for nested in item.get(key, []):
             fields.extend(collect_fields(nested, bit_offset))
 
@@ -163,44 +167,95 @@ def generate_sysreg_properties_from_registers_json(id_reg_names, raw_json_path):
 
         final_output += f"IDREG_START({reg_name})\n"
 
-        unique_fields = {}
+        fieldset_variants = []
+
         for fieldset in register.get('fieldsets', []):
+            current_fieldset_fields = {}
             candidates = collect_fields(fieldset)
+
             for val in candidates:
-                name = (val.get('name') or val.get('label', '')).strip()
-                if not name or "RESERVED" in name.upper():
+                raw_name = val.get('name') or val.get('label') or val.get('value') or ''
+                name = raw_name.strip()
+                if not name:
                     continue
+
+                name_upper = name.upper()
+
+                # Check for architectural target states, including UNKNOWN remapping
+                base_reserved = None
+                for r_type in ["RES0", "RES1", "RAZ", "RAO", "WI", "UNKNOWN"]:
+                    if r_type in name_upper:
+                        base_reserved = "RES0" if r_type == "UNKNOWN" else r_type
+                        break
+
+                is_valid_reserved = base_reserved is not None
+                if "RESERVED" in name_upper and not is_valid_reserved:
+                    continue
+
+                # Force naming uniformity across padding blocks
+                if is_valid_reserved:
+                    name = base_reserved
+
                 for r in val.get('rangeset', []):
                     lsb = int(r.get('start'))
                     width = r.get('width')
                     msb = lsb + int(width) - 1
 
-                    # Only keep the fields with the highest MSB
-                    # needed fir CCSIDR_EL1
-                    if name not in unique_fields or msb > unique_fields[name]['msb']:
-                        # extract enum values if any
+                    if is_valid_reserved:
+                        unique_key = f"{name}_{lsb}"
+                    else:
+                        unique_key = name
+
+                    if unique_key not in current_fieldset_fields or \
+                       msb > current_fieldset_fields[unique_key]['msb']:
                         enums = extract_field_enums(val)
-                        unique_fields[name] = {'lsb': lsb, 'msb': msb, 'width': width, 'enums': enums}
+                        current_fieldset_fields[unique_key] = {
+                            'raw_name': name,
+                            'lsb': lsb,
+                            'msb': msb,
+                            'width': width,
+                            'enums': enums
+                        }
+
+            if current_fieldset_fields:
+                fieldset_variants.append(current_fieldset_fields)
+
+        best_fieldset = {}
+        max_total_width = -1
+
+        for variant in fieldset_variants:
+            total_width = sum(f['width'] for f in variant.values())
+            # prioritize layout variants with the highest MSB coverage
+            max_msb = max(f['msb'] for f in variant.values()) if variant else 0
+
+            # Combine width and max_msb into a fitness score tuple
+            if (total_width, max_msb) > (max_total_width, max_total_width):
+                max_total_width = total_width
+                best_fieldset = variant
+
+        unique_fields = best_fieldset
 
         # Sort decreasing lsbs
         sorted_fields = sorted(unique_fields.items(),
                                key=lambda x: x[1]['lsb'], reverse=True)
 
-        for name, bits in sorted_fields:
+        for unique_key, bits in sorted_fields:
             enums_list = bits.get('enums', [])
+
+            clean_name = bits.get('raw_name', unique_key)
 
             if enums_list:
                line = (f"    IDREG_FIELD_START({reg_name}, "
-                       f"{name}, {bits['lsb']}, {bits['width']})\n")
+                       f"{clean_name}, {bits['lsb']}, {bits['width']})\n")
             else:
                line = (f"    IDREG_FIELD({reg_name}, "
-                       f"{name}, {bits['lsb']}, {bits['width']})\n")
+                       f"{clean_name}, {bits['lsb']}, {bits['width']})\n")
             final_output += line
             # add the enum value definition if any
             for enum_item in enums_list:
                 final_output += (f"        IDREG_FIELD_ARCH_VAL({enum_item['value']})\n")
             if enums_list:
-               line = (f"    IDREG_FIELD_END({reg_name}, {name})\n")
+               line = (f"    IDREG_FIELD_END({reg_name}, {clean_name})\n")
                final_output += line
      
         final_output += f"IDREG_END({reg_name})\n"
