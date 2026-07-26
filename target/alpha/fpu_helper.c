@@ -105,8 +105,7 @@ void helper_fp_exc_raise_s(CPUAlphaState *env, uint32_t ignore, uint32_t regno)
     }
 }
 
-/* Input handing without software completion.  Trap for all
-   non-finite numbers.  */
+/* Input handling without software completion.  Trap for NaN and denormals.  */
 void helper_ieee_input(CPUAlphaState *env, uint64_t val)
 {
     uint32_t exp = (uint32_t)(val >> 52) & 0x7ff;
@@ -117,8 +116,8 @@ void helper_ieee_input(CPUAlphaState *env, uint64_t val)
         if (frac != 0) {
             arith_excp(env, GETPC(), EXC_M_INV, 0);
         }
-    } else if (exp == 0x7ff) {
-        /* Infinity or NaN.  */
+    } else if (exp == 0x7ff && frac) {
+        /* NaN.  */
         env->fpcr |= FPCR_INV;
         arith_excp(env, GETPC(), EXC_M_INV, 0);
     }
