@@ -9,7 +9,12 @@
 #
 # IDREG_START(REG)
 #    IDREG_FIELD(REG, FIELD, SHIFT, LENGTH)
-# ...
+#    or for fields with enum values
+#    IDREG_FIELD_START(REG, FIELD, SHIFT, LENGTH)
+#        IDREG_FIELD_ARCH_VAL(VALUE)
+#        ../..
+#    IDREG_FIELD_END(REG, FIELD)
+#    ../.. 
 # IDREG_END(REG)
 #
 # Copyright (C) 2026 Red Hat, Inc.
@@ -98,6 +103,51 @@ def collect_fields(item, bit_offset=0):
     return fields
 
 
+def extract_field_enums(field):
+    enums = []
+    if not isinstance(field, dict):
+        return enums
+
+    value_obj = field.get("value")
+    if not isinstance(value_obj, dict):
+        return enums
+
+    constraints = value_obj.get("constraints")
+    if not isinstance(constraints, dict):
+        return enums
+
+    val_entries = constraints.get("values", [])
+    if not isinstance(val_entries, list):
+        return enums
+
+    for val_entry in val_entries:
+        if not isinstance(val_entry, dict):
+            continue
+            
+        if val_entry.get("_type") == "Values.Value":
+            raw_val = val_entry.get("value")
+            if raw_val is None:
+                continue
+                
+            # some of the values have ' like "'0100'"
+            raw_val_str = str(raw_val).strip().replace("'", "")
+            
+            try:
+                # convert into bin 
+                int_val = int(raw_val_str, 2)
+            except ValueError:
+                try:
+                    # Fallback to dec if not bin
+                    int_val = int(raw_val_str, 0)
+                except ValueError:
+                    continue
+            
+            enums.append({
+                'value': int_val
+            })
+            
+    return enums
+
 def generate_sysreg_properties_from_registers_json(id_reg_names, raw_json_path):
     with open(raw_json_path, 'r') as f:
         register_data = json.load(f)
@@ -128,16 +178,31 @@ def generate_sysreg_properties_from_registers_json(id_reg_names, raw_json_path):
                     # Only keep the fields with the highest MSB
                     # needed fir CCSIDR_EL1
                     if name not in unique_fields or msb > unique_fields[name]['msb']:
-                        unique_fields[name] = {'lsb': lsb, 'msb': msb, 'width': width}
+                        # extract enum values if any
+                        enums = extract_field_enums(val)
+                        unique_fields[name] = {'lsb': lsb, 'msb': msb, 'width': width, 'enums': enums}
 
         # Sort decreasing lsbs
         sorted_fields = sorted(unique_fields.items(),
                                key=lambda x: x[1]['lsb'], reverse=True)
 
         for name, bits in sorted_fields:
-            line = (f"    IDREG_FIELD({reg_name}, "
-                    f"{name}, {bits['lsb']}, {bits['width']})\n")
+            enums_list = bits.get('enums', [])
+
+            if enums_list:
+               line = (f"    IDREG_FIELD_START({reg_name}, "
+                       f"{name}, {bits['lsb']}, {bits['width']})\n")
+            else:
+               line = (f"    IDREG_FIELD({reg_name}, "
+                       f"{name}, {bits['lsb']}, {bits['width']})\n")
             final_output += line
+            # add the enum value definition if any
+            for enum_item in enums_list:
+                final_output += (f"        IDREG_FIELD_ARCH_VAL({enum_item['value']})\n")
+            if enums_list:
+               line = (f"    IDREG_FIELD_END({reg_name}, {name})\n")
+               final_output += line
+     
         final_output += f"IDREG_END({reg_name})\n"
         final_output += "\n"
 
@@ -147,7 +212,11 @@ def generate_sysreg_properties_from_registers_json(id_reg_names, raw_json_path):
         f.write("/* SPDX-License-Identifier: GPL-2.0-or-later */\n\n")
         f.write("/* IDREG_START(REG) */\n")
         f.write("/*     IDREG_FIELD(REG, FIELD, SHIFT, LENGTH) */\n")
+        f.write("/*     or for fields with enum values */\n")
+        f.write("/*     IDREG_FIELD_START(REG, FIELD, SHIFT, LENGTH) */\n")
+        f.write("/*         IDREG_FIELD_ARCH_VAL(VALUE) */\n")
         f.write("/* ... */\n")
+        f.write("/*     IDREG_FIELD_END(REG, FIELD) */\n")
         f.write("/* IDREG_END(REG) */\n\n")
         f.write(final_output)
 
