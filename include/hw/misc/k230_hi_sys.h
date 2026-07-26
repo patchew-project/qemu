@@ -50,5 +50,6 @@ struct K230HiSysState {
 
 void k230_hi_sys_set_ssi(K230HiSysState *s, unsigned int index,
                          K230DwSsiState *ssi);
+bool k230_hi_sys_xip_enabled(const K230HiSysState *s);
 
 #endif /* HW_MISC_K230_HI_SYS_H */

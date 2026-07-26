@@ -19,6 +19,7 @@
 #include "hw/core/registerfields.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/irq.h"
+#include "hw/misc/k230_hi_sys.h"
 #include "hw/ssi/k230_dw_ssi.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
@@ -347,6 +348,11 @@ bool k230_dw_ssi_is_sleeping(const K230DwSsiState *s)
     return s->sleep_status;
 }
 
+void k230_dw_ssi_set_hi_sys(K230DwSsiState *s, K230HiSysState *hi_sys)
+{
+    s->hi_sys = hi_sys;
+}
+
 static void k230_dw_ssi_deselect(K230DwSsiState *s)
 {
     if (s->active_cs < 0) {
@@ -634,6 +640,171 @@ static uint32_t k230_dw_ssi_dummy_bytes(uint32_t spi_frf,
 
     return DIV_ROUND_UP(wait_cycles * lines, 8);
 }
+
+static bool k230_dw_ssi_xip_config_supported(K230DwSsiState *s)
+{
+    uint32_t spi_frf = FIELD_EX32(s->regs[R_CTRLR0], CTRLR0, SPI_FRF);
+    uint32_t spi_ctrlr0 = s->regs[R_SPI_CTRLR0];
+    uint32_t required_lines;
+
+    switch (spi_frf) {
+    case 0:
+        required_lines = 1;
+        break;
+    case 1:
+        required_lines = 2;
+        break;
+    case 2:
+        required_lines = 4;
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: XIP does not support SPI_FRF=%u\n",
+                      DEVICE(s)->canonical_path, spi_frf);
+        return false;
+    }
+
+    if (required_lines > s->max_lines ||
+        FIELD_EX32(spi_ctrlr0, SPI_CTRLR0, TRANS_TYPE) > 2) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: unsupported XIP line or transfer type\n",
+                      DEVICE(s)->canonical_path);
+        return false;
+    }
+
+    if (FIELD_EX32(spi_ctrlr0, SPI_CTRLR0, SPI_DDR_EN) ||
+        FIELD_EX32(spi_ctrlr0, SPI_CTRLR0, INST_DDR_EN) ||
+        FIELD_EX32(spi_ctrlr0, SPI_CTRLR0, SPI_RXDS_EN) ||
+        FIELD_EX32(spi_ctrlr0, SPI_CTRLR0, SPI_RXDS_SIG_EN)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: XIP DDR/RXDS mode is unsupported\n",
+                      DEVICE(s)->canonical_path);
+        return false;
+    }
+
+    return true;
+}
+
+static bool k230_dw_ssi_prepare_xip_command(
+    K230DwSsiState *s, hwaddr address, K230DwSsiEnhancedCommand *command)
+{
+    uint32_t spi_ctrlr0 = s->regs[R_SPI_CTRLR0];
+    uint32_t inst_l = FIELD_EX32(spi_ctrlr0, SPI_CTRLR0, INST_L);
+    uint32_t addr_l = FIELD_EX32(spi_ctrlr0, SPI_CTRLR0, ADDR_L);
+
+    command->instruction_bits =
+        FIELD_EX32(spi_ctrlr0, SPI_CTRLR0, XIP_INST_EN) && inst_l ?
+        1U << (inst_l + 1) : 0;
+    command->address_bits = addr_l << 2;
+    if (command->address_bits > 32) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: unsupported XIP address length %u bits\n",
+                      DEVICE(s)->canonical_path, command->address_bits);
+        return false;
+    }
+
+    command->mode_bits_enabled =
+        FIELD_EX32(spi_ctrlr0, SPI_CTRLR0, XIP_MD_BIT_EN);
+    if (command->mode_bits_enabled) {
+        uint32_t mode_length_encoding =
+            FIELD_EX32(spi_ctrlr0, SPI_CTRLR0, XIP_MBL);
+
+        command->mode_bits = 1U << (mode_length_encoding + 1);
+    }
+
+    command->instruction = s->regs[R_XIP_INCR_INST] &
+        (uint32_t)MAKE_64BIT_MASK(0, command->instruction_bits);
+    command->address = (uint32_t)address &
+        (uint32_t)MAKE_64BIT_MASK(0, command->address_bits);
+    command->mode = s->regs[R_XIP_MODE_BITS] &
+        (uint32_t)MAKE_64BIT_MASK(0, command->mode_bits);
+    command->wait_cycles =
+        FIELD_EX32(spi_ctrlr0, SPI_CTRLR0, WAIT_CYCLES);
+    command->spi_frf = FIELD_EX32(s->regs[R_CTRLR0], CTRLR0, SPI_FRF);
+    command->trans_type =
+        FIELD_EX32(spi_ctrlr0, SPI_CTRLR0, TRANS_TYPE);
+
+    return true;
+}
+
+static uint64_t k230_dw_ssi_xip_read(void *opaque, hwaddr address,
+                                     unsigned int size)
+{
+    K230DwSsiState *s = K230_DW_SSI(opaque);
+    K230DwSsiEnhancedCommand command = { 0 };
+    uint64_t value = 0;
+    uint32_t dummy_bytes;
+
+    if (!s->hi_sys || !k230_hi_sys_xip_enabled(s->hi_sys)) {
+        return 0;
+    }
+
+    if (!k230_dw_ssi_xip_config_supported(s) ||
+        !k230_dw_ssi_prepare_xip_command(s, address, &command)) {
+        return 0;
+    }
+
+    if (s->active_cs >= 0 || s->phase != K230_DW_SSI_PHASE_IDLE) {
+        k230_dw_ssi_abort_transfer(s);
+    }
+
+    k230_dw_ssi_select(s, 0);
+    if (s->active_cs != 0) {
+        return 0;
+    }
+
+    if (command.instruction_bits != 0) {
+        k230_dw_ssi_send_enhanced_field(s, command.instruction,
+                                         command.instruction_bits);
+    }
+    if (command.address_bits != 0) {
+        k230_dw_ssi_send_enhanced_field(s, command.address,
+                                         command.address_bits);
+    }
+    if (command.mode_bits_enabled) {
+        k230_dw_ssi_send_enhanced_field(s, command.mode,
+                                         command.mode_bits);
+    }
+
+    dummy_bytes = k230_dw_ssi_dummy_bytes(
+        command.spi_frf, command.trans_type, command.wait_cycles);
+    for (uint32_t i = 0; i < dummy_bytes; i++) {
+        ssi_transfer(s->spi, 0);
+    }
+
+    for (unsigned int i = 0; i < size; i++) {
+        value |= (uint64_t)(ssi_transfer(s->spi, 0) & 0xff) << (8 * i);
+    }
+
+    k230_dw_ssi_deselect(s);
+    return value;
+}
+
+static void k230_dw_ssi_xip_write(void *opaque, hwaddr address,
+                                  uint64_t value, unsigned int size)
+{
+    K230DwSsiState *s = K230_DW_SSI(opaque);
+
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "%s: XIP write at 0x%" HWADDR_PRIx " is unsupported\n",
+                  DEVICE(s)->canonical_path, address);
+}
+
+static const MemoryRegionOps k230_dw_ssi_xip_ops = {
+    .read = k230_dw_ssi_xip_read,
+    .write = k230_dw_ssi_xip_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+        .unaligned = true,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+        .unaligned = true,
+    },
+};
 
 static bool k230_dw_ssi_idma_enabled(const K230DwSsiState *s)
 {
@@ -1478,6 +1649,11 @@ static void k230_dw_ssi_init(Object *obj)
     memory_region_init_io(&s->mmio, obj, &k230_dw_ssi_ops, s,
                           TYPE_K230_DW_SSI, K230_DW_SSI_MMIO_SIZE);
     sysbus_init_mmio(sbd, &s->mmio);
+
+    memory_region_init_io(&s->xip, obj, &k230_dw_ssi_xip_ops, s,
+                          TYPE_K230_DW_SSI ".xip",
+                          K230_DW_SSI_XIP_WINDOW_SIZE);
+    sysbus_init_mmio(sbd, &s->xip);
 
     for (int i = 0; i < K230_DW_SSI_IRQ_COUNT; i++) {
         sysbus_init_irq(sbd, &s->irqs[i]);

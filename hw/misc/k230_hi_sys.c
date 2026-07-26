@@ -115,6 +115,11 @@ void k230_hi_sys_set_ssi(K230HiSysState *s, unsigned int index,
     s->ssi[index] = ssi;
 }
 
+bool k230_hi_sys_xip_enabled(const K230HiSysState *s)
+{
+    return !!(s->ssi_ctrl & K230_SSI_CTRL_XIP_EN);
+}
+
 static void k230_hi_sys_reset(Object *obj, ResetType type)
 {
     K230HiSysState *s = K230_HI_SYS(obj);

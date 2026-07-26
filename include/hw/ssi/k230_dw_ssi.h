@@ -30,6 +30,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(K230DwSsiState, K230_DW_SSI)
 #define K230_DW_SSI_REGS_SIZE 0x14c
 #define K230_DW_SSI_NUM_REGS \
     (K230_DW_SSI_REGS_SIZE / sizeof(uint32_t))
+#define K230_DW_SSI_XIP_WINDOW_SIZE 0x08000000
+
+typedef struct K230HiSysState K230HiSysState;
 
 /* SSI GPIO output ordering differs from RISR/ISR bit ordering. */
 typedef enum K230DwSsiIrq {
@@ -78,7 +81,9 @@ struct K230DwSsiState {
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
+    MemoryRegion xip;
     SSIBus *spi;
+    K230HiSysState *hi_sys;
     qemu_irq *cs_lines;
     qemu_irq irqs[K230_DW_SSI_IRQ_COUNT];
 
@@ -101,5 +106,6 @@ struct K230DwSsiState {
 
 uint32_t k230_dw_ssi_get_spi_mode(const K230DwSsiState *s);
 bool k230_dw_ssi_is_sleeping(const K230DwSsiState *s);
+void k230_dw_ssi_set_hi_sys(K230DwSsiState *s, K230HiSysState *hi_sys);
 
 #endif /* HW_SSI_K230_DW_SSI_H */

@@ -16,6 +16,7 @@
 #define K230_SPI2_BASE          0x91583000ULL
 #define K230_HI_SYS_BASE        0x91585000ULL
 #define K230_SSI_CTRL_ADDR      (K230_HI_SYS_BASE + 0x68)
+#define K230_FLASH_BASE         0xc0000000ULL
 #define K230_PLIC_BASE          0xf00000000ULL
 #define K230_PLIC_PENDING_BASE  0x1000
 #define K230_SSI_CTRLR0          0x000
@@ -83,6 +84,7 @@
 #define K230_SSI_SPI_CTRLR0_XIP_MD_EN     BIT(7)
 #define K230_SSI_SPI_CTRLR0_INST_L_8      (2U << 8)
 #define K230_SSI_SPI_CTRLR0_WAIT(v)       (((v) & 0x1fU) << 11)
+#define K230_SSI_SPI_CTRLR0_XIP_INST_EN   BIT(20)
 #define K230_SSI_SPI_CTRLR0_SPI_DDR_EN    BIT(16)
 #define K230_SSI_SPI_CTRLR0_XIP_MBL_8     (2U << 26)
 
@@ -469,6 +471,24 @@ static void assert_idma_stopped(QTestState *qts, size_t completed)
                      K230_SSI_SR_CMPLTD_DF_SHIFT, ==, completed);
 }
 
+static void enable_xip(QTestState *qts)
+{
+    qtest_writel(qts, K230_SSI_CTRL_ADDR,
+                 K230_SSI_CTRL_RESET | K230_SSI_CTRL_XIP_EN);
+}
+
+static void configure_xip_read(QTestState *qts, uint8_t opcode,
+                               unsigned int address_bits)
+{
+    uint32_t spi_ctrlr0 = K230_SSI_SPI_CTRLR0_TRANS_TYPE(0) |
+                          K230_SSI_SPI_CTRLR0_ADDR_L(address_bits) |
+                          K230_SSI_SPI_CTRLR0_INST_L_8 |
+                          K230_SSI_SPI_CTRLR0_XIP_INST_EN;
+
+    k230_ssi_writel(qts, K230_SPI0_BASE, K230_SSI_XIP_INCR_INST, opcode);
+    k230_ssi_writel(qts, K230_SPI0_BASE, K230_SSI_SPI_CTRLR0, spi_ctrlr0);
+}
+
 static void test_register_contract(void)
 {
     QTestState *qts = k230_ssi_start();
@@ -826,6 +846,58 @@ static void test_hi_sys(void)
     qtest_quit(qts);
 }
 
+static void test_xip_read_window(void)
+{
+    static const uint8_t id_expected[] = { 0xef, 0x40, 0x19 };
+    K230SsiFlashImage image;
+    QTestState *qts = k230_ssi_start_with_flash(&image);
+    uint64_t low_addr = K230_FLASH_BASE + K230_SSI_FLASH_PATTERN_ADDR;
+    uint32_t ctrlr0;
+    uint32_t spi_ctrlr0;
+    uint8_t command = FLASH_CMD_JEDEC;
+    uint8_t id[ARRAY_SIZE(id_expected)];
+
+    g_assert_cmphex(qtest_readl(qts, low_addr), ==, 0);
+    configure_xip_read(qts, FLASH_CMD_READ, 24);
+    enable_xip(qts);
+    g_assert_cmphex(qtest_readl(qts, low_addr), ==, 0xc33c5aa5);
+    qtest_writeb(qts, low_addr, 0);
+    g_assert_cmphex(qtest_readb(qts, low_addr), ==, 0xa5);
+
+    configure_xip_read(qts, FLASH_CMD_READ4, 32);
+    g_assert_cmphex(qtest_readl(qts, K230_FLASH_BASE +
+                                K230_SSI_FLASH_HIGH_ADDR),
+                    ==, 0x74737271);
+
+    ctrlr0 = k230_ssi_readl(qts, K230_SPI0_BASE, K230_SSI_CTRLR0);
+    ctrlr0 &= ~K230_SSI_CTRLR0_SPI_FRF_MASK;
+    ctrlr0 |= K230_SSI_FRF_QUAD << K230_SSI_CTRLR0_SPI_FRF_SHIFT;
+    k230_ssi_writel(qts, K230_SPI0_BASE, K230_SSI_CTRLR0, ctrlr0);
+    k230_ssi_writel(qts, K230_SPI0_BASE, K230_SSI_XIP_INCR_INST,
+                    FLASH_CMD_QUAD_IO);
+    k230_ssi_writel(qts, K230_SPI0_BASE, K230_SSI_XIP_MODE_BITS, 0xff);
+    spi_ctrlr0 = K230_SSI_SPI_CTRLR0_TRANS_TYPE(1) |
+                 K230_SSI_SPI_CTRLR0_ADDR_L(24) |
+                 K230_SSI_SPI_CTRLR0_INST_L_8 |
+                 K230_SSI_SPI_CTRLR0_XIP_INST_EN |
+                 K230_SSI_SPI_CTRLR0_XIP_MD_EN |
+                 K230_SSI_SPI_CTRLR0_XIP_MBL_8 |
+                 K230_SSI_SPI_CTRLR0_WAIT(4);
+    k230_ssi_writel(qts, K230_SPI0_BASE, K230_SSI_SPI_CTRLR0, spi_ctrlr0);
+    g_assert_cmphex(qtest_readl(qts, low_addr), ==, 0xc33c5aa5);
+
+    k230_ssi_configure(qts, K230_SPI0_BASE, K230_SSI_TMOD_TR, 8, 0);
+    configure_xip_read(qts, FLASH_CMD_READ, 24);
+    k230_ssi_enable_cs(qts, K230_SPI0_BASE, BIT(0));
+    g_assert_cmphex(qtest_readb(qts, low_addr), ==, 0xa5);
+    flash_read_transaction(qts, &command, 1, id, sizeof(id));
+    g_assert_cmpmem(id, sizeof(id), id_expected, sizeof(id_expected));
+    g_assert_cmphex(qtest_readb(qts, low_addr), ==, 0xa5);
+
+    qtest_quit(qts);
+    k230_ssi_flash_image_clear(&image);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -840,5 +912,6 @@ int main(int argc, char **argv)
     qtest_add_func("/k230-dw-ssi/qspi-sdr", test_qspi_sdr);
     qtest_add_func("/k230-dw-ssi/idma", test_idma);
     qtest_add_func("/k230-dw-ssi/hi-sys", test_hi_sys);
+    qtest_add_func("/k230-dw-ssi/xip-read-window", test_xip_read_window);
     return g_test_run();
 }
