@@ -31,6 +31,20 @@ OBJECT_DECLARE_SIMPLE_TYPE(K230DwSsiState, K230_DW_SSI)
 #define K230_DW_SSI_NUM_REGS \
     (K230_DW_SSI_REGS_SIZE / sizeof(uint32_t))
 
+/* SSI GPIO output ordering differs from RISR/ISR bit ordering. */
+typedef enum K230DwSsiIrq {
+    K230_DW_SSI_IRQ_TXE,
+    K230_DW_SSI_IRQ_TXO,
+    K230_DW_SSI_IRQ_RXF,
+    K230_DW_SSI_IRQ_RXO,
+    K230_DW_SSI_IRQ_TXU,
+    K230_DW_SSI_IRQ_RXU,
+    K230_DW_SSI_IRQ_MST,
+    K230_DW_SSI_IRQ_DONE,
+    K230_DW_SSI_IRQ_AXIE,
+    K230_DW_SSI_IRQ_COUNT,
+} K230DwSsiIrq;
+
 typedef enum K230DwSsiPhase {
     K230_DW_SSI_PHASE_IDLE,
     K230_DW_SSI_PHASE_STANDARD_TX_ONLY,
@@ -45,10 +59,13 @@ struct K230DwSsiState {
     MemoryRegion mmio;
     SSIBus *spi;
     qemu_irq *cs_lines;
+    qemu_irq irqs[K230_DW_SSI_IRQ_COUNT];
 
     Fifo32 tx_fifo;
     Fifo32 rx_fifo;
     uint32_t regs[K230_DW_SSI_NUM_REGS];
+
+    uint32_t irq_latched;
 
     uint32_t phase;
     uint32_t remaining_frames;

@@ -38,6 +38,7 @@
 #define K230_DW_SSI_AXIARLEN_RESET          0x00000700
 #define K230_DW_SSI_VERSION                 0x3130332a
 #define K230_DW_SSI_PIO_TX_BATCH            64
+#define K230_DW_SSI_IRQ_VALID_MASK          0x000009bf
 
 REG32(CTRLR0, 0x000)
     FIELD(CTRLR0, DFS, 0, 5)
@@ -258,10 +259,62 @@ REG32(XIP_WRITE_CTRL, 0x148)
 #define K230_DW_SSI_AXIAR0_WRITABLE_MASK R_AXIAR0_AXIAR_0_31_MASK
 #define K230_DW_SSI_AXIAR1_WRITABLE_MASK R_AXIAR1_AXIAR_32_63_MASK
 
+static const uint32_t k230_dw_ssi_irq_status_mask[
+    K230_DW_SSI_IRQ_COUNT] = {
+    [K230_DW_SSI_IRQ_TXE] = R_RISR_TXEIR_MASK,
+    [K230_DW_SSI_IRQ_TXO] = R_RISR_TXOIR_MASK,
+    [K230_DW_SSI_IRQ_RXF] = R_RISR_RXFIR_MASK,
+    [K230_DW_SSI_IRQ_RXO] = R_RISR_RXOIR_MASK,
+    [K230_DW_SSI_IRQ_TXU] = R_RISR_TXUIR_MASK,
+    [K230_DW_SSI_IRQ_RXU] = R_RISR_RXUIR_MASK,
+    [K230_DW_SSI_IRQ_MST] = R_RISR_MSTIR_MASK,
+    [K230_DW_SSI_IRQ_DONE] = R_RISR_DONER_MASK,
+    [K230_DW_SSI_IRQ_AXIE] = R_RISR_AXIER_MASK,
+};
+
 static void k230_dw_ssi_write_masked(K230DwSsiState *s, unsigned int reg,
                                      uint32_t value, uint32_t mask)
 {
     s->regs[reg] = (s->regs[reg] & ~mask) | (value & mask);
+}
+
+static uint32_t k230_dw_ssi_irq_raw_status(K230DwSsiState *s)
+{
+    uint32_t status = s->irq_latched;
+    uint32_t tx_used = fifo32_num_used(&s->tx_fifo);
+    uint32_t rx_used = fifo32_num_used(&s->rx_fifo);
+    uint32_t tx_threshold =
+        FIELD_EX32(s->regs[R_TXFTLR], TXFTLR, TFT);
+    uint32_t rx_threshold =
+        FIELD_EX32(s->regs[R_RXFTLR], RXFTLR, RFT);
+
+    if (tx_used <= tx_threshold) {
+        status |= R_RISR_TXEIR_MASK;
+    }
+    if (rx_used > rx_threshold) {
+        status |= R_RISR_RXFIR_MASK;
+    }
+    return status & K230_DW_SSI_IRQ_VALID_MASK;
+}
+
+static void k230_dw_ssi_update_irq(K230DwSsiState *s)
+{
+    uint32_t status = k230_dw_ssi_irq_raw_status(s) &
+                      s->regs[R_IMR] & K230_DW_SSI_IRQ_VALID_MASK;
+
+    for (int i = 0; i < K230_DW_SSI_IRQ_COUNT; i++) {
+        qemu_set_irq(s->irqs[i], !!(status & k230_dw_ssi_irq_status_mask[i]));
+    }
+}
+
+static uint32_t k230_dw_ssi_irq_read_clear(K230DwSsiState *s,
+                                            uint32_t clear_mask)
+{
+    uint32_t active = s->irq_latched & clear_mask;
+
+    s->irq_latched &= ~clear_mask;
+    k230_dw_ssi_update_irq(s);
+    return !!active;
 }
 
 static uint32_t k230_dw_ssi_frame_masked(K230DwSsiState *s)
@@ -333,6 +386,7 @@ static void k230_dw_ssi_abort_transfer(K230DwSsiState *s)
     fifo32_reset(&s->rx_fifo);
     s->phase = K230_DW_SSI_PHASE_IDLE;
     s->remaining_frames = 0;
+    k230_dw_ssi_update_irq(s);
 }
 
 static uint32_t k230_dw_ssi_status(K230DwSsiState *s)
@@ -360,6 +414,8 @@ static void k230_dw_ssi_push_tx(K230DwSsiState *s, uint32_t tx)
     }
 
     if (fifo32_is_full(&s->tx_fifo)) {
+        s->irq_latched |= R_RISR_TXOIR_MASK;
+        k230_dw_ssi_update_irq(s);
         return;
     }
 
@@ -368,6 +424,7 @@ static void k230_dw_ssi_push_tx(K230DwSsiState *s, uint32_t tx)
     if (s->phase != K230_DW_SSI_PHASE_STANDARD_TX_ONLY) {
         k230_dw_ssi_run_transfer(s);
     }
+    k230_dw_ssi_update_irq(s);
 }
 
 static uint32_t k230_dw_ssi_send_frame(K230DwSsiState *s,
@@ -410,6 +467,12 @@ static void k230_dw_ssi_run_transfer(K230DwSsiState *s)
             uint32_t rx = k230_dw_ssi_send_frame(s, tx);
             if (!fifo32_is_full(&s->rx_fifo)) {
                 fifo32_push(&s->rx_fifo, rx);
+            } else {
+                s->irq_latched |= R_RISR_RXOIR_MASK;
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "%s: RX FIFO full, dropping frame\n",
+                              DEVICE(s)->canonical_path);
+                break;
             }
         }
         break;
@@ -549,9 +612,13 @@ static uint64_t k230_dw_ssi_read(void *opaque, hwaddr addr, unsigned int size)
     if (k230_dw_ssi_is_dr(addr)) {
         if (!fifo32_is_empty(&s->rx_fifo)) {
             value = fifo32_pop(&s->rx_fifo) & k230_dw_ssi_frame_masked(s);
+        } else {
+            value = 0;
+            s->irq_latched |= R_RISR_RXUIR_MASK;
         }
 
         k230_dw_ssi_run_transfer(s);
+        k230_dw_ssi_update_irq(s);
         return value;
     }
 
@@ -592,6 +659,7 @@ static uint64_t k230_dw_ssi_read(void *opaque, hwaddr addr, unsigned int size)
         value = fifo32_num_used(&s->tx_fifo);
         if (s->phase == K230_DW_SSI_PHASE_STANDARD_TX_ONLY) {
             k230_dw_ssi_run_transfer(s);
+            k230_dw_ssi_update_irq(s);
         }
         break;
     case A_RXFLR:
@@ -601,18 +669,33 @@ static uint64_t k230_dw_ssi_read(void *opaque, hwaddr addr, unsigned int size)
         value = k230_dw_ssi_status(s);
         if (s->phase == K230_DW_SSI_PHASE_STANDARD_TX_ONLY) {
             k230_dw_ssi_run_transfer(s);
+            k230_dw_ssi_update_irq(s);
         }
         break;
     case A_ISR:
+        value = k230_dw_ssi_irq_raw_status(s) & s->regs[R_IMR] &
+                K230_DW_SSI_IRQ_VALID_MASK;
+        break;
     case A_RISR:
-        value = 0;
+        value = k230_dw_ssi_irq_raw_status(s);
         break;
     case A_TXEICR:
+        value = k230_dw_ssi_irq_read_clear(
+            s, R_RISR_TXOIR_MASK | R_RISR_TXUIR_MASK);
+        break;
     case A_RXOICR:
+        value = k230_dw_ssi_irq_read_clear(s, R_RISR_RXOIR_MASK);
+        break;
     case A_RXUICR:
+        value = k230_dw_ssi_irq_read_clear(s, R_RISR_RXUIR_MASK);
+        break;
     case A_MSTICR:
+        value = k230_dw_ssi_irq_read_clear(s, R_RISR_MSTIR_MASK);
+        break;
     case A_ICR:
-        value = 0;
+        value = k230_dw_ssi_irq_read_clear(
+            s, R_RISR_TXOIR_MASK | R_RISR_RXUIR_MASK |
+               R_RISR_RXOIR_MASK | R_RISR_MSTIR_MASK);
         break;
     case A_AXIECR:
     case A_DONECR:
@@ -678,6 +761,7 @@ static void k230_dw_ssi_write(void *opaque, hwaddr addr,
 
         k230_dw_ssi_update_cs(s);
         k230_dw_ssi_run_transfer(s);
+        k230_dw_ssi_update_irq(s);
         break;
     }
     case A_MWCR:
@@ -695,6 +779,7 @@ static void k230_dw_ssi_write(void *opaque, hwaddr addr,
 
         k230_dw_ssi_update_cs(s);
         k230_dw_ssi_run_transfer(s);
+        k230_dw_ssi_update_irq(s);
         break;
     }
     case A_BAUDR:
@@ -704,10 +789,12 @@ static void k230_dw_ssi_write(void *opaque, hwaddr addr,
     case A_TXFTLR:
         k230_dw_ssi_write_masked(s, R_TXFTLR, value,
                                  K230_DW_SSI_TXFTLR_WRITABLE_MASK);
+        k230_dw_ssi_update_irq(s);
         break;
     case A_RXFTLR:
         k230_dw_ssi_write_masked(s, R_RXFTLR, value,
                                  K230_DW_SSI_RXFTLR_WRITABLE_MASK);
+        k230_dw_ssi_update_irq(s);
         break;
     case A_TXFLR:
     case A_RXFLR:
@@ -716,6 +803,7 @@ static void k230_dw_ssi_write(void *opaque, hwaddr addr,
     case A_IMR:
         k230_dw_ssi_write_masked(s, R_IMR, value,
                                  K230_DW_SSI_IMR_WRITABLE_MASK);
+        k230_dw_ssi_update_irq(s);
         break;
     case A_ISR:
     case A_RISR:
@@ -831,6 +919,7 @@ static void k230_dw_ssi_enter_reset(Object *obj, ResetType type)
     fifo32_reset(&s->rx_fifo);
     s->phase = K230_DW_SSI_PHASE_IDLE;
     s->remaining_frames = 0;
+    s->irq_latched = 0;
 
     s->regs[R_CTRLR0] = K230_DW_SSI_CTRLR0_RESET;
     s->regs[R_SR] = K230_DW_SSI_SR_RESET;
@@ -842,6 +931,8 @@ static void k230_dw_ssi_enter_reset(Object *obj, ResetType type)
     s->regs[R_SPI_CTRLR0] = s->max_lines == 8 ?
         K230_DW_SSI_SPI_CTRLR0_FMC_RESET :
         K230_DW_SSI_SPI_CTRLR0_SPI_RESET;
+
+    k230_dw_ssi_update_irq(s);
 }
 
 static void k230_dw_ssi_hold_reset(Object *obj, ResetType type)
@@ -856,12 +947,40 @@ static void k230_dw_ssi_hold_reset(Object *obj, ResetType type)
     }
 }
 
+static void k230_dw_ssi_exit_reset(Object *obj, ResetType type)
+{
+    K230DwSsiState *s = K230_DW_SSI(obj);
+
+    k230_dw_ssi_update_irq(s);
+}
+
+static int k230_dw_ssi_post_load(void *opaque, int version_id)
+{
+    K230DwSsiState *s = opaque;
+
+    if (s->active_cs < -1 || s->active_cs >= (int)s->num_cs) {
+        return -EINVAL;
+    }
+
+    for (int i = 0; i < s->num_cs; i++) {
+        qemu_irq_raise(s->cs_lines[i]);
+    }
+    if (s->active_cs >= 0) {
+        qemu_irq_lower(s->cs_lines[s->active_cs]);
+    }
+
+    k230_dw_ssi_update_irq(s);
+    return 0;
+}
+
 static const VMStateDescription vmstate_k230_dw_ssi = {
     .name = TYPE_K230_DW_SSI,
+    .post_load = k230_dw_ssi_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, K230DwSsiState, K230_DW_SSI_NUM_REGS),
         VMSTATE_FIFO32(tx_fifo, K230DwSsiState),
         VMSTATE_FIFO32(rx_fifo, K230DwSsiState),
+        VMSTATE_UINT32(irq_latched, K230DwSsiState),
         VMSTATE_UINT32(phase, K230DwSsiState),
         VMSTATE_UINT32(remaining_frames, K230DwSsiState),
         VMSTATE_INT32(active_cs, K230DwSsiState),
@@ -880,6 +999,10 @@ static void k230_dw_ssi_init(Object *obj)
     memory_region_init_io(&s->mmio, obj, &k230_dw_ssi_ops, s,
                           TYPE_K230_DW_SSI, K230_DW_SSI_MMIO_SIZE);
     sysbus_init_mmio(sbd, &s->mmio);
+
+    for (int i = 0; i < K230_DW_SSI_IRQ_COUNT; i++) {
+        sysbus_init_irq(sbd, &s->irqs[i]);
+    }
 
     fifo32_create(&s->tx_fifo, K230_DW_SSI_FIFO_CAPACITY);
     fifo32_create(&s->rx_fifo, K230_DW_SSI_FIFO_CAPACITY);
@@ -930,6 +1053,7 @@ static void k230_dw_ssi_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, k230_dw_ssi_properties);
     rc->phases.enter = k230_dw_ssi_enter_reset;
     rc->phases.hold = k230_dw_ssi_hold_reset;
+    rc->phases.exit = k230_dw_ssi_exit_reset;
 }
 
 static const TypeInfo k230_dw_ssi_info = {
