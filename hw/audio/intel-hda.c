@@ -1313,7 +1313,7 @@ static void intel_hda_and_codec_init(const char *audiodev)
     BusState *hdabus;
 
     qdict_put_str(props, "driver", "intel-hda");
-    intel_hda = qdev_device_add_from_qdict(props, false, &error_fatal);
+    intel_hda = qdev_device_add_from_qdict(props, false, true, &error_fatal);
     hdabus = QLIST_FIRST(&intel_hda->child_bus);
 
     codec = qdev_new("hda-duplex");

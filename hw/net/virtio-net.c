@@ -916,7 +916,7 @@ static void failover_add_primary(VirtIONet *n, Error **errp)
 
     dev = qdev_device_add_from_qdict(n->primary_opts,
                                      n->primary_opts_from_json,
-                                     &err);
+                                     false, &err);
     if (err) {
         qobject_unref(n->primary_opts);
         n->primary_opts = NULL;
