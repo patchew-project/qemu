@@ -430,7 +430,7 @@ static int dw_i3c_send_start(DWI3C *s, uint8_t addr, bool is_recv, bool is_i2c)
 static int dw_i3c_send(DWI3C *s, const uint8_t *data, uint32_t num_to_send,
                        uint32_t *num_sent, bool is_i2c)
 {
-    int ret;
+    int ret = 0;
     uint32_t i;
 
     *num_sent = 0;
