@@ -164,6 +164,12 @@ typedef struct PCIIORegion {
     MemoryRegion *address_space;
 } PCIIORegion;
 
+/*
+ * QEMU-internal: keep this BAR mapped regardless of PCI_COMMAND_MEMORY.
+ * Stripped before writing to config space.
+ */
+#define PCI_BASE_ADDRESS_MEM_ALWAYS_ON  0x10
+
 #define PCI_ROM_SLOT 6
 #define PCI_NUM_REGIONS 7
 

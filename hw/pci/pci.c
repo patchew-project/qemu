@@ -1544,7 +1544,8 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
         }
 
         addr = pci_bar(pci_dev, region_num);
-        pci_set_long(pci_dev->config + addr, type);
+        pci_set_long(pci_dev->config + addr,
+                     type & ~PCI_BASE_ADDRESS_MEM_ALWAYS_ON);
 
         if (!(r->type & PCI_BASE_ADDRESS_SPACE_IO) &&
             r->type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
@@ -1686,7 +1687,8 @@ pcibus_t pci_bar_address(PCIDevice *d,
         return new_addr;
     }
 
-    if (!(cmd & PCI_COMMAND_MEMORY)) {
+    if (!(cmd & PCI_COMMAND_MEMORY) &&
+        !(type & PCI_BASE_ADDRESS_MEM_ALWAYS_ON)) {
         return PCI_BAR_UNMAPPED;
     }
     new_addr = pci_config_get_bar_addr(d, reg, type, size);
