@@ -53,15 +53,6 @@
 
 OBJECT_DECLARE_SIMPLE_TYPE(IgbVfState, IGBVF)
 
-struct IgbVfState {
-    PCIDevice parent_obj;
-
-    MemoryRegion mmio;
-    MemoryRegion msix;
-
-    IgbVfMigState mig;
-};
-
 static hwaddr vf_to_pf_addr(hwaddr addr, uint16_t vfn, bool write)
 {
     switch (addr) {
@@ -281,6 +272,10 @@ static void igbvf_pci_realize(PCIDevice *dev, Error **errp)
         if (!igbvf_add_migration_cap(dev, errp)) {
             return;
         }
+
+        s->vfn = pcie_sriov_vf_number(dev);
+        igbvf_mig_bar_init(s);
+        igbvf_mig_state_reset(s);
     }
 
     if (object_property_get_bool(OBJECT(pcie_sriov_get_pf(dev)),
@@ -298,8 +293,13 @@ static void igbvf_pci_realize(PCIDevice *dev, Error **errp)
 static void igbvf_qdev_reset_hold(Object *obj, ResetType type)
 {
     PCIDevice *vf = PCI_DEVICE(obj);
+    IgbVfState *s = IGBVF(obj);
 
     igb_vf_reset(pcie_sriov_get_pf(vf), pcie_sriov_vf_number(vf));
+
+    if (s->mig.migration_cap) {
+        igbvf_mig_state_reset(s);
+    }
 }
 
 static void igbvf_pci_uninit(PCIDevice *dev)

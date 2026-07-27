@@ -295,6 +295,14 @@ igb_wrn_rx_desc_modes_not_supp(int desc_type) "Not supported descriptor type: %d
 # igbvf.c
 igbvf_wrn_io_addr_unknown(uint64_t addr) "IO unknown register 0x%"PRIx64
 igbvf_mig_cap_add(uint16_t vfn, int offset) "VF%u: added migration vendor cap at config offset 0x%x"
+igbvf_mig_bar_init(uint16_t vfn) "VF%u: migration BAR initialized"
+igbvf_mig_bar_read(uint16_t vfn, uint64_t addr, uint64_t val) "VF%u: BAR read addr=0x%"PRIx64" val=0x%"PRIx64
+igbvf_mig_bar_write(uint16_t vfn, uint64_t addr, uint64_t val) "VF%u: BAR write addr=0x%"PRIx64" val=0x%"PRIx64
+igbvf_mig_set_state(uint16_t vfn, uint32_t old_state, uint32_t new_state) "VF%u: state %u -> %u"
+igbvf_mig_set_state_err(uint16_t vfn, uint32_t old_state, uint32_t new_state) "VF%u: invalid transition %u -> %u"
+igbvf_mig_save_state(uint16_t vfn, uint32_t size) "VF%u: saved %u bytes of device state"
+igbvf_mig_load_state(uint16_t vfn, uint32_t size) "VF%u: loaded %u bytes of device state"
+igbvf_mig_reset(uint16_t vfn) "VF%u: migration state reset"
 
 # spapr_llan.c
 spapr_vlan_get_rx_bd_from_pool_found(int pool, int32_t count, uint32_t rx_bufs) "pool=%d count=%"PRId32" rxbufs=%"PRIu32

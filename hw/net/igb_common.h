@@ -27,6 +27,7 @@
 #define HW_NET_IGB_COMMON_H
 
 #include "igb_regs.h"
+#include "igb_migration.h"
 
 #define TYPE_IGBVF "igbvf"
 
@@ -35,6 +36,16 @@
 
 #define IGBVF_MMIO_SIZE     (16 * 1024)
 #define IGBVF_MSIX_SIZE     (16 * 1024)
+
+struct IgbVfState {
+    PCIDevice parent_obj;
+    uint16_t vfn;
+
+    MemoryRegion mmio;
+    MemoryRegion msix;
+
+    IgbVfMigState mig;
+};
 
 #define defreg(x) x = (E1000_##x >> 2)
 #define defreg_indexed(x, i) x##i = (E1000_##x(i) >> 2)
