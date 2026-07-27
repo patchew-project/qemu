@@ -143,4 +143,5 @@ igb_receive_iov(IGBCore *core, const struct iovec *iov, int iovcnt);
 void
 igb_start_recv(IGBCore *core);
 
+IGBCore *igb_pf_get_core(void *pf);
 #endif

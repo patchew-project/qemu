@@ -134,6 +134,12 @@ void igb_vf_reset(void *opaque, uint16_t vfn)
     igb_core_vf_reset(&s->core, vfn);
 }
 
+IGBCore *igb_pf_get_core(void *pf)
+{
+    IGBState *s = IGB(pf);
+    return &s->core;
+}
+
 static bool
 igb_io_get_reg_index(IGBState *s, uint32_t *idx)
 {
