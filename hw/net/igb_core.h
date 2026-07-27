@@ -84,6 +84,7 @@ struct IGBCore {
     } tx[IGB_NUM_QUEUES];
 
     IGBVfDirtyState vf_dirty[IGB_MAX_VF_FUNCTIONS];
+    IgbVfMigStats vf_mig_stats[IGB_MAX_VF_FUNCTIONS];
 
     struct NetRxPkt *rx_pkt;
 

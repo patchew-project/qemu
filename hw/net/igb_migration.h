@@ -64,6 +64,15 @@
 #define IGB_MIG_DIRTY_BUF_ADDR_HI   0x038
 #define IGB_MIG_DIRTY_STATUS        0x03C
 
+/* Migration statistics registers (read-only) */
+#define IGB_MIG_STAT_DMA_WRITES       0x100
+#define IGB_MIG_STAT_DMA_BYTES_LO     0x104
+#define IGB_MIG_STAT_DMA_BYTES_HI     0x108
+#define IGB_MIG_STAT_DIRTY_PAGES_SET  0x10C
+#define IGB_MIG_STAT_DIRTY_PAGES_CLR  0x110
+#define IGB_MIG_STAT_DIRTY_PAGE_COUNT 0x114
+#define IGB_MIG_STAT_DIRTY_QUERY_CNT  0x118
+
 /* DEVICE_STATE values - mirrors VFIO migration states */
 #define IGB_MIG_STATE_ERROR         0
 #define IGB_MIG_STATE_STOP          1
@@ -126,7 +135,9 @@ struct igb_mig_dirty_query {
     uint32_t status;
     uint32_t bitmap_size;
     uint32_t dirty_page_count;
-    uint32_t reserved1[12];
+    uint32_t reserved1;
+    uint64_t dma_writes;
+    uint32_t reserved2[10];
 
     /* Cache line 2+: bitmap (written by device) */
     uint8_t bitmap[];
@@ -153,6 +164,15 @@ typedef struct IgbVfMigState {
     uint64_t mig_dirty_buf_addr;
     uint32_t mig_dirty_status;
 } IgbVfMigState;
+
+typedef struct IgbVfMigStats {
+    uint32_t dma_writes;
+    uint64_t dma_bytes;
+    uint32_t dirty_pages_set;
+    uint32_t dirty_pages_cleared;
+    uint32_t dirty_page_count;
+    uint32_t dirty_query_count;
+} IgbVfMigStats;
 
 typedef struct IgbVfState  IgbVfState;
 void igb_pf_init_migration_bar(PCIDevice *dev);

@@ -127,13 +127,35 @@ device-written completion fields::
   0x40    status             device      0 = pending, 1 = complete
   0x44    bitmap_size        device      Bytes written to bitmap
   0x48    dirty_page_count   device      Number of set bits in bitmap
-  0x4C    reserved[12]       -           Pad to 64-byte cache line
+  0x4C    reserved           -           Padding
+  0x50    dma_writes         device      Total DMA writes since enable
+  0x58    reserved[10]       -           Pad to 64-byte cache line
   0x80    bitmap[]           device      Dirty page bitmap
 
 The driver fills the request fields, issues ``DIRTY_CTRL=QUERY``, and
 polls ``status`` for completion. The device reads the request, writes
 the dirty bitmap and completion fields via DMA, then sets
 ``status = 1``.
+
+Migration statistics
+~~~~~~~~~~~~~~~~~~~~
+
+The migration BAR includes read-only statistics counters in a dedicated
+aperture at offset ``0x100``. These counters provide a live
+per-migration-cycle view of activity without requiring a
+``DIRTY_CTRL=QUERY``::
+
+  Offset  Name                       Description
+  0x100   MIG_STAT_DMA_WRITES        Total DMA write operations tracked
+  0x104   MIG_STAT_DMA_BYTES_LO      Total DMA bytes written (low 32 bits)
+  0x108   MIG_STAT_DMA_BYTES_HI      Total DMA bytes written (high 32 bits)
+  0x10C   MIG_STAT_DIRTY_PAGES_SET   Dirty pages marked since enable
+  0x110   MIG_STAT_DIRTY_PAGES_CLR   Dirty pages cleared by queries
+  0x114   MIG_STAT_DIRTY_PAGE_COUNT  Current dirty pages (set minus cleared)
+  0x118   MIG_STAT_DIRTY_QUERY_CNT   Number of QUERY operations
+
+All counters are reset on first ``DIRTY_CTRL=ENABLE`` or device reset,
+so the driver can read final values after ``DIRTY_CTRL=DISABLE``.
 
 Testing setup
 ~~~~~~~~~~~~~
