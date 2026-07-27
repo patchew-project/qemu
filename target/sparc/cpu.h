@@ -307,9 +307,45 @@ enum {
 #define TTE_SET_USED(tte)   ((tte) |= TTE_USED_BIT)
 #define TTE_SET_UNUSED(tte) ((tte) &= ~TTE_USED_BIT)
 
-#define TTE_PGSIZE(tte)     (((tte) >> 61) & 3ULL)
 #define TTE_PGSIZE_UA2005(tte)     ((tte) & 7ULL)
 #define TTE_PA(tte)         ((tte) & 0x1ffffffe000ULL)
+
+/*
+ * Internal QEMU TLB-entry page-size field: Size<1:0> at bits 62-61 plus
+ * Size<2> at bit 48, encoding the six sizes 8K/64K/512K/4M/32M/256M.
+ *
+ * That split is the sun4u encoding introduced when 32M and 256M pages were
+ * added, and it is the layout this internal word models:
+ *
+ *   Panther Implementation Supplement (SPARC V9 JPS1 Implementation
+ *   Supplement: Sun UltraSPARC Panther -- UltraSPARC IV+), Preliminary
+ *   Draft 17 Mar 2006, TABLE F-1-4 "TTE Data Field Description", p.337:
+ *     Size<1:0>  "Bit <62:61> represent the least significant 2 bits of
+ *                 the page size" -- 000=8K 001=64K 010=512K 011=4M
+ *                 100=32M 101=256M
+ *     Size<2>    "Bit 48 is the most significant bit of the page size and
+ *                 is concatenated with bits <62:61>"
+ *
+ * UltraSPARC T1 keeps bit 48 for the same purpose in its sun4u-format TTE,
+ * where the halves are called szl and szh (UltraSPARC T1 Supplement to the
+ * UltraSPARC Architecture 2005, Draft D2.1, TABLE 13-1, p.182).
+ *
+ * Earlier JPS1 parts -- UltraSPARC III, SPARC64 V -- have a 2-bit size
+ * field with bit 48 reserved, reading as zero (JPS1 Commonality, Working
+ * Draft 1.0.5, TABLE F-1, p.441), so they keep decoding the same four
+ * sizes as before.
+ *
+ * Only the low two bits used to be kept here, which truncated 32M/256M.
+ *
+ * The QEMU_BUILD_BUG_ON below fails the build if any other TTE_* field is
+ * ever defined overlapping bit 48, so a future field can never silently
+ * corrupt page-size decoding at runtime.
+ */
+#define TTE_PGSIZE_HI_BIT   (1ULL << 48)
+QEMU_BUILD_BUG_ON((TTE_PGSIZE_HI_BIT & (TTE_VALID_BIT | TTE_NFO_BIT |
+                                        TTE_USED_BIT | TTE_PA(~0ULL))) != 0);
+#define TTE_PGSIZE(tte)     ((((tte) >> 61) & 3ULL) | \
+                             (((tte) & TTE_PGSIZE_HI_BIT) >> 46))
 
 /* UltraSPARC T1 specific */
 #define TLB_UST1_IS_REAL_BIT   (1ULL << 9)  /* Real translation entry */
