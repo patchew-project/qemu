@@ -609,6 +609,36 @@ static void igb_core_vf_quiesce(IgbVfState *s)
     trace_igbvf_mig_quiesce(s->vfn, core->mac[VFRE], core->mac[VFTE]);
 }
 
+/*
+ * Send a RARP broadcast so the network bridge relearns which port
+ * carries this VF's MAC after migration.
+ */
+static void igb_core_vf_send_rarp(IGBCore *core, uint16_t vfn)
+{
+    uint8_t mac[ETH_ALEN];
+    uint8_t buf[60];
+
+    if (!igb_core_vf_get_mac(core, vfn, mac)) {
+        trace_igbvf_mig_no_mac(vfn);
+        return;
+    }
+
+    trace_igbvf_mig_send_rarp(vfn, mac[0], mac[1], mac[2],
+                              mac[3], mac[4], mac[5]);
+
+    memset(buf, 0xff, ETH_ALEN);
+    memcpy(buf + 6, mac, ETH_ALEN);
+    stw_be_p(buf + 12, 0x8035);     /* ETH_P_RARP */
+    stw_be_p(buf + 14, 1);          /* hw addr space: ethernet */
+    stw_be_p(buf + 16, ETH_P_IP);   /* protocol addr space */
+    buf[18] = 6; buf[19] = 4;       /* hw/proto addr lengths */
+    stw_be_p(buf + 20, 3);          /* opcode: RARP request */
+    memcpy(buf + 22, mac, ETH_ALEN);
+    memset(buf + 28, 0, 32);
+
+    qemu_send_packet_raw(qemu_get_queue(core->owner_nic), buf, sizeof(buf));
+}
+
 static void igb_core_vf_unquiesce(IgbVfState *s)
 {
     IgbVfMigState *ms = &s->mig;
@@ -632,6 +662,9 @@ static void igb_core_vf_unquiesce(IgbVfState *s)
     if (re) {
         igb_core_vf_rearm_irqs(core, s->vfn);
     }
+
+    /* TODO : RARP should be sent only if resumed */
+    igb_core_vf_send_rarp(core, s->vfn);
 }
 
 /* ================================================================

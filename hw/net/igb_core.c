@@ -4634,3 +4634,31 @@ void igb_core_vf_propagate_ivar(IGBCore *core, uint16_t vfn)
             ((uint32_t)ent << (8 * (n % 4)));
     }
 }
+
+bool igb_core_vf_get_mac(IGBCore *core, uint16_t vfn, uint8_t *mac)
+{
+    uint32_t vf_pool_bit = E1000_RAH_POOL_1 << vfn;
+    static const struct {
+        uint32_t base;
+        int count;
+    } ra_banks[] = {
+        { RA,  16 },
+        { RA2,  8 },
+    };
+    int i, j;
+
+    for (i = 0; i < ARRAY_SIZE(ra_banks); i++) {
+        for (j = 0; j < ra_banks[i].count; j++) {
+            uint32_t ral_off = ra_banks[i].base + j * 2;
+            uint32_t rah_off = ra_banks[i].base + j * 2 + 1;
+            uint32_t rah_val = core->mac[rah_off];
+
+            if ((rah_val & E1000_RAH_AV) && (rah_val & vf_pool_bit)) {
+                stl_le_p(mac, core->mac[ral_off]);
+                stw_le_p(mac + 4, rah_val & 0xffff);
+                return true;
+            }
+        }
+    }
+    return false;
+}
