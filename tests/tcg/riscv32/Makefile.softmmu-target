@@ -1,0 +1,30 @@
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# RISC-V 32-bit system tests
+#
+
+TEST_SRC = $(SRC_PATH)/tests/tcg/riscv32
+VPATH += $(TEST_SRC)
+
+LINK_SCRIPT = $(TEST_SRC)/semihost.ld
+LDFLAGS = -T $(LINK_SCRIPT)
+CFLAGS += -g -Og
+
+%.o: %.S
+	$(CC) $(CFLAGS) $< -Wa,--noexecstack -c -o $@
+%: %.o $(LINK_SCRIPT)
+	$(LD) $(LDFLAGS) $< -o $@
+
+QEMU_OPTS += -M virt -display none -semihosting -device loader,file=
+# provide flags for riscv32 as we are using riscv64-linux-gnu-
+CFLAGS += -march=rv32imafdch -mabi=ilp32d
+LDFLAGS += -melf32lriscv
+
+EXTRA_RUNS += run-semihosting-open
+run-semihosting-open: test-semihosting-open
+	$(call run-test, $<, \
+	  $(QEMU) $(QEMU_OPTS)$<)
+
+# We don't currently support the multiarch system tests
+undefine MULTIARCH_TESTS
