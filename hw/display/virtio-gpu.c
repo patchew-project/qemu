@@ -352,6 +352,14 @@ static void virtio_gpu_resource_create_blob(VirtIOGPU *g,
         return;
     }
 
+    if (cblob.size > UINT32_MAX) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: blob too large (%" PRIu64 "> %" PRIu32 ")\n",
+                      __func__, cblob.size, UINT32_MAX);
+        cmd->error = VIRTIO_GPU_RESP_ERR_OUT_OF_MEMORY;
+        return;
+    }
+
     if (virtio_gpu_find_resource(g, cblob.resource_id)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: resource already exists %d\n",
                       __func__, cblob.resource_id);
@@ -1435,7 +1443,14 @@ static int virtio_gpu_blob_save(QEMUFile *f, void *opaque, size_t size,
         }
         assert(!res->image);
         qemu_put_be32(f, res->resource_id);
+
+        /*
+         * The migration stream encodes blob_size as a 32-bit integer for
+         * compatibility though virtio encodes it as a 64-bit integer. A newer
+         * version of the migration stream should encode it as a 64-bit integer.
+         */
         qemu_put_be32(f, res->blob_size);
+
         qemu_put_be32(f, res->iov_cnt);
         for (i = 0; i < res->iov_cnt; i++) {
             qemu_put_be64(f, res->addrs[i]);
