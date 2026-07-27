@@ -2022,11 +2022,18 @@ void vhost_get_features_ex(struct vhost_dev *hdev,
 static bool vhost_inflight_buffer_pre_load(void *opaque, Error **errp)
 {
     struct vhost_inflight *inflight = opaque;
-
     int fd = -1;
-    void *addr = qemu_memfd_alloc("vhost-inflight", inflight->size,
-                                  F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
-                                  &fd, errp);
+    void *addr;
+
+    if (inflight->size > INT32_MAX) {
+        error_setg(errp, "inflight buffer size %" PRIu64
+                   " exceeds maximum %d", inflight->size, INT32_MAX);
+        return false;
+    }
+
+    addr = qemu_memfd_alloc("vhost-inflight", inflight->size,
+                            F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
+                            &fd, errp);
     if (!addr) {
         return false;
     }
