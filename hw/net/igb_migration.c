@@ -630,7 +630,7 @@ static void igb_core_vf_unquiesce(IgbVfState *s)
     trace_igbvf_mig_unquiesce(s->vfn, core->mac[VFRE], core->mac[VFTE]);
 
     if (re) {
-        igb_start_recv(core);
+        igb_core_vf_rearm_irqs(core, s->vfn);
     }
 }
 

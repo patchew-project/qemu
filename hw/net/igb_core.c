@@ -4590,6 +4590,18 @@ void igb_core_vf_propagate_irqs(IGBCore *core, uint16_t vfn)
 }
 
 /*
+ * Re-apply VF interrupt enables to PF aggregates and raise interrupt
+ * causes to wake NAPI so it replenishes the ring after migration.
+ */
+void igb_core_vf_rearm_irqs(IGBCore *core, uint16_t vfn)
+{
+    uint32_t shift = 22 - vfn * IGBVF_MSIX_VEC_NUM;
+
+    igb_core_vf_propagate_irqs(core, vfn);
+    igb_set_eics(core, EICS, 0x7 << shift);
+}
+
+/*
  * Re-apply VTIVAR -> IVAR0 interrupt routing. The L1 PF driver
  * may have overwritten the shared IVAR0 entries with its own
  * queue routing after L0 vmstate restore.
