@@ -473,6 +473,20 @@ ERST
     },
 
 SRST
+``xb/``\ *fmt* *addr*
+  Block memory dump starting at *addr*.
+ERST
+
+    {
+        .name       = "xb",
+        .args_type  = "device:s, fmt:/,addr:l",
+        .params     = "device /fmt addr",
+        .help       = "block memory dump starting at 'addr'",
+        .cmd        = hmp_block_dump,
+    },
+
+
+SRST
 ``x/``\ *fmt* *addr*
   Virtual memory dump starting at *addr*.
 ERST

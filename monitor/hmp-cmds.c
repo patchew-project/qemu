@@ -39,7 +39,11 @@
 #include "system/hw_accel.h"
 #include "system/memory.h"
 #include "system/system.h"
+#include "system/block-backend-common.h"
+#include "system/block-backend-io.h"
+#include "system/block-backend-global-state.h"
 #include "disas/disas.h"
+
 
 /* Please update hmp-commands.hx when adding or changing commands */
 static HMPCommand hmp_info_cmds[] = {
@@ -584,6 +588,89 @@ void hmp_info_registers(Monitor *mon, const QDict *qdict)
     }
 }
 
+
+static void block_dump(Monitor *mon, BlockBackend* blk, int count, int format, 
+    int wsize, int64_t offset)
+{
+    uint8_t buf[16];
+
+    uint16_t max_digits = 0;
+
+    switch (format) {
+    case 'o':
+        max_digits = DIV_ROUND_UP(wsize * 8, 3);
+        break;
+    default:
+    case 'x':
+        max_digits = (wsize * 8) / 4;
+        break;
+    case 'u':
+    case 'd':
+        max_digits = DIV_ROUND_UP(wsize * 8 * 10, 33);
+        break;
+    case 'c':
+        wsize = 1;
+        break;
+    }
+
+
+    while (count > 0) {
+        int bytes = MIN(16, count * wsize);
+
+        if (blk_pread(blk, offset, bytes, buf, 0) < 0) {
+            monitor_printf(mon,
+                           "Read failed at 0x%" PRIx64 "\n",
+                           offset);
+            return;
+        }
+
+        monitor_printf(mon, "%08" PRIx64 ": ", offset);
+
+        for (int i = 0; i < bytes; i += wsize) {
+            uint64_t v;
+
+            switch (wsize) {
+            case 1:
+                v = buf[i];
+                break;
+            case 2:
+                v = lduw_le_p(buf + i);
+                break;
+            case 4:
+                v = ldl_le_p(buf + i);
+                break;
+            case 8:
+                v = ldq_le_p(buf + i);
+                break;
+            default:
+                v=0;
+            }
+            switch (format) {
+            case 'o':
+                monitor_printf(mon, "0%*" PRIo64, max_digits, v);
+                break;
+            case 'x':
+                monitor_printf(mon, "0x%0*" PRIx64, max_digits, v);
+                break;
+            case 'u':
+                monitor_printf(mon, "%*" PRIu64, max_digits, v);
+                break;
+            case 'd':
+                monitor_printf(mon, "%*" PRId64, max_digits, v);
+                break;
+            case 'c':
+                monitor_printc(mon, v);
+                break;
+            }
+        }
+
+        monitor_printf(mon, "\n");
+
+        offset += bytes;
+        count -= bytes / wsize;
+    }
+}
+
 static void memory_dump(Monitor *mon, int count, int format, int wsize,
                         uint64_t addr, bool is_physical)
 {
@@ -690,6 +777,23 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
         addr += l;
         len -= l;
     }
+}
+
+void hmp_block_dump(Monitor *mon, const QDict *qdict)
+{
+    int count = qdict_get_int(qdict, "count");
+    int format = qdict_get_int(qdict, "format");
+    int size = qdict_get_int(qdict, "size");
+    vaddr addr = qdict_get_int(qdict, "addr");
+    const char* dblock = qdict_get_str(qdict, "device");
+
+    BlockBackend *blk = blk_by_name(dblock);
+
+    if (!blk) {
+        monitor_printf(mon, "Invalid block device name '%s'.\n\r", dblock);
+        return;
+    }
+    block_dump(mon,blk, count, format, size, addr);
 }
 
 void hmp_memory_dump(Monitor *mon, const QDict *qdict)
