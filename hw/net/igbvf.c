@@ -47,6 +47,7 @@
 #include "net/net.h"
 #include "igb_common.h"
 #include "igb_core.h"
+#include "igb_migration.h"
 #include "trace.h"
 #include "qapi/error.h"
 
@@ -57,6 +58,8 @@ struct IgbVfState {
 
     MemoryRegion mmio;
     MemoryRegion msix;
+
+    IgbVfMigState mig;
 };
 
 static hwaddr vf_to_pf_addr(hwaddr addr, uint16_t vfn, bool write)
@@ -270,6 +273,14 @@ static void igbvf_pci_realize(PCIDevice *dev, Error **errp)
 
     if (pcie_endpoint_cap_init(dev, 0xa0) < 0) {
         hw_error("Failed to initialize PCIe capability");
+    }
+
+    s->mig.migration_cap = object_property_get_bool(OBJECT(pcie_sriov_get_pf(dev)),
+                                                "x-vf-migration", &error_abort);
+    if (s->mig.migration_cap) {
+        if (!igbvf_add_migration_cap(dev, errp)) {
+            return;
+        }
     }
 
     if (object_property_get_bool(OBJECT(pcie_sriov_get_pf(dev)),

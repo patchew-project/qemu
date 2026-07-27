@@ -57,6 +57,7 @@
 
 #include "igb_common.h"
 #include "igb_core.h"
+#include "igb_migration.h"
 
 #include "trace.h"
 #include "qapi/error.h"
@@ -69,6 +70,7 @@ struct IGBState {
     PCIDevice parent_obj;
     NICState *nic;
     NICConf conf;
+    bool vf_migration;
 
     MemoryRegion mmio;
     MemoryRegion flash;
@@ -459,6 +461,15 @@ static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
     pcie_sriov_pf_init_vf_bar(pci_dev, IGBVF_MSIX_BAR_IDX,
         PCI_BASE_ADDRESS_MEM_TYPE_64 | PCI_BASE_ADDRESS_MEM_PREFETCH,
         IGBVF_MSIX_SIZE);
+    /*
+     * When VF migration support is enabled, register an additional VF
+     * BAR for the migration register region. The variant driver
+     * discovers this via a vendor-specific PCI capability that points
+     * to this BAR.
+     */
+    if (s->vf_migration) {
+        igb_pf_init_migration_bar(pci_dev);
+    }
 
     igb_init_net_peer(s, pci_dev, macaddr);
 
@@ -597,6 +608,7 @@ static const VMStateDescription igb_vmstate = {
 static const Property igb_properties[] = {
     DEFINE_NIC_PROPERTIES(IGBState, conf),
     DEFINE_PROP_BOOL("x-pcie-flr-init", IGBState, has_flr, true),
+    DEFINE_PROP_BOOL("x-vf-migration", IGBState, vf_migration, false),
 };
 
 static void igb_class_init(ObjectClass *class, const void *data)

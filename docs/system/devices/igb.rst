@@ -64,6 +64,12 @@ command:
 
   pyvenv/bin/meson test --suite thorough func-x86_64-netdev_ethtool
 
+VF Migration (experimental)
+===========================
+
+See :ref:`igb-migration` for details on the experimental VF live migration
+interface.
+
 References
 ==========
 
