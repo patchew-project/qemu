@@ -83,6 +83,8 @@ struct IGBCore {
         struct NetTxPkt *tx_pkt;
     } tx[IGB_NUM_QUEUES];
 
+    IGBVfDirtyState vf_dirty[IGB_MAX_VF_FUNCTIONS];
+
     struct NetRxPkt *rx_pkt;
 
     bool has_vnet;

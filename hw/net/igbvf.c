@@ -306,6 +306,10 @@ static void igbvf_pci_uninit(PCIDevice *dev)
 {
     IgbVfState *s = IGBVF(dev);
 
+    if (s->mig.migration_cap) {
+        igb_core_vf_dirty_disable(s);
+    }
+
     pcie_aer_exit(dev);
     pcie_cap_exit(dev);
     msix_unuse_all_vectors(dev);

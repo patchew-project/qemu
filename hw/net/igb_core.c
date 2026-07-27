@@ -824,6 +824,14 @@ igb_rx_ring_init(IGBCore *core, E1000E_RxRing *rxr, int idx)
     rxr->i      = &i[idx];
 }
 
+static inline void
+igb_pci_dma_write(IGBCore *core, PCIDevice *dev, int vfn,
+                  dma_addr_t addr, const void *buf, dma_addr_t len)
+{
+    pci_dma_write(dev, addr, buf, len);
+    igb_core_dirty_track_dma(core, vfn, addr, len);
+}
+
 static uint32_t
 igb_txdesc_writeback(IGBCore *core, dma_addr_t base,
                      union e1000_adv_tx_desc *tx_desc,
@@ -847,13 +855,15 @@ igb_txdesc_writeback(IGBCore *core, dma_addr_t base,
 
     if (tdwba & 1) {
         uint32_t buffer = cpu_to_le32(core->mac[txi->dh]);
-        pci_dma_write(d, tdwba & ~3, &buffer, sizeof(buffer));
+        igb_pci_dma_write(core, d, txi->idx % IGB_NUM_VM_POOLS,
+                          tdwba & ~3, &buffer, sizeof(buffer));
     } else {
         uint32_t status = le32_to_cpu(tx_desc->wb.status) | E1000_TXD_STAT_DD;
 
         tx_desc->wb.status = cpu_to_le32(status);
-        pci_dma_write(d, base + offsetof(union e1000_adv_tx_desc, wb),
-            &tx_desc->wb, sizeof(tx_desc->wb));
+        igb_pci_dma_write(core, d, txi->idx % IGB_NUM_VM_POOLS,
+                          base + offsetof(union e1000_adv_tx_desc, wb),
+                          &tx_desc->wb, sizeof(tx_desc->wb));
     }
 
     return igb_tx_wb_eic(core, txi->idx);
@@ -1264,6 +1274,7 @@ typedef struct IGBPacketRxDMAState {
     size_t iov_ofs;
     bool do_ps;
     bool is_first;
+    int vfn;
     IGBBAState bastate;
     hwaddr ba[IGB_MAX_PS_BUFFERS];
     IGBSplitDescriptorData ps_desc_data;
@@ -1590,7 +1601,8 @@ igb_write_rx_descr(IGBCore *core,
 
 static inline void
 igb_pci_dma_write_rx_desc(IGBCore *core, PCIDevice *dev, dma_addr_t addr,
-                          union e1000_rx_desc_union *desc, dma_addr_t len)
+                          union e1000_rx_desc_union *desc, dma_addr_t len,
+                          int vfn)
 {
     if (igb_rx_use_legacy_descriptor(core)) {
         struct e1000_rx_desc *d = &desc->legacy;
@@ -1598,11 +1610,12 @@ igb_pci_dma_write_rx_desc(IGBCore *core, PCIDevice *dev, dma_addr_t addr,
         uint8_t status = d->status;
 
         d->status &= ~E1000_RXD_STAT_DD;
-        pci_dma_write(dev, addr, desc, len);
+        igb_pci_dma_write(core, dev, vfn, addr, desc, len);
 
         if (status & E1000_RXD_STAT_DD) {
             d->status = status;
-            pci_dma_write(dev, addr + offset, &status, sizeof(status));
+            igb_pci_dma_write(core, dev, vfn,
+                              addr + offset, &status, sizeof(status));
         }
     } else {
         union e1000_adv_rx_desc *d = &desc->adv;
@@ -1611,11 +1624,12 @@ igb_pci_dma_write_rx_desc(IGBCore *core, PCIDevice *dev, dma_addr_t addr,
         uint32_t status = d->wb.upper.status_error;
 
         d->wb.upper.status_error &= ~E1000_RXD_STAT_DD;
-        pci_dma_write(dev, addr, desc, len);
+        igb_pci_dma_write(core, dev, vfn, addr, desc, len);
 
         if (status & E1000_RXD_STAT_DD) {
             d->wb.upper.status_error = status;
-            pci_dma_write(dev, addr + offset, &status, sizeof(status));
+            igb_pci_dma_write(core, dev, vfn,
+                              addr + offset, &status, sizeof(status));
         }
     }
 }
@@ -1737,9 +1751,9 @@ igb_write_hdr_frag_to_rx_buffers(IGBCore *core,
 {
     assert(data_len <= pdma_st->rx_desc_header_buf_size -
                        pdma_st->bastate.written[0]);
-    pci_dma_write(d,
-                  pdma_st->ba[0] + pdma_st->bastate.written[0],
-                  data, data_len);
+    igb_pci_dma_write(core, d, pdma_st->vfn,
+                      pdma_st->ba[0] + pdma_st->bastate.written[0],
+                      data, data_len);
     pdma_st->bastate.written[0] += data_len;
     pdma_st->bastate.cur_idx = 1;
 }
@@ -1804,10 +1818,10 @@ igb_write_payload_frag_to_rx_buffers(IGBCore *core,
             data,
             bytes_to_write);
 
-        pci_dma_write(d,
-                      pdma_st->ba[pdma_st->bastate.cur_idx] +
-                      pdma_st->bastate.written[pdma_st->bastate.cur_idx],
-                      data, bytes_to_write);
+        igb_pci_dma_write(core, d, pdma_st->vfn,
+                          pdma_st->ba[pdma_st->bastate.cur_idx] +
+                          pdma_st->bastate.written[pdma_st->bastate.cur_idx],
+                          data, bytes_to_write);
 
         pdma_st->bastate.written[pdma_st->bastate.cur_idx] += bytes_to_write;
         data += bytes_to_write;
@@ -1908,6 +1922,7 @@ igb_write_packet_to_guest(IGBCore *core, struct NetRxPkt *pkt,
 
     rxi = rxr->i;
     rx_desc_len = core->rx_desc_len;
+    pdma_st.vfn = rxi->idx % IGB_NUM_VM_POOLS;
     pdma_st.rx_desc_packet_buf_size = igb_rxbufsize(core, rxi);
     pdma_st.rx_desc_header_buf_size = igb_rxhdrbufsize(core, rxi);
     pdma_st.iov = net_rx_pkt_get_iovec(pkt);
@@ -1944,7 +1959,8 @@ igb_write_packet_to_guest(IGBCore *core, struct NetRxPkt *pkt,
                            etqf, ts,
                            &pdma_st,
                            rxi);
-        igb_pci_dma_write_rx_desc(core, d, base, &desc, rx_desc_len);
+        igb_pci_dma_write_rx_desc(core, d, base, &desc, rx_desc_len,
+                                  rxi->idx % IGB_NUM_VM_POOLS);
         igb_ring_advance(core, rxi, rx_desc_len / E1000_MIN_RX_DESC_LEN);
     } while (pdma_st.desc_offset < pdma_st.total_size);
 

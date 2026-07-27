@@ -37,6 +37,14 @@ the following register layout::
   0x014   DATA_XFER           WO      Trigger DMA save or DMA load
   0x018   DATA_BUF_ADDR_LO    WO      Low 32 bits of state DMA buffer address
   0x01C   DATA_BUF_ADDR_HI    WO      High 32 bits of state DMA buffer address
+  0x020   DIRTY_PGSIZE        RW      Dirty tracking page granularity
+  0x024   DIRTY_CTRL          WO      0=DISABLE, 1=ENABLE, 2=QUERY
+  0x028   DIRTY_RANGE_IOVA_LO WO      Low 32 bits of tracked range start
+  0x02C   DIRTY_RANGE_IOVA_HI WO      High 32 bits of tracked range start
+  0x030   DIRTY_RANGE_SIZE    WO      Tracked range size in bytes
+  0x034   DIRTY_BUF_ADDR_LO   WO      Low 32 bits of shared buffer address
+  0x038   DIRTY_BUF_ADDR_HI   WO      High 32 bits of shared buffer address
+  0x03C   DIRTY_STATUS        RO      Result of last DIRTY_CTRL (0=OK, 1-5=error)
 
 State transitions follow the VFIO migration state machine: the driver
 writes to ``DEVICE_STATE`` to move between states and reads ``STATUS``
@@ -61,3 +69,68 @@ code identifying the failure::
   4  BAD_VFN         VF number mismatch (source != destination)
   5  DMA_FAILED      DMA transfer to/from state buffer failed
   6  NO_BUFFER       DATA_XFER without buffer address set
+
+Dirty page tracking
+~~~~~~~~~~~~~~~~~~~
+
+The migration interface supports per-VF dirty page tracking, advertised
+by the ``F_DIRTY`` flag in ``CAPS``. This allows the variant driver to
+enter ``PRE_COPY`` state (``DEVICE_STATE`` = 5) while the VM continues
+to run, iterating on dirty pages to reduce the final stop-and-copy
+window.
+
+The device maintains one dirty tracking engine per range, each with its
+own bitmap scoped to the range boundaries. The ``CAPS`` register
+advertises the maximum number of ranges (``max_ranges`` in bits [11:8])
+and supported page sizes (bits [31:12]).
+
+Dirty tracking is controlled through the ``DIRTY_CTRL`` register:
+
+- **ENABLE** (1): the driver programs a tracked range via
+  ``DIRTY_RANGE_IOVA_LO/HI`` + ``DIRTY_RANGE_SIZE`` then writes
+  ``DIRTY_CTRL=ENABLE``. The device allocates a fixed-size bitmap for
+  the range and begins recording pages touched by DMA (TX data, RX
+  data, descriptor writeback). The page granularity is set by
+  ``DIRTY_PGSIZE`` (default 4096). After each ENABLE the driver reads
+  ``DIRTY_STATUS`` to check for errors.
+- **DISABLE** (0): tears down all ranges and stops tracking.
+- **QUERY** (2): the driver writes (IOVA, size, page_size) into a
+  shared buffer registered via ``DIRTY_BUF_ADDR_LO/HI`` (PF DMA
+  address, as for state transfers), then writes
+  ``DIRTY_CTRL=QUERY``. The device finds the matching range, copies
+  the dirty bitmap into the shared buffer, clears the tracked bits,
+  and sets the buffer's completion status.
+
+``DIRTY_STATUS`` values after each ``DIRTY_CTRL`` write::
+
+  0  OK               Success
+  1  TOO_MANY_RANGES  Exceeds max_ranges from CAPS
+  2  BAD_RANGE        Invalid range (zero size)
+  3  BAD_PGSIZE       Invalid or misaligned page size
+  4  NOT_ENABLED      Query without prior enable
+  5  NO_BUFFER        Query without shared buffer
+
+Dirty query shared buffer
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The shared buffer used for dirty queries is registered via
+``DIRTY_BUF_ADDR_LO/HI`` (PF DMA address). It is cache-line aligned
+(64 bytes) to separate driver-written request fields from
+device-written completion fields::
+
+  Offset  Field              Written by  Description
+  0x00    iova               driver      Query range start
+  0x08    size               driver      Query range size
+  0x10    page_size          driver      Page granularity
+  0x14    flags              driver      Reserved (must be 0)
+  0x18    reserved[10]       -           Pad to 64-byte cache line
+  0x40    status             device      0 = pending, 1 = complete
+  0x44    bitmap_size        device      Bytes written to bitmap
+  0x48    dirty_page_count   device      Number of set bits in bitmap
+  0x4C    reserved[12]       -           Pad to 64-byte cache line
+  0x80    bitmap[]           device      Dirty page bitmap
+
+The driver fills the request fields, issues ``DIRTY_CTRL=QUERY``, and
+polls ``status`` for completion. The device reads the request, writes
+the dirty bitmap and completion fields via DMA, then sets
+``status = 1``.
