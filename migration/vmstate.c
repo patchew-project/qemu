@@ -78,9 +78,10 @@ vmsd_init_ptr_marker_field(VMStateField *fake, const VMStateField *field)
     };
 }
 
-static int vmstate_n_elems(void *opaque, const VMStateField *field)
+static int32_t vmstate_n_elems(void *opaque, const VMStateField *field,
+                               Error **errp)
 {
-    int n_elems = 1;
+    int32_t n_elems = 1;
 
     if (field->flags & VMS_ARRAY) {
         n_elems = field->num;
@@ -94,18 +95,35 @@ static int vmstate_n_elems(void *opaque, const VMStateField *field)
         n_elems = *(uint8_t *)(opaque + field->num_offset);
     }
 
+    if (n_elems < 0) {
+        error_setg(errp, "%s: VMState field '%s' num_offset overflow",
+                   __func__, field->name);
+        return -EINVAL;
+    }
+
     trace_vmstate_n_elems(field->name, n_elems);
+
     return n_elems;
 }
 
-static int vmstate_size(void *opaque, const VMStateField *field)
+static int32_t vmstate_size(void *opaque, const VMStateField *field,
+                            Error **errp)
 {
-    int size;
+    int32_t size;
 
     if (field->flags & VMS_VBUFFER) {
+        /* For both int32_t/uint32_t we only allow 2GB limit for VBUFFER */
         size = *(int32_t *)(opaque + field->size_offset);
+
+        /* Check this explicitly for untrusted length input first */
+        if (size < 0) {
+            goto overflow;
+        }
+
         if (field->flags & VMS_MULTIPLY) {
-            size *= field->size;
+            if (smul32_overflow(field->size, size, &size)) {
+                goto overflow;
+            }
         }
     } else if (field->flags & VMS_ARRAY_OF_POINTER) {
         /*
@@ -115,21 +133,45 @@ static int vmstate_size(void *opaque, const VMStateField *field)
         size = sizeof(void *);
     } else {
         size = field->size;
+        assert(size >= 0);
     }
 
     return size;
+
+overflow:
+    error_setg(errp, "%s: VMState field '%s' overflow",
+               __func__, field->name);
+    return -EINVAL;
 }
 
-static void vmstate_handle_alloc(void *ptr, const VMStateField *field,
-                                 void *opaque)
+static bool vmstate_handle_alloc(void *ptr, const VMStateField *field,
+                                 void *opaque, Error **errp)
 {
     if (field->flags & VMS_POINTER && field->flags & VMS_ALLOC) {
-        gsize size = vmstate_size(opaque, field);
-        size *= vmstate_n_elems(opaque, field);
+        int32_t size, n;
+
+        size = vmstate_size(opaque, field, errp);
+        if (size < 0) {
+            return false;
+        }
+
+        n = vmstate_n_elems(opaque, field, errp);
+        if (n < 0) {
+            return false;
+        }
+
+        if (smul32_overflow(size, n, &size)) {
+            error_setg(errp, "%s: VMState field '%s' multiply overflow",
+                       __func__, field->name);
+            return false;
+        }
+
         if (size) {
             *(void **)ptr = g_malloc(size);
         }
     }
+
+    return true;
 }
 
 static bool vmstate_ptr_marker_load(QEMUFile *f, bool *load_field,
@@ -335,10 +377,22 @@ bool vmstate_load_vmsd(QEMUFile *f, const VMStateDescription *vmsd,
 
         if (exists) {
             void *first_elem = opaque + field->offset;
-            int i, n_elems = vmstate_n_elems(opaque, field);
-            int size = vmstate_size(opaque, field);
+            int i, n_elems = vmstate_n_elems(opaque, field, errp);
+            int size;
 
-            vmstate_handle_alloc(first_elem, field, opaque);
+            if (n_elems < 0) {
+                return false;
+            }
+
+            size = vmstate_size(opaque, field, errp);
+            if (size < 0) {
+                return false;
+            }
+
+            if (!vmstate_handle_alloc(first_elem, field, opaque, errp)) {
+                return false;
+            }
+
             if (field->flags & VMS_POINTER) {
                 first_elem = *(void **)first_elem;
                 assert(first_elem || !n_elems || !size);
@@ -650,8 +704,7 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
     while (field->name) {
         if (vmstate_field_exists(vmsd, field, opaque, version_id)) {
             void *first_elem = opaque + field->offset;
-            int i, n_elems = vmstate_n_elems(opaque, field);
-            int size = vmstate_size(opaque, field);
+            int i, n_elems = vmstate_n_elems(opaque, field, errp);
             JSONWriter *vmdesc_loop = vmdesc;
             bool is_prev_null = false;
             /*
@@ -660,6 +713,16 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
              */
             bool use_dynamic_array =
                 field->flags & VMS_ARRAY_OF_POINTER_AUTO_ALLOC;
+            int32_t size;
+
+            if (n_elems < 0) {
+                return false;
+            }
+
+            size = vmstate_size(opaque, field, errp);
+            if (size < 0) {
+                return false;
+            }
 
             trace_vmstate_save_state_loop(vmsd->name, field->name, n_elems);
             if (field->flags & VMS_POINTER) {
