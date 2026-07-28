@@ -43,6 +43,10 @@ config ALLWINNER_I2C
     bool
     select I2C
 
+config XLNX_AXI_IIC
+    bool
+    select I2C
+
 config PCA954X
     bool
     select I2C
