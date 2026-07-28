@@ -6622,7 +6622,7 @@ static uint16_t nvme_set_feature_fdp_events(NvmeCtrl *n, NvmeNamespace *ns,
         if (!shift && event_type) {
             continue;
         }
-        event_mask |= (1 << nvme_fdp_evf_shifts[events[i]]);
+        event_mask |= (1ULL << nvme_fdp_evf_shifts[events[i]]);
     }
 
     if (enable) {
