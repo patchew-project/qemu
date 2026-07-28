@@ -294,11 +294,31 @@ int migration_channel_read_peek(QIOChannel *ioc,
             return -1;
         }
 
-        if (len == buflen) {
+        if (len == iov.iov_len) {
             break;
-        }
+        } else if (len == 0) {
+            qio_channel_wait_cond(ioc, G_IO_IN);
+        } else {
+            ssize_t received = len;
 
-        qio_channel_wait_cond(ioc, G_IO_IN);
+            /*
+             * Partially arrived, read out to make qio_channel_wait_cond()
+             * won't return immediately, causing an unwanted spin on this
+             * CPU.
+             */
+            iov.iov_len = len;
+            len = qio_channel_readv_full(ioc, &iov, 1, NULL, NULL, 0, errp);
+            /*
+             * QIO_CHANNEL_ERR_BLOCK also shouldn't happen, due to the
+             * prior peek just happened.  We should be pretty sure we will
+             * read what we peeked, or the channel was broken.
+             */
+            if (len != received) {
+                return -1;
+            }
+            iov.iov_base += received;
+            iov.iov_len = buflen - received;
+        }
     }
 
     return 0;
