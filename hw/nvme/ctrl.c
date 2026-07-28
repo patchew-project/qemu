@@ -3332,7 +3332,8 @@ static void nvme_do_copy(NvmeCopyAIOCB *iocb)
 
     g_free(iocb->bounce);
     iocb->bounce = g_malloc_n(le16_to_cpu(sns->id_ns.mssrl),
-                              sns->lbasz + sns->lbaf.ms);
+                              sns->lbasz + (sns->lbaf.ms == 0 ? dns->lbaf.ms :
+                                            sns->lbaf.ms));
 
     qemu_iovec_reset(&iocb->iov);
     qemu_iovec_add(&iocb->iov, iocb->bounce, len);
