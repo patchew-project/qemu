@@ -309,9 +309,9 @@ cryptodev_backend_set_queues(Object *obj, Visitor *v, const char *name,
     if (!visit_type_uint32(v, name, &value, errp)) {
         return;
     }
-    if (!value) {
-        error_setg(errp, "Property '%s.%s' doesn't take value '%" PRIu32 "'",
-                   object_get_typename(obj), name, value);
+    if (!value || value > MAX_CRYPTO_QUEUE_NUM) {
+        error_setg(errp, "Property '%s.%s' must be between 1 and %d",
+                   object_get_typename(obj), name, MAX_CRYPTO_QUEUE_NUM);
         return;
     }
     backend->conf.peers.queues = value;
