@@ -17,6 +17,11 @@ struct vhost_inflight {
     int fd;
     void *addr;
     uint64_t size;
+    /*
+     * This is a temporary variable only used during migration loading to
+     * satisfy VMSTATE_VBUFFER_UINT32() typing. Please use @size otherwise.
+     */
+    uint32_t __size_32bits;
     uint64_t offset;
     uint16_t queue_size;
 };

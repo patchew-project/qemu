@@ -2023,15 +2023,24 @@ void vhost_get_features_ex(struct vhost_dev *hdev,
 static bool vhost_inflight_buffer_pre_load(void *opaque, Error **errp)
 {
     struct vhost_inflight *inflight = opaque;
-
     int fd = -1;
-    void *addr = qemu_memfd_alloc("vhost-inflight", inflight->size,
-                                  F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
-                                  &fd, errp);
+    void *addr;
+
+    if (inflight->size > INT32_MAX) {
+        error_setg(errp, "inflight size '%"PRIu64"' exceeds "
+                   "migration limit '%"PRIu32"'", inflight->size, INT32_MAX);
+        return false;
+    }
+
+    addr = qemu_memfd_alloc("vhost-inflight", inflight->size,
+                            F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
+                            &fd, errp);
     if (!addr) {
         return false;
     }
 
+    /* Only used in VMSTATE_VBUFFER_UINT32() */
+    inflight->__size_32bits = inflight->size;
     inflight->offset = 0;
     inflight->addr = addr;
     inflight->fd = fd;
@@ -2043,7 +2052,7 @@ const VMStateDescription vmstate_vhost_inflight_region_buffer = {
     .name = "vhost-inflight-region/buffer",
     .pre_load_errp = vhost_inflight_buffer_pre_load,
     .fields = (const VMStateField[]) {
-        VMSTATE_VBUFFER_UINT64(addr, struct vhost_inflight, 0, NULL, size),
+        VMSTATE_VBUFFER_UINT32(addr, struct vhost_inflight, 0, NULL, __size_32bits),
         VMSTATE_END_OF_LIST()
     }
 };
