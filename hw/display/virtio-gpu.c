@@ -1105,8 +1105,14 @@ void virtio_gpu_process_cmdq(VirtIOGPU *g)
             break;
         }
 
-        /* process command */
-        vgc->process_cmd(g, cmd);
+        if (unlikely(iov_size(cmd->elem.out_sg, cmd->elem.out_num) <
+                     sizeof(cmd->cmd_hdr))) {
+            memset(&cmd->cmd_hdr, 0, sizeof(cmd->cmd_hdr));
+            virtio_gpu_ctrl_response_nodata(
+                g, cmd, VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER);
+        } else {
+            vgc->process_cmd(g, cmd);
+        }
 
         /* command suspended */
         if (!cmd->finished && !(cmd->cmd_hdr.flags & VIRTIO_GPU_FLAG_FENCE)) {
