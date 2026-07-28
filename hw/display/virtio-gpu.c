@@ -63,8 +63,16 @@ void virtio_gpu_update_cursor_data(VirtIOGPU *g,
         }
         data = pixman_image_get_data(res->image);
     } else {
+        if (!res->blob) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: resource %d has no blob\n",
+                          __func__, resource_id);
+            return;
+        }
         if (res->blob_size < (s->current_cursor->width *
                               s->current_cursor->height * 4)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: blob size too small for resource %d\n",
+                          __func__, resource_id);
             return;
         }
         data = res->blob;
@@ -958,6 +966,7 @@ void virtio_gpu_cleanup_mapping(VirtIOGPU *g,
 
     if (res->blob) {
         virtio_gpu_fini_udmabuf(g, res);
+        res->blob = NULL;
     }
 }
 
@@ -1014,6 +1023,15 @@ virtio_gpu_resource_detach_backing(VirtIOGPU *g,
     if (!res) {
         return;
     }
+
+    if (res->blob) {
+        for (int i = 0; i < g->parent_obj.conf.max_outputs; i++) {
+            if (res->scanout_bitmask & (1 << i)) {
+                virtio_gpu_disable_scanout(g, i);
+            }
+        }
+    }
+
     virtio_gpu_cleanup_mapping(g, res);
 }
 
