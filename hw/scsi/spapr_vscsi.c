@@ -650,9 +650,17 @@ static void *vscsi_load_request(QEMUFile *f, SCSIRequest *sreq, Error **errp)
     int rc;
     Error *local_err = NULL;
 
-    assert(sreq->tag < VSCSI_REQ_LIMIT);
+    if (sreq->tag >= VSCSI_REQ_LIMIT) {
+        error_setg(errp, "VSCSI: request tag#%u out of range (max %d)",
+                   sreq->tag, VSCSI_REQ_LIMIT);
+        return NULL;
+    }
+
     req = &s->reqs[sreq->tag];
-    assert(!req->active);
+    if (req->active) {
+        error_setg(errp, "VSCSI: request tag#%u already active", sreq->tag);
+        return NULL;
+    }
 
     memset(req, 0, sizeof(*req));
     rc = vmstate_load_state(f, &vmstate_spapr_vscsi_req, req, 1, &local_err);
@@ -662,7 +670,11 @@ static void *vscsi_load_request(QEMUFile *f, SCSIRequest *sreq, Error **errp)
                                 sreq->tag);
         return NULL;
     }
-    assert(req->active);
+    if (!req->active) {
+        error_setg(errp, "VSCSI: request tag#%u not active after load",
+                   sreq->tag);
+        return NULL;
+    }
 
     req->sreq = scsi_req_ref(sreq);
 
