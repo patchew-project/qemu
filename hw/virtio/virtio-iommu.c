@@ -210,7 +210,13 @@ static void virtio_iommu_notify_map_unmap(IOMMUMemoryRegion *mr,
                                           IOMMUTLBEvent *event,
                                           hwaddr virt_start, hwaddr virt_end)
 {
-    uint64_t delta = virt_end - virt_start;
+    uint64_t delta;
+
+    if (virt_end < virt_start) {
+        return;
+    }
+
+    delta = virt_end - virt_start;
 
     event->entry.iova = virt_start;
     event->entry.addr_mask = delta;
@@ -807,6 +813,10 @@ static int virtio_iommu_map(VirtIOIOMMU *s,
         return VIRTIO_IOMMU_S_INVAL;
     }
 
+    if (virt_end < virt_start) {
+        return VIRTIO_IOMMU_S_INVAL;
+    }
+
     domain = g_tree_lookup(s->domains, GUINT_TO_POINTER(domain_id));
     if (!domain) {
         return VIRTIO_IOMMU_S_NOENT;
@@ -857,6 +867,10 @@ static int virtio_iommu_unmap(VirtIOIOMMU *s,
 
     trace_virtio_iommu_unmap(domain_id, virt_start, virt_end);
 
+    if (virt_end < virt_start) {
+        return VIRTIO_IOMMU_S_INVAL;
+    }
+
     domain = g_tree_lookup(s->domains, GUINT_TO_POINTER(domain_id));
     if (!domain) {
         return VIRTIO_IOMMU_S_NOENT;
@@ -879,7 +893,10 @@ static int virtio_iommu_unmap(VirtIOIOMMU *s,
                 virtio_iommu_notify_unmap(ep->iommu_mr, current_low,
                                           current_high);
             }
-            g_tree_remove(domain->mappings, iter_key);
+            if (!g_tree_remove(domain->mappings, iter_key)) {
+                ret = VIRTIO_IOMMU_S_DEVERR;
+                break;
+            }
             trace_virtio_iommu_unmap_done(domain_id, current_low, current_high);
         } else {
             ret = VIRTIO_IOMMU_S_RANGE;
@@ -1639,11 +1656,61 @@ static gboolean reconstruct_endpoints(gpointer key, gpointer value,
     return false; /* continue the domain traversal */
 }
 
-static int iommu_post_load(void *opaque, int version_id)
+typedef struct VirtIOIOMMUMappingValidation {
+    bool valid;
+    uint32_t domain_id;
+    uint64_t low;
+    uint64_t high;
+} VirtIOIOMMUMappingValidation;
+
+static gboolean virtio_iommu_validate_mapping(gpointer key, gpointer value,
+                                              gpointer data)
+{
+    VirtIOIOMMUInterval *interval = key;
+    VirtIOIOMMUMappingValidation *validation = data;
+
+    if (interval->high < interval->low) {
+        validation->valid = false;
+        validation->low = interval->low;
+        validation->high = interval->high;
+        return true;
+    }
+
+    return false;
+}
+
+static gboolean virtio_iommu_validate_domain_mappings(gpointer key,
+                                                      gpointer value,
+                                                      gpointer data)
+{
+    VirtIOIOMMUDomain *domain = value;
+    VirtIOIOMMUMappingValidation *validation = data;
+
+    validation->domain_id = domain->id;
+    g_tree_foreach(domain->mappings, virtio_iommu_validate_mapping,
+                   validation);
+    return !validation->valid;
+}
+
+static bool iommu_post_load_errp(void *opaque, int version_id, Error **errp)
 {
     VirtIOIOMMU *s = opaque;
+    VirtIOIOMMUMappingValidation validation = {
+        .valid = true,
+    };
 
+    /* Rebuild ownership before validation so failed loads can be cleaned up. */
     g_tree_foreach(s->domains, reconstruct_endpoints, s);
+
+    g_tree_foreach(s->domains, virtio_iommu_validate_domain_mappings,
+                   &validation);
+    if (!validation.valid) {
+        error_setg(errp,
+                   "virtio-iommu: invalid migrated mapping in domain %u: "
+                   "[0x%" PRIx64 ", 0x%" PRIx64 "]",
+                   validation.domain_id, validation.low, validation.high);
+        return false;
+    }
 
     /*
      * Memory regions are dynamically turned on/off depending on
@@ -1657,14 +1724,14 @@ static int iommu_post_load(void *opaque, int version_id)
         timer_mod(s->cmd_timer,
                   qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT) + 1);
     }
-    return 0;
+    return true;
 }
 
 static const VMStateDescription vmstate_virtio_iommu_device = {
     .name = "virtio-iommu-device",
     .minimum_version_id = 2,
     .version_id = 2,
-    .post_load = iommu_post_load,
+    .post_load_errp = iommu_post_load_errp,
     .fields = (const VMStateField[]) {
         VMSTATE_GTREE_DIRECT_KEY_V(domains, VirtIOIOMMU, 2,
                                    &vmstate_domain, VirtIOIOMMUDomain),
