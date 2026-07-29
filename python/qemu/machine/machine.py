@@ -449,17 +449,17 @@ class QEMUMachine:
         self._user_killed = False
         self._launched = False
 
-    def launch(self) -> None:
+    def launch(self, do_start_process=True, do_qmp_connect=True) -> None:
         """
         Launch the VM and make sure we cleanup and expose the
         command line/output in case of exception
         """
 
-        if self._launched:
+        if self._launched and do_start_process:
             raise QEMUMachineError('VM already launched')
 
         try:
-            self._launch()
+            self._launch(do_start_process, do_qmp_connect)
         except BaseException as exc:
             # We may have launched the process but it may
             # have exited before we could connect via QMP.
@@ -482,31 +482,34 @@ class QEMUMachine:
             # that exception. However, we still want to clean up.
             raise
 
-    def _launch(self) -> None:
+    def _launch(self, do_start_process=True, do_qmp_connect=True) -> None:
         """
         Launch the VM and establish a QMP connection
         """
-        self._pre_launch()
-        LOG.debug('VM launch command: %r', ' '.join(self._qemu_full_args))
-        # Log a simplified, developer-runnable command:
-        # Exclude harness-managed infrastructure args (harness_args)
-        # and wrapper.
-        debug_cmd = [self._binary]
-        debug_cmd.extend(self._console_args(interactive=True))
-        debug_cmd.extend(self._base_args)
-        debug_cmd.extend(self._args)
-        LOG.debug('Developer-runnable command: %r', ' '.join(debug_cmd))
+        if do_start_process:
+            self._pre_launch()
+            LOG.debug('VM launch command: %r', ' '.join(self._qemu_full_args))
+            # Log a simplified, developer-runnable command:
+            # Exclude harness-managed infrastructure args (harness_args)
+            # and wrapper.
+            debug_cmd = [self._binary]
+            debug_cmd.extend(self._console_args(interactive=True))
+            debug_cmd.extend(self._base_args)
+            debug_cmd.extend(self._args)
+            LOG.debug('Developer-runnable command: %r', ' '.join(debug_cmd))
 
-        # Cleaning up of this subprocess is guaranteed by _do_shutdown.
-        # pylint: disable=consider-using-with
-        self._popen = subprocess.Popen(self._qemu_full_args,
-                                       stdin=subprocess.DEVNULL,
-                                       stdout=self._qemu_log_file,
-                                       stderr=subprocess.STDOUT,
-                                       shell=False,
-                                       close_fds=False)
-        self._launched = True
-        self._post_launch()
+            # Cleaning up of this subprocess is guaranteed by _do_shutdown.
+            # pylint: disable=consider-using-with
+            self._popen = subprocess.Popen(self._qemu_full_args,
+                                           stdin=subprocess.DEVNULL,
+                                           stdout=self._qemu_log_file,
+                                           stderr=subprocess.STDOUT,
+                                           shell=False,
+                                           close_fds=False)
+            self._launched = True
+
+        if do_qmp_connect:
+            self._post_launch()
 
     def _close_qmp_connection(self) -> None:
         """
