@@ -83,20 +83,28 @@ static void test_defaults(void *obj, void *data, QGuestAllocator *alloc)
     compare_string(i2cdev, PMBUS_MFR_REVISION, ADM1266_MFR_REVISION_DEFAULT);
 }
 
+static void test_partial_reads(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QI2CDevice *i2cdev = (QI2CDevice *)obj;
+    /* 1 byte block write requesting 7 byte response */
+    uint8_t req_len[] = {0x01, 0x7};
+
+    i2c_write_block(i2cdev, PMBUS_MFR_MODEL, req_len, sizeof(req_len));
+    compare_string(i2cdev, PMBUS_MFR_MODEL, "ADM1266");
+
+    req_len[1] = 0;
+    i2c_write_block(i2cdev, PMBUS_MFR_MODEL, req_len, sizeof(req_len));
+    compare_string(i2cdev, PMBUS_MFR_MODEL, "");
+
+    req_len[1] = 100;
+    i2c_write_block(i2cdev, PMBUS_MFR_MODEL, req_len, sizeof(req_len));
+    compare_string(i2cdev, PMBUS_MFR_MODEL, ADM1266_MFR_MODEL_DEFAULT);
+}
+
 /* test r/w registers */
 static void test_rw_regs(void *obj, void *data, QGuestAllocator *alloc)
 {
     QI2CDevice *i2cdev = (QI2CDevice *)obj;
-
-    /* empty strings */
-    i2c_set8(i2cdev, PMBUS_MFR_ID, 0);
-    compare_string(i2cdev, PMBUS_MFR_ID, "");
-
-    i2c_set8(i2cdev, PMBUS_MFR_MODEL, 0);
-    compare_string(i2cdev, PMBUS_MFR_MODEL, "");
-
-    i2c_set8(i2cdev, PMBUS_MFR_REVISION, 0);
-    compare_string(i2cdev, PMBUS_MFR_REVISION, "");
 
     /* test strings */
     write_and_compare_string(i2cdev, PMBUS_MFR_ID, TEST_STRING_A,
@@ -118,6 +126,7 @@ static void adm1266_register_nodes(void)
     qos_node_consumes("adm1266", "i2c-bus", &opts);
 
     qos_add_test("test_defaults", "adm1266", test_defaults, NULL);
+    qos_add_test("test_partial_reads", "adm1266", test_partial_reads, NULL);
     qos_add_test("test_rw_regs", "adm1266", test_rw_regs, NULL);
 }
 

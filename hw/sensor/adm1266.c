@@ -37,13 +37,14 @@ OBJECT_DECLARE_SIMPLE_TYPE(ADM1266State, ADM1266)
 #define ADM1266_CAPABILITY_NO_PEC               0x20
 #define ADM1266_PMBUS_REVISION_DEFAULT          0x22
 #define ADM1266_MFR_ID_DEFAULT                  "ADI"
-#define ADM1266_MFR_ID_DEFAULT_LEN              32
 #define ADM1266_MFR_MODEL_DEFAULT               "ADM1266-A1"
-#define ADM1266_MFR_MODEL_DEFAULT_LEN           32
 #define ADM1266_MFR_REVISION_DEFAULT            "25"
-#define ADM1266_MFR_REVISION_DEFAULT_LEN        8
+#define ADM1266_MFR_LOCATION_DEFAULT            "0000"
+#define ADM1266_MFR_DATE_DEFAULT                "0000"
+#define ADM1266_MFR_SERIAL_DEFAULT              "0000"
 
-#define ADM1266_NUM_PAGES               17
+#define ADM1266_NUM_PAGES                       17
+#define ADM1266_READ_LENGTH_DEFAULT             48
 /**
  * PAGE Index
  * Page 0 VH1.
@@ -66,10 +67,14 @@ OBJECT_DECLARE_SIMPLE_TYPE(ADM1266State, ADM1266)
  */
 typedef struct ADM1266State {
     PMBusDevice parent;
+    uint8_t read_length;
 
     char mfr_id[32];
     char mfr_model[32];
     char mfr_rev[8];
+    char mfr_location[48];
+    char mfr_date[16];
+    char mfr_serial[32];
 } ADM1266State;
 
 static const uint8_t adm1266_ic_device_id[] = {0x03, 0x41, 0x12, 0x66};
@@ -95,9 +100,34 @@ static void adm1266_exit_reset(Object *obj, ResetType type)
         pmdev->pages[i].revision = ADM1266_PMBUS_REVISION_DEFAULT;
     }
 
-    strncpy(s->mfr_id, ADM1266_MFR_ID_DEFAULT, 4);
-    strncpy(s->mfr_model, ADM1266_MFR_MODEL_DEFAULT, 11);
-    strncpy(s->mfr_rev, ADM1266_MFR_REVISION_DEFAULT, 3);
+    memcpy(s->mfr_id, ADM1266_MFR_ID_DEFAULT, 4);
+    memcpy(s->mfr_model, ADM1266_MFR_MODEL_DEFAULT, 11);
+    memcpy(s->mfr_rev, ADM1266_MFR_REVISION_DEFAULT, 3);
+    memcpy(s->mfr_location, ADM1266_MFR_LOCATION_DEFAULT, 5);
+    memcpy(s->mfr_date, ADM1266_MFR_DATE_DEFAULT, 5);
+    memcpy(s->mfr_serial, ADM1266_MFR_SERIAL_DEFAULT, 5);
+    s->read_length = ADM1266_READ_LENGTH_DEFAULT;
+}
+
+static void adm1266_send_string(PMBusDevice *pmdev, const char *str)
+{
+    ADM1266State *s = ADM1266(pmdev);
+    size_t len = strlen(str);
+
+    if (s->read_length < len) {
+        len = s->read_length;
+    }
+
+    g_assert(len + pmdev->out_buf_len < SMBUS_DATA_MAX_LEN);
+    pmdev->out_buf[len + pmdev->out_buf_len] = len;
+
+    for (int i = len - 1; i >= 0; i--) {
+        pmdev->out_buf[i + pmdev->out_buf_len] = str[len - 1 - i];
+    }
+    pmdev->out_buf_len += len + 1;
+
+    /* reset read length */
+    s->read_length = ADM1266_READ_LENGTH_DEFAULT;
 }
 
 static uint8_t adm1266_read_byte(PMBusDevice *pmdev)
@@ -106,15 +136,27 @@ static uint8_t adm1266_read_byte(PMBusDevice *pmdev)
 
     switch (pmdev->code) {
     case PMBUS_MFR_ID:                    /* R/W block */
-        pmbus_send_string(pmdev, s->mfr_id);
+        adm1266_send_string(pmdev, s->mfr_id);
         break;
 
     case PMBUS_MFR_MODEL:                 /* R/W block */
-        pmbus_send_string(pmdev, s->mfr_model);
+        adm1266_send_string(pmdev, s->mfr_model);
         break;
 
     case PMBUS_MFR_REVISION:              /* R/W block */
-        pmbus_send_string(pmdev, s->mfr_rev);
+        adm1266_send_string(pmdev, s->mfr_rev);
+        break;
+
+    case PMBUS_MFR_LOCATION:              /* R/W block */
+        adm1266_send_string(pmdev, s->mfr_location);
+        break;
+
+    case PMBUS_MFR_DATE:                  /* R/W block */
+        adm1266_send_string(pmdev, s->mfr_date);
+        break;
+
+    case PMBUS_MFR_SERIAL:                /* R/W block */
+        adm1266_send_string(pmdev, s->mfr_serial);
         break;
 
     case PMBUS_IC_DEVICE_ID:
@@ -135,6 +177,43 @@ static uint8_t adm1266_read_byte(PMBusDevice *pmdev)
     return 0;
 }
 
+static uint8_t adm1266_receive_block(PMBusDevice *pmdev, uint8_t *dest,
+                                     size_t len)
+{
+    ADM1266State *s = ADM1266(pmdev);
+    uint8_t sent_len;
+
+    /* Exclude command code from return value */
+    pmdev->in_buf++;
+    pmdev->in_buf_len--;
+
+    /* The byte after the command code denotes the length */
+    sent_len = pmdev->in_buf[0];
+
+    /* Block writes with length 1 are read requests */
+    if (sent_len == 1) {
+        s->read_length = pmdev->in_buf[1];
+        return 0;
+    }
+
+    /* exclude length byte */
+    pmdev->in_buf++;
+    pmdev->in_buf_len--;
+
+    /* Be as conservative as possible on how much data to receive */
+    if (pmdev->in_buf_len < len) {
+        len = pmdev->in_buf_len;
+    }
+    if (sent_len < len) {
+        len = sent_len;
+    }
+
+    /* dest may contain data from previous writes */
+    memset(dest, 0, len);
+    memcpy(dest, pmdev->in_buf, len);
+    return len;
+}
+
 static int adm1266_write_data(PMBusDevice *pmdev, const uint8_t *buf,
                               uint8_t len)
 {
@@ -142,16 +221,31 @@ static int adm1266_write_data(PMBusDevice *pmdev, const uint8_t *buf,
 
     switch (pmdev->code) {
     case PMBUS_MFR_ID:                    /* R/W block */
-        pmbus_receive_block(pmdev, (uint8_t *)s->mfr_id, sizeof(s->mfr_id));
+        adm1266_receive_block(pmdev, (uint8_t *)s->mfr_id, sizeof(s->mfr_id));
         break;
 
     case PMBUS_MFR_MODEL:                 /* R/W block */
-        pmbus_receive_block(pmdev, (uint8_t *)s->mfr_model,
-                            sizeof(s->mfr_model));
+        adm1266_receive_block(pmdev, (uint8_t *)s->mfr_model,
+                              sizeof(s->mfr_model));
         break;
 
     case PMBUS_MFR_REVISION:               /* R/W block*/
-        pmbus_receive_block(pmdev, (uint8_t *)s->mfr_rev, sizeof(s->mfr_rev));
+        adm1266_receive_block(pmdev, (uint8_t *)s->mfr_rev, sizeof(s->mfr_rev));
+        break;
+
+    case PMBUS_MFR_LOCATION:               /* R/W block*/
+        adm1266_receive_block(pmdev, (uint8_t *)s->mfr_location,
+                              sizeof(s->mfr_location));
+        break;
+
+    case PMBUS_MFR_DATE:                   /* R/W block*/
+        adm1266_receive_block(pmdev, (uint8_t *)s->mfr_date,
+                              sizeof(s->mfr_date));
+        break;
+
+    case PMBUS_MFR_SERIAL:                 /* R/W block*/
+        adm1266_receive_block(pmdev, (uint8_t *)s->mfr_serial,
+                              sizeof(s->mfr_serial));
         break;
 
     case ADM1266_SET_RTC:   /* do nothing */
@@ -212,7 +306,7 @@ static void adm1266_init(Object *obj)
 {
     PMBusDevice *pmdev = PMBUS_DEVICE(obj);
     uint64_t flags = PB_HAS_VOUT_MODE | PB_HAS_VOUT | PB_HAS_VOUT_MARGIN |
-                     PB_HAS_VOUT_RATING | PB_HAS_STATUS_MFR_SPECIFIC;
+                     PB_HAS_VOUT_RATING;
 
     for (int i = 0; i < ADM1266_NUM_PAGES; i++) {
         pmbus_page_config(pmdev, i, flags);
