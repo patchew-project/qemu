@@ -42,6 +42,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(ADM1266State, ADM1266)
 #define ADM1266_MFR_LOCATION_DEFAULT            "0000"
 #define ADM1266_MFR_DATE_DEFAULT                "0000"
 #define ADM1266_MFR_SERIAL_DEFAULT              "0000"
+#define ADM1266_VOUT_MODE_EXP_DEFAULT           -10
+
 
 #define ADM1266_NUM_PAGES                       17
 #define ADM1266_READ_LENGTH_DEFAULT             48
@@ -85,6 +87,10 @@ static void adm1266_exit_reset(Object *obj, ResetType type)
 {
     ADM1266State *s = ADM1266(obj);
     PMBusDevice *pmdev = PMBUS_DEVICE(obj);
+    PMBusVoutMode m = {
+        .mode = 0,
+        .exp = ADM1266_VOUT_MODE_EXP_DEFAULT
+    };
 
     pmdev->page = 0;
     pmdev->capability = ADM1266_CAPABILITY_NO_PEC;
@@ -92,11 +98,12 @@ static void adm1266_exit_reset(Object *obj, ResetType type)
     for (int i = 0; i < ADM1266_NUM_PAGES; i++) {
         pmdev->pages[i].operation = ADM1266_OPERATION_DEFAULT;
         pmdev->pages[i].revision = ADM1266_PMBUS_REVISION_DEFAULT;
-        pmdev->pages[i].vout_mode = 0;
-        pmdev->pages[i].read_vout = pmbus_data2linear_mode(12, 0);
-        pmdev->pages[i].vout_margin_high = pmbus_data2linear_mode(15, 0);
-        pmdev->pages[i].vout_margin_low = pmbus_data2linear_mode(3, 0);
-        pmdev->pages[i].vout_ov_fault_limit = pmbus_data2linear_mode(16, 0);
+
+        pmdev->pages[i].vout_mode = *(uint8_t *)&m;
+        pmdev->pages[i].read_vout = pmbus_data2linear_mode(12, m.exp);
+        pmdev->pages[i].vout_margin_high = pmbus_data2linear_mode(15, m.exp);
+        pmdev->pages[i].vout_margin_low = pmbus_data2linear_mode(3, m.exp);
+        pmdev->pages[i].vout_ov_fault_limit = pmbus_data2linear_mode(16, m.exp);
         pmdev->pages[i].revision = ADM1266_PMBUS_REVISION_DEFAULT;
     }
 

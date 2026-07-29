@@ -47,7 +47,7 @@
 #define TEST_STRING_C                           "rev c"
 
 #define ADM1266_NUM_PAGES                       17
-#define ADM1266_MAX_VALUE                       65535000
+#define ADM1266_MAX_VALUE                       63999  /* UINT16_MAX * 2^-10 */
 
 typedef union {
     uint8_t raw;
