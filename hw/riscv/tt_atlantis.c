@@ -26,6 +26,7 @@
 #include "hw/char/serial-mm.h"
 #include "hw/intc/riscv_aclint.h"
 #include "hw/misc/unimp.h"
+#include "hw/misc/tt_atlantis_prcm.h"
 
 #include "system/system.h"
 #include "system/device_tree.h"
@@ -59,6 +60,10 @@ static const MemMapEntry tt_atlantis_memmap[] = {
     [TT_ATL_I2C3] =             { 0xd4070000,       0x10000 },
     [TT_ATL_I2C4] =             { 0xd4080000,       0x10000 },
     [TT_ATL_UART1] =            { 0xd4110000,       0x10000 },
+    [TT_ATL_PRCM_RCPU] =        { 0xd0000000,       0x10000 },
+    [TT_ATL_PRCM_PCIE] =        { 0xd8000000,         0x100 },
+    [TT_ATL_PRCM_MM] =          { 0xdc000000,        0x1000 },
+    [TT_ATL_PRCM_HSIO] =        { 0xe00c0000,         0x510 },
     [TT_ATL_SAPLIC] =           { 0xe8000000,     0x4000000 },
     [TT_ATL_DDR_HI] =          { 0x100000000,  0x1000000000 },
 };
@@ -328,11 +333,38 @@ static void create_fdt_i2c_device(TTAtlantisState *s, int bus,
     qemu_fdt_setprop_cell(fdt, name, "reg", addr);
 }
 
+static char *create_fdt_prcm(void *fdt, const MemMapEntry *mem,
+                             const char *prcm_name, uint32_t prcm_phandle)
+{
+    hwaddr base = mem->base;
+    hwaddr size = mem->size;
+    char *name = g_strdup_printf("/soc/prcm_%s@%" PRIx64,
+                                 prcm_name, mem->base);
+    g_autofree char *compatible =
+        g_strdup_printf("tenstorrent,atlantis-prcm-%s", prcm_name);
+
+    qemu_fdt_add_subnode(fdt, name);
+    qemu_fdt_setprop_string(fdt, name, "compatible", compatible);
+    qemu_fdt_setprop_sized_cells(fdt, name, "reg", 2, base, 2, size);
+    qemu_fdt_setprop_cell(fdt, name, "#address-cells", 1);
+    qemu_fdt_setprop_cell(fdt, name, "#size-cells", 0);
+    qemu_fdt_setprop_cell(fdt, name, "#clock-cells", 1);
+    qemu_fdt_setprop_cell(fdt, name, "#reset-cells", 1);
+    qemu_fdt_setprop_cell(fdt, name, "phandle", prcm_phandle);
+
+    return name;
+}
+
 static void finalize_fdt(TTAtlantisState *s)
 {
     uint32_t aplic_s_phandle = next_phandle();
     uint32_t imsic_s_phandle = next_phandle();
     uint32_t periph_clk_phandle = next_phandle();
+    uint32_t osc_24m_phandle = next_phandle();
+    uint32_t prcm_rcpu_phandle = next_phandle();
+    uint32_t prcm_hsio_phandle = next_phandle();
+    uint32_t prcm_pcie_phandle = next_phandle();
+    uint32_t prcm_mm_phandle = next_phandle();
     void *fdt = MACHINE(s)->fdt;
 
     create_fdt_cpu(s, s->memmap, aplic_s_phandle, imsic_s_phandle);
@@ -348,6 +380,33 @@ static void finalize_fdt(TTAtlantisState *s)
                     aplic_s_phandle);
 
     create_fdt_clk(fdt, "periph-clk", 100000000, periph_clk_phandle);
+    create_fdt_clk(fdt, "osc_24m", 24000000, osc_24m_phandle);
+
+    g_autofree char *rcpu_name = create_fdt_prcm(fdt,
+        &s->memmap[TT_ATL_PRCM_RCPU], "rcpu", prcm_rcpu_phandle);
+    qemu_fdt_setprop_cells(fdt, rcpu_name, "clocks", osc_24m_phandle);
+    qemu_fdt_setprop_cells(fdt, rcpu_name, "assigned-clocks",
+                           prcm_rcpu_phandle, TT_ATL_CLK_RCPU_ROOT,
+                           prcm_rcpu_phandle, TT_ATL_CLK_NOCC_CLK);
+    qemu_fdt_setprop_cells(fdt, rcpu_name, "assigned-clock-parents",
+                           prcm_rcpu_phandle, TT_ATL_CLK_RCPU_PLL,
+                           prcm_rcpu_phandle, TT_ATL_CLK_NOC_PLL);
+
+    g_autofree char *hsio_name = create_fdt_prcm(fdt,
+        &s->memmap[TT_ATL_PRCM_HSIO], "hsio", prcm_hsio_phandle);
+    qemu_fdt_setprop_cells(fdt, hsio_name, "clocks", osc_24m_phandle,
+                           prcm_rcpu_phandle, TT_ATL_CLK_HSIO_PLL);
+
+    g_autofree char *pcie_name = create_fdt_prcm(fdt,
+        &s->memmap[TT_ATL_PRCM_PCIE], "pcie", prcm_pcie_phandle);
+    qemu_fdt_setprop_cells(fdt, pcie_name, "clocks", osc_24m_phandle,
+                           prcm_rcpu_phandle, TT_ATL_CLK_PCIE_PLL);
+
+    g_autofree char *mm_name = create_fdt_prcm(fdt,
+        &s->memmap[TT_ATL_PRCM_MM], "mm", prcm_mm_phandle);
+    qemu_fdt_setprop_cells(fdt, mm_name, "clocks", osc_24m_phandle,
+                           prcm_rcpu_phandle, TT_ATL_CLK_MM_PLL0,
+                           prcm_rcpu_phandle, TT_ATL_CLK_MM_PLL1);
 
     for (int i = 0; i < TT_ATL_NUM_I2C; i++) {
         create_fdt_i2c(fdt,
@@ -545,6 +604,39 @@ static void tt_atlantis_machine_init(MachineState *machine)
     serial_mm_init(system_memory, s->memmap[TT_ATL_UART1].base, 2,
                    qdev_get_gpio_in(s->irqchip, TT_ATL_UART1_IRQ),
                    115200, serial_hd(0), DEVICE_LITTLE_ENDIAN);
+
+    /* Add rcpu prcm block */
+    object_initialize_child(OBJECT(s), "prcm-rcpu", &s->prcm[0],
+                            TYPE_TT_ATLANTIS_PRCM_RCPU);
+    sysbus_realize(SYS_BUS_DEVICE(&s->prcm[0]), &error_fatal);
+    memory_region_add_subregion(system_memory,
+            s->memmap[TT_ATL_PRCM_RCPU].base,
+            sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->prcm[0]), 0));
+
+    /* Add hsio prcm block */
+    object_initialize_child(OBJECT(s), "prcm-hsio", &s->prcm[1],
+                            TYPE_TT_ATLANTIS_PRCM_HSIO);
+    sysbus_realize(SYS_BUS_DEVICE(&s->prcm[1]), &error_fatal);
+    memory_region_add_subregion(system_memory,
+            s->memmap[TT_ATL_PRCM_HSIO].base,
+            sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->prcm[1]), 0));
+
+    /* Add pcie prcm block */
+    object_initialize_child(OBJECT(s), "prcm-pcie", &s->prcm[2],
+                            TYPE_TT_ATLANTIS_PRCM_PCIE);
+    sysbus_realize(SYS_BUS_DEVICE(&s->prcm[2]), &error_fatal);
+    memory_region_add_subregion(system_memory,
+            s->memmap[TT_ATL_PRCM_PCIE].base,
+            sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->prcm[2]), 0));
+
+    /* Add mm prcm block */
+    object_initialize_child(OBJECT(s), "prcm-mm", &s->prcm[3],
+                            TYPE_TT_ATLANTIS_PRCM_MM);
+    sysbus_realize(SYS_BUS_DEVICE(&s->prcm[3]), &error_fatal);
+    memory_region_add_subregion(system_memory,
+            s->memmap[TT_ATL_PRCM_MM].base,
+            sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->prcm[3]), 0));
+
     /*
      * Atlantis contains a DesignWare uart while the QEMU machine
      * uses the serial_mm model with the base ns16550 register set.
