@@ -3903,6 +3903,9 @@ foreach d, list : modules
     if enable_modules
       module_ss.add(modulecommon)
       module_ss = module_ss.apply(config_all_devices, strict: false)
+      if module_ss.sources() == []
+        continue
+      endif
       sl = static_library(d + '-' + m, [genh, module_ss.sources()],
                           dependencies: module_ss.dependencies(), pic: true)
       if d == 'block'
