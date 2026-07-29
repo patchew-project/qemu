@@ -764,6 +764,10 @@ static int fetch_active_ports_list(QEMUFile *f, VirtIOSerial *s,
 
             port->elem =
                 qemu_get_virtqueue_element(vdev, f, sizeof(VirtQueueElement));
+            if (!port->elem) {
+                error_setg(errp, "Failed to restore virtio-serial element");
+                return -EINVAL;
+            }
 
             /*
              *  Port was throttled on source machine.  Let's
