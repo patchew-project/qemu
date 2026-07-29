@@ -64,7 +64,7 @@ struct SMBusDeviceClass {
     uint8_t (*receive_byte)(SMBusDevice *dev);
 };
 
-#define SMBUS_DATA_MAX_LEN 34  /* command + len + 32 bytes of data.  */
+#define SMBUS_DATA_MAX_LEN 257  /* command + len + 255 bytes of data.  */
 
 struct SMBusDevice {
     /* The SMBus protocol is implemented on top of I2C.  */

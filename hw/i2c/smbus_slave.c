@@ -215,6 +215,26 @@ bool smbus_vmstate_needed(SMBusDevice *dev)
     return dev->mode != SMBUS_IDLE;
 }
 
+#define SMBUS_DATA_MAX_LEN_OLD    34
+static bool smbus_extended_needed(void *opaque)
+{
+    SMBusDevice *dev = opaque;
+    return dev->data_len > SMBUS_DATA_MAX_LEN_OLD;
+}
+
+static const VMStateDescription vmstate_smbus_extended_data = {
+    .name = TYPE_SMBUS_DEVICE"/extended",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = smbus_extended_needed,
+    .fields = (const VMStateField[]) {
+        /* separately save [34..257) */
+        VMSTATE_UINT8_SUB_ARRAY(data_buf, SMBusDevice, SMBUS_DATA_MAX_LEN_OLD,
+            SMBUS_DATA_MAX_LEN - SMBUS_DATA_MAX_LEN_OLD),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_smbus_device = {
     .name = TYPE_SMBUS_DEVICE,
     .version_id = 1,
@@ -223,8 +243,13 @@ const VMStateDescription vmstate_smbus_device = {
         VMSTATE_I2C_SLAVE(i2c, SMBusDevice),
         VMSTATE_INT32(mode, SMBusDevice),
         VMSTATE_INT32(data_len, SMBusDevice),
-        VMSTATE_UINT8_ARRAY(data_buf, SMBusDevice, SMBUS_DATA_MAX_LEN),
+        VMSTATE_UINT8_SUB_ARRAY(data_buf, SMBusDevice, 0,
+            SMBUS_DATA_MAX_LEN_OLD),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * const[]) {
+        &vmstate_smbus_extended_data,
+        NULL
     }
 };
 
