@@ -36,6 +36,8 @@
 #include "qapi/error.h"
 #include "mptsas.h"
 #include "migration/qemu-file-types.h"
+#include "migration/qemu-file.h"
+#include "qemu/error-report.h"
 #include "migration/vmstate.h"
 #include "mpi.h"
 
@@ -1242,12 +1244,12 @@ static void *mptsas_load_request(QEMUFile *f, SCSIRequest *sreq, Error **errp)
     qemu_get_buffer(f, (unsigned char *)&req->scsi_io, sizeof(req->scsi_io));
 
     n = qemu_get_be32(f);
-    /* TODO: add a way for SCSIBusInfo's load_request to fail,
-     * and fail migration instead of asserting here.
-     * This is just one thing (there are probably more) that must be
-     * fixed before we can allow NDEBUG compilation.
-     */
-    assert(n >= 0);
+    if (n < 0) {
+        error_setg(errp, "mptsas: invalid sg list count %d in migration stream",
+                   n);
+        g_free(req);
+        return NULL;
+    }
 
     pci_dma_sglist_init(&req->qsg, pci, n);
     for (i = 0; i < n; i++) {
