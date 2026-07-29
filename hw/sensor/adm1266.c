@@ -271,6 +271,8 @@ static void adm1266_get(Object *obj, Visitor *v, const char *name, void *opaque,
         sscanf(name, "vout[%u]", &index);
         mode = (PMBusVoutMode *)&pmdev->pages[index].vout_mode;
         value = pmbus_linear_mode2milliunits(*(uint16_t *)opaque, mode->exp);
+    } else if (strncmp(name, "vout_mode", 9) == 0) {
+        value = *(uint8_t *)opaque;
     } else {
         value = *(uint16_t *)opaque;
     }
@@ -293,6 +295,8 @@ static void adm1266_set(Object *obj, Visitor *v, const char *name, void *opaque,
         sscanf(name, "vout[%u]", &index);
         mode = (PMBusVoutMode *)&pmdev->pages[index].vout_mode;
         *internal = pmbus_milliunits2linear_mode(value, mode->exp);
+    } else if (strncmp(name, "vout_mode", 9) == 0) {
+        *(uint8_t *)opaque = value;
     } else {
         *internal = value;
     }
@@ -321,6 +325,10 @@ static void adm1266_init(Object *obj)
         object_property_add(obj, "vout[*]", "uint32",
                             adm1266_get,
                             adm1266_set, NULL, &pmdev->pages[i].read_vout);
+
+        object_property_add(obj, "vout_mode[*]", "uint32",
+                            adm1266_get,
+                            adm1266_set, NULL, &pmdev->pages[i].vout_mode);
     }
 }
 

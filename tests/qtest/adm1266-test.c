@@ -186,6 +186,40 @@ static void test_vout_mode_exponent(void *obj, void *data,
     }
 }
 
+static void test_vout_mode_qmp(void *obj, void *data,
+                                    QGuestAllocator *alloc)
+{
+    uint16_t i2c_value, value, expected;
+    QI2CDevice *i2cdev = (QI2CDevice *)obj;
+    ADM1266VoutMode m;
+    char *path;
+
+    /* set a different exponent per page and a different value */
+    for (int i = 0; i < ADM1266_NUM_PAGES; i++) {
+        expected = 1000 * (i * 2);
+        m.mode.exp = i - 14;
+        path = g_strdup_printf("vout_mode[%d]", i);
+        qmp_adm1266_set(TEST_ID, path, m.raw);
+        path = g_strdup_printf("vout[%d]", i);
+        qmp_adm1266_set(TEST_ID, path, expected);
+    }
+
+    for (int i = 0; i < ADM1266_NUM_PAGES; i++) {
+        i2c_set8(i2cdev, PMBUS_PAGE, i);
+        expected = 1000 * (i * 2);
+        /* check correct value from i2c*/
+        m.raw = i2c_get8(i2cdev, PMBUS_VOUT_MODE);
+        i2c_value = bswap16(i2c_get16(i2cdev, PMBUS_READ_VOUT));
+        i2c_value = adm1266_linear_mode2milliunits(i2c_value, m.mode.exp);
+        g_assert_cmpuint(i2c_value, ==, expected);
+
+        /* check correct value from qmp*/
+        path = g_strdup_printf("vout[%d]", i);
+        value = qmp_adm1266_get(TEST_ID, path);
+        g_assert_cmpuint(value, ==, expected);
+    }
+}
+
 static void test_vout_clamp_to_max(void *obj, void *data,
                                    QGuestAllocator *alloc)
 {
@@ -278,6 +312,7 @@ static void adm1266_register_nodes(void)
                     test_vout_mode_exponent, NULL);
     qos_add_test("test_vout_clamp_to_max", "adm1266",
                     test_vout_clamp_to_max, NULL);
+    qos_add_test("test_vout_mode_qmp", "adm1266", test_vout_mode_qmp, NULL);
 }
 
 libqos_init(adm1266_register_nodes);
