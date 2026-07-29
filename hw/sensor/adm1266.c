@@ -263,32 +263,39 @@ static int adm1266_write_data(PMBusDevice *pmdev, const uint8_t *buf,
 static void adm1266_get(Object *obj, Visitor *v, const char *name, void *opaque,
                         Error **errp)
 {
-    uint16_t value;
+    uint32_t value, index;
     PMBusDevice *pmdev = PMBUS_DEVICE(obj);
     PMBusVoutMode *mode = (PMBusVoutMode *)&pmdev->pages[0].vout_mode;
 
-    if (strcmp(name, "vout") == 0) {
-        value = pmbus_linear_mode2data(*(uint16_t *)opaque, mode->exp);
+    if (strncmp(name, "vout[", 5) == 0) {
+        sscanf(name, "vout[%u]", &index);
+        mode = (PMBusVoutMode *)&pmdev->pages[index].vout_mode;
+        value = pmbus_linear_mode2milliunits(*(uint16_t *)opaque, mode->exp);
     } else {
         value = *(uint16_t *)opaque;
     }
 
-    visit_type_uint16(v, name, &value, errp);
+    visit_type_uint32(v, name, &value, errp);
 }
 
 static void adm1266_set(Object *obj, Visitor *v, const char *name, void *opaque,
                         Error **errp)
 {
     uint16_t *internal = opaque;
-    uint16_t value;
+    uint32_t value, index;
     PMBusDevice *pmdev = PMBUS_DEVICE(obj);
-    PMBusVoutMode *mode = (PMBusVoutMode *)&pmdev->pages[0].vout_mode;
+    PMBusVoutMode *mode;
 
-    if (!visit_type_uint16(v, name, &value, errp)) {
+    if (!visit_type_uint32(v, name, &value, errp)) {
         return;
     }
-
-    *internal = pmbus_data2linear_mode(value, mode->exp);
+    if (strncmp(name, "vout[", 5) == 0) {
+        sscanf(name, "vout[%u]", &index);
+        mode = (PMBusVoutMode *)&pmdev->pages[index].vout_mode;
+        *internal = pmbus_milliunits2linear_mode(value, mode->exp);
+    } else {
+        *internal = value;
+    }
     pmbus_check_limits(pmdev);
 }
 
@@ -311,7 +318,7 @@ static void adm1266_init(Object *obj)
     for (int i = 0; i < ADM1266_NUM_PAGES; i++) {
         pmbus_page_config(pmdev, i, flags);
 
-        object_property_add(obj, "vout[*]", "uint16",
+        object_property_add(obj, "vout[*]", "uint32",
                             adm1266_get,
                             adm1266_set, NULL, &pmdev->pages[i].read_vout);
     }

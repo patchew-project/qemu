@@ -16,6 +16,7 @@
 #include "qobject/qdict.h"
 #include "qobject/qnum.h"
 #include "qemu/bitops.h"
+#include "qemu/bswap.h"
 
 #define TEST_ID "adm1266-test"
 #define TEST_ADDR (0x12)
@@ -45,6 +46,57 @@
 #define TEST_STRING_B                           "b sample"
 #define TEST_STRING_C                           "rev c"
 
+#define ADM1266_NUM_PAGES                       17
+#define ADM1266_MAX_VALUE                       65535000
+
+typedef union {
+    uint8_t raw;
+    PMBusVoutMode mode;
+} ADM1266VoutMode;
+
+static uint32_t qmp_adm1266_get(const char *id, const char *property)
+{
+    QDict *response;
+    uint32_t ret;
+    response = qmp("{ 'execute': 'qom-get', 'arguments': { 'path': %s, "
+                   "'property': %s } }", id, property);
+    g_assert(qdict_haskey(response, "return"));
+    ret = qnum_get_uint(qobject_to(QNum, qdict_get(response, "return")));
+    qobject_unref(response);
+    return ret;
+}
+
+static void qmp_adm1266_set(const char *id,
+                             const char *property,
+                             uint32_t value)
+{
+    QDict *response;
+
+    response = qmp("{ 'execute': 'qom-set', 'arguments': { 'path': %s, "
+                   "'property': %s, 'value': %u } }",
+                   id, property, value);
+    g_assert(qdict_haskey(response, "return"));
+}
+
+static uint64_t adm1266_linear_mode2milliunits(uint16_t value, int exp)
+{
+    /* D = L * 2^e */
+    uint64_t val = value;
+    uint64_t ret;
+
+    if (exp < 0) {
+        ret = DIV_ROUND_CLOSEST((val * 1000), 1ULL << (-exp));
+    } else {
+        ret = (val << exp) * 1000;
+    }
+
+    if (ret > UINT32_MAX) {
+        return UINT32_MAX;
+    }
+
+    return ret;
+}
+
 static void compare_string(QI2CDevice *i2cdev, uint8_t reg,
                            const char *test_str)
 {
@@ -65,6 +117,98 @@ static void write_and_compare_string(QI2CDevice *i2cdev, uint8_t reg,
     strncpy(buf + 1, test_str, len);
     i2c_write_block(i2cdev, reg, (uint8_t *)buf, len + 1);
     compare_string(i2cdev, reg, test_str);
+}
+
+static void test_vout_milliunits(void *obj, void *data, QGuestAllocator *alloc)
+{
+    uint16_t i2c_value, value;
+    uint64_t i2c_milliunits;
+    QI2CDevice *i2cdev = (QI2CDevice *)obj;
+    char *path;
+    ADM1266VoutMode m;
+
+    /* set a different value in millivolts for each page */
+    for (int i = 0; i < ADM1266_NUM_PAGES; i++) {
+        path = g_strdup_printf("vout[%d]", i);
+        qmp_adm1266_set(TEST_ID, path, (1000 * (i + 1)));
+    }
+
+    for (int i = 0; i < ADM1266_NUM_PAGES; i++) {
+        i2c_set8(i2cdev, PMBUS_PAGE, i);
+
+        m.raw = i2c_get8(i2cdev, PMBUS_VOUT_MODE);
+        i2c_value = bswap16(i2c_get16(i2cdev, PMBUS_READ_VOUT));
+        i2c_milliunits = adm1266_linear_mode2milliunits(i2c_value, m.mode.exp);
+        g_assert_cmpuint(i2c_milliunits, ==, (1000 * (i + 1)));
+
+        path = g_strdup_printf("vout[%d]", i);
+        value = qmp_adm1266_get(TEST_ID, path);
+        g_assert_cmpuint(value, ==, (1000 * (i + 1)));
+    }
+}
+
+/*
+ * Note that the exponent determines the dynamic range, large exponents can not
+ * be used with values that need to be incremented in small steps
+ */
+static void test_vout_mode_exponent(void *obj, void *data,
+                                    QGuestAllocator *alloc)
+{
+    uint16_t i2c_value, value, expected;
+    uint64_t i2c_milliunits;
+    QI2CDevice *i2cdev = (QI2CDevice *)obj;
+    ADM1266VoutMode m;
+    char *path;
+
+    /* set a different exponent per page and a different value */
+    for (int i = 0; i < ADM1266_NUM_PAGES; i++) {
+        i2c_set8(i2cdev, PMBUS_PAGE, i);
+        expected = 1000 * (i * 2);
+        m.mode.exp = i - 14;
+        i2c_set8(i2cdev, PMBUS_VOUT_MODE, m.raw);
+        path = g_strdup_printf("vout[%d]", i);
+        qmp_adm1266_set(TEST_ID, path, expected);
+    }
+
+    for (int i = 0; i < ADM1266_NUM_PAGES; i++) {
+        i2c_set8(i2cdev, PMBUS_PAGE, i);
+        expected = 1000 * (i * 2);
+        /* check correct value from i2c*/
+        m.raw = i2c_get8(i2cdev, PMBUS_VOUT_MODE);
+        i2c_value = bswap16(i2c_get16(i2cdev, PMBUS_READ_VOUT));
+        i2c_milliunits = adm1266_linear_mode2milliunits(i2c_value, m.mode.exp);
+        g_assert_cmpuint(i2c_milliunits, ==, expected);
+
+        /* check correct value from qmp*/
+        path = g_strdup_printf("vout[%d]", i);
+        value = qmp_adm1266_get(TEST_ID, path);
+        g_assert_cmpuint(value, ==, expected);
+    }
+}
+
+static void test_vout_clamp_to_max(void *obj, void *data,
+                                   QGuestAllocator *alloc)
+{
+    uint16_t i2c_value;
+    uint32_t value;
+    QI2CDevice *i2cdev = (QI2CDevice *)obj;
+    char *path;
+
+    for (int i = 0; i < ADM1266_NUM_PAGES; i++) {
+        path = g_strdup_printf("vout[%d]", i);
+        qmp_adm1266_set(TEST_ID, path, 90000000);
+    }
+
+    for (int i = 0; i < ADM1266_NUM_PAGES; i++) {
+        i2c_set8(i2cdev, PMBUS_PAGE, i);
+
+        i2c_value = bswap16(i2c_get16(i2cdev, PMBUS_READ_VOUT));
+        g_assert_cmpuint(i2c_value, ==, UINT16_MAX);
+
+        path = g_strdup_printf("vout[%d]", i);
+        value = qmp_adm1266_get(TEST_ID, path);
+        g_assert_cmpuint(value, ==, ADM1266_MAX_VALUE);
+    }
 }
 
 static void test_defaults(void *obj, void *data, QGuestAllocator *alloc)
@@ -128,6 +272,12 @@ static void adm1266_register_nodes(void)
     qos_add_test("test_defaults", "adm1266", test_defaults, NULL);
     qos_add_test("test_partial_reads", "adm1266", test_partial_reads, NULL);
     qos_add_test("test_rw_regs", "adm1266", test_rw_regs, NULL);
+    qos_add_test("test_vout_milliunits", "adm1266",
+                    test_vout_milliunits, NULL);
+    qos_add_test("test_vout_mode_exponent", "adm1266",
+                    test_vout_mode_exponent, NULL);
+    qos_add_test("test_vout_clamp_to_max", "adm1266",
+                    test_vout_clamp_to_max, NULL);
 }
 
 libqos_init(adm1266_register_nodes);
