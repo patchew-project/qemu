@@ -482,6 +482,15 @@ uint32_t pmbus_direct_mode2data(PMBusCoefficients c, uint16_t value);
 uint16_t pmbus_data2linear_mode(uint16_t value, int exp);
 
 /**
+ * Convert milliunit sensor value to linear mode format
+ *
+ * L = D * 2^(-e)
+ *
+ * @return uint16
+ */
+uint16_t pmbus_milliunits2linear_mode(uint32_t value, int exp);
+
+/**
  * Convert linear mode formatted data into sensor reading
  *
  * D = L * 2^e
@@ -489,6 +498,15 @@ uint16_t pmbus_data2linear_mode(uint16_t value, int exp);
  * @return uint16
  */
 uint16_t pmbus_linear_mode2data(uint16_t value, int exp);
+
+/**
+ * Convert linear mode formatted data into sensor reading in milliunits
+ *
+ * D = L * 2^e
+ *
+ * @return uint32 value in milliunits
+ */
+uint32_t pmbus_linear_mode2milliunits(uint16_t value, int exp);
 
 /**
  * @brief Send a block of data over PMBus
