@@ -449,10 +449,17 @@ typedef struct PMBusCoefficients {
 /**
  * VOUT_Mode bit fields
  */
+#if HOST_BIG_ENDIAN
 typedef struct PMBusVoutMode {
     uint8_t  mode:3;
     int8_t   exp:5;
 } PMBusVoutMode;
+# else
+typedef struct PMBusVoutMode {
+    int8_t   exp:5;
+    uint8_t  mode:3;
+} PMBusVoutMode;
+#endif
 
 /**
  * Convert sensor values to direct mode format
