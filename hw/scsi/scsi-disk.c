@@ -181,7 +181,7 @@ static void scsi_disk_emulate_save_request(QEMUFile *f, SCSIRequest *req)
     }
 }
 
-static void scsi_disk_load_request(QEMUFile *f, SCSIRequest *req)
+static void scsi_disk_load_request(QEMUFile *f, SCSIRequest *req, Error **errp)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
 
@@ -204,12 +204,13 @@ static void scsi_disk_load_request(QEMUFile *f, SCSIRequest *req)
     qemu_iovec_init_external(&r->qiov, &r->iov, 1);
 }
 
-static void scsi_disk_emulate_load_request(QEMUFile *f, SCSIRequest *req)
+static void scsi_disk_emulate_load_request(QEMUFile *f, SCSIRequest *req,
+                                           Error **errp)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
 
     if (s->migrate_emulated_scsi_request) {
-        scsi_disk_load_request(f, req);
+        scsi_disk_load_request(f, req, errp);
     }
 }
 

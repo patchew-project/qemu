@@ -51,5 +51,5 @@ DECLARE_INSTANCE_CHECKER(MSDState, USB_STORAGE_DEV,
 void usb_msd_transfer_data(SCSIRequest *req, uint32_t len);
 void usb_msd_command_complete(SCSIRequest *req, size_t resid);
 void usb_msd_request_cancelled(SCSIRequest *req);
-void *usb_msd_load_request(QEMUFile *f, SCSIRequest *req);
+void *usb_msd_load_request(QEMUFile *f, SCSIRequest *req, Error **errp);
 void usb_msd_handle_reset(USBDevice *dev);

@@ -53,7 +53,8 @@ static void scsi_generic_save_request(QEMUFile *f, SCSIRequest *req)
     }
 }
 
-static void scsi_generic_load_request(QEMUFile *f, SCSIRequest *req)
+static void scsi_generic_load_request(QEMUFile *f, SCSIRequest *req,
+                                      Error **errp)
 {
     SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
 

@@ -134,7 +134,7 @@ struct SCSIReqOps {
     uint8_t *(*get_buf)(SCSIRequest *req);
 
     void (*save_request)(QEMUFile *f, SCSIRequest *req);
-    void (*load_request)(QEMUFile *f, SCSIRequest *req);
+    void (*load_request)(QEMUFile *f, SCSIRequest *req, Error **errp);
 };
 
 struct SCSIBusInfo {
@@ -150,7 +150,7 @@ struct SCSIBusInfo {
     QEMUSGList *(*get_sg_list)(SCSIRequest *req);
 
     void (*save_request)(QEMUFile *f, SCSIRequest *req);
-    void *(*load_request)(QEMUFile *f, SCSIRequest *req);
+    void *(*load_request)(QEMUFile *f, SCSIRequest *req, Error **errp);
     void (*free_request)(SCSIBus *bus, void *priv);
 
     /*

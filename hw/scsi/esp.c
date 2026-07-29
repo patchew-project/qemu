@@ -1539,7 +1539,7 @@ static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
     return val;
 }
 
-static void *esp_load_request(QEMUFile *f, SCSIRequest *req)
+static void *esp_load_request(QEMUFile *f, SCSIRequest *req, Error **errp)
 {
     ESPState *s = container_of(req->bus, ESPState, bus);
 

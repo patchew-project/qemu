@@ -3610,8 +3610,9 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     virtio_notify_vector(vdev, VIRTIO_NO_VECTOR);
 
     if (vdc->load != NULL) {
-        ret = vdc->load(vdev, f, version_id);
-        if (ret) {
+        ret = vdc->load(vdev, f, version_id, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
             return ret;
         }
     }

@@ -268,7 +268,7 @@ struct VirtioDeviceClass {
      * use vmsd for new devices.
      */
     void (*save)(VirtIODevice *vdev, QEMUFile *f);
-    int (*load)(VirtIODevice *vdev, QEMUFile *f, int version_id);
+    int (*load)(VirtIODevice *vdev, QEMUFile *f, int version_id, Error **errp);
     /* Post load hook in vmsd is called early while device is processed, and
      * when VirtIODevice isn't fully initialized.  Devices should use this instead,
      * unless they specifically want to verify the migration stream as it's

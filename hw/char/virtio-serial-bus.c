@@ -725,8 +725,8 @@ static void virtio_serial_post_load_timer_cb(void *opaque)
     s->post_load = NULL;
 }
 
-static int fetch_active_ports_list(QEMUFile *f,
-                                   VirtIOSerial *s, uint32_t nr_active_ports)
+static int fetch_active_ports_list(QEMUFile *f, VirtIOSerial *s,
+                                   uint32_t nr_active_ports, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     uint32_t i;
@@ -749,6 +749,7 @@ static int fetch_active_ports_list(QEMUFile *f,
         id = qemu_get_be32(f);
         port = find_port_by_id(s, id);
         if (!port) {
+            error_setg(errp, "Invalid port id %u", id);
             return -EINVAL;
         }
 
@@ -776,7 +777,7 @@ static int fetch_active_ports_list(QEMUFile *f,
 }
 
 static int virtio_serial_load_device(VirtIODevice *vdev, QEMUFile *f,
-                                     int version_id)
+                                     int version_id, Error **errp)
 {
     VirtIOSerial *s = VIRTIO_SERIAL(vdev);
     uint32_t max_nr_ports, nr_active_ports, ports_map;
@@ -794,10 +795,8 @@ static int virtio_serial_load_device(VirtIODevice *vdev, QEMUFile *f,
         qemu_get_be32s(f, &ports_map);
 
         if (ports_map != s->ports_map[i]) {
-            /*
-             * Ports active on source and destination don't
-             * match. Fail migration.
-             */
+            error_setg(errp, "Ports active on source (%u) and destination (%u)"
+                       " don't match", ports_map, s->ports_map[i]);
             return -EINVAL;
         }
     }
@@ -805,8 +804,11 @@ static int virtio_serial_load_device(VirtIODevice *vdev, QEMUFile *f,
     qemu_get_be32s(f, &nr_active_ports);
 
     if (nr_active_ports) {
-        ret = fetch_active_ports_list(f, s, nr_active_ports);
-        if (ret) {
+        Error *local_err = NULL;
+
+        ret = fetch_active_ports_list(f, s, nr_active_ports, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
             return ret;
         }
     }

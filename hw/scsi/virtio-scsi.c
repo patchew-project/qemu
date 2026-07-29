@@ -261,7 +261,8 @@ static void virtio_scsi_save_request(QEMUFile *f, SCSIRequest *sreq)
     qemu_put_virtqueue_element(vdev, f, &req->elem);
 }
 
-static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
+static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq,
+                                      Error **errp)
 {
     SCSIBus *bus = sreq->bus;
     VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);

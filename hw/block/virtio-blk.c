@@ -1364,7 +1364,7 @@ static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
 }
 
 static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
-                                  int version_id)
+                                  int version_id, Error **errp)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
 
@@ -1377,8 +1377,9 @@ static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
             vq_idx = qemu_get_be32(f);
 
             if (vq_idx >= nvqs) {
-                error_report("Invalid virtqueue index in request list: %#x",
-                             vq_idx);
+                error_setg(errp,
+                           "Invalid virtqueue index in request list: 0x%x",
+                           vq_idx);
                 return -EINVAL;
             }
         }

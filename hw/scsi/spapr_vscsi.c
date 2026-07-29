@@ -642,7 +642,7 @@ static void vscsi_save_request(QEMUFile *f, SCSIRequest *sreq)
                                    req->cur_desc_offset);
 }
 
-static void *vscsi_load_request(QEMUFile *f, SCSIRequest *sreq)
+static void *vscsi_load_request(QEMUFile *f, SCSIRequest *sreq, Error **errp)
 {
     SCSIBus *bus = sreq->bus;
     VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(bus->qbus.parent);
@@ -657,8 +657,9 @@ static void *vscsi_load_request(QEMUFile *f, SCSIRequest *sreq)
     memset(req, 0, sizeof(*req));
     rc = vmstate_load_state(f, &vmstate_spapr_vscsi_req, req, 1, &local_err);
     if (rc) {
-        fprintf(stderr, "VSCSI: failed loading request tag#%u\n", sreq->tag);
-        error_report_err(local_err);
+        error_propagate_prepend(errp, local_err,
+                                "VSCSI: failed loading request tag#%u: ",
+                                sreq->tag);
         return NULL;
     }
     assert(req->active);

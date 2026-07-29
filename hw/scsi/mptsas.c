@@ -1230,7 +1230,7 @@ static void mptsas_save_request(QEMUFile *f, SCSIRequest *sreq)
     }
 }
 
-static void *mptsas_load_request(QEMUFile *f, SCSIRequest *sreq)
+static void *mptsas_load_request(QEMUFile *f, SCSIRequest *sreq, Error **errp)
 {
     SCSIBus *bus = sreq->bus;
     MPTSASState *s = container_of(bus, MPTSASState, bus);
