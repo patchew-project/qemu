@@ -159,6 +159,7 @@ class QEMUMachine:
         self._sock_pair: Optional[Tuple[socket.socket, socket.socket]] = None
         self._cons_sock_pair: Optional[
             Tuple[socket.socket, socket.socket]] = None
+        self._cons_sock_saved_fd: Optional[int] = None
         self._temp_dir: Optional[str] = None
         self._base_temp_dir = base_temp_dir
         self._log_dir = log_dir
@@ -388,6 +389,7 @@ class QEMUMachine:
         if self._sock_pair:
             self._sock_pair[0].close()
         if self._cons_sock_pair:
+            self._cons_sock_saved_fd = self._cons_sock_pair[0].fileno()
             self._cons_sock_pair[0].close()
 
         if self._qmp_connection:
