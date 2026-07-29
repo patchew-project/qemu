@@ -962,10 +962,14 @@ static void _decode_opc(DisasContext * ctx)
     case 0xf00a: /* fmov {F,D,X}Rm,@Rn - FPSCR: Nothing */
         CHECK_FPU_ENABLED
         if (ctx->tbflags & FPSCR_SZ) {
-            TCGv_i64 fp = tcg_temp_new_i64();
-            gen_load_fpr64(ctx, fp, XHACK(B7_4));
-            tcg_gen_qemu_st_i64(fp, REG(B11_8), ctx->memidx,
-                                MO_TEUQ | MO_ALIGN);
+            TCGv addr = tcg_temp_new_i32();
+            int xsrc = XHACK(B7_4);
+
+            tcg_gen_qemu_st_i32(FREG(xsrc), REG(B11_8), ctx->memidx,
+                                MO_TEUL | MO_ALIGN);
+            tcg_gen_addi_i32(addr, REG(B11_8), 4);
+            tcg_gen_qemu_st_i32(FREG(xsrc + 1), addr, ctx->memidx,
+                                MO_TEUL | MO_ALIGN);
         } else {
             tcg_gen_qemu_st_i32(FREG(B7_4), REG(B11_8), ctx->memidx,
                                 MO_TEUL | MO_ALIGN);
@@ -974,23 +978,29 @@ static void _decode_opc(DisasContext * ctx)
     case 0xf008: /* fmov @Rm,{F,D,X}Rn - FPSCR: Nothing */
         CHECK_FPU_ENABLED
         if (ctx->tbflags & FPSCR_SZ) {
-            TCGv_i64 fp = tcg_temp_new_i64();
-            tcg_gen_qemu_ld_i64(fp, REG(B7_4), ctx->memidx,
-                                MO_TEUQ | MO_ALIGN);
-            gen_store_fpr64(ctx, fp, XHACK(B11_8));
+            TCGv addr = tcg_temp_new_i32();
+            int xdst = XHACK(B11_8);
+            tcg_gen_qemu_ld_i32(FREG(xdst), REG(B7_4), ctx->memidx,
+                                MO_TEUL | MO_ALIGN);
+            tcg_gen_addi_i32(addr, REG(B7_4), 4);
+            tcg_gen_qemu_ld_i32(FREG(xdst + 1), addr, ctx->memidx,
+                                MO_TEUL | MO_ALIGN);
         } else {
             tcg_gen_qemu_ld_i32(FREG(B11_8), REG(B7_4), ctx->memidx,
                                 MO_TEUL | MO_ALIGN);
         }
         return;
+
     case 0xf009: /* fmov @Rm+,{F,D,X}Rn - FPSCR: Nothing */
         CHECK_FPU_ENABLED
         if (ctx->tbflags & FPSCR_SZ) {
-            TCGv_i64 fp = tcg_temp_new_i64();
-            tcg_gen_qemu_ld_i64(fp, REG(B7_4), ctx->memidx,
-                                MO_TEUQ | MO_ALIGN);
-            gen_store_fpr64(ctx, fp, XHACK(B11_8));
-            tcg_gen_addi_i32(REG(B7_4), REG(B7_4), 8);
+            int xdst = XHACK(B11_8);
+            tcg_gen_qemu_ld_i32(FREG(xdst), REG(B7_4), ctx->memidx,
+                                MO_TEUL | MO_ALIGN);
+            tcg_gen_addi_i32(REG(B7_4), REG(B7_4), 4);
+            tcg_gen_qemu_ld_i32(FREG(xdst + 1), REG(B7_4), ctx->memidx,
+                                MO_TEUL | MO_ALIGN);
+            tcg_gen_addi_i32(REG(B7_4), REG(B7_4), 4);
         } else {
             tcg_gen_qemu_ld_i32(FREG(B11_8), REG(B7_4), ctx->memidx,
                                 MO_TEUL | MO_ALIGN);
@@ -999,20 +1009,18 @@ static void _decode_opc(DisasContext * ctx)
         return;
     case 0xf00b: /* fmov {F,D,X}Rm,@-Rn - FPSCR: Nothing */
         CHECK_FPU_ENABLED
-        {
-            TCGv addr = tcg_temp_new_i32();
-            if (ctx->tbflags & FPSCR_SZ) {
-                TCGv_i64 fp = tcg_temp_new_i64();
-                gen_load_fpr64(ctx, fp, XHACK(B7_4));
-                tcg_gen_subi_i32(addr, REG(B11_8), 8);
-                tcg_gen_qemu_st_i64(fp, addr, ctx->memidx,
-                                    MO_TEUQ | MO_ALIGN);
-            } else {
-                tcg_gen_subi_i32(addr, REG(B11_8), 4);
-                tcg_gen_qemu_st_i32(FREG(B7_4), addr, ctx->memidx,
-                                    MO_TEUL | MO_ALIGN);
-            }
-            tcg_gen_mov_i32(REG(B11_8), addr);
+        if (ctx->tbflags & FPSCR_SZ) {
+            int xdst = XHACK(B7_4);
+            tcg_gen_subi_i32(REG(B11_8), REG(B11_8), 4);
+            tcg_gen_qemu_st_i32(FREG(xdst + 1), REG(B11_8), ctx->memidx,
+                                MO_TEUL | MO_ALIGN);
+            tcg_gen_subi_i32(REG(B11_8), REG(B11_8), 4);
+            tcg_gen_qemu_st_i32(FREG(xdst), REG(B11_8), ctx->memidx,
+                                MO_TEUL | MO_ALIGN);
+        } else {
+            tcg_gen_subi_i32(REG(B11_8), REG(B11_8), 4);
+            tcg_gen_qemu_st_i32(FREG(B7_4), REG(B11_8), ctx->memidx,
+                                MO_TEUL | MO_ALIGN);
         }
         return;
     case 0xf006: /* fmov @(R0,Rm),{F,D,X}Rm - FPSCR: Nothing */
@@ -1021,10 +1029,12 @@ static void _decode_opc(DisasContext * ctx)
             TCGv addr = tcg_temp_new_i32();
             tcg_gen_add_i32(addr, REG(B7_4), REG(0));
             if (ctx->tbflags & FPSCR_SZ) {
-                TCGv_i64 fp = tcg_temp_new_i64();
-                tcg_gen_qemu_ld_i64(fp, addr, ctx->memidx,
-                                    MO_TEUQ | MO_ALIGN);
-                gen_store_fpr64(ctx, fp, XHACK(B11_8));
+                int xdst = XHACK(B11_8);
+                tcg_gen_qemu_ld_i32(FREG(xdst), addr, ctx->memidx,
+                                    MO_TEUL | MO_ALIGN);
+                tcg_gen_addi_i32(addr, addr, 4);
+                tcg_gen_qemu_ld_i32(FREG(xdst + 1), addr, ctx->memidx,
+                                    MO_TEUL | MO_ALIGN);
             } else {
                 tcg_gen_qemu_ld_i32(FREG(B11_8), addr, ctx->memidx,
                                     MO_TEUL | MO_ALIGN);
@@ -1037,10 +1047,12 @@ static void _decode_opc(DisasContext * ctx)
             TCGv addr = tcg_temp_new();
             tcg_gen_add_i32(addr, REG(B11_8), REG(0));
             if (ctx->tbflags & FPSCR_SZ) {
-                TCGv_i64 fp = tcg_temp_new_i64();
-                gen_load_fpr64(ctx, fp, XHACK(B7_4));
-                tcg_gen_qemu_st_i64(fp, addr, ctx->memidx,
-                                    MO_TEUQ | MO_ALIGN);
+                int xsrc = XHACK(B7_4);
+                tcg_gen_qemu_st_i32(FREG(xsrc), addr, ctx->memidx,
+                                    MO_TEUL | MO_ALIGN);
+                tcg_gen_addi_i32(addr, addr, 4);
+                tcg_gen_qemu_st_i32(FREG(xsrc + 1), addr, ctx->memidx,
+                                    MO_TEUL | MO_ALIGN);
             } else {
                 tcg_gen_qemu_st_i32(FREG(B7_4), addr, ctx->memidx,
                                     MO_TEUL | MO_ALIGN);
