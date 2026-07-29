@@ -31,6 +31,7 @@
 
 typedef struct VMStateInfo VMStateInfo;
 typedef struct VMStateField VMStateField;
+typedef struct VMStateOffset VMStateOffset;
 
 /*
  * VMStateInfo allows customized migration of objects that don't fit in
@@ -187,6 +188,11 @@ typedef enum {
     MIG_PRI_MAX,
 } MigrationPriority;
 
+struct VMStateOffset {
+    uint32_t off;
+    uint8_t size;
+};
+
 struct VMStateField {
     const char *name;
     size_t offset;
@@ -205,11 +211,11 @@ struct VMStateField {
      * pointer point to.
      */
     size_t size;
-    size_t size_offset;
+    VMStateOffset size_offset;
 
     size_t start;
     int num;
-    size_t num_offset;
+    VMStateOffset num_offset;
     const VMStateInfo *info;
     enum VMStateFlags flags;
     const VMStateDescription *vmsd;
@@ -327,6 +333,16 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 #define type_check_varray(t1, t2, f)                                 \
     (type_check(t1, typeof_elt_of_field(t2, f))                      \
      + QEMU_BUILD_BUG_ON_ZERO(!QEMU_IS_ARRAY(((t2 *)0)->f)))
+
+#define type_check_int64(t)                                             \
+    (((ptrdiff_t)0 * (ptrdiff_t)(~((t)0))) +                            \
+     (0 * sizeof(char[(sizeof(t) <= sizeof(uint64_t)) ? 1 : -1])))
+
+#define vmstate_field_offset(_state, _field) {                  \
+    .off = (offsetof(_state, _field) +                          \
+            type_check_int64(typeof_field(_state, _field))),    \
+    .size = sizeof(typeof_field(_state, _field)),               \
+}
 
 #define vmstate_offset_value(_state, _field, _type)                  \
     (offsetof(_state, _field) +                                      \
@@ -454,7 +470,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 #define VMSTATE_VARRAY_INT32(_field, _state, _field_num, _version, _info, _type) {\
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
-    .num_offset = vmstate_offset_value(_state, _field_num, int32_t), \
+    .num_offset = vmstate_field_offset(_state, _field_num),          \
     .info       = &(_info),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_VARRAY_INT32|VMS_POINTER,                      \
@@ -464,7 +480,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 #define VMSTATE_VARRAY_UINT32(_field, _state, _field_num, _version, _info, _type) {\
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint32_t),\
+    .num_offset = vmstate_field_offset(_state, _field_num),          \
     .info       = &(_info),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_VARRAY_UINT32|VMS_POINTER,                     \
@@ -474,7 +490,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 #define VMSTATE_VARRAY_INT32_ALLOC(_field, _state, _field_num, _version, _info, _type) {\
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
-    .num_offset = vmstate_offset_value(_state, _field_num, int32_t), \
+    .num_offset = vmstate_field_offset(_state, _field_num),          \
     .info       = &(_info),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_VARRAY_INT32 | VMS_POINTER | VMS_ALLOC,        \
@@ -484,7 +500,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 #define VMSTATE_VARRAY_UINT32_ALLOC(_field, _state, _field_num, _version, _info, _type) {\
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint32_t),\
+    .num_offset = vmstate_field_offset(_state, _field_num),          \
     .info       = &(_info),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_VARRAY_UINT32|VMS_POINTER|VMS_ALLOC,           \
@@ -494,7 +510,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 #define VMSTATE_VARRAY_UINT16_ALLOC(_field, _state, _field_num, _version, _info, _type) {\
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint16_t),\
+    .num_offset = vmstate_field_offset(_state, _field_num),          \
     .info       = &(_info),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_VARRAY_UINT16 | VMS_POINTER | VMS_ALLOC,       \
@@ -504,7 +520,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 #define VMSTATE_VARRAY_UINT16_UNSAFE(_field, _state, _field_num, _version, _info, _type) {\
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint16_t),\
+    .num_offset = vmstate_field_offset(_state, _field_num),          \
     .info       = &(_info),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_VARRAY_UINT16,                                 \
@@ -583,7 +599,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
     _field, _state, _field_num, _version, _vmsd, _type) {            \
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint8_t), \
+    .num_offset = vmstate_field_offset(_state, _field_num),          \
     .vmsd       = &(_vmsd),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_POINTER | VMS_VARRAY_UINT8 |                   \
@@ -596,7 +612,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
     _field, _state, _field_num, _version, _vmsd, _type) {             \
     .name       = (stringify(_field)),                                \
     .version_id = (_version),                                         \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint32_t), \
+    .num_offset = vmstate_field_offset(_state, _field_num),           \
     .vmsd       = &(_vmsd),                                           \
     .size       = sizeof(_type),                                      \
     .flags      = VMS_POINTER | VMS_VARRAY_UINT32 |                   \
@@ -608,7 +624,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 #define VMSTATE_VARRAY_OF_POINTER_UINT32(_field, _state, _field_num, _version, _info, _type) { \
     .name       = (stringify(_field)),                                    \
     .version_id = (_version),                                             \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint32_t),     \
+    .num_offset = vmstate_field_offset(_state, _field_num),               \
     .info       = &(_info),                                               \
     .flags      = VMS_VARRAY_UINT32 | VMS_ARRAY_OF_POINTER | VMS_POINTER, \
     .offset     = vmstate_offset_pointer(_state, _field, _type *),          \
@@ -650,7 +666,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 
 #define VMSTATE_STRUCT_VARRAY_UINT8(_field, _state, _field_num, _version, _vmsd, _type) { \
     .name       = (stringify(_field)),                               \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint8_t), \
+    .num_offset = vmstate_field_offset(_state, _field_num),          \
     .version_id = (_version),                                        \
     .vmsd       = &(_vmsd),                                          \
     .size       = sizeof(_type),                                     \
@@ -674,7 +690,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 #define VMSTATE_STRUCT_VARRAY_POINTER_INT32(_field, _state, _field_num, _vmsd, _type) { \
     .name       = (stringify(_field)),                               \
     .version_id = 0,                                                 \
-    .num_offset = vmstate_offset_value(_state, _field_num, int32_t), \
+    .num_offset = vmstate_field_offset(_state, _field_num),          \
     .size       = sizeof(_type),                                     \
     .vmsd       = &(_vmsd),                                          \
     .flags      = VMS_POINTER | VMS_VARRAY_INT32 | VMS_STRUCT,       \
@@ -684,7 +700,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 #define VMSTATE_STRUCT_VARRAY_POINTER_UINT32(_field, _state, _field_num, _vmsd, _type) { \
     .name       = (stringify(_field)),                               \
     .version_id = 0,                                                 \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint32_t),\
+    .num_offset = vmstate_field_offset(_state, _field_num),          \
     .size       = sizeof(_type),                                     \
     .vmsd       = &(_vmsd),                                          \
     .flags      = VMS_POINTER | VMS_VARRAY_INT32 | VMS_STRUCT,       \
@@ -694,7 +710,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 #define VMSTATE_STRUCT_VARRAY_POINTER_UINT16(_field, _state, _field_num, _vmsd, _type) { \
     .name       = (stringify(_field)),                               \
     .version_id = 0,                                                 \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint16_t),\
+    .num_offset = vmstate_field_offset(_state, _field_num),          \
     .size       = sizeof(_type),                                     \
     .vmsd       = &(_vmsd),                                          \
     .flags      = VMS_POINTER | VMS_VARRAY_UINT16 | VMS_STRUCT,      \
@@ -703,7 +719,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 
 #define VMSTATE_STRUCT_VARRAY_INT32(_field, _state, _field_num, _version, _vmsd, _type) { \
     .name       = (stringify(_field)),                               \
-    .num_offset = vmstate_offset_value(_state, _field_num, int32_t), \
+    .num_offset = vmstate_field_offset(_state, _field_num, int32_t), \
     .version_id = (_version),                                        \
     .vmsd       = &(_vmsd),                                          \
     .size       = sizeof(_type),                                     \
@@ -713,7 +729,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 
 #define VMSTATE_STRUCT_VARRAY_UINT32(_field, _state, _field_num, _version, _vmsd, _type) { \
     .name       = (stringify(_field)),                               \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint32_t), \
+    .num_offset = vmstate_field_offset(_state, _field_num),          \
     .version_id = (_version),                                        \
     .vmsd       = &(_vmsd),                                          \
     .size       = sizeof(_type),                                     \
@@ -725,7 +741,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
     .vmsd       = &(_vmsd),                                          \
-    .num_offset = vmstate_offset_value(_state, _field_num, int32_t), \
+    .num_offset = vmstate_field_offset(_state, _field_num),          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_STRUCT|VMS_VARRAY_INT32|VMS_ALLOC|VMS_POINTER, \
     .offset     = vmstate_offset_pointer(_state, _field, _type),     \
@@ -746,7 +762,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
     .name         = (stringify(_field)),                             \
     .version_id   = (_version),                                      \
     .field_exists = (_test),                                         \
-    .size_offset  = vmstate_offset_value(_state, _field_size, uint32_t),\
+    .size_offset  = vmstate_field_offset(_state, _field_size),       \
     .size         = (_multiply),                                      \
     .info         = &vmstate_info_buffer,                            \
     .flags        = VMS_VBUFFER|VMS_POINTER|VMS_MULTIPLY,            \
@@ -757,7 +773,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
     .name         = (stringify(_field)),                             \
     .version_id   = (_version),                                      \
     .field_exists = (_test),                                         \
-    .size_offset  = vmstate_offset_value(_state, _field_size, int32_t),\
+    .size_offset  = vmstate_field_offset(_state, _field_size),       \
     .info         = &vmstate_info_buffer,                            \
     .flags        = VMS_VBUFFER|VMS_POINTER,                         \
     .offset       = offsetof(_state, _field),                        \
@@ -767,7 +783,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
     .name         = (stringify(_field)),                             \
     .version_id   = (_version),                                      \
     .field_exists = (_test),                                         \
-    .size_offset  = vmstate_offset_value(_state, _field_size, uint32_t),\
+    .size_offset  = vmstate_field_offset(_state, _field_size),       \
     .info         = &vmstate_info_buffer,                            \
     .flags        = VMS_VBUFFER|VMS_POINTER,                         \
     .offset       = offsetof(_state, _field),                        \
@@ -777,7 +793,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
     .name         = (stringify(_field)),                             \
     .version_id   = (_version),                                      \
     .field_exists = (_test),                                         \
-    .size_offset  = vmstate_offset_value(_state, _field_size, uint64_t),\
+    .size_offset  = vmstate_field_offset(_state, _field_size),       \
     .info         = &vmstate_info_buffer,                            \
     .flags        = VMS_VBUFFER | VMS_POINTER,                       \
     .offset       = offsetof(_state, _field),                        \
@@ -788,7 +804,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
     .name         = (stringify(_field)),                             \
     .version_id   = (_version),                                      \
     .field_exists = (_test),                                         \
-    .size_offset  = vmstate_offset_value(_state, _field_size, uint32_t),\
+    .size_offset  = vmstate_field_offset(_state, _field_size),       \
     .info         = &vmstate_info_buffer,                            \
     .flags        = VMS_VBUFFER|VMS_POINTER|VMS_ALLOC,               \
     .offset       = offsetof(_state, _field),                        \
@@ -848,7 +864,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 #define VMSTATE_UNUSED_VARRAY_UINT32(_state, _test, _version, _field_num, _size) {\
     .name         = "unused",                                        \
     .field_exists = (_test),                                         \
-    .num_offset   = vmstate_offset_value(_state, _field_num, uint32_t),\
+    .num_offset   = vmstate_field_offset(_state, _field_num),        \
     .version_id   = (_version),                                      \
     .size         = (_size),                                         \
     .info         = &vmstate_info_unused_buffer,                     \
@@ -862,7 +878,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
     .name         = (stringify(_field)),                             \
     .field_exists = (_test),                                         \
     .version_id   = (_version),                                      \
-    .size_offset  = vmstate_offset_value(_state, _field_size, int32_t),\
+    .size_offset  = vmstate_field_offset(_state, _field_size),       \
     .info         = &vmstate_info_bitmap,                            \
     .flags        = VMS_VBUFFER|VMS_POINTER,                         \
     .offset       = offsetof(_state, _field),                        \
