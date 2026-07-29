@@ -143,7 +143,17 @@ int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu)
     g_assert_not_reached();
 }
 
+int kvm_s390_get_hpage(void)
+{
+    g_assert_not_reached();
+}
+
 int kvm_s390_get_hpage_1m(void)
+{
+    g_assert_not_reached();
+}
+
+int kvm_s390_get_hpage_2g(void)
 {
     g_assert_not_reached();
 }

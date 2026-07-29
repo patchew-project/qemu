@@ -145,7 +145,7 @@ static int cap_mem_op;
 static int cap_mem_op_extension;
 static int cap_s390_irq;
 static int cap_ri;
-static int cap_hpage_1m;
+static int cap_hpage;
 static int cap_vcpu_resets;
 static int cap_protected;
 static int cap_zpci_op;
@@ -231,7 +231,7 @@ static void kvm_s390_enable_cmma(void)
         .attr = KVM_S390_VM_MEM_ENABLE_CMMA,
     };
 
-    if (cap_hpage_1m) {
+    if (cap_hpage) {
         warn_report("CMM will not be enabled because it is not "
                     "compatible with huge memory backings.");
         return;
@@ -298,24 +298,36 @@ void kvm_s390_set_max_pagesize(uint64_t pagesize, Error **errp)
         return;
     }
 
-    if (pagesize != 1 * MiB) {
-        error_setg(errp, "Memory backing with 2G pages was specified, "
-                   "but KVM does not support this memory backing");
-        return;
+    if (pagesize == 2 * GiB) {
+        if (kvm_vm_enable_cap(kvm_state, KVM_CAP_S390_HPAGE_2G, 0)) {
+            error_setg(errp, "Memory backing with 2G pages was specified, "
+                       "but KVM does not support this memory backing");
+            return;
+        }
+        cap_hpage = 2;
+    } else if (pagesize == MiB) {
+        if (kvm_vm_enable_cap(kvm_state, KVM_CAP_S390_HPAGE_1M, 0)) {
+            error_setg(errp, "Memory backing with 1M pages was specified, "
+                       "but KVM does not support this memory backing");
+            return;
+        }
+        cap_hpage = 1;
     }
+}
 
-    if (kvm_vm_enable_cap(kvm_state, KVM_CAP_S390_HPAGE_1M, 0)) {
-        error_setg(errp, "Memory backing with 1M pages was specified, "
-                   "but KVM does not support this memory backing");
-        return;
-    }
-
-    cap_hpage_1m = 1;
+int kvm_s390_get_hpage(void)
+{
+    return cap_hpage;
 }
 
 int kvm_s390_get_hpage_1m(void)
 {
-    return cap_hpage_1m;
+    return cap_hpage == 1;
+}
+
+int kvm_s390_get_hpage_2g(void)
+{
+    return cap_hpage == 2;
 }
 
 static void ccw_machine_class_foreach(ObjectClass *oc, void *opaque)
