@@ -24,6 +24,7 @@ from qemu_test import (
     exec_command_and_wait_for_pattern,
 )
 from qemu_test.decorators import skipWithoutSudo
+from qemu.qmp.legacy import QEMUMonitorProtocol
 
 
 GUEST_IP = "192.168.100.2"
@@ -289,7 +290,8 @@ class TAPFdMigration(LinuxKernelTest):
             self.fail(f"Failed to create shared memory file: {e}")
 
     def prepare_vm(
-        self, shm_path, vhost, incoming=False, vm=None, local=True
+        self, shm_path, vhost, incoming=False, vm=None, local=True,
+        cpr=False, cpr_sock=""
     ):
         if not vm:
             vm = self.vm
@@ -304,7 +306,10 @@ class TAPFdMigration(LinuxKernelTest):
             "-object",
             f"memory-backend-file,id=ram0,size=1G,mem-path={shm_path},share=on",
         )
-        vm.add_args("-machine", "memory-backend=ram0")
+        machine_opt = "memory-backend=ram0"
+        if cpr:
+            machine_opt += ",aux-ram-share=on"
+        vm.add_args("-machine", machine_opt)
 
         vm.add_args(
             "-drive",
@@ -315,6 +320,13 @@ class TAPFdMigration(LinuxKernelTest):
 
         if incoming:
             vm.add_args("-incoming", "defer")
+            if cpr:
+                vm.add_args(
+                    "-incoming",
+                    '{"channel-type": "cpr", '
+                    '"addr": {"transport": "socket", '
+                    f'"type": "unix", "path": "{cpr_sock}"}}}}',
+                )
 
     def add_virtio_net(
         self, vm, vhost: bool, tap_name: str, local: bool, incoming: bool
@@ -348,7 +360,7 @@ class TAPFdMigration(LinuxKernelTest):
             disable_legacy="off",
         )
 
-    def set_migration_capabilities(self, vm, local):
+    def set_migration_capabilities(self, vm, local, mode):
         vm.cmd(
             "migrate-set-capabilities",
             {
@@ -358,7 +370,10 @@ class TAPFdMigration(LinuxKernelTest):
                 ]
             },
         )
-        vm.cmd("migrate-set-parameters", {"local": local})
+        vm.cmd(
+            "migrate-set-parameters",
+            {"local": local, "mode": mode},
+        )
 
     def setup_guest_network(self) -> None:
         exec_command_and_wait_for_pattern(self, "ip addr", "# ")
@@ -370,20 +385,51 @@ class TAPFdMigration(LinuxKernelTest):
         )
         self.wait_for_console_pattern("# ")
 
-    def migrate(self, vm, mig_sock):
-        vm.cmd("migrate", uri=f"unix:{mig_sock}")
-    def do_test_tap_fd_migration(self, vhost, local=True):
+    def migrate(self, vm, mig_sock, cpr=False, cpr_sock=""):
+        if cpr:
+            vm.cmd(
+                "migrate",
+                {
+                    "channels": [
+                        {
+                            "channel-type": "main",
+                            "addr": {
+                                "transport": "socket",
+                                "type": "unix",
+                                "path": mig_sock,
+                            },
+                        },
+                        {
+                            "channel-type": "cpr",
+                            "addr": {
+                                "transport": "socket",
+                                "type": "unix",
+                                "path": cpr_sock,
+                            },
+                        },
+                    ]
+                },
+            )
+        else:
+            vm.cmd("migrate", uri=f"unix:{mig_sock}")
+
+    def do_test_tap_fd_migration(self, vhost, local=True,
+                                 cpr=False):
+        mig_mode = "cpr-transfer" if cpr else "normal"
+
         socket_dir = self.socket_dir()
         mig_sock = os.path.join(socket_dir.name, "mig.sock")
+        cpr_sock = os.path.join(socket_dir.name, "cpr.sock")
 
         # Setup second TAP if needed
         if not local:
             del_tap(TAP_ID2)
             init_tap(TAP_ID2, with_ip=False)
 
-        self.prepare_vm(self.shm_path, vhost, local=local)
+        self.prepare_vm(self.shm_path, vhost, local=local, cpr=cpr,
+                        cpr_sock=cpr_sock)
         self.vm.launch()
-        self.set_migration_capabilities(self.vm, local=local)
+        self.set_migration_capabilities(self.vm, local=local, mode=mig_mode)
         self.add_virtio_net(self.vm, vhost, TAP_ID, local, incoming=False)
 
         self.vm.cmd("cont")
@@ -406,21 +452,53 @@ class TAPFdMigration(LinuxKernelTest):
             incoming=True,
             vm=target_vm,
             local=local,
+            cpr=cpr,
+            cpr_sock=cpr_sock,
         )
 
-        target_vm.launch()
-        if not local:
-            tap_name = TAP_ID2
+        if cpr:
+            # Launch target QEMU process; it will block in cpr_state_load()
+            # waiting for the source to connect and send CPR state.  QMP is
+            # not available until after CPR state is loaded.
+            target_vm.launch(do_qmp_connect=False)
+            time.sleep(1)
+
+            # Tell source to start CPR migration; it connects to the CPR
+            # socket, sends CPR state, then target unblocks and QMP becomes
+            # available.
+            self.migrate(self.vm, mig_sock, True, cpr_sock=cpr_sock)
+
+            # Now block waiting for target QMP greeting; it will arrive once
+            # the CPR state transfer completes.
+            target_vm.launch(do_start_process=False, do_qmp_connect=True)
+
+            if not local:
+                tap_name = TAP_ID2
+            else:
+                tap_name = TAP_ID
+            self.set_migration_capabilities(target_vm, local=local,
+                                            mode="cpr-transfer")
+            self.add_virtio_net(target_vm, vhost, tap_name, local,
+                                incoming=True)
+
+            freeze_start = time.time()
+            target_vm.cmd("migrate-incoming", {"uri": f"unix:{mig_sock}"})
         else:
-            tap_name = TAP_ID
-        self.set_migration_capabilities(target_vm, local=local)
-        self.add_virtio_net(target_vm, vhost, tap_name, local, incoming=True)
+            target_vm.launch()
+            if not local:
+                tap_name = TAP_ID2
+            else:
+                tap_name = TAP_ID
+            self.set_migration_capabilities(target_vm, local=local,
+                                            mode="normal")
+            self.add_virtio_net(target_vm, vhost, tap_name, local,
+                                incoming=True)
 
-        target_vm.cmd("migrate-incoming", {"uri": f"unix:{mig_sock}"})
+            target_vm.cmd("migrate-incoming", {"uri": f"unix:{mig_sock}"})
 
-        self.log.info("Starting migration")
-        freeze_start = time.time()
-        self.migrate(self.vm, mig_sock)
+            self.log.info("Starting migration")
+            freeze_start = time.time()
+            self.migrate(self.vm, mig_sock)
 
         self.log.info("Waiting for migration completion")
         wait_migration_finish(self.vm, target_vm)
@@ -444,6 +522,119 @@ class TAPFdMigration(LinuxKernelTest):
 
         target_vm.shutdown()
 
+    def do_test_tap_cpr_exec_migration(self, vhost):
+        socket_dir = self.socket_dir()
+        mig_file = self.scratch_file("migstate")
+
+        # Source VM: use a UNIX socket path for QMP so that the exec'ed
+        # new QEMU process can reconnect to the same monitor socket.
+        qmp_sock = os.path.join(socket_dir.name, "qmp.sock")
+        self.get_vm(name="default", monitor_address=qmp_sock)
+        self.prepare_vm(self.shm_path, vhost, local=True,
+                                   cpr=True)
+        self.vm.launch()
+        self.set_migration_capabilities(self.vm, local=True, mode="cpr-exec")
+        self.add_virtio_net(self.vm, vhost, TAP_ID, local=True, incoming=False)
+
+        self.vm.cmd("cont")
+        self.wait_for_console_pattern("login:")
+        exec_command_and_wait_for_pattern(self, "root", "# ")
+
+        self.setup_guest_network()
+
+        self.one_ping_from_guest(self.vm)
+        self.one_ping_from_host()
+        self.start_outer_ping()
+
+        # Get some successful pings before migration
+        time.sleep(0.5)
+
+        # Capture the console socket fd so we can pass it to the exec'ed
+        # QEMU; it is inheritable and preserved across exec.
+        cons_fd = self.vm._cons_sock_saved_fd
+
+        # Build the command line for the new QEMU process that will replace
+        # the source after exec.  Reuse the same QMP path and console fd.
+        exec_cmd = [self.qemu_bin]
+        exec_cmd.extend(self.vm._harness_args)
+        exec_cmd.extend(["-chardev", f"socket,id=console,fd={cons_fd}",
+                         "-serial", "chardev:console"])
+        exec_cmd.extend(self.vm._base_args)
+        exec_cmd.extend(self.vm.args)
+        exec_cmd.extend(["-incoming", "defer"])
+
+        self.vm.cmd("migrate-set-parameters",
+                    {"cpr-exec-command": exec_cmd})
+
+        self.log.info("Starting cpr-exec migration")
+        freeze_start = time.time()
+        self.vm.cmd("migrate", {"uri": f"file:{mig_file}"})
+
+        self.log.info("Waiting for source migration to complete (exec)")
+        source_e = self.vm.events_wait(
+            (
+                ("MIGRATION", {"data": {"status": "completed"}}),
+                ("MIGRATION", {"data": {"status": "failed"}}),
+            )
+        )["data"]
+        assert source_e["status"] == "completed", \
+            f"Source migration failed: {source_e}"
+
+        # The source QEMU has now exec'ed the new QEMU.  The old QMP
+        # connection is gone; create a fresh QMP server on the same path
+        # and accept the new QEMU's connection.
+        self.vm._qmp_connection.close()
+        self.vm._events.clear()
+        # Remove the stale UNIX socket file left by the old server.
+        try:
+            os.unlink(qmp_sock)
+        except FileNotFoundError:
+            pass
+        self.vm._qmp_connection = QEMUMonitorProtocol(
+            qmp_sock, server=True, nickname=self.vm._name)
+        self.vm._qmp_connection.accept(timeout=120)
+
+        # The new QEMU is now reachable through the same QEMUMachine object.
+        self.set_migration_capabilities(self.vm, local=True, mode="cpr-exec")
+        self.add_virtio_net(self.vm, vhost, TAP_ID, local=True, incoming=True)
+        self.vm.cmd(
+            "migrate-incoming",
+            channels=[
+                {
+                    "channel-type": "main",
+                    "addr": {
+                        "transport": "file",
+                        "filename": mig_file,
+                        "offset": 0,
+                    },
+                }
+            ],
+            conv_keys=False,
+        )
+
+        self.log.info("Waiting for target migration to complete")
+        target_e = self.vm.events_wait(
+            (
+                ("MIGRATION", {"data": {"status": "completed"}}),
+                ("MIGRATION", {"data": {"status": "failed"}}),
+            )
+        )["data"]
+        assert target_e["status"] == "completed", \
+            f"Target migration failed: {target_e}"
+
+        self.vm.cmd("cont")
+        freeze_end = time.time()
+
+        self.log.info("Verifying PING on target VM after migration")
+        self.one_ping_from_guest(self.vm)
+        self.one_ping_from_host()
+
+        # And a bit more pings after migration
+        time.sleep(0.3)
+        self.stop_ping_and_check(freeze_start, freeze_end)
+
+        self.vm.shutdown()
+
     def test_tap_fd_migration(self):
         self.do_test_tap_fd_migration(False)
 
@@ -455,6 +646,24 @@ class TAPFdMigration(LinuxKernelTest):
 
     def test_tap_new_tap_migration_vhost(self):
         self.do_test_tap_fd_migration(True, local=False)
+
+    def test_tap_fd_migration_cpr(self):
+        self.do_test_tap_fd_migration(False, cpr=True)
+
+    def test_tap_fd_migration_vhost_cpr(self):
+        self.do_test_tap_fd_migration(True, cpr=True)
+
+    def test_tap_new_tap_migration_cpr(self):
+        self.do_test_tap_fd_migration(False, local=False, cpr=True)
+
+    def test_tap_new_tap_migration_vhost_cpr(self):
+        self.do_test_tap_fd_migration(True, local=False, cpr=True)
+
+    def test_tap_cpr_exec_migration(self):
+        self.do_test_tap_cpr_exec_migration(False)
+
+    def test_tap_cpr_exec_migration_vhost(self):
+        self.do_test_tap_cpr_exec_migration(True)
 
 
 if __name__ == "__main__":
