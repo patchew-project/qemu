@@ -803,6 +803,12 @@ static int virtio_serial_load_device(VirtIODevice *vdev, QEMUFile *f,
 
     qemu_get_be32s(f, &nr_active_ports);
 
+    if (nr_active_ports > max_nr_ports) {
+        error_setg(errp, "Invalid number of active ports %u > %u", nr_active_ports,
+                   max_nr_ports);
+        return -EINVAL;
+    }
+
     if (nr_active_ports) {
         Error *local_err = NULL;
 
