@@ -47,6 +47,7 @@ impl Default for VMStateFlags {
 unsafe impl Zeroable for VMStateFlags {}
 unsafe impl Zeroable for VMStateField {}
 unsafe impl Zeroable for VMStateDescription {}
+unsafe impl Zeroable for VMStateOffset {}
 
 // The following higher-level helpers could be in "migration"
 // crate when Rust has const trait impl.
@@ -57,10 +58,7 @@ pub trait VMStateFlagsExt {
 
 impl VMStateFlagsExt for VMStateFlags {
     const VMS_VARRAY_FLAGS: VMStateFlags = VMStateFlags(
-        VMStateFlags::VMS_VARRAY_INT32.0
-            | VMStateFlags::VMS_VARRAY_UINT8.0
-            | VMStateFlags::VMS_VARRAY_UINT16.0
-            | VMStateFlags::VMS_VARRAY_UINT32.0,
+        VMStateFlags::VMS_VARRAY.0
     );
 }
 
@@ -113,5 +111,14 @@ impl VMStateField {
     pub const fn with_varray_flag(mut self, flag: VMStateFlags) -> Self {
         assert!((self.flags.0 & VMStateFlags::VMS_ARRAY.0) != 0);
         self.with_varray_flag_unchecked(flag)
+    }
+}
+
+impl VMStateOffset {
+    pub const fn new(off: usize, size: usize) -> Self {
+        Self {
+            off: off as u32,
+            size: size as u8,
+        }
     }
 }
