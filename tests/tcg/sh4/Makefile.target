@@ -16,3 +16,6 @@ TESTS += test-addv
 
 test-subv: CFLAGS += -O -g
 TESTS += test-subv
+
+test-fpu-fmov: CFLAGS += -O -g
+TESTS += test-fpu-fmov
