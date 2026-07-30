@@ -17,15 +17,18 @@
 
 #pragma once
 
+#include "DebugInfo.hpp"
 #include "TcgGlobalMap.hpp"
 #include <llvm/IR/PassManager.h>
 
 class PrepareForTcgPass : public llvm::PassInfoMixin<PrepareForTcgPass> {
     TcgGlobalMap &ResultTcgGlobalMap;
+    const DebugInfoMapTy &DebugInfo;
 
 public:
-    PrepareForTcgPass(TcgGlobalMap &ResultTcgGlobalMap)
-        : ResultTcgGlobalMap(ResultTcgGlobalMap) {}
+    PrepareForTcgPass(TcgGlobalMap &ResultTcgGlobalMap,
+                      const DebugInfoMapTy &DebugInfo)
+        : ResultTcgGlobalMap(ResultTcgGlobalMap), DebugInfo(DebugInfo) {}
     llvm::PreservedAnalyses run(llvm::Module &M,
                                 llvm::ModuleAnalysisManager &MAM);
 };
