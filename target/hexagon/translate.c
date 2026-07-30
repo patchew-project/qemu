@@ -128,6 +128,18 @@ intptr_t ctx_tmp_vreg_off(DisasContext *ctx, int regnum,
     return offset;
 }
 
+#if defined(TARGET_HELPER_TO_TCG)
+/*
+ * Returns the current mmu index given tb_flags of the current translation
+ * block.  Required by helper-to-tcg in order to retrieve the mmu index for
+ * memory operations without changing the signature of helper functions.
+ */
+int get_tb_mmu_index(uint32_t flags)
+{
+    return FIELD_EX32(flags, TB_FLAGS, MMU_INDEX);
+}
+#endif
+
 static void gen_exception(int excp, uint32_t PC)
 {
     gen_helper_raise_exception(tcg_env, tcg_constant_i32(excp),
