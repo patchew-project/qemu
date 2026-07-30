@@ -16,10 +16,15 @@
 //
 
 #include "PrepareForOptPass.hpp"
+#include "Error.hpp"
 
 #include <llvm/ADT/StringRef.h>
 #include <llvm/ADT/StringSet.h>
 #include <llvm/Demangle/Demangle.h>
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/Instruction.h>
+#include <llvm/IR/Module.h>
 #include <llvm/Support/Debug.h>
 
 #define DEBUG_TYPE "prepare-for-opt"
@@ -63,8 +68,97 @@ static void demangleFunctionNames(Module &M) {
     }
 }
 
+static Error parseAnnotationStr(Annotations &Ann, StringRef Str,
+                                size_t NumArgs) {
+    Str = Str.trim();
+
+    // Function annotations
+    if (Str.consume_front("helper-to-tcg")) {
+        Ann.set(FunctionAnnotation::HelperToTcg);
+        return Error::success();
+    } else if (Str.consume_front("returns-immediate")) {
+        Ann.set(FunctionAnnotation::ReturnsImmediate);
+        return Error::success();
+    }
+
+    // Argument annotations
+    ArgumentAnnotation AA;
+    if (Str.consume_front("immediate")) {
+        AA = ArgumentAnnotation::Immediate;
+    } else if (Str.consume_front("ptr-to-offset")) {
+        AA = ArgumentAnnotation::PtrToOffset;
+    } else {
+        return mkError("Unknown annotation");
+    }
+
+    // An argument annotation looks like
+    //
+    //  "immediate: 0, 1, 2",
+    //
+    // parse the comma separated list of argument indices.
+    if (!Str.consume_front(":")) {
+        return mkError("Expected \":\"");
+    }
+    Str = Str.ltrim(' ');
+    do {
+        Str = Str.ltrim(' ');
+        size_t I = 0;
+        Str.consumeInteger(10, I);
+        if (I >= NumArgs) {
+            return mkError("Annotation has out of bounds argument index");
+        }
+        Ann.set(I, AA);
+    } while (Str.consume_front(","));
+
+    return Error::success();
+}
+
+static void collectAnnotations(Module &M, AnnotationMapTy &ResultAnnotations) {
+    // cast over dyn_cast is being used here to
+    // assert that the structure of
+    //
+    //     llvm.global.annotation
+    //
+    // is what we expect.
+
+    GlobalVariable *GA = M.getGlobalVariable("llvm.global.annotations");
+    if (!GA) {
+        return;
+    }
+
+    // Get the metadata which is stored in the first op
+    auto *CA = cast<ConstantArray>(GA->getOperand(0));
+    // Loop over metadata
+    for (Value *CAOp : CA->operands()) {
+        auto *Struct = cast<ConstantStruct>(CAOp);
+        assert(Struct->getNumOperands() >= 2);
+
+        Function *F = cast<Function>(Struct->getOperand(0));
+        ConstantDataArray *AnnData =
+            cast<ConstantDataArray>(Struct->getOperand(1)->getOperand(0));
+
+        StringRef AnnStr = AnnData->getAsString();
+        AnnStr = AnnStr.substr(0, AnnStr.size() - 1);
+        Annotations Ann = ResultAnnotations[F];
+        if (auto Err = parseAnnotationStr(Ann, AnnStr, F->arg_size()); Err) {
+            errs() << "Failed to parse annotation: \"" << Err
+                   << "\" for function " << F->getName() << "\n";
+            continue;
+        }
+        ResultAnnotations[F] = Ann;
+    }
+
+    LLVM_DEBUG({
+        for (auto &P : ResultAnnotations) {
+            dbgs() << "Annotations for " << P.first->getName() << "\n";
+            P.second.dump(dbgs());
+        }
+    });
+}
+
 PreservedAnalyses PrepareForOptPass::run(Module &M,
                                          ModuleAnalysisManager &MAM) {
     demangleFunctionNames(M);
+    collectAnnotations(M, ResultAnnotations);
     return PreservedAnalyses::none();
 }
