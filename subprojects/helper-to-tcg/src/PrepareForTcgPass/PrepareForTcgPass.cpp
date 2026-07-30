@@ -16,6 +16,7 @@
 //
 
 #include "PrepareForTcgPass.hpp"
+#include "CanonicalizeIR.hpp"
 #include "CmdLineOptions.hpp"
 #include "TransformGEPs.hpp"
 
@@ -140,5 +141,6 @@ PreservedAnalyses PrepareForTcgPass::run(Module &M,
     for (Function &F : M) {
         transformGEPs(M, F, ResultTcgGlobalMap, TypeIndexMap, DebugInfo);
     }
+    canonicalizeIR(M, MAM, VL);
     return PreservedAnalyses::none();
 }

@@ -25,3 +25,6 @@ extern llvm::cl::list<std::string> InputFiles;
 extern llvm::cl::opt<bool> TranslateAllHelpers;
 // Options for PrepareForTcgPass
 extern llvm::cl::opt<std::string> TcgGlobalMappingsName;
+extern llvm::cl::opt<std::string> UserPCRelBranchFunc;
+extern llvm::cl::opt<std::string> UserPCRelBranchFallthroughFunc;
+extern llvm::cl::opt<std::string> UserPCRelBranchConditionalFunc;
