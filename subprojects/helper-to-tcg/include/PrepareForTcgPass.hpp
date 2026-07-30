@@ -17,11 +17,15 @@
 
 #pragma once
 
+#include "TcgGlobalMap.hpp"
 #include <llvm/IR/PassManager.h>
 
 class PrepareForTcgPass : public llvm::PassInfoMixin<PrepareForTcgPass> {
+    TcgGlobalMap &ResultTcgGlobalMap;
+
 public:
-    PrepareForTcgPass() {}
+    PrepareForTcgPass(TcgGlobalMap &ResultTcgGlobalMap)
+        : ResultTcgGlobalMap(ResultTcgGlobalMap) {}
     llvm::PreservedAnalyses run(llvm::Module &M,
                                 llvm::ModuleAnalysisManager &MAM);
 };

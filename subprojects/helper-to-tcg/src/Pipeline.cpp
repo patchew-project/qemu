@@ -76,9 +76,9 @@ cl::opt<bool> TranslateAllHelpers(
 // Options for PrepareForTcgPass
 cl::opt<std::string> TcgGlobalMappingsName(
     "tcg-global-mappings",
-    cl::desc("<Name of global cpu_mappings[] used for mapping accesses"
-             "into a struct to TCG globals>"),
-    cl::Required, cl::cat(Cat));
+    cl::desc("Name of global cpu_mappings[] used for mapping accesses"
+             "into a struct to TCG globals"),
+    cl::init("mappings"), cl::cat(Cat));
 
 // Define a TargetTransformInfo (TTI) subclass, this allows for overriding
 // common per-llvm-target information expected by other LLVM passes, such
@@ -230,7 +230,8 @@ int main(int argc, char **argv) {
     // easily to TCG.
     //
 
-    MPM.addPass(PrepareForTcgPass());
+    TcgGlobalMap TcgGlobals;
+    MPM.addPass(PrepareForTcgPass(TcgGlobals));
     MPM.addPass(VerifierPass());
     {
         FunctionPassManager FPM;
