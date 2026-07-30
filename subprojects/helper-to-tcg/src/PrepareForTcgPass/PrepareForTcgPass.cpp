@@ -17,9 +17,39 @@
 
 #include "PrepareForTcgPass.hpp"
 
+#include <llvm/ADT/SCCIterator.h>
+#include <llvm/ADT/SmallPtrSet.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/Module.h>
+
 using namespace llvm;
 
-PreservedAnalyses PrepareForTcgPass::run(Module &M, ModuleAnalysisManager &MAM)
-{
+static void removeFunctionsWithLoops(Module &M, ModuleAnalysisManager &MAM) {
+    // Iterate over all Strongly Connected Components (SCCs), a SCC implies
+    // the existence of loops if:
+    //   - it has more than one node, or;
+    //   - it has a self-edge.
+    SmallPtrSet<Function *, 16> FunctionsToRemove;
+    for (Function &F : M) {
+        if (F.isDeclaration()) {
+            continue;
+        }
+        for (auto It = scc_begin(&F); !It.isAtEnd(); ++It) {
+            if (It.hasCycle()) {
+                FunctionsToRemove.insert(&F);
+                break;
+            }
+        }
+    }
+
+    for (Function *F : FunctionsToRemove) {
+        F->setComdat(nullptr);
+        F->deleteBody();
+    }
+}
+
+PreservedAnalyses PrepareForTcgPass::run(Module &M,
+                                         ModuleAnalysisManager &MAM) {
+    removeFunctionsWithLoops(M, MAM);
     return PreservedAnalyses::none();
 }
