@@ -18,6 +18,7 @@
 #include "PrepareForTcgPass.hpp"
 #include "CanonicalizeIR.hpp"
 #include "CmdLineOptions.hpp"
+#include "IdentityMap.hpp"
 #include "TransformGEPs.hpp"
 
 #include <llvm/ADT/SCCIterator.h>
@@ -142,5 +143,8 @@ PreservedAnalyses PrepareForTcgPass::run(Module &M,
         transformGEPs(M, F, ResultTcgGlobalMap, TypeIndexMap, DebugInfo);
     }
     canonicalizeIR(M, MAM, VL);
+    for (Function &F : M) {
+        identityMap(M, F);
+    }
     return PreservedAnalyses::none();
 }
