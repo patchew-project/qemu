@@ -49,10 +49,13 @@ def main():
     )
     parser.add_argument("semantics", help="semantics file")
     parser.add_argument("out", help="output file")
+    parser.add_argument("--helper-to-tcg", help="file of instructions translated by helper-to-tcg")
     args = parser.parse_args()
     hex_common.read_semantics_file(args.semantics)
     hex_common.calculate_attribs()
     hex_common.init_registers()
+    if args.helper_to_tcg:
+        hex_common.read_helper_to_tcg_enabled_file(args.helper_to_tcg)
     tagregs = hex_common.get_tagregs()
     tagimms = hex_common.get_tagimms()
 
@@ -61,6 +64,12 @@ def main():
 
         for tag in hex_common.tags:
             if hex_common.tag_ignore(tag):
+                continue
+            ## Skip instructions with overrides
+            if hex_common.skip_qemu_helper(tag):
+                continue
+            ## Skip instructions translated by helper-to-tcg
+            if hex_common.is_helper_to_tcg_enabled(tag):
                 continue
             ## Skip the priv instructions
             if "A_PRIV" in hex_common.attribdict[tag]:
