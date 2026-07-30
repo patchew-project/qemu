@@ -33,6 +33,7 @@
 #include "genptr.h"
 #include "printinsn.h"
 #include "exec/target_page.h"
+#include "tcg/tcg-global-mappings.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
@@ -1328,6 +1329,61 @@ static char store_val64_names[STORES_MAX][NAME_LEN];
 static char vstore_addr_names[VSTORES_MAX][NAME_LEN];
 static char vstore_size_names[VSTORES_MAX][NAME_LEN];
 static char vstore_pending_names[VSTORES_MAX][NAME_LEN];
+static const char *store_addr_names_ptr[STORES_MAX];
+static const char *store_width_names_ptr[STORES_MAX];
+static const char *store_val32_names_ptr[STORES_MAX];
+static const char *store_val64_names_ptr[STORES_MAX];
+
+cpu_tcg_mapping tcg_global_mappings[] = {
+    /* General purpose and predicate registers */
+    CPU_TCG_MAP_ARRAY(CPUHexagonState, hex_gpr,  gpr,  hexagon_regnames),
+    CPU_TCG_MAP_ARRAY(CPUHexagonState, hex_pred, pred, hexagon_prednames),
+
+    /* Misc */
+    CPU_TCG_MAP(CPUHexagonState, hex_new_value_usr,  new_value_usr),
+    CPU_TCG_MAP(CPUHexagonState, hex_next_PC,        next_PC),
+    CPU_TCG_MAP(CPUHexagonState, hex_slot_cancelled, slot_cancelled),
+    CPU_TCG_MAP(CPUHexagonState, hex_llsc_addr,      llsc_addr),
+    CPU_TCG_MAP(CPUHexagonState, hex_llsc_val,       llsc_val),
+    CPU_TCG_MAP(CPUHexagonState, hex_llsc_val_i64,   llsc_val_i64),
+
+#ifndef CONFIG_USER_ONLY
+    CPU_TCG_MAP(CPUHexagonState, hex_cause_code, cause_code),
+    CPU_TCG_MAP(CPUHexagonState, hex_cycle_count, t_cycle_count),
+    CPU_TCG_MAP_ARRAY(CPUHexagonState, hex_greg, greg, hexagon_gregnames),
+    CPU_TCG_MAP_ARRAY(CPUHexagonState, hex_t_sreg, t_sreg, hexagon_sregnames),
+#endif
+
+    /* Logging stores */
+    CPU_TCG_MAP_ARRAY_OF_STRUCTS(CPUHexagonState, hex_store_addr,
+                                 mem_log_stores, va,     store_addr_names_ptr),
+    CPU_TCG_MAP_ARRAY_OF_STRUCTS(CPUHexagonState, hex_store_width,
+                                 mem_log_stores, width,  store_width_names_ptr),
+    CPU_TCG_MAP_ARRAY_OF_STRUCTS(CPUHexagonState, hex_store_val32,
+                                 mem_log_stores, data32, store_val32_names_ptr),
+    CPU_TCG_MAP_ARRAY_OF_STRUCTS(CPUHexagonState, hex_store_val64,
+                                 mem_log_stores, data64, store_val64_names_ptr),
+};
+
+size_t tcg_global_mapping_count = ARRAY_SIZE(tcg_global_mappings);
+
+static void init_cpu_reg_names(void) {
+    /*
+     * Create register names and store them in `*_names`,
+     * then copy to and array of pointers in `*_names_ptr`
+     * which is easier to pass around.
+     */
+    for (int i = 0; i < STORES_MAX; ++i) {
+        snprintf(store_addr_names[i],  NAME_LEN, "store_addr_%d",  i);
+        snprintf(store_width_names[i], NAME_LEN, "store_width_%d", i);
+        snprintf(store_val32_names[i], NAME_LEN, "store_val32_%d", i);
+        snprintf(store_val64_names[i], NAME_LEN, "store_val64_%d", i);
+        store_addr_names_ptr[i]  = store_addr_names[i];
+        store_width_names_ptr[i] = store_width_names[i];
+        store_val32_names_ptr[i] = store_val32_names[i];
+        store_val64_names_ptr[i] = store_val64_names[i];
+    }
+}
 
 void hexagon_translate_init(void)
 {
@@ -1335,70 +1391,6 @@ void hexagon_translate_init(void)
 
     opcode_init();
 
-#ifndef CONFIG_USER_ONLY
-    for (i = 0; i < NUM_GREGS; i++) {
-            hex_greg[i] = tcg_global_mem_new_i32(tcg_env,
-                offsetof(CPUHexagonState, greg[i]),
-                hexagon_gregnames[i]);
-    }
-    for (i = 0; i < NUM_SREGS; i++) {
-        if (i < HEX_SREG_GLB_START) {
-            hex_t_sreg[i] = tcg_global_mem_new_i32(tcg_env,
-                offsetof(CPUHexagonState, t_sreg[i]),
-                hexagon_sregnames[i]);
-        }
-    }
-#endif
-    for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
-        hex_gpr[i] = tcg_global_mem_new(tcg_env,
-            offsetof(CPUHexagonState, gpr[i]),
-            hexagon_regnames[i]);
-    }
-    hex_new_value_usr = tcg_global_mem_new(tcg_env,
-        offsetof(CPUHexagonState, new_value_usr), "new_value_usr");
-    hex_next_PC = tcg_global_mem_new(tcg_env,
-        offsetof(CPUHexagonState, next_PC), "next_PC");
-
-    for (i = 0; i < NUM_PREGS; i++) {
-        hex_pred[i] = tcg_global_mem_new(tcg_env,
-            offsetof(CPUHexagonState, pred[i]),
-            hexagon_prednames[i]);
-    }
-    hex_slot_cancelled = tcg_global_mem_new(tcg_env,
-        offsetof(CPUHexagonState, slot_cancelled), "slot_cancelled");
-    hex_llsc_addr = tcg_global_mem_new(tcg_env,
-        offsetof(CPUHexagonState, llsc_addr), "llsc_addr");
-    hex_llsc_val = tcg_global_mem_new(tcg_env,
-        offsetof(CPUHexagonState, llsc_val), "llsc_val");
-    hex_llsc_val_i64 = tcg_global_mem_new_i64(tcg_env,
-        offsetof(CPUHexagonState, llsc_val_i64), "llsc_val_i64");
-#ifndef CONFIG_USER_ONLY
-    hex_cause_code = tcg_global_mem_new_i32(tcg_env,
-        offsetof(CPUHexagonState, cause_code), "cause_code");
-    hex_cycle_count = tcg_global_mem_new_i64(tcg_env,
-        offsetof(CPUHexagonState, t_cycle_count), "t_cycle_count");
-#endif
-    for (i = 0; i < STORES_MAX; i++) {
-        snprintf(store_addr_names[i], NAME_LEN, "store_addr_%d", i);
-        hex_store_addr[i] = tcg_global_mem_new(tcg_env,
-            offsetof(CPUHexagonState, mem_log_stores[i].va),
-            store_addr_names[i]);
-
-        snprintf(store_width_names[i], NAME_LEN, "store_width_%d", i);
-        hex_store_width[i] = tcg_global_mem_new_i32(tcg_env,
-            offsetof(CPUHexagonState, mem_log_stores[i].width),
-            store_width_names[i]);
-
-        snprintf(store_val32_names[i], NAME_LEN, "store_val32_%d", i);
-        hex_store_val32[i] = tcg_global_mem_new(tcg_env,
-            offsetof(CPUHexagonState, mem_log_stores[i].data32),
-            store_val32_names[i]);
-
-        snprintf(store_val64_names[i], NAME_LEN, "store_val64_%d", i);
-        hex_store_val64[i] = tcg_global_mem_new_i64(tcg_env,
-            offsetof(CPUHexagonState, mem_log_stores[i].data64),
-            store_val64_names[i]);
-    }
     for (i = 0; i < VSTORES_MAX; i++) {
         snprintf(vstore_addr_names[i], NAME_LEN, "vstore_addr_%d", i);
         hex_vstore_addr[i] = tcg_global_mem_new(tcg_env,
@@ -1415,4 +1407,7 @@ void hexagon_translate_init(void)
             offsetof(CPUHexagonState, vstore_pending[i]),
             vstore_pending_names[i]);
     }
+
+    init_cpu_reg_names();
+    init_cpu_tcg_mappings(tcg_global_mappings, tcg_global_mapping_count);
 }
