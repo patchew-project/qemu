@@ -41,8 +41,22 @@ def gen_helper_function(f, tag, tagregs, tagimms):
     ret_type = hex_common.helper_ret_type(tag, regs).func_arg
 
     declared = []
-    for arg in hex_common.helper_args(tag, regs, imms):
+    helper_args, imm_inds, hvx_inds = hex_common.helper_args(tag, regs, imms)
+    for arg in helper_args:
         declared.append(arg.func_arg)
+
+    ## Specify that helpers should be translated by helper-to-tcg
+    f.write(f'QEMU_ANNOTATE("helper-to-tcg")\n')
+    ## Specify which arguments to the helper function should be treated as
+    ## immediate arguments
+    if len(imm_inds) > 0:
+        imm_inds_str = ','.join(str(i) for i in imm_inds)
+        f.write(f'QEMU_ANNOTATE("immediate: {imm_inds_str}")\n')
+    ## Specify which arguments to the helper function should be treated as
+    ## gvec vectors
+    if len(hvx_inds) > 0:
+        hvx_inds_str = ','.join(str(i) for i in hvx_inds)
+        f.write(f'QEMU_ANNOTATE("ptr-to-offset: {hvx_inds_str}")\n')
 
     arguments = ", ".join(declared)
     f.write(f"{ret_type} HELPER({tag})({arguments})\n")
@@ -51,6 +65,7 @@ def gen_helper_function(f, tag, tagregs, tagimms):
         f.write(hex_common.code_fmt(f"""\
             uint32_t EA;
         """))
+
     ## Declare the return variable
     if not hex_common.is_predicated(tag):
         for regtype, regid in regs:
