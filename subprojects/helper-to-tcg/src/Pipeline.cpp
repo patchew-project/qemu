@@ -202,5 +202,17 @@ int main(int argc, char **argv) {
         MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
     }
 
+    //
+    // Run a -Oz optimization pass.  In general -Oz will prefer loop
+    // vectorization over unrolling, as compared to -O3.  In TCG, this
+    // translates to more utilization of gvec and possibly smaller TBs.
+    //
+
+    // Optimization passes
+    MPM.addPass(PB.buildModuleSimplificationPipeline(
+        compat::OptimizationLevel::Oz, compat::LTOPhase));
+    MPM.addPass(
+        PB.buildModuleOptimizationPipeline(compat::OptimizationLevel::Oz, {}));
+
     return 0;
 }
