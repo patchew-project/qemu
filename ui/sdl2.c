@@ -102,7 +102,7 @@ void sdl2_window_create(struct sdl2_console *scon)
         flags |= SDL_WINDOW_OPENGL;
     }
 #endif
-
+    flags |= SDL_WINDOW_ALLOW_HIGHDPI;
     scon->real_window = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED,
                                          SDL_WINDOWPOS_UNDEFINED,
                                          surface_width(scon->surface),
@@ -907,6 +907,7 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
     char *dir;
 
     assert(o->type == DISPLAY_TYPE_SDL);
+    SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
 
     if (SDL_GetHintBoolean("QEMU_ENABLE_SDL_LOGGING", SDL_FALSE)) {
         SDL_LogSetAllPriority(SDL_LOG_PRIORITY_VERBOSE);
