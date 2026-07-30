@@ -488,7 +488,8 @@ void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask)
     }
 }
 
-#if !defined(CONFIG_HEXAGON_IDEF_PARSER) || defined(CONFIG_HELPER_TO_TCG)
+#if !defined(CONFIG_HEXAGON_IDEF_PARSER) || defined(TARGET_HELPER_TO_TCG)
+
 /*
  * mem_noshuf
  * Section 5.5 of the Hexagon V67 Programmer's Reference Manual
@@ -500,8 +501,18 @@ static void check_noshuf(CPUHexagonState *env, bool pkt_has_scalar_store_s1,
                          uint32_t slot, target_ulong vaddr, int size,
                          uintptr_t ra)
 {
-    if (slot == 0 && pkt_has_scalar_store_s1 &&
-        ((env->slot_cancelled & (1 << 1)) == 0)) {
+    if (slot == 0 && pkt_has_scalar_store_s1) {
+        helper_probe_and_commit(env, vaddr, size, ra);
+    }
+}
+
+/*
+ *
+ */
+void HELPER(probe_and_commit)(CPUHexagonState *env, target_ulong vaddr,
+                              int size, uintptr_t ra)
+{
+    if ((env->slot_cancelled & (1 << 1)) == 0) {
         probe_read(env, vaddr, size, MMU_USER_IDX, ra);
         commit_store(env, 1, ra);
     }

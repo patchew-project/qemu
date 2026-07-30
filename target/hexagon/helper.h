@@ -107,6 +107,7 @@ DEF_HELPER_4(probe_noshuf_load, void, env, i32, int, int)
 DEF_HELPER_2(probe_pkt_scalar_store_s0, void, env, int)
 DEF_HELPER_2(probe_hvx_stores, void, env, int)
 DEF_HELPER_2(probe_pkt_scalar_hvx_stores, void, env, int)
+DEF_HELPER_4(probe_and_commit, void, env, i32, s32, i64)
 
 #if !defined(CONFIG_USER_ONLY)
 DEF_HELPER_3(raise_stack_overflow, void, env, i32, i32)
