@@ -16,19 +16,6 @@
 
 #include "hw/core/qdev-properties.h"
 
-#define ENGINE_CONFIG_NEXT            BIT(31)
-#define ENGINE_CONFIG_TYPE_PEEK       (0x02 << 4)
-#define ENGINE_CONFIG_TYPE_FSI        (0x03 << 4)
-#define ENGINE_CONFIG_TYPE_SCRATCHPAD (0x06 << 4)
-
-/* Valid, slots, version, type, crc */
-#define CFAM_CONFIG_REG(__VER, __TYPE, __CRC)   \
-    (ENGINE_CONFIG_NEXT       |   \
-     0x00010000               |   \
-     (__VER)                  |   \
-     (__TYPE)                 |   \
-     (__CRC))
-
 #define TO_REG(x)                          ((x) >> 2)
 
 #define CFAM_CONFIG_CHIP_ID                TO_REG(0x00)
@@ -36,34 +23,33 @@
 #define CFAM_CONFIG_CHIP_ID_P9             0xc0022d15
 #define CFAM_CONFIG_CHIP_ID_BREAK          0xc0de0000
 
+/*
+ * Config table of the P9 CFAM: the chip ID followed by one entry per engine,
+ * entry n describing the engine at address n * 4. We need to add future
+ * engines from address 0x10 onwards.
+ */
+static const uint32_t cfam_p9_config[] = {
+    CFAM_CONFIG_CHIP_ID_P9,
+    CFAM_CONFIG_REG(0x1000, ENGINE_CONFIG_TYPE_PEEK, 0xc),
+    CFAM_CONFIG_REG(0x5000, ENGINE_CONFIG_TYPE_FSI, 0xa),
+    CFAM_CONFIG_REG(0x1000, ENGINE_CONFIG_TYPE_SCRATCHPAD, 0x7),
+};
+
 static uint64_t fsi_cfam_config_read(void *opaque, hwaddr addr, unsigned size)
 {
+    FSICFAMCommonClass *cc = FSI_CFAM_COMMON_GET_CLASS(opaque);
+    unsigned int reg = TO_REG(addr);
+
     trace_fsi_cfam_config_read(addr, size);
 
-    switch (addr) {
-    case 0x00:
-        return CFAM_CONFIG_CHIP_ID_P9;
-    case 0x04:
-        return CFAM_CONFIG_REG(0x1000, ENGINE_CONFIG_TYPE_PEEK, 0xc);
-    case 0x08:
-        return CFAM_CONFIG_REG(0x5000, ENGINE_CONFIG_TYPE_FSI, 0xa);
-    case 0xc:
-        return CFAM_CONFIG_REG(0x1000, ENGINE_CONFIG_TYPE_SCRATCHPAD, 0x7);
-    default:
-        /*
-         * The config table contains different engines from 0xc onwards.
-         * The scratch pad is already added at address 0xc. We need to add
-         * future engines from address 0x10 onwards. Returning 0 as engine
-         * is not implemented.
-         */
-        return 0;
-    }
+    /* Engines past the end of the table are not implemented */
+    return reg < cc->config_nr ? cc->config[reg] : 0;
 }
 
 static void fsi_cfam_config_write(void *opaque, hwaddr addr, uint64_t data,
                                   unsigned size)
 {
-    FSICFAMState *cfam = FSI_CFAM(opaque);
+    FSICFAMCommonState *cfam = FSI_CFAM_COMMON(opaque);
 
     trace_fsi_cfam_config_write(addr, size, data);
 
@@ -109,59 +95,92 @@ static const struct MemoryRegionOps fsi_cfam_unimplemented_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void fsi_cfam_instance_init(Object *obj)
+bool fsi_cfam_add_engine(FSICFAMCommonState *cfam, DeviceState *engine,
+                         hwaddr offset, Error **errp)
 {
-    FSICFAMState *s = FSI_CFAM(obj);
+    if (!qdev_realize(engine, BUS(&cfam->lbus), errp)) {
+        return false;
+    }
 
-    object_initialize_child(obj, "scratchpad", &s->scratchpad,
-                            TYPE_FSI_SCRATCHPAD);
+    memory_region_add_subregion(&cfam->lbus.mr, offset,
+                                &FSI_LBUS_DEVICE(engine)->iomem);
+    return true;
 }
 
-static void fsi_cfam_realize(DeviceState *dev, Error **errp)
+static void fsi_cfam_common_realize(DeviceState *dev, Error **errp)
 {
-    FSICFAMState *cfam = FSI_CFAM(dev);
+    FSICFAMCommonState *cfam = FSI_CFAM_COMMON(dev);
+    FSICFAMCommonClass *cc = FSI_CFAM_COMMON_GET_CLASS(dev);
     FSISlaveState *slave = FSI_SLAVE(dev);
+    const char *type = object_get_typename(OBJECT(dev));
+    g_autofree char *config_name = g_strdup_printf("%s.config", type);
 
     /* Each slave has a 2MiB address space */
     memory_region_init_io(&cfam->mr, OBJECT(cfam), &fsi_cfam_unimplemented_ops,
-                          cfam, TYPE_FSI_CFAM, 2 * MiB);
+                          cfam, type, FSI_CFAM_SLOT_SIZE);
 
     qbus_init(&cfam->lbus, sizeof(cfam->lbus), TYPE_FSI_LBUS, DEVICE(cfam),
               NULL);
 
     memory_region_init_io(&cfam->config_iomem, OBJECT(cfam), &cfam_config_ops,
-                          cfam, TYPE_FSI_CFAM ".config", 0x400);
+                          cfam, config_name, FSI_CFAM_CONFIG_SIZE);
 
     memory_region_add_subregion(&cfam->mr, 0, &cfam->config_iomem);
-    memory_region_add_subregion(&cfam->mr, 0x800, &slave->iomem);
-    memory_region_add_subregion(&cfam->mr, 0xc00, &cfam->lbus.mr);
+    memory_region_add_subregion(&cfam->mr, cc->responder_offset, &slave->iomem);
+    memory_region_add_subregion(&cfam->mr, cc->lbus_offset, &cfam->lbus.mr);
+
+    cc->realize_engines(cfam, errp);
+}
+
+static void fsi_cfam_common_class_init(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->bus_type = TYPE_FSI_BUS;
+    dc->realize = fsi_cfam_common_realize;
+}
+
+static bool fsi_cfam_realize_engines(FSICFAMCommonState *cfam, Error **errp)
+{
+    FSICFAMState *s = FSI_CFAM(cfam);
 
     /* Add scratchpad engine */
-    if (!qdev_realize(DEVICE(&cfam->scratchpad), BUS(&cfam->lbus), errp)) {
-        return;
-    }
+    object_initialize_child(OBJECT(s), "scratchpad", &s->scratchpad,
+                            TYPE_FSI_SCRATCHPAD);
 
-    FSILBusDevice *fsi_dev = FSI_LBUS_DEVICE(&cfam->scratchpad);
-    memory_region_add_subregion(&cfam->lbus.mr, 0, &fsi_dev->iomem);
+    return fsi_cfam_add_engine(cfam, DEVICE(&s->scratchpad), 0, errp);
 }
 
 static void fsi_cfam_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    dc->bus_type = TYPE_FSI_BUS;
-    dc->realize = fsi_cfam_realize;
+    FSICFAMCommonClass *cc = FSI_CFAM_COMMON_CLASS(klass);
+
+    cc->config = cfam_p9_config;
+    cc->config_nr = ARRAY_SIZE(cfam_p9_config);
+    cc->responder_offset = 0x800;
+    cc->lbus_offset = 0xc00;
+    cc->realize_engines = fsi_cfam_realize_engines;
 }
+
+static const TypeInfo fsi_cfam_common_info = {
+    .name = TYPE_FSI_CFAM_COMMON,
+    .parent = TYPE_FSI_SLAVE,
+    .instance_size = sizeof(FSICFAMCommonState),
+    .class_size = sizeof(FSICFAMCommonClass),
+    .class_init = fsi_cfam_common_class_init,
+    .abstract = true,
+};
 
 static const TypeInfo fsi_cfam_info = {
     .name = TYPE_FSI_CFAM,
-    .parent = TYPE_FSI_SLAVE,
-    .instance_init = fsi_cfam_instance_init,
+    .parent = TYPE_FSI_CFAM_COMMON,
     .instance_size = sizeof(FSICFAMState),
     .class_init = fsi_cfam_class_init,
 };
 
 static void fsi_cfam_register_types(void)
 {
+    type_register_static(&fsi_cfam_common_info);
     type_register_static(&fsi_cfam_info);
 }
 

@@ -130,7 +130,7 @@ static void fsi_master_realize(DeviceState *dev, Error **errp)
     }
 
     /* address ? */
-    memory_region_add_subregion(&s->opb2fsi, 0, &s->cfam.mr);
+    memory_region_add_subregion(&s->opb2fsi, 0, &s->cfam.parent.mr);
 }
 
 static void fsi_master_reset(DeviceState *dev)
