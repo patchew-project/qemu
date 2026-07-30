@@ -184,7 +184,11 @@ int main(int argc, char **argv) {
         MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
     }
 
-    MPM.addPass(PrepareForOptPass());
+    // TODO: Get pass results via dependencies instead? Adds more boiler-plate
+    // but is correlct in LLVM-terms.
+
+    AnnotationMapTy Annotations;
+    MPM.addPass(PrepareForOptPass(Annotations));
 
     {
         FunctionPassManager FPM;
