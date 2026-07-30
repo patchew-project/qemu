@@ -37,10 +37,13 @@
 #include <llvm/PassRegistry.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/CommandLine.h>
+#include <llvm/Support/Debug.h>
 #include <llvm/Support/InitLLVM.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
+
+#define DEBUG_TYPE "pipeline"
 
 using namespace llvm;
 
@@ -49,6 +52,16 @@ cl::OptionCategory Cat("helper-to-tcg Options");
 // Options for pipeline
 cl::opt<std::string> InputFile(cl::Positional, cl::desc("[input LLVM module]"),
                                cl::cat(Cat));
+
+// Debug options
+#ifndef NDEBUG
+static cl::opt<bool> Debug("debug", cl::desc("Enable debug logging (slow)"),
+                           cl::init(false), cl::cat(Cat));
+static cl::opt<std::string>
+    DebugOnly("debug-only",
+              cl::desc("Enable debug logging for a specific pass"),
+              cl::init(""), cl::cat(Cat));
+#endif
 
 // Define a TargetTransformInfo (TTI) subclass, this allows for overriding
 // common per-llvm-target information expected by other LLVM passes, such
@@ -105,8 +118,18 @@ int main(int argc, char **argv) {
 
     cl::ParseCommandLineOptions(argc, argv);
 
-    LLVMContext Context;
+    // Enable debug logging, -debug and -debug-only are normally provided by
+    // LLVMs default debug options, but since we want to hide most default
+    // options and keep them visible during a debug build it's easiest to add
+    // them back manually
+#ifndef NDEBUG
+    DebugFlag = Debug;
+    if (!DebugOnly.empty()) {
+        setCurrentDebugType(DebugOnly.c_str());
+    }
+#endif
 
+    LLVMContext Context;
     SMDiagnostic Err;
     std::unique_ptr<Module> M = parseIRFile(InputFile, Err, Context);
 
