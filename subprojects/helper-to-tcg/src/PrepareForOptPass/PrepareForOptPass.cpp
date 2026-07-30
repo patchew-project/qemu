@@ -32,6 +32,7 @@
 #include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Support/Debug.h>
+#include <llvm/Transforms/Utils/Local.h>
 
 #include <queue>
 #include <set>
@@ -293,5 +294,18 @@ PreservedAnalyses PrepareForOptPass::run(Module &M,
     collectAnnotations(M, ResultAnnotations);
     cullUnusedFunctions(M, ResultAnnotations);
     replaceRetaddrWithUndef(M);
+    // Remove noinline function attributes automatically added by -O0, add
+    // alwaysinline attribute to functions with a struct return value, these
+    // can not be translated to TCG currently and we rely on inlining to
+    // hopefully get rid of them.
+    for (Function &F : M) {
+        if (F.hasFnAttribute(Attribute::AttrKind::NoInline)) {
+            F.removeFnAttr(Attribute::AttrKind::NoInline);
+        }
+        if (F.getReturnType()->isStructTy()) {
+            F.addFnAttr(Attribute::AttrKind::AlwaysInline);
+        }
+    }
+
     return PreservedAnalyses::none();
 }
