@@ -488,7 +488,7 @@ void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask)
     }
 }
 
-#ifndef CONFIG_HEXAGON_IDEF_PARSER
+#if !defined(CONFIG_HEXAGON_IDEF_PARSER) || defined(CONFIG_HELPER_TO_TCG)
 /*
  * mem_noshuf
  * Section 5.5 of the Hexagon V67 Programmer's Reference Manual
