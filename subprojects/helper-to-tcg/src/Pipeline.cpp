@@ -193,7 +193,8 @@ int main(int argc, char **argv) {
     // but is correlct in LLVM-terms.
 
     AnnotationMapTy Annotations;
-    MPM.addPass(PrepareForOptPass(Annotations));
+    DebugInfoMapTy DebugInfo;
+    MPM.addPass(PrepareForOptPass(Annotations, DebugInfo));
 
     {
         FunctionPassManager FPM;

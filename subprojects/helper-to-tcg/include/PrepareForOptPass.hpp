@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "DebugInfo.hpp"
 #include "FunctionAnnotation.hpp"
 #include <llvm/IR/PassManager.h>
 
@@ -29,10 +30,13 @@
 
 class PrepareForOptPass : public llvm::PassInfoMixin<PrepareForOptPass> {
     AnnotationMapTy &ResultAnnotations;
+    DebugInfoMapTy &ResultDebugInfo;
 
-  public:
-    PrepareForOptPass(AnnotationMapTy &ResultAnnotations)
-        : ResultAnnotations(ResultAnnotations) {}
+public:
+    PrepareForOptPass(AnnotationMapTy &ResultAnnotations,
+                      DebugInfoMapTy &ResultDebugInfo)
+        : ResultAnnotations(ResultAnnotations),
+          ResultDebugInfo(ResultDebugInfo) {}
     llvm::PreservedAnalyses run(llvm::Module &M,
                                 llvm::ModuleAnalysisManager &MAM);
 };

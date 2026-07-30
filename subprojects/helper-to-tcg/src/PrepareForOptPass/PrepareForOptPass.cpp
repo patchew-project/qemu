@@ -26,6 +26,9 @@
 #include <llvm/ADT/StringSet.h>
 #include <llvm/Demangle/Demangle.h>
 #include <llvm/IR/Constants.h>
+#if LLVM_VERSION_MAJOR >= 19
+#include <llvm/IR/DebugProgramInstruction.h>
+#endif
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
@@ -288,6 +291,53 @@ static void replaceRetaddrWithUndef(Module &M) {
     }
 }
 
+static void collectDebugInfo(Function &F, DebugInfoMapTy &ResultDebugInfo) {
+    StringSet EncounteredNames;
+    for (auto &BB : F) {
+        for (Instruction &I : BB) {
+#if LLVM_VERSION_MAJOR >= 19
+            for (DbgVariableRecord &DVR :
+                 filterDbgVars(I.getDbgRecordRange())) {
+                if (!DVR.isDbgValue()) {
+                    continue;
+                }
+                StringRef BaseType{};
+                StringRef VarName{};
+                if (auto *Derived =
+                        dyn_cast<DIDerivedType>(DVR.getVariable()->getType())) {
+                    BaseType = Derived->getBaseType()->getName();
+                }
+                VarName = DVR.getVariable()->getName();
+                if (ResultDebugInfo.find(DVR.getValue(0)) ==
+                        ResultDebugInfo.end() and
+                    !EncounteredNames.contains(VarName.data())) {
+                    ResultDebugInfo[DVR.getValue(0)] = {VarName, BaseType};
+                    EncounteredNames.insert(VarName.data());
+                }
+            }
+#else
+            if (I.isDebugOrPseudoInst()) {
+                if (const auto *Dbg = dyn_cast<DbgValueInst>(&I)) {
+                    StringRef BaseType{};
+                    StringRef VarName{};
+                    if (auto *Derived = dyn_cast<DIDerivedType>(
+                            Dbg->getVariable()->getType())) {
+                        BaseType = Derived->getBaseType()->getName();
+                    }
+                    VarName = Dbg->getVariable()->getName();
+                    if (ResultDebugInfo.find(Dbg->getValue(0)) ==
+                            ResultDebugInfo.end() and
+                        !EncounteredNames.contains(VarName.data())) {
+                        ResultDebugInfo[Dbg->getValue(0)] = {VarName, BaseType};
+                        EncounteredNames.insert(VarName.data());
+                    }
+                }
+            }
+#endif
+        }
+    }
+}
+
 PreservedAnalyses PrepareForOptPass::run(Module &M,
                                          ModuleAnalysisManager &MAM) {
     demangleFunctionNames(M);
@@ -305,6 +355,8 @@ PreservedAnalyses PrepareForOptPass::run(Module &M,
         if (F.getReturnType()->isStructTy()) {
             F.addFnAttr(Attribute::AttrKind::AlwaysInline);
         }
+        // Populate variable and type names for `Value`s from debug info.
+        collectDebugInfo(F, ResultDebugInfo);
     }
 
     return PreservedAnalyses::none();
