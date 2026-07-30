@@ -17,11 +17,11 @@
 
 #pragma once
 
-#include <llvm/Support/CommandLine.h>
+#include <llvm/IR/PassManager.h>
 
-// Options for pipeline
-extern llvm::cl::list<std::string> InputFiles;
-// Options for PrepareForOptPass
-extern llvm::cl::opt<bool> TranslateAllHelpers;
-// Options for PrepareForTcgPass
-extern llvm::cl::opt<std::string> TcgGlobalMappingsName;
+class PrepareForTcgPass : public llvm::PassInfoMixin<PrepareForTcgPass> {
+public:
+    PrepareForTcgPass() {}
+    llvm::PreservedAnalyses run(llvm::Module &M,
+                                llvm::ModuleAnalysisManager &MAM);
+};
