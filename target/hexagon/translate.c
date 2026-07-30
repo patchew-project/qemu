@@ -20,7 +20,15 @@
 #include "cpu.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
+/*
+ * Include generated gen_helper_*() definitions if using helper-to-tcg, but
+ * only when not generating input IR since the header won't exist at that point.
+ */
+#if defined(TARGET_HELPER_TO_TCG) && !defined(HELPER_TO_TCG_IR_GEN)
+#include "helper-to-tcg-emitted.h"
+#else
 #include "exec/helper-gen.h"
+#endif
 #include "exec/helper-proto.h"
 #include "exec/translation-block.h"
 #include "accel/tcg/cpu-ldst.h"

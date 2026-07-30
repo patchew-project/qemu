@@ -20,7 +20,11 @@
 #include "internal.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
+#if defined(TARGET_HELPER_TO_TCG)
+#include "helper-to-tcg-emitted.h"
+#else
 #include "exec/helper-gen.h"
+#endif
 #include "insn.h"
 #include "opcodes.h"
 #include "sys_macros.h"
