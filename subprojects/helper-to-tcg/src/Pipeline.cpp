@@ -65,6 +65,11 @@ static cl::opt<std::string>
               cl::init(""), cl::cat(Cat));
 #endif
 
+// Options for PrepareForOptPass
+cl::opt<bool> TranslateAllHelpers(
+    "translate-all-helpers", cl::init(false),
+    cl::desc("Translate all functions starting with helper_*"), cl::cat(Cat));
+
 // Define a TargetTransformInfo (TTI) subclass, this allows for overriding
 // common per-llvm-target information expected by other LLVM passes, such
 // as the width of the largest scalar/vector registers.  Needed for consistent

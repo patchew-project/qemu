@@ -29,11 +29,10 @@
 
 class PrepareForOptPass : public llvm::PassInfoMixin<PrepareForOptPass> {
     AnnotationMapTy &ResultAnnotations;
-public:
+
+  public:
     PrepareForOptPass(AnnotationMapTy &ResultAnnotations)
-        : ResultAnnotations(ResultAnnotations)
-    {
-    }
+        : ResultAnnotations(ResultAnnotations) {}
     llvm::PreservedAnalyses run(llvm::Module &M,
                                 llvm::ModuleAnalysisManager &MAM);
 };
