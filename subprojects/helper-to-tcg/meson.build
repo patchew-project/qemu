@@ -42,6 +42,14 @@ endif
 sources = [
 ]
 
+clang = bindir / 'clang'
+llvm_link = bindir / 'llvm-link'
+
+get_llvm_ir_cmd = [python, meson.current_source_dir() / 'get-llvm-ir.py',
+                   '--compile-commands', 'compile_commands.json',
+                   '--clang', clang,
+                   '--llvm-link', llvm_link]
+
 # NOTE: Add -Wno-template-id-cdtor for GCC versions >= 14.  This warning is
 # related to a change in the C++ standard in C++20, that also applies to C++14
 # for some reason. See defect report DR2237 and commit
