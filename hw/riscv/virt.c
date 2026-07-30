@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
 #include "qapi/error.h"
@@ -1307,7 +1308,13 @@ static void virt_machine_init(MachineState *machine)
     int i, base_hartid, hart_count;
     int socket_count = riscv_socket_count(machine);
 
-    s->memmap = virt_memmap;
+    if (s->dram_base) {
+        s->memmap_storage = g_memdup2(virt_memmap, sizeof(virt_memmap));
+        s->memmap_storage[VIRT_DRAM].base = s->dram_base;
+        s->memmap = s->memmap_storage;
+    } else {
+        s->memmap = virt_memmap;
+    }
 
     /* Check socket count limit */
     if (VIRT_SOCKETS_MAX < socket_count) {
@@ -1545,6 +1552,7 @@ static void virt_machine_instance_finalize(Object *obj)
     }
     g_free(s->oem_id);
     g_free(s->oem_table_id);
+    g_free(s->memmap_storage);
 }
 
 static void virt_machine_instance_init(Object *obj)
@@ -1614,6 +1622,46 @@ static void virt_set_aia(Object *obj, const char *val, Error **errp)
         error_append_hint(errp, "Valid values are none, aplic, and "
                           "aplic-imsic.\n");
     }
+}
+
+static char *virt_get_dram_base(Object *obj, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+    uint64_t val = s->dram_base ? s->dram_base : virt_memmap[VIRT_DRAM].base;
+
+    return g_strdup_printf("0x%" PRIx64, val);
+}
+
+static void virt_set_dram_base(Object *obj, const char *val, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+    const char *endptr;
+    uint64_t base;
+
+    if (qemu_strtou64(val, &endptr, 0, &base) < 0 || *endptr != '\0') {
+        error_setg(errp, "Invalid dram-base value '%s'", val);
+        return;
+    }
+    /*
+     * DRAM must clear all statically-placed MMIO regions in virt_memmap[]
+     * (PCIE_MMIO ends at 0x80000000) and be 2 MiB-aligned so a standard
+     * OpenSBI + kernel layout (firmware at base, kernel at base+0x200000)
+     * fits.  Values below the default base would collide with on-board
+     * MMIO and are rejected.
+     */
+    if (base < virt_memmap[VIRT_DRAM].base) {
+        error_setg(errp,
+                   "dram-base 0x%" PRIx64 " is below default 0x%" PRIx64
+                   "; would collide with static MMIO regions",
+                   base, (uint64_t)virt_memmap[VIRT_DRAM].base);
+        return;
+    }
+    if (base & (2 * MiB - 1)) {
+        error_setg(errp, "dram-base 0x%" PRIx64 " must be 2 MiB-aligned",
+                   base);
+        return;
+    }
+    s->dram_base = base;
 }
 
 static bool virt_get_aclint(Object *obj, Error **errp)
@@ -1743,6 +1791,15 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
 #ifdef CONFIG_TPM
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_TPM_TIS_SYSBUS);
 #endif
+
+    object_class_property_add_str(oc, "dram-base", virt_get_dram_base,
+                                  virt_set_dram_base);
+    object_class_property_set_description(oc, "dram-base",
+                                          "Base physical address of DRAM "
+                                          "(default 0x80000000). Must be "
+                                          "2 MiB-aligned and at or above "
+                                          "the default to avoid colliding "
+                                          "with statically-placed MMIO.");
 
     object_class_property_add_bool(oc, "aclint", virt_get_aclint,
                                    virt_set_aclint);

@@ -61,6 +61,8 @@ struct RISCVVirtState {
     char *oem_table_id;
     OnOffAuto acpi;
     const MemMapEntry *memmap;
+    MemMapEntry *memmap_storage; /* g_malloc'd copy when dram-base override is set */
+    uint64_t dram_base;          /* 0 = use compiled-in default (0x80000000) */
     struct GPEXHost *gpex_host;
     OnOffAuto iommu_sys;
     uint16_t pci_iommu_bdf;
