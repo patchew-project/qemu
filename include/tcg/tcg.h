@@ -40,7 +40,7 @@
 /* XXX: make safe guess about sizes */
 #define MAX_OP_PER_INSTR 266
 
-#define CPU_TEMP_BUF_NLONGS 128
+#define CPU_TEMP_BUF_NLONGS 256
 #define TCG_STATIC_FRAME_SIZE  (CPU_TEMP_BUF_NLONGS * sizeof(long))
 
 typedef int64_t tcg_target_long;
