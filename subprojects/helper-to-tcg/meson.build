@@ -51,6 +51,7 @@ sources = [
     'src/TcgGenPass/TcgGenPass.cpp',
     'src/TcgGenPass/LinearizeBlocks.cpp',
     'src/TcgGenPass/TcgEmit.cpp',
+    'src/TcgGenPass/MapArguments.cpp',
 ]
 
 clang = bindir / 'clang'
