@@ -21,3 +21,5 @@
 
 // Options for pipeline
 extern llvm::cl::list<std::string> InputFiles;
+// Options for PrepareForOptPass
+extern llvm::cl::opt<bool> TranslateAllHelpers;
