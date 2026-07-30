@@ -20,7 +20,10 @@
 #include <llvm/ADT/SCCIterator.h>
 #include <llvm/ADT/SmallPtrSet.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/InstIterator.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
+#include <llvm/Transforms/Utils/Local.h>
 
 using namespace llvm;
 
@@ -48,8 +51,28 @@ static void removeFunctionsWithLoops(Module &M, ModuleAnalysisManager &MAM) {
     }
 }
 
+inline void demotePhis(Function &F) {
+    if (F.isDeclaration()) {
+        return;
+    }
+
+    SmallVector<PHINode *, 10> Phis;
+    for (auto &I : instructions(F)) {
+        if (auto *Phi = dyn_cast<PHINode>(&I)) {
+            Phis.push_back(Phi);
+        }
+    }
+
+    for (auto *Phi : Phis) {
+        DemotePHIToStack(Phi);
+    }
+}
+
 PreservedAnalyses PrepareForTcgPass::run(Module &M,
                                          ModuleAnalysisManager &MAM) {
     removeFunctionsWithLoops(M, MAM);
+    for (Function &F : M) {
+        demotePhis(F);
+    }
     return PreservedAnalyses::none();
 }
