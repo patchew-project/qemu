@@ -1,0 +1,38 @@
+FROM docker.io/library/debian:11-slim
+
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt install -y --no-install-recommends \
+        bison \
+        ca-certificates \
+        flex \
+        gawk \
+        libmpc-dev \
+        libmpfr-dev \
+        libglib2.0-dev \
+        libpixman-1-dev \
+        make \
+        ninja-build \
+        rsync \
+        pkgconf \
+        wget \
+        lsb-release \
+        software-properties-common \
+        gnupg \
+        meson \
+        python3-pip \
+        python3-setuptools \
+        python3-venv \
+        python3-wheel
+
+RUN /usr/bin/pip3 install tomli
+
+RUN wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh
+RUN ./llvm.sh 15 all
+RUN ./llvm.sh 16 all
+RUN ./llvm.sh 17 all
+RUN ./llvm.sh 18 all
+RUN ./llvm.sh 19 all
+RUN ./llvm.sh 20 all
+RUN ./llvm.sh 21 all

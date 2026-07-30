@@ -1,0 +1,41 @@
+#!/bin/bash -e
+
+TEST_COMMAND=""
+TARGET_LIST=""
+
+cd "$BUILD_DIR"
+
+# Checks helper-to-tcg builds and passes unit tests
+# for targetted LLVM versions.  Run meson from QEMU source so helper-to-tcg tests can find
+# `tcg-global-mappings.h`.
+for version in {15..21}; do
+    llvm_config=llvm-config-${version}
+    build_dir="${BUILD_DIR}/build-helper-to-tcg-${version}"
+    cxx=$(${llvm_config} --bindir)/clang++
+    [ ! -d ${build_dir} ] && mkdir ${build_dir}
+    CXX=${cxx} meson setup ${build_dir} ${QEMU_SRC}/subprojects/helper-to-tcg -Dllvm_config_path=${llvm_config}
+    meson compile -C ${build_dir}
+    meson test -C ${build_dir} --suite 'helper-to-tcg:helper-to-tcg'
+done
+
+# Runs check-tcg for all LLVM versions
+llvm_config_main=llvm-config-15
+bin_main=$(${llvm_config_main} --bindir)
+cc_main=${bin_main}/clang
+cxx_main=${bin_main}/clang++
+for version in {15..21}; do
+    llvm_config=llvm-config-${version}
+    build_dir=build-qemu-${version}
+    bin=$(${llvm_config} --bindir)
+    cxx=${bin}/clang++
+    cc=${bin}/clang
+    [ ! -d ${build_dir} ] && mkdir ${build_dir}
+
+    pushd ${build_dir}
+
+    TARGET_LIST=${TARGET_LIST:-$DEF_TARGET_LIST} \
+    build_qemu "--cc=${cc_main} --cxx=${cxx_main} -Dhelper-to-tcg:llvm_config_path=${llvm_config} --enable-debug-tcg"
+    check_tcg
+
+    popd
+done
