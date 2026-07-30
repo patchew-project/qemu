@@ -3273,7 +3273,16 @@ host_kconfig = \
   (hv_balloon ? ['CONFIG_HV_BALLOON_POSSIBLE=y'] : []) + \
   (have_rust ? ['CONFIG_HAVE_RUST=y'] : [])
 
+helper_to_tcg = subproject('helper-to-tcg',
+  required: get_option('hexagon_helper_to_tcg') \
+    .disable_auto_if('hexagon-linux-user' not in target_dirs and \
+                     'hexagon-softmmu' not in target_dirs))
+
 ignored = [ 'TARGET_XML_FILES', 'TARGET_ABI_DIR' ]
+if not helper_to_tcg.found()
+   # do not define it if it is not usable
+   ignored += ['TARGET_HELPER_TO_TCG']
+endif
 
 default_targets = 'CONFIG_DEFAULT_TARGETS' in config_host
 actual_target_dirs = []
@@ -4266,6 +4275,7 @@ foreach target : target_dirs
   if host_os == 'linux'
     target_inc += include_directories('linux-headers', is_system: true)
   endif
+
   if target.endswith('-softmmu')
     target_type='system'
     if target_base_arch in target_system_arch

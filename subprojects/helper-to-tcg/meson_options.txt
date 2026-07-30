@@ -1,0 +1,2 @@
+option('llvm_config_path', type : 'string', value : 'llvm-config',
+       description: 'override default llvm-config used for finding LLVM')
