@@ -2564,7 +2564,7 @@ void virtio_queue_set_vector(VirtIODevice *vdev, int n, uint16_t vector)
     }
 }
 
-VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
+VirtQueue *virtio_add_queue(VirtIODevice *vdev, unsigned int queue_size,
                             VirtIOHandleOutput handle_output)
 {
     int i;
