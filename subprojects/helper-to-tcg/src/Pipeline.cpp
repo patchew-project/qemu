@@ -19,6 +19,7 @@
 #include "LlvmCompat.hpp"
 #include "PrepareForOptPass.hpp"
 #include "PrepareForTcgPass.hpp"
+#include "TcgGenPass.hpp"
 #include "VectorLayout.hpp"
 
 #if LLVM_VERSION_MAJOR == 15
@@ -46,6 +47,7 @@
 #include <llvm/Support/MathExtras.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/TargetSelect.h>
+#include <llvm/Support/ToolOutputFile.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/Scalar/DCE.h>
 #include <llvm/Transforms/Scalar/SROA.h>
@@ -105,7 +107,7 @@ cl::opt<std::string> UserPCRelBranchFallthroughFunc(
              " from inside a conditional block, but that condition isn't taken."
              " and we instead need to fallthrough to the next instruction."),
     cl::init(""), cl::cat(Cat));
- 
+
 static llvm::cl::opt<bool> VecForceBigEndian(
     "vec-force-big-endian",
     cl::desc("Force emission of vector operations as if on a big-endian host."),
@@ -126,6 +128,76 @@ static llvm::cl::opt<LanePreference> VecLane0(
                clEnumVal(MostSignificant,
                          "Vector lane 0 is in the most-significant bytes")),
     cl::init(LeastSignificant), cl::cat(Cat));
+
+// Options for TcgEmit
+cl::opt<std::string> MmuIndexFunction(
+    "mmu-index-function",
+    cl::desc("Name of a (uint32_t tb_flag) -> int function returning the "
+             "mmu index from the tb_flags of the current translation block"),
+    cl::init("get_tb_mmu_index"), cl::cat(Cat));
+
+cl::opt<std::string>
+    TempVectorBlock("temp-vector-block",
+                    cl::desc("Name of uint8_t[...] field in CPUArchState used "
+                             "for allocating temporary gvec variables"),
+                    cl::init("tmp_vmem"), cl::cat(Cat));
+
+cl::opt<uint32_t> MaxVectorTempBytes(
+    "max-vector-temp-bytes",
+    cl::desc("Maximum bytes to be allocated for vector temporaries"),
+    cl::init(0), cl::cat(Cat));
+
+cl::opt<uint32_t> MaxVectorInstructions(
+    "max-vector-instructions",
+    cl::desc(
+        "Maximum number of vector instructions an emitted function may have"),
+    cl::init(0), cl::cat(Cat));
+
+// Options for MapTemporaries
+cl::opt<uint32_t>
+    GuestPtrSize("guest-ptr-size",
+                 cl::desc("Pointer size of the guest architecture"),
+                 cl::init(32), cl::cat(Cat));
+
+// Options for TcgGenPass
+cl::opt<std::string> OutputSourceFile("output-source",
+                                      cl::desc("output .c file"),
+                                      cl::init("helper-to-tcg-emitted.c"),
+                                      cl::cat(Cat));
+
+cl::opt<std::string> OutputHeaderFile("output-header",
+                                      cl::desc("output .h file"),
+                                      cl::init("helper-to-tcg-emitted.h"),
+                                      cl::cat(Cat));
+
+cl::opt<std::string> OutputHelpersFile(
+    "output-helpers", cl::desc("output support helper.h file"),
+    cl::init("helper-to-tcg-support-helpers.h"), cl::cat(Cat));
+
+cl::opt<std::string>
+    OutputEnabledFile("output-enabled",
+                      cl::desc("output list of tranlated functions"),
+                      cl::init("helper-to-tcg-enabled"), cl::cat(Cat));
+
+cl::opt<bool>
+    ErrorOnTranslationFailure("error-on-translation-failure",
+                              cl::desc("Abort translation on first failure"),
+                              cl::init(false), cl::cat(Cat));
+
+cl::opt<bool> StaticOutput("static-output",
+                           cl::desc("Statically define output functions"),
+                           cl::init(false), cl::cat(Cat));
+
+cl::opt<bool>
+    AllowDeclCall("allow-decl-call",
+                  cl::desc("Forward calls to declared functions to output"),
+                  cl::init(false), cl::cat(Cat));
+
+cl::opt<bool> ForwardContext(
+    "forward-context",
+    cl::desc(
+        "Pass a DisasContext struct to all translated functions and calls"),
+    cl::init(false), cl::cat(Cat));
 
 // Define a TargetTransformInfo (TTI) subclass, this allows for overriding
 // common per-llvm-target information expected by other LLVM passes, such
@@ -299,6 +371,29 @@ int main(int argc, char **argv) {
         FPM.addPass(DCEPass());
         MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
     }
+
+    //
+    // Finally we run a backend pass that converts from LLVM IR to TCG,
+    // and emits the final code.
+    //
+
+    std::error_code EC;
+    ToolOutputFile OutSource(OutputSourceFile, EC, compat::OpenFlags);
+    ToolOutputFile OutHeader(OutputHeaderFile, EC, compat::OpenFlags);
+    ToolOutputFile OutHelpers(OutputHelpersFile, EC, compat::OpenFlags);
+    ToolOutputFile OutEnabled(OutputEnabledFile, EC, compat::OpenFlags);
+    assert(!EC);
+
+    MPM.addPass(TcgGenPass(OutSource.os(), OutHeader.os(), OutHelpers.os(),
+                           OutEnabled.os(), OutputHeaderFile, Annotations,
+                           DebugInfo, TcgGlobals, VL));
+
+    MPM.run(*M.get(), MAM);
+
+    OutSource.keep();
+    OutHeader.keep();
+    OutHelpers.keep();
+    OutEnabled.keep();
 
     return 0;
 }

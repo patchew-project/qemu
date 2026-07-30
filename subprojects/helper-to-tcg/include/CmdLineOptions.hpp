@@ -28,3 +28,19 @@ extern llvm::cl::opt<std::string> TcgGlobalMappingsName;
 extern llvm::cl::opt<std::string> UserPCRelBranchFunc;
 extern llvm::cl::opt<std::string> UserPCRelBranchFallthroughFunc;
 extern llvm::cl::opt<std::string> UserPCRelBranchConditionalFunc;
+// Options for TcgEmit
+extern llvm::cl::opt<std::string> MmuIndexFunction;
+extern llvm::cl::opt<std::string> TempVectorBlock;
+extern llvm::cl::opt<uint32_t> MaxVectorInstructions;
+extern llvm::cl::opt<uint32_t> MaxVectorTempBytes;
+// Options for MapTemporaries
+extern llvm::cl::opt<uint32_t> GuestPtrSize;
+// Options for TcgGenPass
+extern llvm::cl::opt<std::string> OutputSourceFile;
+extern llvm::cl::opt<std::string> OutputHeaderFile;
+extern llvm::cl::opt<std::string> OutputEnabledFile;
+extern llvm::cl::opt<bool> ErrorOnTranslationFailure;
+extern llvm::cl::opt<bool> StaticOutput;
+extern llvm::cl::opt<bool> AllowDeclCall;
+extern llvm::cl::opt<bool> ForwardContext;
+extern llvm::cl::opt<bool> EmitVectorPreamble;
