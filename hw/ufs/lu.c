@@ -308,6 +308,44 @@ static int ufs_emulate_wlun_inquiry(UfsRequest *req, uint8_t *outbuf,
     return SCSI_INQUIRY_LEN;
 }
 
+UfsReqResult ufs_emulate_absent_lun(UfsRequest *req)
+{
+    QEMU_UNINITIALIZED uint8_t outbuf[SCSI_INQUIRY_LEN];
+    uint8_t sense_buf[UFS_SENSE_SIZE];
+    uint8_t scsi_status;
+    int len = 0;
+
+    if (req->req_upiu.sc.cdb[0] == INQUIRY &&
+        !(req->req_upiu.sc.cdb[1] & 0x1)) {
+        /*
+         * Standard INQUIRY to a logical unit that is not mapped: report it
+         * as "not connected" (peripheral qualifier 0x3, device type 0x1f)
+         * with GOOD status, like real hardware. Host-side bus scans then
+         * skip the unit quietly instead of flagging a controller error.
+         */
+        memset(outbuf, 0, sizeof(outbuf));
+        outbuf[0] = TYPE_NO_LUN;
+        outbuf[3] = 0x2;
+        outbuf[4] = SCSI_INQUIRY_LEN - 5;
+        len = SCSI_INQUIRY_LEN;
+        scsi_status = GOOD;
+    } else {
+        scsi_build_sense(sense_buf, SENSE_CODE(LUN_NOT_SUPPORTED));
+        scsi_status = CHECK_CONDITION;
+    }
+
+    len = MIN(len, (int)req->data_len);
+    if (scsi_status == GOOD && len > 0 &&
+        dma_buf_read(outbuf, len, NULL, req->sg, MEMTXATTRS_UNSPECIFIED) !=
+            MEMTX_OK) {
+        return UFS_REQUEST_FAIL;
+    }
+
+    ufs_build_scsi_response_upiu(req, sense_buf, sizeof(sense_buf), len,
+                                 scsi_status);
+    return UFS_REQUEST_SUCCESS;
+}
+
 static UfsReqResult ufs_emulate_scsi_cmd(UfsLu *lu, UfsRequest *req)
 {
     uint8_t lun = lu->lun;
@@ -394,6 +432,8 @@ static UfsReqResult ufs_process_scsi_cmd(UfsLu *lu, UfsRequest *req)
 static const Property ufs_lu_props[] = {
     DEFINE_PROP_DRIVE("drive", UfsLu, conf.blk),
     DEFINE_PROP_UINT8("lun", UfsLu, lun, 0),
+    DEFINE_PROP_UINT32("logical-block-size", UfsLu, logical_block_size,
+                       UFS_BLOCK_SIZE),
 };
 
 static bool ufs_add_lu(UfsHc *u, UfsLu *lu, Error **errp)
@@ -435,7 +475,7 @@ static void ufs_init_lu(UfsLu *lu)
     lu->unit_desc.length = sizeof(UnitDescriptor);
     lu->unit_desc.descriptor_idn = UFS_QUERY_DESC_IDN_UNIT;
     lu->unit_desc.lu_enable = 0x01;
-    lu->unit_desc.logical_block_size = UFS_BLOCK_SIZE_SHIFT;
+    lu->unit_desc.logical_block_size = ctz32(lu->logical_block_size);
     lu->unit_desc.unit_index = lu->lun;
     lu->unit_desc.logical_block_count =
         cpu_to_be64(brdv_len / (1 << lu->unit_desc.logical_block_size));
@@ -475,8 +515,10 @@ static void ufs_init_scsi_device(UfsLu *lu, BlockBackend *blk, Error **errp)
     scsi_dev = qdev_new("scsi-hd");
     object_property_add_child(OBJECT(&lu->bus), "ufs-scsi", OBJECT(scsi_dev));
 
-    qdev_prop_set_uint32(scsi_dev, "physical_block_size", UFS_BLOCK_SIZE);
-    qdev_prop_set_uint32(scsi_dev, "logical_block_size", UFS_BLOCK_SIZE);
+    qdev_prop_set_uint32(scsi_dev, "physical_block_size",
+                         lu->logical_block_size);
+    qdev_prop_set_uint32(scsi_dev, "logical_block_size",
+                         lu->logical_block_size);
     qdev_prop_set_uint32(scsi_dev, "scsi-id", 0);
     qdev_prop_set_uint32(scsi_dev, "lun", lu->lun);
     if (!qdev_prop_set_drive_err(scsi_dev, "drive", blk, errp)) {
@@ -497,7 +539,7 @@ static void ufs_lu_realize(DeviceState *dev, Error **errp)
 {
     UfsLu *lu = DO_UPCAST(UfsLu, qdev, dev);
     BusState *s = qdev_get_parent_bus(dev);
-    UfsHc *u = UFS(s->parent);
+    UfsHc *u = UFS_BUS(s)->hc;
     BlockBackend *blk = lu->conf.blk;
 
     if (!ufs_lu_check_constraints(lu, errp)) {

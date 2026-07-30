@@ -12,7 +12,9 @@
 #define HW_UFS_UFS_H
 
 #include "hw/pci/pci_device.h"
+#include "hw/core/sysbus.h"
 #include "hw/scsi/scsi.h"
+#include "scsi/constants.h"
 #include "block/ufs.h"
 
 #define UFS_MAX_LUS 32
@@ -27,6 +29,7 @@ typedef struct UfsBusClass {
 
 typedef struct UfsBus {
     BusState parent_bus;
+    struct UfsHc *hc; /* host controller owning this bus (frontend-agnostic) */
 } UfsBus;
 
 #define TYPE_UFS_BUS "ufs-bus"
@@ -77,6 +80,7 @@ typedef UfsReqResult (*UfsScsiOp)(struct UfsLu *, UfsRequest *);
 typedef struct UfsLu {
     DeviceState qdev;
     uint8_t lun;
+    uint32_t logical_block_size;
     UnitDescriptor unit_desc;
     SCSIBus bus;
     SCSIDevice *scsi_dev;
@@ -141,7 +145,15 @@ typedef struct UfsWb {
 } UfsWb;
 
 typedef struct UfsHc {
-    PCIDevice parent_obj;
+    /*
+     * The controller can be instantiated either as a PCI function or as a
+     * sysbus device.  Following the SDHCI model, both frontends share this
+     * state structure via a union of the possible parent objects.
+     */
+    union {
+        PCIDevice pci_dev;
+        SysBusDevice sbdev;
+    };
     UfsBus bus;
     MemoryRegion iomem;
     UfsReg reg;
@@ -162,6 +174,7 @@ typedef struct UfsHc {
     Flags flags;
 
     qemu_irq irq;
+    AddressSpace *dma_as;
     QEMUBH *doorbell_bh;
     QEMUBH *complete_bh;
 
@@ -302,4 +315,7 @@ void ufs_build_query_response(UfsRequest *req);
 void ufs_complete_req(UfsRequest *req, UfsReqResult req_result);
 void ufs_wb_update_avail_buffer(UfsHc *u);
 void ufs_init_wlu(UfsLu *wlu, uint8_t wlun);
+UfsReqResult ufs_emulate_absent_lun(UfsRequest *req);
+void ufs_init_mmio(UfsHc *u);
+bool ufs_realize_core(UfsHc *u, Error **errp);
 #endif /* HW_UFS_UFS_H */
