@@ -46,6 +46,7 @@ sources = [
     'src/PseudoInst.cpp',
     'src/PrepareForTcgPass/PrepareForTcgPass.cpp',
     'src/PrepareForTcgPass/TransformGEPs.cpp',
+    'src/PrepareForTcgPass/CanonicalizeIR.cpp',
 ]
 
 clang = bindir / 'clang'

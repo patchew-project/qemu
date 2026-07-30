@@ -19,6 +19,7 @@
 #include "LlvmCompat.hpp"
 #include "PrepareForOptPass.hpp"
 #include "PrepareForTcgPass.hpp"
+#include "VectorLayout.hpp"
 
 #if LLVM_VERSION_MAJOR == 15
 #include <llvm/ADT/Triple.h>
@@ -42,6 +43,7 @@
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/Debug.h>
 #include <llvm/Support/InitLLVM.h>
+#include <llvm/Support/MathExtras.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
@@ -79,6 +81,51 @@ cl::opt<std::string> TcgGlobalMappingsName(
     cl::desc("Name of global cpu_mappings[] used for mapping accesses"
              "into a struct to TCG globals"),
     cl::init("mappings"), cl::cat(Cat));
+
+cl::opt<std::string> UserPCRelBranchFunc(
+    "user-pcrel-branch-func",
+    cl::desc("Specify a function name in the input which represents a "
+             "PC-relative jump operation in QEMU."),
+    cl::init(""), cl::cat(Cat));
+
+cl::opt<std::string> UserPCRelBranchConditionalFunc(
+    "user-pcrel-branch-conditional-func",
+    cl::desc("Specify a function name in QEMU which represents a "
+             "PC-relative conditional jump operation.  Will be"
+             " emitted when the function supplied with -user-pcrel-branch-func"
+             " is called from inside a conditional block."),
+    cl::init(""), cl::cat(Cat));
+
+cl::opt<std::string> UserPCRelBranchFallthroughFunc(
+    "user-pcrel-branch-fallthrough-func",
+    cl::desc("Specify a function name in QEMU which represents a "
+             "PC-relative fallthrough operation.  Will be emitted when the"
+             " function supplied with -user-pcrel-branch-func"
+             " is called"
+             " from inside a conditional block, but that condition isn't taken."
+             " and we instead need to fallthrough to the next instruction."),
+    cl::init(""), cl::cat(Cat));
+ 
+static llvm::cl::opt<bool> VecForceBigEndian(
+    "vec-force-big-endian",
+    cl::desc("Force emission of vector operations as if on a big-endian host."),
+    cl::init(false), cl::cat(Cat));
+
+static llvm::cl::opt<size_t>
+    VecBlockBytes("vec-block-bytes",
+                  cl::desc("Sets the size of the host-endian blocks vector "
+                           "used to represent target vectors."),
+                  cl::init(64), cl::cat(Cat));
+
+static llvm::cl::opt<LanePreference> VecLane0(
+    "vec-lane-0",
+    cl::desc("Set whether lane 0 is treated as the high- or low-end "
+             "bytes of the vector blocks ([most|least]-significant)."),
+    cl::values(clEnumVal(LeastSignificant,
+                         "Vector lane 0 is in the least-significant bytes"),
+               clEnumVal(MostSignificant,
+                         "Vector lane 0 is in the most-significant bytes")),
+    cl::init(LeastSignificant), cl::cat(Cat));
 
 // Define a TargetTransformInfo (TTI) subclass, this allows for overriding
 // common per-llvm-target information expected by other LLVM passes, such
@@ -146,9 +193,23 @@ int main(int argc, char **argv) {
     }
 #endif
 
+    if (!isPowerOf2_32(VecBlockBytes) or VecBlockBytes < 8) {
+        errs() << "--" << VecBlockBytes.ArgStr
+               << " must be a power-of-two and at least 8 bytes.";
+        return 1;
+    }
+
     LLVMContext Context;
     SMDiagnostic Err;
     std::unique_ptr<Module> M = parseIRFile(InputFile, Err, Context);
+
+    // After we have a module we can get the data layout and determine host
+    // endianness.
+    VectorLayout VL = {
+        .HostBigEndian = VecForceBigEndian or M->getDataLayout().isBigEndian(),
+        .Lane0 = VecLane0,
+        .BlockBytes = VecBlockBytes,
+    };
 
     // Create a new TargetMachine to represent a TCG target,
     // we use x86_64 as a base and derive from that using a
@@ -231,7 +292,7 @@ int main(int argc, char **argv) {
     //
 
     TcgGlobalMap TcgGlobals;
-    MPM.addPass(PrepareForTcgPass(TcgGlobals, DebugInfo));
+    MPM.addPass(PrepareForTcgPass(TcgGlobals, DebugInfo, VL));
     MPM.addPass(VerifierPass());
     {
         FunctionPassManager FPM;
