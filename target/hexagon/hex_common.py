@@ -1293,6 +1293,60 @@ def helper_ret_type(tag, regs):
     return return_type
 
 
+def helper_to_tcg_hvx_call_args(tag, regs, imms):
+    args = []
+    # Used to ensure immediates are passed translated as immediates by
+    # helper-to-tcg.
+    imm_indices = []
+
+    ## First argument is the CPU state
+    if need_env(tag):
+        args.append("tcg_env")
+
+    ## For predicated instructions, we pass in the destination register
+    if is_predicated(tag):
+        for regtype, regid in regs:
+            reg = get_register(tag, regtype, regid)
+            if reg.is_writeonly() and not reg.is_hvx_reg():
+                args.append(reg.helper_arg().call_arg)
+
+    ## Pass the HVX destination registers
+    for regtype, regid in regs:
+        reg = get_register(tag, regtype, regid)
+        if reg.is_written() and reg.is_hvx_reg():
+            args.append(reg.hvx_off())
+
+    ## Pass the source registers
+    for regtype, regid in regs:
+        reg = get_register(tag, regtype, regid)
+        if reg.is_read() and not (reg.is_hvx_reg() and reg.is_readwrite()):
+            if reg.is_hvx_reg():
+                args.append(reg.hvx_off())
+            else:
+                args.append(reg.helper_arg().call_arg)
+
+    ## Pass the immediates
+    for immlett, bits, immshift in imms:
+        imm_indices.append(len(args))
+        args.append(f"{imm_name(immlett)}")
+
+    ## Other stuff the helper might need
+    if need_pkt_has_multi_cof(tag):
+        args.append("ctx->pkt->pkt_has_multi_cof")
+    if need_pkt_need_commit(tag):
+        args.append("ctx->need_commit")
+    if need_PC(tag):
+        args.append("ctx->pkt->pc")
+    if need_next_PC(tag):
+        args.append("ctx->next_PC")
+    if need_slot(tag):
+        args.append("gen_slotval(ctx)")
+    if need_part1(tag):
+        args.append("insn->part1")
+
+    return args
+
+
 def helper_args(tag, regs, imms):
     args = []
     # Used to ensure immediates are passed translated as immediates by
@@ -1406,6 +1460,8 @@ def parse_common_args(desc):
     parser.add_argument("out", help="output file")
     parser.add_argument("--idef-parser",
                         help="file of instructions translated by idef-parser")
+    parser.add_argument("--helper-to-tcg",
+                        help="file of instructions translated by helper-to-tcg")
     args = parser.parse_args()
     read_semantics_file(args.semantics)
     read_overrides_file(args.overrides)
@@ -1413,6 +1469,8 @@ def parse_common_args(desc):
     read_overrides_file(args.overrides_sys)
     if args.idef_parser:
         read_idef_parser_enabled_file(args.idef_parser)
+    if args.helper_to_tcg:
+        read_helper_to_tcg_enabled_file(args.helper_to_tcg)
     calculate_attribs()
     init_registers()
     return args
