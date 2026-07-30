@@ -231,7 +231,7 @@ int main(int argc, char **argv) {
     //
 
     TcgGlobalMap TcgGlobals;
-    MPM.addPass(PrepareForTcgPass(TcgGlobals));
+    MPM.addPass(PrepareForTcgPass(TcgGlobals, DebugInfo));
     MPM.addPass(VerifierPass());
     {
         FunctionPassManager FPM;

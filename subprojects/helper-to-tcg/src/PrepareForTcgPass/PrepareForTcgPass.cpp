@@ -17,6 +17,7 @@
 
 #include "PrepareForTcgPass.hpp"
 #include "CmdLineOptions.hpp"
+#include "TransformGEPs.hpp"
 
 #include <llvm/ADT/SCCIterator.h>
 #include <llvm/ADT/SmallPtrSet.h>
@@ -136,5 +137,8 @@ PreservedAnalyses PrepareForTcgPass::run(Module &M,
         demotePhis(F);
     }
     const StringMap<size_t> TypeIndexMap = collectTcgGlobals(M, ResultTcgGlobalMap);
+    for (Function &F : M) {
+        transformGEPs(M, F, ResultTcgGlobalMap, TypeIndexMap, DebugInfo);
+    }
     return PreservedAnalyses::none();
 }
