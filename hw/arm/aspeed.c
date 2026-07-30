@@ -187,6 +187,31 @@ static void aspeed_machine_init(MachineState *machine)
     aspeed_connect_serial_hds_to_uarts(bmc);
     qdev_realize(DEVICE(bmc->soc), NULL, &error_abort);
 
+    /*
+     * If the SoC instantiated a UFS host controller (AST2700), attach the
+     * first backend drive to it as logical unit 0.  The controller and its
+     * UFS bus only exist once the SoC has been realized, so the ufs-lu is
+     * created here rather than through a controller drive property.
+     */
+    if (object_resolve_path_component(OBJECT(bmc->soc), "ufs")) {
+        DriveInfo *ufs_dinfo = drive_get(IF_NONE, 0, 0);
+
+        if (ufs_dinfo) {
+            DeviceState *ufs_lu = qdev_new(TYPE_UFS_LU);
+
+            qdev_prop_set_uint8(ufs_lu, "lun", 0);
+            if (amc->ufs_block_size) {
+                qdev_prop_set_uint32(ufs_lu, "logical-block-size",
+                                     amc->ufs_block_size);
+            }
+            qdev_prop_set_drive_err(ufs_lu, "drive",
+                                    blk_by_legacy_dinfo(ufs_dinfo),
+                                    &error_fatal);
+            qdev_realize_and_unref(ufs_lu, BUS(&bmc->soc->ufs.bus),
+                                   &error_fatal);
+        }
+    }
+
     if (defaults_enabled()) {
         aspeed_board_init_flashes(&bmc->soc->fmc,
                               bmc->fmc_model ? bmc->fmc_model : amc->fmc_model,

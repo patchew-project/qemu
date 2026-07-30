@@ -62,6 +62,7 @@ struct AspeedMachineClass {
     uint32_t uart_default;
     bool sdhci_wp_inverted;
     bool vbootrom;
+    uint32_t ufs_block_size;
 };
 
 /*
