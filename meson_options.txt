@@ -377,6 +377,8 @@ option('qemu_ga_version', type: 'string', value: '',
 
 option('hexagon_idef_parser', type : 'boolean', value : true,
        description: 'use idef-parser to automatically generate TCG code for the Hexagon frontend')
+option('hexagon_helper_to_tcg', type : 'feature', value : 'enabled',
+       description: 'use the helper-to-tcg translator to automatically generate TCG code from helpers')
 
 option('x86_version', type : 'combo', choices : ['0', '1', '2', '3', '4'], value: '1',
        description: 'tweak required x86_64 architecture version beyond compiler default')
