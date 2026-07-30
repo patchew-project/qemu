@@ -262,23 +262,125 @@ hexagon_softmmu_ss.add(files(
     'machine.c',
 ))
 
+helper_dep = [semantics_generated]
+helper_in = [semantics_generated, gen_tcg_h, gen_tcg_hvx_h, gen_tcg_sys_h]
+
 #
-# Step 4.5
+# Step 5
+# We use Python scripts to generate the following files
+#     helper_protos_generated.h.inc
+#     helper_funcs_generated.c.inc
+#     analyze_funcs_generated.c.inc
+#
+helper_protos_generated = custom_target(
+    'helper_protos_generated.h.inc',
+    output: 'helper_protos_generated.h.inc',
+    depends: helper_dep,
+    depend_files: [hex_common_py, gen_tcg_h, gen_tcg_hvx_h, gen_tcg_sys_h],
+    command: [python, files('gen_helper_protos.py'), helper_in, '@OUTPUT@'],
+)
+hexagon_ss.add(helper_protos_generated)
+
+helper_funcs_generated = custom_target(
+    'helper_funcs_generated.c.inc',
+    output: 'helper_funcs_generated.c.inc',
+    depends: helper_dep,
+    depend_files: [hex_common_py, gen_tcg_h, gen_tcg_hvx_h, gen_tcg_sys_h],
+    command: [python, files('gen_helper_funcs.py'), helper_in, '@OUTPUT@'],
+)
+hexagon_ss.add(helper_funcs_generated)
+
+analyze_funcs_generated = custom_target(
+    'analyze_funcs_generated.c.inc',
+    output: 'analyze_funcs_generated.c.inc',
+    depends: helper_dep,
+    depend_files: [hex_common_py, gen_tcg_h, gen_tcg_hvx_h, gen_tcg_sys_h],
+    command: [python, files('gen_analyze_funcs.py'), helper_in, '@OUTPUT@'],
+)
+hexagon_ss.add(analyze_funcs_generated)
+
+#
+# Step 6
+# If enabled, run helper-to-tcg to attempt to translate any remaining
+# helper functions, producing:
+#     helper-to-tcg-emitted.c
+#     helper-to-tcg-emitted.h
+#     helper-to-tcg-enabled
+#     helper-to-tcg-log
+#
+
+idef_command_extra = []
+idef_dep_extra = []
+if helper_to_tcg.found()
+    helper_to_tcg_get_llvm_ir_cmd = helper_to_tcg.get_variable('get_llvm_ir_cmd')
+    helper_to_tcg_pipeline = helper_to_tcg.get_variable('pipeline')
+
+    helper_to_tcg_input_files = [
+        meson.current_source_dir() / 'op_helper.c',
+        meson.current_source_dir() / 'translate.c',
+        meson.current_source_dir() / 'reg_fields.c',
+        meson.current_source_dir() / 'arch.c',
+    ]
+
+    ll = custom_target('to-ll',
+        input: helper_to_tcg_input_files,
+        output:'helper-to-tcg-input.ll',
+        depends: [helper_funcs_generated, helper_protos_generated, libqemuutil],
+        command: helper_to_tcg_get_llvm_ir_cmd + ['-o', '@OUTPUT@', '@INPUT@', '--target-path', 'target/hexagon']
+    )
+
+    helper_to_tcg_target = custom_target('helper-to-tcg-hexagon',
+        output: ['helper-to-tcg-emitted.c',
+                 'helper-to-tcg-emitted.h',
+                 'helper-to-tcg-enabled'],
+        input: [ll],
+        depends: [helper_to_tcg_pipeline, analyze_funcs_generated, helper_funcs_generated, helper_protos_generated],
+        command: [helper_to_tcg_pipeline,
+                  '--temp-vector-block=tmp_VRegs',
+                  '--max-vector-temp-bytes=1024',
+                  '--max-vector-instructions=16',
+                  '--mmu-index-function=get_tb_mmu_index',
+                  '--tcg-global-mappings=tcg_global_mappings',
+                  '--output-source=@OUTPUT0@',
+                  '--output-header=@OUTPUT1@',
+                  '--output-enabled=@OUTPUT2@',
+                  '@INPUT@']
+    )
+
+    hexagon_ss.add(helper_to_tcg_target)
+
+    # List of instructions for which TCG generation was successful
+    generated_tcg_list = helper_to_tcg_target[2].full_path()
+
+    # Setup dependencies for idef-parser
+    idef_dep_extra += helper_to_tcg_target
+    idef_command_extra += ['--helper-to-tcg', generated_tcg_list]
+
+    # Setup input and dependencies for the final step, this depends on whether
+    helper_dep += [helper_to_tcg_target]
+    helper_in += ['--helper-to-tcg', generated_tcg_list]
+endif
+
+
+
+#
+# Step 6
 # We use flex/bison based idef-parser to generate TCG code for a lot
 # of instructions. idef-parser outputs
 #     idef-generated-emitter.c
 #     idef-generated-emitter.h.inc
 #     idef-generated-enabled-instructions
 #
+
 idef_parser_enabled = get_option('hexagon_idef_parser')
 if idef_parser_enabled and ('hexagon-linux-user' in target_dirs or
                             'hexagon-softmmu' in target_dirs)
     idef_parser_input_generated = custom_target(
         'idef_parser_input.h.inc',
         output: 'idef_parser_input.h.inc',
-        depends: [semantics_generated],
+        depends: [semantics_generated] + idef_dep_extra,
         depend_files: [hex_common_py],
-        command: [python, files('gen_idef_parser_funcs.py'), semantics_generated, '@OUTPUT@'],
+        command: [python, files('gen_idef_parser_funcs.py'), semantics_generated, '@OUTPUT@'] + idef_command_extra
     )
 
     compiler = meson.get_compiler('c').cmd_array()
@@ -347,40 +449,15 @@ if idef_parser_enabled and ('hexagon-linux-user' in target_dirs or
 
     # Setup input and dependencies for the next step, this depends on whether or
     # not idef-parser is enabled
-    helper_dep = [semantics_generated, idef_generated_tcg_c, idef_generated_tcg]
-    helper_in = [semantics_generated, gen_tcg_h, gen_tcg_hvx_h, gen_tcg_sys_h, '--idef-parser', idef_generated_list]
-else
-    # Setup input and dependencies for the next step, this depends on whether or
-    # not idef-parser is enabled
-    helper_dep = [semantics_generated]
-    helper_in = [semantics_generated, gen_tcg_h, gen_tcg_hvx_h, gen_tcg_sys_h]
+    helper_dep += [idef_generated_tcg_c, idef_generated_tcg]
+    helper_in += ['--idef-parser', idef_generated_list]
 endif
 
 #
-# Step 5
+# Step 7
 # We use Python scripts to generate the following files
-#     helper_protos_generated.h.inc
-#     helper_funcs_generated.c.inc
 #     tcg_funcs_generated.c.inc
 #
-helper_protos_generated = custom_target(
-    'helper_protos_generated.h.inc',
-    output: 'helper_protos_generated.h.inc',
-    depends: helper_dep,
-    depend_files: [hex_common_py, gen_tcg_h, gen_tcg_hvx_h, gen_tcg_sys_h],
-    command: [python, files('gen_helper_protos.py'), helper_in, '@OUTPUT@'],
-)
-hexagon_ss.add(helper_protos_generated)
-
-helper_funcs_generated = custom_target(
-    'helper_funcs_generated.c.inc',
-    output: 'helper_funcs_generated.c.inc',
-    depends: helper_dep,
-    depend_files: [hex_common_py, gen_tcg_h, gen_tcg_hvx_h, gen_tcg_sys_h],
-    command: [python, files('gen_helper_funcs.py'), helper_in, '@OUTPUT@'],
-)
-hexagon_ss.add(helper_funcs_generated)
-
 tcg_funcs_generated = custom_target(
     'tcg_funcs_generated.c.inc',
     output: 'tcg_funcs_generated.c.inc',
@@ -389,15 +466,6 @@ tcg_funcs_generated = custom_target(
     command: [python, files('gen_tcg_funcs.py'), helper_in, '@OUTPUT@'],
 )
 hexagon_ss.add(tcg_funcs_generated)
-
-analyze_funcs_generated = custom_target(
-    'analyze_funcs_generated.c.inc',
-    output: 'analyze_funcs_generated.c.inc',
-    depends: helper_dep,
-    depend_files: [hex_common_py, gen_tcg_h, gen_tcg_hvx_h, gen_tcg_sys_h],
-    command: [python, files('gen_analyze_funcs.py'), helper_in, '@OUTPUT@'],
-)
-hexagon_ss.add(analyze_funcs_generated)
 
 target_arch += {'hexagon': hexagon_ss}
 target_system_arch += {'hexagon': hexagon_softmmu_ss}
