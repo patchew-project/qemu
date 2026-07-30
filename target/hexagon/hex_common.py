@@ -32,6 +32,7 @@ new_registers = {}
 tags = []  # list of all tags
 overrides = {}  # tags with helper overrides
 idef_parser_enabled = {}  # tags enabled for idef-parser
+helper_to_tcg_enabled = {}  # tags enabled for helper-to-tcg
 
 
 def is_sysemu_tag(tag):
@@ -307,6 +308,10 @@ def is_idef_parser_enabled(tag):
     return tag in idef_parser_enabled
 
 
+def is_helper_to_tcg_enabled(tag):
+    return tag in helper_to_tcg_enabled
+
+
 def is_hvx_insn(tag):
     return "A_CVI" in attribdict[tag]
 
@@ -347,6 +352,13 @@ def read_idef_parser_enabled_file(name):
     with open(name, "r") as idef_parser_enabled_file:
         lines = idef_parser_enabled_file.read().strip().split("\n")
         idef_parser_enabled = set(lines)
+
+
+def read_helper_to_tcg_enabled_file(name):
+    global helper_to_tcg_enabled
+    with open(name, "r") as helper_to_tcg_enabled_file:
+        lines = helper_to_tcg_enabled_file.read().strip().split("\n")
+        helper_to_tcg_enabled = set(lines)
 
 
 def is_predicated(tag):
@@ -433,7 +445,7 @@ class Hvx:
     def helper_proto_type(self):
         return "ptr"
     def helper_arg_type(self):
-        return "void *"
+        return "void * restrict"
     def helper_arg_name(self):
         return f"{self.reg_tcg()}_void"
 
@@ -767,7 +779,7 @@ class VRegDest(Register, Hvx, Dest):
             const intptr_t {self.hvx_off()} =
                 {vreg_offset_func(tag)}(ctx, {self.reg_num}, 1, true);
         """))
-        if not skip_qemu_helper(tag):
+        if not skip_qemu_helper(tag) and not is_helper_to_tcg_enabled(tag):
             f.write(code_fmt(f"""\
                 TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
                 tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hvx_off()});
@@ -792,7 +804,7 @@ class VRegSource(Register, Hvx, OldSource):
         f.write(code_fmt(f"""\
             const intptr_t {self.hvx_off()} = vreg_src_off(ctx, {self.reg_num});
         """))
-        if not skip_qemu_helper(tag):
+        if not skip_qemu_helper(tag) and not is_helper_to_tcg_enabled(tag):
             f.write(code_fmt(f"""\
                 TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
                 tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hvx_off()});
@@ -833,7 +845,7 @@ class VRegReadWrite(Register, Hvx, ReadWrite):
                              vreg_src_off(ctx, {self.reg_num}),
                              sizeof(MMVector), sizeof(MMVector));
         """))
-        if not skip_qemu_helper(tag):
+        if not skip_qemu_helper(tag) and not is_helper_to_tcg_enabled(tag):
             f.write(code_fmt(f"""\
                 TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
                 tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hvx_off()});
@@ -862,7 +874,7 @@ class VRegTmp(Register, Hvx, ReadWrite):
         f.write(code_fmt(f"""\
             const intptr_t {self.hvx_off()} = offsetof(CPUHexagonState, vtmp);
         """))
-        if not skip_qemu_helper(tag):
+        if not skip_qemu_helper(tag) and not is_helper_to_tcg_enabled(tag):
             f.write(code_fmt(f"""\
                 TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
                 tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hvx_off()});
@@ -898,7 +910,7 @@ class VRegPairDest(Register, Hvx, Dest):
             const intptr_t {self.hvx_off()} =
                 {vreg_offset_func(tag)}(ctx, {self.reg_num}, 2, true);
         """))
-        if not skip_qemu_helper(tag):
+        if not skip_qemu_helper(tag) and not is_helper_to_tcg_enabled(tag):
             f.write(code_fmt(f"""\
                 TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
                 tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hvx_off()});
@@ -930,7 +942,7 @@ class VRegPairSource(Register, Hvx, OldSource):
                              vreg_src_off(ctx, {self.reg_num} ^ 1),
                              sizeof(MMVector), sizeof(MMVector));
         """))
-        if not skip_qemu_helper(tag):
+        if not skip_qemu_helper(tag) and not is_helper_to_tcg_enabled(tag):
             f.write(code_fmt(f"""\
                 TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
                 tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hvx_off()});
@@ -957,7 +969,7 @@ class VRegPairReadWrite(Register, Hvx, ReadWrite):
                              vreg_src_off(ctx, {self.reg_num} ^ 1),
                              sizeof(MMVector), sizeof(MMVector));
         """))
-        if not skip_qemu_helper(tag):
+        if not skip_qemu_helper(tag) and not is_helper_to_tcg_enabled(tag):
             f.write(code_fmt(f"""\
                 TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
                 tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hvx_off()});
@@ -1280,8 +1292,13 @@ def helper_ret_type(tag, regs):
         raise Exception("numscalarresults > 1")
     return return_type
 
+
 def helper_args(tag, regs, imms):
     args = []
+    # Used to ensure immediates are passed translated as immediates by
+    # helper-to-tcg.
+    imm_indices = []
+    hvx_indices = []
 
     ## First argument is the CPU state
     if need_env(tag):
@@ -1302,16 +1319,20 @@ def helper_args(tag, regs, imms):
     for regtype, regid in regs:
         reg = get_register(tag, regtype, regid)
         if reg.is_written() and reg.is_hvx_reg():
+            hvx_indices.append(len(args))
             args.append(reg.helper_arg())
 
     ## Pass the source registers
     for regtype, regid in regs:
         reg = get_register(tag, regtype, regid)
         if reg.is_read() and not (reg.is_hvx_reg() and reg.is_readwrite()):
+            if reg.is_hvx_reg():
+                hvx_indices.append(len(args))
             args.append(reg.helper_arg())
 
     ## Pass the immediates
     for immlett, bits, immshift in imms:
+        imm_indices.append(len(args))
         args.append(HelperArg(
             "s32",
             f"tcg_constant_tl({imm_name(immlett)})",
@@ -1320,24 +1341,28 @@ def helper_args(tag, regs, imms):
 
     ## Other stuff the helper might need
     if need_pkt_has_multi_cof(tag):
+        imm_indices.append(len(args))
         args.append(HelperArg(
             "i32",
             "tcg_constant_tl(ctx->pkt.pkt_has_multi_cof)",
             "uint32_t pkt_has_multi_cof"
         ))
     if need_pkt_need_commit(tag):
+        imm_indices.append(len(args))
         args.append(HelperArg(
             "i32",
             "tcg_constant_tl(ctx->need_commit)",
             "uint32_t pkt_need_commit"
         ))
     if need_PC(tag):
+        imm_indices.append(len(args))
         args.append(HelperArg(
             "i32",
             "tcg_constant_tl(ctx->pkt.pc)",
             "target_ulong PC"
         ))
     if need_next_PC(tag):
+        imm_indices.append(len(args))
         args.append(HelperArg(
             "i32",
             "tcg_constant_tl(ctx->next_PC)",
@@ -1356,18 +1381,20 @@ def helper_args(tag, regs, imms):
             "uint32_t SP"
         ))
     if need_slot(tag):
+        imm_indices.append(len(args))
         args.append(HelperArg(
             "i32",
             "gen_slotval(ctx)",
             "uint32_t slotval"
         ))
     if need_part1(tag):
+        imm_indices.append(len(args))
         args.append(HelperArg(
             "i32",
             "tcg_constant_tl(insn->part1)"
             "uint32_t part1"
         ))
-    return args
+    return args, imm_indices, hvx_indices
 
 
 def parse_common_args(desc):

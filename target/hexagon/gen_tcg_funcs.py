@@ -100,7 +100,7 @@ def gen_tcg_func(f, tag, regs, imms):
         if ret_type != "void":
             declared.append(ret_type)
 
-        for arg in hex_common.helper_args(tag, regs, imms):
+        for arg in hex_common.helper_args(tag, regs, imms)[0]:
             declared.append(arg.call_arg)
 
         arguments = ", ".join(declared)

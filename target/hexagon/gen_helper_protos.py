@@ -36,7 +36,7 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
     ret_type = hex_common.helper_ret_type(tag, regs).proto_arg
     declared.append(ret_type)
 
-    for arg in hex_common.helper_args(tag, regs, imms):
+    for arg in hex_common.helper_args(tag, regs, imms)[0]:
         declared.append(arg.proto_arg)
 
     arguments = ", ".join(declared)
