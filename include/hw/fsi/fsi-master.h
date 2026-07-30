@@ -11,6 +11,7 @@
 #include "hw/core/qdev.h"
 #include "hw/fsi/fsi.h"
 #include "hw/fsi/cfam.h"
+#include "hw/fsi/cfam-s.h"
 
 #define TYPE_FSI_MASTER "fsi.master"
 OBJECT_DECLARE_SIMPLE_TYPE(FSIMasterState, FSI_MASTER)
@@ -26,6 +27,7 @@ typedef struct FSIMasterState {
 
     uint32_t regs[FSI_MASTER_NR_REGS];
     FSICFAMState cfam;
+    FSICFAMSState cfam_s;
 } FSIMasterState;
 
 

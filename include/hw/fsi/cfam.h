@@ -35,6 +35,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(FSICFAMState, FSI_CFAM)
 #define ENGINE_CONFIG_TYPE_PEEK       (0x02 << 4)
 #define ENGINE_CONFIG_TYPE_FSI        (0x03 << 4)
 #define ENGINE_CONFIG_TYPE_SCRATCHPAD (0x06 << 4)
+#define ENGINE_CONFIG_TYPE_MBOX_V1    (0x14 << 4)
 
 /* Valid, slots, version, type, crc */
 #define CFAM_CONFIG_REG(__VER, __TYPE, __CRC)   \
@@ -43,6 +44,15 @@ OBJECT_DECLARE_SIMPLE_TYPE(FSICFAMState, FSI_CFAM)
      (__VER)                  |   \
      (__TYPE)                 |   \
      (__CRC))
+
+/* As above, for the last entry in a table: NEXT is clear */
+#define CFAM_CONFIG_LAST(__VER, __TYPE, __CRC)  \
+    (0x00010000               |   \
+     (__VER)                  |   \
+     (__TYPE)                 |   \
+     (__CRC))
+
+#define CFAM_CONFIG_CHIP_ID_MAJOR(__MAJOR) (((__MAJOR) & 0xf) << 8)
 
 struct FSICFAMCommonState {
     /* < private > */

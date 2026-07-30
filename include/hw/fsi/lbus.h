@@ -40,4 +40,15 @@ typedef struct FSIScratchPad {
         uint32_t regs[FSI_SCRATCHPAD_NR_REGS];
 } FSIScratchPad;
 
+#define TYPE_FSI_MBOX "fsi.mbox"
+OBJECT_DECLARE_SIMPLE_TYPE(FSIMbox, FSI_MBOX)
+
+#define FSI_MBOX_SCRATCH_NUM 5
+
+struct FSIMbox {
+    FSILBusDevice parent;
+
+    uint32_t scratch[FSI_MBOX_SCRATCH_NUM];
+};
+
 #endif /* FSI_LBUS_H */

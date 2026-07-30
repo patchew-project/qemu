@@ -8,6 +8,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
+#include "qemu/units.h"
 #include "trace.h"
 
 #include "hw/fsi/fsi-master.h"
@@ -113,6 +114,7 @@ static void fsi_master_init(Object *o)
     FSIMasterState *s = FSI_MASTER(o);
 
     object_initialize_child(o, "cfam", &s->cfam, TYPE_FSI_CFAM);
+    object_initialize_child(o, "cfam-s", &s->cfam_s, TYPE_FSI_CFAM_S);
 
     qbus_init(&s->bus, sizeof(s->bus), TYPE_FSI_BUS, DEVICE(s), NULL);
 
@@ -131,6 +133,11 @@ static void fsi_master_realize(DeviceState *dev, Error **errp)
 
     /* address ? */
     memory_region_add_subregion(&s->opb2fsi, 0, &s->cfam.parent.mr);
+
+    if (!qdev_realize(DEVICE(&s->cfam_s), BUS(&s->bus), errp)) {
+        return;
+    }
+    memory_region_add_subregion(&s->opb2fsi, 2 * MiB, &s->cfam_s.window);
 }
 
 static void fsi_master_reset(DeviceState *dev)

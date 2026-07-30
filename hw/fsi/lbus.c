@@ -107,11 +107,80 @@ static const TypeInfo fsi_scratchpad_info = {
     .class_init = fsi_scratchpad_class_init,
 };
 
+/* The mailbox exposes its scratch registers at this offset */
+#define FSI_MBOX_SCRATCH_OFF 0xe0
+#define FSI_MBOX_SCRATCH_END (FSI_MBOX_SCRATCH_OFF + FSI_MBOX_SCRATCH_NUM * 4)
+
+static uint64_t fsi_mbox_read(void *opaque, hwaddr addr, unsigned size)
+{
+    FSIMbox *mbox = FSI_MBOX(opaque);
+
+    trace_fsi_mbox_read(addr, size);
+
+    if (addr < FSI_MBOX_SCRATCH_OFF || addr >= FSI_MBOX_SCRATCH_END) {
+        return 0;
+    }
+
+    return mbox->scratch[TO_REG(addr - FSI_MBOX_SCRATCH_OFF)];
+}
+
+static void fsi_mbox_write(void *opaque, hwaddr addr, uint64_t data,
+                           unsigned size)
+{
+    FSIMbox *mbox = FSI_MBOX(opaque);
+
+    trace_fsi_mbox_write(addr, size, data);
+
+    if (addr < FSI_MBOX_SCRATCH_OFF || addr >= FSI_MBOX_SCRATCH_END) {
+        return;
+    }
+
+    mbox->scratch[TO_REG(addr - FSI_MBOX_SCRATCH_OFF)] = data;
+}
+
+static const struct MemoryRegionOps fsi_mbox_ops = {
+    .read = fsi_mbox_read,
+    .write = fsi_mbox_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static void fsi_mbox_realize(DeviceState *dev, Error **errp)
+{
+    FSILBusDevice *ldev = FSI_LBUS_DEVICE(dev);
+
+    memory_region_init_io(&ldev->iomem, OBJECT(ldev), &fsi_mbox_ops,
+                          ldev, TYPE_FSI_MBOX, 0x400);
+}
+
+static void fsi_mbox_reset(DeviceState *dev)
+{
+    FSIMbox *mbox = FSI_MBOX(dev);
+
+    memset(mbox->scratch, 0, sizeof(mbox->scratch));
+}
+
+static void fsi_mbox_class_init(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->bus_type = TYPE_FSI_LBUS;
+    dc->realize = fsi_mbox_realize;
+    device_class_set_legacy_reset(dc, fsi_mbox_reset);
+}
+
+static const TypeInfo fsi_mbox_info = {
+    .name = TYPE_FSI_MBOX,
+    .parent = TYPE_FSI_LBUS_DEVICE,
+    .instance_size = sizeof(FSIMbox),
+    .class_init = fsi_mbox_class_init,
+};
+
 static void fsi_lbus_register_types(void)
 {
     type_register_static(&fsi_lbus_info);
     type_register_static(&fsi_lbus_device_type_info);
     type_register_static(&fsi_scratchpad_info);
+    type_register_static(&fsi_mbox_info);
 }
 
 type_init(fsi_lbus_register_types);
