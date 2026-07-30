@@ -345,4 +345,8 @@ FIELD(PROBE_PKT_SCALAR_HVX_STORES, MMU_IDX,        5, 2)
 
 void gen_framecheck(DisasContext *ctx, TCGv_i32 addr, TCGv_i32 ea);
 
+#if defined(TARGET_HELPER_TO_TCG)
+int get_tb_mmu_index(uint32_t flags);
+#endif
+
 #endif
