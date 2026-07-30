@@ -24,6 +24,7 @@
 #include "qemu/osdep.h"
 #include "qemu/host-utils.h"
 #include "exec/cpu-common.h"
+#include "qemu/int128.h"
 #include "exec/helper-proto-common.h"
 #include "accel/tcg/cpu-loop.h"
 #include "accel/tcg/getpc.h"
@@ -54,7 +55,29 @@ uint32_t HELPER(remu_i32)(uint32_t arg1, uint32_t arg2)
     return arg1 % arg2;
 }
 
+uint32_t HELPER(bitreverse8_i32)(uint32_t x)
+{
+  return revbit8((uint8_t) x);
+}
+
+uint32_t HELPER(bitreverse16_i32)(uint32_t x)
+{
+  return revbit16((uint16_t) x);
+}
+
+uint32_t HELPER(bitreverse32_i32)(uint32_t x)
+{
+  return revbit32(x);
+}
+
 /* 64-bit helpers */
+
+uint64_t HELPER(fshl_i64)(uint64_t a, uint64_t b, uint64_t c)
+{
+    Int128 d = int128_make128(b, a);
+    Int128 shift = int128_lshift(d, c);
+    return int128_gethi(shift);
+}
 
 int64_t HELPER(div_i64)(int64_t arg1, int64_t arg2)
 {
@@ -74,6 +97,11 @@ uint64_t HELPER(divu_i64)(uint64_t arg1, uint64_t arg2)
 uint64_t HELPER(remu_i64)(uint64_t arg1, uint64_t arg2)
 {
     return arg1 % arg2;
+}
+
+uint64_t HELPER(bitreverse64_i64)(uint64_t x)
+{
+    return revbit64(x);
 }
 
 uint64_t HELPER(muluh_i64)(uint64_t arg1, uint64_t arg2)
