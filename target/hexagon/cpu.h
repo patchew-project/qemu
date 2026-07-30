@@ -117,7 +117,7 @@ typedef struct {
 #define SET_EXCEPTION           (env->status |= EXEC_STATUS_EXCEPTION)
 
 /* Maximum number of vector temps in a packet */
-#define VECTOR_TEMPS_MAX            4
+#define VECTOR_TEMPS_MAX            8
 
 typedef struct CPUArchState {
     target_ulong gpr[TOTAL_PER_THREAD_REGS];
@@ -159,6 +159,10 @@ typedef struct CPUArchState {
     MMVector VRegs[NUM_VREGS] QEMU_ALIGNED(16);
     MMVector future_VRegs[VECTOR_TEMPS_MAX] QEMU_ALIGNED(16);
     MMVector tmp_VRegs[VECTOR_TEMPS_MAX] QEMU_ALIGNED(16);
+
+#ifdef TARGET_HELPER_TO_TCG
+    uint8_t tmp_vmem[4096] QEMU_ALIGNED(16);
+#endif
 
     MMQReg QRegs[NUM_QREGS] QEMU_ALIGNED(16);
     MMQReg future_QRegs[NUM_QREGS] QEMU_ALIGNED(16);
