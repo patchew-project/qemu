@@ -133,3 +133,11 @@ DEF_HELPER_1(resched, void, env)
 DEF_HELPER_3(modify_ssr, void, env, i32, i32)
 DEF_HELPER_1(pending_interrupt, void, env)
 #endif
+
+/*
+ * Include generated helper-to-tcg support helpers, but not during IR
+ * generation since they won't have been emitted at that point.
+ */
+#if defined(TARGET_HELPER_TO_TCG) && !defined(HELPER_TO_TCG_IR_GEN)
+# include "helper-to-tcg-support-helpers.h"
+#endif
