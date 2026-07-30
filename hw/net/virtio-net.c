@@ -2996,19 +2996,22 @@ static void virtio_net_add_queue(VirtIONet *n, int index)
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
 
     n->vqs[index].rx_vq = virtio_add_queue(vdev, n->net_conf.rx_queue_size,
-                                           virtio_net_handle_rx);
+                                           virtio_net_handle_rx,
+                                           &error_abort);
 
     if (n->net_conf.tx && !strcmp(n->net_conf.tx, "timer")) {
         n->vqs[index].tx_vq =
             virtio_add_queue(vdev, n->net_conf.tx_queue_size,
-                             virtio_net_handle_tx_timer);
+                             virtio_net_handle_tx_timer,
+                             &error_abort);
         n->vqs[index].tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                               virtio_net_tx_timer,
                                               &n->vqs[index]);
     } else {
         n->vqs[index].tx_vq =
             virtio_add_queue(vdev, n->net_conf.tx_queue_size,
-                             virtio_net_handle_tx_bh);
+                             virtio_net_handle_tx_bh,
+                             &error_abort);
         n->vqs[index].tx_bh = virtio_bh_new_guarded(DEVICE(vdev),
                                                     virtio_net_tx_bh,
                                                     &n->vqs[index]);
@@ -3069,7 +3072,8 @@ static void virtio_net_change_num_queues(VirtIONet *n, int new_num_queues)
     }
 
     /* add ctrl_vq last */
-    n->ctrl_vq = virtio_add_queue(vdev, 64, virtio_net_handle_ctrl);
+    n->ctrl_vq = virtio_add_queue(vdev, 64, virtio_net_handle_ctrl,
+                                  &error_abort);
 }
 
 static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue)
@@ -4001,7 +4005,8 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 
     virtio_net_add_queue(n, 0);
 
-    n->ctrl_vq = virtio_add_queue(vdev, 64, virtio_net_handle_ctrl);
+    n->ctrl_vq = virtio_add_queue(vdev, 64, virtio_net_handle_ctrl,
+                                  &error_abort);
     qemu_macaddr_default_if_unset(&n->nic_conf.macaddr);
     memcpy(&n->mac[0], &n->nic_conf.macaddr, sizeof(n->mac));
     n->status = VIRTIO_NET_S_LINK_UP;

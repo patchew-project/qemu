@@ -254,13 +254,16 @@ void vhost_vsock_common_realize(VirtIODevice *vdev)
 
     /* Receive and transmit queues belong to vhost */
     vvc->recv_vq = virtio_add_queue(vdev, VHOST_VSOCK_QUEUE_SIZE,
-                                      vhost_vsock_common_handle_output);
+                                    vhost_vsock_common_handle_output,
+                                    &error_abort);
     vvc->trans_vq = virtio_add_queue(vdev, VHOST_VSOCK_QUEUE_SIZE,
-                                       vhost_vsock_common_handle_output);
+                                     vhost_vsock_common_handle_output,
+                                     &error_abort);
 
     /* The event queue belongs to QEMU */
     vvc->event_vq = virtio_add_queue(vdev, VHOST_VSOCK_QUEUE_SIZE,
-                                       vhost_vsock_common_handle_output);
+                                     vhost_vsock_common_handle_output,
+                                     &error_abort);
 
     vvc->vhost_dev.nvqs = ARRAY_SIZE(vvc->vhost_vqs);
     vvc->vhost_dev.vqs = vvc->vhost_vqs;

@@ -1433,8 +1433,10 @@ static void virtio_iommu_device_realize(DeviceState *dev, Error **errp)
     virtio_init(vdev, VIRTIO_ID_IOMMU, sizeof(struct virtio_iommu_config));
 
     s->req_vq = virtio_add_queue(vdev, VIOMMU_DEFAULT_QUEUE_SIZE,
-                             virtio_iommu_handle_command);
-    s->event_vq = virtio_add_queue(vdev, VIOMMU_DEFAULT_QUEUE_SIZE, NULL);
+                                 virtio_iommu_handle_command,
+                                 &error_abort);
+    s->event_vq = virtio_add_queue(vdev, VIOMMU_DEFAULT_QUEUE_SIZE, NULL,
+                                   &error_abort);
     s->cmd_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
                                 virtio_iommu_handle_command_timer, s);
 

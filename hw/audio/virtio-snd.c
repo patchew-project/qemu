@@ -1089,13 +1089,13 @@ static void virtio_snd_realize(DeviceState *dev, Error **errp)
     default_params.format = VIRTIO_SND_PCM_FMT_S16;
     default_params.rate = VIRTIO_SND_PCM_RATE_48000;
     vsnd->queues[VIRTIO_SND_VQ_CONTROL] =
-        virtio_add_queue(vdev, 64, virtio_snd_handle_ctrl);
+        virtio_add_queue(vdev, 64, virtio_snd_handle_ctrl, &error_abort);
     vsnd->queues[VIRTIO_SND_VQ_EVENT] =
-        virtio_add_queue(vdev, 64, virtio_snd_handle_event);
+        virtio_add_queue(vdev, 64, virtio_snd_handle_event, &error_abort);
     vsnd->queues[VIRTIO_SND_VQ_TX] =
-        virtio_add_queue(vdev, 64, virtio_snd_handle_tx_xfer);
+        virtio_add_queue(vdev, 64, virtio_snd_handle_tx_xfer, &error_abort);
     vsnd->queues[VIRTIO_SND_VQ_RX] =
-        virtio_add_queue(vdev, 64, virtio_snd_handle_rx_xfer);
+        virtio_add_queue(vdev, 64, virtio_snd_handle_rx_xfer, &error_abort);
     qemu_mutex_init(&vsnd->cmdq_mutex);
     QTAILQ_INIT(&vsnd->cmdq);
     QSIMPLEQ_INIT(&vsnd->invalid);

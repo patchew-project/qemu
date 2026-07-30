@@ -966,7 +966,8 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
     vmem->bitmap = bitmap_new(vmem->bitmap_size);
 
     virtio_init(vdev, VIRTIO_ID_MEM, sizeof(struct virtio_mem_config));
-    vmem->vq = virtio_add_queue(vdev, 128, virtio_mem_handle_request);
+    vmem->vq = virtio_add_queue(vdev, 128, virtio_mem_handle_request,
+                                &error_abort);
 
     /*
      * With "dynamic-memslots=off" (old behavior) we always map the whole

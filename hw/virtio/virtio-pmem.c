@@ -129,7 +129,7 @@ static void virtio_pmem_realize(DeviceState *dev, Error **errp)
 
     host_memory_backend_set_mapped(pmem->memdev, true);
     virtio_init(vdev, VIRTIO_ID_PMEM, sizeof(struct virtio_pmem_config));
-    pmem->rq_vq = virtio_add_queue(vdev, 128, virtio_pmem_flush);
+    pmem->rq_vq = virtio_add_queue(vdev, 128, virtio_pmem_flush, &error_abort);
     pmem->inflight = 1;
 }
 

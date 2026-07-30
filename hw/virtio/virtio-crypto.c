@@ -1091,14 +1091,16 @@ static void virtio_crypto_device_realize(DeviceState *dev, Error **errp)
     vcrypto->vqs = g_new0(VirtIOCryptoQueue, vcrypto->max_queues);
     for (i = 0; i < vcrypto->max_queues; i++) {
         vcrypto->vqs[i].dataq =
-                 virtio_add_queue(vdev, 1024, virtio_crypto_handle_dataq_bh);
+                 virtio_add_queue(vdev, 1024, virtio_crypto_handle_dataq_bh,
+                                  &error_abort);
         vcrypto->vqs[i].dataq_bh =
                  virtio_bh_new_guarded(dev, virtio_crypto_dataq_bh,
                                        &vcrypto->vqs[i]);
         vcrypto->vqs[i].vcrypto = vcrypto;
     }
 
-    vcrypto->ctrl_vq = virtio_add_queue(vdev, 1024, virtio_crypto_handle_ctrl);
+    vcrypto->ctrl_vq = virtio_add_queue(vdev, 1024, virtio_crypto_handle_ctrl,
+                                        &error_abort);
     if (!cryptodev_backend_is_ready(vcrypto->cryptodev)) {
         vcrypto->status &= ~VIRTIO_CRYPTO_S_HW_READY;
     } else {

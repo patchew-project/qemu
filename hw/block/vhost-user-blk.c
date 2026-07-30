@@ -516,7 +516,8 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     s->virtqs = g_new(VirtQueue *, s->num_queues);
     for (i = 0; i < s->num_queues; i++) {
         s->virtqs[i] = virtio_add_queue(vdev, s->queue_size,
-                                        vhost_user_blk_handle_output);
+                                        vhost_user_blk_handle_output,
+                                        &error_abort);
     }
 
     s->inflight = g_new0(struct vhost_inflight, 1);

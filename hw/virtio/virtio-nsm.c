@@ -1660,7 +1660,7 @@ static void virtio_nsm_device_realize(DeviceState *dev, Error **errp)
 
     virtio_init(vdev, VIRTIO_ID_NITRO_SEC_MOD, 0);
 
-    vnsm->vq = virtio_add_queue(vdev, 2, handle_input);
+    vnsm->vq = virtio_add_queue(vdev, 2, handle_input, &error_abort);
 }
 
 static void virtio_nsm_device_unrealize(DeviceState *dev)

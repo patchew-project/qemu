@@ -887,13 +887,17 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
-    s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
-    s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
+    s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output,
+                              &error_abort);
+    s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output,
+                              &error_abort);
+    s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats,
+                              &error_abort);
 
     if (virtio_has_feature(s->host_features, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
         s->free_page_vq = virtio_add_queue(vdev, VIRTQUEUE_MAX_SIZE,
-                                           virtio_balloon_handle_free_page_vq);
+                                           virtio_balloon_handle_free_page_vq,
+                                           &error_abort);
         precopy_add_notifier(&s->free_page_hint_notify);
 
         object_ref(OBJECT(s->iothread));
@@ -904,7 +908,8 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
 
     if (virtio_has_feature(s->host_features, VIRTIO_BALLOON_F_REPORTING)) {
         s->reporting_vq = virtio_add_queue(vdev, 32,
-                                           virtio_balloon_handle_report);
+                                           virtio_balloon_handle_report,
+                                           &error_abort);
     }
 
     reset_stats(s);

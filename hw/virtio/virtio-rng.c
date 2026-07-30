@@ -219,7 +219,7 @@ static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
 
     virtio_init(vdev, VIRTIO_ID_RNG, 0);
 
-    vrng->vq = virtio_add_queue(vdev, 8, handle_input);
+    vrng->vq = virtio_add_queue(vdev, 8, handle_input, &error_abort);
     vrng->quota_remaining = vrng->conf.max_bytes;
     vrng->rate_limit_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                                check_rate_limit, vrng);

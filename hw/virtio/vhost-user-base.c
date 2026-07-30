@@ -334,7 +334,8 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < vub->num_vqs; i++) {
         g_ptr_array_add(vub->vqs,
                         virtio_add_queue(vdev, vub->vq_size,
-                                         vub_handle_output));
+                                         vub_handle_output,
+                                         &error_abort));
     }
 
     vub->vhost_dev.nvqs = vub->num_vqs;

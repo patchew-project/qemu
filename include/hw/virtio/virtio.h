@@ -303,7 +303,7 @@ void virtio_device_set_child_bus_name(VirtIODevice *vdev, char *bus_name);
 typedef void (*VirtIOHandleOutput)(VirtIODevice *, VirtQueue *);
 
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, unsigned int queue_size,
-                            VirtIOHandleOutput handle_output);
+                            VirtIOHandleOutput handle_output, Error **errp);
 
 void virtio_del_queue(VirtIODevice *vdev, int n);
 

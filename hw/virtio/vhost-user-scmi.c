@@ -250,8 +250,10 @@ static void vu_scmi_device_realize(DeviceState *dev, Error **errp)
 
     virtio_init(vdev, VIRTIO_ID_SCMI, 0);
 
-    scmi->cmd_vq = virtio_add_queue(vdev, 256, vu_scmi_handle_output);
-    scmi->event_vq = virtio_add_queue(vdev, 256, vu_scmi_handle_output);
+    scmi->cmd_vq = virtio_add_queue(vdev, 256, vu_scmi_handle_output,
+                                    &error_abort);
+    scmi->event_vq = virtio_add_queue(vdev, 256, vu_scmi_handle_output,
+                                      &error_abort);
     scmi->vhost_dev.nvqs = 2;
     scmi->vhost_dev.vqs = g_new0(struct vhost_virtqueue, scmi->vhost_dev.nvqs);
     vhost_vqs = scmi->vhost_dev.vqs;

@@ -135,7 +135,8 @@ static void virtio_rtc_device_realize(DeviceState *dev, Error **errp)
     VirtIORtc *vrtc = VIRTIO_RTC(dev);
 
     virtio_init(vdev, VIRTIO_ID_CLOCK, 0);
-    vrtc->vq = virtio_add_queue(vdev, 64, virtio_rtc_handle_request);
+    vrtc->vq = virtio_add_queue(vdev, 64, virtio_rtc_handle_request,
+                                &error_abort);
 }
 
 static void virtio_rtc_device_unrealize(DeviceState *dev)

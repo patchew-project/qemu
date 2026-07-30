@@ -236,7 +236,7 @@ static void virtio_9p_device_realize(DeviceState *dev, Error **errp)
 
     v->config_size = sizeof(struct virtio_9p_config) + strlen(s->fsconf.tag);
     virtio_init(vdev, VIRTIO_ID_9P, v->config_size);
-    v->vq = virtio_add_queue(vdev, MAX_REQ, handle_9p_output);
+    v->vq = virtio_add_queue(vdev, MAX_REQ, handle_9p_output, &error_abort);
 }
 
 static void virtio_9p_device_unrealize(DeviceState *dev)

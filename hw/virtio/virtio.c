@@ -2565,8 +2565,9 @@ void virtio_queue_set_vector(VirtIODevice *vdev, int n, uint16_t vector)
 }
 
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, unsigned int queue_size,
-                            VirtIOHandleOutput handle_output)
+                            VirtIOHandleOutput handle_output, Error **errp)
 {
+    ERRP_GUARD();
     int i;
 
     for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
@@ -2574,15 +2575,43 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, unsigned int queue_size,
             break;
     }
 
-    if (i == VIRTIO_QUEUE_MAX || queue_size > VIRTQUEUE_MAX_SIZE)
-        abort();
+    if (i == VIRTIO_QUEUE_MAX) {
+        error_setg(errp, "Exceeded maximum number of virtqueues (%d)", i);
+        return NULL;
+    }
+
+    if (queue_size > VIRTQUEUE_MAX_SIZE) {
+        error_setg(errp, "Virtqueue size %u exceeds the max (%u)",
+                   queue_size, VIRTQUEUE_MAX_SIZE);
+        return NULL;
+    }
 
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     if (qbus && qbus->parent &&
         object_property_find(OBJECT(qbus->parent), VIRTIO_QUEUE_SIZE_OVERRIDE)) {
         int override = object_property_get_int(OBJECT(qbus->parent),
                                                VIRTIO_QUEUE_SIZE_OVERRIDE,
-                                               &error_abort);
+                                               errp);
+
+        if (*errp) {
+            return NULL;
+        }
+        if (override < 0) {
+            /*
+             * The property type should be UINT16, so this can't happen, but
+             * help out Coverity.
+             */
+            error_setg(errp, "%s (%d) cannot be negative",
+                       VIRTIO_QUEUE_SIZE_OVERRIDE, override);
+            return NULL;
+        }
+        if (override > VIRTQUEUE_MAX_SIZE) {
+            error_setg(errp, "%s (%d) exceeds the max (%d)",
+                       VIRTIO_QUEUE_SIZE_OVERRIDE, override,
+                       VIRTQUEUE_MAX_SIZE);
+            return NULL;
+        }
+
         if (override) {
             queue_size = override;
         }

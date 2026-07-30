@@ -151,7 +151,8 @@ static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
     v->virtqs = g_new0(VirtQueue *, v->dev.nvqs);
     for (i = 0; i < v->dev.nvqs; i++) {
         v->virtqs[i] = virtio_add_queue(vdev, v->queue_size,
-                                        vhost_vdpa_device_dummy_handle_output);
+                                        vhost_vdpa_device_dummy_handle_output,
+                                        &error_abort);
     }
 
     return;

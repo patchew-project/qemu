@@ -259,8 +259,10 @@ static void virtio_input_device_realize(DeviceState *dev, Error **errp)
     assert(vinput->cfg_size <= sizeof(virtio_input_config));
 
     virtio_init(vdev, VIRTIO_ID_INPUT, vinput->cfg_size);
-    vinput->evt = virtio_add_queue(vdev, 64, virtio_input_handle_evt);
-    vinput->sts = virtio_add_queue(vdev, 64, virtio_input_handle_sts);
+    vinput->evt = virtio_add_queue(vdev, 64, virtio_input_handle_evt,
+                                   &error_abort);
+    vinput->sts = virtio_add_queue(vdev, 64, virtio_input_handle_sts,
+                                   &error_abort);
 }
 
 static void virtio_input_finalize(Object *obj)

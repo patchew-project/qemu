@@ -1317,10 +1317,13 @@ void virtio_scsi_common_realize(DeviceState *dev,
     s->sense_size = VIRTIO_SCSI_SENSE_DEFAULT_SIZE;
     s->cdb_size = VIRTIO_SCSI_CDB_DEFAULT_SIZE;
 
-    s->ctrl_vq = virtio_add_queue(vdev, s->conf.virtqueue_size, ctrl);
-    s->event_vq = virtio_add_queue(vdev, s->conf.virtqueue_size, evt);
+    s->ctrl_vq = virtio_add_queue(vdev, s->conf.virtqueue_size, ctrl,
+                                  &error_abort);
+    s->event_vq = virtio_add_queue(vdev, s->conf.virtqueue_size, evt,
+                                   &error_abort);
     for (i = 0; i < s->conf.num_queues; i++) {
-        s->cmd_vqs[i] = virtio_add_queue(vdev, s->conf.virtqueue_size, cmd);
+        s->cmd_vqs[i] = virtio_add_queue(vdev, s->conf.virtqueue_size, cmd,
+                                         &error_abort);
     }
 }
 
