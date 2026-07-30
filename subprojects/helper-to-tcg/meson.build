@@ -82,3 +82,5 @@ pipeline = executable('helper-to-tcg', sources,
                       include_directories: ['include'] + [incdir],
                       link_args: [ldflags] + [libs] + [syslibs],
                       cpp_args: cpp_args)
+
+subdir('tests')
