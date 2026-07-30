@@ -271,8 +271,8 @@ configuration file for OTP memory:
     done > otpmem.img
   fi
 
-Aspeed 2700 family boards (``ast2700-evb``, ``ast2700fc``)
-==========================================================
+Aspeed 2700 family boards (``ast2700-evb``, ``ast2700fc``, ``huygens-bmc``)
+============================================================================
 
 The QEMU Aspeed machines model BMCs of Aspeed evaluation boards.
 They are based on different releases of the Aspeed SoC :
@@ -285,6 +285,7 @@ AST2700 SoC based machines :
 
 - ``ast2700-evb``          Aspeed AST2700 Evaluation board (Cortex-A35)
 - ``ast2700fc``            Aspeed AST2700 Evaluation board (Cortex-A35 + Cortex-M4)
+- ``huygens-bmc``          Aspeed AST2700 IBM Huygens POWER12 BMC
 
 Supported devices
 -----------------
@@ -312,6 +313,8 @@ Supported devices
  * PECI Controller (minimal)
  * I3C Controller
  * Internal Bridge Controller (SLI dummy)
+ * UFS Host Controller (aspeed,ufshc-m31-16nm) - ``huygens-bmc`` only
+ * FSI APB-to-OPB bridge with CFAM-S mailbox
 
 Missing devices
 ---------------
@@ -439,6 +442,49 @@ Use ``tio`` or another terminal emulator to connect to the consoles:
    $ tio /dev/pts/55
    $ tio /dev/pts/56
    $ tio /dev/pts/57
+
+Booting the huygens-bmc machine
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The IBM Huygens BMC is based on the AST2700 A2 SoC. Its storage is
+split across two images:
+
+* the FMC (SPI NOR) flash image (``image-bmc``) holds U-Boot, the Linux
+  kernel and the FIT image;
+* the UFS image (``ufs.img``) holds the root filesystem.
+
+Both images can be built from the OpenBMC project tree.
+
+To boot the machine, attach the flash image to the FMC device and the
+root filesystem image to a UFS logical unit. ``-nodefaults`` is used so the
+board does not also create a default flash at chip-select 0, and the console
+is wired explicitly since ``-nodefaults`` disables the implicit one:
+
+.. code-block:: bash
+
+  $ qemu-system-aarch64 -M huygens-bmc \
+        -nodefaults \
+        -blockdev node-name=fmc0,driver=file,filename=image-bmc \
+        -device w25q01jvq,bus=ssi.0,cs=0,drive=fmc0 \
+        -blockdev node-name=ufs0,driver=file,filename=ufs.img \
+        -device ufs-lu,bus=ufs-bus.0,drive=ufs0,lun=0,logical-block-size=512 \
+        -display none -serial mon:stdio
+
+The FMC flash sits on chip-select 0 of the ``ssi.0`` bus and the UFS logical
+unit on ``ufs-bus.0``. The Huygens image is laid out for 512-byte sectors,
+hence ``logical-block-size=512``.
+
+The machine instantiates three ``ftgmac100`` Ethernet controllers, which
+are wired up by the board. To expose them with user networking, add three
+``-nic user`` options to the command above:
+
+.. code-block:: bash
+
+        -nic user \
+        -nic user \
+        -nic user
+
+The default BMC console is ``uart12``.
 
 
 Aspeed Bridge IC and Platform Root of Trust processor family boards (``ast1030-evb``, ``ast1040-evb``, ``ast1060-evb``)
