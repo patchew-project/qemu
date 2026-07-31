@@ -12,6 +12,7 @@
 #include "hw/core/boards.h"
 #include "hw/intc/intc.h"
 #include "hw/mem/memory-device.h"
+#include "hw/riscv/cove.h"
 #include "qapi/error.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qapi/qapi-commands-accelerator.h"
@@ -302,6 +303,15 @@ UuidInfo *qmp_query_uuid(Error **errp)
 
 void qmp_system_reset(Error **errp)
 {
+    /*
+     * Resetting a CoVE guest destroys the TVM, which cannot be recreated
+     * from the host, so shut the guest down instead.
+     */
+    if (riscv_cove_vm_active()) {
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_QMP_SYSTEM_RESET);
+        return;
+    }
+
     qemu_system_reset_request(SHUTDOWN_CAUSE_HOST_QMP_SYSTEM_RESET);
 }
 
