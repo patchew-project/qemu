@@ -22,16 +22,6 @@ void helper_raise_exception(CPULoongArchState *env, uint32_t exception)
     do_raise_exception(env, exception, GETPC());
 }
 
-target_ulong helper_bitrev_w(target_ulong rj)
-{
-    return (int32_t)revbit32(rj);
-}
-
-target_ulong helper_bitrev_d(target_ulong rj)
-{
-    return revbit64(rj);
-}
-
 target_ulong helper_bitswap(target_ulong v)
 {
     v = ((v >> 1) & (target_ulong)0x5555555555555555ULL) |
