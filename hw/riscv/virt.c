@@ -1373,6 +1373,16 @@ static void virt_machine_init(MachineState *machine)
         exit(1);
     }
 
+    /*
+     * A CoVE guest can only receive MSIs, so an IMSIC is mandatory: without
+     * it PCIe devices have no interrupt source at all and their drivers fail
+     * to probe.
+     */
+    if (s->cove_vm && s->aia_type == VIRT_AIA_TYPE_NONE) {
+        s->aia_type = VIRT_AIA_TYPE_APLIC_IMSIC;
+        warn_report("CoVE VM: forcing aia=aplic-imsic");
+    }
+
     /* Initialize sockets */
     mmio_irqchip = virtio_irqchip = pcie_irqchip = NULL;
     for (i = 0; i < socket_count; i++) {
@@ -1524,10 +1534,13 @@ static void virt_machine_init(MachineState *machine)
     sifive_test_create(s->memmap[VIRT_TEST].base);
 
     /* VirtIO MMIO devices */
-    for (i = 0; i < VIRTIO_COUNT; i++) {
-        sysbus_create_simple("virtio-mmio",
-            s->memmap[VIRT_VIRTIO].base + i * s->memmap[VIRT_VIRTIO].size,
-            qdev_get_gpio_in(virtio_irqchip, VIRTIO_IRQ + i));
+    /* A CoVE guest has no virtio-mmio transport, see create_fdt_virtio(). */
+    if (!s->cove_vm) {
+        for (i = 0; i < VIRTIO_COUNT; i++) {
+            sysbus_create_simple("virtio-mmio",
+                s->memmap[VIRT_VIRTIO].base + i * s->memmap[VIRT_VIRTIO].size,
+                qdev_get_gpio_in(virtio_irqchip, VIRTIO_IRQ + i));
+        }
     }
 
     gpex_pcie_init(system_memory, pcie_irqchip, s);
