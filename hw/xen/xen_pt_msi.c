@@ -561,12 +561,6 @@ int xen_pt_msix_init(XenPCIPassthroughState *s, uint32_t base)
         msix->msix_entry[i].pirq = XEN_PT_UNASSIGNED_PIRQ;
     }
 
-    memory_region_init_io(&msix->mmio, OBJECT(s), &pci_msix_ops,
-                          s, "xen-pci-pt-msix",
-                          (total_entries * PCI_MSIX_ENTRY_SIZE
-                           + XC_PAGE_SIZE - 1)
-                          & XC_PAGE_MASK);
-
     rc = xen_host_pci_get_long(hd, base + PCI_MSIX_TABLE, &table_off);
     if (rc) {
         XEN_PT_ERR(d, "Failed to read PCI_MSIX_TABLE field\n");
@@ -588,7 +582,9 @@ int xen_pt_msix_init(XenPCIPassthroughState *s, uint32_t base)
     msix->table_offset_adjust = table_off & 0x0fff;
     msix->phys_iomem_base =
         mmap(NULL,
-             total_entries * PCI_MSIX_ENTRY_SIZE + msix->table_offset_adjust,
+             ROUND_UP(total_entries * PCI_MSIX_ENTRY_SIZE
+                      + msix->table_offset_adjust,
+                      XC_PAGE_SIZE),
              PROT_READ,
              MAP_SHARED | MAP_LOCKED,
              fd,
@@ -604,6 +600,13 @@ int xen_pt_msix_init(XenPCIPassthroughState *s, uint32_t base)
 
     XEN_PT_LOG(d, "mapping physical MSI-X table to %p\n",
                msix->phys_iomem_base);
+
+    memory_region_init_io(&msix->mmio, OBJECT(s), &pci_msix_ops,
+                          s, "xen-pci-pt-msix",
+                          ROUND_UP(total_entries * PCI_MSIX_ENTRY_SIZE
+                                   + msix->table_offset_adjust,
+                                   XC_PAGE_SIZE)
+                          - msix->table_offset_adjust);
 
     memory_region_add_subregion_overlap(&s->bar[bar_index], table_off,
                                         &msix->mmio,
@@ -629,8 +632,10 @@ void xen_pt_msix_unmap(XenPCIPassthroughState *s)
     if (msix->phys_iomem_base) {
         XEN_PT_LOG(&s->dev, "unmapping physical MSI-X table from %p\n",
                    msix->phys_iomem_base);
-        munmap(msix->phys_iomem_base, msix->total_entries * PCI_MSIX_ENTRY_SIZE
-               + msix->table_offset_adjust);
+        munmap(msix->phys_iomem_base - msix->table_offset_adjust,
+               ROUND_UP(msix->total_entries * PCI_MSIX_ENTRY_SIZE
+                        + msix->table_offset_adjust,
+                        XC_PAGE_SIZE));
     }
 
     memory_region_del_subregion(&s->bar[msix->bar_index], &msix->mmio);
