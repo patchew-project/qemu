@@ -366,6 +366,27 @@ int kvm_physical_memory_addr_from_host(KVMState *s, void *ram,
     return ret;
 }
 
+void *kvm_gpa_to_userspace_addr(KVMState *s, hwaddr gpa)
+{
+    KVMMemoryListener *kml = &s->memory_listener;
+    void *result = NULL;
+    int i;
+    KVMSlot *mem;
+
+    kvm_slots_lock();
+    for (i = 0; i < kml->nr_slots_allocated; i++) {
+        mem = &kml->slots[i];
+        if (gpa >= mem->start_addr &&
+            gpa < mem->start_addr + mem->memory_size) {
+            result = mem->ram + (gpa - mem->start_addr);
+            break;
+        }
+    }
+    kvm_slots_unlock();
+
+    return result;
+}
+
 static int kvm_set_user_memory_region(KVMMemoryListener *kml, KVMSlot *slot, bool new)
 {
     KVMState *s = kvm_state;

@@ -454,6 +454,24 @@ void kvm_set_sigmask_len(KVMState *s, unsigned int sigmask_len);
 int kvm_physical_memory_addr_from_host(KVMState *s, void *ram_addr,
                                        hwaddr *phys_addr);
 
+/**
+ * kvm_gpa_to_userspace_addr:
+ * @s: #KVMState
+ * @gpa: guest physical address
+ *
+ * Returns the host userspace address @gpa is backed by, or NULL if @gpa is
+ * not covered by any memory slot.
+ */
+#ifdef CONFIG_KVM
+void *kvm_gpa_to_userspace_addr(KVMState *s, hwaddr gpa);
+#else
+static inline void *kvm_gpa_to_userspace_addr(KVMState *s, hwaddr gpa)
+{
+    /* Without KVM there are no memory slots to look up. */
+    return NULL;
+}
+#endif
+
 #endif /* COMPILING_PER_TARGET */
 
 bool kvm_arch_supports_vmfd_change(void);
