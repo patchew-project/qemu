@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
+#include "hw/riscv/cove.h"
 #include "hw/s390x/adapter.h"
 #include "gdbstub/enums.h"
 #include "system/kvm_int.h"
@@ -392,6 +393,16 @@ static int kvm_set_user_memory_region(KVMMemoryListener *kml, KVMSlot *slot, boo
     KVMState *s = kvm_state;
     struct kvm_userspace_memory_region2 mem = {};
     int ret;
+
+    /*
+     * Only the DRAM slot is registered with KVM for a CoVE guest: the TSM
+     * tracks the confidential region of the TVM itself and registering the
+     * other slots (MROM, flash, ...) would overwrite it.
+     */
+    if (riscv_cove_vm_active() && (slot->slot & 0xffff) != 0 &&
+        slot->memory_size > 0) {
+        return 0;
+    }
 
     mem.slot = slot->slot | (kml->as_id << 16);
     mem.guest_phys_addr = slot->start_addr;
