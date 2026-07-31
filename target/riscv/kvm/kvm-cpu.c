@@ -1477,7 +1477,13 @@ static void kvm_riscv_vm_state_change(void *opaque, bool running,
     if (running) {
         kvm_riscv_put_regs_timer(cs);
     } else {
-        kvm_riscv_get_regs_timer(cs);
+        /*
+         * The timer state of a CoVE guest is kept inside the TVM and cannot
+         * be read back by the host.
+         */
+        if (!riscv_cove_vm_active()) {
+            kvm_riscv_get_regs_timer(cs);
+        }
     }
 }
 
@@ -1791,6 +1797,14 @@ void kvm_riscv_set_irq(RISCVCPU *cpu, int irq, int level)
     int ret;
     unsigned virq = level ? KVM_INTERRUPT_SET : KVM_INTERRUPT_UNSET;
 
+    /*
+     * A CoVE guest has neither APLIC nor PLIC, so there is no wired
+     * interrupt to inject.
+     */
+    if (riscv_cove_vm_active()) {
+        return;
+    }
+
     if (irq != IRQ_S_EXT) {
         perror("kvm riscv set irq != IRQ_S_EXT\n");
         abort();
@@ -1924,8 +1938,11 @@ void kvm_riscv_aia_create(MachineState *machine, uint64_t group_shift,
      * This is done by leaving KVM_DEV_RISCV_AIA_CONFIG_SRCS
      * unset. We can also skip KVM_DEV_RISCV_AIA_ADDR_APLIC
      * since KVM won't be using it.
+     *
+     * The same applies to a CoVE guest: KVM does not implement an
+     * APLIC for a TVM, only the IMSIC is used.
      */
-    if (!kvm_kernel_irqchip_split()) {
+    if (!kvm_kernel_irqchip_split() && !riscv_cove_vm_active()) {
         ret = kvm_device_access(aia_fd, KVM_DEV_RISCV_AIA_GRP_CONFIG,
                                 KVM_DEV_RISCV_AIA_CONFIG_SRCS,
                                 &aia_irq_num, true, NULL);
