@@ -33,6 +33,8 @@
 #define TMP105_CONFIG_FQ_1  (0 << 3)   /* fault queue: 1 consecutive fault */
 #define TMP105_CONFIG_FQ_4  (2 << 3)   /* fault queue: 4 consecutive faults */
 #define TMP105_CONFIG_FQ(f) ((f) << 3) /* raw F1:F0 fault-queue field value */
+#define TMP105_CONFIG_SD    (1 << 0)   /* shutdown mode */
+#define TMP105_CONFIG_OS    (1 << 7)   /* one-shot conversion */
 
 static int qmp_tmp105_get_temperature(const char *id)
 {
@@ -200,6 +202,102 @@ static void check_fault_queue(QI2CDevice *i2cdev, const char *id,
     g_assert_true(get_irq(0));
 }
 
+/*
+ * The one-shot (OS) bit starts a conversion only in shutdown mode. In
+ * continuous mode it is ignored, so writing it must not advance the fault
+ * queue; in shutdown each OS write performs one conversion that does.
+ */
+static void test_one_shot(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QI2CDevice *i2cdev = (QI2CDevice *)obj;
+    int i;
+
+    qtest_irq_intercept_out(global_qtest, TMP105_TEST_PATH);
+
+    i2c_set8(i2cdev, TMP105_REG_CONFIG, TMP105_CONFIG_POL | TMP105_CONFIG_FQ_4);
+    qmp_tmp105_set_temperature(TMP105_TEST_ID, 85000);
+    g_assert_false(get_irq(0));
+
+    for (i = 0; i < 8; i++) {
+        i2c_set8(i2cdev, TMP105_REG_CONFIG,
+                 TMP105_CONFIG_POL | TMP105_CONFIG_FQ_4 | TMP105_CONFIG_OS);
+        g_assert_false(get_irq(0));
+    }
+
+    i2c_set8(i2cdev, TMP105_REG_CONFIG,
+             TMP105_CONFIG_POL | TMP105_CONFIG_FQ_4 | TMP105_CONFIG_SD);
+    for (i = 0; i < 2; i++) {
+        i2c_set8(i2cdev, TMP105_REG_CONFIG, TMP105_CONFIG_POL |
+                 TMP105_CONFIG_FQ_4 | TMP105_CONFIG_SD | TMP105_CONFIG_OS);
+        g_assert_false(get_irq(0));
+    }
+    i2c_set8(i2cdev, TMP105_REG_CONFIG, TMP105_CONFIG_POL |
+             TMP105_CONFIG_FQ_4 | TMP105_CONFIG_SD | TMP105_CONFIG_OS);
+    g_assert_true(get_irq(0));
+}
+
+/*
+ * Configuration and limit-register writes are not conversions and must not
+ * advance the fault queue.
+ */
+static void test_fault_queue_ignores_writes(void *obj, void *data,
+                                            QGuestAllocator *alloc)
+{
+    QI2CDevice *i2cdev = (QI2CDevice *)obj;
+    int i;
+
+    qtest_irq_intercept_out(global_qtest, TMP105_TEST_PATH);
+
+    i2c_set8(i2cdev, TMP105_REG_CONFIG, TMP105_CONFIG_POL | TMP105_CONFIG_FQ_4);
+    g_assert_false(get_irq(0));
+
+    qmp_tmp105_set_temperature(TMP105_TEST_ID, 85000);
+    g_assert_false(get_irq(0));
+
+    for (i = 0; i < 8; i++) {
+        i2c_set8(i2cdev, TMP105_REG_CONFIG,
+                 TMP105_CONFIG_POL | TMP105_CONFIG_FQ_4);
+        i2c_set16(i2cdev, TMP105_REG_T_HIGH, 0x5000);
+        i2c_set16(i2cdev, TMP105_REG_T_LOW, 0x4b00);
+        g_assert_false(get_irq(0));
+    }
+
+    for (i = 0; i < 2; i++) {
+        qmp_tmp105_set_temperature(TMP105_TEST_ID, 85000);
+        g_assert_false(get_irq(0));
+    }
+    qmp_tmp105_set_temperature(TMP105_TEST_ID, 85000);
+    g_assert_true(get_irq(0));
+}
+
+/*
+ * Leaving shutdown (SD 1->0) resumes continuous conversion, which must
+ * re-evaluate the current temperature against the limits.
+ */
+static void test_wake_from_shutdown(void *obj, void *data,
+                                    QGuestAllocator *alloc)
+{
+    QI2CDevice *i2cdev = (QI2CDevice *)obj;
+
+    qtest_irq_intercept_out(global_qtest, TMP105_TEST_PATH);
+
+    i2c_set8(i2cdev, TMP105_REG_CONFIG, TMP105_CONFIG_POL | TMP105_CONFIG_FQ_1);
+    g_assert_false(get_irq(0));
+
+    qmp_tmp105_set_temperature(TMP105_TEST_ID, 85000);
+    g_assert_true(get_irq(0));
+
+    i2c_set8(i2cdev, TMP105_REG_CONFIG,
+             TMP105_CONFIG_POL | TMP105_CONFIG_FQ_1 | TMP105_CONFIG_SD);
+    g_assert_true(get_irq(0));
+
+    qmp_tmp105_set_temperature(TMP105_TEST_ID, 70000);
+    g_assert_true(get_irq(0));
+
+    i2c_set8(i2cdev, TMP105_REG_CONFIG, TMP105_CONFIG_POL | TMP105_CONFIG_FQ_1);
+    g_assert_false(get_irq(0));
+}
+
 /* The TMP75 maps F1:F0 = 10b to 3 consecutive faults. */
 static void test_tmp75_fault_queue(void *obj, void *data,
                                    QGuestAllocator *alloc)
@@ -282,6 +380,10 @@ static void tmp105_register_nodes(void)
     qos_add_test("tx-rx", "tmp105", send_and_receive, NULL);
     qos_add_test("alert-single-fault", "tmp105", test_alert_single_fault, NULL);
     qos_add_test("fault-queue", "tmp105", test_fault_queue, NULL);
+    qos_add_test("fault-queue-ignores-writes", "tmp105",
+                 test_fault_queue_ignores_writes, NULL);
+    qos_add_test("one-shot", "tmp105", test_one_shot, NULL);
+    qos_add_test("wake-from-shutdown", "tmp105", test_wake_from_shutdown, NULL);
 
     /* TMP75: register-compatible, but with a 1/2/3/4 fault queue. */
     QOSGraphEdgeOptions tmp75_opts = {
