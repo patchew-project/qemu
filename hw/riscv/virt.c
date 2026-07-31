@@ -225,12 +225,15 @@ static void create_pcie_irq_map(RISCVVirtState *s, void *fdt, char *nodename,
         }
     }
 
-    qemu_fdt_setprop(fdt, nodename, "interrupt-map", full_irq_map,
-                     PCI_NUM_PINS * PCI_NUM_PINS *
-                     irq_map_stride * sizeof(uint32_t));
+    /* A CoVE guest only supports MSIs, so it has no interrupt map. */
+    if (!s->cove_vm) {
+        qemu_fdt_setprop(fdt, nodename, "interrupt-map", full_irq_map,
+                         PCI_NUM_PINS * PCI_NUM_PINS *
+                         irq_map_stride * sizeof(uint32_t));
 
-    qemu_fdt_setprop_cells(fdt, nodename, "interrupt-map-mask",
-                           0x1800, 0, 0, 0x7);
+        qemu_fdt_setprop_cells(fdt, nodename, "interrupt-map-mask",
+                               0x1800, 0, 0, 0x7);
+    }
 }
 
 static void create_fdt_socket_aclint(RISCVVirtState *s,
@@ -697,6 +700,14 @@ static void create_fdt_virtio(RISCVVirtState *s, uint32_t irq_virtio_phandle)
     MachineState *ms = MACHINE(s);
     hwaddr virtio_base = s->memmap[VIRT_VIRTIO].base;
 
+    /*
+     * A CoVE guest has no virtio-mmio transport, its virtio devices are
+     * attached to the PCIe host bridge instead.
+     */
+    if (s->cove_vm) {
+        return;
+    }
+
     for (i = 0; i < VIRTIO_COUNT; i++) {
         g_autofree char *name = NULL;
         uint64_t size = s->memmap[VIRT_VIRTIO].size;
@@ -819,11 +830,15 @@ static void create_fdt_uart(RISCVVirtState *s,
                                  2, s->memmap[VIRT_UART0].base,
                                  2, s->memmap[VIRT_UART0].size);
     qemu_fdt_setprop_cell(ms->fdt, name, "clock-frequency", 3686400);
-    qemu_fdt_setprop_cell(ms->fdt, name, "interrupt-parent", irq_mmio_phandle);
-    if (s->aia_type == VIRT_AIA_TYPE_NONE) {
-        qemu_fdt_setprop_cell(ms->fdt, name, "interrupts", UART0_IRQ);
-    } else {
-        qemu_fdt_setprop_cells(ms->fdt, name, "interrupts", UART0_IRQ, 0x4);
+    /* A CoVE guest has no wired interrupts, the UART is polled. */
+    if (!s->cove_vm) {
+        qemu_fdt_setprop_cell(ms->fdt, name, "interrupt-parent",
+                              irq_mmio_phandle);
+        if (s->aia_type == VIRT_AIA_TYPE_NONE) {
+            qemu_fdt_setprop_cell(ms->fdt, name, "interrupts", UART0_IRQ);
+        } else {
+            qemu_fdt_setprop_cells(ms->fdt, name, "interrupts", UART0_IRQ, 0x4);
+        }
     }
 
     qemu_fdt_setprop_string(ms->fdt, "/chosen", "stdout-path", name);
@@ -844,12 +859,15 @@ static void create_fdt_rtc(RISCVVirtState *s,
     qemu_fdt_setprop_sized_cells(ms->fdt, name, "reg",
                                  2, s->memmap[VIRT_RTC].base,
                                  2, s->memmap[VIRT_RTC].size);
-    qemu_fdt_setprop_cell(ms->fdt, name, "interrupt-parent",
-        irq_mmio_phandle);
-    if (s->aia_type == VIRT_AIA_TYPE_NONE) {
-        qemu_fdt_setprop_cell(ms->fdt, name, "interrupts", RTC_IRQ);
-    } else {
-        qemu_fdt_setprop_cells(ms->fdt, name, "interrupts", RTC_IRQ, 0x4);
+    /* A CoVE guest has no wired interrupts, the RTC is polled. */
+    if (!s->cove_vm) {
+        qemu_fdt_setprop_cell(ms->fdt, name, "interrupt-parent",
+            irq_mmio_phandle);
+        if (s->aia_type == VIRT_AIA_TYPE_NONE) {
+            qemu_fdt_setprop_cell(ms->fdt, name, "interrupts", RTC_IRQ);
+        } else {
+            qemu_fdt_setprop_cells(ms->fdt, name, "interrupts", RTC_IRQ, 0x4);
+        }
     }
 }
 
@@ -1020,6 +1038,16 @@ static void create_fdt(RISCVVirtState *s)
     qemu_fdt_add_subnode(ms->fdt, name);
 
     qemu_fdt_add_subnode(ms->fdt, "/chosen");
+
+    /*
+     * The kernel command line of a CoVE guest has to be part of the device
+     * tree before it is measured, so it cannot be added by the generic
+     * riscv_load_kernel() path.
+     */
+    if (s->cove_vm && ms->kernel_cmdline && *ms->kernel_cmdline) {
+        qemu_fdt_setprop_string(ms->fdt, "/chosen", "bootargs",
+                                ms->kernel_cmdline);
+    }
 
     /* Pass seed to RNG */
     qemu_guest_getrandom_nofail(rng_seed, sizeof(rng_seed));
