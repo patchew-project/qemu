@@ -35,6 +35,7 @@
 #include "hw/riscv/riscv-iommu-bits.h"
 #include "hw/riscv/virt.h"
 #include "hw/riscv/boot.h"
+#include "hw/riscv/cove.h"
 #include "hw/riscv/fdt-common.h"
 #include "hw/riscv/machines-qom.h"
 #include "hw/riscv/numa.h"
@@ -1321,6 +1322,11 @@ static void virt_machine_init(MachineState *machine)
         exit(1);
     }
 
+    if (s->cove_vm && !kvm_enabled()) {
+        error_report("'cove-vm' is only available with KVM acceleration");
+        exit(1);
+    }
+
     /* Initialize sockets */
     mmio_irqchip = virtio_irqchip = pcie_irqchip = NULL;
     for (i = 0; i < socket_count; i++) {
@@ -1652,6 +1658,21 @@ static void virt_set_iommu_sys(Object *obj, Visitor *v, const char *name,
     visit_type_OnOffAuto(v, name, &s->iommu_sys, errp);
 }
 
+static bool virt_get_cove_vm(Object *obj, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+
+    return s->cove_vm;
+}
+
+static void virt_set_cove_vm(Object *obj, bool value, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+
+    s->cove_vm = value;
+    riscv_cove_vm_set_active(value);
+}
+
 bool virt_is_acpi_enabled(RISCVVirtState *s)
 {
     return s->acpi != ON_OFF_AUTO_OFF;
@@ -1780,6 +1801,11 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
                               NULL, NULL);
     object_class_property_set_description(oc, "iommu-sys",
                                           "Enable IOMMU platform device");
+
+    object_class_property_add_bool(oc, "cove-vm", virt_get_cove_vm,
+                                   virt_set_cove_vm);
+    object_class_property_set_description(oc, "cove-vm",
+                                          "Enable CoVE confidential VM");
 }
 
 static const TypeInfo virt_machine_typeinfo = {

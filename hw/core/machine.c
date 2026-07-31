@@ -16,6 +16,7 @@
 #include "system/replay.h"
 #include "hw/core/boards.h"
 #include "hw/core/loader.h"
+#include "hw/riscv/cove.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-machine.h"
@@ -1333,6 +1334,23 @@ bool machine_mem_merge(MachineState *machine)
 bool machine_require_guest_memfd(MachineState *machine)
 {
     return machine->cgs && machine->cgs->require_guest_memfd;
+}
+
+/*
+ * Whether the machine runs as a RISC-V CoVE guest. This lives here, and not
+ * in hw/riscv/, because target independent code has to query it and must not
+ * depend on the RISC-V machine being linked in.
+ */
+static bool riscv_cove_vm;
+
+bool riscv_cove_vm_active(void)
+{
+    return riscv_cove_vm;
+}
+
+void riscv_cove_vm_set_active(bool active)
+{
+    riscv_cove_vm = active;
 }
 
 static char *cpu_slot_to_string(const CPUArchId *cpu)

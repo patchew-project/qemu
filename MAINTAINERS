@@ -391,6 +391,12 @@ F: target/riscv/XVentanaCondOps.decode
 F: target/riscv/insn_trans/trans_xventanacondops.c.inc
 F: disas/riscv-xventana*
 
+RISC-V CoVE
+M: Baolong Duan <blduan@linux.alibaba.com>
+L: qemu-riscv@nongnu.org
+S: Maintained
+F: include/hw/riscv/cove.h
+
 RENESAS RX CPUs
 R: Yoshinori Sato <yoshinori.sato@nifty.com>
 S: Orphan
