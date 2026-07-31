@@ -28,6 +28,7 @@
 #include "qemu/config-file.h"
 #include "qobject/qdict.h"
 #include "hw/virtio/virtio-net.h"
+#include "hw/riscv/cove.h"
 #include "net/vhost_net.h"
 #include "net/announce.h"
 #include "hw/virtio/virtio-bus.h"
@@ -324,6 +325,14 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
 
                 return;
             }
+        }
+
+        /*
+         * vhost cannot be used with a CoVE guest: the kernel datapath has no
+         * access to the memory of the TVM.
+         */
+        if (riscv_cove_vm_active()) {
+            return;
         }
 
         n->vhost_started = 1;
