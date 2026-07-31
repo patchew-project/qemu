@@ -309,6 +309,7 @@ void helper_wrmsr(CPUX86State *env)
         break;
     }
     default:
+        /* Machine Check MSRs */
         if ((uint32_t)env->regs[R_ECX] >= MSR_MC0_CTL
             && (uint32_t)env->regs[R_ECX] < MSR_MC0_CTL +
             (4 * env->mcg_cap & 0xff)) {
@@ -319,8 +320,8 @@ void helper_wrmsr(CPUX86State *env)
             }
             break;
         }
-        /* XXX: exception? */
-        break;
+        /* Unimplemented MSRs */
+        goto error;
     }
     return;
 error:
@@ -487,6 +488,7 @@ void helper_rdmsr(CPUX86State *env)
         break;
     }
     default:
+        /* Machine Check MSRs */
         if ((uint32_t)env->regs[R_ECX] >= MSR_MC0_CTL
             && (uint32_t)env->regs[R_ECX] < MSR_MC0_CTL +
             (4 * env->mcg_cap & 0xff)) {
@@ -494,9 +496,8 @@ void helper_rdmsr(CPUX86State *env)
             val = env->mce_banks[offset];
             break;
         }
-        /* XXX: exception? */
-        val = 0;
-        break;
+        /* Unimplemented MSRs */
+        raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
     }
     env->regs[R_EAX] = (uint32_t)(val);
     env->regs[R_EDX] = (uint32_t)(val >> 32);
