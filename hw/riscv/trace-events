@@ -24,3 +24,7 @@ riscv_iommu_hpm_incr_ctr(uint64_t cntr_val) "cntr_val 0x%"PRIx64
 riscv_iommu_hpm_iocntinh_cy(bool prev_cy_inh) "prev_cy_inh %d"
 riscv_iommu_hpm_cycle_write(uint32_t ovf, uint64_t val) "ovf 0x%x val 0x%"PRIx64
 riscv_iommu_hpm_evt_write(uint32_t ctr_idx, uint32_t ovf, uint64_t val) "ctr_idx 0x%x ovf 0x%x val 0x%"PRIx64
+
+# boot.c
+riscv_cove_measure_kernel(const char *format, uint64_t gpa, uint64_t size) "%s kernel gpa 0x%"PRIx64" size 0x%"PRIx64
+riscv_cove_measure_initrd(uint64_t gpa, uint64_t size) "initrd gpa 0x%"PRIx64" size 0x%"PRIx64

@@ -27,11 +27,14 @@
 #include "hw/core/loader.h"
 #include "hw/riscv/boot.h"
 #include "hw/riscv/boot_opensbi.h"
+#include "hw/riscv/cove.h"
+#include "kvm/kvm_riscv.h"
 #include "elf.h"
 #include "system/device_tree.h"
 #include "system/qtest.h"
 #include "system/kvm.h"
 #include "system/reset.h"
+#include "trace.h"
 
 #include <libfdt.h>
 
@@ -261,6 +264,86 @@ static void riscv_load_initrd(MachineState *machine, RISCVBootInfo *info)
         qemu_fdt_setprop_u64(fdt, "/chosen", "linux,initrd-start", start);
         qemu_fdt_setprop_u64(fdt, "/chosen", "linux,initrd-end", end);
     }
+
+    /* The initrd is part of the initial measurement of a CoVE guest. */
+    if (riscv_cove_vm_active()) {
+        void *initrd_host = kvm_gpa_to_userspace_addr(kvm_state, start);
+        uint64_t aligned_size = ROUND_UP(size, 4 * KiB);
+
+        trace_riscv_cove_measure_initrd(start, aligned_size);
+        kvm_riscv_cove_measure_region((uint64_t)(uintptr_t)initrd_host,
+                                      start, aligned_size);
+    }
+}
+
+/* Load address of a raw kernel image, relative to the base of the RAM. */
+#define RISCV_COVE_KERNEL_OFFSET 0x200000
+
+/*
+ * Load the kernel of a CoVE guest and add it to the initial measurement of
+ * the TVM. ELF, uImage and raw images are supported.
+ *
+ * Unlike riscv_load_kernel(), the host address of the loaded image has to be
+ * computed from the RAM memory region: the KVM memory slots of a TVM are not
+ * usable for that yet at this point of the machine initialisation.
+ *
+ * Returns the guest physical address to start the guest from.
+ */
+static uint64_t riscv_cove_load_kernel(MachineState *machine,
+                                       const char *kernel_filename,
+                                       uint64_t mem_size,
+                                       symbol_fn_t sym_cb)
+{
+    MemoryRegion *ram = machine->ram;
+    void *ram_base = memory_region_get_ram_ptr(ram);
+    uint64_t elf_entry, elf_low, elf_high;
+    hwaddr uimage_ep, uimage_loadaddr;
+    hwaddr kernel_gpa;
+    ssize_t size;
+
+    size = load_elf_ram_sym(kernel_filename, NULL, NULL, NULL,
+                            &elf_entry, &elf_low, &elf_high,
+                            NULL, 0, EM_RISCV, 1, 0,
+                            NULL, false, sym_cb);
+    if (size > 0) {
+        trace_riscv_cove_measure_kernel("ELF", elf_low, elf_high - elf_low);
+        kvm_riscv_cove_measure_region((uint64_t)(uintptr_t)ram_base +
+                                      (elf_low - ram->addr),
+                                      elf_low, elf_high - elf_low);
+        return elf_entry;
+    }
+
+    uimage_loadaddr = LOAD_UIMAGE_LOADADDR_INVALID;
+    size = load_uimage_as(kernel_filename, &uimage_ep, &uimage_loadaddr,
+                          NULL, NULL, NULL, NULL);
+    if (size > 0) {
+        trace_riscv_cove_measure_kernel("uImage", uimage_loadaddr, size);
+        kvm_riscv_cove_measure_region((uint64_t)(uintptr_t)ram_base +
+                                      (uimage_loadaddr - ram->addr),
+                                      uimage_loadaddr, size);
+        return uimage_ep;
+    }
+
+    /*
+     * Read the image straight into RAM: load_image_targphys_as() would
+     * register a ROM blob, whose contents are only written to guest memory
+     * when the machine is reset, long after the measurement has been taken.
+     */
+    kernel_gpa = ram->addr + RISCV_COVE_KERNEL_OFFSET;
+    size = load_image_size(kernel_filename,
+                           (char *)ram_base + RISCV_COVE_KERNEL_OFFSET,
+                           mem_size - RISCV_COVE_KERNEL_OFFSET);
+    if (size < 0) {
+        error_report("could not load kernel '%s': %s", kernel_filename,
+                     strerror(errno));
+        exit(1);
+    }
+
+    trace_riscv_cove_measure_kernel("raw", kernel_gpa, size);
+    kvm_riscv_cove_measure_region((uint64_t)(uintptr_t)ram_base +
+                                  RISCV_COVE_KERNEL_OFFSET,
+                                  kernel_gpa, size);
+    return kernel_gpa;
 }
 
 void riscv_load_kernel(MachineState *machine,
@@ -275,6 +358,14 @@ void riscv_load_kernel(MachineState *machine,
     void *fdt = machine->fdt;
 
     g_assert(kernel_filename != NULL);
+
+    /* A CoVE guest is loaded and measured before the TVM is finalised. */
+    if (riscv_cove_vm_active()) {
+        info->image_low_addr = riscv_cove_load_kernel(machine, kernel_filename,
+                                                      mem_size, sym_cb);
+        info->image_high_addr = info->image_low_addr;
+        goto out;
+    }
 
     /*
      * NB: Use low address not ELF entry point to ensure that the fw_dynamic
