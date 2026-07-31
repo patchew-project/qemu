@@ -22,17 +22,6 @@ void helper_raise_exception(CPULoongArchState *env, uint32_t exception)
     do_raise_exception(env, exception, GETPC());
 }
 
-target_ulong helper_bitswap(target_ulong v)
-{
-    v = ((v >> 1) & (target_ulong)0x5555555555555555ULL) |
-        ((v & (target_ulong)0x5555555555555555ULL) << 1);
-    v = ((v >> 2) & (target_ulong)0x3333333333333333ULL) |
-        ((v & (target_ulong)0x3333333333333333ULL) << 2);
-    v = ((v >> 4) & (target_ulong)0x0F0F0F0F0F0F0F0FULL) |
-        ((v & (target_ulong)0x0F0F0F0F0F0F0F0FULL) << 4);
-    return v;
-}
-
 /* loongarch assert op */
 void helper_asrtle_d(CPULoongArchState *env, target_ulong rj, target_ulong rk)
 {
