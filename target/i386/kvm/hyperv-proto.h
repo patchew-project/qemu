@@ -46,6 +46,7 @@
  */
 #define HV_POST_MESSAGES             (1u << 4)
 #define HV_SIGNAL_EVENTS             (1u << 5)
+#define HV_ENABLE_EXT_HYPERCALLS     (1u << 20)
 
 /*
  * HV_CPUID_FEATURES.EDX bits

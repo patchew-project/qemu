@@ -17,6 +17,7 @@
 #include "hyperv.h"
 #include "hw/hyperv/hyperv.h"
 #include "hyperv-proto.h"
+#include "kvm_i386.h"
 
 int hyperv_x86_synic_add(X86CPU *cpu)
 {
@@ -116,6 +117,11 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
         case HV_RESET_DEBUG_SESSION:
             exit->u.hcall.result =
                 hyperv_hcall_reset_dbg_session(out_param);
+            break;
+        case HV_EXT_CALL_QUERY_CAPABILITIES:
+            exit->u.hcall.result =
+                hyperv_ext_hcall_query_caps(hv_build_ext_call_caps(CPU(cpu)),
+                                            out_param, fast);
             break;
         default:
             exit->u.hcall.result = HV_STATUS_INVALID_HYPERCALL_CODE;
