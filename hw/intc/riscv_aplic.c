@@ -36,6 +36,7 @@
 #include "kvm/kvm_riscv.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "hw/riscv/cove.h"
 
 #define APLIC_MAX_IDC                  (1UL << 14)
 #define APLIC_MAX_SOURCE               1024
@@ -169,6 +170,14 @@ bool riscv_use_emulated_aplic(bool msimode)
 {
 #ifdef CONFIG_KVM
     if (tcg_enabled()) {
+        return true;
+    }
+
+    /*
+     * KVM does not implement an APLIC for a CoVE guest, so emulate it in
+     * QEMU while still using the in-kernel IMSIC, like in split mode.
+     */
+    if (riscv_cove_vm_active()) {
         return true;
     }
 
