@@ -2448,6 +2448,14 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
 {
     struct kvm_irq_routing_entry kroute = {};
 
+    /*
+     * A CoVE guest has no in-kernel APLIC, so there is no MSI route for KVM
+     * to update.
+     */
+    if (riscv_cove_vm_active()) {
+        return 0;
+    }
+
     if (kvm_gsi_direct_mapping()) {
         return 0;
     }
