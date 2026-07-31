@@ -1277,6 +1277,24 @@ static void virt_machine_done(Notifier *notifier, void *data)
                                            machine, &boot_info);
     riscv_load_fdt(fdt_load_addr, machine->fdt);
 
+    /*
+     * The device tree is part of the initial measurement of a TVM. The ROM
+     * blobs holding it are not written to guest memory before the machine is
+     * reset, so copy it into RAM now to be able to measure it.
+     */
+    if (s->cove_vm) {
+        void *ram_base = memory_region_get_ram_ptr(machine->ram);
+        hwaddr fdt_offset = fdt_load_addr - s->memmap[VIRT_DRAM].base;
+        void *fdt_host;
+
+        memcpy((char *)ram_base + fdt_offset, machine->fdt, s->fdt_size);
+
+        fdt_host = kvm_gpa_to_userspace_addr(kvm_state, fdt_load_addr);
+        kvm_riscv_cove_measure_region((uint64_t)(uintptr_t)fdt_host,
+                                      fdt_load_addr,
+                                      ROUND_UP(s->fdt_size, 4 * KiB));
+    }
+
     /* load the reset vector */
     riscv_setup_rom_reset_vec(machine, &s->soc[0], start_addr,
                               s->memmap[VIRT_MROM].base,
