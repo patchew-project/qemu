@@ -3510,6 +3510,15 @@ int kvm_cpu_exec(CPUState *cpu)
          * as true, cpu->exit_request will always read as true.
          */
 
+        /*
+         * Yield briefly after each KVM_RUN of a CoVE guest: with one pinned
+         * vCPU thread per host CPU the host is otherwise starved and reports
+         * RCU stalls.
+         */
+        if (riscv_cove_vm_active()) {
+            usleep(100);
+        }
+
         attrs = kvm_arch_post_run(cpu, run);
 
 #ifdef KVM_HAVE_MCE_INJECTION

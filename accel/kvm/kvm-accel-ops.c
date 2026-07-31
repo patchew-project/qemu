@@ -24,6 +24,7 @@
 #include "system/cpus.h"
 #include "qemu/guest-random.h"
 #include "qapi/error.h"
+#include "hw/riscv/cove.h"
 
 #include <linux/kvm.h>
 #include "kvm-cpus.h"
@@ -42,6 +43,21 @@ static void *kvm_vcpu_thread_fn(void *arg)
 
     r = kvm_init_vcpu(cpu, &error_fatal);
     kvm_init_cpu_signals(cpu);
+
+    /*
+     * The TSM binds a TVM vCPU to the hart it first runs on, so pin vCPU N
+     * to host CPU N before the first KVM_RUN.
+     */
+    if (riscv_cove_vm_active()) {
+        cpu_set_t cpuset;
+
+        CPU_ZERO(&cpuset);
+        CPU_SET(cpu->cpu_index, &cpuset);
+        if (sched_setaffinity(0, sizeof(cpuset), &cpuset) < 0) {
+            error_report("Unable to pin vCPU %d: %s", cpu->cpu_index,
+                         strerror(errno));
+        }
+    }
 
     /* signal CPU creation */
     cpu_thread_signal_created(cpu);
