@@ -1244,6 +1244,30 @@ void tcg_gen_hswap_i32(TCGv_i32 ret, TCGv_i32 arg)
     tcg_gen_rotli_i32(ret, arg, 16);
 }
 
+static void gen_bitswap_i32(TCGv_i32 ret, TCGv_i32 arg, uint32_t mask)
+{
+    TCGv_i32 t0 = tcg_temp_ebb_new_i32();
+    TCGv_i32 t1 = tcg_temp_ebb_new_i32();
+    int sh = cto32(mask);
+
+    tcg_gen_andi_i32(t0, arg, mask);
+    tcg_gen_shri_i32(t1, arg, sh);
+    tcg_gen_shli_i32(t0, t0, sh);
+    tcg_gen_andi_i32(t1, t1, mask);
+    tcg_gen_or_i32(ret, t0, t1);
+
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t1);
+}
+
+void tcg_gen_revbit32_i32(TCGv_i32 ret, TCGv_i32 arg)
+{
+    gen_bitswap_i32(ret, arg, 0x55555555u);
+    gen_bitswap_i32(ret, ret, 0x33333333u);
+    gen_bitswap_i32(ret, ret, 0x0f0f0f0fu);
+    tcg_gen_bswap32_i32(ret, ret);
+}
+
 void tcg_gen_smin_i32(TCGv_i32 ret, TCGv_i32 a, TCGv_i32 b)
 {
     tcg_gen_movcond_i32(TCG_COND_LT, ret, a, b, a, b);
@@ -1867,6 +1891,41 @@ void tcg_gen_wswap_i64(TCGv_i64 ret, TCGv_i64 arg)
 {
     /* Swapping 2 32-bit elements is a rotate. */
     tcg_gen_rotli_i64(ret, arg, 32);
+}
+
+static void gen_bitswap_i64(TCGv_i64 ret, TCGv_i64 arg, uint64_t mask)
+{
+    TCGv_i64 t0 = tcg_temp_ebb_new_i64();
+    TCGv_i64 t1 = tcg_temp_ebb_new_i64();
+    int sh = cto64(mask);
+
+    tcg_gen_andi_i64(t0, arg, mask);
+    tcg_gen_shri_i64(t1, arg, sh);
+    tcg_gen_shli_i64(t0, t0, sh);
+    tcg_gen_andi_i64(t1, t1, mask);
+    tcg_gen_or_i64(ret, t0, t1);
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+}
+
+void tcg_gen_revbit32_i64(TCGv_i64 ret, TCGv_i64 arg, int flags)
+{
+    /* Only one extension flag may be present. */
+    tcg_debug_assert(!(flags & TCG_BSWAP_OS) || !(flags & TCG_BSWAP_OZ));
+
+    gen_bitswap_i64(ret, arg, 0x55555555ull);
+    gen_bitswap_i64(ret, ret, 0x33333333ull);
+    gen_bitswap_i64(ret, ret, 0x0f0f0f0full);
+    tcg_gen_bswap32_i64(ret, ret, flags | TCG_BSWAP_IZ);
+}
+
+void tcg_gen_revbit64_i64(TCGv_i64 ret, TCGv_i64 arg)
+{
+    gen_bitswap_i64(ret, arg, 0x5555555555555555ull);
+    gen_bitswap_i64(ret, ret, 0x3333333333333333ull);
+    gen_bitswap_i64(ret, ret, 0x0f0f0f0f0f0f0f0full);
+    tcg_gen_bswap64_i64(ret, ret);
 }
 
 void tcg_gen_not_i64(TCGv_i64 ret, TCGv_i64 arg)
