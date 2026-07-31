@@ -146,6 +146,45 @@ The following machine-specific options are supported:
 
   Enables the riscv-iommu-sys platform device. Defaults to 'off'.
 
+- cove-vm=[on|off]
+
+  When this option is "on" the guest is created as a RISC-V CoVE
+  (Confidential VM Extension) TEE VM, or TVM. Defaults to "off". See
+  `Running a confidential VM`_ below.
+
+Running a confidential VM
+-------------------------
+
+With "cove-vm=on" the ``virt`` machine creates a TEE VM (TVM) instead of a
+regular KVM guest. The memory and the vCPU state of a TVM are owned by the
+TEE Security Manager (TSM) running in M-mode and are not accessible to the
+host, which changes the machine in a few ways:
+
+- the kernel, the initrd and the device tree are added to the initial
+  measurement of the guest before it starts, so that the guest can be
+  attested later on;
+
+- interrupts are delivered as MSIs only. An IMSIC is therefore mandatory and
+  "aia=aplic-imsic" is selected automatically when no AIA mode is requested.
+  The APLIC is emulated by QEMU because KVM does not implement one for a TVM;
+
+- no virtio-mmio transport is created. Devices have to be attached to the
+  PCIe host bridge, and they always negotiate VIRTIO_F_ACCESS_PLATFORM so
+  that DMA is bounced through memory the guest shares explicitly;
+
+- vhost cannot be used, as the kernel datapath has no access to guest memory.
+
+This requires a host with CoVE support, both in the firmware and in KVM, and
+it only works with ``-accel kvm``. An example command line is:
+
+.. code-block:: bash
+
+  $ qemu-system-riscv64 -M virt,cove-vm=on -accel kvm \
+      -m 256M -smp 1 -nographic \
+      -kernel Image -append "console=ttyS0 root=/dev/vda" \
+      -drive file=rootfs.ext4,format=raw,id=hd0,if=none \
+      -device virtio-blk-pci,drive=hd0,disable-legacy=on
+
 Running Linux kernel
 --------------------
 
