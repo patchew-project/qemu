@@ -1567,6 +1567,10 @@ sub process {
 	my $first_line = 0;
 	my $p1_prefix = '';
 
+	my %blank_only_hunk;
+	my $hunk_first_blank = 0;
+	my $hunk_has_change = 0;
+
 	my $prev_values = 'E';
 
 	# suppression flags
@@ -1583,6 +1587,10 @@ sub process {
 		$line = $rawline;
 
 		if ($rawline=~/^\@\@ -\d+(?:,\d+)? \+(\d+)(,(\d+))? \@\@/) {
+			$blank_only_hunk{$hunk_first_blank} = 1
+				if ($hunk_first_blank && !$hunk_has_change);
+			($hunk_first_blank, $hunk_has_change) = (0, 0);
+
 			$realline=$1-1;
 			if (defined $2) {
 				$realcnt=$3+1;
@@ -1633,6 +1641,13 @@ sub process {
 		push(@lines, $line);
 
 		if ($realcnt > 1) {
+			if ($rawline =~ /^\+\s*$/) {
+				$hunk_first_blank = $linenr
+					if (!$hunk_first_blank);
+			} elsif ($rawline =~ /^[-+]/) {
+				$hunk_has_change = 1;
+			}
+
 			$realcnt-- if ($line =~ /^(?:\+| |$)/);
 		} else {
 			$realcnt = 0;
@@ -1641,6 +1656,8 @@ sub process {
 		#print "==>$rawline\n";
 		#print "-->$line\n";
 	}
+	$blank_only_hunk{$hunk_first_blank} = 1
+		if ($hunk_first_blank && !$hunk_has_change);
 
 	$prefix = '';
 
@@ -1779,6 +1796,10 @@ sub process {
 		my $hereprev = "$here\n$prevrawline\n$rawline\n";
 
 		$cnt_lines++ if ($realcnt != 0);
+
+		if ($blank_only_hunk{$linenr}) {
+			WARN("this hunk only adds blank lines\n" . $herecurr);
+		}
 
 # Only allow Python 3 interpreter
 		if ($realline == 1 &&
