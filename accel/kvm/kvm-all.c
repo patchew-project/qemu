@@ -3613,6 +3613,17 @@ int kvm_cpu_exec(CPUState *cpu)
             break;
         case KVM_EXIT_SYSTEM_EVENT:
             trace_kvm_run_exit_system_event(cpu->cpu_index, run->system_event.type);
+            /*
+             * The TSM does not honour power_off for a TVM: the vCPU would
+             * re-enter KVM_RUN and report the same event forever, so
+             * terminate QEMU right away.
+             */
+            if (riscv_cove_vm_active()) {
+                warn_report("CoVE VM: system event %d, terminating",
+                            run->system_event.type);
+                exit(run->system_event.type == KVM_SYSTEM_EVENT_SHUTDOWN ?
+                     0 : 1);
+            }
             switch (run->system_event.type) {
             case KVM_SYSTEM_EVENT_SHUTDOWN:
                 qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
