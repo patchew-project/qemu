@@ -2,6 +2,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import re
+import time
+
 from qemu_test import exec_command_and_wait_for_pattern
 from qemu_test import LinuxKernelTest
 
@@ -28,6 +31,19 @@ class AspeedTest(LinuxKernelTest):
 
     def wait_for_boot_complete(self):
         self.wait_for_console_pattern('login:')
+
+    def read_hwmon(self, hwmon, attr):
+        return exec_command_and_wait_for_pattern(
+            self, f'cat {hwmon}/{attr}', self.PROMPT)
+
+    def wait_hwmon_value(self, hwmon, attr, expected):
+        pattern = re.compile(rb'(?m)^%d\r*$' % expected)
+        if pattern.search(self.read_hwmon(hwmon, attr)):
+            return
+        time.sleep(2)
+        out = self.read_hwmon(hwmon, attr)
+        if not pattern.search(out):
+            self.fail(f'{attr} did not reach {expected}: {out!r}')
 
     def do_test_arm_aspeed_buildroot_start(self, image, cpu_id, pattern='Aspeed EVB'):
         self.require_netdev('user')
