@@ -780,6 +780,16 @@ static int mshv_cpu_exec(CPUState *cpu)
             cpu->vcpu_dirty = false;
         }
 
+        /*
+         * A kick/stop can't reliably break MSHV_RUN_VP out, so leave the run
+         * loop here too; otherwise a busy vCPU never reaches
+         * qemu_process_cpu_events() and pause_all_vcpus() hangs under the BQL.
+         */
+        if (cpu->stop || qatomic_load_acquire(&cpu->exit_request)) {
+            ret = EXCP_INTERRUPT;
+            break;
+        }
+
         ret = mshv_run_vcpu(mshv_state->vm, cpu, &mshv_msg, &exit_reason);
         if (ret < 0) {
             error_report("Failed to run on vcpu %d", cpu->cpu_index);
