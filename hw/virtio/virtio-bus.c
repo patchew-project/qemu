@@ -29,6 +29,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio.h"
 #include "system/address-spaces.h"
+#include "hw/riscv/cove.h"
 
 /* #define DEBUG_VIRTIO_BUS */
 
@@ -73,6 +74,17 @@ void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
     if (local_err) {
         error_propagate(errp, local_err);
         return;
+    }
+
+    /*
+     * Devices cannot access the memory of a CoVE guest directly, so all DMA
+     * has to be bounced through buffers the guest shares explicitly: offer
+     * VIRTIO_F_ACCESS_PLATFORM unconditionally. VIRTIO_F_VERSION_1 has to be
+     * offered as well because Linux refuses ACCESS_PLATFORM without it.
+     */
+    if (riscv_cove_vm_active()) {
+        vdev->host_features |= 1ULL << VIRTIO_F_ACCESS_PLATFORM;
+        vdev->host_features |= 1ULL << VIRTIO_F_VERSION_1;
     }
 
     if (klass->device_plugged != NULL) {

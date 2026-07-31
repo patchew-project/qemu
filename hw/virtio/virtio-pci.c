@@ -34,6 +34,7 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/core/loader.h"
+#include "hw/riscv/cove.h"
 #include "system/accel-irq.h"
 #include "system/kvm.h"
 #include "hw/virtio/virtio-pci.h"
@@ -2048,7 +2049,13 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
                 return;
             }
         }
-        if (virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM)) {
+        /*
+         * A CoVE guest always negotiates in modern mode: ACCESS_PLATFORM,
+         * which shares its feature bit with IOMMU_PLATFORM, is forced
+         * together with VERSION_1, so this check does not apply.
+         */
+        if (virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM) &&
+            !riscv_cove_vm_active()) {
             error_setg(errp, "VIRTIO_F_IOMMU_PLATFORM was supported by"
                        " neither legacy nor transitional device");
             return;
