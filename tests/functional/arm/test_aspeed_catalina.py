@@ -33,6 +33,11 @@ class CatalinaMachine(AspeedTest):
     # io_expander0: pca9555@20 on i2c2, a 16-bit expander directly on the bus.
     IOEXP0_LOCATOR = "/machine/soc::aspeed.i2c-ast2600[0]~i2c[2]~pca9555@0x20"
     IOEXP0_GPIODETECT = r"\[2-0020\]"
+    # io_expander5: pca9554@27 behind pca9548@70 channel 6 on i2c1, an 8-bit
+    # expander reached through the mux; gpiodetect confirms its 8 lines.
+    IOEXP5_LOCATOR = ("/machine/soc::aspeed.i2c-ast2600[0]"
+                      "~i2c[1]~pca9548@0x70~i2c[6]~pca9554@0x27")
+    IOEXP5_GPIODETECT = r"-0027] \(8 lines\)"
 
     def test_arm_ast2600_catalina_openbmc(self):
         image_path = self.uncompress(self.ASSET_CATALINA_FLASH)
@@ -54,6 +59,7 @@ class CatalinaMachine(AspeedTest):
         locator = DeviceLocator(self.vm.cmd)
         tmp75 = locator.resolve(self.TMP75_LOCATOR, "tmp75")
         ioexp0 = locator.resolve(self.IOEXP0_LOCATOR, "pca9555")
+        ioexp5 = locator.resolve(self.IOEXP5_LOCATOR, "pca9554")
 
         # temp1_input reports the temperature in millidegrees Celsius. Drive it
         # through QOM (units of 0.001 C) and check the kernel hwmon interface
@@ -65,6 +71,8 @@ class CatalinaMachine(AspeedTest):
 
         # pca9555@20 spans two 8-bit ports (pins 0-7 and 8-15).
         self.check_ioexp(ioexp0, self.IOEXP0_GPIODETECT, (0, 7, 8, 15))
+        # pca9554@27 is a single 8-bit port.
+        self.check_ioexp(ioexp5, self.IOEXP5_GPIODETECT, (0, 3, 7))
 
     def check_ioexp(self, qom, gpiodetect, pins):
         # The guest drives these lines as inputs: set_pin injects an external
