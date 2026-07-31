@@ -48,9 +48,26 @@
 #include "migration/misc.h"
 #include "system/runstate.h"
 #include "hw/riscv/numa.h"
+#include "hw/riscv/cove.h"
 
 #define PR_RISCV_V_SET_CONTROL            69
 #define PR_RISCV_V_VSTATE_CTRL_ON          2
+
+/*
+ * CoVE KVM ABI.  These definitions are not part of an upstream Linux release
+ * yet, so they cannot be imported into linux-headers/ and are kept here until
+ * the kernel side has been merged.
+ */
+#define KVM_VM_TYPE_RISCV_COVE          (1UL << 9)
+
+struct kvm_riscv_cove_measure_region {
+    uint64_t user_addr;
+    uint64_t gpa;
+    uint64_t size;
+};
+
+#define KVM_RISCV_COVE_MEASURE_REGION \
+    _IOR(KVMIO, 0xb5, struct kvm_riscv_cove_measure_region)
 
 void riscv_kvm_aplic_request(void *opaque, int irq, int level)
 {
@@ -1549,6 +1566,9 @@ int kvm_arch_add_msi_route_post(struct kvm_irq_routing_entry *route,
 
 int kvm_arch_get_default_type(MachineState *ms)
 {
+    if (riscv_cove_vm_active()) {
+        return KVM_VM_TYPE_RISCV_COVE;
+    }
     return 0;
 }
 
@@ -1827,6 +1847,32 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
         "if the host supports it");
     object_property_set_default_str(object_class_property_find(oc, "riscv-aia"),
                                     "auto");
+}
+
+/*
+ * Add the contents of a memory region to the initial measurement of the TVM.
+ * Nothing is measured for a guest that is not confidential.
+ */
+void kvm_riscv_cove_measure_region(uint64_t user_addr, uint64_t gpa,
+                                   uint64_t size)
+{
+    struct kvm_riscv_cove_measure_region mr;
+    int ret;
+
+    if (!riscv_cove_vm_active()) {
+        return;
+    }
+
+    mr.user_addr = user_addr;
+    mr.gpa = gpa;
+    mr.size = size;
+
+    ret = kvm_vm_ioctl(kvm_state, KVM_RISCV_COVE_MEASURE_REGION, &mr);
+    if (ret < 0) {
+        error_report("Unable to measure CoVE region at 0x%" PRIx64 ": %s",
+                     gpa, strerror(-ret));
+        exit(EXIT_FAILURE);
+    }
 }
 
 void kvm_riscv_aia_create(MachineState *machine, uint64_t group_shift,

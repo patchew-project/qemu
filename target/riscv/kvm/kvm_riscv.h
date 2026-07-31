@@ -23,6 +23,16 @@
 
 void kvm_riscv_reset_vcpu(RISCVCPU *cpu);
 void kvm_riscv_set_irq(RISCVCPU *cpu, int irq, int level);
+#ifdef CONFIG_KVM
+void kvm_riscv_cove_measure_region(uint64_t user_addr, uint64_t gpa,
+                                   uint64_t size);
+#else
+static inline void kvm_riscv_cove_measure_region(uint64_t user_addr,
+                                                 uint64_t gpa, uint64_t size)
+{
+    /* A CoVE guest cannot be created without KVM, nothing to measure. */
+}
+#endif
 void kvm_riscv_aia_create(MachineState *machine, uint64_t group_shift,
                           uint64_t aia_irq_num, uint64_t aia_msi_num,
                           uint64_t aplic_base, uint64_t imsic_base,
