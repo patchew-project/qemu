@@ -986,6 +986,7 @@ struct kvm_enable_cap {
 #define KVM_CAP_S390_KEYOP 247
 #define KVM_CAP_S390_VSIE_ESAMODE 248
 #define KVM_CAP_S390_HPAGE_2G 249
+#define KVM_CAP_EVER_MAPPED 250
 
 struct kvm_irq_routing_irqchip {
 	__u32 irqchip;
@@ -1653,6 +1654,20 @@ struct kvm_pre_fault_memory {
 	__u64 size;
 	__u64 flags;
 	__u64 padding[5];
+};
+
+#define KVM_GET_EVER_MAPPED_LOG  _IOW(KVMIO,  0xd6, struct kvm_ever_mapped_log)
+
+struct kvm_ever_mapped_log {
+	__u64 first_granule;
+	__u64 num_granules;
+	__u32 granule_shift;
+	__u32 flags;
+	union {
+		void *bitmap;
+		__u64 padding;
+	};
+	__u64 reserved[4];
 };
 
 #endif /* __LINUX_KVM_H */

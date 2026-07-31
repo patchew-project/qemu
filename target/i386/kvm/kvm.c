@@ -965,6 +965,36 @@ static bool tsc_is_stable_and_known(CPUX86State *env)
         || env->user_tsc_khz;
 }
 
+static bool find_max_gpa_cb(Int128 istart, Int128 ilen, const MemoryRegion *mr,
+                            hwaddr offset_in_region, void *opaque)
+{
+    uint64_t *max = opaque;
+    uint64_t end;
+
+    if (!memory_region_is_ram(mr)
+        || memory_region_is_rom(mr)
+        || memory_region_is_ram_device(mr)
+        || (int128_get64(ilen) == 0)) {
+        return false;
+    }
+
+    end = int128_get64(istart) + int128_get64(ilen);
+    if (end > *max) {
+        *max = end;
+    }
+    return false;
+}
+
+static uint64_t find_max_gpa(void)
+{
+    uint64_t max = 0;
+
+    RCU_READ_LOCK_GUARD();
+    flatview_for_each_range(address_space_to_flatview(&address_space_memory),
+                            find_max_gpa_cb, &max);
+    return max;
+}
+
 #define DEFAULT_EVMCS_VERSION ((1 << 8) | 1)
 
 static struct {
@@ -1143,6 +1173,14 @@ static struct {
             {.func = HV_CPUID_FEATURES, .reg = R_EBX,
              .bits = HV_ENABLE_EXT_HYPERCALLS}
         }
+    },
+    [HYPERV_FEAT_BOOT_ZEROED_MEMORY] = {
+        .desc = "enlighten guest about pre-zeroed memory (hv-boot-zeroed-mem)",
+        .flags = {
+            {.func = HV_EXT_CALL_QUERY_CAPABILITIES, .reg = 0,
+             .bits = HV_EXT_CAP_GET_BOOT_ZEROED_MEMORY}
+        },
+        .dependencies = BIT(HYPERV_FEAT_EXT_CALLS)
     },
 };
 
@@ -1377,6 +1415,11 @@ static bool hyperv_feature_supported(CPUState *cs, int feature)
 
         if (!func) {
             continue;
+        }
+
+        if (func == HV_EXT_CALL_QUERY_CAPABILITIES) {
+            /* These do not correspond to host CPUID feature bits. */
+            return true;
         }
 
         if ((hv_cpuid_get_host(cs, func, reg) & bits) != bits) {
@@ -1710,6 +1753,20 @@ static bool evmcs_version_supported(uint16_t evmcs_version,
         (max_version <= max_supported_version);
 }
 
+static Notifier kvm_init_ever_mapped;
+
+static void kvm_enable_ever_mapped(Notifier *notifier, void *unused)
+{
+    uint64_t max_gpa = find_max_gpa();
+
+    if (kvm_vm_enable_cap(kvm_state, KVM_CAP_EVER_MAPPED, 0, max_gpa)) {
+        error_report("Failed to enable KVM_CAP_EVER_MAPPED, max GPA: 0x%lx, "
+                     "error '%s'", max_gpa, strerror(errno));
+        exit(1);
+    }
+    hyperv_boot_zeroed_set_max_gpa(max_gpa);
+}
+
 static int hyperv_init_vcpu(X86CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -1818,6 +1875,28 @@ static int hyperv_init_vcpu(X86CPU *cpu)
         hyperv_feat_enabled(cpu, HYPERV_FEAT_VAPIC) &&
         hyperv_feat_enabled(cpu, HYPERV_FEAT_RUNTIME)) {
         hyperv_x86_set_vmbus_recommended_features_enabled();
+    }
+
+    if (cs->cpu_index == 0 &&
+        hyperv_feat_enabled(cpu, HYPERV_FEAT_BOOT_ZEROED_MEMORY)) {
+        /*
+         * This is not per-CPU, so only run it for vCPU #0.
+         * We do it here instead of earlier during general setup, since we
+         * need to know CPU features for this.
+         */
+        if (kvm_check_extension(kvm_state, KVM_CAP_EVER_MAPPED) <= 0) {
+            error_report("Can't use hv-boot-zeroed-mem without KVM-side "
+                         "support for KVM_CAP_EVER_MAPPED.");
+            return -ENOTSUP;
+        }
+        if (hyperv_boot_zeroed_setup()) {
+            /*
+             * This part, we have to defer even further, until memory is
+             * set up, but (crucially!) vCPUs have not started yet.
+             */
+            kvm_init_ever_mapped.notify = kvm_enable_ever_mapped;
+            qemu_add_machine_init_done_notifier(&kvm_init_ever_mapped);
+        }
     }
 
     return 0;

@@ -12,7 +12,10 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "system/address-spaces.h"
+#include "system/kvm.h"
 #include "system/memory.h"
+#include "system/physmem.h"
+#include "system/runstate.h"
 #include "exec/target_page.h"
 #include "exec/cpu-common.h"
 #include "linux/kvm.h"
@@ -24,9 +27,12 @@
 #include "qemu/queue.h"
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
+#include "hw/core/boards.h"
 #include "hw/hyperv/hyperv.h"
 #include "qom/object.h"
 #include "target/i386/kvm/hyperv-proto.h"
+
+#define HV_BOOT_ZEROED_PAGE_SHIFT 9
 
 struct SynICState {
     DeviceState parent_obj;
@@ -714,7 +720,7 @@ uint16_t hyperv_ext_hcall_query_caps(uint64_t sup, uint64_t outgpa, bool fast)
     }
 
     len = sizeof(*supported);
-    supported = cpu_physical_memory_map(outgpa, &len, 1);
+    supported = physical_memory_map(outgpa, &len, 1);
     if (!supported || len < sizeof(*supported)) {
         ret = HV_STATUS_INSUFFICIENT_MEMORY;
         goto cleanup;
@@ -725,8 +731,151 @@ uint16_t hyperv_ext_hcall_query_caps(uint64_t sup, uint64_t outgpa, bool fast)
 
 cleanup:
     if (supported) {
-        cpu_physical_memory_unmap(supported, sizeof(*supported), 1, len);
+        physical_memory_unmap(supported, sizeof(*supported), 1, len);
     }
+    return ret;
+}
+
+struct boot_zero_opaque {
+    struct hyperv_get_boot_zeroed_memory_output *zr;
+    const unsigned long *zero_blocks;
+    const unsigned long *kvm_bitmap;
+    unsigned long num;
+    unsigned int order;
+    unsigned int count;
+};
+
+static uint64_t boot_zeroed_max_gpa;
+
+void hyperv_boot_zeroed_set_max_gpa(uint64_t max_gpa)
+{
+    boot_zeroed_max_gpa = max_gpa;
+}
+
+static bool bootzero_mem_cb(Int128 istart, Int128 ilen, const MemoryRegion *mr,
+                            hwaddr offset_in_region, void *opaque)
+{
+    struct boot_zero_opaque *p = opaque;
+    uint64_t gpa_start, len;
+    ram_addr_t ram_start;
+    unsigned long ram_pfn_start, ram_pfn_end, gpa_ram_pfn_diff;
+    unsigned long gpa_bit_start, ram_bit_start, ram_bit_end, gpa_ram_bit_diff;
+    unsigned long idx, begin, pfn_start, pfn_end;
+    unsigned long full_shift = TARGET_PAGE_BITS + p->order;
+
+    if (!memory_region_is_ram(mr)
+        || memory_region_is_rom(mr)
+        || memory_region_is_ram_device(mr)
+        || (int128_get64(ilen) == 0)) {
+        return false;
+    }
+
+    /*
+     * We iterate concurrently over p->zero_blocks, which is a ram_addr_t,
+     * and p->kvm_bitmap, which is indexed by GPA. Hence the various
+     * conversion gymnastics.
+     */
+    gpa_start = int128_get64(istart);
+    ram_start = memory_region_get_ram_addr(mr) + offset_in_region;
+    len = int128_get64(ilen);
+
+    ram_pfn_start = ram_start >> TARGET_PAGE_BITS;
+    ram_pfn_end = (ram_start + len - 1) >> TARGET_PAGE_BITS;
+    gpa_ram_pfn_diff = (gpa_start - ram_start) >> TARGET_PAGE_BITS;
+
+    gpa_bit_start = gpa_start >> (full_shift);
+    ram_bit_start = ram_start >> (full_shift);
+    ram_bit_end = MIN(((ram_start + len - 1) >> full_shift) + 1, p->num);
+    gpa_ram_bit_diff = gpa_bit_start - ram_bit_start;
+
+    idx = ram_bit_start;
+    while (idx < ram_bit_end && p->count < ARRAY_SIZE(p->zr->ranges)) {
+        while (idx < ram_bit_end &&
+               (test_bit(idx, p->zero_blocks) ||
+                test_bit(idx + gpa_ram_bit_diff, p->kvm_bitmap))) {
+            idx++;
+        }
+        if (idx == ram_bit_end) {
+            break;
+        }
+        begin = idx;
+        while (idx < ram_bit_end &&
+               !test_bit(idx, p->zero_blocks) &&
+               !test_bit(idx + gpa_ram_bit_diff, p->kvm_bitmap)) {
+            idx++;
+        }
+        pfn_start = MAX(begin << p->order, ram_pfn_start);
+        pfn_end = MIN((idx << p->order) - 1, ram_pfn_end);
+
+        p->zr->ranges[p->count].start_pfn = pfn_start + gpa_ram_pfn_diff;
+        p->zr->ranges[p->count].page_count = pfn_end - pfn_start + 1;
+        p->count++;
+    }
+
+    return p->count == ARRAY_SIZE(p->zr->ranges);
+}
+
+uint16_t hyperv_ext_hcall_get_boot_zeroed_memory(uint64_t outgpa, bool fast)
+{
+    uint16_t ret;
+    hwaddr len;
+    struct boot_zero_opaque priv = { 0 };
+    struct kvm_ever_mapped_log kvm_log = { 0 };
+    hwaddr write_len = 0;
+
+    if (fast) {
+        ret = HV_STATUS_INVALID_HYPERCALL_CODE;
+        goto cleanup;
+    }
+
+    len = sizeof(*priv.zr);
+    priv.zr = physical_memory_map(outgpa, &len, 1);
+    if (!priv.zr || len < sizeof(*priv.zr)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto cleanup;
+    }
+
+    priv.zero_blocks = physical_memory_get_mapped_ranges(&priv.num, &priv.order);
+    priv.num *= BITS_PER_LONG;
+
+    kvm_log.first_granule = 0;
+    kvm_log.granule_shift = priv.order + TARGET_PAGE_BITS;
+    kvm_log.num_granules = DIV_ROUND_UP(boot_zeroed_max_gpa,
+                                        1ULL << kvm_log.granule_shift);
+    kvm_log.bitmap = g_malloc0(DIV_ROUND_UP(kvm_log.num_granules, BITS_PER_BYTE));
+    priv.kvm_bitmap = kvm_log.bitmap;
+    if (kvm_vm_ioctl(kvm_state, KVM_GET_EVER_MAPPED_LOG, &kvm_log)) {
+        error_report("failed to get EVER_MAPPED_LOG from KVM, "
+                     "first granule: 0x%" PRIx64 ", num_granules 0x%" PRIx64 ", "
+                     "granule_shift: 0x%" PRIx32 ", error '%s'",
+                     (uint64_t)kvm_log.first_granule,
+                     (uint64_t)kvm_log.num_granules,
+                     (uint32_t)kvm_log.granule_shift, strerror(errno));
+        /*
+         * At this point, we haven't written anything to the return struct
+         * yet, so returning like this is the conservative way out.
+         * Though maybe we should use an error code here? But which one?
+         */
+        ret = HV_STATUS_SUCCESS;
+        goto cleanup;
+    }
+
+    priv.zr->range_count = 0;
+    if (priv.zero_blocks) {
+        RCU_READ_LOCK_GUARD();
+        flatview_for_each_range(address_space_to_flatview(&address_space_memory),
+                                bootzero_mem_cb, &priv);
+        priv.zr->range_count = priv.count;
+    }
+    write_len = sizeof(priv.zr->range_count)
+                + priv.count * sizeof(priv.zr->ranges[0]);
+    ret = HV_STATUS_SUCCESS;
+
+cleanup:
+    if (priv.zr) {
+        physical_memory_unmap(priv.zr, len, 1, write_len);
+    }
+    g_free(kvm_log.bitmap);
     return ret;
 }
 
@@ -1011,6 +1160,31 @@ uint64_t hyperv_syndbg_query_options(void)
     }
 
     return msg.u.query_options.options;
+}
+
+bool hyperv_boot_zeroed_setup(void)
+{
+    static bool initialized;
+
+    if (initialized) {
+        return false;
+    }
+
+    initialized = true;
+
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        /*
+         * We do not track zeroed memory across migrations.
+         * The hypercall is only issued early during boot, so we don't lose
+         * much by not dealing with the complication of moving the zeroed
+         * state of guest memory to the migrated instance.
+         */
+        return false;
+    }
+
+    physical_memory_init_mapped_tracker(current_machine->ram_size >> TARGET_PAGE_BITS,
+                                        HV_BOOT_ZEROED_PAGE_SHIFT);
+    return true;
 }
 
 static bool vmbus_recommended_features_enabled;
