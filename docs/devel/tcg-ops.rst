@@ -495,6 +495,17 @@ Misc
          into 32-bit output *t0*.  Depending on the host, this may be a simple shift,
          or may require additional canonicalization.
 
+   * - revbit32 *t0*, *t1*, *flags*
+
+     - | 32 bit bit reverse.  The flags are the same as for bswap32.
+         On TCG_TYPE_I32, the flags should be zero.
+
+   * - revbit64 *t0*, *t1*, *flags*
+
+     - | 64 bit bit reverse. The flags are ignored, but still present
+         for consistency with the other revbit opcodes. For future
+         compatibility, the flags should be zero.
+
 
 Conditional moves
 -----------------
