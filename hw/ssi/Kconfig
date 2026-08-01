@@ -6,6 +6,10 @@ config SIFIVE_SPI
     bool
     select SSI
 
+config DW_SSI
+    bool
+    select SSI
+
 config SSI
     bool
 
