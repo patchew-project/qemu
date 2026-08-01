@@ -21,6 +21,7 @@ The ``k230`` machine supports the following devices:
 * 2 K230 Watchdog Timer
 * 5 UART
 * 3 K230 SSI controllers for SPI only
+* Optional SPI NOR flash on spi0 CS0
 
 Boot options
 ------------

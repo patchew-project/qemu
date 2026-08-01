@@ -163,3 +163,4 @@ config K230
     select UNIMP
     select K230_WDT
     select DW_SSI
+    select SSI_M25P80

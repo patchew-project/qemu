@@ -474,6 +474,59 @@ static void test_icr_total_clear(void)
     qtest_quit(qts);
 }
 
+static void test_flash_jedec_id(void)
+{
+    QTestState *qts = qtest_init("-machine k230,spi-flash=m25p80");
+    uint32_t id;
+
+    k230_ssi_configure(qts, K230_SPI0_BASE, K230_SSI_TMOD_TR, 8, 0);
+    k230_ssi_enable_cs(qts, K230_SPI0_BASE, BIT(0));
+
+    /* JEDEC RDID (0x9f): m25p80 reports 0x20 0x20 0x14. */
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x9f);
+    (void)k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    id = k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    g_assert_cmphex(id & 0xff, ==, 0x20);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    id = k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    g_assert_cmphex(id & 0xff, ==, 0x20);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    id = k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    g_assert_cmphex(id & 0xff, ==, 0x14);
+
+    qtest_quit(qts);
+}
+
+static void test_flash_fixed_read(void)
+{
+    QTestState *qts = qtest_init("-machine k230,spi-flash=m25p80");
+    uint32_t byte;
+
+    k230_ssi_configure(qts, K230_SPI0_BASE, K230_SSI_TMOD_TR, 8, 0);
+    k230_ssi_enable_cs(qts, K230_SPI0_BASE, BIT(0));
+
+    /* Standard 1-1-1 READ (0x03) at address 0x000000. */
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x03);
+    (void)k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    (void)k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    (void)k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    (void)k230_ssi_read_frame(qts, K230_SPI0_BASE);
+
+    /* Without a backend the flash is erased and reads back 0xff. */
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    byte = k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    g_assert_cmphex(byte & 0xff, ==, 0xff);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    byte = k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    g_assert_cmphex(byte & 0xff, ==, 0xff);
+
+    qtest_quit(qts);
+}
+
 static void test_unsupported_registers(void)
 {
     QTestState *qts = k230_ssi_start();
@@ -510,5 +563,7 @@ int main(int argc, char **argv)
     qtest_add_func("/k230-dw-ssi/icr-total-clear", test_icr_total_clear);
     qtest_add_func("/k230-dw-ssi/unsupported-registers",
                    test_unsupported_registers);
+    qtest_add_func("/k230-dw-ssi/flash-jedec-id", test_flash_jedec_id);
+    qtest_add_func("/k230-dw-ssi/flash-fixed-read", test_flash_fixed_read);
     return g_test_run();
 }
