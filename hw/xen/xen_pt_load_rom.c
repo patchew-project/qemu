@@ -2,6 +2,7 @@
  * This is splited from hw/i386/kvm/pci-assign.c
  */
 #include "qemu/osdep.h"
+#include "qemu/datadir.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/pci/pci.h"
@@ -13,9 +14,9 @@
  * need to be modified.
  *
  * For such cases, use this function to get a pointer to the option ROM
- * from sysfs. Caller has the responsibility to edit the option ROM as
- * needed, call pci_register_bar to register the modified option ROM,
- * and set has_rom to true for the PCI device.
+ * from a user provided romfile or sysfs. Caller has the responsibility
+ * to edit the option ROM as needed, call pci_register_bar to register
+ * the modified option ROM, and set has_rom to true for the PCI device.
  *
  * This function must be called before xen_pt_register_regions is called
  * because if xen_pt_register_regions is called first, it will register
@@ -32,17 +33,27 @@ void *pci_assign_dev_load_option_rom(PCIDevice *dev,
     struct stat st;
     void *ptr = NULL;
     Object *owner = OBJECT(dev);
+    g_autofree const char *fname = g_strdup("igd.rom");
+    g_autofree const char *path = qemu_find_file(QEMU_FILE_TYPE_BIOS, fname);
+    bool sysfs = false;
 
     /* If loading ROM from file, pci handles it */
     if (dev->romfile || !dev->rom_bar) {
         return NULL;
     }
 
-    snprintf(rom_file, sizeof(rom_file),
-             "/sys/bus/pci/devices/%04x:%02x:%02x.%01x/rom",
-             domain, bus, slot, function);
+    if (path) {
+        snprintf(rom_file, sizeof(rom_file), "%s", path);
+        XEN_PT_LOG(dev, "Using Intel IGD romfile %s "
+                   "(administratior provided)\n", path);
+    } else {
+        snprintf(rom_file, sizeof(rom_file),
+                 "/sys/bus/pci/devices/%04x:%02x:%02x.%01x/rom",
+                 domain, bus, slot, function);
+        sysfs = true;
+        XEN_PT_LOG(dev, "Using Intel IGD romfile from host sysfs\n");
+    }
 
-    /* Write "1" to the ROM file to enable it */
     fp = fopen(rom_file, "r+");
     if (fp == NULL) {
         if (errno != ENOENT) {
@@ -55,10 +66,14 @@ void *pci_assign_dev_load_option_rom(PCIDevice *dev,
         goto close_rom;
     }
 
-    val = 1;
-    if (fwrite(&val, 1, 1, fp) != 1) {
-        goto close_rom;
+    /* Write "1" to the ROM file to enable it if using ROM from sysfs */
+    if (sysfs) {
+       val = 1;
+       if (fwrite(&val, 1, 1, fp) != 1) {
+           goto close_rom;
+       }
     }
+
     fseek(fp, 0, SEEK_SET);
 
     if (dev->romsize != UINT_MAX) {
@@ -83,11 +98,13 @@ void *pci_assign_dev_load_option_rom(PCIDevice *dev,
 
     *size = st.st_size;
 close_rom:
-    /* Write "0" to disable ROM */
-    fseek(fp, 0, SEEK_SET);
-    val = 0;
-    if (!fwrite(&val, 1, 1, fp)) {
-        XEN_PT_WARN(dev, "%s\n", "Failed to disable pci-sysfs rom file");
+    /* Write "0" to disable ROM if using ROM from sysfs */
+    if (sysfs) {
+        fseek(fp, 0, SEEK_SET);
+        val = 0;
+        if (!fwrite(&val, 1, 1, fp)) {
+            XEN_PT_WARN(dev, "%s\n", "Failed to disable pci-sysfs rom file");
+        }
     }
     fclose(fp);
 
