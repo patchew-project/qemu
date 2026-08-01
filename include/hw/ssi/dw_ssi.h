@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Emulates the DesignWare SSI controller in Standard SPI mode,
- * covering the PIO/FIFO data path and chip selects.
+ * covering the PIO/FIFO data path, interrupt outputs and chip selects.
  */
 
 #ifndef HW_SSI_DW_SSI_H
@@ -24,6 +24,20 @@ OBJECT_DECLARE_SIMPLE_TYPE(DwSsiState, DW_SSI)
 #define DW_SSI_REGS_SIZE 0x14c
 #define DW_SSI_NUM_REGS \
     (DW_SSI_REGS_SIZE / sizeof(uint32_t))
+
+/* SSI GPIO output ordering differs from RISR/ISR bit ordering. */
+typedef enum DwSsiIrq {
+    DW_SSI_IRQ_TXE,
+    DW_SSI_IRQ_TXO,
+    DW_SSI_IRQ_RXF,
+    DW_SSI_IRQ_RXO,
+    DW_SSI_IRQ_TXU,
+    DW_SSI_IRQ_RXU,
+    DW_SSI_IRQ_MST,
+    DW_SSI_IRQ_DONE,
+    DW_SSI_IRQ_AXIE,
+    DW_SSI_IRQ_COUNT,
+} DwSsiIrq;
 
 typedef enum DwSsiPhase {
     DW_SSI_PHASE_IDLE,
@@ -47,6 +61,7 @@ struct DwSsiState {
     SSIBus *spi;
 
     qemu_irq *cs_lines;
+    qemu_irq irqs[DW_SSI_IRQ_COUNT];
 
     Fifo32 tx_fifo;
     Fifo32 rx_fifo;
@@ -54,6 +69,7 @@ struct DwSsiState {
 
     DwSsiConfig cfg;
 
+    uint32_t irq_latched;
     uint32_t phase;
     uint32_t remaining_frames;
 
