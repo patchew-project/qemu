@@ -33,7 +33,7 @@ static void pvpanic_mmio_initfn(Object *obj)
 
 static const Property pvpanic_mmio_properties[] = {
     DEFINE_PROP_UINT8("events", PVPanicMMIOState, pvpanic.events,
-                      PVPANIC_PANICKED | PVPANIC_CRASH_LOADED),
+                      PVPANIC_EVENTS),
 };
 
 static void pvpanic_mmio_class_init(ObjectClass *klass, const void *data)
