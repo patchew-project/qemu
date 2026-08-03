@@ -9648,6 +9648,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         ns = &n->namespace;
         ns->params.nsid = 1;
         ns->ctrl = n;
+        ns->subsys = n->subsys;
 
         if (nvme_ns_setup(ns, errp)) {
             return;
