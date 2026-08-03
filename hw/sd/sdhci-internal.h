@@ -124,8 +124,11 @@ FIELD(SDHC_PWRCON, BUS_VOLTAGE,        1, 3);
 #define SDHC_CLOCK_INT_EN              0x0001
 #define SDHC_CLOCK_SDCLK_EN            (1 << 2)
 #define SDHC_CLOCK_CHK_MASK            0x0007
-#define SDHC_CLOCK_IS_ON(x)            \
-    (((x) & SDHC_CLOCK_CHK_MASK) == SDHC_CLOCK_CHK_MASK)
+/* The i.MX uSDHC keeps its clock enables in VENDOR_SPEC instead */
+#define ESDHC_CKEN                     (1 << 14)
+#define SDHC_CLOCK_IS_ON(clkcon, vendor_spec)                  \
+    ((((clkcon) & SDHC_CLOCK_CHK_MASK) == SDHC_CLOCK_CHK_MASK) \
+     || ((vendor_spec) & ESDHC_CKEN))
 
 /* R/W Timeout Control Register 0x0 */
 #define SDHC_TIMEOUTCON                0x2E

@@ -308,7 +308,8 @@ static void sdhci_reset(SDHCIState *s)
     s->stopped_state = sdhc_not_stopped;
     s->pending_insert_state = false;
     if (object_dynamic_cast(OBJECT(s), TYPE_FSL_ESDHC_BE) ||
-            object_dynamic_cast(OBJECT(s), TYPE_FSL_ESDHC_LE)) {
+            object_dynamic_cast(OBJECT(s), TYPE_FSL_ESDHC_LE) ||
+            object_dynamic_cast(OBJECT(s), TYPE_IMX_USDHC)) {
         s->norintstsen = 0x013f;
         s->errintstsen = 0x117f;
     }
@@ -617,6 +618,15 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
      */
     if ((s->sdmasysad % boundary_chk) == 0) {
         page_aligned = true;
+    }
+
+    /*
+     * The i.MX uSDHC has no "Host SDMA Buffer Boundary": its internal DMA
+     * transfers the whole programmed block count and reports only Transfer
+     * Complete, so it never pauses at a boundary.
+     */
+    if (object_dynamic_cast(OBJECT(s), TYPE_IMX_USDHC)) {
+        page_aligned = false;
     }
 
     s->prnsts |= SDHC_DATA_INHIBIT | SDHC_DAT_LINE_ACTIVE;
@@ -994,7 +1004,7 @@ static void sdhci_data_transfer(void *opaque)
 
 static bool sdhci_can_issue_command(SDHCIState *s)
 {
-    if (!SDHC_CLOCK_IS_ON(s->clkcon) ||
+    if (!SDHC_CLOCK_IS_ON(s->clkcon, s->vendor_spec) ||
         (((s->prnsts & SDHC_DATA_INHIBIT) || s->stopped_state) &&
         ((s->cmdreg & SDHC_CMD_DATA_PRESENT) ||
         ((s->cmdreg & SDHC_CMD_RESPONSE) == SDHC_CMD_RSP_WITH_BUSY &&
