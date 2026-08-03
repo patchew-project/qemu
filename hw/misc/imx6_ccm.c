@@ -223,6 +223,14 @@ static const char *imx6_analog_reg_name(uint32_t reg)
         return "PMU_MISC1_TOG";
     case USB_ANALOG_DIGPROG:
         return "USB_ANALOG_DIGPROG";
+    case PMU_LOW_PWR_CTRL:
+        return "PMU_LOW_PWR_CTRL";
+    case XTALOSC24M_OSC_CONFIG0:
+        return "XTALOSC24M_OSC_CONFIG0";
+    case XTALOSC24M_OSC_CONFIG1:
+        return "XTALOSC24M_OSC_CONFIG1";
+    case XTALOSC24M_OSC_CONFIG2:
+        return "XTALOSC24M_OSC_CONFIG2";
     default:
         snprintf(unknown, sizeof(unknown), "%u ?", reg);
         return unknown;
@@ -237,7 +245,7 @@ static const VMStateDescription vmstate_imx6_ccm = {
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(ccm, IMX6CCMState, CCM_MAX),
-        VMSTATE_UINT32_ARRAY(analog, IMX6CCMState, CCM_ANALOG_MAX),
+        VMSTATE_UINT32_ARRAY(analog, IMX6CCMState, CCM_ANALOG_REGS),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -474,7 +482,6 @@ static void imx6_ccm_reset(DeviceState *dev)
     s->analog[USB_ANALOG_USB2_VBUS_DETECT] = 0x00000004;
     s->analog[USB_ANALOG_USB2_CHRG_DETECT] = 0x00000000;
     s->analog[USB_ANALOG_USB2_MISC] = 0x00000002;
-    s->analog[USB_ANALOG_DIGPROG] = 0x00630000;
 
     /* all PLLs need to be locked */
     s->analog[CCM_ANALOG_PLL_ARM]   |= CCM_ANALOG_PLL_LOCK;
@@ -763,6 +770,12 @@ static void imx6_ccm_init(Object *obj)
     memory_region_add_subregion(&s->container, 0x4000, &s->ioanalog);
 
     sysbus_init_mmio(sd, &s->container);
+
+    /*
+     * DIGPROG is a hardwired chip identifier: it is not affected by reset.
+     * Default to i.MX6Q; variants sharing this CCM override it below.
+     */
+    s->analog[USB_ANALOG_DIGPROG] = 0x00630000;
 }
 
 static void imx6_ccm_class_init(ObjectClass *klass, const void *data)
@@ -777,6 +790,21 @@ static void imx6_ccm_class_init(ObjectClass *klass, const void *data)
     ccm->get_clock_frequency = imx6_ccm_get_clock_frequency;
 }
 
+static void imx6sll_ccm_init(Object *obj)
+{
+    IMX6CCMState *s = IMX6_CCM(obj);
+
+    /*
+     * Runs after imx6_ccm_init(), which installs the i.MX6Q default.  The
+     * clock tree is the same; only the chip identifier differs:
+     * MXC_CPU_IMX6SLL (0x67), revision 1.0.
+     */
+    s->analog[USB_ANALOG_DIGPROG] = 0x00670000;
+
+    /* Unlike the i.MX6Q, this one implements the PMU/XTALOSC24M registers. */
+    memory_region_set_size(&s->ioanalog, CCM_ANALOG_REGS * sizeof(uint32_t));
+}
+
 static const TypeInfo imx6_ccm_info = {
     .name          = TYPE_IMX6_CCM,
     .parent        = TYPE_IMX_CCM,
@@ -785,9 +813,16 @@ static const TypeInfo imx6_ccm_info = {
     .class_init    = imx6_ccm_class_init,
 };
 
+static const TypeInfo imx6sll_ccm_info = {
+    .name          = TYPE_IMX6SLL_CCM,
+    .parent        = TYPE_IMX6_CCM,
+    .instance_init = imx6sll_ccm_init,
+};
+
 static void imx6_ccm_register_types(void)
 {
     type_register_static(&imx6_ccm_info);
+    type_register_static(&imx6sll_ccm_info);
 }
 
 type_init(imx6_ccm_register_types)

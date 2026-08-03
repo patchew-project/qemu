@@ -150,6 +150,13 @@
 #define USB_ANALOG_DIGPROG 152
 #define CCM_ANALOG_MAX 153
 
+/* PMU and XTALOSC24M registers; i.MX6SLL/SX/UL only */
+#define PMU_LOW_PWR_CTRL 156
+#define XTALOSC24M_OSC_CONFIG0 168
+#define XTALOSC24M_OSC_CONFIG1 172
+#define XTALOSC24M_OSC_CONFIG2 176
+#define CCM_ANALOG_REGS 177
+
 /* CCM_CBCMR */
 #define PRE_PERIPH_CLK_SEL_SHIFT  (18)
 #define PRE_PERIPH_CLK_SEL_LENGTH (2)
@@ -195,8 +202,11 @@ struct IMX6CCMState {
     MemoryRegion ioanalog;
 
     uint32_t ccm[CCM_MAX];
-    uint32_t analog[CCM_ANALOG_MAX];
+    uint32_t analog[CCM_ANALOG_REGS];
 
 };
+
+/* Same clock tree as the i.MX6Q, but its own chip id in ANATOP DIGPROG. */
+#define TYPE_IMX6SLL_CCM "imx6sll.ccm"
 
 #endif /* IMX6_CCM_H */
