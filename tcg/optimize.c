@@ -2658,6 +2658,14 @@ static bool fold_shift(OptContext *ctx, TCGOp *op)
         o_mask = do_constant_folding(op->opc, ctx->type, o_mask, sh);
         s_mask = do_constant_folding(op->opc, ctx->type, s_mask, sh);
 
+        /*
+         * If the bit shifted into the result sign was not in the
+         * input s_mask, then no bits are known to match it.
+         */
+        if ((int64_t)s_mask >= 0) {
+            s_mask = 0;
+        }
+
         return fold_masks_zos(ctx, op, z_mask, o_mask, s_mask);
     }
 
