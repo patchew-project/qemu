@@ -3223,11 +3223,13 @@ sub process {
 			ERROR("use sigaction to establish signal handlers; signal is not portable\n" . $herecurr);
 		}
 # recommend aio_bh_new_guarded instead of legacy qemu_bh_new / qemu_bh_new_guarded
-        if ($realfile =~ /.*\/hw\/.*/ && $line =~ /\bqemu_bh_new(_guarded)?\s*\(/) {
+		if ($realfile =~ m{(?:^|/)hw/} &&
+		    $line =~ /\bqemu_bh_new(_guarded)?\s*\(/) {
 			ERROR("use aio_bh_new_guarded() instead of qemu_bh_new*() to avoid reentrancy problems\n" . $herecurr);
 		}
 # recommend aio_bh_new_guarded instead of aio_bh_new
-        if ($realfile =~ /.*\/hw\/.*/ && $line =~ /\baio_bh_new\s*\(/) {
+		if ($realfile =~ m{(?:^|/)hw/} &&
+		    $line =~ /\baio_bh_new\s*\(/) {
 			ERROR("use aio_bh_new_guarded() instead of aio_bh_new() to avoid reentrancy problems\n" . $herecurr);
 		}
 # check for DEVICE_NATIVE_ENDIAN, use explicit endianness instead
