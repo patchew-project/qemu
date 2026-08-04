@@ -780,7 +780,6 @@ static void sdhci_do_adma(SDHCIState *s)
     const MemTxAttrs attrs = { .memory = true };
     ADMADescr dscr = {};
     MemTxResult res = MEMTX_ERROR;
-    int i;
 
     if (s->trnmod & SDHC_TRNS_BLK_CNT_EN && !s->blkcnt) {
         /* Stop Multiple Transfer */
@@ -788,7 +787,27 @@ static void sdhci_do_adma(SDHCIState *s)
         return;
     }
 
-    for (i = 0; i < SDHC_ADMA_DESCS_PER_DELAY; ++i) {
+    /*
+     * Process the descriptor chain to completion (END or blkcnt == 0),
+     * yielding to the guest only for a descriptor carrying the INT
+     * attribute (a DMA-boundary interrupt, handled at the end of the loop).
+     *
+     * Historically at most SDHC_ADMA_DESCS_PER_DELAY descriptors were
+     * handled per call before rescheduling SDHC_TRANSFER_DELAY ns later on
+     * QEMU_CLOCK_VIRTUAL. That pacing is only needed so a guest can observe
+     * the intermediate DMA-interrupt state; a bulk transfer that requests
+     * no interrupt does not need slicing, and throttling it across many
+     * virtual-clock round-trips can make it race a guest-side transfer
+     * timeout. Run such chains to completion in one call instead.
+     *
+     * SDHC_ADMA_MAX_DESCRIPTORS bounds the loop so a malformed or circular
+     * chain cannot spin here forever; on overflow, break to the reschedule
+     * path so the main loop stays responsive.
+     */
+    for (unsigned int adma_descs = 0; ; adma_descs++) {
+        if (adma_descs >= SDHC_ADMA_MAX_DESCRIPTORS) {
+            break;
+        }
         s->admaerr &= ~SDHC_ADMAERR_LENGTH_MISMATCH;
 
         get_adma_description(s, &dscr);

@@ -277,6 +277,15 @@ FIELD(SDHC_MAXCURR, V18_VDD2,         32, 8); /* since v4.20 */
 #define SDHC_INSERTION_DELAY            (NANOSECONDS_PER_SECOND)
 #define SDHC_TRANSFER_DELAY             100
 #define SDHC_ADMA_DESCS_PER_DELAY       5
+/*
+ * Upper bound on ADMA2 descriptors handled in a single sdhci_do_adma()
+ * call, as a safety valve against a malformed or circular descriptor
+ * list. A well-formed transfer terminates far below this via END or
+ * blkcnt == 0 (even a 4 GiB transfer built from 64 KiB TRAN descriptors
+ * is only ~64K descriptors); the bound merely guarantees the loop makes
+ * a decision instead of spinning forever.
+ */
+#define SDHC_ADMA_MAX_DESCRIPTORS       (1 << 20)
 #define SDHC_CMD_RESPONSE               (3 << 0)
 
 enum {
