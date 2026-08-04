@@ -32,6 +32,14 @@ struct X86MachineClass {
 
     /* CPU and apic information: */
     bool apic_xrupt_override;
+
+    /*
+     * Leave KVM's Suppress EOI Broadcast quirk in place rather than
+     * configuring proper behaviour from the userspace IOAPIC version.
+     *
+     * Only applicable under split-irqchip.
+     */
+    bool quirked_seoib;
 };
 
 struct X86MachineState {
@@ -93,6 +101,9 @@ struct X86MachineState {
     uint64_t bus_lock_ratelimit;
 
     IgvmCfg *igvm;
+
+    /* Defaults from X86MachineClass, overridable by the user. */
+    bool quirked_seoib;
 };
 
 #define X86_MACHINE_SMM              "smm"
@@ -102,6 +113,7 @@ struct X86MachineState {
 #define X86_MACHINE_OEM_ID           "x-oem-id"
 #define X86_MACHINE_OEM_TABLE_ID     "x-oem-table-id"
 #define X86_MACHINE_BUS_LOCK_RATELIMIT  "bus-lock-ratelimit"
+#define X86_MACHINE_QUIRKED_SEOIB    "quirked-seoib"
 
 #define TYPE_X86_MACHINE   MACHINE_TYPE_NAME("x86")
 OBJECT_DECLARE_TYPE(X86MachineState, X86MachineClass, X86_MACHINE)

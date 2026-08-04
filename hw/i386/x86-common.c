@@ -66,6 +66,24 @@ out:
     object_unref(cpu);
 }
 
+static bool x86_ioapic_has_eoi_reg(void)
+{
+    Object *obj;
+    uint64_t version;
+
+    /*
+     * The I/O APIC device does not exist yet, as x86_cpus_init() runs
+     * before ioapic_init_gsi(). Hence, use a throwaway instance to check
+     * I/O APIC version.
+     */
+    obj = object_new(TYPE_IOAPIC);
+    version = object_property_get_uint(obj, "version", &error_abort);
+    object_unref(obj);
+
+    /* Only version 0x20 implements the EOI register used for directed EOI. */
+    return version == 0x20;
+}
+
 void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
 {
     int i;
@@ -107,6 +125,26 @@ void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
 
     if (!kvm_irqchip_in_kernel()) {
         apic_set_max_apic_id(x86ms->apic_id_limit);
+    }
+
+    /*
+     * Under split irqchip KVM advertises x2APIC Suppress EOI Broadcast to
+     * the guest but historically ignored the guest's request and kept
+     * broadcasting LAPIC EOIs to the userspace IOAPIC. For compatibility,
+     * KVM still follows legacy behavior by default.
+     * Based on the I/O APIC version, use proper x2APIC Suppress EOI
+     * Broadcast flags (ENABLE or DISABLE) to fix KVM behavior.
+     * This needs to happen before any vCPUs are created.
+     */
+    if (kvm_enabled() && kvm_irqchip_is_split() && !x86ms->quirked_seoib) {
+        Error *local_err = NULL;
+
+        if (!kvm_configure_x2apic_seoib(x86_ioapic_has_eoi_reg(), &local_err)) {
+            error_append_hint(&local_err, "Use -machine %s=on to keep the "
+                              "legacy behaviour.\n", X86_MACHINE_QUIRKED_SEOIB);
+            error_report_err(local_err);
+            exit(1);
+        }
     }
 
     possible_cpus = mc->possible_cpu_arch_ids(ms);

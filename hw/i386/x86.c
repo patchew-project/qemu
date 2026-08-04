@@ -205,6 +205,20 @@ static void x86_machine_set_smm(Object *obj, Visitor *v, const char *name,
     visit_type_OnOffAuto(v, name, &x86ms->smm, errp);
 }
 
+static bool x86_machine_get_quirked_seoib(Object *obj, Error **errp)
+{
+    X86MachineState *x86ms = X86_MACHINE(obj);
+
+    return x86ms->quirked_seoib;
+}
+
+static void x86_machine_set_quirked_seoib(Object *obj, bool value, Error **errp)
+{
+    X86MachineState *x86ms = X86_MACHINE(obj);
+
+    x86ms->quirked_seoib = value;
+}
+
 bool x86_machine_is_acpi_enabled(const X86MachineState *x86ms)
 {
     if (x86ms->acpi == ON_OFF_AUTO_OFF) {
@@ -370,6 +384,7 @@ static void x86_machine_initfn(Object *obj)
     x86ms->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
     x86ms->bus_lock_ratelimit = 0;
     x86ms->above_4g_mem_start = 4 * GiB;
+    x86ms->quirked_seoib = X86_MACHINE_GET_CLASS(obj)->quirked_seoib;
 }
 
 static void x86_machine_finalize(Object *obj)
@@ -445,6 +460,12 @@ static void x86_machine_class_init(ObjectClass *oc, const void *data)
         NULL, NULL);
     object_class_property_set_description(oc, "sgx-epc",
         "SGX EPC device");
+
+    object_class_property_add_bool(oc, X86_MACHINE_QUIRKED_SEOIB,
+                                   x86_machine_get_quirked_seoib,
+                                   x86_machine_set_quirked_seoib);
+    object_class_property_set_description(oc, X86_MACHINE_QUIRKED_SEOIB,
+        "Leave KVM's Suppress EOI Broadcast quirky behavior in place");
 }
 
 static const TypeInfo x86_machine_info = {

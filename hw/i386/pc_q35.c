@@ -392,9 +392,12 @@ DEFINE_Q35_MACHINE_AS_LATEST(11, 1);
 
 static void pc_q35_machine_11_0_options(MachineClass *m)
 {
+    X86MachineClass *x86mc = X86_MACHINE_CLASS(m);
+
     pc_q35_machine_11_1_options(m);
     compat_props_add(m->compat_props, hw_compat_11_0, hw_compat_11_0_len);
     compat_props_add(m->compat_props, pc_compat_11_0, pc_compat_11_0_len);
+    x86mc->quirked_seoib = true;
 }
 
 DEFINE_Q35_MACHINE(11, 0);

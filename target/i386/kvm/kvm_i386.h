@@ -25,6 +25,7 @@
 
 bool kvm_has_smm(void);
 bool kvm_enable_x2apic(void);
+bool kvm_configure_x2apic_seoib(bool enable, Error **errp);
 bool kvm_hv_vpindex_settable(void);
 bool kvm_enable_hypercall(uint64_t enable_mask);
 

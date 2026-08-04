@@ -307,6 +307,30 @@ bool kvm_enable_x2apic(void)
              has_x2apic_api);
 }
 
+bool kvm_configure_x2apic_seoib(bool enable, Error **errp)
+{
+    KVMState *s = KVM_STATE(current_accel());
+    uint64_t flag = enable ? KVM_X2APIC_ENABLE_SUPPRESS_EOI_BROADCAST
+                           : KVM_X2APIC_DISABLE_SUPPRESS_EOI_BROADCAST;
+    int supported, ret;
+
+    supported = kvm_vm_check_extension(s, KVM_CAP_X2APIC_API);
+    if (!(supported & flag)) {
+        error_setg(errp, "KVM does not have x2APIC Suppress EOI Broadcast "
+                   "flags");
+        return false;
+    }
+
+    ret = kvm_vm_enable_cap(s, KVM_CAP_X2APIC_API, 0, flag);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "failed to configure x2APIC Suppress "
+                         "EOI Broadcast flags");
+        return false;
+    }
+
+    return true;
+}
+
 bool kvm_hv_vpindex_settable(void)
 {
     return hv_vpindex_settable;
