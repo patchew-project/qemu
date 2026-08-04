@@ -641,6 +641,7 @@ static int megasas_init_firmware(MegasasState *s, MegasasCmd *cmd)
     struct mfi_init_qinfo *initq = NULL;
     uint32_t flags;
     int ret = MFI_STAT_OK;
+    int i;
 
     if (s->reply_queue_pa) {
         trace_megasas_initq_mapped(s->reply_queue_pa);
@@ -684,6 +685,9 @@ static int megasas_init_firmware(MegasasState *s, MegasasCmd *cmd)
     trace_megasas_init_queue((unsigned long)s->reply_queue_pa,
                              s->reply_queue_len, s->reply_queue_head,
                              s->reply_queue_tail, flags);
+    for (i = 0; i < s->fw_cmds; i++) {
+        megasas_abort_command(&s->frames[i]);
+    }
     megasas_reset_frames(s);
     s->fw_state = MFI_FWSTATE_OPERATIONAL;
 out:
