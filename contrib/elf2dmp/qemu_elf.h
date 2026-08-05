@@ -42,6 +42,7 @@ typedef struct QEMU_Elf {
     QEMUCPUState **state;
     size_t state_nr;
     int has_kernel_gs_base;
+    int has_is_crash_occurred_cpu;
 } QEMU_Elf;
 
 bool QEMU_Elf_init(QEMU_Elf *qe, const char *filename);

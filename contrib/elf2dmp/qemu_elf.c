@@ -71,7 +71,8 @@ static bool init_states(QEMU_Elf *qe)
         return false;
     }
 
-    qe->has_kernel_gs_base = 1;
+    qe->has_kernel_gs_base = 0;
+    qe->has_is_crash_occurred_cpu = 0;
     offset = phdr[0].p_offset;
     states = g_ptr_array_new();
 
@@ -103,14 +104,19 @@ static bool init_states(QEMU_Elf *qe)
             nhdr->n_descsz >= offsetof(QEMUCPUState, kernel_gs_base)) {
             state_size = MIN(state->size, nhdr->n_descsz);
 
-            if (state_size < sizeof(*state)) {
+            if (state_size >= offsetof(QEMUCPUState, kernel_gs_base) +
+                              sizeof(state->kernel_gs_base)) {
+                qe->has_kernel_gs_base = 1;
+            }
+
+            if (state_size >= offsetof(QEMUCPUState, is_crash_occurred_cpu) +
+                              sizeof(state->is_crash_occurred_cpu)) {
+                qe->has_is_crash_occurred_cpu = 1;
+            }
+
+            if (state_size != sizeof(*state)) {
                 eprintf("CPU #%u: QEMU CPU state size %u doesn't match\n",
                         states->len, state_size);
-                /*
-                 * We assume either every QEMU CPU state has KERNEL_GS_BASE or
-                 * no one has.
-                 */
-                qe->has_kernel_gs_base = 0;
             }
             g_ptr_array_add(states, state);
         }
