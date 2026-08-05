@@ -1409,6 +1409,17 @@ static void gen_BSF(DisasContext *s, X86DecodedInsn *decode)
      * by passing the output as the value to return upon zero.
      */
     tcg_gen_ctz_tl(s->T0, s->T0, s->T1);
+
+    /*
+     * Bypass the gen_writeback: for a 32-bit destination in 64-bit
+     * mode it would zero-extend the upper 32 bits, but T0 already holds
+     * the exact final register value for both the zero- and non-zero-
+     * source cases (see comment above).
+     */
+    if (CODE64(s) && ot == MO_32) {
+        tcg_gen_mov_tl(cpu_regs[decode->op[0].n], s->T0);
+        decode->op[0].unit = X86_OP_SKIP;
+    }
 }
 
 /* Non-standard convention - on entry T0 is zero-extended input, T1 is the output.  */
@@ -1431,6 +1442,12 @@ static void gen_BSR(DisasContext *s, X86DecodedInsn *decode)
     tcg_gen_xori_tl(s->T1, s->T1, TARGET_LONG_BITS - 1);
     tcg_gen_clz_tl(s->T0, s->T0, s->T1);
     tcg_gen_xori_tl(s->T0, s->T0, TARGET_LONG_BITS - 1);
+
+    /* See gen_BSF() above. */
+    if (CODE64(s) && ot == MO_32) {
+        tcg_gen_mov_tl(cpu_regs[decode->op[0].n], s->T0);
+        decode->op[0].unit = X86_OP_SKIP;
+    }
 }
 
 static void gen_BSWAP(DisasContext *s, X86DecodedInsn *decode)
