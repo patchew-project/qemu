@@ -2312,18 +2312,19 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     if (pci_dev == NULL)
         return;
 
+    if (!pcie_sriov_register_device(pci_dev, errp)) {
+        do_pci_unregister_device(pci_dev);
+        return;
+    }
+
     if (pc->realize) {
         pc->realize(pci_dev, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
+            pcie_sriov_unregister_device(pci_dev);
             do_pci_unregister_device(pci_dev);
             return;
         }
-    }
-
-    if (!pcie_sriov_register_device(pci_dev, errp)) {
-        pci_qdev_unrealize(DEVICE(pci_dev));
-        return;
     }
 
     /*
