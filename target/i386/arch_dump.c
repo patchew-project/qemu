@@ -264,6 +264,8 @@ struct QEMUCPUState {
      * by checking 'size' field.
      */
     uint64_t kernel_gs_base;
+    uint8_t  is_crash_occurred_cpu;
+    uint8_t  pad[7];
 };
 
 typedef struct QEMUCPUState QEMUCPUState;
@@ -279,6 +281,7 @@ static void copy_segment(QEMUCPUSegment *d, SegmentCache *s)
 
 static void qemu_get_cpustate(QEMUCPUState *s, CPUX86State *env)
 {
+    CPUState *cs = env_cpu(env);
     memset(s, 0, sizeof(QEMUCPUState));
 
     s->version = QEMUCPUSTATE_VERSION;
@@ -325,6 +328,9 @@ static void qemu_get_cpustate(QEMUCPUState *s, CPUX86State *env)
 #ifdef TARGET_X86_64
     s->kernel_gs_base = env->kernelgsbase;
 #endif
+    if (cs->crash_occurred) {
+        s->is_crash_occurred_cpu = 1;
+    }
 }
 
 static inline int cpu_write_qemu_note(WriteCoreDumpFunction f,
