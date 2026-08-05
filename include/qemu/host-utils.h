@@ -610,7 +610,7 @@ static inline bool umul64_overflow(uint64_t x, uint64_t y, uint64_t *ret)
  * sadd32_saturate - addition with saturation
  * @x, @y: addends
  *
- * Computes @x + @y, and saturates rathern than truncating the result.
+ * Computes @x + @y, and saturates rather than truncating the result.
  */
 static inline int32_t sadd32_saturate(int32_t x, int32_t y)
 {
@@ -625,7 +625,7 @@ static inline int32_t sadd32_saturate(int32_t x, int32_t y)
  * sadd64_saturate - addition with saturation
  * @x, @y: addends
  *
- * Computes @x + @y, and saturates rathern than truncating the result.
+ * Computes @x + @y, and saturates rather than truncating the result.
  */
 static inline int64_t sadd64_saturate(int64_t x, int64_t y)
 {
@@ -638,30 +638,30 @@ static inline int64_t sadd64_saturate(int64_t x, int64_t y)
 
 /**
  * ssub32_saturate - subtraction with saturation
- * @x, @y: addends
+ * @x, @y: minuend and subtrahend
  *
- * Computes @x + @y, and saturates rathern than truncating the result.
+ * Computes @x - @y, and saturates rather than truncating the result.
  */
-static inline bool ssub32_saturate(int32_t x, int32_t y)
+static inline int32_t ssub32_saturate(int32_t x, int32_t y)
 {
     int32_t ret;
     if (ssub32_overflow(x, y, &ret)) {
-        ret = x < 0 ? INT32_MAX : INT32_MIN;
+        ret = x < 0 ? INT32_MIN : INT32_MAX;
     }
     return ret;
 }
 
 /**
  * ssub64_saturate - subtraction with saturation
- * @x, @y: addends
+ * @x, @y: minuend and subtrahend
  *
- * Computes @x + @y, and saturates rathern than truncating the result.
+ * Computes @x - @y, and saturates rather than truncating the result.
  */
-static inline bool ssub64_saturate(int64_t x, int64_t y)
+static inline int64_t ssub64_saturate(int64_t x, int64_t y)
 {
     int64_t ret;
     if (ssub64_overflow(x, y, &ret)) {
-        ret = x < 0 ? INT64_MAX : INT64_MIN;
+        ret = x < 0 ? INT64_MIN : INT64_MAX;
     }
     return ret;
 }
