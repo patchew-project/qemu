@@ -800,6 +800,32 @@ static abi_long mmap_h_gt_g(abi_ulong start, abi_ulong len,
     bool misaligned_offset = false;
     size_t host_len;
 
+    if (!(flags & MAP_ANONYMOUS)) {
+        struct stat sb;
+
+        if (fstat(fd, &sb) == -1) {
+            return -1;
+        }
+        if (offset >= sb.st_size) {
+            /*
+             * The entire map is beyond the end of the file.
+             * Transform it to an anonymous mapping.
+             */
+            flags |= MAP_ANONYMOUS;
+            fd = -1;
+            offset = 0;
+        } else if (offset + len > sb.st_size) {
+            /*
+             * A portion of the map is beyond the end of the file.
+             * Truncate the file portion of the allocation.
+             */
+            len = sb.st_size - offset;
+            len = len + host_page_size - 1;
+            len /= host_page_size;
+            len *= host_page_size;
+        }
+    }
+
     if (start || (flags & (MAP_FIXED | MAP_FIXED_NOREPLACE))) {
         want_p = g2h_untagged(start);
     }
