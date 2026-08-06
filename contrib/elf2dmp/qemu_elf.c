@@ -103,6 +103,13 @@ static bool init_states(QEMU_Elf *qe)
             nhdr->n_descsz >= offsetof(QEMUCPUState, kernel_gs_base)) {
             state_size = MIN(state->size, nhdr->n_descsz);
 
+            /*
+             * Clamp the embedded size to the actual note descriptor size
+             * so that downstream size checks (e.g. fill_context) never
+             * read beyond the descriptor boundary.
+             */
+            state->size = state_size;
+
             if (state_size < sizeof(*state)) {
                 eprintf("CPU #%u: QEMU CPU state size %u doesn't match\n",
                         states->len, state_size);
