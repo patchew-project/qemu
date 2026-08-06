@@ -12,7 +12,26 @@
 static unsigned long igd_guest_opregion;
 static unsigned long igd_host_opregion;
 
+/*
+ * These are true until they are set to false when the guest first
+ * accesses the OpRegion address register for a read or write,
+ * respectively.
+ */
+static bool first_guest_opregion_read = true;
+static bool first_guest_opregion_write = true;
+
+static uint32_t guest_opregion_extra_writes;
+static bool guest_supports_opregion2;
+static bool done;
+static unsigned long rvda; /* absolute host VBT address */
+static unsigned long vbt_guest_pgbase;
+static uint32_t vbt_nr_pages;
+
 #define XEN_PCI_INTEL_OPREGION_MASK 0xfff
+#define XEN_PCI_INTEL_OPREGION_PAGES 0x3
+#define XEN_PCI_INTEL_OPREGION_ENABLE_ACCESSED 0x1
+#define XEN_PCI_INTEL_OPREGION_DISABLE_ACCESS 0x0
+#define XEN_PCI_INTEL_OPREGION2_SUPPORT_MASK 0x1
 
 typedef struct VGARegion {
     int type;           /* Memory or port I/O */
@@ -117,11 +136,11 @@ int xen_pt_unregister_vga_regions(XenHostPCIDevice *dev)
         }
     }
 
-    if (igd_guest_opregion) {
+    if (!guest_supports_opregion2 && igd_guest_opregion) {
         ret = xc_domain_memory_mapping(xen_xc, xen_domid,
                 (unsigned long)(igd_guest_opregion >> XC_PAGE_SHIFT),
                 (unsigned long)(igd_host_opregion >> XC_PAGE_SHIFT),
-                3,
+                XEN_PCI_INTEL_OPREGION_PAGES,
                 DPCI_REMOVE_MAPPING);
         if (ret) {
             return ret;
@@ -239,7 +258,31 @@ void xen_pt_setup_vga(XenPCIPassthroughState *s, XenHostPCIDevice *dev,
 
 uint32_t igd_read_opregion(XenPCIPassthroughState *s)
 {
+    if (!igd_host_opregion) {
+        /* We just work with LE. */
+        xen_host_pci_get_block(&s->real_device, XEN_PCI_INTEL_OPREGION,
+                               (uint8_t *)&igd_host_opregion, 4);
+    }
+
+    /*
+     * By returning igd_host_opregion here instead of 0, we can
+     * indicate to hvmloader that we support OpRegion 2.
+     *
+     * The conditions are there to prevent returning igd_host_opregion
+     * to guests that have a version of hvmloader that lacks support
+     * for OpRegion 2. We do this to maintain backward compatibility for
+     * guests with earlier versions of hvmloader that always expect us
+     * to return 0 instead of igd_host_opregion when igd_guest_opregion
+     * is not yet set to a non-zero value.
+     */
+    if (first_guest_opregion_read && !igd_guest_opregion &&
+        first_guest_opregion_write) {
+        first_guest_opregion_read = false;
+        return igd_host_opregion;
+    }
+
     uint32_t val = 0;
+    first_guest_opregion_read = false;
 
     if (!igd_guest_opregion) {
         return val;
@@ -251,21 +294,195 @@ uint32_t igd_read_opregion(XenPCIPassthroughState *s)
     return val;
 }
 
-#define XEN_PCI_INTEL_OPREGION_PAGES 0x3
-#define XEN_PCI_INTEL_OPREGION_ENABLE_ACCESSED 0x1
 void igd_write_opregion(XenPCIPassthroughState *s, uint32_t val)
 {
     int ret;
 
-    if (igd_guest_opregion) {
+    /* hvmloader with OpRegion 2 support uses lsb of val to indicate support */
+    if ((val & XEN_PCI_INTEL_OPREGION2_SUPPORT_MASK) &&
+        first_guest_opregion_write) {
+        guest_supports_opregion2 = true;
+    } else if (first_guest_opregion_write) {
+        XEN_PT_LOG(&s->dev, "hvmloader lacks extended VBT support, "
+                   "continuing with legacy support only\n");
+    }
+
+    if ((!guest_supports_opregion2 && igd_guest_opregion) || done) {
         XEN_PT_LOG(&s->dev, "opregion register already been set, ignoring %x\n",
                    val);
         return;
     }
 
-    /* We just work with LE. */
-    xen_host_pci_get_block(&s->real_device, XEN_PCI_INTEL_OPREGION,
-            (uint8_t *)&igd_host_opregion, 4);
+    if (guest_supports_opregion2 && !first_guest_opregion_write) {
+        /*
+         * OpRegion 2 is supported and we are processing
+         * additional writes that the legacy protocol ignores.
+         *
+         * We should always return from this if block to prevent
+         * executing code below which is only for the first write
+         * when we map the host OpRegion into the guest.
+         */
+        guest_opregion_extra_writes++;
+        switch (guest_opregion_extra_writes) {
+        case 1:
+            /*
+             * Hvmloader expects us to store the value as the least
+             * significant DWORD of rvda.
+             */
+            rvda = (unsigned long)val;
+            break;
+        case 2:
+            /*
+             * Hvmloader expects us to store the value as the most
+             * significant DWORD of rvda and unmap the OpRegion if
+             * rvda is not equal to zero.
+             *
+             * If the unmapping fails, hvmloader will fall back to the
+             * behavior of older versions which simply map the OpRegion
+             * from the host to the guest without trying to configure
+             * the guest with OpRegion 2 with extended VBT support.
+             */
+            rvda |= (unsigned long)(val) << 32;
+            if (rvda) {
+                ret = xc_domain_memory_mapping(xen_xc, xen_domid,
+                                               (unsigned long)
+                                               (igd_guest_opregion >> XC_PAGE_SHIFT),
+                                               (unsigned long)
+                                               (igd_host_opregion >> XC_PAGE_SHIFT),
+                                               XEN_PCI_INTEL_OPREGION_PAGES,
+                                               DPCI_REMOVE_MAPPING);
+                if (ret) {
+                    XEN_PT_ERR(&s->dev, "[%d]:Can't unmap IGD host opregion:0x%lx"
+                               " from guest opregion:0x%lx.\n", ret,
+                               (unsigned long)(igd_host_opregion >> XC_PAGE_SHIFT),
+                               (unsigned long)(igd_guest_opregion >> XC_PAGE_SHIFT));
+                    rvda = 0;
+                    guest_supports_opregion2 = false;
+                }
+                ret = xc_domain_iomem_permission(xen_xc, xen_domid,
+                                                 (unsigned long)
+                                                 (igd_host_opregion >> XC_PAGE_SHIFT),
+                                                 XEN_PCI_INTEL_OPREGION_PAGES,
+                                                 XEN_PCI_INTEL_OPREGION_DISABLE_ACCESS);
+                if (ret) {
+                    XEN_PT_WARN(&s->dev, "[%d]:Can't disable access to IGD host"
+                                " OpRegion: 0x%x.\n", ret,
+                                (unsigned long)(igd_host_opregion >> XC_PAGE_SHIFT));
+                }
+            } else {
+                guest_supports_opregion2 = false;
+            }
+            break;
+        case 3:
+            /*
+             * Hvmloader expects us to store the value as the address
+             * to map the VBT to in the guest and to map the VBT at the
+             * provided address in the guest. Hvmloader encodes the number
+             * of pages to map in the least significant 12 bits of the
+             * provided address.
+             *
+             * If VBT verification fails, hvmloader can't determine if the
+             * VBT is mapped but corrupted or unmapped, so it crashes the
+             * guest as an unrecoverable error.
+             */
+
+            /* address (gfn) to map VBT to in the guest */
+            vbt_guest_pgbase = val >> XC_PAGE_SHIFT;
+            vbt_nr_pages = val & XEN_PCI_INTEL_OPREGION_MASK;
+            ret = xc_domain_iomem_permission(xen_xc, xen_domid,
+                                             (unsigned long)(rvda >> XC_PAGE_SHIFT),
+                                             vbt_nr_pages,
+                                             XEN_PCI_INTEL_OPREGION_ENABLE_ACCESSED);
+            if (ret) {
+                XEN_PT_ERR(&s->dev, "[%d]:Can't enable access to IGD host VBT:"
+                           " 0x%lx.\n", ret,
+                           (unsigned long)(rvda >> XC_PAGE_SHIFT)),
+                rvda = 0;
+                vbt_guest_pgbase = 0;
+                vbt_nr_pages = 0;
+                done = true;
+                break;
+            }
+            ret = xc_domain_memory_mapping(xen_xc, xen_domid,
+                                           (unsigned long)vbt_guest_pgbase,
+                                           (unsigned long)(rvda >> XC_PAGE_SHIFT),
+                                           vbt_nr_pages, DPCI_ADD_MAPPING);
+            if (ret) {
+                XEN_PT_ERR(&s->dev, "[%d]:Can't map IGD host VBT:0x%lx to"
+                           " guest VBT:0x%lx.\n", ret,
+                           (unsigned long)(rvda >> XC_PAGE_SHIFT),
+                           (unsigned long)vbt_guest_pgbase);
+                rvda = 0;
+                vbt_guest_pgbase = 0;
+                vbt_nr_pages = 0;
+                done = true;
+                break;
+            }
+            XEN_PT_LOG(&s->dev, "Map VBT: 0x%lx -> 0x%lx\n",
+                       (unsigned long)(rvda >> XC_PAGE_SHIFT),
+                       (unsigned long)vbt_guest_pgbase);
+            XEN_PT_LOG(&s->dev, "VBT host address: 0x%lx\n", rvda);
+            break;
+        case 4:
+            /*
+             * Hvmloader expects us to store the given value as the
+             * final value for the register that stores the OpRegion
+             * address in the guest. We also unmap the VBT since the
+             * guest now has its own copy of both it and the OpRegion.
+             *
+             * If the unmapping fails the VBT will be mapped where
+             * hvmloader needs to place the OpRegion plus VBT in the
+             * guest E820 map. In this case, hvmloader will crash with
+             * BUG() rather than try to use the mapped VBT with the
+             * guest's copy of the OpRegion.
+             */
+            igd_guest_opregion = val;
+            ret = xc_domain_memory_mapping(xen_xc, xen_domid,
+                                           (unsigned long)vbt_guest_pgbase,
+                                           (unsigned long)(rvda >> XC_PAGE_SHIFT),
+                                           vbt_nr_pages, DPCI_REMOVE_MAPPING);
+            if (ret) {
+                XEN_PT_ERR(&s->dev, "[%d]:Can't unmap IGD host VBT:0x%lx from"
+                           " guest VBT:0x%lx.\n", ret,
+                           (unsigned long)(rvda >> XC_PAGE_SHIFT),
+                           (unsigned long)vbt_guest_pgbase);
+                rvda = 0;
+                done = true;
+                break;
+            }
+
+            ret = xc_domain_iomem_permission(xen_xc, xen_domid,
+                                             (unsigned long)(rvda >> XC_PAGE_SHIFT),
+                                             vbt_nr_pages,
+                                             XEN_PCI_INTEL_OPREGION_DISABLE_ACCESS);
+            if (ret) {
+                XEN_PT_WARN(&s->dev, "[%d]:Can't disable access to IGD host"
+                            " VBT: 0x%x.\n", ret,
+                            (unsigned long)(rvda >> XC_PAGE_SHIFT));
+            }
+
+            done = true;
+            break;
+        default:
+            break;
+        }
+        return;
+    }
+
+    /*
+     * This code handles the first write to the register from the guest.
+     * It maps the host OpRegion into the guest.
+     *
+     * Set first_guest_opregion_write to false to enable more writes
+     * if OpRegion 2 is supported.
+     */
+    first_guest_opregion_write = false;
+
+    if (!igd_host_opregion) {
+        /* We just work with LE. */
+        xen_host_pci_get_block(&s->real_device, XEN_PCI_INTEL_OPREGION,
+                               (uint8_t *)&igd_host_opregion, 4);
+    }
     igd_guest_opregion = (unsigned long)(val & ~XEN_PCI_INTEL_OPREGION_MASK)
                             | (igd_host_opregion & XEN_PCI_INTEL_OPREGION_MASK);
 
