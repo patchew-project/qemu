@@ -203,9 +203,9 @@ static void cpu_max_initfn(Object *obj)
         return;
     }
 
-    if (tcg_enabled() || qtest_enabled()) {
-        aarch64_aa32_a57_init(obj, !aarch64_enabled);
-    }
+    assert(tcg_enabled() || qtest_enabled());
+
+    aarch64_aa32_a57_init(obj, !aarch64_enabled);
 
     if (!aarch64_enabled) {
         aa32_max_features(cpu);
@@ -218,8 +218,7 @@ static void cpu_max_initfn(Object *obj)
          */
         cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPSHVEC, 1);
 #endif
-    } else if (tcg_enabled()) {
-        assert(aarch64_enabled);
+    } else {
         /*
          * '-cpu max' for TCG: we currently do this as
          * "A57 with extra things"
