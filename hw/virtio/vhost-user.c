@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "hw/mem/memory-device.h"
 #include "hw/virtio/virtio-dmabuf.h"
 #include "hw/virtio/virtio-qmp.h"
 #include "hw/virtio/vhost.h"
@@ -1126,6 +1127,13 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
             dev, VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS);
     int ret;
 
+    if (mem->nregions > u->user->memory_slots) {
+        error_report("vhost-user memory table has %u regions, "
+                     "but the backend supports only %d",
+                     mem->nregions, u->user->memory_slots);
+        return -ENOSPC;
+    }
+
     if (do_postcopy) {
         /*
          * Postcopy has enough differences that it's best done in it's own
@@ -1940,6 +1948,7 @@ vhost_user_backend_handle_shmem_map(struct vhost_dev *dev,
     VhostUserMMap *vu_mmap = &payload->mmap;
     VirtioSharedMemoryMapping *existing;
     Error *local_err = NULL;
+    unsigned int reserved_memslots;
     int ret = 0;
 
     if (fd < 0) {
@@ -1978,6 +1987,15 @@ vhost_user_backend_handle_shmem_map(struct vhost_dev *dev,
             ret = -EFAULT;
             goto send_reply;
         }
+    }
+
+    reserved_memslots = memory_devices_get_reserved_memslots();
+    if ((kvm_enabled() &&
+         kvm_get_free_memslots() <= reserved_memslots) ||
+        vhost_get_free_memslots() <= reserved_memslots) {
+        error_report("No free memory slots for shared memory mapping");
+        ret = -ENOSPC;
+        goto send_reply;
     }
 
     memory_region_transaction_begin();
