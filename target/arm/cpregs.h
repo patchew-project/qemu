@@ -1213,6 +1213,14 @@ static inline bool arm_cpreg_in_idspace(const ARMCPRegInfo *ri)
                                       ri->crn, ri->crm);
 }
 
+/* The TID3 subset of idspace. */
+static inline bool
+arm_cpreg_encoding_in_tid3(uint8_t opc0, uint8_t opc1, uint8_t opc2,
+                           uint8_t crn, uint8_t crm)
+{
+    return opc0 == 3 && opc1 == 0 && crn == 0 && crm >= 2 && crm < 8;
+}
+
 #ifdef CONFIG_USER_ONLY
 static inline void define_cortex_a72_a57_a53_cp_reginfo(ARMCPU *cpu) { }
 #else
