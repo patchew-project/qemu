@@ -203,9 +203,8 @@ static void cpu_max_initfn(Object *obj)
 
     assert(tcg_enabled() || qtest_enabled());
 
-    aarch64_aa32_a57_init(cpu, aarch64_enabled);
-
     if (!aarch64_enabled) {
+        aarch64_aa32_a57_init(cpu, false);
         aa32_max_features(cpu);
 #ifdef CONFIG_USER_ONLY
         /*
