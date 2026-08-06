@@ -1824,6 +1824,24 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
                           isread ? "read" : "write", cpnum, opc1, crn,
                           crm, opc2, s->ns ? "non-secure" : "secure");
         }
+
+        /*
+         * With v8, we have the possibility of FEAT_FGT which requires
+         * trapping with HCR/HCR_EL2.TID3.  Without FEAT_FGT, it is
+         * IMPLEMENTATION DEFINED whether TID3 affects IDs in the range
+         * that weren't explcitly listed.  We choose to trap.
+         *
+         * With v7, there is vague language about "not required" to trap:
+         * see access_v7a_tid3.  We choose to not trap.
+         */
+        if (arm_dc_feature(s, ARM_FEATURE_V8)
+            && isread && s->current_el == 1 && cpnum == 15
+            && arm_cpreg_encoding_in_tid3(3, opc1, opc2, crn, crm)) {
+            gen_set_condexec(s);
+            gen_update_pc(s, 0);
+            gen_helper_tid3_udef_el1(tcg_env, tcg_constant_i32(syndrome));
+        }
+
         unallocated_encoding(s);
         return;
     }
