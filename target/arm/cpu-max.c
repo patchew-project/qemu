@@ -16,10 +16,9 @@
 #include "target/arm/internals.h"
 #include "target/arm/cpregs.h"
 
-void aarch64_aa32_a57_init(ARMCPU *cpu, bool aa32_only)
+void aarch64_aa32_a57_init(ARMCPU *cpu, bool aarch64_enabled)
 {
     ARMISARegisters *isar = &cpu->isar;
-    const bool aarch64_enabled = !aa32_only;
 
     cpu->dtb_compatible = "arm,cortex-a57";
     set_feature(&cpu->env, ARM_FEATURE_V8);
@@ -204,7 +203,7 @@ static void cpu_max_initfn(Object *obj)
 
     assert(tcg_enabled() || qtest_enabled());
 
-    aarch64_aa32_a57_init(cpu, !aarch64_enabled);
+    aarch64_aa32_a57_init(cpu, aarch64_enabled);
 
     if (!aarch64_enabled) {
         aa32_max_features(cpu);
