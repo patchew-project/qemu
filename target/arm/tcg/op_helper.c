@@ -1201,7 +1201,9 @@ void HELPER(tid3_udef_el1)(CPUARMState *env, uint32_t syndrome)
         target_el = 2;
         excp = EXCP_HYP_TRAP;
     } else if (is_a64(env)) {
-        if (!cpu_isar_feature(aa64_idst, env_archcpu(env))) {
+        if (env->cp15.scr_el3 & SCR_TID3) {
+            target_el = 3;
+        } else if (!cpu_isar_feature(aa64_idst, env_archcpu(env))) {
             syndrome = syn_uncategorized();
         }
     } else {
