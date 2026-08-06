@@ -442,6 +442,11 @@ void iothread_put_aio_context(IOThread *iothread, const IOThreadHolder *holder)
     iothread_unref(iothread, holder);
 }
 
+AioContext *iothread_unsafe_get_aio_context(IOThread *iothread)
+{
+    return iothread->ctx;
+}
+
 static int query_one_iothread(Object *object, void *opaque)
 {
     IOThreadInfoList ***tail = opaque;
