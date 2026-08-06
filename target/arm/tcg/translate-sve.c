@@ -3736,6 +3736,10 @@ static bool trans_WHILE_ptr(DisasContext *s, arg_WHILE_ptr *a)
         tcg_gen_movcond_i64(TCG_COND_GEU, diff, op0, op1, tmax, diff);
     }
 
+    /* If diff == 0, the address difference is less than ESIZE,
+       so all elements are safe from conflicts. */
+    tcg_gen_movcond_i64(TCG_COND_EQ, diff, diff, tcg_constant_i64(0), tmax, diff);
+
     /* Bound to the maximum.  */
     tcg_gen_umin_i64(diff, diff, tmax);
 
