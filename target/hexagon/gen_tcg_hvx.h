@@ -332,6 +332,29 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
     tcg_gen_gvec_mul(MO_16, VdV_off, VuV_off, VvV_off, \
                      VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
 
+#define fGEN_TCG_VEC_ABSDIFF(VECE, MAX_FN, MIN_FN) \
+    do { \
+        intptr_t tmpoff = offsetof(CPUHexagonState, vtmp); \
+        MAX_FN(VECE, tmpoff, VuV_off, VvV_off, \
+               VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
+        MIN_FN(VECE, VdV_off, VuV_off, VvV_off, \
+               VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
+        tcg_gen_gvec_sub(VECE, VdV_off, tmpoff, VdV_off, \
+                         VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
+    } while (0)
+
+#define fGEN_TCG_V6_vabsdiffub(SHORTCODE) \
+    fGEN_TCG_VEC_ABSDIFF(MO_8, tcg_gen_gvec_umax, tcg_gen_gvec_umin)
+
+#define fGEN_TCG_V6_vabsdiffuh(SHORTCODE) \
+    fGEN_TCG_VEC_ABSDIFF(MO_16, tcg_gen_gvec_umax, tcg_gen_gvec_umin)
+
+#define fGEN_TCG_V6_vabsdiffh(SHORTCODE) \
+    fGEN_TCG_VEC_ABSDIFF(MO_16, tcg_gen_gvec_smax, tcg_gen_gvec_smin)
+
+#define fGEN_TCG_V6_vabsdiffw(SHORTCODE) \
+    fGEN_TCG_VEC_ABSDIFF(MO_32, tcg_gen_gvec_smax, tcg_gen_gvec_smin)
+
 /* Vector shift right - various forms */
 #define fGEN_TCG_V6_vasrh(SHORTCODE) \
     do { \
