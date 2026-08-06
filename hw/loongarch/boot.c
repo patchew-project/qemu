@@ -212,7 +212,11 @@ static void init_cmdline(struct loongarch_boot_info *info, void *p, void *start)
     info->a0 = 1;
     info->a1 = cmdline_addr;
 
-    g_strlcpy(p, info->kernel_cmdline, COMMAND_LINE_SIZE);
+    if (g_strlcpy(p, info->kernel_cmdline, COMMAND_LINE_SIZE)
+        >= COMMAND_LINE_SIZE) {
+        warn_report("kernel command line truncated to %d bytes",
+                    COMMAND_LINE_SIZE);
+    }
 }
 
 static uint64_t cpu_loongarch_virt_to_phys(void *opaque, uint64_t addr)
