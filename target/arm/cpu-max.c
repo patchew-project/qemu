@@ -220,7 +220,7 @@ static void cpu_max_initfn(Object *obj)
          * '-cpu max' for TCG: we currently do this as
          * "A57 with extra things"
          */
-        aarch64_max_tcg_initfn(obj);
+        aarch64_max_v9_tcg_initfn(obj);
     }
 }
 
