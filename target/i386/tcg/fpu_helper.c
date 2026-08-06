@@ -554,7 +554,9 @@ void helper_fcomi_ST0_FT0(CPUX86State *env)
     FloatRelation ret;
 
     ret = floatx80_compare(ST0, FT0, &env->fp_status);
-    eflags = cpu_cc_compute_all(env) & ~(CC_Z | CC_P | CC_C);
+    /* OF, SF, and AF are unconditionally cleared to 0 */
+    eflags = cpu_cc_compute_all(env) &
+                 ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
     CC_SRC = eflags | fcomi_ccval[ret + 1];
     CC_OP = CC_OP_EFLAGS;
     merge_exception_flags(env, old_flags);
@@ -567,7 +569,9 @@ void helper_fucomi_ST0_FT0(CPUX86State *env)
     FloatRelation ret;
 
     ret = floatx80_compare_quiet(ST0, FT0, &env->fp_status);
-    eflags = cpu_cc_compute_all(env) & ~(CC_Z | CC_P | CC_C);
+    /* OF, SF, and AF are unconditionally cleared to 0 */
+    eflags = cpu_cc_compute_all(env) &
+                 ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
     CC_SRC = eflags | fcomi_ccval[ret + 1];
     CC_OP = CC_OP_EFLAGS;
     merge_exception_flags(env, old_flags);
