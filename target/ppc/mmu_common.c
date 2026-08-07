@@ -57,9 +57,23 @@ void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
                      " stored in SDR1", htabsize);
             return;
         }
-    }
+    } else
 #endif /* defined(TARGET_PPC64) */
-    /* FIXME: Should check for valid HTABMASK values in 32-bit case */
+    {
+        target_ulong htabmask = value & SDR_32_HTABMASK;
+        if (value & 0x007F0000UL) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "Invalid SDR1: reserved bits 0x" TARGET_FMT_lx
+                          " set\n", value & 0x007F0000UL);
+            value &= ~0x007F0000UL;
+        }
+        if ((htabmask & (htabmask + 1)) != 0) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "Invalid HTABMASK 0x" TARGET_FMT_lx
+                          " in SDR1 (must be of form 2^n-1)\n", htabmask);
+            return;
+        }
+    }
     env->spr[SPR_SDR1] = value;
 }
 
