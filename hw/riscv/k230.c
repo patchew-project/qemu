@@ -110,6 +110,11 @@ static void k230_soc_init(Object *obj)
     object_initialize_child(obj, "c908-cpu", cpu0, TYPE_RISCV_HART_ARRAY);
     object_initialize_child(obj, "k230-wdt0", &s->wdt[0], TYPE_K230_WDT);
     object_initialize_child(obj, "k230-wdt1", &s->wdt[1], TYPE_K230_WDT);
+    object_initialize_child(obj, "k230-i2c0", &s->i2c[0], TYPE_K230_I2C);
+    object_initialize_child(obj, "k230-i2c1", &s->i2c[1], TYPE_K230_I2C);
+    object_initialize_child(obj, "k230-i2c2", &s->i2c[2], TYPE_K230_I2C);
+    object_initialize_child(obj, "k230-i2c3", &s->i2c[3], TYPE_K230_I2C);
+    object_initialize_child(obj, "k230-i2c4", &s->i2c[4], TYPE_K230_I2C);
 
     qdev_prop_set_uint32(DEVICE(cpu0), "hartid-base", 0);
     qdev_prop_set_string(DEVICE(cpu0), "cpu-type", TYPE_RISCV_CPU_THEAD_C908);
@@ -189,6 +194,22 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
     /* UART */
     for (int i = 0; i < K230_UART_COUNT; i++) {
         k230_create_uart(sys_mem, DEVICE(s->c908_plic), i);
+    }
+
+    /* I2C */
+    for (int i = 0; i < K230_I2C_COUNT; i++) {
+        int i2c_dev = K230_DEV_I2C0 + i;
+
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->i2c[i]), errp)) {
+            return;
+        }
+
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c[i]), 0,
+                        memmap[i2c_dev].base);
+
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c[i]), 0,
+                        qdev_get_gpio_in(DEVICE(s->c908_plic),
+                                            K230_I2C0_IRQ + i));
     }
 
     /* Watchdog */
@@ -303,21 +324,6 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
 
     create_unimplemented_device("security", memmap[K230_DEV_SECURITY].base,
                                 memmap[K230_DEV_SECURITY].size);
-
-    create_unimplemented_device("i2c0", memmap[K230_DEV_I2C0].base,
-                                memmap[K230_DEV_I2C0].size);
-
-    create_unimplemented_device("i2c1", memmap[K230_DEV_I2C1].base,
-                                memmap[K230_DEV_I2C1].size);
-
-    create_unimplemented_device("i2c2", memmap[K230_DEV_I2C2].base,
-                                memmap[K230_DEV_I2C2].size);
-
-    create_unimplemented_device("i2c3", memmap[K230_DEV_I2C3].base,
-                                memmap[K230_DEV_I2C3].size);
-
-    create_unimplemented_device("i2c4", memmap[K230_DEV_I2C4].base,
-                                memmap[K230_DEV_I2C4].size);
 
     create_unimplemented_device("pwm", memmap[K230_DEV_PWM].base,
                                 memmap[K230_DEV_PWM].size);

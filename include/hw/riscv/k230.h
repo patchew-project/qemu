@@ -18,8 +18,10 @@
 #include "hw/core/boards.h"
 #include "hw/riscv/riscv_hart.h"
 #include "hw/watchdog/k230_wdt.h"
+#include "hw/i2c/k230_i2c.h"
 
 #define C908_CPU_HARTID   (0)
+#define K230_I2C_COUNT    5
 
 #define TYPE_RISCV_K230_SOC "riscv.k230.soc"
 #define RISCV_K230_SOC(obj) \
@@ -33,6 +35,7 @@ typedef struct K230SoCState {
     RISCVHartArrayState c908_cpu; /* Small core */
 
     K230WdtState wdt[2];
+    K230I2CState i2c[K230_I2C_COUNT];
     MemoryRegion sram;
     MemoryRegion bootrom;
 
@@ -127,6 +130,11 @@ enum {
     K230_UART2_IRQ  = 18,
     K230_UART3_IRQ  = 19,
     K230_UART4_IRQ  = 20,
+    K230_I2C0_IRQ   = 21,
+    K230_I2C1_IRQ   = 22,
+    K230_I2C2_IRQ   = 23,
+    K230_I2C3_IRQ   = 24,
+    K230_I2C4_IRQ   = 25,
     K230_WDT0_IRQ   = 107,
     K230_WDT1_IRQ   = 108,
 };
