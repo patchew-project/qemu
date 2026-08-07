@@ -101,6 +101,23 @@
     </method>
 
     <!--
+        QemuUIInfoTypes:
+
+        A D-Bus dictionary which maps the names of QemuUIInfo members to D-Bus type signatures.
+    -->
+    <property name="QemuUIInfoTypes" type="a{sg}" access="read"/>
+
+    <!--
+        SetUIInfo2:
+        @ui_info: the new QemuUIInfo.
+
+        Modify the display settings.
+    -->
+    <method name="SetUIInfo2">
+      <arg name="ui_info" type="a{sv}" direction="in"/>
+    </method>
+
+    <!--
         Label:
 
         A user-friendly name for the console (for ex: "VGA").

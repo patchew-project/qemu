@@ -217,6 +217,40 @@ dbus_console_set_ui_info(DBusDisplayConsole *ddc,
     return DBUS_METHOD_INVOCATION_HANDLED;
 }
 
+static gboolean
+dbus_console_set_ui_info2(DBusDisplayConsole *ddc,
+                         GDBusMethodInvocation *invocation,
+                         GVariant *arg_ui_info)
+{
+    if (!qemu_console_ui_info_supported(ddc->dcl.con)) {
+        g_dbus_method_invocation_return_error(invocation,
+                                              DBUS_DISPLAY_ERROR,
+                                              DBUS_DISPLAY_ERROR_UNSUPPORTED,
+                                              "SetUIInfo2 is not supported");
+        return DBUS_METHOD_INVOCATION_HANDLED;
+    }
+
+    GVariantDict ui_info_dict;
+    g_variant_dict_init(&ui_info_dict, arg_ui_info);
+
+    QemuUIInfo info = *qemu_console_get_ui_info(ddc->dcl.con);
+
+    g_variant_dict_lookup(&ui_info_dict, "width_mm", "q", &info.width_mm);
+    g_variant_dict_lookup(&ui_info_dict, "height_mm", "q", &info.height_mm);
+    g_variant_dict_lookup(&ui_info_dict, "xoff", "i", &info.xoff);
+    g_variant_dict_lookup(&ui_info_dict, "yoff", "i", &info.yoff);
+    g_variant_dict_lookup(&ui_info_dict, "width", "u", &info.width);
+    g_variant_dict_lookup(&ui_info_dict, "height", "u", &info.height);
+    g_variant_dict_lookup(&ui_info_dict, "refresh_rate",
+                                         "u", &info.refresh_rate);
+
+    g_variant_dict_clear(&ui_info_dict);
+
+    qemu_console_set_ui_info(ddc->dcl.con, &info, false);
+    qemu_dbus_display1_console_complete_set_uiinfo2(ddc->iface, invocation);
+    return DBUS_METHOD_INVOCATION_HANDLED;
+}
+
 #ifdef G_OS_WIN32
 bool
 dbus_win32_import_socket(GDBusMethodInvocation *invocation,
@@ -538,6 +572,23 @@ QemuConsole *dbus_display_console_get_qemu_console(DBusDisplayConsole *ddc)
     return ddc->dcl.con;
 }
 
+static GVariant *get_qemu_ui_info_types(void)
+{
+    GVariantBuilder builder;
+
+    g_variant_builder_init(&builder, G_VARIANT_TYPE("a{sg}"));
+
+    g_variant_builder_add(&builder, "{sg}", "width_mm", "q");
+    g_variant_builder_add(&builder, "{sg}", "height_mm", "q");
+    g_variant_builder_add(&builder, "{sg}", "xoff", "i");
+    g_variant_builder_add(&builder, "{sg}", "yoff", "i");
+    g_variant_builder_add(&builder, "{sg}", "width", "u");
+    g_variant_builder_add(&builder, "{sg}", "height", "u");
+    g_variant_builder_add(&builder, "{sg}", "refresh_rate", "u");
+
+    return g_variant_builder_end(&builder);
+}
+
 DBusDisplayConsole *
 dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
 {
@@ -575,6 +626,7 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
         "width", qemu_console_get_width(con, 0),
         "height", qemu_console_get_height(con, 0),
         "device-address", device_addr,
+        "qemu-uiinfo-types", get_qemu_ui_info_types(),
         "interfaces", interfaces,
         NULL);
     g_object_connect(ddc->iface,
@@ -582,6 +634,10 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
         dbus_console_register_listener, ddc,
         "swapped-signal::handle-set-uiinfo",
         dbus_console_set_ui_info, ddc,
+        NULL);
+    g_object_connect(ddc->iface,
+        "swapped-signal::handle-set-uiinfo2",
+        dbus_console_set_ui_info2, ddc,
         NULL);
     g_dbus_object_skeleton_add_interface(G_DBUS_OBJECT_SKELETON(ddc),
         G_DBUS_INTERFACE_SKELETON(ddc->iface));
