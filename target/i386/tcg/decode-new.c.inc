@@ -659,12 +659,18 @@ static void decode_0FB8(DisasContext *s, CPUX86State *env, X86OpEntry *entry, ui
 
 static void decode_0FBC(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
 {
-    /* For BSF, pass 2op as the third operand so that we can use zextT0 */
+    /*
+     * For BSF, pass 2op as the third operand so that we can use zextT0.
+     * G/2op use d64 because ctz already zero-extends the full 64-bit result,
+     * and v would zero-extend the output register if the input is zero.
+     * E stays v: forcing it to d64 too would scan the full 64-bit register
+     * instead of just the 32-bit source.
+     */
     static const X86OpEntry opcodes_0FBC[4] = {
-        X86_OP_ENTRY3(BSF,    G,v, E,v, 2op,v, zextT0),
-        X86_OP_ENTRY3(BSF,    G,v, E,v, 2op,v, zextT0), /* 0x66 */
-        X86_OP_ENTRYwr(TZCNT, G,v, E,v,        zextT0), /* 0xf3 */
-        X86_OP_ENTRY3(BSF,    G,v, E,v, 2op,v, zextT0), /* 0xf2 */
+        X86_OP_ENTRY3(BSF,    G,d64, E,v, 2op,d64, zextT0),
+        X86_OP_ENTRY3(BSF,    G,d64, E,v, 2op,d64, zextT0), /* 0x66 */
+        X86_OP_ENTRYwr(TZCNT, G,v,   E,v,          zextT0), /* 0xf3 */
+        X86_OP_ENTRY3(BSF,    G,d64, E,v, 2op,d64, zextT0), /* 0xf2 */
     };
     if (!(s->cpuid_ext3_features & CPUID_EXT3_ABM)) {
         *entry = opcodes_0FBC[0];
@@ -675,12 +681,18 @@ static void decode_0FBC(DisasContext *s, CPUX86State *env, X86OpEntry *entry, ui
 
 static void decode_0FBD(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
 {
-    /* For BSR, pass 2op as the third operand so that we can use zextT0 */
+    /*
+     * For BSR, pass 2op as the third operand so that we can use zextT0.
+     * G/2op use d64 because clz already zero-extends the full 64-bit result,
+     * and v would zero-extend the output register if the input is zero.
+     * E stays v: forcing it to d64 too would scan the full 64-bit register
+     * instead of just the 32-bit source.
+     */
     static const X86OpEntry opcodes_0FBD[4] = {
-        X86_OP_ENTRY3(BSR,    G,v, E,v, 2op,v, zextT0),
-        X86_OP_ENTRY3(BSR,    G,v, E,v, 2op,v, zextT0), /* 0x66 */
-        X86_OP_ENTRYwr(LZCNT, G,v, E,v,        zextT0), /* 0xf3 */
-        X86_OP_ENTRY3(BSR,    G,v, E,v, 2op,v, zextT0), /* 0xf2 */
+        X86_OP_ENTRY3(BSR,    G,d64, E,v, 2op,d64, zextT0),
+        X86_OP_ENTRY3(BSR,    G,d64, E,v, 2op,d64, zextT0), /* 0x66 */
+        X86_OP_ENTRYwr(LZCNT, G,v,   E,v,          zextT0), /* 0xf3 */
+        X86_OP_ENTRY3(BSR,    G,d64, E,v, 2op,d64, zextT0), /* 0xf2 */
     };
     if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI1)) {
         *entry = opcodes_0FBD[0];
