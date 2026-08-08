@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Emulates the DesignWare SSI controller in Standard SPI mode,
- * covering the PIO/FIFO data path and chip selects.
+ * covering the PIO/FIFO data path, interrupt outputs and chip selects.
  */
 
 #include "qemu/osdep.h"
@@ -26,6 +26,9 @@
 #define DWC_SSI_IDR_RESET               0xa1b2c3d5
 #define DWC_SSI_VERSION                 0x3130332a
 #define DWC_SSI_PIO_TX_BATCH            64
+#define DWC_SSI_IRQ_VALID_MASK          0x000009bf
+#define DWC_SSI_IMPLEMENTED_LATCHED_IRQ_MASK \
+    (R_RISR_TXOIR_MASK | R_RISR_RXOIR_MASK | R_RISR_RXUIR_MASK)
 
 enum {
     DWC_SSI_TMOD_TR,
@@ -217,6 +220,22 @@ REG32(XIP_WRITE_CTRL, 0x148)
 #define DWC_SSI_RX_SAMPLE_DELAY_WRITABLE_MASK \
     (R_RX_SAMPLE_DELAY_RSD_MASK | R_RX_SAMPLE_DELAY_SE_MASK)
 
+/*
+ * TXU, DONE and AXIE depend on transfer engines outside Standard PIO.
+ * Their physical outputs are exposed but remain deasserted in this model.
+ */
+static const uint32_t dwc_ssi_irq_status_mask[DWC_SSI_IRQ_COUNT] = {
+    [DWC_SSI_IRQ_TXE] = R_RISR_TXEIR_MASK,
+    [DWC_SSI_IRQ_TXO] = R_RISR_TXOIR_MASK,
+    [DWC_SSI_IRQ_RXF] = R_RISR_RXFIR_MASK,
+    [DWC_SSI_IRQ_RXO] = R_RISR_RXOIR_MASK,
+    [DWC_SSI_IRQ_TXU] = R_RISR_TXUIR_MASK,
+    [DWC_SSI_IRQ_RXU] = R_RISR_RXUIR_MASK,
+    [DWC_SSI_IRQ_MST] = R_RISR_MSTIR_MASK,
+    [DWC_SSI_IRQ_DONE] = R_RISR_DONER_MASK,
+    [DWC_SSI_IRQ_AXIE] = R_RISR_AXIER_MASK,
+};
+
 static bool dwc_ssi_validate_config(DwcSsiState *s, Error **errp)
 {
     DeviceState *dev = DEVICE(s);
@@ -251,6 +270,45 @@ static void dwc_ssi_write_masked(DwcSsiState *s, unsigned int reg,
                                  uint32_t value, uint32_t mask)
 {
     s->regs[reg] = (s->regs[reg] & ~mask) | (value & mask);
+}
+
+static uint32_t dwc_ssi_irq_raw_status(DwcSsiState *s)
+{
+    uint32_t status = s->irq_latched;
+    uint32_t tx_used = fifo32_num_used(&s->tx_fifo);
+    uint32_t rx_used = fifo32_num_used(&s->rx_fifo);
+    uint32_t tx_threshold =
+        FIELD_EX32(s->regs[R_TXFTLR], TXFTLR, TFT);
+    uint32_t rx_threshold =
+        FIELD_EX32(s->regs[R_RXFTLR], RXFTLR, RFT);
+
+    if (tx_used <= tx_threshold) {
+        status |= R_RISR_TXEIR_MASK;
+    }
+    if (rx_used > rx_threshold) {
+        status |= R_RISR_RXFIR_MASK;
+    }
+    return status & DWC_SSI_IRQ_VALID_MASK;
+}
+
+static void dwc_ssi_update_irq(DwcSsiState *s)
+{
+    uint32_t status = dwc_ssi_irq_raw_status(s) &
+                      s->regs[R_IMR] & DWC_SSI_IRQ_VALID_MASK;
+
+    for (int i = 0; i < DWC_SSI_IRQ_COUNT; i++) {
+        qemu_set_irq(s->irqs[i], !!(status & dwc_ssi_irq_status_mask[i]));
+    }
+}
+
+static uint32_t dwc_ssi_irq_read_clear(DwcSsiState *s,
+                                       uint32_t clear_mask)
+{
+    uint32_t active = s->irq_latched & clear_mask;
+
+    s->irq_latched &= ~clear_mask;
+    dwc_ssi_update_irq(s);
+    return !!active;
 }
 
 static uint32_t dwc_ssi_frame_masked(DwcSsiState *s)
@@ -322,6 +380,7 @@ static void dwc_ssi_abort_transfer(DwcSsiState *s)
     s->phase = DWC_SSI_PHASE_IDLE;
     s->remaining_frames = 0;
     s->dummy_frame = 0;
+    dwc_ssi_update_irq(s);
 }
 
 static uint32_t dwc_ssi_status(DwcSsiState *s)
@@ -349,6 +408,8 @@ static void dwc_ssi_push_tx(DwcSsiState *s, uint32_t tx)
     }
 
     if (fifo32_is_full(&s->tx_fifo)) {
+        s->irq_latched |= R_RISR_TXOIR_MASK;
+        dwc_ssi_update_irq(s);
         return;
     }
 
@@ -357,6 +418,7 @@ static void dwc_ssi_push_tx(DwcSsiState *s, uint32_t tx)
     if (s->phase != DWC_SSI_PHASE_STANDARD_TX_ONLY) {
         dwc_ssi_run_transfer(s);
     }
+    dwc_ssi_update_irq(s);
 }
 
 static uint32_t dwc_ssi_send_frame(DwcSsiState *s,
@@ -414,6 +476,7 @@ static void dwc_ssi_run_transfer(DwcSsiState *s)
             uint32_t rx = dwc_ssi_send_frame(s, tx);
 
             if (fifo32_is_full(&s->rx_fifo)) {
+                s->irq_latched |= R_RISR_RXOIR_MASK;
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "%s: RX FIFO full, dropping frame\n",
                               DEVICE(s)->canonical_path);
@@ -602,9 +665,11 @@ static uint64_t dwc_ssi_read(void *opaque, hwaddr addr, unsigned int size)
             value = fifo32_pop(&s->rx_fifo) & dwc_ssi_frame_masked(s);
         } else {
             value = 0;
+            s->irq_latched |= R_RISR_RXUIR_MASK;
         }
 
         dwc_ssi_run_transfer(s);
+        dwc_ssi_update_irq(s);
         return value;
     }
 
@@ -634,6 +699,7 @@ static uint64_t dwc_ssi_read(void *opaque, hwaddr addr, unsigned int size)
         value = fifo32_num_used(&s->tx_fifo);
         if (s->phase == DWC_SSI_PHASE_STANDARD_TX_ONLY) {
             dwc_ssi_run_transfer(s);
+            dwc_ssi_update_irq(s);
         }
         break;
     case A_RXFLR:
@@ -643,8 +709,35 @@ static uint64_t dwc_ssi_read(void *opaque, hwaddr addr, unsigned int size)
         value = dwc_ssi_status(s);
         if (s->phase == DWC_SSI_PHASE_STANDARD_TX_ONLY) {
             dwc_ssi_run_transfer(s);
+            dwc_ssi_update_irq(s);
         }
         break;
+    case A_ISR:
+        value = dwc_ssi_irq_raw_status(s) & s->regs[R_IMR] &
+                DWC_SSI_IRQ_VALID_MASK;
+        break;
+    case A_RISR:
+        value = dwc_ssi_irq_raw_status(s);
+        break;
+    case A_TXEICR:
+        value = dwc_ssi_irq_read_clear(
+            s, R_RISR_TXOIR_MASK | R_RISR_TXUIR_MASK);
+        break;
+    case A_RXOICR:
+        value = dwc_ssi_irq_read_clear(s, R_RISR_RXOIR_MASK);
+        break;
+    case A_RXUICR:
+        value = dwc_ssi_irq_read_clear(s, R_RISR_RXUIR_MASK);
+        break;
+    case A_MSTICR:
+        value = dwc_ssi_irq_read_clear(s, R_RISR_MSTIR_MASK);
+        break;
+    case A_ICR:
+        value = dwc_ssi_irq_read_clear(
+            s, R_RISR_TXOIR_MASK | R_RISR_RXUIR_MASK |
+               R_RISR_RXOIR_MASK | R_RISR_MSTIR_MASK);
+        break;
+
     default:
         if (addr >= DWC_SSI_REGS_SIZE || (addr & 0x3) != 0) {
             qemu_log_mask(LOG_GUEST_ERROR,
@@ -708,6 +801,7 @@ static void dwc_ssi_write(void *opaque, hwaddr addr,
 
         dwc_ssi_update_cs(s);
         dwc_ssi_run_transfer(s);
+        dwc_ssi_update_irq(s);
         break;
     }
     case A_MWCR:
@@ -731,6 +825,7 @@ static void dwc_ssi_write(void *opaque, hwaddr addr,
 
         dwc_ssi_update_cs(s);
         dwc_ssi_run_transfer(s);
+        dwc_ssi_update_irq(s);
         break;
     }
     case A_BAUDR:
@@ -750,6 +845,7 @@ static void dwc_ssi_write(void *opaque, hwaddr addr,
         dwc_ssi_write_masked(s, R_TXFTLR, value,
                              DWC_SSI_TXFTLR_WRITABLE_MASK);
         dwc_ssi_run_transfer(s);
+        dwc_ssi_update_irq(s);
         break;
     case A_RXFTLR:
         if (!dwc_ssi_fifo_threshold_valid(
@@ -761,6 +857,7 @@ static void dwc_ssi_write(void *opaque, hwaddr addr,
         }
         dwc_ssi_write_masked(s, R_RXFTLR, value,
                              DWC_SSI_RXFTLR_WRITABLE_MASK);
+        dwc_ssi_update_irq(s);
         break;
     case A_TXFLR:
     case A_RXFLR:
@@ -769,6 +866,16 @@ static void dwc_ssi_write(void *opaque, hwaddr addr,
     case A_IMR:
         dwc_ssi_write_masked(s, R_IMR, value,
                              DWC_SSI_IMR_WRITABLE_MASK);
+        dwc_ssi_update_irq(s);
+        break;
+    case A_ISR:
+    case A_RISR:
+        break;
+    case A_TXEICR:
+    case A_RXOICR:
+    case A_RXUICR:
+    case A_MSTICR:
+    case A_ICR:
         break;
     case A_IDR:
     case A_SSIC_VERSION_ID:
@@ -809,12 +916,15 @@ static void dwc_ssi_enter_reset(Object *obj, ResetType type)
     s->phase = DWC_SSI_PHASE_IDLE;
     s->remaining_frames = 0;
     s->dummy_frame = 0;
+    s->irq_latched = 0;
 
     s->regs[R_CTRLR0] = DWC_SSI_CTRLR0_RESET;
     s->regs[R_SR] = DWC_SSI_SR_RESET;
     s->regs[R_IMR] = s->cfg.imr_reset & DWC_SSI_IMR_WRITABLE_MASK;
     s->regs[R_IDR] = DWC_SSI_IDR_RESET;
     s->regs[R_SSIC_VERSION_ID] = DWC_SSI_VERSION;
+
+    dwc_ssi_update_irq(s);
 }
 
 static void dwc_ssi_hold_reset(Object *obj, ResetType type)
@@ -827,6 +937,13 @@ static void dwc_ssi_hold_reset(Object *obj, ResetType type)
             qemu_irq_raise(s->cs_lines[i]);
         }
     }
+}
+
+static void dwc_ssi_exit_reset(Object *obj, ResetType type)
+{
+    DwcSsiState *s = DWC_SSI(obj);
+
+    dwc_ssi_update_irq(s);
 }
 
 static bool dwc_ssi_fifo_valid(const Fifo32 *fifo, uint32_t depth)
@@ -848,6 +965,9 @@ static int dwc_ssi_post_load(void *opaque, int version_id)
     uint32_t ndf = FIELD_EX32(s->regs[R_CTRLR1], CTRLR1, NDF) + 1;
 
     if (s->active_cs < -1 || s->active_cs >= (int)s->cfg.num_cs) {
+        return -EINVAL;
+    }
+    if (s->irq_latched & ~DWC_SSI_IMPLEMENTED_LATCHED_IRQ_MASK) {
         return -EINVAL;
     }
     if (!dwc_ssi_fifo_valid(&s->tx_fifo, s->cfg.fifo_depth) ||
@@ -878,6 +998,7 @@ static int dwc_ssi_post_load(void *opaque, int version_id)
         qemu_irq_lower(s->cs_lines[s->active_cs]);
     }
 
+    dwc_ssi_update_irq(s);
     return 0;
 }
 
@@ -893,6 +1014,7 @@ static const VMStateDescription vmstate_dwc_ssi = {
         VMSTATE_UINT32_ARRAY(regs, DwcSsiState, DWC_SSI_NUM_REGS),
         VMSTATE_FIFO32(tx_fifo, DwcSsiState),
         VMSTATE_FIFO32(rx_fifo, DwcSsiState),
+        VMSTATE_UINT32(irq_latched, DwcSsiState),
         VMSTATE_UINT32(phase, DwcSsiState),
         VMSTATE_UINT32(remaining_frames, DwcSsiState),
         VMSTATE_UINT32(dummy_frame, DwcSsiState),
@@ -912,6 +1034,10 @@ static void dwc_ssi_init(Object *obj)
     memory_region_init_io(&s->mmio, obj, &dwc_ssi_ops, s,
                           TYPE_DWC_SSI, DWC_SSI_MMIO_SIZE);
     sysbus_init_mmio(sbd, &s->mmio);
+
+    for (int i = 0; i < DWC_SSI_IRQ_COUNT; i++) {
+        sysbus_init_irq(sbd, &s->irqs[i]);
+    }
 
     s->active_cs = -1;
 }
@@ -957,6 +1083,7 @@ static void dwc_ssi_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, dwc_ssi_properties);
     rc->phases.enter = dwc_ssi_enter_reset;
     rc->phases.hold = dwc_ssi_hold_reset;
+    rc->phases.exit = dwc_ssi_exit_reset;
 }
 
 static const TypeInfo dwc_ssi_info = {
