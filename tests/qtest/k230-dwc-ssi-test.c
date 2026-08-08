@@ -14,6 +14,8 @@
 #define K230_SPI0_BASE          0x91584000ULL
 #define K230_SPI1_BASE          0x91582000ULL
 #define K230_SPI2_BASE          0x91583000ULL
+#define K230_PLIC_BASE          0xf00000000ULL
+#define K230_PLIC_PENDING_BASE  0x1000
 #define K230_SSI_CTRLR0          0x000
 #define K230_SSI_CTRLR1          0x004
 #define K230_SSI_SSIENR          0x008
@@ -63,6 +65,10 @@
 #define K230_SSI_INT_RXF                BIT(4)
 #define K230_SSI_INT_DONE               BIT(11)
 #define K230_SSI_INT_AXIE               BIT(8)
+#define K230_SSI_IRQ_TXE                0
+#define K230_SSI_IRQ_RXU                5
+#define K230_SSI_IRQ_DONE               7
+#define K230_SSI_IRQ_AXIE               8
 
 #define K230_SSI_RXFTLR                 0x01c
 #define K230_SSI_RXOICR                 0x03c
@@ -77,6 +83,7 @@ typedef struct K230SsiInstance {
     uint64_t base;
     uint32_t num_cs;
     uint32_t imr_reset;
+    uint32_t first_irq;
 } K230SsiInstance;
 
 static const K230SsiInstance k230_ssi_instances[3] = {
@@ -84,14 +91,17 @@ static const K230SsiInstance k230_ssi_instances[3] = {
         .base = K230_SPI0_BASE,
         .num_cs = 1,
         .imr_reset = 0x0000003fU,
+        .first_irq = 146,
     }, {
         .base = K230_SPI1_BASE,
         .num_cs = 5,
         .imr_reset = 0x0000001fU,
+        .first_irq = 155,
     }, {
         .base = K230_SPI2_BASE,
         .num_cs = 5,
         .imr_reset = 0x0000001fU,
+        .first_irq = 164,
     },
 };
 
@@ -110,6 +120,14 @@ static void k230_ssi_writel(QTestState *qts, uint64_t base,
                             uint32_t offset, uint32_t value)
 {
     qtest_writel(qts, base + offset, value);
+}
+
+static bool k230_ssi_plic_pending(QTestState *qts, uint32_t irq)
+{
+    uint64_t addr = K230_PLIC_BASE + K230_PLIC_PENDING_BASE +
+                    (irq / 32) * sizeof(uint32_t);
+
+    return qtest_readl(qts, addr) & BIT(irq % 32);
 }
 
 static void k230_ssi_disable(QTestState *qts, uint64_t base)
@@ -287,14 +305,38 @@ static void test_interrupt_controller(void)
                     ==, 1);
     g_assert_cmphex(k230_ssi_readl(qts, K230_SPI1_BASE, K230_SSI_RISR) &
                     K230_SSI_INT_RXU, ==, 0);
-    k230_ssi_writel(qts, K230_SPI1_BASE, K230_SSI_AXIECR, UINT32_MAX);
-    k230_ssi_writel(qts, K230_SPI1_BASE, K230_SSI_DONECR, UINT32_MAX);
-    g_assert_cmphex(k230_ssi_readl(qts, K230_SPI1_BASE, K230_SSI_AXIECR),
-                    ==, 0);
-    g_assert_cmphex(k230_ssi_readl(qts, K230_SPI1_BASE, K230_SSI_DONECR),
-                    ==, 0);
-    g_assert_cmphex(k230_ssi_readl(qts, K230_SPI1_BASE, K230_SSI_RISR) &
-                    (K230_SSI_INT_DONE | K230_SSI_INT_AXIE), ==, 0);
+    qtest_quit(qts);
+}
+
+static void test_plic_routing(void)
+{
+    QTestState *qts = k230_ssi_start();
+    const K230SsiInstance *target = &k230_ssi_instances[1];
+
+    for (int i = 0; i < ARRAY_SIZE(k230_ssi_instances); i++) {
+        const K230SsiInstance *inst = &k230_ssi_instances[i];
+
+        g_assert_true(k230_ssi_plic_pending(qts,
+                                           inst->first_irq +
+                                           K230_SSI_IRQ_TXE));
+        k230_ssi_writel(qts, inst->base, K230_SSI_IMR, 0);
+        g_assert_false(k230_ssi_plic_pending(qts, inst->first_irq +
+                                              K230_SSI_IRQ_DONE));
+        g_assert_false(k230_ssi_plic_pending(qts, inst->first_irq +
+                                              K230_SSI_IRQ_AXIE));
+    }
+
+    k230_ssi_writel(qts, target->base, K230_SSI_IMR, K230_SSI_INT_RXU);
+    (void)k230_ssi_read_frame(qts, target->base);
+    g_assert_true(k230_ssi_plic_pending(qts,
+                                       target->first_irq +
+                                       K230_SSI_IRQ_RXU));
+    for (int i = 0; i < ARRAY_SIZE(k230_ssi_instances); i++) {
+        if (&k230_ssi_instances[i] != target) {
+            g_assert_false(k230_ssi_plic_pending(
+                qts, k230_ssi_instances[i].first_irq + K230_SSI_IRQ_RXU));
+        }
+    }
     qtest_quit(qts);
 }
 
@@ -560,6 +602,7 @@ int main(int argc, char **argv)
     qtest_add_func("/k230-dwc-ssi/pio-data-path", test_pio_data_path);
     qtest_add_func("/k230-dwc-ssi/interrupt-controller",
                    test_interrupt_controller);
+    qtest_add_func("/k230-dwc-ssi/plic-routing", test_plic_routing);
     qtest_add_func("/k230-dwc-ssi/tx-only-mode", test_tx_only_mode);
     qtest_add_func("/k230-dwc-ssi/eeprom-read-contract",
                    test_eeprom_read_contract);
