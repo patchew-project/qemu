@@ -21,6 +21,7 @@ The ``k230`` machine supports the following devices:
 * 2 K230 Watchdog Timer
 * 5 UART
 * System Direct Memory Access (SDMA)
+* GZIP Decompress Engine (Decomp_gzip)
 
 Boot options
 ------------
