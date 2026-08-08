@@ -216,9 +216,17 @@ out:
     return retcode;
 }
 
+#ifdef CONFIG_SOLARIS
+#define POWEROFF_CMD_PATH "/usr/sbin/poweroff"
+#define SHUTDOWN_CMD_PATH "/usr/sbin/shutdown"
+#define HALT_CMD_PATH     "/usr/sbin/halt"
+#define REBOOT_CMD_PATH   "/usr/sbin/reboot"
+#else
 #define POWEROFF_CMD_PATH "/sbin/poweroff"
-#define HALT_CMD_PATH "/sbin/halt"
-#define REBOOT_CMD_PATH "/sbin/reboot"
+#define SHUTDOWN_CMD_PATH "/sbin/shutdown"
+#define HALT_CMD_PATH     "/sbin/halt"
+#define REBOOT_CMD_PATH   "/sbin/reboot"
+#endif
 
 void qmp_guest_shutdown(const char *mode, Error **errp)
 {
@@ -262,7 +270,7 @@ void qmp_guest_shutdown(const char *mode, Error **errp)
         return;
     }
 
-    const char *argv[] = {"/sbin/shutdown",
+    const char *argv[] = {SHUTDOWN_CMD_PATH,
 #ifdef CONFIG_SOLARIS
                           shutdown_flag, "-g0", "-y",
 #elif defined(CONFIG_BSD)
@@ -274,7 +282,7 @@ void qmp_guest_shutdown(const char *mode, Error **errp)
 
     /*
      * If the specific command exists (poweroff, halt or reboot), use it instead
-     * of /sbin/shutdown.
+     * of SHUTDOWN_CMD_PATH.
      */
     if (shutdown_cmd != NULL) {
         argv[0] = shutdown_cmd;
