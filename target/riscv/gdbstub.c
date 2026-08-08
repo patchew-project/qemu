@@ -89,7 +89,7 @@ int riscv_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     const size_t regsize = mcc->def->misa_mxl_max == MXL_RV32 ? 4 : 8;
     uint64_t tmp = ldn(env, mem_buf, regsize);
 
-    if (env->xl < MXL_RV64) {
+    if (mcc->def->misa_mxl_max < MXL_RV64) {
         tmp = (int32_t)tmp;
     }
 
