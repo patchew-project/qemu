@@ -387,10 +387,10 @@ void helper_rdmsr(CPUX86State *env)
     case MSR_KERNELGSBASE:
         val = env->kernelgsbase;
         break;
+#endif
     case MSR_TSC_AUX:
         val = env->tsc_aux;
         break;
-#endif
     case MSR_SMI_COUNT:
         val = env->msr_smi_count;
         break;
