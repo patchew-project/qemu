@@ -18,6 +18,7 @@
 #include "hw/core/boards.h"
 #include "hw/riscv/riscv_hart.h"
 #include "hw/watchdog/k230_wdt.h"
+#include "hw/gpio/k230_gpio.h"
 
 #define C908_CPU_HARTID   (0)
 
@@ -33,6 +34,7 @@ typedef struct K230SoCState {
     RISCVHartArrayState c908_cpu; /* Small core */
 
     K230WdtState wdt[2];
+    K230GPIOState gpio[2];
     MemoryRegion sram;
     MemoryRegion bootrom;
 
@@ -127,8 +129,11 @@ enum {
     K230_UART2_IRQ  = 18,
     K230_UART3_IRQ  = 19,
     K230_UART4_IRQ  = 20,
+    K230_GPIO0_IRQ_BASE  = 32,
+    K230_GPIO1_IRQ_BASE  = 64,
     K230_WDT0_IRQ   = 107,
     K230_WDT1_IRQ   = 108,
+
 };
 
 #define K230_UART_COUNT 5

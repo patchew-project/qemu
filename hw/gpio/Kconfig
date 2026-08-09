@@ -16,6 +16,9 @@ config SIFIVE_GPIO
 config STM32L4X5_GPIO
     bool
 
+config K230_GPIO
+    bool
+
 config PCA9552
     bool
     depends on I2C

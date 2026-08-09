@@ -110,6 +110,8 @@ static void k230_soc_init(Object *obj)
     object_initialize_child(obj, "c908-cpu", cpu0, TYPE_RISCV_HART_ARRAY);
     object_initialize_child(obj, "k230-wdt0", &s->wdt[0], TYPE_K230_WDT);
     object_initialize_child(obj, "k230-wdt1", &s->wdt[1], TYPE_K230_WDT);
+    object_initialize_child(obj, "k230-gpio0", &s->gpio[0], TYPE_K230_GPIO);
+    object_initialize_child(obj, "k230-gpio1", &s->gpio[1], TYPE_K230_GPIO);
 
     qdev_prop_set_uint32(DEVICE(cpu0), "hartid-base", 0);
     qdev_prop_set_string(DEVICE(cpu0), "cpu-type", TYPE_RISCV_CPU_THEAD_C908);
@@ -205,6 +207,25 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt[1]), 0, memmap[K230_DEV_WDT1].base);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->wdt[1]), 0,
                        qdev_get_gpio_in(DEVICE(s->c908_plic), K230_WDT1_IRQ));
+
+    /* GPIO */
+    sysbus_realize(SYS_BUS_DEVICE(&s->gpio[0]), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio[0]), 0,
+                    memmap[K230_DEV_GPIO0].base);
+    for (int i = 0; i < K230_GPIO_PINS_PER_GROUP; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gpio[0]), i,
+                           qdev_get_gpio_in(DEVICE(s->c908_plic),
+                                            K230_GPIO0_IRQ_BASE + i));
+    }
+
+    sysbus_realize(SYS_BUS_DEVICE(&s->gpio[1]), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio[1]), 0,
+                    memmap[K230_DEV_GPIO1].base);
+    for (int i = 0; i < K230_GPIO_PINS_PER_GROUP; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gpio[1]), i,
+                           qdev_get_gpio_in(DEVICE(s->c908_plic),
+                                            K230_GPIO1_IRQ_BASE + i));
+    }
 
     /* unimplemented devices */
     create_unimplemented_device("kpu.l2-cache",
@@ -321,12 +342,6 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
 
     create_unimplemented_device("pwm", memmap[K230_DEV_PWM].base,
                                 memmap[K230_DEV_PWM].size);
-
-    create_unimplemented_device("gpio0", memmap[K230_DEV_GPIO0].base,
-                                memmap[K230_DEV_GPIO0].size);
-
-    create_unimplemented_device("gpio1", memmap[K230_DEV_GPIO1].base,
-                                memmap[K230_DEV_GPIO1].size);
 
     create_unimplemented_device("adc", memmap[K230_DEV_ADC].base,
                                 memmap[K230_DEV_ADC].size);
