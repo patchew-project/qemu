@@ -40,6 +40,13 @@ struct NMIClass {
     void (*nmi_monitor_handler)(NMIState *n, int cpu_index, Error **errp);
 };
 
+/**
+ * nmi_monitor_handle:
+ * @cpu_index: Index of the CPU to deliver the NMI
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Note: cpu_index = -1 can be used to deliver to the first vCPU available.
+ */
 void nmi_monitor_handle(int cpu_index, Error **errp);
 
 #endif /* NMI_H */

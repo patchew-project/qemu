@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/core/cpu.h"
 #include "hw/core/nmi.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
@@ -42,6 +43,10 @@ static int do_nmi(Object *o, void *opaque)
         NMIClass *nc = NMI_GET_CLASS(n);
 
         ns->handled = true;
+        if (ns->cpu_index == -1) {
+            /* Any vCPU is OK, take the first one */
+            ns->cpu_index = first_cpu->cpu_index;
+        }
         nc->nmi_monitor_handler(n, ns->cpu_index, &ns->err);
         if (ns->err) {
             return -1;
