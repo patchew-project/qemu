@@ -8,6 +8,7 @@
 #include <glib/gstdio.h>
 #include <locale.h>
 #include <pwd.h>
+#include <grp.h>
 
 #include "commands-common-ssh.h"
 #include "qapi/error.h"
@@ -123,6 +124,9 @@ qmp_guest_ssh_add_authorized_keys(const char *username, strList *keys,
     g_auto(GStrv) authkeys = NULL;
     strList *k;
     size_t nkeys, nauthkeys;
+    uid_t euid, egid;
+    __attribute__((unused)) uid_t unused_euid;
+    __attribute__((unused)) uid_t unused_egid;
 
     reset = has_reset && reset;
 
@@ -135,6 +139,29 @@ qmp_guest_ssh_add_authorized_keys(const char *username, strList *keys,
         return;
     }
 
+    euid = geteuid();
+    egid = getegid();
+#ifndef QGA_BUILD_UNIT_TEST
+    /* The initgroups requires CAP_SETGID. During build time unit tests, we can't do this. */
+    if (initgroups(p->pw_name, p->pw_gid) == -1) {
+        error_setg_errno(errp, errno, "failed to set group for user '%s'",
+                         p->pw_name);
+        return;
+    }
+#endif
+    if (setegid(p->pw_gid) == -1) {
+        error_setg_errno(errp, errno, "failed to set effective group ID for user '%s'",
+                         p->pw_name);
+        return;
+    }
+    if (seteuid(p->pw_uid) == -1) {
+        error_setg_errno(errp, errno, "failed to set effective user ID for user '%s'",
+                         p->pw_name);
+        /* Ignore errors, we can't do anything in this case */
+        unused_egid = setegid(egid);
+        return;
+    }
+
     ssh_path = g_build_filename(p->pw_dir, ".ssh", NULL);
     authkeys_path = g_build_filename(ssh_path, "authorized_keys", NULL);
 
@@ -144,6 +171,9 @@ qmp_guest_ssh_add_authorized_keys(const char *username, strList *keys,
     if (authkeys == NULL) {
         if (!g_file_test(ssh_path, G_FILE_TEST_IS_DIR) &&
             !mkdir_for_user(ssh_path, p, 0700, errp)) {
+            /* Ignore errors, we can't do anything in this case */
+            unused_euid = seteuid(euid);
+            unused_egid = setegid(egid);
             return;
         }
     }
@@ -160,6 +190,9 @@ qmp_guest_ssh_add_authorized_keys(const char *username, strList *keys,
     }
 
     write_authkeys(authkeys_path, authkeys, p, errp);
+    /* Ignore errors, we can't do anything in this case */
+    unused_euid = seteuid(euid);
+    unused_egid = setegid(egid);
 }
 
 void
@@ -172,6 +205,9 @@ qmp_guest_ssh_remove_authorized_keys(const char *username, strList *keys,
     g_auto(GStrv) authkeys = NULL;
     GStrv a;
     size_t nkeys = 0;
+    uid_t euid, egid;
+    __attribute__((unused)) uid_t unused_euid;
+    __attribute__((unused)) uid_t unused_egid;
 
     if (!check_openssh_pub_keys(keys, NULL, errp)) {
         return;
@@ -179,6 +215,29 @@ qmp_guest_ssh_remove_authorized_keys(const char *username, strList *keys,
 
     p = get_passwd_entry(username, errp);
     if (p == NULL) {
+        return;
+    }
+
+    euid = geteuid();
+    egid = getegid();
+#ifndef QGA_BUILD_UNIT_TEST
+    /* The initgroups requires CAP_SETGID. During build time unit tests, we can't do this. */
+    if (initgroups(p->pw_name, p->pw_gid) == -1) {
+        error_setg_errno(errp, errno, "failed to set group for user '%s'",
+                         p->pw_name);
+        return;
+    }
+#endif
+    if (setegid(p->pw_gid) == -1) {
+        error_setg_errno(errp, errno, "failed to set effective group ID for user '%s'",
+                         p->pw_name);
+        return;
+    }
+    if (seteuid(p->pw_uid) == -1) {
+        error_setg_errno(errp, errno, "failed to set effective user ID for user '%s'",
+                         p->pw_name);
+        /* Ignore errors, we can't do anything in this case */
+        unused_egid = setegid(egid);
         return;
     }
 
@@ -209,6 +268,9 @@ qmp_guest_ssh_remove_authorized_keys(const char *username, strList *keys,
     }
 
     write_authkeys(authkeys_path, new_keys, p, errp);
+    /* Ignore errors, we can't do anything in this case */
+    unused_euid = seteuid(euid);
+    unused_egid = setegid(egid);
 }
 
 GuestAuthorizedKeys *
@@ -219,9 +281,35 @@ qmp_guest_ssh_get_authorized_keys(const char *username, Error **errp)
     g_auto(GStrv) authkeys = NULL;
     g_autoptr(GuestAuthorizedKeys) ret = NULL;
     int i;
+    uid_t euid, egid;
+    __attribute__((unused)) uid_t unused_euid;
+    __attribute__((unused)) uid_t unused_egid;
 
     p = get_passwd_entry(username, errp);
     if (p == NULL) {
+        return NULL;
+    }
+
+    euid = geteuid();
+    egid = getegid();
+#ifndef QGA_BUILD_UNIT_TEST
+    /* The initgroups requires CAP_SETGID. During build time unit tests, we can't do this. */
+    if (initgroups(p->pw_name, p->pw_gid) == -1) {
+        error_setg_errno(errp, errno, "failed to set group for user '%s'",
+                         p->pw_name);
+        return NULL;
+    }
+#endif
+    if (setegid(p->pw_gid) == -1) {
+        error_setg_errno(errp, errno, "failed to set effective group ID for user '%s'",
+                         p->pw_name);
+        return NULL;
+    }
+    if (seteuid(p->pw_uid) == -1) {
+        error_setg_errno(errp, errno, "failed to set effective user ID for user '%s'",
+                         p->pw_name);
+        /* Ignore errors, we can't do anything in this case */
+        unused_egid = setegid(egid);
         return NULL;
     }
 
@@ -229,6 +317,9 @@ qmp_guest_ssh_get_authorized_keys(const char *username, Error **errp)
                                      "authorized_keys", NULL);
     authkeys = read_authkeys(authkeys_path, errp);
     if (authkeys == NULL) {
+        /* Ignore errors, we can't do anything in this case */
+        unused_euid = seteuid(euid);
+        unused_egid = setegid(egid);
         return NULL;
     }
 
@@ -242,6 +333,9 @@ qmp_guest_ssh_get_authorized_keys(const char *username, Error **errp)
         QAPI_LIST_PREPEND(ret->keys, g_strdup(authkeys[i]));
     }
 
+    /* Ignore errors, we can't do anything in this case */
+    unused_euid = seteuid(euid);
+    unused_egid = setegid(egid);
     return g_steal_pointer(&ret);
 }
 
