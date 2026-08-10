@@ -45,11 +45,8 @@ static int do_nmi(Object *o, void *opaque)
         ns->handled = true;
 
         /* Generic handler */
-        if (nc->nmi_monitor_handler) {
-            nc->nmi_monitor_handler(n, ns->cpu_index, &ns->err);
-            if (ns->err) {
-                return -1;
-            }
+        if (nc->nmi_handler) {
+            nc->nmi_handler(n);
         }
         /* Per vCPU handler */
         if (nc->nmi_cpu_handler) {
