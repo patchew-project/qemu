@@ -23,18 +23,32 @@
 #include "internal.h"
 #include "decode.h"
 
+static char regstr[10];
+
 static const char *sreg2str(unsigned int reg)
 {
-    if (reg < TOTAL_PER_THREAD_REGS) {
-        return hexagon_regnames[reg];
+#ifndef CONFIG_USER_ONLY
+    if (reg < NUM_SREGS) {
+        return hexagon_sregnames[reg];
     } else {
-        return "???";
+        snprintf(regstr, sizeof(regstr), "S%d", reg);
+        return regstr;
     }
+#else
+    snprintf(regstr, sizeof(regstr), "S%d", reg);
+    return regstr;
+#endif
 }
 
 static const char *creg2str(unsigned int reg)
 {
-    return sreg2str(reg + HEX_REG_SA0);
+    unsigned int gpr = reg + HEX_REG_SA0;
+    if (gpr < TOTAL_PER_THREAD_REGS) {
+        return hexagon_regnames[gpr];
+    } else {
+        snprintf(regstr, sizeof(regstr), "C%d", reg);
+        return regstr;
+    }
 }
 
 static void snprintinsn(GString *buf, Insn *insn)
