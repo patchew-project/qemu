@@ -113,6 +113,21 @@ typedef struct FeatureTestArgs {
     bool expected_value;
 } FeatureTestArgs;
 
+typedef struct BoolPropTestArgs {
+    /* Test name */
+    const char *name;
+    /* CPU type */
+    const char *cpu;
+    /* CPU features (may be NULL) */
+    const char *cpufeat;
+    /* machine type (may be NULL to use default machine) */
+    const char *machine;
+    /* CPU property to read */
+    const char *property;
+    /* expected value of the property */
+    bool expected_value;
+} BoolPropTestArgs;
+
 /* Get the value for a feature word in a X86CPUFeatureWordInfo list */
 static uint32_t get_feature_word(QList *features, uint32_t eax, uint32_t ecx,
                                  const char *reg)
@@ -166,6 +181,38 @@ static void test_feature_flag(const void *data)
 
     qobject_unref(present);
     qobject_unref(filtered);
+    g_free(path);
+    g_free(cmdline);
+}
+
+static void test_bool_prop(const void *data)
+{
+    const BoolPropTestArgs *args = data;
+    char *cmdline;
+    char *save;
+    char *path;
+    bool value;
+
+    cmdline = g_strdup_printf("-cpu %s", args->cpu);
+
+    if (args->cpufeat) {
+        save = cmdline;
+        cmdline = g_strdup_printf("%s,%s", cmdline, args->cpufeat);
+        g_free(save);
+    }
+    if (args->machine) {
+        save = cmdline;
+        cmdline = g_strdup_printf("-machine %s %s", args->machine, cmdline);
+        g_free(save);
+    }
+
+    qtest_start(cmdline);
+    path = get_cpu0_qom_path();
+    value = qom_get_bool(path, args->property);
+    qtest_end();
+
+    g_assert_cmpint(value, ==, args->expected_value);
+
     g_free(path);
     g_free(cmdline);
 }
@@ -407,6 +454,28 @@ static const FeatureTestArgs feature_tests[] = {
         "max", "mmx=off",
         1, 0, "EDX", 23, false,
     },
+    {
+        "x86/cpuid/features/dhyana/ext-mmx",
+        "Dhyana", NULL,
+        0x80000001, 0, "EDX", 23, true,
+    },
+    {
+        "x86/cpuid/features/dhyana/ext-mmx/compat-off",
+        "Dhyana", "x-hygon-vendor-abi-fixes=off",
+        0x80000001, 0, "EDX", 23, false,
+    },
+};
+
+static const BoolPropTestArgs bool_prop_tests[] = {
+    {
+        "x86/cpuid/props/dhyana/hygon-vendor-abi-fixes/default",
+        "Dhyana", NULL, NULL, "x-hygon-vendor-abi-fixes", true,
+    },
+    {
+        "x86/cpuid/props/dhyana/hygon-vendor-abi-fixes/pc-i440fx-11.0",
+        "Dhyana", NULL, "pc-i440fx-11.0",
+        "x-hygon-vendor-abi-fixes", false,
+    },
 };
 
 int main(int argc, char **argv)
@@ -432,6 +501,13 @@ int main(int argc, char **argv)
         }
         qtest_add_data_func(feature_tests[i].name,
                             &feature_tests[i], test_feature_flag);
+    }
+    for (int i = 0; i < ARRAY_SIZE(bool_prop_tests); i++) {
+        if (!qtest_has_cpu_model(bool_prop_tests[i].cpu)) {
+            continue;
+        }
+        qtest_add_data_func(bool_prop_tests[i].name,
+                            &bool_prop_tests[i], test_bool_prop);
     }
 
     return g_test_run();
