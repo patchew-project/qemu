@@ -43,13 +43,30 @@ static int do_nmi(Object *o, void *opaque)
         NMIClass *nc = NMI_GET_CLASS(n);
 
         ns->handled = true;
-        if (ns->cpu_index == -1) {
-            /* Any vCPU is OK, take the first one */
-            ns->cpu_index = first_cpu->cpu_index;
+
+        /* Generic handler */
+        if (nc->nmi_monitor_handler) {
+            nc->nmi_monitor_handler(n, ns->cpu_index, &ns->err);
+            if (ns->err) {
+                return -1;
+            }
         }
-        nc->nmi_monitor_handler(n, ns->cpu_index, &ns->err);
-        if (ns->err) {
-            return -1;
+        /* Per vCPU handler */
+        if (nc->nmi_cpu_handler) {
+            CPUState *cs;
+
+            if (ns->cpu_index >= 0) {
+                /* Specific vCPU requested */
+                cs = qemu_get_cpu(ns->cpu_index);
+            } else {
+                /* Any vCPU is OK, take the first one */
+                cs = first_cpu;
+            }
+            if (!cs) {
+                error_setg(&ns->err, "CPU %d does not exist", ns->cpu_index);
+                return -1;
+            }
+            nc->nmi_cpu_handler(n, cs);
         }
     }
     nmi_children(o, ns);
