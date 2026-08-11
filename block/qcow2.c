@@ -2147,7 +2147,24 @@ static void qcow2_reopen_commit(BDRVReopenState *state)
 
 static int qcow2_reopen_commit_post(BDRVReopenState *state, Error **errp)
 {
+    BDRVQcow2State *s = state->bs->opaque;
+
     GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    if (!state->was_writable && bdrv_is_writable(state->bs) &&
+        (s->incompatible_features & QCOW2_INCOMPAT_DIRTY)) {
+        BdrvCheckResult result = {0};
+        int ret;
+
+        ret = bdrv_check(state->bs, &result, BDRV_FIX_ERRORS | BDRV_FIX_LEAKS);
+        if (ret < 0 || result.check_errors) {
+            /* This clears bs->drv, there is nothing left to reopen */
+            qcow2_signal_corruption(state->bs, true, -1, -1,
+                                    "Could not repair dirty image");
+            error_setg(errp, "Could not repair dirty image");
+            return -EIO;
+        }
+    }
 
     if (state->flags & BDRV_O_RDWR) {
         Error *local_err = NULL;

@@ -137,6 +137,66 @@ $QEMU_IO -c "write 0 512" "$TEST_IMG" | _filter_qemu_io
 _qcow2_dump_header | grep incompatible_features
 
 echo
+echo "== Reopening a dirty image read/write should repair it =="
+
+_make_test_img -o "compat=1.1,lazy_refcounts=on" $size
+
+_NO_VALGRIND \
+$QEMU_IO -c "write -P 0x5a 0 512" \
+         -c "sigraise $(kill -l KILL)" "$TEST_IMG" 2>&1 \
+    | _filter_qemu_io
+
+# The dirty bit must be set
+_qcow2_dump_header | grep incompatible_features
+
+# Without the repair this write would alias the cluster at offset 0
+$QEMU_IO -r -c "reopen -w" \
+            -c "write -P 0xb1 1M 512" \
+            -c "read -P 0x5a 0 512" "$TEST_IMG" | _filter_qemu_io
+
+# The dirty bit must not be set
+_qcow2_dump_header | grep incompatible_features
+_check_test_img
+
+echo
+echo "== A read/write reopen must not check the image =="
+
+_make_test_img -o "compat=1.1,lazy_refcounts=on" $size
+
+_NO_VALGRIND \
+$QEMU_IO -c "write -P 0x5a 0 512" \
+         -c "reopen -o l2-cache-size=1M" \
+         -c "sigraise $(kill -l KILL)" "$TEST_IMG" 2>&1 \
+    | _filter_qemu_io
+
+# The dirty bit must still be set, it belongs to the running session
+_qcow2_dump_header | grep incompatible_features
+
+echo
+echo "== A failed repair must fail the reopen =="
+
+_make_test_img -o "compat=1.1,lazy_refcounts=on" $size
+
+_NO_VALGRIND \
+$QEMU_IO -c "write -P 0x5a 0 512" \
+         -c "sigraise $(kill -l KILL)" "$TEST_IMG" 2>&1 \
+    | _filter_qemu_io
+
+cat > "$TEST_DIR/blkdebug.conf" <<EOF
+[inject-error]
+event = "none"
+iotype = "write"
+errno = "5"
+EOF
+
+# The repair cannot write, so the reopen itself must report the failure
+$QEMU_IO -r -c "reopen -w" -c "read -P 0x5a 0 512" \
+    "blkdebug:$TEST_DIR/blkdebug.conf:$TEST_IMG" 2>&1 \
+    | _filter_testdir | _filter_qemu_io
+
+rm -f "$TEST_DIR/blkdebug.conf"
+
+echo
 echo "== Creating an image file with lazy_refcounts=off =="
 
 _make_test_img -o "compat=1.1,lazy_refcounts=off" $size
