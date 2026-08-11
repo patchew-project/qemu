@@ -360,6 +360,7 @@ typedef struct BDRVReopenState {
     int flags;
     BlockdevDetectZeroesOptions detect_zeroes;
     bool backing_missing;
+    bool was_writable; /* bs->open_flags is updated on commit */
     BlockDriverState *old_backing_bs; /* keep pointer for permissions update */
     BlockDriverState *old_file_bs; /* keep pointer for permissions update */
     QDict *options;

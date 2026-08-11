@@ -4473,6 +4473,7 @@ bdrv_reopen_queue_child(BlockReopenQueue *bs_queue, BlockDriverState *bs,
     bs_entry->state.options = options;
     bs_entry->state.explicit_options = explicit_options;
     bs_entry->state.flags = flags;
+    bs_entry->state.was_writable = bdrv_is_writable(bs);
 
     /*
      * If keep_old_opts is false then it means that unspecified
