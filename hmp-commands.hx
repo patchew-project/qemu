@@ -870,7 +870,7 @@ ERST
     },
 SRST
 ``nmi`` *cpu*
-  Inject an NMI on the default CPU (x86/s390) or all CPUs (ppc64).
+  Inject an NMI.
 ERST
 
     {
