@@ -96,6 +96,16 @@ $QEMU_IMG info --image-opts \
 _qcow2_dump_header | grep incompatible_features
 
 echo
+echo "== Read-only reopen must not clear the dirty bit =="
+
+# A read-only node cannot write the header, and must keep the dirty bit
+$QEMU_IO -r -c "reopen -r" -c "read -P 0x5a 0 512" "$TEST_IMG" \
+    | _filter_qemu_io
+
+# The dirty bit must still be set
+_qcow2_dump_header | grep incompatible_features
+
+echo
 echo "== Repairing the image file must succeed =="
 
 _check_test_img -r all
