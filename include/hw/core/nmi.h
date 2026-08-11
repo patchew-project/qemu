@@ -41,9 +41,8 @@ struct NMIClass {
      * deliver_nmi: Callback to handle NMI notifications.
      *
      * @ns: Class #NMIState state
-     * @errp: pointer to error object
      */
-    void (*deliver_nmi)(NMIState *ns, Error **errp);
+    void (*deliver_nmi)(NMIState *ns);
 };
 
 /**
