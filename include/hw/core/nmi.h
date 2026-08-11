@@ -38,12 +38,12 @@ struct NMIClass {
     InterfaceClass parent_class;
 
     /**
-     * nmi_monitor_handler: Callback to handle NMI notifications.
+     * deliver_nmi: Callback to handle NMI notifications.
      *
      * @ns: Class #NMIState state
      * @errp: pointer to error object
      */
-    void (*nmi_monitor_handler)(NMIState *ns, Error **errp);
+    void (*deliver_nmi)(NMIState *ns, Error **errp);
 };
 
 /**
