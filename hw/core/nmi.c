@@ -31,6 +31,8 @@ static int do_nmi(Object *o, void *opaque)
     if (n) {
         *handled = true;
         NMI_GET_CLASS(n)->deliver_nmi(n);
+        /* We only need to deliver NMI once */
+        return 1;
     }
 
     return 0;
