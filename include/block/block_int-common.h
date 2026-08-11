@@ -239,8 +239,9 @@ struct BlockDriver {
         BDRVReopenState *reopen_state, BlockReopenQueue *queue, Error **errp);
     void GRAPH_UNLOCKED_PTR (*bdrv_reopen_commit)(
         BDRVReopenState *reopen_state);
-    void GRAPH_UNLOCKED_PTR (*bdrv_reopen_commit_post)(
-        BDRVReopenState *reopen_state);
+    /* Cannot fail the reopen, an error only reports an unusable node */
+    int GRAPH_UNLOCKED_PTR (*bdrv_reopen_commit_post)(
+        BDRVReopenState *reopen_state, Error **errp);
     void GRAPH_UNLOCKED_PTR (*bdrv_reopen_abort)(
         BDRVReopenState *reopen_state);
     void (*bdrv_join_options)(QDict *options, QDict *old_options);

@@ -2145,7 +2145,7 @@ static void qcow2_reopen_commit(BDRVReopenState *state)
     g_free(state->opaque);
 }
 
-static void qcow2_reopen_commit_post(BDRVReopenState *state)
+static int qcow2_reopen_commit_post(BDRVReopenState *state, Error **errp)
 {
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
@@ -2163,6 +2163,8 @@ static void qcow2_reopen_commit_post(BDRVReopenState *state)
                               bdrv_get_node_name(state->bs));
         }
     }
+
+    return 0;
 }
 
 static void qcow2_reopen_abort(BDRVReopenState *state)
