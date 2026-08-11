@@ -14,6 +14,9 @@
 
 #include "hw/vfio-user/device.h"
 #include "hw/vfio-user/trace.h"
+#include "hw/vfio/vfio-region.h"
+#include "hw/vfio/vfio-helpers.h"
+#include "hw/vfio/trace.h"
 
 /*
  * These are to defend against a malign server trying
@@ -208,23 +211,26 @@ static int vfio_user_get_region_info(VFIOUserProxy *proxy,
 static int vfio_user_device_io_get_region_info(VFIODevice *vbasedev,
                                                struct vfio_region_info *info)
 {
-    int fd = -1;
-    VFIOUserFDs fds = { 0, 1, &fd };
+    int fds[VFIO_USER_MAX_MAX_FDS];
+    int num_fds = VFIO_USER_MAX_MAX_FDS;
+    VFIOUserFDs user_fds = { 0, num_fds, fds };
     int ret;
 
     if (info->index > vbasedev->num_initial_regions) {
         return -EINVAL;
     }
 
-    ret = vfio_user_get_region_info(vbasedev->proxy, info, &fds);
+    ret = vfio_user_get_region_info(vbasedev->proxy, info, &user_fds);
     if (ret) {
         return ret;
     }
 
-    if (fds.recv_fds > 0 && info->index < vbasedev->num_initial_regions) {
-        vbasedev->region_fds[info->index].fds = g_new0(int, 1);
-        vbasedev->region_fds[info->index].nr_fds = 1;
-        vbasedev->region_fds[info->index].fds[0] = fd;
+    if (user_fds.recv_fds > 0 && info->index < vbasedev->num_initial_regions) {
+        vbasedev->region_fds[info->index].fds = g_new0(int, user_fds.recv_fds);
+        vbasedev->region_fds[info->index].nr_fds = user_fds.recv_fds;
+        for (int i = 0; i < user_fds.recv_fds; i++) {
+            vbasedev->region_fds[info->index].fds[i] = fds[i];
+        }
     }
 
     /* cap_offset in valid area */
@@ -524,9 +530,52 @@ static int vfio_user_device_io_region_write(VFIODevice *vbasedev, uint8_t index,
 /*
  * Socket-based io_ops
  */
+static int vfio_user_device_io_setup_sparse_mmaps(VFIORegion *region,
+                                                  struct vfio_region_info *info,
+                                                  Error **errp)
+{
+    struct vfio_info_cap_header *hdr;
+    int i, j = 0;
+
+    hdr = vfio_get_region_info_cap(info, VFIO_REGION_INFO_CAP_SPARSE_MMAP_FDS);
+    if (hdr) {
+        struct vfio_region_info_cap_sparse_mmap_fds *sparse_fds =
+            container_of(hdr, struct vfio_region_info_cap_sparse_mmap_fds,
+                         header);
+
+        trace_vfio_region_sparse_mmap_header(region->vbasedev->name,
+                                             region->nr, sparse_fds->nr_areas);
+
+        region->mmaps = g_new0(VFIOMmap, sparse_fds->nr_areas);
+
+        for (i = 0; i < sparse_fds->nr_areas; i++) {
+            if (sparse_fds->areas[i].size) {
+                uint64_t end = sparse_fds->areas[i].offset +
+                               sparse_fds->areas[i].size - 1;
+
+                trace_vfio_region_sparse_mmap_entry(i,
+                                                    sparse_fds->areas[i].offset,
+                                                    end);
+                region->mmaps[j].offset = sparse_fds->areas[i].offset;
+                region->mmaps[j].fd_offset = sparse_fds->areas[i].fd_offset;
+                region->mmaps[j].size = sparse_fds->areas[i].size;
+                region->mmaps[j].fd_index = sparse_fds->areas[i].fd_index;
+                j++;
+            }
+        }
+
+        region->nr_mmaps = j;
+        region->mmaps = g_realloc(region->mmaps, j * sizeof(VFIOMmap));
+        return 0;
+    }
+
+    return vfio_default_setup_sparse_mmaps(region, info, errp);
+}
+
 VFIODeviceIOOps vfio_user_device_io_ops_sock = {
     .device_feature = vfio_user_device_io_device_feature,
     .get_region_info = vfio_user_device_io_get_region_info,
+    .setup_sparse_mmaps = vfio_user_device_io_setup_sparse_mmaps,
     .get_irq_info = vfio_user_device_io_get_irq_info,
     .set_irqs = vfio_user_device_io_set_irqs,
     .region_read = vfio_user_device_io_region_read,
