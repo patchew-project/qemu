@@ -142,7 +142,7 @@ linked to an ``nvme-subsys`` device allows additional ``nvme-ns`` parameters:
   are hotplugged).
 
 ``detached`` (default: ``off``)
-  If set to ``on``, the namespace will be be available in the subsystem, but
+  If set to ``on``, the namespace will be available in the subsystem, but
   not attached to any controllers initially. A shared namespace with this set
   to ``on`` will never be automatically attached to controllers.
 
