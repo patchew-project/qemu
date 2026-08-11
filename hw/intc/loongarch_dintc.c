@@ -26,6 +26,25 @@ FIELD(MSG_ADDR, IRQ_NUM, 4, 8)
 FIELD(MSG_ADDR, CPU_NUM, 12, 8)
 FIELD(MSG_ADDR, FIX, 28, 12)
 
+static int loongarch_dintc_cmp(const void *a, const void *b)
+{
+    DINTCCore *dintc_a = (DINTCCore *)a;
+    DINTCCore *dintc_b = (DINTCCore *)b;
+
+    return dintc_a->arch_id - dintc_b->arch_id;
+}
+
+static DINTCCore *loongarch_dintc_cpu_by_arch_id(LoongArchDINTCState *s,
+                                                 int64_t arch_id)
+{
+    DINTCCore dintc, *found;
+
+    dintc.arch_id = arch_id;
+    found = bsearch(&dintc, s->cpu, s->num_cpu, sizeof(DINTCCore),
+                    loongarch_dintc_cmp);
+    return found;
+}
+
 static uint64_t loongarch_dintc_mem_read(void *opaque,
                                         hwaddr addr, unsigned size)
 {
@@ -49,23 +68,20 @@ static void loongarch_dintc_mem_write(void *opaque, hwaddr addr,
 {
     int irq_num, cpu_num = 0;
     LoongArchDINTCState *s = LOONGARCH_DINTC(opaque);
-    uint64_t msg_addr = addr + VIRT_DINTC_BASE;
+    uint64_t msg_addr = addr + VIRT_DINTC_BASE, arch_id;
+    DINTCCore *core;
     CPUState *cs;
 
-    cpu_num = FIELD_EX64(msg_addr, MSG_ADDR, CPU_NUM);
-
-    /* Validate cpu_num against the configured number of CPUs */
-    if (cpu_num >= s->num_cpu) {
+    arch_id = FIELD_EX64(msg_addr, MSG_ADDR, CPU_NUM);
+    core = loongarch_dintc_cpu_by_arch_id(s, arch_id);
+    if (!core || !core->cpu) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "loongarch-dintc: invalid cpu number%d\n", cpu_num);
+                      "loongarch-dintc: no CPU for arch_id %"PRId64"\n",
+                      arch_id);
         return;
     }
-    cs = cpu_by_arch_id(cpu_num);
-    if (!cs) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "loongarch-dintc: no CPU for arch_id %d\n", cpu_num);
-        return;
-    }
+    cpu_num = core - s->cpu;
+    cs = core->cpu;
     irq_num = FIELD_EX64(msg_addr, MSG_ADDR, IRQ_NUM);
 
     async_run_on_cpu(cs, do_set_vcpu_dintc_irq,
@@ -135,15 +151,8 @@ static DINTCCore *loongarch_dintc_get_cpu(LoongArchDINTCState *s,
 {
     CPUClass *k = CPU_GET_CLASS(dev);
     uint64_t arch_id = k->get_arch_id(CPU(dev));
-    int i;
 
-    for (i = 0; i < s->num_cpu; i++) {
-        if (s->cpu[i].arch_id == arch_id) {
-            return &s->cpu[i];
-        }
-    }
-
-    return NULL;
+    return loongarch_dintc_cpu_by_arch_id(s, arch_id);
 }
 
 static void loongarch_dintc_cpu_plug(HotplugHandler *hotplug_dev,
