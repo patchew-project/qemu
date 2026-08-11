@@ -828,12 +828,6 @@ static ssize_t bcm2838_genet_rdma(BCM2838GenetState *s, uint32_t ring_idx,
         MemTxResult mem_tx_result = MEMTX_OK;
         uint8_t *frame_buf = dma_buf + sizeof(BCM2838GenetXmitStatus) + 2;
         BCM2838GenetXmitStatus *xmit_status = (BCM2838GenetXmitStatus *)dma_buf;
-        struct iovec iov;
-        bool isip4, isip6;
-        size_t l3hdr_off, l4hdr_off, l5hdr_off;
-        eth_ip6_hdr_info ip6hdr_info;
-        eth_ip4_hdr_info ip4hdr_info;
-        eth_l4_hdr_info  l4hdr_info;
 
         bool crc_fwd = FIELD_EX32(s->regs.umac.cmd, GENET_UMAC_CMD, CRC_FWD);
         size_t buflength;
@@ -844,12 +838,6 @@ static ssize_t bcm2838_genet_rdma(BCM2838GenetState *s, uint32_t ring_idx,
         }
 
         memcpy(frame_buf, buf + len, l);
-        iov.iov_base = frame_buf;
-        iov.iov_len = l;
-        eth_get_protocols(&iov, 1, 0,
-                          &isip4, &isip6,
-                          &l3hdr_off, &l4hdr_off, &l5hdr_off,
-                          &ip6hdr_info, &ip4hdr_info, &l4hdr_info);
 
         len += l;
 
@@ -875,10 +863,19 @@ static ssize_t bcm2838_genet_rdma(BCM2838GenetState *s, uint32_t ring_idx,
                                          MULTICAST,
                                          !!is_packet_multicast(frame_buf, l));
 
+        /*
+         * Report no hardware-computed checksum. The IP header's own
+         * checksum was previously (incorrectly) stored here, but the
+         * guest's CHECKSUM_COMPLETE path expects a running checksum over
+         * the L4 payload, not the L3 header checksum -- and it was stored
+         * in host byte order besides. That mismatch was causing the guest
+         * to reject otherwise-valid inbound packets ("hw csum failure" in
+         * dmesg, tied to bcmgenet_rx_poll), breaking DHCP/connectivity
+         * intermittently. Leaving this at 0 makes the guest fall back to
+         * verifying checksums itself in software, which succeeds since the
+         * packet data itself is intact.
+         */
         xmit_status->rx_csum = 0;
-        if (isip4) {
-            xmit_status->rx_csum = ip4hdr_info.ip4_hdr.ip_sum;
-        }
         xmit_status->length_status = desc->length_status;
 
         mem_tx_result = address_space_write(&s->dma_as, dma_buf_addr,
