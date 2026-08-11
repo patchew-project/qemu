@@ -163,14 +163,29 @@ static inline uint32_t vext_max_elems(uint32_t desc, uint32_t log2_esz)
  */
 static void probe_pages(CPURISCVState *env, target_ulong addr, target_ulong len,
                         uintptr_t ra, MMUAccessType access_type, int mmu_index,
-                        void **host, int *flags, bool nonfault)
+                        void **host, int *flags, bool nonfault,
+                        bool ignore_plugin)
 {
     target_ulong pagelen = -(addr | TARGET_PAGE_MASK);
     target_ulong curlen = MIN(pagelen, len);
 
     if (flags != NULL) {
-        *flags = probe_access_flags(env, adjust_addr(env, addr), curlen,
-                                    access_type, mmu_index, nonfault, host, ra);
+        if (ignore_plugin) {
+            /*
+             * Semantic probe (e.g. fault-only-first vl decision): must reflect
+             * the memory mapping itself, not be skewed by plugin memory
+             * callbacks (force_mmio would otherwise report TLB_MMIO for plain
+             * RAM and truncate vl). probe_access_full_mmu passes
+             * check_mem_cbs=false internally.
+             */
+            CPUTLBEntryFull *full = NULL;
+            *flags = probe_access_full_mmu(env, adjust_addr(env, addr), curlen,
+                                           access_type, mmu_index, host, &full);
+        } else {
+            *flags = probe_access_flags(env, adjust_addr(env, addr), curlen,
+                                        access_type, mmu_index, nonfault,
+                                        host, ra);
+        }
     } else {
         probe_access(env, adjust_addr(env, addr), curlen, access_type,
                      mmu_index, ra);
@@ -180,9 +195,16 @@ static void probe_pages(CPURISCVState *env, target_ulong addr, target_ulong len,
         addr += curlen;
         curlen = len - curlen;
         if (flags != NULL) {
-            *flags |= probe_access_flags(env, adjust_addr(env, addr), curlen,
-                                         access_type, mmu_index, nonfault,
-                                         host, ra);
+            if (ignore_plugin) {
+                CPUTLBEntryFull *full = NULL;
+                *flags |= probe_access_full_mmu(env, adjust_addr(env, addr),
+                                                curlen, access_type, mmu_index,
+                                                host, &full);
+            } else {
+                *flags |= probe_access_flags(env, adjust_addr(env, addr),
+                                             curlen, access_type, mmu_index,
+                                             nonfault, host, ra);
+            }
         } else {
             probe_access(env, adjust_addr(env, addr), curlen, access_type,
                          mmu_index, ra);
@@ -396,7 +418,7 @@ vext_page_ldst_us(CPURISCVState *env, void *vd, target_ulong addr,
 
     /* Check page permission/pmp/watchpoint/etc. */
     probe_pages(env, addr, size, ra, access_type, mmu_index, &host, &flags,
-                true);
+                true, false);
 
     if (flags == 0) {
         if (nf == 1) {
@@ -710,7 +732,7 @@ vext_ldff(void *vd, void *v0, target_ulong base, CPURISCVState *env,
 
     /* Check page permission/pmp/watchpoint/etc. */
     probe_pages(env, addr, (env->vl - env->vstart) * msize, ra, MMU_DATA_LOAD,
-                mmu_index, &host, &flags, true);
+                mmu_index, &host, &flags, true, true);
 
     if (flags & ~TLB_WATCHPOINT) {
         /* probe every access */
@@ -722,7 +744,7 @@ vext_ldff(void *vd, void *v0, target_ulong base, CPURISCVState *env,
             if (i == 0) {
                 /* Allow fault on first element. */
                 probe_pages(env, addr_i, nf << log2_esz, ra, MMU_DATA_LOAD,
-                            mmu_index, &host, NULL, false);
+                            mmu_index, &host, NULL, false, true);
             } else {
                 remain = nf << log2_esz;
                 while (remain > 0) {
@@ -730,7 +752,7 @@ vext_ldff(void *vd, void *v0, target_ulong base, CPURISCVState *env,
 
                     /* Probe nonfault on subsequent elements. */
                     probe_pages(env, addr_i, offset, 0, MMU_DATA_LOAD,
-                                mmu_index, &host, &flags, true);
+                                mmu_index, &host, &flags, true, true);
 
                     /*
                      * Stop if invalid (unmapped) or mmio (transaction may

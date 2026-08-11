@@ -91,6 +91,8 @@ int probe_access_full(CPUArchState *env, vaddr addr, int size,
                       bool nonfault, void **phost,
                       CPUTLBEntryFull **pfull, uintptr_t retaddr);
 
+#endif /* !CONFIG_USER_ONLY */
+
 /**
  * probe_access_full_mmu:
  * Like probe_access_full, except:
@@ -100,12 +102,14 @@ int probe_access_full(CPUArchState *env, vaddr addr, int size,
  * handling another potential mmu fault, this function never raises
  * exceptions (akin to @nonfault true for probe_access_full).
  * Likewise this function does not trigger plugin instrumentation.
+ *
+ * Available in both system and user mode; used by semantic probes such as
+ * the RISC-V vector fault-only-first vl decision, which must not be skewed
+ * by plugin memory callbacks (force_mmio / TLB_FORCE_SLOW).
  */
 int probe_access_full_mmu(CPUArchState *env, vaddr addr, int size,
                           MMUAccessType access_type, int mmu_idx,
                           void **phost, CPUTLBEntryFull **pfull);
-
-#endif /* !CONFIG_USER_ONLY */
 
 /**
  * tlb_vaddr_to_host:

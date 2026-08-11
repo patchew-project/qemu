@@ -750,7 +750,8 @@ int page_unprotect(CPUState *cpu, tb_page_addr_t address, uintptr_t pc)
 
 static int probe_access_internal(CPUArchState *env, vaddr addr,
                                  int fault_size, MMUAccessType access_type,
-                                 bool nonfault, uintptr_t ra)
+                                 bool nonfault, uintptr_t ra,
+                                 bool ignore_plugin)
 {
     int acc_flag;
     bool maperr;
@@ -772,7 +773,8 @@ static int probe_access_internal(CPUArchState *env, vaddr addr,
     if (guest_addr_valid_untagged_vaddr(addr)) {
         int page_flags = page_get_flags(addr);
         if (page_flags & acc_flag) {
-            if (access_type != MMU_INST_FETCH
+            if (!ignore_plugin
+                && access_type != MMU_INST_FETCH
                 && cpu_plugin_mem_cbs_enabled(env_cpu(env))) {
                 return TLB_FORCE_SLOW;
             }
@@ -797,8 +799,29 @@ int probe_access_flags(CPUArchState *env, vaddr addr, int size,
     int flags;
 
     g_assert(-(addr | TARGET_PAGE_MASK) >= size);
-    flags = probe_access_internal(env, addr, size, access_type, nonfault, ra);
+    flags = probe_access_internal(env, addr, size, access_type, nonfault, ra,
+                                  false);
     *phost = (flags & TLB_INVALID_MASK) ? NULL : g2h_vaddr(env_cpu(env), addr);
+    return flags;
+}
+
+int probe_access_full_mmu(CPUArchState *env, vaddr addr, int size,
+                          MMUAccessType access_type, int mmu_idx,
+                          void **phost, CPUTLBEntryFull **pfull)
+{
+    int flags;
+
+    g_assert(-(addr | TARGET_PAGE_MASK) >= size);
+    /*
+     * Semantic probe (e.g. RISC-V fault-only-first vl decision): ignore plugin
+     * memory callbacks so force_mmio/TLB_FORCE_SLOW does not skew the result.
+     * Mirrors the system-mode implementation (check_mem_cbs=false).
+     */
+    flags = probe_access_internal(env, addr, size, access_type, true, 0, true);
+    *phost = (flags & TLB_INVALID_MASK) ? NULL : g2h_vaddr(env_cpu(env), addr);
+    if (pfull) {
+        *pfull = NULL;
+    }
     return flags;
 }
 
@@ -808,7 +831,8 @@ void *probe_access(CPUArchState *env, vaddr addr, int size,
     int flags;
 
     g_assert(-(addr | TARGET_PAGE_MASK) >= size);
-    flags = probe_access_internal(env, addr, size, access_type, false, ra);
+    flags = probe_access_internal(env, addr, size, access_type,
+                                  false, ra, false);
     g_assert((flags & ~TLB_FORCE_SLOW) == 0);
 
     return size ? g2h_vaddr(env_cpu(env), addr) : NULL;
@@ -825,7 +849,8 @@ tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, vaddr addr,
 {
     int flags;
 
-    flags = probe_access_internal(env, addr, 1, MMU_INST_FETCH, false, 0);
+    flags = probe_access_internal(env, addr, 1, MMU_INST_FETCH,
+                                  false, 0, false);
     g_assert(flags == 0);
 
     *hostp = g2h_untagged_vaddr(addr);
