@@ -10,12 +10,17 @@
 #define HW_VFIO_REGION_H
 
 #include "system/memory.h"
+#ifdef CONFIG_LINUX
+#include <linux/vfio.h>
+#endif
 
 typedef struct VFIOMmap {
     MemoryRegion mem;
     void *mmap;
     off_t offset;
     size_t size;
+    uint32_t fd_index;
+    uint64_t fd_offset;
 } VFIOMmap;
 
 typedef struct VFIODevice VFIODevice;
@@ -43,5 +48,8 @@ int vfio_region_mmap(VFIORegion *region);
 void vfio_region_mmaps_set_enabled(VFIORegion *region, bool enabled);
 void vfio_region_exit(VFIORegion *region);
 void vfio_region_finalize(VFIORegion *region);
+int vfio_default_setup_sparse_mmaps(VFIORegion *region,
+                                    struct vfio_region_info *info,
+                                    Error **errp);
 
 #endif /* HW_VFIO_REGION_H */

@@ -206,10 +206,10 @@ static int vfio_user_get_region_info(VFIOUserProxy *proxy,
 }
 
 static int vfio_user_device_io_get_region_info(VFIODevice *vbasedev,
-                                               struct vfio_region_info *info,
-                                               int *fd)
+                                               struct vfio_region_info *info)
 {
-    VFIOUserFDs fds = { 0, 1, fd};
+    int fd = -1;
+    VFIOUserFDs fds = { 0, 1, &fd };
     int ret;
 
     if (info->index > vbasedev->num_initial_regions) {
@@ -219,6 +219,12 @@ static int vfio_user_device_io_get_region_info(VFIODevice *vbasedev,
     ret = vfio_user_get_region_info(vbasedev->proxy, info, &fds);
     if (ret) {
         return ret;
+    }
+
+    if (fds.recv_fds > 0 && info->index < vbasedev->num_initial_regions) {
+        vbasedev->region_fds[info->index].fds = g_new0(int, 1);
+        vbasedev->region_fds[info->index].nr_fds = 1;
+        vbasedev->region_fds[info->index].fds[0] = fd;
     }
 
     /* cap_offset in valid area */

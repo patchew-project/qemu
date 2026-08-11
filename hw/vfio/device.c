@@ -202,7 +202,6 @@ int vfio_device_get_region_info(VFIODevice *vbasedev, int index,
                                 struct vfio_region_info **info)
 {
     size_t argsz = sizeof(struct vfio_region_info);
-    int fd = -1;
     int ret;
 
     /*
@@ -226,7 +225,7 @@ int vfio_device_get_region_info(VFIODevice *vbasedev, int index,
 retry:
     (*info)->argsz = argsz;
 
-    ret = vbasedev->io_ops->get_region_info(vbasedev, *info, &fd);
+    ret = vbasedev->io_ops->get_region_info(vbasedev, *info);
     if (ret != 0) {
         g_free(*info);
         *info = NULL;
@@ -237,9 +236,14 @@ retry:
         argsz = (*info)->argsz;
         *info = g_realloc(*info, argsz);
 
-        if (fd != -1) {
-            close(fd);
-            fd = -1;
+        if (index < vbasedev->num_initial_regions &&
+            vbasedev->region_fds != NULL) {
+            for (int j = 0; j < vbasedev->region_fds[index].nr_fds; j++) {
+                close(vbasedev->region_fds[index].fds[j]);
+            }
+            g_free(vbasedev->region_fds[index].fds);
+            vbasedev->region_fds[index].fds = NULL;
+            vbasedev->region_fds[index].nr_fds = 0;
         }
 
         goto retry;
@@ -248,19 +252,22 @@ retry:
     if (index < vbasedev->num_initial_regions) {
         /* fill cache */
         vbasedev->reginfo[index] = *info;
-        if (vbasedev->region_fds != NULL) {
-            vbasedev->region_fds[index] = fd;
-        }
     }
 
     return 0;
 }
 
-int vfio_device_get_region_fd(VFIODevice *vbasedev, int index)
+int vfio_device_get_region_fd(VFIODevice *vbasedev, int index,
+                              uint32_t fd_index)
 {
-        return vbasedev->region_fds ?
-               vbasedev->region_fds[index] :
-               vbasedev->fd;
+    if (!vbasedev->region_fds) {
+        return vbasedev->fd;
+    }
+    if (index < 0 || index >= vbasedev->num_initial_regions ||
+        fd_index >= vbasedev->region_fds[index].nr_fds) {
+        return -1;
+    }
+    return vbasedev->region_fds[index].fds[fd_index];
 }
 
 int vfio_device_get_region_info_type(VFIODevice *vbasedev, uint32_t type,
@@ -480,7 +487,6 @@ void vfio_device_detach(VFIODevice *vbasedev)
 void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainer *bcontainer,
                          struct vfio_device_info *info)
 {
-    int i;
 
     vbasedev->num_irqs = info->num_irqs;
     vbasedev->num_initial_regions = info->num_regions;
@@ -495,10 +501,8 @@ void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainer *bcontainer,
     vbasedev->reginfo = g_new0(struct vfio_region_info *,
                                vbasedev->num_initial_regions);
     if (vbasedev->use_region_fds) {
-        vbasedev->region_fds = g_new0(int, vbasedev->num_initial_regions);
-        for (i = 0; i < vbasedev->num_initial_regions; i++) {
-            vbasedev->region_fds[i] = -1;
-        }
+        vbasedev->region_fds = g_new0(VFIORegionFDs,
+                                      vbasedev->num_initial_regions);
     }
 }
 
@@ -508,8 +512,11 @@ void vfio_device_unprepare(VFIODevice *vbasedev)
 
     for (i = 0; i < vbasedev->num_initial_regions; i++) {
         g_free(vbasedev->reginfo[i]);
-        if (vbasedev->region_fds != NULL && vbasedev->region_fds[i] != -1) {
-            close(vbasedev->region_fds[i]);
+        if (vbasedev->region_fds != NULL) {
+            for (int j = 0; j < vbasedev->region_fds[i].nr_fds; j++) {
+                close(vbasedev->region_fds[i].fds[j]);
+            }
+            g_free(vbasedev->region_fds[i].fds);
         }
     }
 
@@ -592,12 +599,9 @@ static int vfio_device_io_device_feature(VFIODevice *vbasedev,
 }
 
 static int vfio_device_io_get_region_info(VFIODevice *vbasedev,
-                                          struct vfio_region_info *info,
-                                          int *fd)
+                                          struct vfio_region_info *info)
 {
     int ret;
-
-    *fd = -1;
 
     ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_REGION_INFO, info);
 
