@@ -888,10 +888,32 @@ static void usb_host_ep_update(USBHostDevice *s)
     if (rc != 0) {
         return;
     }
+
+    /* Log and skip if configuration is NULL or has no interfaces */
+    if (!conf || conf->bNumInterfaces == 0) {
+        warn_report("usb-host: ignoring invalid configuration "
+                    "for device %s (bus=%03d, addr=%03d)",
+                    udev->product_desc, s->bus_num, s->addr);
+
+        if (conf) {
+            libusb_free_config_descriptor(conf);
+        }
+
+        return;
+    }
+
     trace_usb_host_parse_config(s->bus_num, s->addr,
                                 conf->bConfigurationValue, true);
 
     for (i = 0; i < conf->bNumInterfaces; i++) {
+        if (conf->interface[i].num_altsetting == 0 ||
+            !conf->interface[i].altsetting) {
+            warn_report("usb-host: skipping interface (index %d) with no "
+                        "alternate settings on %s (bus=%03d, addr=%03d)",
+                        i, udev->product_desc, s->bus_num, s->addr);
+            continue;
+        }
+
         /*
          * The udev->altsetting array indexes alternate settings
          * by the interface number. Get the 0th alternate setting
@@ -906,8 +928,19 @@ static void usb_host_ep_update(USBHostDevice *s)
         }
         alt = udev->altsetting[intf->bInterfaceNumber];
 
-        if (alt != 0) {
-            assert(alt < conf->interface[i].num_altsetting);
+        if (alt > 0) {
+            if (alt >= conf->interface[i].num_altsetting) {
+                /*
+                 * libusb reports a temporary invalid altsetting index during
+                 * fast hotplug/unplug. Instead of aborting, log a warning and
+                 * skip the interface.
+                 */
+                warn_report("usb-host: ignoring out-of-bounds altsetting=%d "
+                            "for interface %d (index %d) on %s (bus=%03d, addr=%03d)",
+                            alt, intf->bInterfaceNumber, i,
+                            udev->product_desc, s->bus_num, s->addr);
+                continue;
+            }
             intf = &conf->interface[i].altsetting[alt];
         }
 
