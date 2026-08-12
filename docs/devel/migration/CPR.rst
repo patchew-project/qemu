@@ -369,6 +369,10 @@ Outgoing:
     a ``file`` type, but one can use other types such as ``exec``,
     provided the command captures all the data from the outgoing side,
     and provides all the data to the incoming side.
+  * Alternatively, use the ``memfd:`` URI to save VM/device state
+    to an internal memfd inherited by the new QEMU.  The new QEMU may
+    use ``-incoming memfd:`` to load it automatically, or ``-incoming
+    defer`` to load it later with ``migrate_incoming memfd:``.
 
 Incoming:
   * You do not need to explicitly start new QEMU.  It is started as
@@ -421,6 +425,26 @@ Example 2: incoming defer
   (qemu) info status
   status: paused (inmigrate)
   (qemu) migrate_incoming file:vm.state
+  (qemu) info status
+  VM status: running
+
+Example 3: main state memfd
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+::
+
+  # qemu-kvm -monitor stdio
+  -machine q35,memory-backend=ram0,aux-ram-share=on
+  -object memory-backend-memfd,id=ram0,size=8G,share=on
+  ... ...
+
+  QEMU 11.1.50 monitor - type 'help' for more information
+  (qemu) migrate_set_parameter mode cpr-exec
+  (qemu) migrate_set_parameter cpr-exec-command qemu-kvm ... -incoming defer
+  (qemu) migrate -d memfd:
+  QEMU 11.1.50 monitor - type 'help' for more information
+  (qemu) info status
+  VM status: paused (inmigrate)
+  (qemu) migrate_incoming memfd:
   (qemu) info status
   VM status: running
 
