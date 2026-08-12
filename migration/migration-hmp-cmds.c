@@ -855,9 +855,9 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
 
     if (!detach) {
         HMPMigrationStatus *status;
-        MonitorHMP *hmp = MONITOR_HMP(mon);
+        MonitorHMP *hmon = MONITOR_HMP(mon);
 
-        if (!hmp->use_readline) {
+        if (!hmon->use_readline) {
             monitor_printf(mon, "terminal does not allow synchronous "
                            "migration, continuing detached\n");
             return;
