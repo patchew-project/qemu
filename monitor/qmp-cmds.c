@@ -167,9 +167,10 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
 {
     char *output = NULL;
     MonitorHMP *hmon = MONITOR_HMP(object_new(TYPE_MONITOR_HMP));
+    Monitor *mon = MONITOR(hmon);
 
     if (has_cpu_index) {
-        int ret = monitor_set_cpu(&hmon->parent_obj, cpu_index);
+        int ret = monitor_set_cpu(mon, cpu_index);
         if (ret < 0) {
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
                        "a CPU number");
@@ -179,8 +180,8 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
 
     handle_hmp_command(hmon, command_line);
 
-    WITH_QEMU_LOCK_GUARD(&hmon->parent_obj.mon_lock) {
-        output = g_strdup(hmon->parent_obj.outbuf->str);
+    WITH_QEMU_LOCK_GUARD(&mon->mon_lock) {
+        output = g_strdup(mon->outbuf->str);
     }
 
 out:
