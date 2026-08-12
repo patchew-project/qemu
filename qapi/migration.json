@@ -702,9 +702,11 @@
 # @cpr-exec: The migrate command stops the VM, saves state to the
 #     migration channel, directly exec's a new version of QEMU on the
 #     same host, replacing the original process while retaining its
-#     PID, and loads state from the channel.  Guest RAM is preserved
-#     in place.  Devices and their pinned pages are also preserved for
-#     VFIO and IOMMUFD.
+#     PID, and loads state from the channel.  With the @memfd
+#     migration transport, QEMU saves VM/device state to an internal
+#     memfd instead of an external main migration channel.  Guest RAM
+#     is preserved in place.  Devices and their pinned pages are also
+#     preserved for VFIO and IOMMUFD.
 #
 #     Old QEMU starts new QEMU by exec'ing the command specified by
 #     the @cpr-exec-command parameter.  The command may be a direct
@@ -715,6 +717,13 @@
 #     stream data between the two, so the channel must be a type, such
 #     as a file, that accepts all data before old QEMU exits.
 #     Otherwise, old QEMU may quietly block writing to the channel.
+#
+#     Alternatively, use the @memfd migration transport to save
+#     VM/device state to an internal memfd inherited by new QEMU.
+#
+#     With @memfd, the new QEMU command may include '-incoming memfd:'
+#     to load the migration stream automatically, or '-incoming defer'
+#     to load it later with `migrate-incoming`.
 #
 #     Memory-backend objects must have the share=on attribute, but
 #     memory-backend-epc is not supported.  The VM must be started
@@ -1309,10 +1318,14 @@
 #
 # @file: Direct the migration stream to a file.
 #
+# @memfd: Direct the migration stream to an internal memfd.  This
+#     transport is currently only valid with cpr-exec migration mode.
+#     (Since 11.2)
+#
 # Since: 8.2
 ##
 { 'enum': 'MigrationAddressType',
-  'data': [ 'socket', 'exec', 'rdma', 'file' ] }
+  'data': [ 'socket', 'exec', 'rdma', 'file', 'memfd' ] }
 
 ##
 # @FileMigrationArgs:
@@ -1338,6 +1351,14 @@
   'data': {'args': [ 'str' ] } }
 
 ##
+# @MemfdMigrationArgs:
+#
+# Since: 11.2
+##
+{ 'struct': 'MemfdMigrationArgs',
+  'data': { } }
+
+##
 # @MigrationAddress:
 #
 # Migration endpoint configuration.
@@ -1353,7 +1374,8 @@
     'socket': 'SocketAddress',
     'exec': 'MigrationExecCommand',
     'rdma': 'InetSocketAddress',
-    'file': 'FileMigrationArgs' } }
+    'file': 'FileMigrationArgs',
+    'memfd': 'MemfdMigrationArgs' } }
 
 ##
 # @MigrationChannelType:
