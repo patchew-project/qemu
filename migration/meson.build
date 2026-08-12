@@ -23,6 +23,7 @@ system_ss.add(files(
   'fd.c',
   'file.c',
   'global_state.c',
+  'memfd.c',
   'migration.c',
   'multifd.c',
   'multifd-device-state.c',
