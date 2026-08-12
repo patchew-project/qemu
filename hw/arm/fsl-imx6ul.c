@@ -187,6 +187,15 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(mpcore), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(mpcore), 0, FSL_IMX6UL_A7MPCORE_ADDR);
 
+    /*
+     * U-Boot's shared i.MX6 CPU identification code reads the
+     * Cortex-A9 SCU configuration register on i.MX6UL. Cortex-A7
+     * reserves this address, so provide only the compatibility word
+     * needed before the console is initialized.
+     */
+    create_unimplemented_device("a7mpcore-scu-compat",
+                                FSL_IMX6UL_A7MPCORE_ADDR + 0x4, 4);
+
     gic = mpcore;
     gicsbd = SYS_BUS_DEVICE(gic);
     cpu = DEVICE(&s->cpu);
