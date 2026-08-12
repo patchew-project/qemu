@@ -1792,11 +1792,29 @@ static void xhci_calc_iso_kick(XHCIState *xhci, XHCITransfer *xfer,
             xfer->mfindex_kick = asap;
         }
     } else {
-        xfer->mfindex_kick = ((xfer->trbs[0].control >> TRB_TR_FRAMEID_SHIFT)
-                              & TRB_TR_FRAMEID_MASK) << 3;
+        uint32_t frame_id = (xfer->trbs[0].control >> TRB_TR_FRAMEID_SHIFT)
+                            & TRB_TR_FRAMEID_MASK;
+        xfer->mfindex_kick = (uint64_t)frame_id << 3;
         xfer->mfindex_kick |= mfindex & ~0x3fff;
         if (xfer->mfindex_kick + 0x100 < mfindex) {
             xfer->mfindex_kick += 0x4000;
+        }
+        /*
+         * Guard against epoch-advance overshoot: when the IO thread is briefly
+         * delayed, mfindex can advance past frame_kick by more than the 0x100
+         * lookahead threshold above. Adding 0x4000 then places mfindex_kick
+         * ~2 seconds into the future, stalling all isochronous transfers until
+         * the kick timer fires (observed as periodic ~2.1 s USB audio/video
+         * stalls).
+         *
+         * Per xHCI specification section 4.11.2.5, a Frame ID is valid only
+         * up to 895 ms (0x1BF8 microframes) ahead of the current MFINDEX. If
+         * epoch reconstruction places the kick beyond that range, clamp it
+         * to the current MFINDEX so the missed transfer is dispatched
+         * immediately instead of stalling.
+         */
+        if (xfer->mfindex_kick > mfindex + 0x1BF8) {
+            xfer->mfindex_kick = mfindex;
         }
     }
 }
@@ -1805,8 +1823,9 @@ static void xhci_check_intr_iso_kick(XHCIState *xhci, XHCITransfer *xfer,
                                      XHCIEPContext *epctx, uint64_t mfindex)
 {
     if (xfer->mfindex_kick > mfindex) {
+        uint64_t delay_mf = xfer->mfindex_kick - mfindex;
         timer_mod(epctx->kick_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                       (xfer->mfindex_kick - mfindex) * 125000);
+                       delay_mf * 125000);
         xfer->running_retry = 1;
     } else {
         epctx->mfindex_last = xfer->mfindex_kick;
