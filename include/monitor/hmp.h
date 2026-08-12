@@ -16,7 +16,6 @@
 
 #include "qemu/readline.h"
 #include "qapi/qapi-types-common.h"
-#include "monitor/monitor.h"
 
 #define HMP_STUB(cmd) \
     void hmp_##cmd(Monitor *mon, const QDict *qdict) \
