@@ -216,8 +216,8 @@ void monitor_list_append(Monitor *mon);
 void monitor_fdsets_cleanup(void);
 int monitor_set_cpu(Monitor *mon, int cpu_index);
 
-void qmp_send_response(MonitorQMP *mon, const QDict *rsp);
-void monitor_data_destroy_qmp(MonitorQMP *mon);
+void qmp_send_response(MonitorQMP *qmon, const QDict *rsp);
+void monitor_data_destroy_qmp(MonitorQMP *qmon);
 void coroutine_fn monitor_qmp_dispatcher_co(void *data);
 void qmp_dispatcher_co_wake(void);
 

@@ -39,7 +39,7 @@
  * On success, set mon->qmp.capab[], and return true.
  * On error, set @errp, and return false.
  */
-static bool qmp_caps_accept(MonitorQMP *mon, QMPCapabilityList *list,
+static bool qmp_caps_accept(MonitorQMP *qmon, QMPCapabilityList *list,
                             Error **errp)
 {
     GString *unavailable = NULL;
@@ -48,7 +48,7 @@ static bool qmp_caps_accept(MonitorQMP *mon, QMPCapabilityList *list,
     memset(capab, 0, sizeof(capab));
 
     for (; list; list = list->next) {
-        if (!mon->capab_offered[list->value]) {
+        if (!qmon->capab_offered[list->value]) {
             if (!unavailable) {
                 unavailable = g_string_new(QMPCapability_str(list->value));
             } else {
@@ -65,27 +65,27 @@ static bool qmp_caps_accept(MonitorQMP *mon, QMPCapabilityList *list,
         return false;
     }
 
-    memcpy(mon->capab, capab, sizeof(capab));
+    memcpy(qmon->capab, capab, sizeof(capab));
     return true;
 }
 
 void qmp_qmp_capabilities(bool has_enable, QMPCapabilityList *enable,
                           Error **errp)
 {
-    MonitorQMP *mon = MONITOR_QMP(monitor_cur());
+    MonitorQMP *qmon = MONITOR_QMP(monitor_cur());
 
-    if (mon->commands == &qmp_commands) {
+    if (qmon->commands == &qmp_commands) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "Capabilities negotiation is already complete, command "
                   "ignored");
         return;
     }
 
-    if (!qmp_caps_accept(mon, enable, errp)) {
+    if (!qmp_caps_accept(qmon, enable, errp)) {
         return;
     }
 
-    mon->commands = &qmp_commands;
+    qmon->commands = &qmp_commands;
 }
 
 VersionInfo *qmp_query_version(Error **errp)
@@ -118,9 +118,9 @@ static void query_commands_cb(const QmpCommand *cmd, void *opaque)
 CommandInfoList *qmp_query_commands(Error **errp)
 {
     CommandInfoList *list = NULL;
-    MonitorQMP *mon = MONITOR_QMP(monitor_cur());
+    MonitorQMP *qmon = MONITOR_QMP(monitor_cur());
 
-    qmp_for_each_command(mon->commands, query_commands_cb, &list);
+    qmp_for_each_command(qmon->commands, query_commands_cb, &list);
 
     return list;
 }
