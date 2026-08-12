@@ -13,5 +13,7 @@
 QIOChannel *memfd_create_outgoing(const char *name, int *dup_fdp,
                                   Error **errp);
 QIOChannel *memfd_open_incoming(int fd, const char *name, Error **errp);
+QIOChannel *memfd_connect_outgoing(Error **errp);
+void memfd_connect_incoming(Error **errp);
 
 #endif

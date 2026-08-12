@@ -248,6 +248,15 @@ migration_channels_and_transport_compatible(MigrationAddress *addr,
         return false;
     }
 
+    if (addr->transport == MIGRATION_ADDRESS_TYPE_MEMFD) {
+        if (migrate_mode() != MIG_MODE_CPR_EXEC &&
+            cpr_get_incoming_mode() != MIG_MODE_CPR_EXEC) {
+            error_setg(errp,
+                       "memfd transport is only supported with cpr-exec");
+            return false;
+        }
+    }
+
     return true;
 }
 

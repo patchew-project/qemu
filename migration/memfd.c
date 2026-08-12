@@ -10,6 +10,9 @@
 #include "qemu/cutils.h"
 #include "qemu/memfd.h"
 #include "memfd.h"
+#include "cpr-exec-memfd.h"
+#include "migration/cpr.h"
+#include "options.h"
 
 QIOChannel *memfd_create_outgoing(const char *name, int *dup_fdp,
                                   Error **errp)
@@ -64,4 +67,24 @@ QIOChannel *memfd_open_incoming(int fd, const char *name, Error **errp)
     ioc = QIO_CHANNEL(fioc);
     qio_channel_set_name(ioc, name);
     return ioc;
+}
+
+QIOChannel *memfd_connect_outgoing(Error **errp)
+{
+    if (migrate_mode() == MIG_MODE_CPR_EXEC) {
+        return cpr_exec_memfd_connect_outgoing(errp);
+    }
+
+    error_setg(errp, "memfd transport is only supported with cpr-exec");
+    return NULL;
+}
+
+void memfd_connect_incoming(Error **errp)
+{
+    if (cpr_get_incoming_mode() == MIG_MODE_CPR_EXEC) {
+        cpr_exec_memfd_connect_incoming(errp);
+        return;
+    }
+
+    error_setg(errp, "memfd transport is only supported with cpr-exec");
 }

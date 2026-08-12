@@ -21,6 +21,7 @@
 #include "migration/vmstate.h"
 #include "system/runstate.h"
 #include "trace.h"
+#include "cpr-exec-memfd.h"
 
 #define CPR_EXEC_STATE_NAME "QEMU_CPR_EXEC_STATE"
 
@@ -143,6 +144,11 @@ static void cpr_exec_cb(void *opaque)
      * earlier because they should not persist across miscellaneous fork and
      * exec calls that are performed during normal operation.
      */
+    if (!cpr_exec_memfd_preserve_fd(&err)) {
+        g_clear_pointer(&argv, g_strfreev);
+        cpr_exec_memfd_cleanup();
+        goto fail;
+    }
     cpr_exec_preserve_fds();
 
     trace_cpr_exec();
@@ -155,7 +161,9 @@ static void cpr_exec_cb(void *opaque)
     error_setg_errno(&err, errno, "execvp %s failed", argv[0]);
     g_clear_pointer(&argv, g_strfreev);
     cpr_exec_unpreserve_fds();
+    cpr_exec_memfd_cleanup();
 
+fail:
     error_report_err(error_copy(err));
     migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
 
@@ -189,6 +197,7 @@ static int cpr_exec_notifier(NotifierWithReturn *notifier, MigrationEvent *e,
         qemu_notify_event();
     } else if (e->type == MIG_EVENT_FAILED) {
         cpr_exec_unpersist_state();
+        cpr_exec_memfd_cleanup();
     }
     return 0;
 }

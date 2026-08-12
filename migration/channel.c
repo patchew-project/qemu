@@ -18,6 +18,7 @@
 #include "file.h"
 #include "io/channel-socket.h"
 #include "io/channel-tls.h"
+#include "memfd.h"
 #include "migration.h"
 #include "multifd.h"
 #include "options.h"
@@ -62,6 +63,8 @@ void migration_connect_outgoing(MigrationState *s, MigrationAddress *addr,
         ioc = exec_connect_outgoing(s, addr->u.exec.args, errp);
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
         ioc = file_connect_outgoing(s, &addr->u.file, errp);
+    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_MEMFD) {
+        ioc = memfd_connect_outgoing(errp);
     } else {
         error_setg(errp, "uri is not a valid migration protocol");
     }
@@ -92,6 +95,8 @@ void migration_connect_incoming(MigrationAddress *addr, Error **errp)
         exec_connect_incoming(addr->u.exec.args, errp);
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
         file_connect_incoming(&addr->u.file, errp);
+    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_MEMFD) {
+        memfd_connect_incoming(errp);
     } else {
         error_setg(errp, "unknown migration protocol");
     }
@@ -394,6 +399,8 @@ bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
                               errp)) {
             return false;
         }
+    } else if (g_str_equal(uri, "memfd:")) {
+        addr->transport = MIGRATION_ADDRESS_TYPE_MEMFD;
     } else {
         error_setg(errp, "unknown migration protocol: %s", uri);
         return false;
