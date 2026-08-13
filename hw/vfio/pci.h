@@ -133,11 +133,16 @@ typedef struct VFIOCXL {
     uint32_t comp_regs_region_index; /* trapped HDM decoder register block */
     uint32_t comp_bar;               /* component BAR carrying that block */
     uint64_t hdm_offset;             /* block offset within the component BAR */
+    uint16_t dvsec_offset;           /* CXL Device DVSEC offset, 0 if none */
+    uint16_t af_offset;              /* PCI Advanced Features cap, 0 if none */
     uint64_t dpa_size;               /* size of the HDM memory region */
     VFIORegion mem_region;           /* HDM memory, mapped at committed GPA */
     Notifier machine_done;           /* CFMWS validated at machine_done */
     hwaddr fmws_base;                /* base of the memory window */
     uint64_t fmws_size;              /* size of that window */
+    VFIORegion comp_regs_region;     /* trapped HDM decoder block */
+    hwaddr mapped_base;              /* GPA the HDM memory is mapped at */
+    bool dpa_mapped;                 /* HDM memory currently in system memory */
 } VFIOCXL;
 
 struct VFIOPCIDevice {
