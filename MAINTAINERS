@@ -1851,6 +1851,7 @@ F: include/hw/watchdog/k230_wdt.h
 F: include/hw/misc/k230_iomux.h
 F: tests/functional/riscv64/test_k230.py
 F: tests/qtest/k230-wdt-test.c
+F: tests/qtest/k230-iomux-test.c
 
 RX Machines
 -----------
