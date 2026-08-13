@@ -283,7 +283,7 @@ smmuv3_accel_dev_alloc_translate(SMMUv3AccelDevice *accel_dev, STE *ste,
 }
 
 bool smmuv3_accel_install_ste(SMMUv3State *s, SMMUDevice *sdev, int sid,
-                              Error **errp)
+                              SMMUSecSID sec_sid, Error **errp)
 {
     SMMUEventInfo event = {.type = SMMU_EVT_NONE, .sid = sid,
                            .inval_ste_allowed = true};
@@ -294,7 +294,13 @@ bool smmuv3_accel_install_ste(SMMUv3State *s, SMMUDevice *sdev, int sid,
     SMMUS1Hwpt *s1_hwpt = NULL;
     const char *type;
     STE ste;
-    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
+
+    g_assert(sec_sid < SMMU_SEC_SID_NUM);
+
+    /* Acceleration supports only the Non-secure programming interface. */
+    if (sec_sid != SMMU_SEC_SID_NS) {
+        return true;
+    }
 
     if (!accel || !accel->viommu) {
         return true;
@@ -377,12 +383,19 @@ bool smmuv3_accel_install_ste(SMMUv3State *s, SMMUDevice *sdev, int sid,
 }
 
 bool smmuv3_accel_install_ste_range(SMMUv3State *s, SMMUSIDRange *range,
-                                    Error **errp)
+                                    SMMUSecSID sec_sid, Error **errp)
 {
     SMMUv3AccelState *accel = s->s_accel;
     SMMUv3AccelDevice *accel_dev;
     Error *local_err = NULL;
     bool all_ok = true;
+
+    g_assert(sec_sid < SMMU_SEC_SID_NUM);
+
+    /* Acceleration supports only the Non-secure programming interface. */
+    if (sec_sid != SMMU_SEC_SID_NS) {
+        return true;
+    }
 
     if (!accel || !accel->viommu) {
         return true;
@@ -393,7 +406,7 @@ bool smmuv3_accel_install_ste_range(SMMUv3State *s, SMMUSIDRange *range,
 
         if (sid >= range->start && sid <= range->end) {
             if (!smmuv3_accel_install_ste(s, &accel_dev->sdev,
-                                          sid, &local_err)) {
+                                          sid, sec_sid, &local_err)) {
                 error_append_hint(&local_err, "Device 0x%x: Failed to install "
                                   "STE\n", sid);
                 error_report_err(local_err);
@@ -416,11 +429,18 @@ bool smmuv3_accel_install_ste_range(SMMUv3State *s, SMMUSIDRange *range,
  * non SID invalidations such as SMMU_CMD_TLBI_NH_ASID and SMMU_CMD_TLBI_NH_VA.
  */
 bool smmuv3_accel_issue_inv_cmd(SMMUv3State *bs, void *cmd, SMMUDevice *sdev,
-                                Error **errp)
+                                SMMUSecSID sec_sid, Error **errp)
 {
     SMMUv3State *s = ARM_SMMUV3(bs);
     SMMUv3AccelState *accel = s->s_accel;
     uint32_t entry_num = 1;
+
+    g_assert(sec_sid < SMMU_SEC_SID_NUM);
+
+    /* Acceleration supports only the Non-secure programming interface. */
+    if (sec_sid != SMMU_SEC_SID_NS) {
+        return true;
+    }
 
     /*
      * No accel or viommu means no VFIO/IOMMUFD devices, nothing to
