@@ -149,9 +149,9 @@ static MemTxResult queue_write(SMMUQueue *q, Evt *evt_in)
     return MEMTX_OK;
 }
 
-static MemTxResult smmuv3_write_eventq(SMMUv3State *s, Evt *evt)
+static MemTxResult smmuv3_write_eventq(SMMUv3State *s, SMMUSecSID sec_sid,
+                                       Evt *evt)
 {
-    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
     SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
     SMMUQueue *q = &bank->eventq;
     MemTxResult r;
@@ -175,14 +175,14 @@ static MemTxResult smmuv3_write_eventq(SMMUv3State *s, Evt *evt)
     return MEMTX_OK;
 }
 
-void smmuv3_propagate_event(SMMUv3State *s, Evt *evt)
+void smmuv3_propagate_event(SMMUv3State *s, Evt *evt, SMMUSecSID sec_sid)
 {
     MemTxResult r;
 
-    trace_smmuv3_propagate_event(smmu_event_string(EVT_GET_TYPE(evt)),
+    trace_smmuv3_propagate_event(sec_sid, smmu_event_string(EVT_GET_TYPE(evt)),
                                  EVT_GET_SID(evt));
     QEMU_LOCK_GUARD(&s->mutex);
-    r = smmuv3_write_eventq(s, evt);
+    r = smmuv3_write_eventq(s, sec_sid, evt);
     if (r != MEMTX_OK) {
         smmuv3_trigger_irq(s, SMMU_IRQ_GERROR, R_GERROR_EVENTQ_ABT_ERR_MASK);
     }
@@ -191,7 +191,7 @@ void smmuv3_propagate_event(SMMUv3State *s, Evt *evt)
 void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *info)
 {
     Evt evt = {};
-    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
+    SMMUSecSID sec_sid = info->sec_sid;
 
     if (!smmuv3_eventq_enabled(s, sec_sid)) {
         return;
@@ -271,7 +271,7 @@ void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *info)
         g_assert_not_reached();
     }
 
-    smmuv3_propagate_event(s, &evt);
+    smmuv3_propagate_event(s, &evt, sec_sid);
     info->recorded = true;
 }
 
@@ -886,12 +886,13 @@ bad_cd:
  * @cfg: output translation configuration which is populated through
  *       the different configuration decoding steps
  * @event: must be zero'ed by the caller
+ * @sec_sid: StreamID Security state
  *
  * return < 0 in case of config decoding error (@event is filled
  * accordingly). Return 0 otherwise.
  */
 static int smmuv3_decode_config(IOMMUMemoryRegion *mr, SMMUTransCfg *cfg,
-                                SMMUEventInfo *event)
+                                SMMUEventInfo *event, SMMUSecSID sec_sid)
 {
     SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
     uint32_t sid = smmu_get_sid(sdev);
@@ -958,7 +959,7 @@ static SMMUTransCfg *smmuv3_get_config(SMMUDevice *sdev, SMMUEventInfo *event)
                             (sdev->cfg_cache_hits + sdev->cfg_cache_misses));
         cfg = g_new0(SMMUTransCfg, 1);
 
-        if (!smmuv3_decode_config(&sdev->iommu, cfg, event)) {
+        if (!smmuv3_decode_config(&sdev->iommu, cfg, event, SMMU_SEC_SID_NS)) {
             g_hash_table_insert(bc->configs, sdev, cfg);
         } else {
             g_free(cfg);
@@ -1114,7 +1115,8 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
     SMMUEventInfo event = {.type = SMMU_EVT_NONE,
                            .sid = sid,
-                           .inval_ste_allowed = false};
+                           .inval_ste_allowed = false,
+                           .sec_sid = sec_sid};
     SMMUTranslationStatus status;
     SMMUTransCfg *cfg = NULL;
     IOMMUTLBEntry entry = {
@@ -1216,7 +1218,9 @@ static void smmuv3_notify_iova(IOMMUMemoryRegion *mr,
                                uint64_t num_pages, int stage)
 {
     SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
-    SMMUEventInfo eventinfo = {.inval_ste_allowed = true};
+    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
+    SMMUEventInfo eventinfo = {.sec_sid = sec_sid,
+                               .inval_ste_allowed = true};
     SMMUTransCfg *cfg = smmuv3_get_config(sdev, &eventinfo);
     IOMMUTLBEvent event;
     uint8_t granule;

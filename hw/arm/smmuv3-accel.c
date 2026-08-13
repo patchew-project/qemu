@@ -509,7 +509,7 @@ static void smmuv3_accel_event_read(void *opaque)
     if (ret > 0) {
         return; /* EAGAIN/EINTR */
     }
-    smmuv3_propagate_event(s, (Evt *)&buf.vevent);
+    smmuv3_propagate_event(s, (Evt *)&buf.vevent, SMMU_SEC_SID_NS);
 }
 
 static void smmuv3_accel_free_veventq(SMMUv3AccelState *accel)
