@@ -159,6 +159,7 @@ static uint64_t aspeed_i2c_bus_new_read(AspeedI2CBus *bus, hwaddr offset,
     case A_I2CS_INTR_CTRL:
     case A_I2CS_DMA_LEN_STS:
     case A_I2CS_INTR_STS:
+    case A_I2CC_BYTE_DATA_LOG:
     case A_I2CC_VERSION_CTRL:
         value = bus->regs[offset / sizeof(*bus->regs)];
         break;
@@ -334,6 +335,24 @@ static int aspeed_i2c_bus_send_dma_pool(AspeedI2CBus *bus)
     return ret;
 }
 
+/*
+ * Latch the first received byte, which firmware reads back as the SMBus block
+ * length. AST2600 reads it from the receive byte buffer, only valid while the
+ * DMA buffer is disabled; AST2700 reads it from the byte data log, a register
+ * the earlier SoCs do not expose.
+ */
+static void aspeed_i2c_bus_latch_rx_len(AspeedI2CBus *bus, bool dma_buf_en,
+                                        uint8_t data)
+{
+    uint32_t reg_byte_buf = aspeed_i2c_bus_byte_buf_offset(bus);
+
+    ARRAY_FIELD_DP32(bus->regs, I2CC_BYTE_DATA_LOG, RX_BUF, data);
+
+    if (!dma_buf_en) {
+        SHARED_ARRAY_FIELD_DP32(bus->regs, reg_byte_buf, RX_BUF, data);
+    }
+}
+
 static void aspeed_i2c_bus_recv_dma_pool(AspeedI2CBus *bus)
 {
     AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(bus->controller);
@@ -349,6 +368,9 @@ static void aspeed_i2c_bus_recv_dma_pool(AspeedI2CBus *bus)
         pool_base[offset + i] = i2c_recv(bus->bus);
         trace_aspeed_i2c_bus_recv("BUFF", i + 1, bus->regs[reg_dma_len],
                                   pool_base[offset + i]);
+        if (i == 0) {
+            aspeed_i2c_bus_latch_rx_len(bus, true, pool_base[offset]);
+        }
         bus->regs[reg_dma_len]--;
         ARRAY_FIELD_DP32(bus->regs, I2CM_DMA_LEN_STS, RX_LEN, i + 1);
     }
@@ -443,6 +465,9 @@ static void aspeed_i2c_bus_recv(AspeedI2CBus *bus)
             pool_base[i] = i2c_recv(bus->bus);
             trace_aspeed_i2c_bus_recv("BUF", i + 1, pool_rx_count,
                                       pool_base[i]);
+            if (i == 0) {
+                aspeed_i2c_bus_latch_rx_len(bus, false, pool_base[0]);
+            }
         }
 
         /* Update RX count */
@@ -460,7 +485,7 @@ static void aspeed_i2c_bus_recv(AspeedI2CBus *bus)
         }
 
         aspeed_i2c_set_rx_dma_dram_offset(bus);
-        while (bus->regs[reg_dma_len]) {
+        for (i = 0; bus->regs[reg_dma_len]; i++) {
             MemTxResult result;
 
             data = i2c_recv(bus->bus);
@@ -474,6 +499,10 @@ static void aspeed_i2c_bus_recv(AspeedI2CBus *bus)
                               "%s: DRAM write failed @%" PRIx64 "\n",
                               __func__, bus->dma_dram_offset);
                 return;
+            }
+
+            if (i == 0) {
+                aspeed_i2c_bus_latch_rx_len(bus, true, data);
             }
 
             bus->dma_dram_offset++;
