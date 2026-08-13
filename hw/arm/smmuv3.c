@@ -1428,6 +1428,62 @@ smmu_cmdq_stage2_supported(SMMUv3State *s, SMMUSecSID sec_sid)
     return true;
 }
 
+/* Check whether the selected IRQ_CFG register set is present. */
+static bool smmu_irq_cfg_present(SMMUv3State *s, SMMUSecSID sec_sid,
+                                 SMMUIrq irq)
+{
+    SMMUv3RegBank *bank = smmuv3_bank(s, SMMU_SEC_SID_NS);
+
+    switch (irq) {
+    case SMMU_IRQ_GERROR:
+        switch (sec_sid) {
+        case SMMU_SEC_SID_NS:
+        case SMMU_SEC_SID_S:
+            return FIELD_EX32(bank->idr[0], IDR0, MSI);
+        case SMMU_SEC_SID_NUM:
+            g_assert_not_reached();
+        }
+        break;
+    case SMMU_IRQ_EVTQ:
+    case SMMU_IRQ_PRIQ:
+    case SMMU_IRQ_CMD_SYNC:
+        g_assert_not_reached();
+    }
+
+    g_assert_not_reached();
+}
+
+/* Check whether the selected IRQ_CFG register set is writable. */
+static bool smmu_irq_cfg_writable(SMMUv3State *s, SMMUSecSID sec_sid,
+                                  SMMUIrq irq)
+{
+    SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
+    uint32_t irqen;
+
+    if (!smmu_irq_cfg_present(s, sec_sid, irq)) {
+        return false;
+    }
+
+    switch (irq) {
+    case SMMU_IRQ_GERROR:
+        irqen = FIELD_EX32(bank->irq_ctrl, IRQ_CTRL, GERROR_IRQEN);
+        break;
+    case SMMU_IRQ_EVTQ:
+    case SMMU_IRQ_PRIQ:
+    case SMMU_IRQ_CMD_SYNC:
+        g_assert_not_reached();
+    }
+
+    /* IRQ_CTRL and IRQ_CTRLACK share one synchronous backing field. */
+    return irqen == 0;
+}
+
+static bool
+smmu_gerror_irq_cfg_writable(SMMUv3State *s, SMMUSecSID sec_sid)
+{
+    return smmu_irq_cfg_writable(s, sec_sid, SMMU_IRQ_GERROR);
+}
+
 static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
 {
     SMMUState *bs = ARM_SMMU(s);
@@ -1735,7 +1791,14 @@ static MemTxResult smmu_writell(SMMUv3State *s, hwaddr offset,
 
     switch (offset) {
     case A_GERROR_IRQ_CFG0:
-        bank->gerror_irq_cfg0 = data;
+        if (!smmu_gerror_irq_cfg_writable(s, reg_sec_sid)) {
+            /* SMMU_(*_)_IRQ_CTRL.GERROR_IRQEN == 1: IGNORED this write */
+            qemu_log_mask(LOG_GUEST_ERROR, "GERROR_IRQ_CFG0 write ignored: "
+                         "register is RO when IRQ enabled\n");
+            return MEMTX_OK;
+        }
+
+        bank->gerror_irq_cfg0 = data & SMMU_GERROR_IRQ_CFG0_RESERVED;
         return MEMTX_OK;
     case A_STRTAB_BASE:
         bank->strtab_base = data;
@@ -1803,16 +1866,42 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         smmuv3_cmdq_consume(s, &local_err, reg_sec_sid);
         break;
     case A_GERROR_IRQ_CFG0: /* 64b */
+        if (!smmu_gerror_irq_cfg_writable(s, reg_sec_sid)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "GERROR_IRQ_CFG0 write ignored: "
+                          "register is RO when IRQ enabled\n");
+            return MEMTX_OK;
+        }
+
+        data &= SMMU_GERROR_IRQ_CFG0_RESERVED;
         bank->gerror_irq_cfg0 = deposit64(bank->gerror_irq_cfg0, 0, 32, data);
         break;
     case A_GERROR_IRQ_CFG0 + 4:
+        if (!smmu_gerror_irq_cfg_writable(s, reg_sec_sid)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "GERROR_IRQ_CFG0 + 4 write ignored: "
+                          "register is RO when IRQ enabled\n");
+            return MEMTX_OK;
+        }
+
+        data &= SMMU_GERROR_IRQ_CFG0_RESERVED >> 32;
         bank->gerror_irq_cfg0 = deposit64(bank->gerror_irq_cfg0, 32, 32, data);
         break;
     case A_GERROR_IRQ_CFG1:
+        if (!smmu_gerror_irq_cfg_writable(s, reg_sec_sid)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "GERROR_IRQ_CFG1 write ignored: "
+                          "register is RO when IRQ enabled\n");
+            return MEMTX_OK;
+        }
+
         bank->gerror_irq_cfg1 = data;
         break;
     case A_GERROR_IRQ_CFG2:
-        bank->gerror_irq_cfg2 = data;
+        if (!smmu_gerror_irq_cfg_writable(s, reg_sec_sid)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "GERROR_IRQ_CFG2 write ignored: "
+                          "register is RO when IRQ enabled\n");
+            return MEMTX_OK;
+        }
+
+        bank->gerror_irq_cfg2 = data & SMMU_GERROR_IRQ_CFG2_RESERVED;
         break;
     case A_GBPA:
         /*
@@ -1938,6 +2027,11 @@ static MemTxResult smmu_readll(SMMUv3State *s, hwaddr offset,
 
     switch (offset) {
     case A_GERROR_IRQ_CFG0:
+        if (!smmu_irq_cfg_present(s, reg_sec_sid, SMMU_IRQ_GERROR)) {
+            *data = 0; /* RES0 */
+            return MEMTX_OK;
+        }
+
         *data = bank->gerror_irq_cfg0;
         return MEMTX_OK;
     case A_STRTAB_BASE:
@@ -2006,15 +2100,35 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
         *data = bank->gerrorn;
         return MEMTX_OK;
     case A_GERROR_IRQ_CFG0: /* 64b */
+        if (!smmu_irq_cfg_present(s, reg_sec_sid, SMMU_IRQ_GERROR)) {
+            *data = 0; /* RES0 */
+            return MEMTX_OK;
+        }
+
         *data = extract64(bank->gerror_irq_cfg0, 0, 32);
         return MEMTX_OK;
     case A_GERROR_IRQ_CFG0 + 4:
+        if (!smmu_irq_cfg_present(s, reg_sec_sid, SMMU_IRQ_GERROR)) {
+            *data = 0; /* RES0 */
+            return MEMTX_OK;
+        }
+
         *data = extract64(bank->gerror_irq_cfg0, 32, 32);
         return MEMTX_OK;
     case A_GERROR_IRQ_CFG1:
+        if (!smmu_irq_cfg_present(s, reg_sec_sid, SMMU_IRQ_GERROR)) {
+            *data = 0; /* RES0 */
+            return MEMTX_OK;
+        }
+
         *data = bank->gerror_irq_cfg1;
         return MEMTX_OK;
     case A_GERROR_IRQ_CFG2:
+        if (!smmu_irq_cfg_present(s, reg_sec_sid, SMMU_IRQ_GERROR)) {
+            *data = 0; /* RES0 */
+            return MEMTX_OK;
+        }
+
         *data = bank->gerror_irq_cfg2;
         return MEMTX_OK;
     case A_STRTAB_BASE: /* 64b */
