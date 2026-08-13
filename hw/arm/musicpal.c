@@ -1200,13 +1200,18 @@ static const TypeInfo musicpal_key_info = {
 
 #define FLASH_SECTOR_SIZE   (64 * KiB)
 
-static struct arm_boot_info musicpal_binfo = {
-    .loader_start = 0x0,
-    .board_id = 0x20e,
+#define TYPE_MUSICPAL_MACHINE MACHINE_TYPE_NAME("musicpal")
+OBJECT_DECLARE_SIMPLE_TYPE(MusicPalMachineState, MUSICPAL_MACHINE)
+
+struct MusicPalMachineState {
+    MachineState parent;
+
+    struct arm_boot_info bootinfo;
 };
 
 static void musicpal_init(MachineState *machine)
 {
+    MusicPalMachineState *mpms = MUSICPAL_MACHINE(machine);
     ARMCPU *cpu;
     DeviceState *dev;
     DeviceState *pic;
@@ -1341,12 +1346,18 @@ static void musicpal_init(MachineState *machine)
     sysbus_mmio_map(s, 0, MP_AUDIO_BASE);
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(pic, MP_AUDIO_IRQ));
 
-    musicpal_binfo.ram_size = MP_RAM_DEFAULT_SIZE;
-    arm_load_kernel(cpu, machine, &musicpal_binfo);
+    mpms->bootinfo = (struct arm_boot_info) {
+        .loader_start = 0x0,
+        .board_id = 0x20e,
+        .ram_size = MP_RAM_DEFAULT_SIZE,
+    };
+    arm_load_kernel(cpu, machine, &mpms->bootinfo);
 }
 
-static void musicpal_machine_init(MachineClass *mc)
+static void musicpal_machine_class_init(ObjectClass *oc, const void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Marvell 88w8618 / MusicPal (ARM926EJ-S)";
     mc->init = musicpal_init;
     mc->ignore_memory_transaction_failures = true;
@@ -1357,7 +1368,13 @@ static void musicpal_machine_init(MachineClass *mc)
     machine_add_audiodev_property(mc);
 }
 
-DEFINE_MACHINE_ARM("musicpal", musicpal_machine_init)
+static const TypeInfo musicpal_machine_typeinfo = {
+    .name = TYPE_MUSICPAL_MACHINE,
+    .parent = TYPE_MACHINE,
+    .class_init = musicpal_machine_class_init,
+    .instance_size = sizeof(MusicPalMachineState),
+    .interfaces = arm_machine_interfaces,
+};
 
 static void mv88w8618_wlan_class_init(ObjectClass *klass, const void *data)
 {
@@ -1383,6 +1400,7 @@ static void musicpal_register_types(void)
     type_register_static(&musicpal_gpio_info);
     type_register_static(&musicpal_key_info);
     type_register_static(&musicpal_misc_info);
+    type_register_static(&musicpal_machine_typeinfo);
 }
 
 type_init(musicpal_register_types)
