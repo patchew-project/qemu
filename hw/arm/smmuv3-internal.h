@@ -41,7 +41,9 @@ typedef enum SMMUTranslationClass {
 
 static inline int smmu_enabled(SMMUv3State *s)
 {
-    return FIELD_EX32(s->cr[0], CR0, SMMUEN);
+    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
+    SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
+    return FIELD_EX32(bank->cr[0], CR0, SMMUEN);
 }
 
 /* Command Queue Entry */
@@ -69,12 +71,16 @@ static inline uint32_t smmuv3_idreg(int regoffset)
 
 static inline bool smmuv3_eventq_irq_enabled(SMMUv3State *s)
 {
-    return FIELD_EX32(s->irq_ctrl, IRQ_CTRL, EVENTQ_IRQEN);
+    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
+    SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
+    return FIELD_EX32(bank->irq_ctrl, IRQ_CTRL, EVENTQ_IRQEN);
 }
 
 static inline bool smmuv3_gerror_irq_enabled(SMMUv3State *s)
 {
-    return FIELD_EX32(s->irq_ctrl, IRQ_CTRL, GERROR_IRQEN);
+    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
+    SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
+    return FIELD_EX32(bank->irq_ctrl, IRQ_CTRL, GERROR_IRQEN);
 }
 
 /* Queue Handling */
@@ -119,17 +125,23 @@ static inline void queue_cons_incr(SMMUQueue *q)
 
 static inline bool smmuv3_cmdq_enabled(SMMUv3State *s)
 {
-    return FIELD_EX32(s->cr[0], CR0, CMDQEN);
+    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
+    SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
+    return FIELD_EX32(bank->cr[0], CR0, CMDQEN);
 }
 
 static inline bool smmuv3_eventq_enabled(SMMUv3State *s)
 {
-    return FIELD_EX32(s->cr[0], CR0, EVENTQEN);
+    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
+    SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
+    return FIELD_EX32(bank->cr[0], CR0, EVENTQEN);
 }
 
 static inline void smmu_write_cmdq_err(SMMUv3State *s, uint32_t err_type)
 {
-    s->cmdq.cons = FIELD_DP32(s->cmdq.cons, CMDQ_CONS, ERR, err_type);
+    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
+    SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
+    bank->cmdq.cons = FIELD_DP32(bank->cmdq.cons, CMDQ_CONS, ERR, err_type);
 }
 
 static const char *cmd_stringify[] = {

@@ -974,6 +974,7 @@ static void tegra241_cmdqv_init_regs(SMMUv3State *s, Tegra241CMDQV *cmdqv)
     int i;
     long pgsize;
     uint32_t val;
+    SMMUv3RegBank *bank = smmuv3_bank(s, SMMU_SEC_SID_NS);
 
     cmdqv->config = V_CONFIG_RESET;
     cmdqv->param = FIELD_DP32(0, PARAM, CMDQV_VER, CMDQV_VER);
@@ -1019,8 +1020,9 @@ static void tegra241_cmdqv_init_regs(SMMUv3State *s, Tegra241CMDQV *cmdqv)
     if (pgsize == LONG_MAX) {
         pgsize = qemu_real_host_page_size();
     }
-    val = FIELD_EX32(s->idr[1], IDR1, CMDQS);
-    s->idr[1] = FIELD_DP32(s->idr[1], IDR1, CMDQS, MIN(ctz64(pgsize) - 4, val));
+    val = FIELD_EX32(bank->idr[1], IDR1, CMDQS);
+    bank->idr[1] = FIELD_DP32(bank->idr[1], IDR1, CMDQS,
+                              MIN(ctz64(pgsize) - 4, val));
 }
 
 static void tegra241_cmdqv_reset(SMMUv3State *s)
