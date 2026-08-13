@@ -122,10 +122,25 @@ typedef struct VFIOMSIXInfo {
 
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOPCIDevice, VFIO_PCI_DEVICE)
 
+/*
+ * State for a CXL Type-2 device. The kernel owns the host physical placement
+ * of the device memory; QEMU only maps it at the guest physical address the
+ * guest commits into its endpoint HDM decoder.
+ */
+typedef struct VFIOCXL {
+    bool enabled;
+    uint32_t mem_region_index;       /* HPA-backed HDM memory VFIO region */
+    uint32_t comp_regs_region_index; /* trapped HDM decoder register block */
+    uint32_t comp_bar;               /* component BAR carrying that block */
+    uint64_t hdm_offset;             /* block offset within the component BAR */
+    uint64_t dpa_size;               /* size of the HDM memory region */
+} VFIOCXL;
+
 struct VFIOPCIDevice {
     PCIDevice parent_obj;
 
     VFIODevice vbasedev;
+    VFIOCXL cxl;
     VFIOINTx intx;
     unsigned int config_size;
     uint8_t *emulated_config_bits; /* QEMU emulated bits, little-endian */

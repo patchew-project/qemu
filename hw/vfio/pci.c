@@ -3570,6 +3570,60 @@ bool vfio_pci_interrupt_setup(VFIOPCIDevice *vdev, Error **errp)
     return true;
 }
 
+/*
+ * Learn the CXL geometry the kernel reports: the HPA-backed HDM memory region
+ * and the trapped HDM decoder block (which BAR carries it and at what offset).
+ * A non-CXL device leaves cxl.enabled false and takes no CXL paths.
+ */
+static bool vfio_cxl_setup(VFIOPCIDevice *vdev, Error **errp)
+{
+    VFIODevice *vbasedev = &vdev->vbasedev;
+    VFIOCXL *cxl = &vdev->cxl;
+    struct vfio_region_info *mem_info = NULL, *comp_info = NULL;
+    struct vfio_region_info_cap_cxl_comp_regs *cap;
+    struct vfio_info_cap_header *hdr;
+
+    if (!(vbasedev->flags & VFIO_DEVICE_FLAGS_CXL)) {
+        return true;
+    }
+
+    if (vfio_device_get_region_info_type(vbasedev, VFIO_REGION_TYPE_CXL,
+                                         VFIO_REGION_SUBTYPE_CXL_MEM,
+                                         &mem_info)) {
+        error_setg(errp, "vfio-cxl: %s: CXL memory region not found",
+                   vbasedev->name);
+        return false;
+    }
+
+    if (vfio_device_get_region_info_type(vbasedev, VFIO_REGION_TYPE_CXL,
+                                         VFIO_REGION_SUBTYPE_CXL_COMP_REGS,
+                                         &comp_info)) {
+        error_setg(errp,
+                   "vfio-cxl: %s: CXL component-register region not found",
+                   vbasedev->name);
+        return false;
+    }
+
+    hdr = vfio_get_region_info_cap(comp_info,
+                                   VFIO_REGION_INFO_CAP_CXL_COMP_REGS);
+    if (!hdr) {
+        error_setg(errp,
+                   "vfio-cxl: %s: component-register geometry not reported",
+                   vbasedev->name);
+        return false;
+    }
+    cap = container_of(hdr, struct vfio_region_info_cap_cxl_comp_regs, header);
+
+    cxl->mem_region_index = mem_info->index;
+    cxl->comp_regs_region_index = comp_info->index;
+    cxl->dpa_size = mem_info->size;
+    cxl->comp_bar = cap->bar;
+    cxl->hdm_offset = cap->offset;
+    cxl->enabled = true;
+
+    return true;
+}
+
 static void vfio_pci_realize(PCIDevice *pdev, Error **errp)
 {
     ERRP_GUARD();
@@ -3698,6 +3752,20 @@ static void vfio_pci_realize(PCIDevice *pdev, Error **errp)
         if (!vfio_migration_realize(vbasedev, errp)) {
             goto out_deregister;
         }
+    }
+
+    if (!vfio_cxl_setup(vdev, errp)) {
+        /*
+         * vfio_migration_realize() above installed a migration blocker in auto
+         * mode (generic vfio-pci exposes no migration ops). out_deregister does
+         * not remove it, so a rejected CXL setup would leave VM migration
+         * blocked until QEMU restarts. Drop it here, under the same
+         * failover-pair condition used to install it.
+         */
+        if (!pdev->failover_pair_id) {
+            vfio_migration_exit(vbasedev);
+        }
+        goto out_deregister;
     }
 
     vfio_pci_register_err_notifier(vdev);
