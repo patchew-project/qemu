@@ -30,6 +30,21 @@
 #include "hw/arm/smmu-common.h"
 #include "smmu-internal.h"
 
+AddressSpace *smmu_get_address_space(SMMUState *s, SMMUSecSID sec_sid)
+{
+    switch (sec_sid) {
+    case SMMU_SEC_SID_NS:
+        return &s->memory_as;
+    case SMMU_SEC_SID_S:
+        g_assert(s->secure_memory);
+        g_assert(s->secure_memory_as.root);
+        return &s->secure_memory_as;
+    case SMMU_SEC_SID_NUM:
+        g_assert_not_reached();
+    }
+    g_assert_not_reached();
+}
+
 /* IOTLB Management */
 
 static guint smmu_iotlb_key_hash(gconstpointer v)
