@@ -73,6 +73,23 @@ else
         _notrun 'Passwordless sudo for losetup or FUSE support required, but' \
                 'neither is available'
     fi
+
+    # Test to see if fuse is usable or not (permissions, etc.)
+    export_mp="$TEST_DIR/fuse-export"
+    touch "$export_mp"
+
+    response=$($QSD \
+        --blockdev null-co,node-name=export-node \
+        --export fuse,id=fuse-export,node-name=export-node,mountpoint="$export_mp",allow-other=off \
+        --pidfile "$TEST_DIR/qsd.pid" 2>&1)
+    if [[ $response = *"Failed to mount FUSE session to export"* ]]; then
+        _notrun 'FUSE support is not usable (permission error?)'
+    fi
+
+    if [ -f "$TEST_DIR/qsd.pid" ]; then
+        qsd_pid=$(cat "$TEST_DIR/qsd.pid")
+        kill -KILL "$qsd_pid"
+    fi
 fi
 
 echo
