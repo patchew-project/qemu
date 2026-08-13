@@ -20,6 +20,15 @@
 #include "qapi/error.h"
 #include <libfdt.h>
 
+#define TYPE_IMX8MM_EVK_MACHINE MACHINE_TYPE_NAME("imx8mm-evk")
+OBJECT_DECLARE_SIMPLE_TYPE(Imx8mmEvkMachineState, IMX8MM_EVK_MACHINE)
+
+struct Imx8mmEvkMachineState {
+    MachineState parent;
+
+    struct arm_boot_info bootinfo;
+};
+
 static void imx8mm_evk_modify_dtb(const struct arm_boot_info *info, void *fdt)
 {
     int i, offset;
@@ -60,7 +69,7 @@ static void imx8mm_evk_modify_dtb(const struct arm_boot_info *info, void *fdt)
 
 static void imx8mm_evk_init(MachineState *machine)
 {
-    static struct arm_boot_info boot_info;
+    Imx8mmEvkMachineState *ims = IMX8MM_EVK_MACHINE(machine);
     FslImx8mmState *s;
 
     if (machine->ram_size > FSL_IMX8MM_RAM_SIZE_MAX) {
@@ -69,7 +78,7 @@ static void imx8mm_evk_init(MachineState *machine)
         exit(1);
     }
 
-    boot_info = (struct arm_boot_info) {
+    ims->bootinfo = (struct arm_boot_info) {
         .loader_start = FSL_IMX8MM_RAM_START,
         .board_id = -1,
         .ram_size = machine->ram_size,
@@ -103,7 +112,7 @@ static void imx8mm_evk_init(MachineState *machine)
     }
 
     if (!qtest_enabled()) {
-        arm_load_kernel(&s->cpu[0], machine, &boot_info);
+        arm_load_kernel(&s->cpu[0], machine, &ims->bootinfo);
     }
 }
 
@@ -116,8 +125,10 @@ static const char *imx8mm_evk_get_default_cpu_type(const MachineState *ms)
     return ARM_CPU_TYPE_NAME("cortex-a53");
 }
 
-static void imx8mm_evk_machine_init(MachineClass *mc)
+static void imx8mm_evk_machine_class_init(ObjectClass *oc, const void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "NXP i.MX 8MM EVK Board";
     mc->init = imx8mm_evk_init;
     mc->max_cpus = FSL_IMX8MM_NUM_CPUS;
@@ -127,4 +138,17 @@ static void imx8mm_evk_machine_init(MachineClass *mc)
     mc->get_default_cpu_type = imx8mm_evk_get_default_cpu_type;
 }
 
-DEFINE_MACHINE_AARCH64("imx8mm-evk", imx8mm_evk_machine_init)
+static const TypeInfo imx8mm_evk_machine_typeinfo = {
+    .name = TYPE_IMX8MM_EVK_MACHINE,
+    .parent = TYPE_MACHINE,
+    .class_init = imx8mm_evk_machine_class_init,
+    .instance_size = sizeof(Imx8mmEvkMachineState),
+    .interfaces = aarch64_machine_interfaces,
+};
+
+static void imx8mm_evk_machine_register_types(void)
+{
+    type_register_static(&imx8mm_evk_machine_typeinfo);
+}
+
+type_init(imx8mm_evk_machine_register_types)
