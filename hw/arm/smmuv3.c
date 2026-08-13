@@ -293,6 +293,7 @@ void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *info)
 static void smmuv3_init_id_regs(SMMUv3State *s)
 {
     SMMUv3RegBank *bank = smmuv3_bank(s, SMMU_SEC_SID_NS);
+    SMMUv3RegBank *sbank = smmuv3_bank(s, SMMU_SEC_SID_S);
 
     /* Based on sys property, the stages supported in smmu will be advertised.*/
     if (s->stage && !strcmp("2", s->stage)) {
@@ -339,7 +340,14 @@ static void smmuv3_init_id_regs(SMMUv3State *s)
     bank->idr[5] = FIELD_DP32(bank->idr[5], IDR5, GRAN4K, 1);
     bank->idr[5] = FIELD_DP32(bank->idr[5], IDR5, GRAN16K, 1);
     bank->idr[5] = FIELD_DP32(bank->idr[5], IDR5, GRAN64K, 1);
-    s->aidr = 0x1;
+
+    /* Initialize Secure bank */
+    memset(sbank->idr, 0, sizeof(sbank->idr));
+    /* No stall */
+    sbank->idr[0] = FIELD_DP32(sbank->idr[0], S_IDR0, STALL_MODEL, 1);
+
+    sbank->idr[1] = FIELD_DP32(sbank->idr[1], S_IDR1, S_SIDSIZE,
+                               SMMU_IDR1_SIDSIZE);
     smmuv3_accel_idr_override(s);
 }
 
@@ -352,6 +360,7 @@ bool smmuv3_ats_enabled(SMMUv3State *s)
 static void smmuv3_reset(SMMUv3State *s)
 {
     SMMUv3RegBank *bank = smmuv3_bank(s, SMMU_SEC_SID_NS);
+    SMMUv3RegBank *sbank = smmuv3_bank(s, SMMU_SEC_SID_S);
 
     bank->cmdq.base = deposit64(bank->cmdq.base, 0, 5, SMMU_CMDQS);
     bank->cmdq.prod = 0;
@@ -370,6 +379,24 @@ static void smmuv3_reset(SMMUv3State *s)
     bank->gerror = 0;
     bank->gerrorn = 0;
     bank->gbpa = SMMU_GBPA_RESET_VAL;
+
+    sbank->cmdq.base = deposit64(sbank->cmdq.base, 0, 5, SMMU_CMDQS);
+    sbank->cmdq.prod = 0;
+    sbank->cmdq.cons = 0;
+    sbank->cmdq.entry_size = sizeof(struct Cmd);
+    sbank->eventq.base = deposit64(sbank->eventq.base, 0, 5, SMMU_EVENTQS);
+    sbank->eventq.prod = 0;
+    sbank->eventq.cons = 0;
+    sbank->eventq.entry_size = sizeof(struct Evt);
+
+    sbank->features = 0;
+    sbank->sid_split = 0;
+    sbank->cr[0] = 0;
+    sbank->cr0ack = 0;
+    sbank->irq_ctrl = 0;
+    sbank->gerror = 0;
+    sbank->gerrorn = 0;
+    sbank->gbpa = SMMU_GBPA_RESET_VAL;
 
     s->aidr = 0x1;
     s->statusr = 0;
