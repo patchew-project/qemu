@@ -88,3 +88,4 @@ config ACPI_ERST
 config ACPI_CXL
     bool
     depends on ACPI
+    select ACPI_PCI
