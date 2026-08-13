@@ -394,7 +394,8 @@ static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
                                                  SMMUEventInfo *event,
                                                  IOMMUAccessFlags flag,
                                                  SMMUTLBEntry **out_entry,
-                                                 SMMUTranslationClass class);
+                                                 SMMUTranslationClass class,
+                                                 SMMUSecSID sec_sid);
 /* @ssid > 0 not supported yet */
 static int smmu_get_cd(SMMUv3State *s, STE *ste, SMMUTransCfg *cfg,
                        uint32_t ssid, CD *buf, SMMUEventInfo *event,
@@ -411,7 +412,7 @@ static int smmu_get_cd(SMMUv3State *s, STE *ste, SMMUTransCfg *cfg,
 
     if (cfg->stage == SMMU_NESTED) {
         status = smmuv3_do_translate(s, addr, cfg, event,
-                                     IOMMU_RO, &entry, SMMU_CLASS_CD);
+                                     IOMMU_RO, &entry, SMMU_CLASS_CD, sec_sid);
 
         /* Same PTW faults are reported but with CLASS = CD. */
         if (status != SMMU_TRANS_SUCCESS) {
@@ -796,7 +797,7 @@ int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste, SMMUEventInfo *event,
 }
 
 static int decode_cd(SMMUv3State *s, SMMUTransCfg *cfg,
-                     CD *cd, SMMUEventInfo *event)
+                     CD *cd, SMMUEventInfo *event, SMMUSecSID sec_sid)
 {
     int ret = -EINVAL;
     int i;
@@ -869,7 +870,7 @@ static int decode_cd(SMMUv3State *s, SMMUTransCfg *cfg,
         /* Translate the TTBx, from IPA to PA if nesting is enabled. */
         if (cfg->stage == SMMU_NESTED) {
             status = smmuv3_do_translate(s, tt->ttb, cfg, event, IOMMU_RO,
-                                         &entry, SMMU_CLASS_TT);
+                                         &entry, SMMU_CLASS_TT, sec_sid);
             /*
              * Same PTW faults are reported but with CLASS = TT.
              * If TTBx is larger than the effective stage 1 output addres
@@ -939,7 +940,7 @@ static int smmuv3_decode_config(IOMMUMemoryRegion *mr, SMMUTransCfg *cfg,
         return ret;
     }
 
-    return decode_cd(s, cfg, &cd, event);
+    return decode_cd(s, cfg, &cd, event, sec_sid);
 }
 
 /**
@@ -1004,7 +1005,8 @@ static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
                                                  SMMUEventInfo *event,
                                                  IOMMUAccessFlags flag,
                                                  SMMUTLBEntry **out_entry,
-                                                 SMMUTranslationClass class)
+                                                 SMMUTranslationClass class,
+                                                 SMMUSecSID sec_sid)
 {
     SMMUPTWEventInfo ptw_info = {};
     SMMUState *bs = ARM_SMMU(s);
@@ -1030,7 +1032,7 @@ static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
         cfg->stage = SMMU_STAGE_2;
     }
 
-    cached_entry = smmu_translate(bs, cfg, addr, flag, &ptw_info);
+    cached_entry = smmu_translate(bs, cfg, addr, flag, &ptw_info, sec_sid);
 
     if (desc_s2_translation) {
         cfg->asid = asid;
@@ -1176,13 +1178,14 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     }
 
     status = smmuv3_do_translate(s, addr, cfg, &event, flag,
-                                 &cached_entry, SMMU_CLASS_IN);
+                                 &cached_entry, SMMU_CLASS_IN, sec_sid);
 
 epilogue:
     qemu_mutex_unlock(&s->mutex);
     switch (status) {
     case SMMU_TRANS_SUCCESS:
         entry.perm = cached_entry->entry.perm;
+        entry.target_as = cached_entry->entry.target_as;
         entry.translated_addr = CACHED_ENTRY_TO_ADDR(cached_entry, addr);
         entry.addr_mask = cached_entry->entry.addr_mask;
         trace_smmuv3_translate_success(mr->parent_obj.name, sid, addr,
