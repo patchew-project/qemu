@@ -40,6 +40,12 @@
 #define CACHED_ENTRY_TO_ADDR(ent, addr)      ((ent)->entry.translated_addr + \
                                              ((addr) & (ent)->entry.addr_mask))
 
+/* StreamID Security state */
+typedef enum SMMUSecSID {
+    SMMU_SEC_SID_NS = 0,
+    SMMU_SEC_SID_NUM,
+} SMMUSecSID;
+
 /*
  * Page table walk error types
  */
