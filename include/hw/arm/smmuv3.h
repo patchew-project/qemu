@@ -115,6 +115,7 @@ OBJECT_DECLARE_TYPE(SMMUv3State, SMMUv3Class, ARM_SMMUV3)
 
 static inline SMMUv3RegBank *smmuv3_bank(SMMUv3State *s, SMMUSecSID sec_sid)
 {
+    g_assert(sec_sid < SMMU_SEC_SID_NUM);
     return &s->bank[sec_sid];
 }
 

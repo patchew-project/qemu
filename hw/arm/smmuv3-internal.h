@@ -274,6 +274,7 @@ static inline const char *smmu_event_string(SMMUEventType type)
 
 /*  Encode an event record */
 typedef struct SMMUEventInfo {
+    SMMUSecSID sec_sid;
     SMMUEventType type;
     uint32_t sid;
     bool recorded;
@@ -365,7 +366,7 @@ typedef struct SMMUEventInfo {
 #define EVT_GET_SID(x)   ((x)->word[1])
 
 void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *event);
-void smmuv3_propagate_event(SMMUv3State *s, Evt *evt);
+void smmuv3_propagate_event(SMMUv3State *s, Evt *evt, SMMUSecSID sec_sid);
 int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste, SMMUEventInfo *event);
 
 #define STE_SIZE 6
