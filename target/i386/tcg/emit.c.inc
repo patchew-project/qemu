@@ -352,6 +352,10 @@ static void gen_writeback(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv
         }
         break;
     case X86_OP_MMX:
+        if (!op->has_ea) {
+            tcg_gen_st16_i32(tcg_constant_i32(0xffff), tcg_env,
+                             offsetof(CPUX86State, fpregs[op->n].d.high));
+        }
         break;
     case X86_OP_SSE:
         if (!op->has_ea && (s->prefix & PREFIX_VEX) && op->ot <= MO_128) {
