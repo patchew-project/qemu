@@ -350,6 +350,7 @@ static void smmuv3_init_id_regs(SMMUv3State *s)
                                SMMU_IDR1_SIDSIZE);
     sbank->idr[1] = FIELD_DP32(sbank->idr[1], S_IDR1, SECURE_IMPL,
                                s->secure_impl == ON_OFF_AUTO_ON);
+    sbank->idr[1] = FIELD_DP32(sbank->idr[1], S_IDR1, SEL2, 1);
     smmuv3_accel_idr_override(s);
 }
 
@@ -400,7 +401,7 @@ static void smmuv3_reset(SMMUv3State *s)
     sbank->gerrorn = 0;
     sbank->gbpa = SMMU_GBPA_RESET_VAL;
 
-    s->aidr = 0x1;
+    s->aidr = 0x2; /* SMMUv3.2 */
     s->statusr = 0;
 }
 
