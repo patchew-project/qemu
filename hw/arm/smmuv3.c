@@ -1889,9 +1889,9 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
 }
 
 static MemTxResult smmu_writell(SMMUv3State *s, hwaddr offset,
-                               uint64_t data, MemTxAttrs attrs)
+                                uint64_t data, MemTxAttrs attrs,
+                                SMMUSecSID reg_sec_sid)
 {
-    SMMUSecSID reg_sec_sid = SMMU_SEC_SID_NS;
     SMMUv3RegBank *bank = smmuv3_bank(s, reg_sec_sid);
 
     switch (offset) {
@@ -1959,10 +1959,10 @@ static MemTxResult smmu_writell(SMMUv3State *s, hwaddr offset,
 }
 
 static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
-                               uint64_t data, MemTxAttrs attrs)
+                               uint64_t data, MemTxAttrs attrs,
+                               SMMUSecSID reg_sec_sid)
 {
     Error *local_err = NULL;
-    SMMUSecSID reg_sec_sid = SMMU_SEC_SID_NS;
     SMMUv3RegBank *bank = smmuv3_bank(s, reg_sec_sid);
 
     switch (offset) {
@@ -2223,16 +2223,26 @@ static MemTxResult smmu_write_mmio(void *opaque, hwaddr offset, uint64_t data,
     SMMUState *sys = opaque;
     SMMUv3State *s = ARM_SMMUV3(sys);
     MemTxResult r;
+    SMMUSecSID reg_sec_sid = SMMU_SEC_SID_NS;
 
     /* CONSTRAINED UNPREDICTABLE choice to have page0/1 be exact aliases */
     offset &= ~0x10000;
 
+    /*
+     * Dispatch the Non-secure window directly. After access validation,
+     * translate the Secure window to its bank-local register offsets.
+     */
+    if (offset >= SMMU_SECURE_REG_START) {
+        reg_sec_sid = SMMU_SEC_SID_S;
+        offset -= SMMU_SECURE_REG_START;
+    }
+
     switch (size) {
     case 8:
-        r = smmu_writell(s, offset, data, attrs);
+        r = smmu_writell(s, offset, data, attrs, reg_sec_sid);
         break;
     case 4:
-        r = smmu_writel(s, offset, data, attrs);
+        r = smmu_writel(s, offset, data, attrs, reg_sec_sid);
         break;
     default:
         r = MEMTX_ERROR;
@@ -2244,9 +2254,9 @@ static MemTxResult smmu_write_mmio(void *opaque, hwaddr offset, uint64_t data,
 }
 
 static MemTxResult smmu_readll(SMMUv3State *s, hwaddr offset,
-                               uint64_t *data, MemTxAttrs attrs)
+                               uint64_t *data, MemTxAttrs attrs,
+                               SMMUSecSID reg_sec_sid)
 {
-    SMMUSecSID reg_sec_sid = SMMU_SEC_SID_NS;
     SMMUv3RegBank *bank = smmuv3_bank(s, reg_sec_sid);
 
     switch (offset) {
@@ -2285,9 +2295,9 @@ static MemTxResult smmu_readll(SMMUv3State *s, hwaddr offset,
 }
 
 static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
-                              uint64_t *data, MemTxAttrs attrs)
+                              uint64_t *data, MemTxAttrs attrs,
+                              SMMUSecSID reg_sec_sid)
 {
-    SMMUSecSID reg_sec_sid = SMMU_SEC_SID_NS;
     SMMUv3RegBank *bank = smmuv3_bank(s, reg_sec_sid);
 
     switch (offset) {
@@ -2295,6 +2305,10 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
         *data = smmuv3_idreg(offset - A_IDREGS);
         return MEMTX_OK;
     case A_IDR0 ... A_IDR5:
+        /* IDR5 does not support Secure or Realm state. */
+        if ((reg_sec_sid != SMMU_SEC_SID_NS) && (offset == A_IDR5)) {
+            goto unhandled;
+        }
         *data = bank->idr[(offset - A_IDR0) / 4];
         return MEMTX_OK;
     case A_IIDR:
@@ -2429,6 +2443,7 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
         *data = bank->eventq_irq_cfg2;
         return MEMTX_OK;
     default:
+    unhandled:
         *data = 0;
         qemu_log_mask(LOG_UNIMP,
                       "%s unhandled 32-bit access at 0x%"PRIx64" (RAZ)\n",
@@ -2443,16 +2458,21 @@ static MemTxResult smmu_read_mmio(void *opaque, hwaddr offset, uint64_t *data,
     SMMUState *sys = opaque;
     SMMUv3State *s = ARM_SMMUV3(sys);
     MemTxResult r;
+    SMMUSecSID reg_sec_sid = SMMU_SEC_SID_NS;
 
     /* CONSTRAINED UNPREDICTABLE choice to have page0/1 be exact aliases */
     offset &= ~0x10000;
+    if (offset >= SMMU_SECURE_REG_START) {
+        reg_sec_sid = SMMU_SEC_SID_S;
+        offset -= SMMU_SECURE_REG_START;
+    }
 
     switch (size) {
     case 8:
-        r = smmu_readll(s, offset, data, attrs);
+        r = smmu_readll(s, offset, data, attrs, reg_sec_sid);
         break;
     case 4:
-        r = smmu_readl(s, offset, data, attrs);
+        r = smmu_readl(s, offset, data, attrs, reg_sec_sid);
         break;
     default:
         r = MEMTX_ERROR;
