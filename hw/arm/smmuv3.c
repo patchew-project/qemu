@@ -597,7 +597,7 @@ static void decode_ste_config(SMMUTransCfg *cfg, uint32_t config)
 
 /* Returns < 0 in case of invalid STE, 0 otherwise */
 static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
-                      STE *ste, SMMUEventInfo *event)
+                      STE *ste, SMMUEventInfo *event, SMMUSecSID sec_sid)
 {
     uint32_t config;
     /* OAS field only presents on NS-IDR5 so we use hardcoded SMMU_SEC_SID_NS */
@@ -649,6 +649,14 @@ static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
         cfg->oas = oas2bits(oas);
         ret = decode_ste_s2_cfg(s, cfg, ste);
         if (ret) {
+            goto bad_ste;
+        }
+
+        /*
+         * It is ILLEGAL to set STE.Config == 0b11x according to (IHI 0070G.b)
+         * 5.2 STE, Stream Table Entry, Page 218.
+         */
+        if (sec_sid == SMMU_SEC_SID_S) {
             goto bad_ste;
         }
     }
@@ -916,7 +924,7 @@ static int smmuv3_decode_config(IOMMUMemoryRegion *mr, SMMUTransCfg *cfg,
         return ret;
     }
 
-    ret = decode_ste(s, cfg, &ste, event);
+    ret = decode_ste(s, cfg, &ste, event, sec_sid);
     if (ret) {
         return ret;
     }
