@@ -95,7 +95,7 @@ static guint smmu_iotlb_key_hash(gconstpointer v)
 
     /* Jenkins hash */
     a = b = c = JHASH_INITVAL + sizeof(*key);
-    a += key->asid + key->vmid + key->level + key->tg;
+    a += key->asid + key->vmid + key->level + key->tg + key->sec_sid;
     b += extract64(key->iova, 0, 32);
     c += extract64(key->iova, 32, 32);
 
@@ -111,14 +111,15 @@ static gboolean smmu_iotlb_key_equal(gconstpointer v1, gconstpointer v2)
 
     return (k1->asid == k2->asid) && (k1->iova == k2->iova) &&
            (k1->level == k2->level) && (k1->tg == k2->tg) &&
-           (k1->vmid == k2->vmid);
+           (k1->vmid == k2->vmid) && (k1->sec_sid == k2->sec_sid);
 }
 
 SMMUIOTLBKey smmu_get_iotlb_key(int asid, int vmid, uint64_t iova,
-                                uint8_t tg, uint8_t level)
+                                uint8_t tg, uint8_t level,
+                                SMMUSecSID sec_sid)
 {
     SMMUIOTLBKey key = {.asid = asid, .vmid = vmid, .iova = iova,
-                        .tg = tg, .level = level};
+                        .tg = tg, .level = level, .sec_sid = sec_sid};
 
     return key;
 }
@@ -126,7 +127,8 @@ SMMUIOTLBKey smmu_get_iotlb_key(int asid, int vmid, uint64_t iova,
 static SMMUTLBEntry *smmu_iotlb_lookup_all_levels(SMMUState *bs,
                                                   SMMUTransCfg *cfg,
                                                   SMMUTransTableInfo *tt,
-                                                  hwaddr iova)
+                                                  hwaddr iova,
+                                                  SMMUSecSID sec_sid)
 {
     uint8_t tg = (tt->granule_sz - 10) / 2;
     uint8_t inputsize = 64 - tt->tsz;
@@ -140,7 +142,7 @@ static SMMUTLBEntry *smmu_iotlb_lookup_all_levels(SMMUState *bs,
         SMMUIOTLBKey key;
 
         key = smmu_get_iotlb_key(cfg->asid, cfg->s2cfg.vmid,
-                                 iova & ~mask, tg, level);
+                                 iova & ~mask, tg, level, sec_sid);
         entry = g_hash_table_lookup(bs->iotlb, &key);
         if (entry) {
             break;
@@ -156,6 +158,7 @@ static SMMUTLBEntry *smmu_iotlb_lookup_all_levels(SMMUState *bs,
  * @cfg: Configuration of the translation
  * @tt: Translation table info (granule and tsz)
  * @iova: IOVA address to lookup
+ * @sec_sid: StreamID Security state
  *
  * returns a valid entry on success, otherwise NULL.
  * In case of nested translation, tt can be updated to include
@@ -163,11 +166,12 @@ static SMMUTLBEntry *smmu_iotlb_lookup_all_levels(SMMUState *bs,
  * the IOVA granule.
  */
 SMMUTLBEntry *smmu_iotlb_lookup(SMMUState *bs, SMMUTransCfg *cfg,
-                                SMMUTransTableInfo *tt, hwaddr iova)
+                                SMMUTransTableInfo *tt, hwaddr iova,
+                                SMMUSecSID sec_sid)
 {
     SMMUTLBEntry *entry = NULL;
 
-    entry = smmu_iotlb_lookup_all_levels(bs, cfg, tt, iova);
+    entry = smmu_iotlb_lookup_all_levels(bs, cfg, tt, iova, sec_sid);
     /*
      * For nested translation also try the s2 granule, as the TLB will insert
      * it if the size of s2 tlb entry was smaller.
@@ -175,18 +179,20 @@ SMMUTLBEntry *smmu_iotlb_lookup(SMMUState *bs, SMMUTransCfg *cfg,
     if (!entry && (cfg->stage == SMMU_NESTED) &&
         (cfg->s2cfg.granule_sz != tt->granule_sz)) {
         tt->granule_sz = cfg->s2cfg.granule_sz;
-        entry = smmu_iotlb_lookup_all_levels(bs, cfg, tt, iova);
+        entry = smmu_iotlb_lookup_all_levels(bs, cfg, tt, iova, sec_sid);
     }
 
     if (entry) {
         cfg->iotlb_hits++;
-        trace_smmu_iotlb_lookup_hit(cfg->asid, cfg->s2cfg.vmid, iova,
+        trace_smmu_iotlb_lookup_hit(sec_sid, cfg->asid,
+                                    cfg->s2cfg.vmid, iova,
                                     cfg->iotlb_hits, cfg->iotlb_misses,
                                     100 * cfg->iotlb_hits /
                                     (cfg->iotlb_hits + cfg->iotlb_misses));
     } else {
         cfg->iotlb_misses++;
-        trace_smmu_iotlb_lookup_miss(cfg->asid, cfg->s2cfg.vmid, iova,
+        trace_smmu_iotlb_lookup_miss(sec_sid, cfg->asid,
+                                     cfg->s2cfg.vmid, iova,
                                      cfg->iotlb_hits, cfg->iotlb_misses,
                                      100 * cfg->iotlb_hits /
                                      (cfg->iotlb_hits + cfg->iotlb_misses));
@@ -194,7 +200,8 @@ SMMUTLBEntry *smmu_iotlb_lookup(SMMUState *bs, SMMUTransCfg *cfg,
     return entry;
 }
 
-void smmu_iotlb_insert(SMMUState *bs, SMMUTransCfg *cfg, SMMUTLBEntry *new)
+void smmu_iotlb_insert(SMMUState *bs, SMMUTransCfg *cfg, SMMUTLBEntry *new,
+                       SMMUSecSID sec_sid)
 {
     SMMUIOTLBKey *key = g_new0(SMMUIOTLBKey, 1);
     uint8_t tg = (new->granule - 10) / 2;
@@ -204,9 +211,9 @@ void smmu_iotlb_insert(SMMUState *bs, SMMUTransCfg *cfg, SMMUTLBEntry *new)
     }
 
     *key = smmu_get_iotlb_key(cfg->asid, cfg->s2cfg.vmid, new->entry.iova,
-                              tg, new->level);
-    trace_smmu_iotlb_insert(cfg->asid, cfg->s2cfg.vmid, new->entry.iova,
-                            tg, new->level);
+                              tg, new->level, sec_sid);
+    trace_smmu_iotlb_insert(sec_sid, cfg->asid, cfg->s2cfg.vmid,
+                            new->entry.iova, tg, new->level);
     g_hash_table_insert(bs->iotlb, key, new);
 }
 
@@ -223,26 +230,29 @@ static gboolean smmu_hash_remove_by_asid_vmid(gpointer key, gpointer value,
     SMMUIOTLBKey *iotlb_key = (SMMUIOTLBKey *)key;
 
     return (SMMU_IOTLB_ASID(*iotlb_key) == info->asid) &&
-           (SMMU_IOTLB_VMID(*iotlb_key) == info->vmid);
+           (SMMU_IOTLB_VMID(*iotlb_key) == info->vmid) &&
+           (SMMU_IOTLB_SEC_SID(*iotlb_key) == info->sec_sid);
 }
 
 static gboolean smmu_hash_remove_by_vmid(gpointer key, gpointer value,
                                          gpointer user_data)
 {
-    int vmid = *(int *)user_data;
+    SMMUIOTLBPageInvInfo *info = (SMMUIOTLBPageInvInfo *)user_data;
     SMMUIOTLBKey *iotlb_key = (SMMUIOTLBKey *)key;
 
-    return SMMU_IOTLB_VMID(*iotlb_key) == vmid;
+    return (SMMU_IOTLB_VMID(*iotlb_key) == info->vmid) &&
+           (SMMU_IOTLB_SEC_SID(*iotlb_key) == info->sec_sid);
 }
 
 static gboolean smmu_hash_remove_by_vmid_s1(gpointer key, gpointer value,
                                             gpointer user_data)
 {
-    int vmid = *(int *)user_data;
+    SMMUIOTLBPageInvInfo *info = (SMMUIOTLBPageInvInfo *)user_data;
     SMMUIOTLBKey *iotlb_key = (SMMUIOTLBKey *)key;
 
-    return (SMMU_IOTLB_VMID(*iotlb_key) == vmid) &&
-           (SMMU_IOTLB_ASID(*iotlb_key) >= 0);
+    return (SMMU_IOTLB_VMID(*iotlb_key) == info->vmid) &&
+           (SMMU_IOTLB_ASID(*iotlb_key) >= 0) &&
+           (SMMU_IOTLB_SEC_SID(*iotlb_key) == info->sec_sid);
 }
 
 static gboolean smmu_hash_remove_by_asid_vmid_iova(gpointer key, gpointer value,
@@ -257,6 +267,9 @@ static gboolean smmu_hash_remove_by_asid_vmid_iova(gpointer key, gpointer value,
         return false;
     }
     if (info->vmid >= 0 && info->vmid != SMMU_IOTLB_VMID(iotlb_key)) {
+        return false;
+    }
+    if (info->sec_sid != SMMU_IOTLB_SEC_SID(iotlb_key)) {
         return false;
     }
     return ((info->iova & ~entry->addr_mask) == entry->iova) ||
@@ -276,6 +289,9 @@ static gboolean smmu_hash_remove_by_vmid_ipa(gpointer key, gpointer value,
         return false;
     }
     if (info->vmid != SMMU_IOTLB_VMID(iotlb_key)) {
+        return false;
+    }
+    if (info->sec_sid != SMMU_IOTLB_SEC_SID(iotlb_key)) {
         return false;
     }
     return ((info->iova & ~entry->addr_mask) == entry->iova) ||
@@ -323,13 +339,17 @@ void smmu_configs_inv_sdev(SMMUState *s, SMMUDevice *sdev)
 }
 
 void smmu_iotlb_inv_iova(SMMUState *s, int asid, int vmid, dma_addr_t iova,
-                         uint8_t tg, uint64_t num_pages, uint8_t ttl)
+                         uint8_t tg, uint64_t num_pages, uint8_t ttl,
+                         SMMUSecSID sec_sid)
 {
     /* if tg is not set we use 4KB range invalidation */
     uint8_t granule = tg ? tg * 2 + 10 : 12;
 
+    trace_smmu_iotlb_inv_iova(sec_sid, asid, iova);
+
     if (ttl && (num_pages == 1) && (asid >= 0)) {
-        SMMUIOTLBKey key = smmu_get_iotlb_key(asid, vmid, iova, tg, ttl);
+        SMMUIOTLBKey key = smmu_get_iotlb_key(asid, vmid, iova,
+                                              tg, ttl, sec_sid);
 
         if (g_hash_table_remove(s->iotlb, &key)) {
             return;
@@ -343,7 +363,8 @@ void smmu_iotlb_inv_iova(SMMUState *s, int asid, int vmid, dma_addr_t iova,
     SMMUIOTLBPageInvInfo info = {
         .asid = asid, .iova = iova,
         .vmid = vmid,
-        .mask = (num_pages * 1 << granule) - 1};
+        .mask = (num_pages * 1 << granule) - 1,
+        .sec_sid = sec_sid};
 
     g_hash_table_foreach_remove(s->iotlb,
                                 smmu_hash_remove_by_asid_vmid_iova,
@@ -355,13 +376,15 @@ void smmu_iotlb_inv_iova(SMMUState *s, int asid, int vmid, dma_addr_t iova,
  * in Stage-1 invalidation ASID = -1, means don't care.
  */
 void smmu_iotlb_inv_ipa(SMMUState *s, int vmid, dma_addr_t ipa, uint8_t tg,
-                        uint64_t num_pages, uint8_t ttl)
+                        uint64_t num_pages, uint8_t ttl,
+                        SMMUSecSID sec_sid)
 {
     uint8_t granule = tg ? tg * 2 + 10 : 12;
     int asid = -1;
 
    if (ttl && (num_pages == 1)) {
-        SMMUIOTLBKey key = smmu_get_iotlb_key(asid, vmid, ipa, tg, ttl);
+        SMMUIOTLBKey key = smmu_get_iotlb_key(asid, vmid, ipa,
+                                              tg, ttl, sec_sid);
 
         if (g_hash_table_remove(s->iotlb, &key)) {
             return;
@@ -371,34 +394,47 @@ void smmu_iotlb_inv_ipa(SMMUState *s, int vmid, dma_addr_t ipa, uint8_t tg,
     SMMUIOTLBPageInvInfo info = {
         .iova = ipa,
         .vmid = vmid,
-        .mask = (num_pages << granule) - 1};
+        .mask = (num_pages << granule) - 1,
+        .sec_sid = sec_sid};
 
     g_hash_table_foreach_remove(s->iotlb,
                                 smmu_hash_remove_by_vmid_ipa,
                                 &info);
 }
 
-void smmu_iotlb_inv_asid_vmid(SMMUState *s, int asid, int vmid)
+void smmu_iotlb_inv_asid_vmid(SMMUState *s, int asid, int vmid,
+                              SMMUSecSID sec_sid)
 {
     SMMUIOTLBPageInvInfo info = {
         .asid = asid,
         .vmid = vmid,
+        .sec_sid = sec_sid,
     };
 
-    trace_smmu_iotlb_inv_asid_vmid(asid, vmid);
+    trace_smmu_iotlb_inv_asid_vmid(sec_sid, asid, vmid);
     g_hash_table_foreach_remove(s->iotlb, smmu_hash_remove_by_asid_vmid, &info);
 }
 
-void smmu_iotlb_inv_vmid(SMMUState *s, int vmid)
+void smmu_iotlb_inv_vmid(SMMUState *s, int vmid, SMMUSecSID sec_sid)
 {
-    trace_smmu_iotlb_inv_vmid(vmid);
-    g_hash_table_foreach_remove(s->iotlb, smmu_hash_remove_by_vmid, &vmid);
+    SMMUIOTLBPageInvInfo info = {
+        .vmid = vmid,
+        .sec_sid = sec_sid,
+    };
+
+    trace_smmu_iotlb_inv_vmid(sec_sid, vmid);
+    g_hash_table_foreach_remove(s->iotlb, smmu_hash_remove_by_vmid, &info);
 }
 
-void smmu_iotlb_inv_vmid_s1(SMMUState *s, int vmid)
+void smmu_iotlb_inv_vmid_s1(SMMUState *s, int vmid, SMMUSecSID sec_sid)
 {
-    trace_smmu_iotlb_inv_vmid_s1(vmid);
-    g_hash_table_foreach_remove(s->iotlb, smmu_hash_remove_by_vmid_s1, &vmid);
+    SMMUIOTLBPageInvInfo info = {
+        .vmid = vmid,
+        .sec_sid = sec_sid,
+    };
+
+    trace_smmu_iotlb_inv_vmid_s1(sec_sid, vmid);
+    g_hash_table_foreach_remove(s->iotlb, smmu_hash_remove_by_vmid_s1, &info);
 }
 
 /* VMSAv8-64 Translation */
@@ -919,7 +955,7 @@ SMMUTLBEntry *smmu_translate(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t addr,
         tt_combined.tsz = tt->tsz;
     }
 
-    cached_entry = smmu_iotlb_lookup(bs, cfg, &tt_combined, addr);
+    cached_entry = smmu_iotlb_lookup(bs, cfg, &tt_combined, addr, sec_sid);
     if (cached_entry) {
         if ((flag & IOMMU_WO) && !(cached_entry->entry.perm &
             cached_entry->parent_perm & IOMMU_WO)) {
@@ -938,7 +974,7 @@ SMMUTLBEntry *smmu_translate(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t addr,
             g_free(cached_entry);
             return NULL;
     }
-    smmu_iotlb_insert(bs, cfg, cached_entry);
+    smmu_iotlb_insert(bs, cfg, cached_entry, sec_sid);
     return cached_entry;
 }
 
