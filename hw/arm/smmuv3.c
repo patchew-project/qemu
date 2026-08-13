@@ -43,6 +43,12 @@
                                         ((ptw_info).stage == SMMU_STAGE_2 && \
                                         (cfg)->s2cfg.record_faults))
 
+enum {
+    SMMU_IOMMU_IDX_NS,
+    SMMU_IOMMU_IDX_S,
+    SMMU_IOMMU_IDX_NUM,
+};
+
 /**
  * smmuv3_trigger_irq - pulse @irq if enabled and update
  * GERROR register in case of GERROR interrupt
@@ -1157,6 +1163,33 @@ static void smmuv3_fixup_event(SMMUEventInfo *event, hwaddr iova)
     }
 }
 
+static int smmuv3_attrs_to_index(IOMMUMemoryRegion *iommu, MemTxAttrs attrs)
+{
+    if (attrs.unspecified) {
+        return SMMU_IOMMU_IDX_NS;
+    }
+    return attrs.secure ? SMMU_IOMMU_IDX_S : SMMU_IOMMU_IDX_NS;
+}
+
+static int smmuv3_num_indexes(IOMMUMemoryRegion *iommu)
+{
+    return SMMU_IOMMU_IDX_NUM;
+}
+
+static AddressSpace *smmuv3_bypass_target_as(SMMUv3State *s,
+                                             SMMUSecSID sec_sid,
+                                             int iommu_idx)
+{
+    g_assert(iommu_idx >= SMMU_IOMMU_IDX_NS &&
+             iommu_idx < SMMU_IOMMU_IDX_NUM);
+
+    if (smmu_sec_sid_is_secure(sec_sid) &&
+        iommu_idx == SMMU_IOMMU_IDX_S) {
+        return smmu_get_address_space(&s->smmu_state, SMMU_SEC_SID_S);
+    }
+    return smmu_get_address_space(&s->smmu_state, SMMU_SEC_SID_NS);
+}
+
 /* Entry point to SMMU, does everything. */
 static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
                                       IOMMUAccessFlags flag, int iommu_idx)
@@ -1164,7 +1197,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
     SMMUv3State *s = sdev->smmu;
     uint32_t sid = smmu_get_sid(sdev);
-    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
+    SMMUSecSID sec_sid = sdev->sec_sid;
     SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
     SMMUEventInfo event = {.type = SMMU_EVT_NONE,
                            .sid = sid,
@@ -1180,6 +1213,8 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
         .perm = IOMMU_NONE,
     };
     SMMUTLBEntry *cached_entry = NULL;
+
+    entry.target_as = smmuv3_bypass_target_as(s, sec_sid, iommu_idx);
 
     qemu_mutex_lock(&s->mutex);
 
@@ -1609,6 +1644,26 @@ static bool smmu_eventq_irq_cfg_writable(SMMUv3State *s, SMMUSecSID sec_sid)
 static inline bool smmu_hw_secure_implemented(SMMUv3State *s)
 {
     return FIELD_EX32(s->bank[SMMU_SEC_SID_S].idr[1], S_IDR1, SECURE_IMPL);
+}
+
+static bool smmuv3_validate_sec_sid(SMMUState *bs, SMMUDevice *sdev,
+                                    int bus_num)
+{
+    SMMUv3State *s = ARM_SMMUV3(bs);
+
+    if (sdev->sec_sid != SMMU_SEC_SID_S) {
+        return true;
+    }
+
+    if (!smmu_hw_secure_implemented(s)) {
+        error_report("Invalid sec-sid value 'secure' for PCI device "
+                     "%02x:%02x.%x: S_IDR1.SECURE_IMPL is 0, so only "
+                     "non-secure is allowed",
+                     bus_num, PCI_SLOT(sdev->devfn), PCI_FUNC(sdev->devfn));
+        return false;
+    }
+
+    return true;
 }
 
 static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
@@ -2823,6 +2878,7 @@ static void smmuv3_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     SMMUv3Class *c = ARM_SMMUV3_CLASS(klass);
+    SMMUBaseClass *sbc = ARM_SMMU_CLASS(klass);
 
     dc->vmsd = &vmstate_smmuv3;
     resettable_class_set_parent_phases(rc, NULL, NULL, smmu_reset_exit,
@@ -2832,6 +2888,7 @@ static void smmuv3_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, smmuv3_properties);
     dc->hotpluggable = false;
     dc->user_creatable = true;
+    sbc->validate_sec_sid = smmuv3_validate_sec_sid;
 
     object_class_property_set_description(klass, "accel",
         "Enable SMMUv3 accelerator support. Allows host SMMUv3 to be "
@@ -2905,6 +2962,8 @@ static void smmuv3_iommu_memory_region_class_init(ObjectClass *klass,
 
     imrc->translate = smmuv3_translate;
     imrc->notify_flag_changed = smmuv3_notify_flag_changed;
+    imrc->attrs_to_index = smmuv3_attrs_to_index;
+    imrc->num_indexes = smmuv3_num_indexes;
 }
 
 static const TypeInfo smmuv3_type_info = {
