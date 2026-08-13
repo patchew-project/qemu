@@ -10,5 +10,11 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci-bridge/pci_expander_bridge.h"
 #include "hw/cxl/cxl.h"
+#include "hw/cxl/cxl_component.h"
 
 void pxb_cxl_hook_up_registers(CXLState *state, PCIBus *bus, Error **errp) {};
+
+bool cxl_get_hb_passthrough(PCIHostState *hb)
+{
+    return false;
+}
