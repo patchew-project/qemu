@@ -383,7 +383,7 @@ bool tcg_region_alloc(TCGContext *s)
         region.agg_size_full += size_full - TCG_HIGHWATER;
     }
     qemu_mutex_unlock(&region.lock);
-    return !ok;
+    return ok;
 }
 
 /*
