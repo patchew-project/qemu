@@ -25,13 +25,18 @@
 #include "hw/arm/machines-qom.h"
 #include "hw/i2c/i2c.h"
 
-static struct arm_boot_info cubieboard_binfo = {
-    .loader_start = AW_A10_SDRAM_BASE,
-    .board_id = 0x1008,
+#define TYPE_CUBIEBOARD_MACHINE MACHINE_TYPE_NAME("cubieboard")
+OBJECT_DECLARE_SIMPLE_TYPE(CubieboardMachineState, CUBIEBOARD_MACHINE)
+
+struct CubieboardMachineState {
+    MachineState parent;
+
+    struct arm_boot_info bootinfo;
 };
 
 static void cubieboard_init(MachineState *machine)
 {
+    CubieboardMachineState *cbs = CUBIEBOARD_MACHINE(machine);
     AwA10State *a10;
     Error *err = NULL;
     DriveInfo *di;
@@ -103,12 +108,18 @@ static void cubieboard_init(MachineState *machine)
     }
     /* TODO create and connect IDE devices for ide_drive_get() */
 
-    cubieboard_binfo.ram_size = machine->ram_size;
-    arm_load_kernel(&a10->cpu, machine, &cubieboard_binfo);
+    cbs->bootinfo = (struct arm_boot_info) {
+        .loader_start = AW_A10_SDRAM_BASE,
+        .board_id = 0x1008,
+        .ram_size = machine->ram_size,
+    };
+    arm_load_kernel(&a10->cpu, machine, &cbs->bootinfo);
 }
 
-static void cubieboard_machine_init(MachineClass *mc)
+static void cubieboard_machine_class_init(ObjectClass *oc, const void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-a8"),
         NULL
@@ -126,4 +137,17 @@ static void cubieboard_machine_init(MachineClass *mc)
     mc->auto_create_sdcard = true;
 }
 
-DEFINE_MACHINE_ARM("cubieboard", cubieboard_machine_init)
+static const TypeInfo cubieboard_machine_typeinfo = {
+    .name = TYPE_CUBIEBOARD_MACHINE,
+    .parent = TYPE_MACHINE,
+    .class_init = cubieboard_machine_class_init,
+    .instance_size = sizeof(CubieboardMachineState),
+    .interfaces = arm_machine_interfaces,
+};
+
+static void cubieboard_machine_register_types(void)
+{
+    type_register_static(&cubieboard_machine_typeinfo);
+}
+
+type_init(cubieboard_machine_register_types)
