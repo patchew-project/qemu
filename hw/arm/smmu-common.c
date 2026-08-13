@@ -30,6 +30,27 @@
 #include "hw/arm/smmu-common.h"
 #include "smmu-internal.h"
 
+ARMSecuritySpace smmu_get_security_space(SMMUSecSID sec_sid)
+{
+    switch (sec_sid) {
+    case SMMU_SEC_SID_S:
+        return ARMSS_Secure;
+    case SMMU_SEC_SID_NS:
+        return ARMSS_NonSecure;
+    case SMMU_SEC_SID_NUM:
+        g_assert_not_reached();
+    }
+    g_assert_not_reached();
+}
+
+MemTxAttrs smmu_get_txattrs(SMMUSecSID sec_sid)
+{
+    return (MemTxAttrs) {
+        .secure = smmu_sec_sid_is_secure(sec_sid) ? 1 : 0,
+        .space = smmu_get_security_space(sec_sid),
+    };
+}
+
 AddressSpace *smmu_get_address_space(SMMUState *s, SMMUSecSID sec_sid)
 {
     switch (sec_sid) {
@@ -588,6 +609,7 @@ error:
 /**
  * smmu_ptw_64_s2 - VMSAv8-64 Walk of the page tables for a given ipa
  * for stage-2.
+ * @bs: smmu state which includes TLB instance
  * @cfg: translation config
  * @ipa: ipa to translate
  * @perm: access type
@@ -599,7 +621,7 @@ error:
  * Upon success, @tlbe is filled with translated_addr and entry
  * permission rights.
  */
-static int smmu_ptw_64_s2(SMMUTransCfg *cfg,
+static int smmu_ptw_64_s2(SMMUState *bs, SMMUTransCfg *cfg,
                           dma_addr_t ipa, IOMMUAccessFlags perm,
                           SMMUTLBEntry *tlbe, SMMUPTWEventInfo *info)
 {
@@ -636,7 +658,6 @@ static int smmu_ptw_64_s2(SMMUTransCfg *cfg,
         uint64_t pte, gpa;
         dma_addr_t pte_addr = baseaddr + offset * sizeof(pte);
         uint8_t s2ap;
-
         if (get_pte(baseaddr, offset, &pte, info)) {
                 goto error;
         }
@@ -690,6 +711,7 @@ static int smmu_ptw_64_s2(SMMUTransCfg *cfg,
             goto error_ipa;
         }
 
+        tlbe->entry.target_as = &bs->memory_as;
         tlbe->entry.translated_addr = gpa;
         tlbe->entry.iova = ipa & ~mask;
         tlbe->entry.addr_mask = mask;
@@ -765,7 +787,7 @@ int smmu_ptw(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t iova,
             return -EINVAL;
         }
 
-        return smmu_ptw_64_s2(cfg, iova, perm, tlbe, info);
+        return smmu_ptw_64_s2(bs, cfg, iova, perm, tlbe, info);
     }
 
     /* SMMU_NESTED. */
@@ -775,7 +797,7 @@ int smmu_ptw(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t iova,
     }
 
     ipa = CACHED_ENTRY_TO_ADDR(tlbe, iova);
-    ret = smmu_ptw_64_s2(cfg, ipa, perm, &tlbe_s2, info);
+    ret = smmu_ptw_64_s2(bs, cfg, ipa, perm, &tlbe_s2, info);
     if (ret) {
         return ret;
     }
