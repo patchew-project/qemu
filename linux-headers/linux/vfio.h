@@ -215,6 +215,7 @@ struct vfio_device_info {
 #define VFIO_DEVICE_FLAGS_FSL_MC (1 << 6)	/* vfio-fsl-mc device */
 #define VFIO_DEVICE_FLAGS_CAPS	(1 << 7)	/* Info supports caps */
 #define VFIO_DEVICE_FLAGS_CDX	(1 << 8)	/* vfio-cdx device */
+#define VFIO_DEVICE_FLAGS_CXL	(1 << 9)	/* vfio-cxl device */
 	__u32	num_regions;	/* Max region index + 1 */
 	__u32	num_irqs;	/* Max IRQ index + 1 */
 	__u32   cap_offset;	/* Offset within info struct of first cap */
@@ -345,6 +346,7 @@ struct vfio_region_info_cap_type {
 #define VFIO_REGION_TYPE_GFX                    (1)
 #define VFIO_REGION_TYPE_CCW			(2)
 #define VFIO_REGION_TYPE_MIGRATION_DEPRECATED   (3)
+#define VFIO_REGION_TYPE_CXL			(4)
 
 /* sub-types for VFIO_REGION_TYPE_PCI_* */
 
@@ -372,6 +374,12 @@ struct vfio_region_info_cap_type {
 
 /* sub-types for VFIO_REGION_TYPE_GFX */
 #define VFIO_REGION_SUBTYPE_GFX_EDID            (1)
+
+/* sub-types for VFIO_REGION_TYPE_CXL */
+/* CXL.mem HDM memory window of a Type-2 device, mmap-able */
+#define VFIO_REGION_SUBTYPE_CXL_MEM		(1)
+/* CXL HDM decoder registers, trapped so the guest programs a GPA it never owns */
+#define VFIO_REGION_SUBTYPE_CXL_COMP_REGS	(2)
 
 /**
  * struct vfio_region_gfx_edid - EDID region layout.
@@ -495,6 +503,20 @@ struct vfio_region_info_cap_nvlink2_lnkspd {
 	struct vfio_info_cap_header header;
 	__u32 link_speed;
 	__u32 __pad;
+};
+
+/*
+ * Geometry of a CXL Type-2 device's HDM decoder registers, so a VMM can place
+ * the trapped component register window where the guest expects it. The cap ID
+ * is provisional pending an upstream allocation.
+ */
+#define VFIO_REGION_INFO_CAP_CXL_COMP_REGS	6
+
+struct vfio_region_info_cap_cxl_comp_regs {
+	struct vfio_info_cap_header header;
+	__u32 bar;
+	__u32 __resv;
+	__aligned_u64 offset;
 };
 
 /**
