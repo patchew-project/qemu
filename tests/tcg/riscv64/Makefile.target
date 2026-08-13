@@ -18,3 +18,13 @@ TESTS += test-fcvtmod
 test-fcvtmod: CFLAGS += -march=rv64imafdc
 test-fcvtmod: LDFLAGS += -static
 run-test-fcvtmod: QEMU_OPTS += -cpu rv64,d=true,zfa=true
+
+TESTS += test-zfinx-fmv-x-w
+test-zfinx-fmv-x-w: LDFLAGS = -nostdlib -static
+run-test-zfinx-fmv-x-w: QEMU_OPTS += \
+	-cpu rv64,f=false,d=false,zfa=false,zfh=false,zfhmin=false,zfinx=true
+
+TESTS += test-zfinx-fmv-w-x
+test-zfinx-fmv-w-x: LDFLAGS = -nostdlib -static
+run-test-zfinx-fmv-w-x: QEMU_OPTS += \
+	-cpu rv64,f=false,d=false,zfa=false,zfh=false,zfhmin=false,zfinx=true
