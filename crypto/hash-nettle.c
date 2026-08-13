@@ -23,8 +23,14 @@
 #include "qapi/error.h"
 #include "crypto/hash.h"
 #include "hashpriv.h"
+#include <nettle/version.h>
 #include <nettle/md5.h>
+#if NETTLE_VERSION_MAJOR >= 4
+#include <nettle/sha1.h>
+#include <nettle/sha2.h>
+#else
 #include <nettle/sha.h>
+#endif
 #include <nettle/ripemd160.h>
 #ifdef CONFIG_CRYPTO_SM3
 #include <nettle/sm3.h>
