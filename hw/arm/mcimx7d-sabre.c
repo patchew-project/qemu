@@ -22,9 +22,19 @@
 #include "qemu/error-report.h"
 #include "system/qtest.h"
 
+#define TYPE_MCIMX7D_SABRE_MACHINE MACHINE_TYPE_NAME("mcimx7d-sabre")
+OBJECT_DECLARE_SIMPLE_TYPE(Mcimx7dSabreMachineState,
+                           MCIMX7D_SABRE_MACHINE)
+
+struct Mcimx7dSabreMachineState {
+    MachineState parent;
+
+    struct arm_boot_info bootinfo;
+};
+
 static void mcimx7d_sabre_init(MachineState *machine)
 {
-    static struct arm_boot_info boot_info;
+    Mcimx7dSabreMachineState *msms = MCIMX7D_SABRE_MACHINE(machine);
     FslIMX7State *s;
     int i;
 
@@ -34,7 +44,7 @@ static void mcimx7d_sabre_init(MachineState *machine)
         exit(1);
     }
 
-    boot_info = (struct arm_boot_info) {
+    msms->bootinfo = (struct arm_boot_info) {
         .loader_start = FSL_IMX7_MMDC_ADDR,
         .board_id = -1,
         .ram_size = machine->ram_size,
@@ -65,12 +75,15 @@ static void mcimx7d_sabre_init(MachineState *machine)
     }
 
     if (!qtest_enabled()) {
-        arm_load_kernel(&s->cpu[0], machine, &boot_info);
+        arm_load_kernel(&s->cpu[0], machine, &msms->bootinfo);
     }
 }
 
-static void mcimx7d_sabre_machine_init(MachineClass *mc)
+static void mcimx7d_sabre_machine_class_init(ObjectClass *oc,
+                                             const void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Freescale i.MX7 DUAL SABRE (Cortex-A7)";
     mc->init = mcimx7d_sabre_init;
     mc->max_cpus = FSL_IMX7_NUM_CPUS;
@@ -78,4 +91,17 @@ static void mcimx7d_sabre_machine_init(MachineClass *mc)
     mc->auto_create_sdcard = true;
 }
 
-DEFINE_MACHINE_ARM("mcimx7d-sabre", mcimx7d_sabre_machine_init)
+static const TypeInfo mcimx7d_sabre_machine_typeinfo = {
+    .name = TYPE_MCIMX7D_SABRE_MACHINE,
+    .parent = TYPE_MACHINE,
+    .class_init = mcimx7d_sabre_machine_class_init,
+    .instance_size = sizeof(Mcimx7dSabreMachineState),
+    .interfaces = arm_machine_interfaces,
+};
+
+static void mcimx7d_sabre_machine_register_types(void)
+{
+    type_register_static(&mcimx7d_sabre_machine_typeinfo);
+}
+
+type_init(mcimx7d_sabre_machine_register_types)
