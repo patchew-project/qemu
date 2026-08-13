@@ -58,16 +58,27 @@
     ((level == 3) &&                                                    \
      ((pte & ARM_LPAE_PTE_TYPE_MASK) == ARM_LPAE_L3_PTE_TYPE_PAGE))
 
+/* Stage 1 attribute fields in VMSAv8-64 Block and Page descriptors */
+/* Non-secure bit */
+#define PTE_NS(pte) \
+    (extract64(pte, 5, 1))
+
 /* access permissions */
 
 #define PTE_AP(pte) \
     (extract64(pte, 6, 2))
 
+/* Stage 1 VMSAv8-64 Table descriptor fields */
 #define PTE_APTABLE(pte) \
     (extract64(pte, 61, 2))
 
+#define PTE_NSTABLE(pte) \
+    (extract64(pte, 63, 1))
+
+/* Access flag: defined for both Block/Page and Table descriptors. */
 #define PTE_AF(pte) \
     (extract64(pte, 10, 1))
+
 /*
  * TODO: At the moment all transactions are considered as privileged (EL1)
  * as IOMMU translation callback does not pass user/priv attributes.
