@@ -3221,8 +3221,11 @@ bool vfio_pci_populate_device(VFIOPCIDevice *vdev, Error **errp)
     return true;
 }
 
+static void vfio_cxl_teardown(VFIOPCIDevice *vdev);
+
 void vfio_pci_put_device(VFIOPCIDevice *vdev)
 {
+    vfio_cxl_teardown(vdev);
     vfio_display_finalize(vdev);
     vfio_bars_finalize(vdev);
     vfio_cpr_pci_unregister_device(vdev);
@@ -3666,6 +3669,19 @@ static bool vfio_cxl_setup(VFIOPCIDevice *vdev, Error **errp)
         return true;
     }
 
+    /*
+     * The HDM memory is exposed only as an mmap-backed RAM-device region; the
+     * kernel rejects fd read/write on it. With x-no-mmap the region would fall
+     * back to that always-failing fd path, so every guest access to the HDM
+     * range would fault. Reject it here rather than start an unusable VM.
+     */
+    if (vbasedev->no_mmap) {
+        error_setg(errp, "vfio-cxl: %s: x-no-mmap is not supported for a CXL "
+                   "device; its HDM memory has no fd read/write fallback",
+                   vbasedev->name);
+        return false;
+    }
+
     if (vfio_device_get_region_info_type(vbasedev, VFIO_REGION_TYPE_CXL,
                                          VFIO_REGION_SUBTYPE_CXL_MEM,
                                          &mem_info)) {
@@ -3703,9 +3719,38 @@ static bool vfio_cxl_setup(VFIOPCIDevice *vdev, Error **errp)
         return false;
     }
 
+    /*
+     * The HDM memory is host physical. mmap it now; it is added to the guest
+     * address space only once the guest commits its endpoint decoder.
+     */
+    if (vfio_region_setup(OBJECT(vdev), vbasedev, &cxl->mem_region,
+                          cxl->mem_region_index, "cxl-mem", errp)) {
+        return false;
+    }
+    if (vfio_region_mmap(&cxl->mem_region)) {
+        error_setg(errp, "vfio-cxl: %s: failed to mmap the HDM memory region",
+                   vbasedev->name);
+        vfio_region_exit(&cxl->mem_region);
+        vfio_region_finalize(&cxl->mem_region);
+        return false;
+    }
+
     cxl->enabled = true;
 
     return true;
+}
+
+static void vfio_cxl_teardown(VFIOPCIDevice *vdev)
+{
+    VFIOCXL *cxl = &vdev->cxl;
+
+    if (!cxl->enabled) {
+        return;
+    }
+    if (cxl->mem_region.mem) {
+        vfio_region_exit(&cxl->mem_region);
+        vfio_region_finalize(&cxl->mem_region);
+    }
 }
 
 static void vfio_pci_realize(PCIDevice *pdev, Error **errp)

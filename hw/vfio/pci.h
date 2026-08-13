@@ -134,6 +134,7 @@ typedef struct VFIOCXL {
     uint32_t comp_bar;               /* component BAR carrying that block */
     uint64_t hdm_offset;             /* block offset within the component BAR */
     uint64_t dpa_size;               /* size of the HDM memory region */
+    VFIORegion mem_region;           /* HDM memory, mapped at committed GPA */
 } VFIOCXL;
 
 struct VFIOPCIDevice {
