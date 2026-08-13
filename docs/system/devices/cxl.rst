@@ -418,6 +418,52 @@ Volatile Memory device::
   -device cxl-type3,bus=root_port13,volatile-memdev=vmem0,id=cxl-vmem0 \
   -M cxl-fmw.0.targets.0=cxl.1,cxl-fmw.0.size=4G
 
+Type 2 device passthrough
+-------------------------
+
+A CXL Type 2 device (an accelerator with host-managed device memory) can be
+assigned to a guest with vfio-pci, so the guest reaches the device memory
+through its own CXL stack. This pairs with the kernel vfio-cxl series: the
+host kernel fixes the device memory at a host physical range before the guest
+sees the device, and QEMU maps that range at the guest physical address the
+guest programs into its endpoint HDM decoder. The guest chooses only the GPA;
+the host physical placement is never reprogrammed by the guest.
+
+The device memory reaches the guest as a CXL fixed memory window (``cxl-fmw``),
+advertised through CEDT, exactly like a Type 3 window; there is no separate
+device memory-map slot. Only the endpoint decoder is programmed, by the guest,
+so the host bridge must stay in HDM passthrough mode: a single ``cxl-rp`` under
+the ``pxb-cxl`` and no ``hdm_for_passthrough``. Switch-attached and interleaved
+topologies are rejected.
+
+Example command line::
+
+  -machine q35,cxl=on
+  -device pxb-cxl,bus_nr=12,bus=pcie.0,id=cxl.1
+  -device cxl-rp,port=0,bus=cxl.1,id=rp0,chassis=0,slot=2
+  -device vfio-pci,host=<BDF>,bus=rp0,id=cxl-ep0
+  -M cxl-fmw.0.targets.0=cxl.1,cxl-fmw.0.size=<device-mem-size>
+
+The window must be a single-target ``cxl-fmw`` that targets the device's
+``pxb-cxl`` and is at least the size of the device memory. The guest triggers a
+CXL reset by writing the CXL Device DVSEC; the host kernel runs that sequence,
+so QEMU has no reset handling of its own.
+
+On arm64, pass ``accel=on`` to the ``arm-smmuv3`` when passing a Type 2 device
+through. The accelerated SMMUv3 describes the device MSI doorbell to the guest
+through an IORT Reserved Memory Range (RMR) node, which reserves a fixed guest
+IOVA, so OSPM must preserve the firmware PCI resource assignments rather than
+re-enumerate them. QEMU requests that through PCI Firmware ``_DSM`` function 5
+(preserve firmware PCI configuration), which on arm64 is emitted for the CXL
+host bridge only when the machine requests preserved configuration, that is,
+the accelerated SMMUv3 path. This ``_DSM`` is not about the CXL decoder:
+vfio-pci keeps the host BAR fixed, and QEMU's trapped component-register block
+is a subregion of the guest BAR MemoryRegion, so it follows any guest-visible
+BAR relocation on its own. x86 does not use the accelerated SMMU, so it does
+not advertise or implement preserve-configuration function 5; the CXL host
+bridge still emits the ``_DSM`` method, but its function 0 returns an empty
+support mask.
+
 Deprecations
 ------------
 
