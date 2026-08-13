@@ -224,18 +224,19 @@ static inline uint16_t smmu_get_sid(SMMUDevice *sdev)
 
 /**
  * smmu_ptw - Perform the page table walk for a given iova / access flags
- * pair, according to @cfg translation config
+ * pair, according to @cfg translation config and @sec_sid
  */
 int smmu_ptw(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t iova,
              IOMMUAccessFlags perm, SMMUTLBEntry *tlbe,
-             SMMUPTWEventInfo *info);
+             SMMUPTWEventInfo *info, SMMUSecSID sec_sid);
 
 /*
  * smmu_translate - Look for a translation in TLB, if not, do a PTW.
  * Returns NULL on PTW error or incase of TLB permission errors.
  */
 SMMUTLBEntry *smmu_translate(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t addr,
-                             IOMMUAccessFlags flag, SMMUPTWEventInfo *info);
+                             IOMMUAccessFlags flag, SMMUPTWEventInfo *info,
+                             SMMUSecSID sec_sid);
 
 /**
  * select_tt - compute which translation table shall be used according to

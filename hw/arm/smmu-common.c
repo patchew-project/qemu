@@ -408,13 +408,13 @@ void smmu_iotlb_inv_vmid_s1(SMMUState *s, int vmid)
  * @base_addr[@index]
  */
 static int get_pte(dma_addr_t baseaddr, uint32_t index, uint64_t *pte,
-                   SMMUPTWEventInfo *info)
+                   SMMUPTWEventInfo *info, AddressSpace *as, MemTxAttrs attrs)
 {
     int ret;
     dma_addr_t addr = baseaddr + index * sizeof(*pte);
 
     /* TODO: guarantee 64-bit single-copy atomicity */
-    ret = ldq_le_dma(&address_space_memory, addr, pte, MEMTXATTRS_UNSPECIFIED);
+    ret = ldq_le_dma(as, addr, pte, attrs);
 
     if (ret != MEMTX_OK) {
         info->type = SMMU_PTW_ERR_WALK_EABT;
@@ -488,7 +488,8 @@ SMMUTransTableInfo *select_tt(SMMUTransCfg *cfg, dma_addr_t iova)
 static inline int translate_table_addr_ipa(SMMUState *bs,
                                            dma_addr_t *table_addr,
                                            SMMUTransCfg *cfg,
-                                           SMMUPTWEventInfo *info)
+                                           SMMUPTWEventInfo *info,
+                                           SMMUSecSID sec_sid)
 {
     dma_addr_t addr = *table_addr;
     SMMUTLBEntry *cached_entry;
@@ -501,7 +502,7 @@ static inline int translate_table_addr_ipa(SMMUState *bs,
     asid = cfg->asid;
     cfg->stage = SMMU_STAGE_2;
     cfg->asid = -1;
-    cached_entry = smmu_translate(bs, cfg, addr, IOMMU_RO, info);
+    cached_entry = smmu_translate(bs, cfg, addr, IOMMU_RO, info, sec_sid);
     cfg->asid = asid;
     cfg->stage = SMMU_NESTED;
 
@@ -524,6 +525,7 @@ static inline int translate_table_addr_ipa(SMMUState *bs,
  * @perm: access type
  * @tlbe: SMMUTLBEntry (out)
  * @info: handle to an error info
+ * @sec_sid: StreamID Security state
  *
  * Return 0 on success, < 0 on error. In case of error, @info is filled
  * and tlbe->perm is set to IOMMU_NONE.
@@ -532,12 +534,16 @@ static inline int translate_table_addr_ipa(SMMUState *bs,
  */
 static int smmu_ptw_64_s1(SMMUState *bs, SMMUTransCfg *cfg,
                           dma_addr_t iova, IOMMUAccessFlags perm,
-                          SMMUTLBEntry *tlbe, SMMUPTWEventInfo *info)
+                          SMMUTLBEntry *tlbe, SMMUPTWEventInfo *info,
+                          SMMUSecSID sec_sid)
 {
     dma_addr_t baseaddr, indexmask;
     SMMUStage stage = cfg->stage;
     SMMUTransTableInfo *tt = select_tt(cfg, iova);
     uint8_t level, granule_sz, inputsize, stride;
+    int nscfg, current_ns, new_nstable;
+    bool sid_is_ns = sec_sid == SMMU_SEC_SID_NS;
+    SMMUSecSID table_sec_sid;
 
     if (!tt || tt->disabled) {
         info->type = SMMU_PTW_ERR_TRANSLATION;
@@ -552,6 +558,7 @@ static int smmu_ptw_64_s1(SMMUState *bs, SMMUTransCfg *cfg,
 
     baseaddr = extract64(tt->ttb, 0, cfg->oas);
     baseaddr &= ~indexmask;
+    nscfg = tt->nscfg;
 
     while (level < VMSA_LEVELS) {
         uint64_t subpage_size = 1ULL << level_shift(level, granule_sz);
@@ -560,8 +567,19 @@ static int smmu_ptw_64_s1(SMMUState *bs, SMMUTransCfg *cfg,
         uint64_t pte, gpa;
         dma_addr_t pte_addr = baseaddr + offset * sizeof(pte);
         uint8_t ap;
+        AddressSpace *pte_as;
+        MemTxAttrs pte_attrs;
+        SMMUSecSID cur_sec_sid;
 
-        if (get_pte(baseaddr, offset, &pte, info)) {
+        /*
+         * Start in NS for Non-secure streams or CD.NSCFGx == 1.
+         * Once walk is in NS, NSTable is ignored on subsequent levels.
+         */
+        current_ns = sid_is_ns || nscfg;
+        table_sec_sid = current_ns ? SMMU_SEC_SID_NS : sec_sid;
+        pte_as = smmu_get_address_space(bs, table_sec_sid);
+        pte_attrs = smmu_get_txattrs(table_sec_sid);
+        if (get_pte(baseaddr, offset, &pte, info, pte_as, pte_attrs)) {
                 goto error;
         }
         trace_smmu_ptw_level(stage, level, iova, subpage_size,
@@ -582,9 +600,24 @@ static int smmu_ptw_64_s1(SMMUState *bs, SMMUTransCfg *cfg,
             }
             baseaddr = get_table_pte_address(pte, granule_sz);
             if (cfg->stage == SMMU_NESTED) {
-                if (translate_table_addr_ipa(bs, &baseaddr, cfg, info)) {
+                if (translate_table_addr_ipa(bs, &baseaddr, cfg,
+                                             info, table_sec_sid)) {
                     goto error;
                 }
+            }
+
+            /*
+             * NSTable can switch the walk to NS only while the current walk
+             * level is Secure. Once switched to NS, NSTable is ignored according
+             * to hierarchical control of Secure/Non-secure accesses:
+             * (IHI 0070G.b)13.4.1 Stage 1 page permissions and
+             * (DDI 0487H.a)D8.4.2 Control of Secure or Non-secure memory access
+             */
+            if (!current_ns) {
+                new_nstable = PTE_NSTABLE(pte);
+                nscfg = new_nstable ? 1 : 0;
+            } else {
+                nscfg = 1;
             }
             level++;
             continue;
@@ -628,6 +661,12 @@ static int smmu_ptw_64_s1(SMMUState *bs, SMMUTransCfg *cfg,
             goto error;
         }
 
+        if (current_ns) {
+            cur_sec_sid = SMMU_SEC_SID_NS;
+        } else {
+            cur_sec_sid = PTE_NS(pte) ? SMMU_SEC_SID_NS : SMMU_SEC_SID_S;
+        }
+        tlbe->entry.target_as = smmu_get_address_space(bs, cur_sec_sid);
         tlbe->entry.translated_addr = gpa;
         tlbe->entry.iova = iova & ~mask;
         tlbe->entry.addr_mask = mask;
@@ -697,7 +736,10 @@ static int smmu_ptw_64_s2(SMMUState *bs, SMMUTransCfg *cfg,
         uint64_t pte, gpa;
         dma_addr_t pte_addr = baseaddr + offset * sizeof(pte);
         uint8_t s2ap;
-        if (get_pte(baseaddr, offset, &pte, info)) {
+        AddressSpace *pte_as = &bs->memory_as;
+        MemTxAttrs pte_attrs = MEMTXATTRS_UNSPECIFIED;
+
+        if (get_pte(baseaddr, offset, &pte, info, pte_as, pte_attrs)) {
                 goto error;
         }
         trace_smmu_ptw_level(stage, level, ipa, subpage_size,
@@ -792,7 +834,7 @@ static void combine_tlb(SMMUTLBEntry *tlbe, SMMUTLBEntry *tlbe_s2,
 }
 
 /**
- * smmu_ptw - Walk the page tables for an IOVA, according to @cfg
+ * smmu_ptw - Walk the page tables for an IOVA, according to @cfg and @sec_sid
  *
  * @bs: smmu state which includes TLB instance
  * @cfg: translation configuration
@@ -800,18 +842,20 @@ static void combine_tlb(SMMUTLBEntry *tlbe, SMMUTLBEntry *tlbe_s2,
  * @perm: tentative access type
  * @tlbe: returned entry
  * @info: ptw event handle
+ * @sec_sid: StreamID Security state
  *
  * return 0 on success
  */
 int smmu_ptw(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t iova,
-             IOMMUAccessFlags perm, SMMUTLBEntry *tlbe, SMMUPTWEventInfo *info)
+             IOMMUAccessFlags perm, SMMUTLBEntry *tlbe, SMMUPTWEventInfo *info,
+             SMMUSecSID sec_sid)
 {
     int ret;
     SMMUTLBEntry tlbe_s2;
     dma_addr_t ipa;
 
     if (cfg->stage == SMMU_STAGE_1) {
-        return smmu_ptw_64_s1(bs, cfg, iova, perm, tlbe, info);
+        return smmu_ptw_64_s1(bs, cfg, iova, perm, tlbe, info, sec_sid);
     } else if (cfg->stage == SMMU_STAGE_2) {
         /*
          * If bypassing stage 1(or unimplemented), the input address is passed
@@ -830,7 +874,7 @@ int smmu_ptw(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t iova,
     }
 
     /* SMMU_NESTED. */
-    ret = smmu_ptw_64_s1(bs, cfg, iova, perm, tlbe, info);
+    ret = smmu_ptw_64_s1(bs, cfg, iova, perm, tlbe, info, sec_sid);
     if (ret) {
         return ret;
     }
@@ -846,7 +890,8 @@ int smmu_ptw(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t iova,
 }
 
 SMMUTLBEntry *smmu_translate(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t addr,
-                             IOMMUAccessFlags flag, SMMUPTWEventInfo *info)
+                             IOMMUAccessFlags flag, SMMUPTWEventInfo *info,
+                             SMMUSecSID sec_sid)
 {
     SMMUTLBEntry *cached_entry = NULL;
     SMMUTransTableInfo *tt;
@@ -888,7 +933,7 @@ SMMUTLBEntry *smmu_translate(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t addr,
     }
 
     cached_entry = g_new0(SMMUTLBEntry, 1);
-    status = smmu_ptw(bs, cfg, addr, flag, cached_entry, info);
+    status = smmu_ptw(bs, cfg, addr, flag, cached_entry, info, sec_sid);
     if (status) {
             g_free(cached_entry);
             return NULL;
