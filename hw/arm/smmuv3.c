@@ -366,14 +366,15 @@ static void smmuv3_reset(SMMUv3State *s)
 }
 
 static int smmu_get_ste(SMMUv3State *s, dma_addr_t addr, STE *buf,
-                        SMMUEventInfo *event)
+                        SMMUEventInfo *event, SMMUSecSID sec_sid)
 {
+    AddressSpace *as = smmu_get_address_space(ARM_SMMU(s), sec_sid);
+    MemTxAttrs txattrs = smmu_get_txattrs(sec_sid);
     int ret, i;
 
     trace_smmuv3_get_ste(addr);
     /* TODO: guarantee 64-bit single-copy atomicity */
-    ret = dma_memory_read(&address_space_memory, addr, buf, sizeof(*buf),
-                          MEMTXATTRS_UNSPECIFIED);
+    ret = dma_memory_read(as, addr, buf, sizeof(*buf), txattrs);
     if (ret != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Cannot fetch pte at address=0x%"PRIx64"\n", addr);
@@ -396,12 +397,15 @@ static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
                                                  SMMUTranslationClass class);
 /* @ssid > 0 not supported yet */
 static int smmu_get_cd(SMMUv3State *s, STE *ste, SMMUTransCfg *cfg,
-                       uint32_t ssid, CD *buf, SMMUEventInfo *event)
+                       uint32_t ssid, CD *buf, SMMUEventInfo *event,
+                       SMMUSecSID sec_sid)
 {
     dma_addr_t addr = STE_CTXPTR(ste);
     int ret, i;
     SMMUTranslationStatus status;
     SMMUTLBEntry *entry;
+    AddressSpace *as;
+    MemTxAttrs txattrs;
 
     trace_smmuv3_get_cd(addr);
 
@@ -417,9 +421,10 @@ static int smmu_get_cd(SMMUv3State *s, STE *ste, SMMUTransCfg *cfg,
         addr = CACHED_ENTRY_TO_ADDR(entry, addr);
     }
 
+    as = smmu_get_address_space(ARM_SMMU(s), sec_sid);
+    txattrs = smmu_get_txattrs(sec_sid);
     /* TODO: guarantee 64-bit single-copy atomicity */
-    ret = dma_memory_read(&address_space_memory, addr, buf, sizeof(*buf),
-                          MEMTXATTRS_UNSPECIFIED);
+    ret = dma_memory_read(as, addr, buf, sizeof(*buf), txattrs);
     if (ret != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Cannot fetch pte at address=0x%"PRIx64"\n", addr);
@@ -680,18 +685,21 @@ bad_ste:
  * @sid: stream ID
  * @ste: returned stream table entry
  * @event: handle to an event info
+ * @sec_sid: StreamID Security state
  *
  * Supports linear and 2-level stream table
  * Return 0 on success, -EINVAL otherwise
  */
-int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste, SMMUEventInfo *event)
+int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste, SMMUEventInfo *event,
+                  SMMUSecSID sec_sid)
 {
     dma_addr_t addr, strtab_base;
     uint32_t log2size;
     int strtab_size;
     int ret;
-    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
     SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
+    AddressSpace *as = smmu_get_address_space(ARM_SMMU(s), sec_sid);
+    MemTxAttrs txattrs = smmu_get_txattrs(sec_sid);
 
     trace_smmuv3_find_ste(sid, bank->features, bank->sid_split);
     log2size = FIELD_EX32(bank->strtab_base_cfg, STRTAB_BASE_CFG, LOG2SIZE);
@@ -718,8 +726,7 @@ int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste, SMMUEventInfo *event)
         l2_ste_offset = sid & ((1 << bank->sid_split) - 1);
         l1ptr = (dma_addr_t)(strtab_base + l1_ste_offset * sizeof(l1std));
         /* TODO: guarantee 64-bit single-copy atomicity */
-        ret = dma_memory_read(&address_space_memory, l1ptr, &l1std,
-                              sizeof(l1std), MEMTXATTRS_UNSPECIFIED);
+        ret = dma_memory_read(as, l1ptr, &l1std, sizeof(l1std), txattrs);
         if (ret != MEMTX_OK) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "Could not read L1PTR at 0X%"PRIx64"\n", l1ptr);
@@ -773,7 +780,7 @@ int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste, SMMUEventInfo *event)
         addr = strtab_base + sid * sizeof(*ste);
     }
 
-    if (smmu_get_ste(s, addr, ste, event)) {
+    if (smmu_get_ste(s, addr, ste, event, sec_sid)) {
         return -EINVAL;
     }
 
@@ -904,7 +911,7 @@ static int smmuv3_decode_config(IOMMUMemoryRegion *mr, SMMUTransCfg *cfg,
     /* ASID defaults to -1 (if s1 is not supported). */
     cfg->asid = -1;
 
-    ret = smmu_find_ste(s, sid, &ste, event);
+    ret = smmu_find_ste(s, sid, &ste, event, sec_sid);
     if (ret) {
         return ret;
     }
@@ -918,7 +925,7 @@ static int smmuv3_decode_config(IOMMUMemoryRegion *mr, SMMUTransCfg *cfg,
         return 0;
     }
 
-    ret = smmu_get_cd(s, &ste, cfg, 0 /* ssid */, &cd, event);
+    ret = smmu_get_cd(s, &ste, cfg, 0 /* ssid */, &cd, event, sec_sid);
     if (ret) {
         return ret;
     }
@@ -933,12 +940,14 @@ static int smmuv3_decode_config(IOMMUMemoryRegion *mr, SMMUTransCfg *cfg,
  *
  * @sdev: SMMUDevice handle
  * @event: output event info
+ * @sec_sid: StreamID Security state
  *
  * The configuration cache contains data resulting from both STE and CD
  * decoding under the form of an SMMUTransCfg struct. The hash table is indexed
  * by the SMMUDevice handle.
  */
-static SMMUTransCfg *smmuv3_get_config(SMMUDevice *sdev, SMMUEventInfo *event)
+static SMMUTransCfg *smmuv3_get_config(SMMUDevice *sdev, SMMUEventInfo *event,
+                                       SMMUSecSID sec_sid)
 {
     SMMUv3State *s = sdev->smmu;
     SMMUState *bc = &s->smmu_state;
@@ -959,7 +968,7 @@ static SMMUTransCfg *smmuv3_get_config(SMMUDevice *sdev, SMMUEventInfo *event)
                             (sdev->cfg_cache_hits + sdev->cfg_cache_misses));
         cfg = g_new0(SMMUTransCfg, 1);
 
-        if (!smmuv3_decode_config(&sdev->iommu, cfg, event, SMMU_SEC_SID_NS)) {
+        if (!smmuv3_decode_config(&sdev->iommu, cfg, event, sec_sid)) {
             g_hash_table_insert(bc->configs, sdev, cfg);
         } else {
             g_free(cfg);
@@ -1139,7 +1148,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
         goto epilogue;
     }
 
-    cfg = smmuv3_get_config(sdev, &event);
+    cfg = smmuv3_get_config(sdev, &event, sec_sid);
     if (!cfg) {
         status = SMMU_TRANS_ERROR;
         goto epilogue;
@@ -1221,7 +1230,7 @@ static void smmuv3_notify_iova(IOMMUMemoryRegion *mr,
     SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
     SMMUEventInfo eventinfo = {.sec_sid = sec_sid,
                                .inval_ste_allowed = true};
-    SMMUTransCfg *cfg = smmuv3_get_config(sdev, &eventinfo);
+    SMMUTransCfg *cfg = smmuv3_get_config(sdev, &eventinfo, sec_sid);
     IOMMUTLBEvent event;
     uint8_t granule;
 

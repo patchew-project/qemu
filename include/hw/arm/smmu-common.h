@@ -22,6 +22,7 @@
 #include "hw/core/sysbus.h"
 #include "hw/pci/pci.h"
 #include "qom/object.h"
+#include "hw/arm/arm-security.h"
 
 #define SMMU_PCI_BUS_MAX                    256
 #define SMMU_PCI_DEVFN_MAX                  256
@@ -46,6 +47,9 @@ typedef enum SMMUSecSID {
     SMMU_SEC_SID_S,
     SMMU_SEC_SID_NUM,
 } SMMUSecSID;
+
+MemTxAttrs smmu_get_txattrs(SMMUSecSID sec_sid);
+ARMSecuritySpace smmu_get_security_space(SMMUSecSID sec_sid);
 
 /*
  * Page table walk error types
@@ -199,6 +203,12 @@ SMMUPciBus *smmu_get_sbus(SMMUState *s, PCIBus *bus);
 
 /* Initialize SMMUDevice handle associated to a SMMUPciBus */
 void smmu_init_sdev(SMMUState *s, SMMUDevice *sdev, PCIBus *bus, int devfn);
+
+
+static inline bool smmu_sec_sid_is_secure(SMMUSecSID sec_sid)
+{
+    return sec_sid == SMMU_SEC_SID_S;
+}
 
 /* Return the stream ID of an SMMU device */
 static inline uint16_t smmu_get_sid(SMMUDevice *sdev)
