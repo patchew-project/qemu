@@ -27,6 +27,7 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/pci_bridge.h"
+#include "hw/cxl/cxl.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-properties-system.h"
 #include "hw/vfio/vfio-cpr.h"
@@ -3571,6 +3572,84 @@ bool vfio_pci_interrupt_setup(VFIOPCIDevice *vdev, Error **errp)
 }
 
 /*
+ * Walk the endpoint's ancestor bridges up to its pxb-cxl host bridge. A CXL
+ * switch in the path is rejected: the guest would then have to program switch
+ * decoders, which the passthrough model does not cover. This is the single
+ * place the supported-topology assumption lives, so switch support later
+ * relaxes it here.
+ */
+static PXBCXLDev *vfio_cxl_find_pxb(VFIOPCIDevice *vdev, Error **errp)
+{
+    PCIBus *bus = pci_get_bus(&vdev->parent_obj);
+
+    /*
+     * The endpoint must sit directly on a CXL root port's downstream bus. A
+     * cxl-rp carries QEMU_PCIE_CAP_CXL, so it builds a TYPE_CXL_BUS downstream
+     * bus; a generic pcie-root-port builds a TYPE_PCIE_BUS yet still counts as
+     * the single downstream port checked at bind, so without this the guest
+     * could realize a Type-2 device with no CXL root port above it: bound in
+     * appearance but unusable. The bus type is the right test here, not
+     * pci_bus_is_cxl(): the PCI_BUS_CXL flag is set only on the pxb-cxl root
+     * bus (where the root ports sit), not on the root port's downstream bus.
+     */
+    if (!object_dynamic_cast(OBJECT(bus), TYPE_CXL_BUS)) {
+        error_setg(errp,
+                   "vfio-cxl: %s: endpoint is not on a CXL root port (cxl-rp)",
+                   vdev->vbasedev.name);
+        return NULL;
+    }
+
+    for (; bus; ) {
+        PCIDevice *bridge = bus->parent_dev;
+
+        if (!bridge) {
+            break;
+        }
+        if (object_dynamic_cast(OBJECT(bridge), TYPE_CXL_USP) ||
+            object_dynamic_cast(OBJECT(bridge), TYPE_CXL_DSP)) {
+            error_setg(errp,
+                       "vfio-cxl: %s: switch-attached topology not supported",
+                       vdev->vbasedev.name);
+            return NULL;
+        }
+        if (object_dynamic_cast(OBJECT(bridge), TYPE_PXB_CXL_DEV)) {
+            return PXB_CXL_DEV(bridge);
+        }
+        if (pci_bus_is_root(bus)) {
+            break;
+        }
+        bus = pci_get_bus(bridge);
+    }
+
+    error_setg(errp, "vfio-cxl: %s: not attached below a pxb-cxl host bridge",
+               vdev->vbasedev.name);
+    return NULL;
+}
+
+/*
+ * Option I enforcement: only the guest's endpoint decoder is programmed, so
+ * the host bridge must stay in HDM passthrough mode (decoders above the
+ * endpoint are then trivially correct). Reject anything else at realize, before
+ * a mapping is built. cxl_get_hb_passthrough() reflects reset state and is not
+ * settled yet here, so gate on the static hdm_for_passthrough property.
+ */
+static bool vfio_cxl_check_topology(VFIOPCIDevice *vdev, Error **errp)
+{
+    PXBCXLDev *pxb = vfio_cxl_find_pxb(vdev, errp);
+
+    if (!pxb) {
+        return false;
+    }
+    if (pxb->hdm_for_passthrough) {
+        error_setg(errp,
+                   "vfio-cxl: %s: the pxb-cxl must be in HDM passthrough mode "
+                   "(do not set hdm_for_passthrough)", vdev->vbasedev.name);
+        return false;
+    }
+    return true;
+}
+
+/*
  * Learn the CXL geometry the kernel reports: the HPA-backed HDM memory region
  * and the trapped HDM decoder block (which BAR carries it and at what offset).
  * A non-CXL device leaves cxl.enabled false and takes no CXL paths.
@@ -3619,6 +3698,11 @@ static bool vfio_cxl_setup(VFIOPCIDevice *vdev, Error **errp)
     cxl->dpa_size = mem_info->size;
     cxl->comp_bar = cap->bar;
     cxl->hdm_offset = cap->offset;
+
+    if (!vfio_cxl_check_topology(vdev, errp)) {
+        return false;
+    }
+
     cxl->enabled = true;
 
     return true;
