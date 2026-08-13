@@ -348,6 +348,8 @@ static void smmuv3_init_id_regs(SMMUv3State *s)
 
     sbank->idr[1] = FIELD_DP32(sbank->idr[1], S_IDR1, S_SIDSIZE,
                                SMMU_IDR1_SIDSIZE);
+    sbank->idr[1] = FIELD_DP32(sbank->idr[1], S_IDR1, SECURE_IMPL,
+                               s->secure_impl == ON_OFF_AUTO_ON);
     smmuv3_accel_idr_override(s);
 }
 
@@ -2752,6 +2754,37 @@ static bool smmu_validate_property(SMMUv3State *s, Error **errp)
     return true;
 }
 
+static bool smmuv3_resolve_secure_impl(SMMUv3State *s, Error **errp)
+{
+    SMMUState *bs = ARM_SMMU(s);
+    bool secure_as_available = bs->secure_memory &&
+                               bs->secure_memory_as.root != NULL;
+
+    if (s->secure_impl == ON_OFF_AUTO_AUTO) {
+        s->secure_impl = secure_as_available ? ON_OFF_AUTO_ON
+                                             : ON_OFF_AUTO_OFF;
+    }
+
+    if (s->secure_impl == ON_OFF_AUTO_ON && !secure_as_available) {
+        error_setg(errp,
+                   "secure-impl=on requires a secure-memory address space");
+        return false;
+    }
+
+    /*
+     * When SECURE_IMPL == 1, stage 1 must be supported according to
+     * (IHI 0070G.b) 6.3.53 SMMU_S_IDR1, Page 442.
+     */
+    if (s->secure_impl == ON_OFF_AUTO_ON &&
+        s->stage && !strcmp(s->stage, "2")) {
+        error_setg(errp,
+                    "secure-impl=on requires stage=1 or stage=nested");
+        return false;
+    }
+
+    return true;
+}
+
 static void smmu_realize(DeviceState *d, Error **errp)
 {
     SMMUState *sys = ARM_SMMU(d);
@@ -2781,6 +2814,10 @@ static void smmu_realize(DeviceState *d, Error **errp)
         return;
     }
 
+    if (!smmuv3_resolve_secure_impl(s, errp)) {
+        return;
+    }
+
     qemu_mutex_init(&s->mutex);
 
     memory_region_init_io(&sys->iomem, OBJECT(s),
@@ -2803,6 +2840,54 @@ static const VMStateDescription vmstate_smmuv3_queue = {
         VMSTATE_UINT32(prod, SMMUQueue),
         VMSTATE_UINT32(cons, SMMUQueue),
         VMSTATE_UINT8(log2size, SMMUQueue),
+        VMSTATE_END_OF_LIST(),
+    },
+};
+
+static const VMStateDescription vmstate_smmuv3_secure_bank = {
+    .name = "smmuv3_secure_bank",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(features, SMMUv3RegBank),
+        VMSTATE_UINT8(sid_split, SMMUv3RegBank),
+        VMSTATE_UINT32_ARRAY(cr, SMMUv3RegBank, 3),
+        VMSTATE_UINT32(cr0ack, SMMUv3RegBank),
+        VMSTATE_UINT32(gbpa, SMMUv3RegBank),
+        VMSTATE_UINT32(irq_ctrl, SMMUv3RegBank),
+        VMSTATE_UINT32(gerror, SMMUv3RegBank),
+        VMSTATE_UINT32(gerrorn, SMMUv3RegBank),
+        VMSTATE_UINT64(gerror_irq_cfg0, SMMUv3RegBank),
+        VMSTATE_UINT32(gerror_irq_cfg1, SMMUv3RegBank),
+        VMSTATE_UINT32(gerror_irq_cfg2, SMMUv3RegBank),
+        VMSTATE_UINT64(strtab_base, SMMUv3RegBank),
+        VMSTATE_UINT32(strtab_base_cfg, SMMUv3RegBank),
+        VMSTATE_UINT64(eventq_irq_cfg0, SMMUv3RegBank),
+        VMSTATE_UINT32(eventq_irq_cfg1, SMMUv3RegBank),
+        VMSTATE_UINT32(eventq_irq_cfg2, SMMUv3RegBank),
+        VMSTATE_STRUCT(cmdq, SMMUv3RegBank, 0,
+                       vmstate_smmuv3_queue, SMMUQueue),
+        VMSTATE_STRUCT(eventq, SMMUv3RegBank, 0,
+                       vmstate_smmuv3_queue, SMMUQueue),
+        VMSTATE_END_OF_LIST(),
+    },
+};
+
+static bool smmuv3_secure_bank_needed(void *opaque)
+{
+    SMMUv3State *s = opaque;
+
+    return s->secure_impl == ON_OFF_AUTO_ON;
+}
+
+static const VMStateDescription vmstate_smmuv3_bank_s = {
+    .name = "smmuv3/bank_s",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = smmuv3_secure_bank_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_STRUCT(bank[SMMU_SEC_SID_S], SMMUv3State, 0,
+                       vmstate_smmuv3_secure_bank, SMMUv3RegBank),
         VMSTATE_END_OF_LIST(),
     },
 };
@@ -2861,6 +2946,7 @@ static const VMStateDescription vmstate_smmuv3 = {
     },
     .subsections = (const VMStateDescription * const []) {
         &vmstate_gbpa,
+        &vmstate_smmuv3_bank_s,
         NULL
     }
 };
@@ -2893,6 +2979,13 @@ static const Property smmuv3_properties[] = {
     DEFINE_PROP_SSIDSIZE_MODE("ssidsize", SMMUv3State, ssidsize,
                               SSID_SIZE_MODE_AUTO),
     DEFINE_PROP_ON_OFF_AUTO("cmdqv", SMMUv3State, cmdqv, ON_OFF_AUTO_AUTO),
+    /*
+     * SECURE_IMPL field in S_IDR1 register.
+     * Indicates whether secure state is implemented.
+     * Defaults to auto.
+     */
+    DEFINE_PROP_ON_OFF_AUTO("secure-impl", SMMUv3State, secure_impl,
+                            ON_OFF_AUTO_AUTO),
 };
 
 static void smmuv3_instance_init(Object *obj)
