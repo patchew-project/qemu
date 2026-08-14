@@ -253,6 +253,28 @@ gchar **qtest_raw_cmd(QTestState *s, const char *fmt, ...)
     G_GNUC_PRINTF(2, 3);
 
 /**
+ * qtest_cmd_assert_response:
+ * @s: #QTestState instance to operate on.
+ * @expected: expected qtest response line.
+ * @fmt: qtest protocol text to send, formatted like sprintf().
+ *
+ * Sends a qtest command and asserts that its response matches @expected.
+ */
+void qtest_cmd_assert_response(QTestState *s, const char *expected,
+                               const char *fmt, ...)
+    G_GNUC_PRINTF(3, 4);
+
+/**
+ * qtest_cmd_assert_failure:
+ * @s: #QTestState instance to operate on.
+ * @fmt: qtest protocol text to send, formatted like sprintf().
+ *
+ * Sends a qtest command and asserts that its response starts with ``ERR``.
+ */
+void qtest_cmd_assert_failure(QTestState *s, const char *fmt, ...)
+    G_GNUC_PRINTF(2, 3);
+
+/**
  * qtest_socket_server:
  * @socket_path: the UNIX domain socket path
  *
@@ -707,6 +729,18 @@ void qtest_bufread_attrs(QTestState *s, uint64_t addr, void *data, size_t size,
                          const char *attrs);
 
 /**
+ * qtest_bufread_attrs_assert_failure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to read from.
+ * @size: Number of bytes to read.
+ * @attrs: Transaction attributes string.
+ *
+ * Assert that an attributed base64 memory read fails.
+ */
+void qtest_bufread_attrs_assert_failure(QTestState *s, uint64_t addr,
+                                        size_t size, const char *attrs);
+
+/**
  * qtest_memwrite:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to write to.
@@ -745,6 +779,20 @@ void qtest_bufwrite_attrs(QTestState *s, uint64_t addr,
                           const char *attrs);
 
 /**
+ * qtest_bufwrite_attrs_assert_failure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @data: Pointer to the bytes to write.
+ * @size: Number of bytes to write.
+ * @attrs: Transaction attributes string.
+ *
+ * Assert that an attributed base64 memory write fails.
+ */
+void qtest_bufwrite_attrs_assert_failure(QTestState *s, uint64_t addr,
+                                         const void *data, size_t size,
+                                         const char *attrs);
+
+/**
  * qtest_memset:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to write to.
@@ -766,6 +814,18 @@ void qtest_memset(QTestState *s, uint64_t addr, uint8_t patt, size_t size);
  */
 void qtest_writeb_attrs(QTestState *s, uint64_t addr, uint8_t value,
                         const char *attrs);
+
+/**
+ * qtest_writeb_attrs_assert_failure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @value: Value being written.
+ * @attrs: Transaction attributes string.
+ *
+ * Assert that an attributed 8-bit memory write fails.
+ */
+void qtest_writeb_attrs_assert_failure(QTestState *s, uint64_t addr,
+                                       uint8_t value, const char *attrs);
 
 /**
  * qtest_writew_attrs:
@@ -814,6 +874,17 @@ void qtest_writeq_attrs(QTestState *s, uint64_t addr, uint64_t value,
  * Returns: Value read.
  */
 uint8_t qtest_readb_attrs(QTestState *s, uint64_t addr, const char *attrs);
+
+/**
+ * qtest_readb_attrs_assert_failure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to read from.
+ * @attrs: Transaction attributes string.
+ *
+ * Assert that an attributed 8-bit memory read fails.
+ */
+void qtest_readb_attrs_assert_failure(QTestState *s, uint64_t addr,
+                                      const char *attrs);
 
 /**
  * qtest_readw_attrs:
@@ -865,6 +936,18 @@ void qtest_memread_attrs(QTestState *s, uint64_t addr, void *data, size_t size,
                          const char *attrs);
 
 /**
+ * qtest_memread_attrs_assert_failure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to read from.
+ * @size: Number of bytes to read.
+ * @attrs: Transaction attributes string.
+ *
+ * Assert that an attributed hexadecimal memory read fails.
+ */
+void qtest_memread_attrs_assert_failure(QTestState *s, uint64_t addr,
+                                        size_t size, const char *attrs);
+
+/**
  * qtest_memwrite_attrs:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to write to.
@@ -878,6 +961,20 @@ void qtest_memwrite_attrs(QTestState *s, uint64_t addr, const void *data,
                           size_t size, const char *attrs);
 
 /**
+ * qtest_memwrite_attrs_assert_failure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @data: Pointer to the bytes to write.
+ * @size: Number of bytes to write.
+ * @attrs: Transaction attributes string.
+ *
+ * Assert that an attributed hexadecimal memory write fails.
+ */
+void qtest_memwrite_attrs_assert_failure(QTestState *s, uint64_t addr,
+                                         const void *data, size_t size,
+                                         const char *attrs);
+
+/**
  * qtest_memset_attrs:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to write to.
@@ -889,6 +986,20 @@ void qtest_memwrite_attrs(QTestState *s, uint64_t addr, const void *data,
  */
 void qtest_memset_attrs(QTestState *s, uint64_t addr, uint8_t patt, size_t size,
                         const char *attrs);
+
+/**
+ * qtest_memset_attrs_assert_failure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @patt: Byte pattern to fill the guest memory region with.
+ * @size: Number of bytes to write.
+ * @attrs: Transaction attributes string.
+ *
+ * Assert that an attributed memory fill fails.
+ */
+void qtest_memset_attrs_assert_failure(QTestState *s, uint64_t addr,
+                                       uint8_t patt, size_t size,
+                                       const char *attrs);
 
 /**
  * qtest_clock_step_next:

@@ -812,10 +812,49 @@ gchar **qtest_raw_cmd(QTestState *s, const char *fmt, ...)
     return qtest_rsp_words(s);
 }
 
+void qtest_cmd_assert_response(QTestState *s, const char *expected,
+                               const char *fmt, ...)
+{
+    va_list ap;
+    g_autofree gchar *cmd = NULL;
+    g_autofree gchar *line = NULL;
+    g_auto(GStrv) response = NULL;
+
+    va_start(ap, fmt);
+    cmd = g_strdup_vprintf(fmt, ap);
+    va_end(ap);
+
+    response = qtest_raw_cmd(s, "%s", cmd);
+    line = g_strjoinv(" ", response);
+    g_assert_cmpstr(line, ==, expected);
+}
+
+void qtest_cmd_assert_failure(QTestState *s, const char *fmt, ...)
+{
+    va_list ap;
+    g_autofree gchar *cmd = NULL;
+    g_auto(GStrv) response = NULL;
+
+    va_start(ap, fmt);
+    cmd = g_strdup_vprintf(fmt, ap);
+    va_end(ap);
+
+    response = qtest_raw_cmd(s, "%s", cmd);
+    g_assert_cmpstr(response[0], ==, "ERR");
+}
+
 static void qtest_rsp(QTestState *s)
 {
     gchar **words = qtest_rsp_args(s, 0);
 
+    g_strfreev(words);
+}
+
+static void qtest_rsp_assert_failure(QTestState *s)
+{
+    gchar **words = qtest_rsp_words(s);
+
+    g_assert_cmpstr(words[0], ==, "ERR");
     g_strfreev(words);
 }
 
@@ -1438,6 +1477,24 @@ void qtest_bufwrite_attrs(QTestState *s, uint64_t addr, const void *data,
     g_free(bdata);
 }
 
+void qtest_bufwrite_attrs_assert_failure(QTestState *s, uint64_t addr,
+                                         const void *data, size_t size,
+                                         const char *attrs)
+{
+    gchar *bdata;
+
+    bdata = g_base64_encode(data, size);
+    qtest_sendf(s, "b64write 0x%" PRIx64 " 0x%zx ", addr, size);
+    s->ops.send(s, bdata);
+    if (qtest_has_attrs(attrs)) {
+        s->ops.send(s, " ");
+        s->ops.send(s, attrs);
+    }
+    s->ops.send(s, "\n");
+    qtest_rsp_assert_failure(s);
+    g_free(bdata);
+}
+
 void qtest_bufread_attrs(QTestState *s, uint64_t addr, void *data, size_t size,
                          const char *attrs)
 {
@@ -1462,6 +1519,18 @@ void qtest_bufread_attrs(QTestState *s, uint64_t addr, void *data, size_t size,
     g_strfreev(args);
 }
 
+void qtest_bufread_attrs_assert_failure(QTestState *s, uint64_t addr,
+                                        size_t size, const char *attrs)
+{
+    if (qtest_has_attrs(attrs)) {
+        qtest_sendf(s, "b64read 0x%" PRIx64 " 0x%zx %s\n",
+                    addr, size, attrs);
+    } else {
+        qtest_sendf(s, "b64read 0x%" PRIx64 " 0x%zx\n", addr, size);
+    }
+    qtest_rsp_assert_failure(s);
+}
+
 static void qtest_write_attrs(QTestState *s, const char *cmd,
                               uint64_t addr, uint64_t value,
                               const char *attrs)
@@ -1473,6 +1542,20 @@ static void qtest_write_attrs(QTestState *s, const char *cmd,
         qtest_sendf(s, "%s 0x%" PRIx64 " 0x%" PRIx64 "\n", cmd, addr, value);
     }
     qtest_rsp(s);
+}
+
+static void qtest_write_attrs_assert_failure(QTestState *s, const char *cmd,
+                                              uint64_t addr, uint64_t value,
+                                              const char *attrs)
+{
+    if (qtest_has_attrs(attrs)) {
+        qtest_sendf(s, "%s 0x%" PRIx64 " 0x%" PRIx64 " %s\n",
+                    cmd, addr, value, attrs);
+    } else {
+        qtest_sendf(s, "%s 0x%" PRIx64 " 0x%" PRIx64 "\n",
+                    cmd, addr, value);
+    }
+    qtest_rsp_assert_failure(s);
 }
 
 static uint64_t qtest_read_attrs(QTestState *s, const char *cmd,
@@ -1495,10 +1578,27 @@ static uint64_t qtest_read_attrs(QTestState *s, const char *cmd,
     return value;
 }
 
+static void qtest_read_attrs_assert_failure(QTestState *s, const char *cmd,
+                                             uint64_t addr, const char *attrs)
+{
+    if (qtest_has_attrs(attrs)) {
+        qtest_sendf(s, "%s 0x%" PRIx64 " %s\n", cmd, addr, attrs);
+    } else {
+        qtest_sendf(s, "%s 0x%" PRIx64 "\n", cmd, addr);
+    }
+    qtest_rsp_assert_failure(s);
+}
+
 void qtest_writeb_attrs(QTestState *s, uint64_t addr, uint8_t value,
                         const char *attrs)
 {
     qtest_write_attrs(s, "writeb", addr, value, attrs);
+}
+
+void qtest_writeb_attrs_assert_failure(QTestState *s, uint64_t addr,
+                                       uint8_t value, const char *attrs)
+{
+    qtest_write_attrs_assert_failure(s, "writeb", addr, value, attrs);
 }
 
 void qtest_writew_attrs(QTestState *s, uint64_t addr, uint16_t value,
@@ -1522,6 +1622,12 @@ void qtest_writeq_attrs(QTestState *s, uint64_t addr, uint64_t value,
 uint8_t qtest_readb_attrs(QTestState *s, uint64_t addr, const char *attrs)
 {
     return qtest_read_attrs(s, "readb", addr, attrs);
+}
+
+void qtest_readb_attrs_assert_failure(QTestState *s, uint64_t addr,
+                                      const char *attrs)
+{
+    qtest_read_attrs_assert_failure(s, "readb", addr, attrs);
 }
 
 uint16_t qtest_readw_attrs(QTestState *s, uint64_t addr, const char *attrs)
@@ -1565,6 +1671,17 @@ void qtest_memread_attrs(QTestState *s, uint64_t addr, void *data,
     g_strfreev(args);
 }
 
+void qtest_memread_attrs_assert_failure(QTestState *s, uint64_t addr,
+                                        size_t size, const char *attrs)
+{
+    if (qtest_has_attrs(attrs)) {
+        qtest_sendf(s, "read 0x%" PRIx64 " 0x%zx %s\n", addr, size, attrs);
+    } else {
+        qtest_sendf(s, "read 0x%" PRIx64 " 0x%zx\n", addr, size);
+    }
+    qtest_rsp_assert_failure(s);
+}
+
 void qtest_memwrite_attrs(QTestState *s, uint64_t addr, const void *data,
                           size_t size, const char *attrs)
 {
@@ -1592,6 +1709,31 @@ void qtest_memwrite_attrs(QTestState *s, uint64_t addr, const void *data,
     g_free(enc);
 }
 
+void qtest_memwrite_attrs_assert_failure(QTestState *s, uint64_t addr,
+                                         const void *data, size_t size,
+                                         const char *attrs)
+{
+    const uint8_t *ptr = data;
+    size_t i;
+    char *enc;
+
+    g_assert(size);
+    enc = g_malloc(2 * size + 1);
+
+    for (i = 0; i < size; i++) {
+        sprintf(&enc[i * 2], "%02x", ptr[i]);
+    }
+
+    if (qtest_has_attrs(attrs)) {
+        qtest_sendf(s, "write 0x%" PRIx64 " 0x%zx 0x%s %s\n",
+                    addr, size, enc, attrs);
+    } else {
+        qtest_sendf(s, "write 0x%" PRIx64 " 0x%zx 0x%s\n", addr, size, enc);
+    }
+    qtest_rsp_assert_failure(s);
+    g_free(enc);
+}
+
 void qtest_memset_attrs(QTestState *s, uint64_t addr, uint8_t pattern,
                         size_t size, const char *attrs)
 {
@@ -1603,6 +1745,20 @@ void qtest_memset_attrs(QTestState *s, uint64_t addr, uint8_t pattern,
                     addr, size, pattern);
     }
     qtest_rsp(s);
+}
+
+void qtest_memset_attrs_assert_failure(QTestState *s, uint64_t addr,
+                                       uint8_t pattern, size_t size,
+                                       const char *attrs)
+{
+    if (qtest_has_attrs(attrs)) {
+        qtest_sendf(s, "memset 0x%" PRIx64 " 0x%zx 0x%02x %s\n",
+                    addr, size, pattern, attrs);
+    } else {
+        qtest_sendf(s, "memset 0x%" PRIx64 " 0x%zx 0x%02x\n",
+                    addr, size, pattern);
+    }
+    qtest_rsp_assert_failure(s);
 }
 
 QDict *qtest_vqmp_assert_failure_ref(QTestState *qts,
