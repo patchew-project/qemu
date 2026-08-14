@@ -160,6 +160,11 @@ static void check_zicbo_envcfg(CPURISCVState *env, target_ulong envbits,
     if ((env->priv < PRV_S) && !get_field(env->senvcfg, envbits)) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, ra);
     }
+#else
+    if (!get_field(env->senvcfg, envbits) ||
+        !get_field(env->menvcfg, envbits)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, ra);
+    }
 #endif
 }
 
