@@ -746,11 +746,10 @@ static GString *qtest_client_socket_recv_line(QTestState *s)
     return line;
 }
 
-static gchar **qtest_rsp_args(QTestState *s, int expected_args)
+static gchar **qtest_rsp_words(QTestState *s)
 {
     GString *line;
     gchar **words;
-    int i;
 
 redo:
     line = s->ops.recv_line(s);
@@ -780,6 +779,15 @@ redo:
     }
 
     g_assert(words[0] != NULL);
+
+    return words;
+}
+
+static gchar **qtest_rsp_args(QTestState *s, int expected_args)
+{
+    gchar **words = qtest_rsp_words(s);
+    int i;
+
     g_assert_cmpstr(words[0], ==, "OK");
 
     for (i = 0; i < expected_args; i++) {
@@ -787,6 +795,21 @@ redo:
     }
 
     return words;
+}
+
+gchar **qtest_raw_cmd(QTestState *s, const char *fmt, ...)
+{
+    va_list ap;
+    gchar *str;
+
+    va_start(ap, fmt);
+    str = g_strdup_vprintf(fmt, ap);
+    va_end(ap);
+
+    s->ops.send(s, str);
+    g_free(str);
+
+    return qtest_rsp_words(s);
 }
 
 static void qtest_rsp(QTestState *s)

@@ -240,6 +240,19 @@ void qtest_qmp_send_raw(QTestState *s, const char *fmt, ...)
     G_GNUC_PRINTF(2, 3);
 
 /**
+ * qtest_raw_cmd:
+ * @s: #QTestState instance to operate on.
+ * @fmt: raw qtest protocol text to send, formatted like sprintf().
+ *
+ * Sends a raw qtest command and returns the response split on spaces.
+ * The response is not required to start with ``OK``; callers can inspect
+ * ``args[0]`` for ``OK``, ``ERR``, or ``FAIL`` and must free the returned
+ * vector with g_strfreev().
+ */
+gchar **qtest_raw_cmd(QTestState *s, const char *fmt, ...)
+    G_GNUC_PRINTF(2, 3);
+
+/**
  * qtest_socket_server:
  * @socket_path: the UNIX domain socket path
  *
