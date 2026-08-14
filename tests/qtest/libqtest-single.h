@@ -292,6 +292,162 @@ static inline void memwrite(uint64_t addr, const void *data, size_t size)
 }
 
 /**
+ * writeb_attrs:
+ * @addr: Guest address to write to.
+ * @value: Value being written.
+ * @attrs: Optional transaction attributes string.
+ *
+ * Writes an 8-bit value to guest memory with optional transaction attributes.
+ */
+static inline void writeb_attrs(uint64_t addr, uint8_t value, const char *attrs)
+{
+    qtest_writeb_attrs(global_qtest, addr, value, attrs);
+}
+
+/**
+ * writew_attrs:
+ * @addr: Guest address to write to.
+ * @value: Value being written.
+ * @attrs: Optional transaction attributes string.
+ *
+ * Writes a 16-bit value to guest memory with optional transaction attributes.
+ */
+static inline void writew_attrs(uint64_t addr, uint16_t value,
+                                const char *attrs)
+{
+    qtest_writew_attrs(global_qtest, addr, value, attrs);
+}
+
+/**
+ * writel_attrs:
+ * @addr: Guest address to write to.
+ * @value: Value being written.
+ * @attrs: Optional transaction attributes string.
+ *
+ * Writes a 32-bit value to guest memory with optional transaction attributes.
+ */
+static inline void writel_attrs(uint64_t addr, uint32_t value,
+                                const char *attrs)
+{
+    qtest_writel_attrs(global_qtest, addr, value, attrs);
+}
+
+/**
+ * writeq_attrs:
+ * @addr: Guest address to write to.
+ * @value: Value being written.
+ * @attrs: Optional transaction attributes string.
+ *
+ * Writes a 64-bit value to guest memory with optional transaction attributes.
+ */
+static inline void writeq_attrs(uint64_t addr, uint64_t value,
+                                const char *attrs)
+{
+    qtest_writeq_attrs(global_qtest, addr, value, attrs);
+}
+
+/**
+ * readb_attrs:
+ * @addr: Guest address to read from.
+ * @attrs: Optional transaction attributes string.
+ *
+ * Reads an 8-bit value from guest memory with optional transaction attributes.
+ *
+ * Returns: Value read.
+ */
+static inline uint8_t readb_attrs(uint64_t addr, const char *attrs)
+{
+    return qtest_readb_attrs(global_qtest, addr, attrs);
+}
+
+/**
+ * readw_attrs:
+ * @addr: Guest address to read from.
+ * @attrs: Optional transaction attributes string.
+ *
+ * Reads a 16-bit value from guest memory with optional transaction attributes.
+ *
+ * Returns: Value read.
+ */
+static inline uint16_t readw_attrs(uint64_t addr, const char *attrs)
+{
+    return qtest_readw_attrs(global_qtest, addr, attrs);
+}
+
+/**
+ * readl_attrs:
+ * @addr: Guest address to read from.
+ * @attrs: Optional transaction attributes string.
+ *
+ * Reads a 32-bit value from guest memory with optional transaction attributes.
+ *
+ * Returns: Value read.
+ */
+static inline uint32_t readl_attrs(uint64_t addr, const char *attrs)
+{
+    return qtest_readl_attrs(global_qtest, addr, attrs);
+}
+
+/**
+ * readq_attrs:
+ * @addr: Guest address to read from.
+ * @attrs: Optional transaction attributes string.
+ *
+ * Reads a 64-bit value from guest memory with optional transaction attributes.
+ *
+ * Returns: Value read.
+ */
+static inline uint64_t readq_attrs(uint64_t addr, const char *attrs)
+{
+    return qtest_readq_attrs(global_qtest, addr, attrs);
+}
+
+/**
+ * memread_attrs:
+ * @addr: Guest address to read from.
+ * @data: Pointer to where memory contents will be stored.
+ * @size: Number of bytes to read.
+ * @attrs: Optional transaction attributes string.
+ *
+ * Read guest memory into a buffer with optional transaction attributes.
+ */
+static inline void memread_attrs(uint64_t addr, void *data, size_t size,
+                                 const char *attrs)
+{
+    qtest_memread_attrs(global_qtest, addr, data, size, attrs);
+}
+
+/**
+ * memwrite_attrs:
+ * @addr: Guest address to write to.
+ * @data: Pointer to the bytes that will be written to guest memory.
+ * @size: Number of bytes to write.
+ * @attrs: Optional transaction attributes string.
+ *
+ * Write a buffer to guest memory with optional transaction attributes.
+ */
+static inline void memwrite_attrs(uint64_t addr, const void *data, size_t size,
+                                  const char *attrs)
+{
+    qtest_memwrite_attrs(global_qtest, addr, data, size, attrs);
+}
+
+/**
+ * memset_attrs:
+ * @addr: Guest address to write to.
+ * @pattern: Byte pattern to fill the guest memory region with.
+ * @size: Number of bytes to write.
+ * @attrs: Optional transaction attributes string.
+ *
+ * Write a pattern to guest memory with optional transaction attributes.
+ */
+static inline void memset_attrs(uint64_t addr, uint8_t pattern, size_t size,
+                                const char *attrs)
+{
+    qtest_memset_attrs(global_qtest, addr, pattern, size, attrs);
+}
+
+/**
  * clock_step_next:
  *
  * Advance the QEMU_CLOCK_VIRTUAL to the next deadline.
