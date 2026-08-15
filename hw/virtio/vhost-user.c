@@ -1123,6 +1123,13 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
             dev, VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS);
     int ret;
 
+    if (mem->nregions > u->user->memory_slots) {
+        error_report("vhost-user memory table has %u regions, "
+                     "but the backend supports only %d",
+                     mem->nregions, u->user->memory_slots);
+        return -ENOSPC;
+    }
+
     if (do_postcopy) {
         /*
          * Postcopy has enough differences that it's best done in it's own
@@ -1975,6 +1982,17 @@ vhost_user_backend_handle_shmem_map(struct vhost_dev *dev,
             ret = -EFAULT;
             goto send_reply;
         }
+    }
+
+    /*
+     * Each SHMEM mapping becomes a separate RAM MemoryRegion and thus
+     * consumes a KVM memory slot. Reject the request before changing the
+     * memory topology if no slot is left.
+     */
+    if (kvm_enabled() && !kvm_get_free_memslots()) {
+        error_report("No free KVM memory slots for shared memory mapping");
+        ret = -ENOSPC;
+        goto send_reply;
     }
 
     /* Create VirtioSharedMemoryMapping object */
