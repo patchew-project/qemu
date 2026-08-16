@@ -32,5 +32,6 @@ int tap_enable(NetClientState *nc);
 int tap_disable(NetClientState *nc);
 
 int tap_get_fd(NetClientState *nc);
+int tap_get_mtu(NetClientState *nc);
 
 #endif /* QEMU_NET_TAP_H */
