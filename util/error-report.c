@@ -35,12 +35,13 @@ const char *error_guest_name;
 static int G_GNUC_PRINTF(1, 0)
 error_vprintf_mon(const char *fmt, va_list ap)
 {
+#ifdef CONFIG_HMP
     MonitorHMP *hmp = monitor_cur_hmp();
 
     if (hmp) {
         return monitor_hmp_vprintf(hmp, fmt, ap);
     }
-
+#endif
     return vfprintf(stderr, fmt, ap);
 }
 
