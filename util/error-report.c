@@ -30,34 +30,31 @@ bool error_with_guestname;
 const char *error_guest_name;
 
 /*
- * Print to the current human monitor if we have one, else to stderr.
+ * Print to the current HMP monitor if we have one, else to stderr.
  */
-static int G_GNUC_PRINTF(2, 0)
-error_vprintf_mon(Monitor *cur_mon, const char *fmt, va_list ap)
+static int G_GNUC_PRINTF(1, 0)
+error_vprintf_mon(const char *fmt, va_list ap)
 {
-    /*
-     * This will return -1 if 'cur_mon' is NULL, or is QMP.
-     * IOW this will only print if in HMP, otherwise we
-     * fallback to stderr for QMP / no-monitor scenarios.
-     */
-    int ret = monitor_vprintf(cur_mon, fmt, ap);
-    if (ret == -1) {
-        ret = vfprintf(stderr, fmt, ap);
+    MonitorHMP *hmp = monitor_cur_hmp();
+
+    if (hmp) {
+        return monitor_vprintf(MONITOR(hmp), fmt, ap);
     }
-    return ret;
+
+    return vfprintf(stderr, fmt, ap);
 }
 
 /*
- * Print to the current human monitor if we have one, else to stderr.
+ * Print to the current HMP monitor if we have one, else to stderr.
  */
-static int G_GNUC_PRINTF(2, 3)
-error_printf_mon(Monitor *cur_mon, const char *fmt, ...)
+static int G_GNUC_PRINTF(1, 2)
+error_printf_mon(const char *fmt, ...)
 {
     va_list ap;
     int ret;
 
     va_start(ap, fmt);
-    ret = error_vprintf_mon(cur_mon, fmt, ap);
+    ret = error_vprintf_mon(fmt, ap);
     va_end(ap);
     return ret;
 }
@@ -67,7 +64,7 @@ error_printf_mon(Monitor *cur_mon, const char *fmt, ...)
  */
 int error_vprintf(const char *fmt, va_list ap)
 {
-    return error_vprintf_mon(monitor_cur(), fmt, ap);
+    return error_vprintf_mon(fmt, ap);
 }
 
 /*
@@ -79,7 +76,7 @@ int error_printf(const char *fmt, ...)
     int ret;
 
     va_start(ap, fmt);
-    ret = error_vprintf_mon(monitor_cur(), fmt, ap);
+    ret = error_vprintf_mon(fmt, ap);
     va_end(ap);
     return ret;
 }
@@ -183,13 +180,13 @@ void loc_set_file(const char *fname, int lno)
  * Print current location to current HMP monitor if we have one, else
  * to stderr.
  */
-static void print_loc(Monitor *cur)
+static void print_loc(MonitorHMP *hmp)
 {
     const char *sep = "";
     int i;
     const char *const *argp;
 
-    if (!cur && g_get_prgname()) {
+    if (!hmp && g_get_prgname()) {
         fprintf(stderr, "%s:", g_get_prgname());
         sep = " ";
     }
@@ -197,20 +194,20 @@ static void print_loc(Monitor *cur)
     case LOC_CMDLINE:
         argp = cur_loc->ptr;
         for (i = 0; i < cur_loc->num; i++) {
-            error_printf_mon(cur, "%s%s", sep, argp[i]);
+            error_printf_mon("%s%s", sep, argp[i]);
             sep = " ";
         }
-        error_printf_mon(cur, ": ");
+        error_printf_mon(": ");
         break;
     case LOC_FILE:
-        error_printf_mon(cur, "%s:", (const char *)cur_loc->ptr);
+        error_printf_mon("%s:", (const char *)cur_loc->ptr);
         if (cur_loc->num) {
-            error_printf_mon(cur, "%d:", cur_loc->num);
+            error_printf_mon("%d:", cur_loc->num);
         }
-        error_printf_mon(cur, " ");
+        error_printf_mon(" ");
         break;
     default:
-        error_printf_mon(cur, "%s", sep);
+        error_printf_mon("%s", sep);
     }
 }
 
@@ -233,45 +230,44 @@ static void vreport(report_type type, const char *fmt, va_list ap)
 {
     /*
      * When current monitor is QMP, messages must go to stderr
-     * and have prefixes added, so we cast to HMP, leaving 'cur'
+     * and have prefixes added, so we cast to HMP, leaving 'hmp'
      * as NULL in QMP case
      */
-    Monitor *cur = MONITOR(
-        object_dynamic_cast(OBJECT(monitor_cur()), TYPE_MONITOR_HMP));
+    MonitorHMP *hmp = monitor_cur_hmp();
     gchar *timestr;
 
-    if (!cur) {
+    if (!hmp) {
         qemu_flockfile(stderr);
     }
 
-    if (message_with_timestamp && !cur) {
+    if (message_with_timestamp && !hmp) {
         timestr = real_time_iso8601();
         fprintf(stderr, "%s ", timestr);
         g_free(timestr);
     }
 
     /* Only prepend guest name if -msg guest-name and -name guest=... are set */
-    if (error_with_guestname && error_guest_name && !cur) {
+    if (error_with_guestname && error_guest_name && !hmp) {
         fprintf(stderr, "%s ", error_guest_name);
     }
 
-    print_loc(cur);
+    print_loc(hmp);
 
     switch (type) {
     case REPORT_TYPE_ERROR:
         break;
     case REPORT_TYPE_WARNING:
-        error_printf_mon(cur, "warning: ");
+        error_printf_mon("warning: ");
         break;
     case REPORT_TYPE_INFO:
-        error_printf_mon(cur, "info: ");
+        error_printf_mon("info: ");
         break;
     }
 
-    error_vprintf_mon(cur, fmt, ap);
-    error_printf_mon(cur, "\n");
+    error_vprintf_mon(fmt, ap);
+    error_printf_mon("\n");
 
-    if (!cur) {
+    if (!hmp) {
         qemu_funlockfile(stderr);
     }
 }
