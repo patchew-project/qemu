@@ -379,6 +379,13 @@ int tap_get_fd(NetClientState *nc)
     return s->fd;
 }
 
+int tap_get_mtu(NetClientState *nc)
+{
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
+    assert(nc->info->type == NET_CLIENT_DRIVER_TAP);
+    return tap_fd_get_mtu(s->fd);
+}
+
 /*
  * tap_get_vhost_net() can return NULL if a tap net-device backend is
  * created with 'vhost=off' option, 'vhostforce=off' or no vhost or
