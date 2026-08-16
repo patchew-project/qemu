@@ -21,10 +21,12 @@
  */
 int qemu_vprintf(const char *fmt, va_list ap)
 {
+#ifdef CONFIG_HMP
     MonitorHMP *hmp = monitor_cur_hmp();
     if (hmp) {
         return monitor_hmp_vprintf(hmp, fmt, ap);
     }
+#endif
     return vprintf(fmt, ap);
 }
 
@@ -52,10 +54,12 @@ int qemu_printf(const char *fmt, ...)
  */
 int qemu_vfprintf(FILE *stream, const char *fmt, va_list ap)
 {
+#ifdef CONFIG_HMP
     if (!stream) {
         MonitorHMP *hmp = monitor_cur_hmp();
         return hmp ? monitor_hmp_vprintf(hmp, fmt, ap) : -1;
     }
+#endif
     return vfprintf(stream, fmt, ap);
 }
 
