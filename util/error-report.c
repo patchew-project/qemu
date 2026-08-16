@@ -38,7 +38,7 @@ error_vprintf_mon(const char *fmt, va_list ap)
     MonitorHMP *hmp = monitor_cur_hmp();
 
     if (hmp) {
-        return monitor_vprintf(MONITOR(hmp), fmt, ap);
+        return monitor_hmp_vprintf(hmp, fmt, ap);
     }
 
     return vfprintf(stderr, fmt, ap);
