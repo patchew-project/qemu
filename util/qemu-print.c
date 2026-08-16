@@ -21,9 +21,9 @@
  */
 int qemu_vprintf(const char *fmt, va_list ap)
 {
-    Monitor *cur_mon = monitor_cur();
-    if (cur_mon) {
-        return monitor_vprintf(cur_mon, fmt, ap);
+    MonitorHMP *hmp = monitor_cur_hmp();
+    if (hmp) {
+        return monitor_vprintf(MONITOR(hmp), fmt, ap);
     }
     return vprintf(fmt, ap);
 }
@@ -53,7 +53,8 @@ int qemu_printf(const char *fmt, ...)
 int qemu_vfprintf(FILE *stream, const char *fmt, va_list ap)
 {
     if (!stream) {
-        return monitor_vprintf(monitor_cur(), fmt, ap);
+        MonitorHMP *hmp = monitor_cur_hmp();
+        return hmp ? monitor_vprintf(MONITOR(hmp), fmt, ap) : -1;
     }
     return vfprintf(stream, fmt, ap);
 }
