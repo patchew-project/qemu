@@ -1572,8 +1572,18 @@ static int qemu_rdma_post_send_control(RDMAContext *rdma, uint8_t *buf,
         memcpy(wr->control + sizeof(RDMAControlHeader), buf, head->len);
     }
 
-
+retry:
     ret = ibv_post_send(rdma->qp, &send_wr, &bad_wr);
+
+    if (ret == ENOMEM && rdma->nb_sent) {
+        ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RDMA_WRITE, NULL);
+        if (ret < 0) {
+            error_setg(errp, "rdma migration: failed to make room for "
+                       "control send");
+            return -1;
+        }
+        goto retry;
+    }
 
     if (ret > 0) {
         error_setg(errp, "Failed to use post IB SEND for control");
