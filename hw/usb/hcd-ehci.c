@@ -421,16 +421,14 @@ static inline int get_dwords(EHCIState *ehci, uint64_t addr,
 {
     int i;
 
-    if (!ehci->as) {
-        ehci_raise_irq(ehci, USBSTS_HSE);
-        ehci->usbcmd &= ~USBCMD_RUNSTOP;
-        trace_usb_ehci_dma_error();
-        return -1;
-    }
-
     for (i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
-        dma_memory_read(ehci->as, addr, buf, sizeof(*buf),
-                        MEMTXATTRS_UNSPECIFIED);
+        if (dma_memory_read(ehci->as, addr, buf, sizeof(*buf),
+                            MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
+            ehci_raise_irq(ehci, USBSTS_HSE);
+            ehci->usbcmd &= ~USBCMD_RUNSTOP;
+            trace_usb_ehci_dma_error();
+            return -1;
+        }
         *buf = le32_to_cpu(*buf);
     }
 
@@ -438,25 +436,21 @@ static inline int get_dwords(EHCIState *ehci, uint64_t addr,
 }
 
 /* Put an array of dwords in to main memory */
-static inline int put_dwords(EHCIState *ehci, uint64_t addr,
-                             uint32_t *buf, int num)
+static inline void put_dwords(EHCIState *ehci, uint64_t addr,
+                              uint32_t *buf, int num)
 {
     int i;
 
-    if (!ehci->as) {
-        ehci_raise_irq(ehci, USBSTS_HSE);
-        ehci->usbcmd &= ~USBCMD_RUNSTOP;
-        trace_usb_ehci_dma_error();
-        return -1;
-    }
-
     for (i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
         uint32_t tmp = cpu_to_le32(*buf);
-        dma_memory_write(ehci->as, addr, &tmp, sizeof(tmp),
-                         MEMTXATTRS_UNSPECIFIED);
+        if (dma_memory_write(ehci->as, addr, &tmp, sizeof(tmp),
+                             MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
+            ehci_raise_irq(ehci, USBSTS_HSE);
+            ehci->usbcmd &= ~USBCMD_RUNSTOP;
+            trace_usb_ehci_dma_error();
+            return;
+        }
     }
-
-    return num;
 }
 
 static int ehci_get_pid(EHCIqtd *qtd)
