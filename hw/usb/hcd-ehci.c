@@ -416,8 +416,8 @@ static inline bool ehci_periodic_enabled(EHCIState *s)
 }
 
 /* Get an array of dwords from main memory */
-static inline int get_dwords(EHCIState *ehci, uint64_t addr,
-                             uint32_t *buf, int num)
+static inline bool get_dwords(EHCIState *ehci, uint64_t addr,
+                              uint32_t *buf, int num)
 {
     int i;
 
@@ -427,12 +427,12 @@ static inline int get_dwords(EHCIState *ehci, uint64_t addr,
             ehci_raise_irq(ehci, USBSTS_HSE);
             ehci->usbcmd &= ~USBCMD_RUNSTOP;
             trace_usb_ehci_dma_error();
-            return -1;
+            return false;
         }
         *buf = le32_to_cpu(*buf);
     }
 
-    return num;
+    return true;
 }
 
 /* Put an array of dwords in to main memory */
@@ -1598,8 +1598,8 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
     /*  Find the head of the list (4.9.1.1) */
     memset(&qh, 0, sizeof(qh));
     for (i = 0; i < MAX_QH; i++) {
-        if (get_dwords(ehci, NLPTR_GET(entry), (uint32_t *) &qh,
-                       ehci_qh_dwords(ehci)) < 0) {
+        if (!get_dwords(ehci, NLPTR_GET(entry), (uint32_t *) &qh,
+                        ehci_qh_dwords(ehci))) {
             return 0;
         }
         ehci_trace_qh(NULL, NLPTR_GET(entry), &qh);
@@ -1701,8 +1701,8 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     }
 
     memset(&qh, 0, sizeof(qh));
-    if (get_dwords(ehci, NLPTR_GET(q->qhaddr),
-                   (uint32_t *) &qh, ehci_qh_dwords(ehci)) < 0) {
+    if (!get_dwords(ehci, NLPTR_GET(q->qhaddr),
+                    (uint32_t *) &qh, ehci_qh_dwords(ehci))) {
         q = NULL;
         goto out;
     }
@@ -1779,8 +1779,8 @@ static int ehci_state_fetchitd(EHCIState *ehci, int async)
     entry = ehci_get_fetch_addr(ehci, async);
 
     memset(&itd, 0, sizeof(itd));
-    if (get_dwords(ehci, NLPTR_GET(entry), (uint32_t *) &itd,
-                   ehci_itd_dwords(ehci)) < 0) {
+    if (!get_dwords(ehci, NLPTR_GET(entry), (uint32_t *) &itd,
+                    ehci_itd_dwords(ehci))) {
         return -1;
     }
     ehci_trace_itd(ehci, entry, &itd);
@@ -1805,8 +1805,8 @@ static int ehci_state_fetchsitd(EHCIState *ehci, int async)
     assert(!async);
     entry = ehci_get_fetch_addr(ehci, async);
 
-    if (get_dwords(ehci, NLPTR_GET(entry), (uint32_t *)&sitd,
-                   sizeof(EHCIsitd) >> 2) < 0) {
+    if (!get_dwords(ehci, NLPTR_GET(entry), (uint32_t *)&sitd,
+                    sizeof(EHCIsitd) >> 2)) {
         return 0;
     }
     ehci_trace_sitd(ehci, entry, &sitd);
@@ -1866,18 +1866,18 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
     uint64_t addr;
 
     addr = NLPTR_GET(q->qtdaddr);
-    if (get_dwords(q->ehci, addr +  8, &qtd.token,   1) < 0) {
+    if (!get_dwords(q->ehci, addr +  8, &qtd.token,   1)) {
         return 0;
     }
     barrier();
     memset(qtd.bufptr_hi, 0, sizeof(qtd.bufptr_hi));
-    if (get_dwords(q->ehci, addr +  0, &qtd.next,    1) < 0 ||
-        get_dwords(q->ehci, addr +  4, &qtd.altnext, 1) < 0 ||
-        get_dwords(q->ehci, addr + 12, qtd.bufptr,
-                   ARRAY_SIZE(qtd.bufptr)) < 0 ||
+    if (!get_dwords(q->ehci, addr +  0, &qtd.next,    1) ||
+        !get_dwords(q->ehci, addr +  4, &qtd.altnext, 1) ||
+        !get_dwords(q->ehci, addr + 12, qtd.bufptr,
+                    ARRAY_SIZE(qtd.bufptr)) ||
         (q->ehci->caps_64bit_addr &&
-         get_dwords(q->ehci, addr + offsetof(EHCIqtd, bufptr_hi),
-                    qtd.bufptr_hi, ARRAY_SIZE(qtd.bufptr_hi)) < 0)) {
+         !get_dwords(q->ehci, addr + offsetof(EHCIqtd, bufptr_hi),
+                     qtd.bufptr_hi, ARRAY_SIZE(qtd.bufptr_hi)))) {
         return 0;
     }
     ehci_trace_qtd(q, NLPTR_GET(q->qtdaddr), &qtd);
@@ -1969,8 +1969,8 @@ static int ehci_fill_queue(EHCIPacket *p)
             }
         }
         memset(qtd.bufptr_hi, 0, sizeof(qtd.bufptr_hi));
-        if (get_dwords(q->ehci, NLPTR_GET(qtdaddr),
-                       (uint32_t *) &qtd, ehci_qtd_dwords(q->ehci)) < 0) {
+        if (!get_dwords(q->ehci, NLPTR_GET(qtdaddr),
+                        (uint32_t *) &qtd, ehci_qtd_dwords(q->ehci))) {
             return -1;
         }
         ehci_trace_qtd(q, NLPTR_GET(qtdaddr), &qtd);
@@ -2290,7 +2290,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
         }
         list |= ((ehci->frindex & 0x1ff8) >> 1);
         list64 = ehci_get_desc_addr(ehci, list);
-        if (get_dwords(ehci, list64, &entry, 1) < 0) {
+        if (!get_dwords(ehci, list64, &entry, 1)) {
             break;
         }
         entry64 = ehci_get_desc_addr(ehci, entry);
