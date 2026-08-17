@@ -388,6 +388,16 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
      */
     cpu->neg.can_do_io = true;
 
+    /*
+     * A block that dispatches indirectly does not emit the icount_decr poll,
+     * so this is where a pending exit is noticed for that path: either the
+     * probe was poisoned and every dispatch arrives here, or the target uses
+     * the out-of-line lookup and always did.
+     */
+    if (unlikely(cpu_loop_exit_requested(cpu))) {
+        return tcg_code_gen_epilogue;
+    }
+
     TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
     s.cflags = curr_cflags(cpu);
 
@@ -752,6 +762,44 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
     return false;
 }
 
+/*
+ * The inline jump cache probe reads cpu->tb_jmp_cache_probe and takes the
+ * slow path when the entry it finds has a NULL tb. Pointing the probe at a
+ * region that is all zeroes therefore forces every indirect dispatch into
+ * helper_lookup_tb_ptr(), which returns to the main loop while an exit is
+ * pending. That is what lets a block ending in an indirect branch skip the
+ * icount_decr poll: the poll's job is done by a pointer swap that costs the
+ * fast path nothing.
+ *
+ * Only ever read from, and only the tb field of one entry per dispatch, so
+ * one shared zero-filled cache is enough for every CPU.
+ */
+static const CPUJumpCache *tb_jmp_cache_poison(void)
+{
+    static CPUJumpCache *poison;
+
+    if (unlikely(poison == NULL)) {
+        /* Raced allocations are harmless: both are all zeroes. */
+        qatomic_cmpxchg(&poison, NULL, g_new0(CPUJumpCache, 1));
+    }
+    return poison;
+}
+
+void tcg_cpu_poison_jmp_cache(CPUState *cpu)
+{
+    if (qatomic_read(&cpu->tb_jmp_cache_probe) != NULL) {
+        qatomic_set(&cpu->tb_jmp_cache_probe,
+                    (CPUJumpCache *)tb_jmp_cache_poison());
+    }
+}
+
+void tcg_cpu_restore_jmp_cache(CPUState *cpu)
+{
+    if (qatomic_read(&cpu->tb_jmp_cache_probe) != NULL) {
+        qatomic_set(&cpu->tb_jmp_cache_probe, cpu->tb_jmp_cache);
+    }
+}
+
 void tcg_kick_vcpu_thread(CPUState *cpu)
 {
     /*
@@ -764,6 +812,9 @@ void tcg_kick_vcpu_thread(CPUState *cpu)
 
     /* Ensure cpu_exec will see the exit request after TCG has exited.  */
     qatomic_store_release(&cpu->neg.icount_decr.u16.high, -1);
+
+    /* Blocks that only dispatch indirectly do not poll; stop them chaining. */
+    tcg_cpu_poison_jmp_cache(cpu);
 }
 
 static inline bool icount_exit_request(CPUState *cpu)
@@ -796,6 +847,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
      * tcg_kick_vcpu_thread())
      */
     qatomic_set_mb(&cpu->neg.icount_decr.u16.high, 0);
+    tcg_cpu_restore_jmp_cache(cpu);
 
 #ifdef CONFIG_USER_ONLY
     assert(!cpu_test_interrupt(cpu, ~0));
@@ -1069,6 +1121,7 @@ bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
     }
 
     cpu->tb_jmp_cache = g_new0(CPUJumpCache, 1);
+    qatomic_set(&cpu->tb_jmp_cache_probe, cpu->tb_jmp_cache);
     tlb_init(cpu);
 #ifndef CONFIG_USER_ONLY
     tcg_iommu_init_notifier_list(cpu);
@@ -1086,5 +1139,6 @@ void tcg_exec_unrealizefn(CPUState *cpu)
 #endif /* !CONFIG_USER_ONLY */
 
     tlb_destroy(cpu);
+    qatomic_set(&cpu->tb_jmp_cache_probe, NULL);
     g_free_rcu(cpu->tb_jmp_cache, rcu);
 }

@@ -526,6 +526,16 @@ struct CPUState {
 
     struct CPUJumpCache *tb_jmp_cache;
 
+    /*
+     * What the inline jump cache probe emitted by
+     * tcg_gen_lookup_and_goto_ptr_inline() reads. Normally equal to
+     * tb_jmp_cache; pointed at a page of zeroes while an exit is pending, so
+     * that every indirect dispatch misses and lands in the helper, which
+     * returns to the main loop. Only generated code and the two accessors in
+     * cpu-exec.c may touch it.
+     */
+    struct CPUJumpCache *tb_jmp_cache_probe;
+
     GArray *gdb_regs;
     int gdb_num_regs;
     int gdb_num_g_regs;
