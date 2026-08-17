@@ -470,6 +470,10 @@ struct CPUArchState {
     uint64_t sscratch;
     uint64_t mscratch;
 
+    /* Sspesa CSRs */
+    target_ulong shpmspc;
+    target_ulong shpmsdata;
+
     /* Sstc CSRs */
     uint64_t stimecmp;
 

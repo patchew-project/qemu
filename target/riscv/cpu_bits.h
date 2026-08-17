@@ -601,6 +601,13 @@
 
 #define CSR_SCOUNTOVF       0xda0
 
+ /* Temporary addresses for Sspesa (Precise Event Sample Attribution) CSRs. */
+#define CSR_SHPMSPC         0x5d0
+#define CSR_SHPMSDATA       0x5d1
+
+/* shpmsdata fields */
+#define SHPMSDATA_CNTRID    0x1f
+
 /* Crypto Extension */
 #define CSR_SEED            0x015
 
