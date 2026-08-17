@@ -527,11 +527,11 @@ static void ehci_writeback_async_complete_packet(EHCIPacket *p)
     /* Verify the qh + qtd, like we do when going through fetchqh & fetchqtd */
     memset(&qh, 0, sizeof(qh));
     memset(&qtd, 0, sizeof(qtd));
-    get_dwords(q->ehci, NLPTR_GET(q->qhaddr),
-               (uint32_t *) &qh, ehci_qh_dwords(q->ehci));
-    get_dwords(q->ehci, NLPTR_GET(q->qtdaddr),
-               (uint32_t *) &qtd, ehci_qtd_dwords(q->ehci));
-    if (!ehci_verify_qh(q, &qh) || !ehci_verify_qtd(p, &qtd)) {
+    if (!get_dwords(q->ehci, NLPTR_GET(q->qhaddr),
+                    (uint32_t *) &qh, ehci_qh_dwords(q->ehci)) ||
+        !get_dwords(q->ehci, NLPTR_GET(q->qtdaddr),
+                    (uint32_t *) &qtd, ehci_qtd_dwords(q->ehci)) ||
+        !ehci_verify_qh(q, &qh) || !ehci_verify_qtd(p, &qtd)) {
         p->async = EHCI_ASYNC_INITIALIZED;
         ehci_free_packet(p);
         return;
