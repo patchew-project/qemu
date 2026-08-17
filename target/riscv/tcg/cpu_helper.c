@@ -2255,6 +2255,12 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         sxlen = 16 << riscv_cpu_sxl(env);
         env->scause = cause | ((target_ulong)async << (sxlen - 1));
         env->sepc = env->pc;
+        /* On LCOFI delivery, latch the sample PC to the interrupted PC. */
+        if (riscv_cpu_cfg(env)->ext_sspesa && env->sspesa_capture_pending) {
+            if (async && cause == IRQ_PMU_OVF) {
+                env->shpmspc = env->pc;
+            }
+        }
         env->stval = tval;
         env->htval = htval;
         env->htinst = tinst;
