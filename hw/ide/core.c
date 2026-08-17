@@ -110,6 +110,18 @@ static void put_le16(uint16_t *p, unsigned int v)
     *p = cpu_to_le16(v);
 }
 
+static void ide_identify_chs(IDEState *s)
+{
+    uint16_t *p = (uint16_t *)s->identify_data;
+    unsigned int cur_sec = s->cylinders * s->heads * s->sectors;
+
+    put_le16(p + 54, s->cylinders);
+    put_le16(p + 55, s->heads);
+    put_le16(p + 56, s->sectors);
+    put_le16(p + 57, cur_sec);
+    put_le16(p + 58, cur_sec >> 16);
+}
+
 static void ide_identify_size(IDEState *s)
 {
     uint16_t *p = (uint16_t *)s->identify_data;
@@ -128,7 +140,6 @@ static void ide_identify_size(IDEState *s)
 static void ide_identify(IDEState *s)
 {
     uint16_t *p;
-    unsigned int oldsize;
     IDEDevice *dev = s->unit ? s->bus->slave : s->bus->master;
 
     p = (uint16_t *)s->identify_data;
@@ -158,12 +169,7 @@ static void ide_identify(IDEState *s)
     put_le16(p + 51, 0x200); /* PIO transfer cycle */
     put_le16(p + 52, 0x200); /* DMA transfer cycle */
     put_le16(p + 53, 1 | (1 << 1) | (1 << 2)); /* words 54-58,64-70,88 are valid */
-    put_le16(p + 54, s->cylinders);
-    put_le16(p + 55, s->heads);
-    put_le16(p + 56, s->sectors);
-    oldsize = s->cylinders * s->heads * s->sectors;
-    put_le16(p + 57, oldsize);
-    put_le16(p + 58, oldsize >> 16);
+    ide_identify_chs(s);
     if (s->mult_sectors)
         put_le16(p + 59, 0x100 | s->mult_sectors);
     /* *(p + 60) := nb_sectors       -- see ide_identify_size */
@@ -321,15 +327,12 @@ static void ide_cfata_identify_size(IDEState *s)
 static void ide_cfata_identify(IDEState *s)
 {
     uint16_t *p;
-    uint32_t cur_sec;
 
     p = (uint16_t *)s->identify_data;
     if (s->identify_set) {
         goto fill_buffer;
     }
     memset(p, 0, sizeof(s->identify_data));
-
-    cur_sec = s->cylinders * s->heads * s->sectors;
 
     put_le16(p + 0, 0x848a);                    /* CF Storage Card signature */
     put_le16(p + 1, s->cylinders);              /* Default cylinders */
@@ -350,11 +353,7 @@ static void ide_cfata_identify(IDEState *s)
     put_le16(p + 51, 0x0002);                   /* PIO cycle timing mode */
     put_le16(p + 52, 0x0001);                   /* DMA cycle timing mode */
     put_le16(p + 53, 0x0003);                   /* Translation params valid */
-    put_le16(p + 54, s->cylinders);             /* Current cylinders */
-    put_le16(p + 55, s->heads);                 /* Current heads */
-    put_le16(p + 56, s->sectors);               /* Current sectors */
-    put_le16(p + 57, cur_sec);                  /* Current capacity */
-    put_le16(p + 58, cur_sec >> 16);            /* Current capacity */
+    ide_identify_chs(s);                        /* Current C/H/S and capacity */
     if (s->mult_sectors)                        /* Multiple sector setting */
         put_le16(p + 59, 0x100 | s->mult_sectors);
     /* *(p + 60) := nb_sectors       -- see ide_cfata_identify_size */
@@ -1361,6 +1360,10 @@ static void ide_reset(IDEState *s)
         s->reset_reverts = false;
         s->heads         = s->drive_heads;
         s->sectors       = s->drive_sectors;
+        /* An ATAPI device takes SET FEATURES 0xCC but has no translation */
+        if (s->identify_set && s->drive_kind != IDE_CD) {
+            ide_identify_chs(s);
+        }
     }
     if (s->drive_kind == IDE_CFATA)
         s->mult_sectors = 0;
@@ -1669,6 +1672,9 @@ static bool cmd_specify(IDEState *s, uint8_t cmd)
 
     s->heads = (s->select & (ATA_DEV_HS)) + 1;
     s->sectors = s->nsector;
+    if (s->identify_set) {
+        ide_identify_chs(s);
+    }
     ide_bus_set_irq(s->bus);
 
     return true;
