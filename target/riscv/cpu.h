@@ -473,6 +473,8 @@ struct CPUArchState {
     /* Sspesa CSRs */
     target_ulong shpmspc;
     target_ulong shpmsdata;
+    /* Capture shpmspc/shpmsdata only on the first overflow */
+    bool sspesa_capture_pending;
 
     /* Sstc CSRs */
     uint64_t stimecmp;
