@@ -1058,6 +1058,13 @@ typedef struct TCGOutOpQemuLdSt {
     TCGOutOp base;
     void (*out)(TCGContext *s, TCGType type, TCGReg dest,
                 TCGReg addr, MemOpIdx oi);
+    /*
+     * As out(), for an access at addr + disp. Only required of targets that
+     * define TCG_TARGET_HAS_ldst_disp; for everyone else fold_ldst_disp()
+     * never runs and the displacement is always zero.
+     */
+    void (*out_disp)(TCGContext *s, TCGType type, TCGReg dest,
+                     TCGReg addr, MemOpIdx oi, int32_t disp);
 } TCGOutOpQemuLdSt;
 
 typedef struct TCGOutOpQemuLdSt2 {
@@ -3560,6 +3567,77 @@ static void move_label_uses(TCGLabel *to, TCGLabel *from)
     QSIMPLEQ_CONCAT(&to->branches, &from->branches);
 }
 
+#ifndef TCG_TARGET_HAS_ldst_disp
+#define TCG_TARGET_HAS_ldst_disp  0
+static bool tcg_target_ldst_disp_ok(TCGContext *s, MemOpIdx oi, int64_t disp)
+{
+    return false;
+}
+#endif
+
+/*
+ * Fold "add addr, base, $disp" into the guest access that follows it, so
+ * that the displacement becomes part of the host addressing mode instead of
+ * a separate instruction. Frontends have no way to express this: there is
+ * no displacement operand on tcg_gen_qemu_ld/st, so a based access always
+ * costs an extra add, and an extra register to hold its result.
+ *
+ * Only an add in the op immediately before the access is recognised. That
+ * is what the frontends emit, and a window of one op means no analysis is
+ * needed of what might have happened in between. The add is left in place;
+ * liveness removes it if its result has no other use.
+ */
+static void __attribute__((noinline))
+fold_ldst_disp(TCGContext *s)
+{
+    TCGOp *op;
+
+    if (!TCG_TARGET_HAS_ldst_disp) {
+        return;
+    }
+
+    QTAILQ_FOREACH(op, &s->ops, link) {
+        TCGOp *prev;
+        TCGTemp *cts;
+        int64_t disp;
+
+        switch (op->opc) {
+        case INDEX_op_qemu_ld:
+        case INDEX_op_qemu_st:
+            break;
+        default:
+            continue;
+        }
+
+        prev = QTAILQ_PREV(op, link);
+        if (prev == NULL || prev->opc != INDEX_op_add ||
+            TCGOP_TYPE(prev) != s->addr_type) {
+            continue;
+        }
+
+        /*
+         * The add must define the address operand, and must not have
+         * clobbered the base it read: after the fold the access reads the
+         * base directly, so the base has to still hold its original value.
+         */
+        if (prev->args[0] != op->args[1] || prev->args[0] == prev->args[1]) {
+            continue;
+        }
+
+        cts = arg_temp(prev->args[2]);
+        if (cts->kind != TEMP_CONST) {
+            continue;
+        }
+        disp = cts->val;
+        if (disp == 0 || !tcg_target_ldst_disp_ok(s, op->args[2], disp)) {
+            continue;
+        }
+
+        op->args[1] = prev->args[1];
+        op->args[3] = disp;
+    }
+}
+
 /* Reachable analysis : remove unreachable code.  */
 static void __attribute__((noinline))
 reachable_code_pass(TCGContext *s)
@@ -5707,7 +5785,12 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
             const TCGOutOpQemuLdSt *out =
                 container_of(all_outop[op->opc], TCGOutOpQemuLdSt, base);
 
-            out->out(s, type, new_args[0], new_args[1], new_args[2]);
+            if (new_args[3]) {
+                out->out_disp(s, type, new_args[0], new_args[1],
+                              new_args[2], new_args[3]);
+            } else {
+                out->out(s, type, new_args[0], new_args[1], new_args[2]);
+            }
         }
         break;
 
@@ -6590,6 +6673,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
     tcg_temp_ebb_reset_freed(s);
 
     tcg_optimize(s);
+    fold_ldst_disp(s);
 
     reachable_code_pass(s);
     liveness_pass_0(s);
