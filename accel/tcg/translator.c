@@ -117,8 +117,20 @@ bool translator_use_goto_tb(DisasContextBase *db, vaddr dest)
         return false;
     }
 
+#ifdef CONFIG_USER_ONLY
+    /*
+     * There are no page tables in user-only mode.  Every mmap, mprotect and
+     * munmap goes through page_set_flags(), which calls
+     * tb_invalidate_phys_range() whenever the flags actually change, and
+     * tb_phys_invalidate() unlinks incoming jumps.  A chained cross-page
+     * jump is therefore broken whenever the destination page's permissions
+     * change, so the same-page restriction is not needed here.
+     */
+    return true;
+#else
     /* Check for the dest on the same page as the start of the TB.  */
     return translator_is_same_page(db, dest);
+#endif
 }
 
 void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
