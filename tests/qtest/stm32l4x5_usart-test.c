@@ -332,6 +332,53 @@ static void test_ack(void)
     qtest_quit(qts);
 }
 
+static void test_isr_reset(void)
+{
+    QTestState *qts = qtest_init("-M b-l475e-iot01a");
+    init_uart(qts);
+    /* ISR should show TEACK/REACK after UART init */
+    uint32_t isr = qtest_readl(qts, USART1_BASE_ADDR + A_ISR);
+    g_assert_true(isr & R_ISR_TEACK_MASK);
+    g_assert_true(isr & R_ISR_REACK_MASK);
+
+    /* Clear UE bit in CR1 -> USART disabled */
+    uint32_t cr1 = qtest_readl(qts, USART1_BASE_ADDR + A_CR1);
+    qtest_writel(qts, USART1_BASE_ADDR + A_CR1, cr1 & ~R_CR1_UE_MASK);
+    /* ISR must reset to reset value 0x020000C0 when UE is cleared */
+    isr = qtest_readl(qts, USART1_BASE_ADDR + A_ISR);
+    g_assert_cmpuint(isr, ==, 0x020000C0);
+
+    qtest_quit(qts);
+}
+
+static void test_16bit_access(void)
+{
+    QTestState *qts = qtest_init("-M b-l475e-iot01a");
+
+    /* Test 16-bit write/read on RTOR */
+    qtest_writel(qts, USART1_BASE_ADDR + A_RTOR, 0x00000000);
+    qtest_writew(qts, USART1_BASE_ADDR + A_RTOR, 0xABCD);
+    uint16_t rtor16 = qtest_readw(qts, USART1_BASE_ADDR + A_RTOR);
+    g_assert_cmpuint(rtor16, ==, 0xABCD);
+    uint32_t rtor32 = qtest_readl(qts, USART1_BASE_ADDR + A_RTOR);
+    g_assert_cmpuint(rtor32, ==, 0x0000ABCD);
+
+    /* Test upper half 16-bit write */
+    qtest_writew(qts, USART1_BASE_ADDR + A_RTOR + 2, 0x1234);
+    rtor32 = qtest_readl(qts, USART1_BASE_ADDR + A_RTOR);
+    g_assert_cmpuint(rtor32, ==, 0x1234ABCD);
+
+    /* Test 16-bit write/read on CR1 */
+    qtest_writel(qts, USART1_BASE_ADDR + A_CR1, 0x00000000);
+    qtest_writew(qts, USART1_BASE_ADDR + A_CR1, 0x00FF);
+    uint16_t cr116 = qtest_readw(qts, USART1_BASE_ADDR + A_CR1);
+    g_assert_cmpuint(cr116, ==, 0x00FF);
+    uint32_t cr132 = qtest_readl(qts, USART1_BASE_ADDR + A_CR1);
+    g_assert_cmpuint(cr132, ==, 0x000000FF);
+
+    qtest_quit(qts);
+}
+
 static void check_clock(QTestState *qts, const char *path, uint32_t rcc_reg,
                         uint32_t reg_offset)
 {
@@ -369,7 +416,8 @@ int main(int argc, char **argv)
     qtest_add_func("stm32l4x5/usart/receive_str", test_receive_str);
     qtest_add_func("stm32l4x5/usart/send_str", test_send_str);
     qtest_add_func("stm32l4x5/usart/ack", test_ack);
+    qtest_add_func("stm32l4x5/usart/isr_reset", test_isr_reset);
+    qtest_add_func("stm32l4x5/usart/16bit_access", test_16bit_access);
     qtest_add_func("stm32l4x5/usart/clock_enable", test_clock_enable);
     return g_test_run();
 }
-

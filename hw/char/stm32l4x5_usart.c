@@ -154,8 +154,15 @@ REG32(RDR, 0x24)
 REG32(TDR, 0x28)
     FIELD(TDR, TDR, 0, 9)
 
+#define ISR_RESET_VALUE (0x020000C0)
+
 static void stm32l4x5_update_isr(Stm32l4x5UsartBaseState *s)
 {
+    if (!(s->cr1 & R_CR1_UE_MASK)) {
+        s->isr = ISR_RESET_VALUE;
+        return;
+    }
+
     if (s->cr1 & R_CR1_TE_MASK) {
         s->isr |= R_ISR_TEACK_MASK;
     } else {
@@ -404,9 +411,11 @@ static uint64_t stm32l4x5_usart_base_read(void *opaque, hwaddr addr,
                                      unsigned int size)
 {
     Stm32l4x5UsartBaseState *s = opaque;
+    hwaddr base = addr & ~0x3ULL;
+    unsigned int offset = addr & 0x3;
     uint64_t retvalue = 0;
 
-    switch (addr) {
+    switch (base) {
     case A_CR1:
         retvalue = s->cr1;
         break;
@@ -451,6 +460,13 @@ static uint64_t stm32l4x5_usart_base_read(void *opaque, hwaddr addr,
         break;
     }
 
+    /* Adjust for partial access */
+    if (size == 1) {
+        retvalue = (retvalue >> (offset * 8)) & 0xFF;
+    } else if (size == 2) {
+        retvalue = (retvalue >> (offset * 8)) & 0xFFFF;
+    }
+
     trace_stm32l4x5_usart_read(addr, retvalue);
 
     return retvalue;
@@ -460,55 +476,88 @@ static void stm32l4x5_usart_base_write(void *opaque, hwaddr addr,
                                   uint64_t val64, unsigned int size)
 {
     Stm32l4x5UsartBaseState *s = opaque;
-    const uint32_t value = val64;
+    hwaddr base = addr & ~0x3ULL;
+    unsigned int offset = addr & 0x3;
+    uint32_t value = (uint32_t)val64;
+
+    /* Build mask for partial access */
+    uint32_t mask;
+    if (size == 4) {
+        mask = 0xFFFFFFFF;
+    } else if (size == 2) {
+        mask = 0xFFFF << (offset * 8);
+    } else if (size == 1) {
+        mask = 0xFF << (offset * 8);
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Unsupported access size %u\n", __func__, size);
+        return;
+    }
+    value = (value << (offset * 8)) & mask;
 
     trace_stm32l4x5_usart_write(addr, value);
 
-    switch (addr) {
-    case A_CR1:
-        s->cr1 = value;
+    switch (base) {
+    case A_CR1: {
+        uint32_t old = s->cr1;
+        s->cr1 = (old & ~mask) | value;
         stm32l4x5_update_params(s);
         stm32l4x5_update_isr(s);
         stm32l4x5_update_irq(s);
         return;
-    case A_CR2:
-        s->cr2 = value;
+    }
+    case A_CR2: {
+        uint32_t old = s->cr2;
+        s->cr2 = (old & ~mask) | value;
         stm32l4x5_update_params(s);
         return;
-    case A_CR3:
-        s->cr3 = value;
+    }
+    case A_CR3: {
+        uint32_t old = s->cr3;
+        s->cr3 = (old & ~mask) | value;
         return;
-    case A_BRR:
-        s->brr = value;
+    }
+    case A_BRR: {
+        uint32_t old = s->brr;
+        s->brr = (old & ~mask) | value;
         stm32l4x5_update_params(s);
         return;
-    case A_GTPR:
-        s->gtpr = value;
+    }
+    case A_GTPR: {
+        uint32_t old = s->gtpr;
+        s->gtpr = (old & ~mask) | value;
         return;
-    case A_RTOR:
-        s->rtor = value;
+    }
+    case A_RTOR: {
+        uint32_t old = s->rtor;
+        s->rtor = (old & ~mask) | value;
         return;
-    case A_RQR:
+    }
+    case A_RQR: {
+        /* RQR is write-only, assume full 32-bit access */
         usart_update_rqr(s, value);
         return;
+    }
     case A_ISR:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: ISR is read only !\n", __func__);
         return;
-    case A_ICR:
-        /* Clear the status flags */
+    case A_ICR: {
+        /* Clear flags: value is masked to written bytes */
         s->isr &= ~value;
         stm32l4x5_update_irq(s);
         return;
+    }
     case A_RDR:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: RDR is read only !\n", __func__);
         return;
-    case A_TDR:
-        s->tdr = value;
+    case A_TDR: {
+        uint32_t old = s->tdr;
+        s->tdr = (old & ~mask) | value;
         s->isr &= ~R_ISR_TXE_MASK;
         usart_transmit(NULL, G_IO_OUT, s);
         return;
+    }
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
@@ -521,12 +570,12 @@ static const MemoryRegionOps stm32l4x5_usart_base_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .max_access_size = 4,
-        .min_access_size = 4,
+        .min_access_size = 2,
         .unaligned = false
     },
     .impl = {
         .max_access_size = 4,
-        .min_access_size = 4,
+        .min_access_size = 2,
         .unaligned = false
     },
 };
