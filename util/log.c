@@ -27,6 +27,7 @@
 #include "qemu/thread.h"
 #include "qemu/lockable.h"
 #include "qemu/rcu.h"
+#include "system/tcg.h"
 #ifdef CONFIG_LINUX
 #include <sys/syscall.h>
 #endif
@@ -300,6 +301,9 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
     log_flags |= LOG_TRACE;
 #endif
     qemu_loglevel = log_flags;
+
+    /* CPU_LOG_TB_NOCHAIN feeds into the per-CPU cached cflags. */
+    tcg_update_all_curr_cflags();
 
     daemonized = is_daemonized();
     need_to_open_file = false;

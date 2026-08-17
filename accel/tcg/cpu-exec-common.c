@@ -28,17 +28,23 @@ bool tcg_allowed;
 
 bool tcg_cflags_has(CPUState *cpu, uint32_t flags)
 {
-    return cpu->tcg_cflags & flags;
+    return cpu->tcg_cflags_priv & flags;
+}
+
+uint32_t tcg_cflags_get(CPUState *cpu)
+{
+    return cpu->tcg_cflags_priv;
 }
 
 void tcg_cflags_set(CPUState *cpu, uint32_t flags)
 {
-    cpu->tcg_cflags |= flags;
+    cpu->tcg_cflags_priv |= flags;
+    tcg_update_curr_cflags(cpu);
 }
 
-uint32_t curr_cflags(CPUState *cpu)
+static uint32_t compute_curr_cflags(CPUState *cpu)
 {
-    uint32_t cflags = cpu->tcg_cflags;
+    uint32_t cflags = cpu->tcg_cflags_priv;
 
     /*
      * Record gdb single-step.  We should be exiting the TB by raising
@@ -57,6 +63,40 @@ uint32_t curr_cflags(CPUState *cpu)
 
     return cflags;
 }
+
+void tcg_update_curr_cflags(CPUState *cpu)
+{
+    cpu->tcg_curr_cflags = compute_curr_cflags(cpu);
+}
+
+void tcg_update_all_curr_cflags(void)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        tcg_update_curr_cflags(cpu);
+    }
+}
+
+#ifdef CONFIG_DEBUG_TCG
+/*
+ * Catch a cached value that has gone stale because an input changed without
+ * a matching tcg_update_curr_cflags().  Called from curr_cflags() on the
+ * dispatch path, so it exists only in debug-tcg builds.
+ */
+void tcg_assert_curr_cflags(CPUState *cpu)
+{
+    uint32_t cached = cpu->tcg_curr_cflags;
+    uint32_t fresh = compute_curr_cflags(cpu);
+
+    if (unlikely(cached != fresh)) {
+        fprintf(stderr, "stale tcg_curr_cflags on CPU %d: "
+                "cached 0x%08x, recomputed 0x%08x (differ in 0x%08x)\n",
+                cpu->cpu_index, cached, fresh, cached ^ fresh);
+        g_assert_not_reached();
+    }
+}
+#endif
 
 /* exit the current TB, but without causing any exception to be raised */
 void cpu_loop_exit_noexc(CPUState *cpu)

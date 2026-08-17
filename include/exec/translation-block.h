@@ -158,7 +158,13 @@ static inline uint32_t tb_cflags(const TranslationBlock *tb)
     return qatomic_read(&tb->cflags);
 }
 
+/*
+ * CPUState::tcg_cflags_priv is reached only through these.  The setter keeps
+ * the derived CPUState::tcg_curr_cflags in step, and assigning the field
+ * directly would silently leave that cache stale.
+ */
 bool tcg_cflags_has(CPUState *cpu, uint32_t flags);
+uint32_t tcg_cflags_get(CPUState *cpu);
 void tcg_cflags_set(CPUState *cpu, uint32_t flags);
 
 static inline tb_page_addr_t tb_page_addr0(const TranslationBlock *tb)
