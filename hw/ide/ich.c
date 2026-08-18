@@ -70,6 +70,7 @@
 #include "hw/ide/pci.h"
 #include "hw/ide/ahci-pci.h"
 #include "ahci-internal.h"
+#include "system/spdm-socket.h"
 
 #define ICH9_MSI_CAP_OFFSET     0x80
 #define ICH9_SATA_CAP_OFFSET    0xA8
@@ -88,6 +89,10 @@ static const VMStateDescription vmstate_ich9_ahci = {
         VMSTATE_AHCI(ahci, AHCIPCIState),
         VMSTATE_END_OF_LIST()
     },
+};
+
+static const Property ich_props[] = {
+    DEFINE_PROP_UINT16("spdm_port", PCIDevice, spdm_port, 0),
 };
 
 static void pci_ich9_ahci_update_irq(void *opaque, int irq_num, int level)
@@ -120,6 +125,27 @@ static void pci_ich9_ahci_init(Object *obj)
     d->ahci.irq = &d->irq;
 }
 
+static bool pcie_doe_spdm_rsp(DOECap *doe_cap)
+{
+    void *req = pcie_doe_get_write_mbox_ptr(doe_cap);
+    uint32_t req_len = pcie_doe_get_obj_len(req) * 4;
+    void *rsp = doe_cap->read_mbox;
+    uint32_t rsp_len = SPDM_SOCKET_MAX_MESSAGE_BUFFER_SIZE;
+
+    uint32_t recvd = spdm_socket_rsp(doe_cap->spdm_socket,
+                             SPDM_SOCKET_TRANSPORT_TYPE_PCI_DOE,
+                             req, req_len, rsp, rsp_len);
+    doe_cap->read_mbox_len += DIV_ROUND_UP(recvd, 4);
+
+    return recvd != 0;
+}
+
+static DOEProtocol doe_spdm_prot[] = {
+    { PCI_VENDOR_ID_PCI_SIG, PCI_SIG_DOE_CMA, pcie_doe_spdm_rsp },
+    { PCI_VENDOR_ID_PCI_SIG, PCI_SIG_DOE_SECURED_CMA, pcie_doe_spdm_rsp },
+    { }
+};
+
 static void pci_ich9_ahci_realize(PCIDevice *dev, Error **errp)
 {
     AHCIPCIState *d;
@@ -145,6 +171,8 @@ static void pci_ich9_ahci_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(dev, ICH9_MEM_BAR, PCI_BASE_ADDRESS_SPACE_MEMORY,
                      &d->ahci.mem);
 
+    pcie_endpoint_cap_init(dev, 0xa8 + 0x8); /* right after SATA */
+
     sata_cap_offset = pci_add_capability(dev, PCI_CAP_ID_SATA,
                                           ICH9_SATA_CAP_OFFSET, SATA_CAP_SIZE,
                                           errp);
@@ -165,6 +193,25 @@ static void pci_ich9_ahci_realize(PCIDevice *dev, Error **errp)
     /* Any error other than -ENOTSUP(board's MSI support is broken)
      * is a programming error.  Fall back to INTx silently on -ENOTSUP */
     assert(!ret || ret == -ENOTSUP);
+
+    uint16_t cap_offset = PCI_CONFIG_SPACE_SIZE;
+
+    if (dev->spdm_port) {
+        pcie_doe_init(dev, &dev->doe_spdm, cap_offset,
+                      doe_spdm_prot, true, 0);
+        cap_offset += PCI_DOE_SIZEOF;
+
+        dev->doe_spdm.spdm_socket = spdm_socket_connect(dev->spdm_port,
+                                                            errp);
+        assert(dev->doe_spdm.spdm_socket > 0);
+    }
+
+    /* ide */
+    pcie_ide_init(dev, cap_offset);
+    cap_offset += PCI_IDE_SIZEOF;
+
+    /* tee */
+    pcie_cap_tee_init(dev);
 }
 
 static void pci_ich9_uninit(PCIDevice *dev)
@@ -176,18 +223,41 @@ static void pci_ich9_uninit(PCIDevice *dev)
     ahci_uninit(&d->ahci);
 }
 
+static uint32_t ich_read_config(PCIDevice *dev, uint32_t address, int len)
+{
+    uint32_t val;
+    if (dev->spdm_port && pcie_find_capability(dev, PCI_EXT_CAP_ID_DOE)) {
+        if (pcie_doe_read_config(&dev->doe_spdm, address, len, &val)) {
+            return val;
+        }
+    }
+    return pci_default_read_config(dev, address, len);
+}
+
+static void ich_write_config(PCIDevice *dev, uint32_t address,
+                                  uint32_t val, int len)
+{
+    if (pcie_find_capability(dev, PCI_EXT_CAP_ID_DOE)) {
+        pcie_doe_write_config(&dev->doe_spdm, address, val, len);
+    }
+    pci_default_write_config(dev, address, val, len);
+}
+
 static void ich_ahci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_ich9_ahci_realize;
+    k->config_write = ich_write_config;
+    k->config_read = ich_read_config;
     k->exit = pci_ich9_uninit;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82801IR;
     k->revision = 0x02;
     k->class_id = PCI_CLASS_STORAGE_SATA;
     dc->vmsd = &vmstate_ich9_ahci;
+    device_class_set_props(dc, ich_props);
     device_class_set_legacy_reset(dc, pci_ich9_reset);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
@@ -199,7 +269,7 @@ static const TypeInfo ich_ahci_info = {
     .instance_init = pci_ich9_ahci_init,
     .class_init    = ich_ahci_class_init,
     .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { INTERFACE_PCIE_DEVICE },
         { },
     },
 };
