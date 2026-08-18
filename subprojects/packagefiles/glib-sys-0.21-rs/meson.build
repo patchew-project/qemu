@@ -1,5 +1,5 @@
 project('glib-sys-0.21-rs', 'rust',
-  meson_version: '>=1.5.0',
+  meson_version: '>=1.6.0',
   version: '0.21.2',
   license: 'MIT',
   default_options: [])
