@@ -146,3 +146,13 @@ void virtio_net_deinit(void)
 {
     virtio_reset(virtio_get_device());
 }
+
+bool virtio_net_setup(void)
+{
+    switch (virtio_get_device()->ipl_type) {
+    case S390_IPL_TYPE_CCW:
+        return virtio_ccw_net_setup();
+    default:
+        return false;
+    }
+}
