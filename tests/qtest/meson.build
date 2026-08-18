@@ -222,6 +222,7 @@ qtests_npcm8xx = \
 qtests_aspeed = \
   ['aspeed_gpio-test',
    'aspeed_hace-test',
+   'aspeed-sbc-test',
    'aspeed_scu-test',
    'aspeed_smc-test']
 qtests_aspeed64 = \
@@ -394,6 +395,7 @@ endif
 qtests = {
   'aspeed_hace-test': [files('aspeed-hace-utils.c', 'aspeed_hace-test.c'),
                        crypto],
+  'aspeed-sbc-test': [files('aspeed-sbc-test.c'), crypto],
   'aspeed_smc-test': files('aspeed-smc-utils.c', 'aspeed_smc-test.c'),
   'ast2700-hace-test': [files('aspeed-hace-utils.c', 'ast2700-hace-test.c'),
                         crypto],
