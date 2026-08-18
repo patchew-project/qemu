@@ -278,13 +278,13 @@ static void thread_context_class_init(ObjectClass *oc, const void *data)
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
     ucc->complete = thread_context_instance_complete;
-    object_class_property_add(oc, "thread-id", "int",
+    object_class_property_add(oc, "thread-id", "uint64",
                               thread_context_get_thread_id, NULL, NULL,
                               NULL);
-    object_class_property_add(oc, "cpu-affinity", "int",
+    object_class_property_add(oc, "cpu-affinity", "[uint16]",
                               thread_context_get_cpu_affinity,
                               thread_context_set_cpu_affinity, NULL, NULL);
-    object_class_property_add(oc, "node-affinity", "int", NULL,
+    object_class_property_add(oc, "node-affinity", "[uint16]", NULL,
                               thread_context_set_node_affinity, NULL, NULL);
 }
 
