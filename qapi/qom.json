@@ -350,11 +350,17 @@
 # @chardev: the name of a Unix domain socket character device that
 #     connects to the vhost-user server
 #
+# @memory-isolation: disable direct access from vhost-user back-end
+#     to guest memory.  The back-end will instead access data via
+#     bounce buffers residing in the QEMU virtual address space.
+#     (default: false) (Since 11.2)
+#
 # Since: 2.12
 ##
 { 'struct': 'CryptodevVhostUserProperties',
   'base': 'CryptodevBackendProperties',
-  'data': { 'chardev': 'str' },
+  'data': { 'chardev': 'str',
+            '*memory-isolation': 'bool' },
   'if': 'CONFIG_VHOST_CRYPTO' }
 
 ##
