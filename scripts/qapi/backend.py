@@ -9,6 +9,7 @@ from .features import gen_features
 from .introspect import gen_introspect
 from .schema import QAPISchema
 from .schema_analysis import QAPISchemaTypeAnalysis
+from .type_infos import gen_type_infos
 from .types import gen_types
 from .visit import gen_visit
 
@@ -66,3 +67,4 @@ class QAPICBackend(QAPIBackend):
         gen_commands(schema, output_dir, prefix, gen_tracing)
         gen_events(schema, output_dir, prefix)
         gen_introspect(schema, output_dir, prefix, schema_types)
+        gen_type_infos(schema, output_dir, prefix, builtins, schema_types)

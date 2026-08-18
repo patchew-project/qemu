@@ -351,7 +351,7 @@ const QLitObject %(c_name)s = %(c_string)s;
 
 
 def gen_introspect(schema: QAPISchema, output_dir: str, prefix: str,
-                   schema_types: QAPISchemaUsedTypes) -> None:
+                   schema_types: QAPISchemaTypeAnalysis) -> None:
     vis = QAPISchemaGenIntrospectVisitor(prefix, schema_types)
     schema.visit(vis)
     vis.write(output_dir)
