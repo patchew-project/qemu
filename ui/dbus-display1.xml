@@ -1159,4 +1159,36 @@
     -->
     <property name="Encoding" type="s" access="read"/>
   </interface>
+
+  <!--
+      org.qemu.Display1.UIInfo:
+
+        WidthMm: the physical display width in millimeters.
+        HeightMm: the physical display height in millimeters.
+        XOff: horizontal offset, in pixels.
+        YOff: vertical offset, in pixels.
+        Width: console width, in pixels.
+        Height: console height, in pixels.
+        RefreshRate: display refresh rate, in millihertz.
+
+      Reload:
+        Set the staged properties to the state of the display.
+      Apply:
+        Apply the staged properties to the display.
+  -->
+  <interface name="org.qemu.Display1.UIInfo">
+    <property name="WidthMm" type="q" access="readwrite"/>
+    <property name="HeightMm" type="q" access="readwrite"/>
+    <property name="XOff" type="i" access="readwrite"/>
+    <property name="YOff" type="i" access="readwrite"/>
+    <property name="Width" type="u" access="readwrite"/>
+    <property name="Height" type="u" access="readwrite"/>
+    <property name="RefreshRate" type="u" access="readwrite"/>
+
+    <method name="Reload">
+    </method>
+
+    <method name="Apply">
+    </method>
+  </interface>
 </node>

@@ -55,6 +55,8 @@ struct _DBusDisplayConsole {
     guint last_x;
     guint last_y;
     Notifier mouse_mode_notifier;
+
+    QemuDBusDisplay1UIInfo *iface_ui_info;
 };
 
 G_DEFINE_TYPE(DBusDisplayConsole,
@@ -155,6 +157,7 @@ dbus_display_console_dispose(GObject *object)
     qemu_input_led_notifier_remove(&ddc->led_notifier);
     qemu_console_unregister_listener(&ddc->dcl);
     qemu_remove_mouse_mode_change_notifier(&ddc->mouse_mode_notifier);
+    g_clear_object(&ddc->iface_ui_info);
     g_clear_object(&ddc->iface_touch);
     g_clear_object(&ddc->iface_mouse);
     g_clear_object(&ddc->iface_kbd);
@@ -528,6 +531,80 @@ dbus_mouse_mode_change(Notifier *notify, void *data)
     dbus_mouse_update_is_absolute(ddc);
 }
 
+static gboolean
+dbus_ui_info_reload(DBusDisplayConsole *ddc,
+                    GDBusMethodInvocation *invocation)
+{
+    if (!qemu_console_ui_info_supported(ddc->dcl.con)) {
+        g_dbus_method_invocation_return_error(invocation,
+                                              DBUS_DISPLAY_ERROR,
+                                              DBUS_DISPLAY_ERROR_UNSUPPORTED,
+                                              "UIInfo is not supported");
+        return DBUS_METHOD_INVOCATION_HANDLED;
+    }
+
+    QemuUIInfo ui_info = *qemu_console_get_ui_info(ddc->dcl.con);
+
+    g_object_set(ddc->iface_ui_info,
+                "width-mm", ui_info.width_mm,
+                "height-mm", ui_info.height_mm,
+                "xoff", ui_info.xoff,
+                "yoff", ui_info.yoff,
+                "width", ui_info.width,
+                "height", ui_info.height,
+                "refresh-rate", ui_info.refresh_rate,
+                NULL);
+
+    qemu_dbus_display1_uiinfo_complete_reload(ddc->iface_ui_info, invocation);
+    return DBUS_METHOD_INVOCATION_HANDLED;
+}
+
+static gboolean
+dbus_ui_info_apply(DBusDisplayConsole *ddc,
+                   GDBusMethodInvocation *invocation)
+{
+    if (!qemu_console_ui_info_supported(ddc->dcl.con)) {
+        g_dbus_method_invocation_return_error(invocation,
+                                              DBUS_DISPLAY_ERROR,
+                                              DBUS_DISPLAY_ERROR_UNSUPPORTED,
+                                              "UIInfo is not supported");
+        return DBUS_METHOD_INVOCATION_HANDLED;
+    }
+
+    guint width_mm;
+    guint height_mm;
+    gint xoff;
+    gint yoff;
+    guint width;
+    guint height;
+    guint refresh_rate;
+
+    g_object_get(G_OBJECT(ddc->iface_ui_info),
+                "width-mm", &width_mm,
+                "height-mm", &height_mm,
+                "xoff", &xoff,
+                "yoff", &yoff,
+                "width", &width,
+                "height", &height,
+                "refresh-rate", &refresh_rate,
+                NULL);
+
+    QemuUIInfo ui_info = {
+        .width_mm = (uint16_t)width_mm,
+        .height_mm = (uint16_t)height_mm,
+        .xoff = (int)xoff,
+        .yoff = (int)yoff,
+        .width = (uint32_t)width,
+        .height = (uint32_t)height,
+        .refresh_rate = (uint32_t)refresh_rate
+    };
+
+    qemu_console_set_ui_info(ddc->dcl.con, &ui_info, false);
+    qemu_dbus_display1_uiinfo_complete_apply(ddc->iface_ui_info, invocation);
+
+    return DBUS_METHOD_INVOCATION_HANDLED;
+}
+
 int dbus_display_console_get_index(DBusDisplayConsole *ddc)
 {
     return qemu_console_get_index(ddc->dcl.con);
@@ -550,6 +627,7 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
         "org.qemu.Display1.Keyboard",
         "org.qemu.Display1.Mouse",
         "org.qemu.Display1.MultiTouch",
+        "org.qemu.Display1.UIInfo",
         NULL
     };
 
@@ -625,6 +703,14 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
     ddc->mouse_mode_notifier.notify = dbus_mouse_mode_change;
     qemu_add_mouse_mode_change_notifier(&ddc->mouse_mode_notifier);
     dbus_mouse_update_is_absolute(ddc);
+
+    ddc->iface_ui_info = qemu_dbus_display1_uiinfo_skeleton_new();
+    g_object_connect(ddc->iface_ui_info,
+        "swapped-signal::handle-reload", dbus_ui_info_reload, ddc,
+        "swapped-signal::handle-apply", dbus_ui_info_apply, ddc,
+        NULL);
+    g_dbus_object_skeleton_add_interface(G_DBUS_OBJECT_SKELETON(ddc),
+        G_DBUS_INTERFACE_SKELETON(ddc->iface_ui_info));
 
     return ddc;
 }
