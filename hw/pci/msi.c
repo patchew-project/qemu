@@ -137,6 +137,18 @@ void msi_set_message(PCIDevice *dev, MSIMessage msg)
     pci_set_word(dev->config + msi_data_off(dev, msi64bit), msg.data);
 }
 
+uint64_t msi_message_address_register(PCIDevice *dev)
+{
+    uint16_t flags = pci_get_word(dev->config + msi_flags_off(dev));
+    bool msi64bit = flags & PCI_MSI_FLAGS_64BIT;
+
+    if (msi64bit) {
+        return pci_get_quad(dev->config + msi_address_lo_off(dev));
+    } else {
+        return pci_get_long(dev->config + msi_address_lo_off(dev));
+    }
+}
+
 static MSIMessage msi_prepare_message(PCIDevice *dev, unsigned int vector)
 {
     uint16_t flags = pci_get_word(dev->config + msi_flags_off(dev));
@@ -146,12 +158,7 @@ static MSIMessage msi_prepare_message(PCIDevice *dev, unsigned int vector)
 
     assert(vector < nr_vectors);
 
-    if (msi64bit) {
-        msg.address = pci_get_quad(dev->config + msi_address_lo_off(dev));
-    } else {
-        msg.address = pci_get_long(dev->config + msi_address_lo_off(dev));
-    }
-
+    msg.address = msi_message_address_register(dev);
     /* upper bit 31:16 is zero */
     msg.data = pci_get_word(dev->config + msi_data_off(dev, msi64bit));
     if (nr_vectors > 1) {
