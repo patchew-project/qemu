@@ -357,6 +357,10 @@ static bool aspeed_soc_ast10x0_realize(Aspeed10x0SoCState *a, Error **errp)
     }
 
     /* Secure Boot Controller */
+    object_property_set_link(OBJECT(&s->sbc), "sram", OBJECT(&s->sram[1]),
+                             &error_abort);
+    qdev_prop_set_uint64(DEVICE(&s->sbc), "sram-base",
+                         sc->memmap[ASPEED_DEV_SRAM1]);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->sbc), errp)) {
         return false;
     }
