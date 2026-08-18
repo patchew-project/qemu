@@ -1159,4 +1159,85 @@
     -->
     <property name="Encoding" type="s" access="read"/>
   </interface>
+
+  <!--
+      org.qemu.Display1.UIInfo:
+
+      This interface is implemented on
+      ``/org/qemu/Display1/Console_$id`` (see
+      :dbus:iface:`~org.qemu.Display1.Console`).
+  -->
+  <interface name="org.qemu.Display1.UIInfo">
+    <!--
+        Supported:
+
+        Whether console UI info is supported.
+    -->
+    <property name="Supported" type="b" access="read"/>
+
+    <!--
+        WidthMm:
+
+        The physical display width in millimeters.
+    -->
+    <property name="WidthMm" type="q" access="readwrite"/>
+
+    <!--
+        HeightMm:
+
+        The physical display height in millimeters.
+    -->
+    <property name="HeightMm" type="q" access="readwrite"/>
+
+    <!--
+        XOff:
+
+        The horizontal offset in pixels.
+    -->
+    <property name="XOff" type="i" access="readwrite"/>
+
+    <!--
+        YOff:
+
+        The vertical offset in pixels.
+    -->
+    <property name="YOff" type="i" access="readwrite"/>
+
+    <!--
+        Width:
+
+        The console width in pixels.
+    -->
+    <property name="Width" type="u" access="readwrite"/>
+
+    <!--
+        Height:
+
+        The console height in pixels.
+    -->
+    <property name="Height" type="u" access="readwrite"/>
+
+    <!--
+        RefreshRate:
+
+        The display refresh rate in millihertz.
+    -->
+    <property name="RefreshRate" type="u" access="readwrite"/>
+
+    <!--
+        Reload:
+
+        Set the staged properties to the state of the console display.
+    -->
+    <method name="Reload">
+    </method>
+
+    <!--
+        Apply:
+
+        Apply the staged properties to the console display.
+    -->
+    <method name="Apply">
+    </method>
+  </interface>
 </node>
