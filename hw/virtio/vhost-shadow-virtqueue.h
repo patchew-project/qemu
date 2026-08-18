@@ -56,8 +56,24 @@ typedef int (*VirtQueueAvailCallback)(VhostShadowVirtqueue *svq,
                                       VirtQueueElement *elem,
                                       void *vq_callback_opaque);
 
+/**
+ * Callback to handle a used buffer
+ *
+ * @svq: Shadow virtqueue
+ * @elem: Element placed in the queue by the device
+ * @vq_callback_opaque: Used to pass arguments to callback
+ *
+ * Returns 0 if the vq is running as expected. Returns a negative errno on
+ * failure.  The callback should not add used elements to the vq shadowed
+ * by the svq as that is done separately after the callback returns.
+ */
+typedef int (*VirtQueueUsedCallback)(VhostShadowVirtqueue *svq,
+                                      VirtQueueElement *elem,
+                                      void *vq_callback_opaque);
+
 typedef struct VhostShadowVirtqueueOps {
     VirtQueueAvailCallback avail_handler;
+    VirtQueueUsedCallback used_callback;
 } VhostShadowVirtqueueOps;
 
 /* Shadow virtqueue to relay notifications */

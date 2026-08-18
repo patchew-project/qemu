@@ -675,6 +675,15 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
                 break;
             }
 
+            if (svq->ops && svq->ops->used_callback) {
+                int r = svq->ops->used_callback(svq, elem, svq->ops_opaque);
+
+                if (r < 0) {
+                    /* VQ or handler is broken. Do not set guest notifier */
+                    return;
+                }
+            }
+
             if (unlikely(i >= svq->vring.num)) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                          "More than %u used buffers obtained in a %u size SVQ",
