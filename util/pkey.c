@@ -88,6 +88,59 @@ static inline __attribute__((always_inline)) intptr_t local_syscall3(
     return ret;
 }
 
+/*
+ * Custom structures to parse FPU xstate and extract the PKRU register.
+ * These match the Linux kernel x86_64 signal frame ABI.
+ */
+struct fpstate_64 {
+    uint16_t cwd;
+    uint16_t swd;
+    uint16_t twd;
+    uint16_t fop;
+    uint64_t rip;
+    uint64_t rdp;
+    uint32_t mxcsr;
+    uint32_t mxcsr_mask;
+    uint32_t st_space[32];  /*  8x  FP registers, 16 bytes each */
+    uint32_t xmm_space[64]; /* 16x XMM registers, 16 bytes each */
+    uint32_t reserved1[12];
+    union {
+        uint32_t reserved2[12];
+        struct {
+            uint32_t magic1;
+            uint32_t extended_size;
+            uint64_t xstate_bv;
+            uint32_t xstate_size;
+            uint32_t padding[7];
+        } sw_reserved; /* Extended state is encoded here */
+    };
+};
+
+#define FP_XSTATE_MAGIC1 0x46505853U
+#define FP_XSTATE_MAGIC2 0x46505845U
+#define XFEATURE_PKRU 9
+#define XSTATE_PKRU (1ULL << XFEATURE_PKRU)
+
+static int pkru_offset = -2; /* -2 means uninitialized */
+
+static int __attribute__((unused)) get_pkru_offset(void)
+{
+    uint32_t eax, ebx, ecx, edx;
+    __cpuid_count(0xd, XFEATURE_PKRU, eax, ebx, ecx, edx);
+    if (ebx == 0) {
+        return -1;
+    }
+    return (int)ebx;
+}
+
+static int __attribute__((unused)) qemu_get_pkru_offset(void)
+{
+    if (pkru_offset == -2) {
+        pkru_offset = get_pkru_offset();
+    }
+    return pkru_offset;
+}
+
 __attribute__((target("pku"))) void qemu_init_guest_memory_pkey(void)
 {
     if (guest_memory_pkey != -1) {
