@@ -26,6 +26,7 @@
 #include "qemu/error-report.h"
 #include "vnc.h"
 #include "vnc-jobs.h"
+#include "trace.h"
 
 static uint8_t *inflate_buffer(uint8_t *in, uint32_t in_len, uint32_t *size)
 {
@@ -224,6 +225,23 @@ static void vnc_clipboard_update_info(VncState *vs, QemuClipboardInfo *info)
     }
 }
 
+void vnc_clipboard_peer_status_send(VncState *vs, bool present)
+{
+    if (!vnc_has_feature(vs, VNC_FEATURE_CLIPBOARD_STATUS)) {
+        return;
+    }
+
+    trace_vnc_clipboard_peer_status_send(vs, present);
+
+    vnc_lock_output(vs);
+    vnc_write_u8(vs, VNC_MSG_SERVER_QEMU);
+    vnc_write_u8(vs, VNC_MSG_SERVER_QEMU_CLIPBOARD_STATUS);
+    vnc_write_u16(vs, present ? VNC_CLIPBOARD_PEER_PRESENT
+                              : VNC_CLIPBOARD_PEER_ABSENT);
+    vnc_unlock_output(vs);
+    vnc_flush(vs);
+}
+
 static void vnc_clipboard_notify(Notifier *notifier, void *data)
 {
     VncState *vs = container_of(notifier, VncState, cbpeer.notifier);
@@ -231,13 +249,24 @@ static void vnc_clipboard_notify(Notifier *notifier, void *data)
 
     switch (notify->type) {
     case QEMU_CLIPBOARD_UPDATE_INFO:
+        /* ignore the update if client does not want ext messages */
+        if (!vnc_has_feature(vs, VNC_FEATURE_CLIPBOARD_EXT)) {
+            return;
+        }
+
         vnc_clipboard_update_info(vs, notify->info);
         return;
     case QEMU_CLIPBOARD_RESET_SERIAL:
         /* ignore */
         return;
     case QEMU_CLIPBOARD_PEER_UPDATE:
-        /* ignore */
+        /* only guest side peers affect the status we relay to the client */
+        if (!notify->peer_update.peer->guest) {
+            return;
+        }
+
+        vnc_clipboard_peer_status_send(vs,
+            qemu_clipboard_guest_peer_present());
         return;
     }
 }

@@ -422,6 +422,7 @@ enum {
 #define VNC_ENCODING_DESKTOP_RESIZE_EXT   0XFFFFFECC /* -308 */
 #define VNC_ENCODING_XVP                  0XFFFFFECB /* -309 */
 #define VNC_ENCODING_ALPHA_CURSOR         0XFFFFFEC6 /* -314 */
+#define VNC_ENCODING_CLIPBOARD_STATUS     0XFFFFFEC5 /* -315 */
 #define VNC_ENCODING_WMVi                 0x574D5669
 #define VNC_ENCODING_CLIPBOARD_EXT        0xc0a1e5ce
 
@@ -466,6 +467,7 @@ enum VncFeatures {
     VNC_FEATURE_LED_STATE,
     VNC_FEATURE_XVP,
     VNC_FEATURE_CLIPBOARD_EXT,
+    VNC_FEATURE_CLIPBOARD_STATUS,
     VNC_FEATURE_AUDIO,
 };
 
@@ -507,6 +509,7 @@ enum VncFeatures {
 
 /* QEMU server -> client message IDs */
 #define VNC_MSG_SERVER_QEMU_AUDIO                 1
+#define VNC_MSG_SERVER_QEMU_CLIPBOARD_STATUS      2
 
 
 
@@ -540,6 +543,10 @@ enum VncFeatures {
 #define VNC_CLIPBOARD_PEEK     (1 << 26)
 #define VNC_CLIPBOARD_NOTIFY   (1 << 27)
 #define VNC_CLIPBOARD_PROVIDE  (1 << 28)
+
+/* guest side clipboard peer status */
+#define VNC_CLIPBOARD_PEER_ABSENT  0
+#define VNC_CLIPBOARD_PEER_PRESENT 1
 
 VncDisplay *vnc_display_new(const char *id, Error **errp);
 void vnc_display_free(VncDisplay *vd);
@@ -637,6 +644,7 @@ void vnc_zrle_clear(VncWorker *worker);
 
 /* vnc-clipboard.c */
 void vnc_clipboard_peer_register(VncState *vs);
+void vnc_clipboard_peer_status_send(VncState *vs, bool present);
 void vnc_server_cut_text_caps(VncState *vs);
 void vnc_client_cut_text(VncState *vs, size_t len, uint8_t *text);
 void vnc_client_cut_text_ext(VncState *vs, int32_t len, uint32_t flags, uint8_t *data);

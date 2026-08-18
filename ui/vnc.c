@@ -2191,6 +2191,12 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             vnc_set_feature(vs, VNC_FEATURE_CLIPBOARD_EXT);
             vnc_server_cut_text_caps(vs);
             break;
+        case VNC_ENCODING_CLIPBOARD_STATUS:
+            vnc_set_feature(vs, VNC_FEATURE_CLIPBOARD_STATUS);
+            vnc_clipboard_peer_register(vs);
+            vnc_clipboard_peer_status_send(vs,
+                qemu_clipboard_guest_peer_present());
+            break;
         case VNC_ENCODING_COMPRESSLEVEL0 ... VNC_ENCODING_COMPRESSLEVEL0 + 9:
             vc->worker.tight.compression = (enc & 0x0F);
             break;
