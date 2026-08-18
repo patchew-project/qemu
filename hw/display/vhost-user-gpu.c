@@ -663,7 +663,8 @@ vhost_user_gpu_device_realize(DeviceState *qdev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(g);
 
     vhost_dev_set_config_notifier(&g->vhost->dev, &config_ops);
-    if (vhost_user_backend_dev_init(g->vhost, vdev, 2, errp) < 0) {
+    if (vhost_user_backend_dev_init(g->vhost, vdev, 2, false,
+                                    errp) < 0) {
         return;
     }
 

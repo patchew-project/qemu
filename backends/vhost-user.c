@@ -22,13 +22,13 @@
 
 int
 vhost_user_backend_dev_init(VhostUserBackend *b, VirtIODevice *vdev,
-                            unsigned nvqs, Error **errp)
+                            unsigned nvqs, bool memory_isolation, Error **errp)
 {
     int ret;
 
     assert(!b->vdev && vdev);
 
-    if (!vhost_user_init(&b->vhost_user, &b->chr, errp)) {
+    if (!vhost_user_init(&b->vhost_user, &b->chr, memory_isolation, errp)) {
         return -1;
     }
 
