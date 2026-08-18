@@ -2907,6 +2907,7 @@ void qemu_init(int argc, char **argv)
     module_allow_arch(target_name());
 
     qemu_init_subsystems();
+    qemu_init_guest_memory_pkey();
 
     /* first pass of option parsing */
     optind = 1;

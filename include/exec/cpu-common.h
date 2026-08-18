@@ -112,4 +112,5 @@ static inline CPUState *env_cpu(CPUArchState *env)
     return (CPUState *)env_cpu_const(env);
 }
 
+void qemu_init_guest_memory_pkey(void);
 #endif /* CPU_COMMON_H */

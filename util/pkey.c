@@ -40,6 +40,8 @@
 #define PKEY_DISABLE_ACCESS 0x1
 #endif
 
+static int guest_memory_pkey = -1;
+
 /* Each protection key occupies exactly 2 bits in the PKRU register. */
 #define BITS_PER_KEY 2
 /* The mask used to extract/write the 2-bit permission flags. */
@@ -86,6 +88,24 @@ static inline __attribute__((always_inline)) intptr_t local_syscall3(
     return ret;
 }
 
+__attribute__((target("pku"))) void qemu_init_guest_memory_pkey(void)
+{
+    if (guest_memory_pkey != -1) {
+        return;
+    }
+
+    const char *enable_pkey = getenv("QEMU_ENABLE_PKEY_GUEST_MEMORY");
+    if (enable_pkey && strcmp(enable_pkey, "1") == 0) {
+        int pkey = pkey_alloc(0, 0);
+        if (pkey == -1) {
+            error_report("pkey_alloc failed for guest memory: %s",
+                         strerror(errno));
+        } else {
+            guest_memory_pkey = pkey;
+        }
+    }
+}
+
 #else
 /* Dummy implementations for all other configurations (non-x86_64 Linux, */
 /* Windows, macOS, etc.) */
@@ -93,4 +113,7 @@ static inline __attribute__((always_inline)) intptr_t local_syscall3(
 #include <linux/kvm.h>
 #include <sys/ioctl.h>
 #endif
+
+void qemu_init_guest_memory_pkey(void)
+{}
 #endif

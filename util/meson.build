@@ -9,7 +9,7 @@ if host_os != 'windows'
   util_ss.add(files('compatfd.c'))
   util_ss.add(files('event_notifier-posix.c'))
   if host_os != 'emscripten'
-    util_ss.add(files('mmap-alloc.c'))
+    util_ss.add(files('mmap-alloc.c', 'pkey.c'))
   endif
   freebsd_dep = []
   if host_os == 'freebsd'
