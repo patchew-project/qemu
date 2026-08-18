@@ -70,7 +70,24 @@ bool tcg_exec_realizefn(CPUState *cpu, Error **errp);
 void tcg_exec_unrealizefn(CPUState *cpu);
 
 /* current cflags for hashing/comparison */
-uint32_t curr_cflags(CPUState *cpu);
+/*
+ * Cached by tcg_update_curr_cflags().  This is on the hot TB dispatch
+ * path, so it must stay a single load; see commit message.  A debug-tcg
+ * build pays for a recompute here to prove the cache is still in step,
+ * which turns a missed update into a loud failure rather than subtly
+ * wrong code generation.
+ */
+#ifdef CONFIG_DEBUG_TCG
+void tcg_assert_curr_cflags(CPUState *cpu);
+#endif
+
+static inline uint32_t curr_cflags(CPUState *cpu)
+{
+#ifdef CONFIG_DEBUG_TCG
+    tcg_assert_curr_cflags(cpu);
+#endif
+    return cpu->tcg_curr_cflags;
+}
 
 void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr);
 

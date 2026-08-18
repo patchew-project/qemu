@@ -411,10 +411,16 @@ struct qemu_work_item;
  *   to a cluster this will be UNASSIGNED_CLUSTER_INDEX; otherwise it will
  *   be the same as the cluster-id property of the CPU object's TYPE_CPU_CLUSTER
  *   QOM parent.
- *   Under TCG this value is propagated to @tcg_cflags.
+ *   Under TCG this value is propagated to @tcg_cflags_priv.
  *   See TranslationBlock::TCG CF_CLUSTER_MASK.
  * @start_powered_off: Indicates whether the CPU starts in powered-off state.
- * @tcg_cflags: Pre-computed cflags for this cpu.
+ * @tcg_cflags_priv: Pre-computed cflags for this cpu.  Private to
+ *   tcg_cflags_has() and tcg_cflags_set(): @tcg_curr_cflags is derived from
+ *   it and is refreshed by the setter, so a direct assignment here would
+ *   leave the two out of step.  The name is deliberately awkward to make an
+ *   open-coded access fail to compile rather than silently go stale.
+ * @tcg_curr_cflags: Cached result of curr_cflags(), recomputed by
+ *   tcg_update_curr_cflags() whenever any of its inputs change.
  * @nr_threads: Number of threads within this CPU core.
  * @thread: Host thread details, only live once @created is #true
  * @sem: WIN32 only semaphore used only for qtest
@@ -557,7 +563,8 @@ struct CPUState {
     /* TODO Move common fields from CPUArchState here. */
     int cpu_index;
     int cluster_index;
-    uint32_t tcg_cflags;
+    uint32_t tcg_cflags_priv;
+    uint32_t tcg_curr_cflags;
     uint32_t halted;
     int32_t exception_index;
 

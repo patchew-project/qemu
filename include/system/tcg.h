@@ -17,6 +17,15 @@ extern bool tcg_allowed;
 #define tcg_enabled() 0
 #endif
 
+/*
+ * Recompute CPUState::tcg_curr_cflags.  Must be called whenever any input
+ * to the computation changes: CPUState::tcg_cflags_priv, gdb single-step
+ * state, one-insn-per-tb, or the CPU_LOG_TB_NOCHAIN log flag.  The first of
+ * those is covered already, tcg_cflags_set() being the only way to change it.
+ */
+void tcg_update_curr_cflags(CPUState *cpu);
+void tcg_update_all_curr_cflags(void);
+
 /**
  * qemu_tcg_mttcg_enabled:
  * Check whether we are running MultiThread TCG or not.
