@@ -290,6 +290,7 @@ int virtio_setup_ccw(VDev *vdev);
 /* virtio-net.c */
 int virtio_net_init(void *mac_addr);
 void virtio_net_deinit(void);
+bool virtio_net_setup(void);
 
 /* virtio-blkdev.c */
 int virtio_blk_setup_device(VDev *vdev);
