@@ -821,7 +821,8 @@ static void aspeed_ast2600_scu_reset_hold(Object *obj, ResetType type)
     s->regs[AST2600_SILICON_REV2] = s->silicon_rev;
     s->regs[AST2600_HW_STRAP1] = s->hw_strap1;
     s->regs[AST2600_HW_STRAP2] = s->hw_strap2;
-    s->regs[PROT_KEY] = s->hw_prot_key;
+    s->regs[AST2600_PROT_KEY] = s->hw_prot_key == ASPEED_SCU_PROT_KEY;
+    s->regs[AST2600_PROT_KEY2] = s->hw_prot_key == ASPEED_SCU_PROT_KEY;
 }
 
 static void aspeed_2600_scu_class_init(ObjectClass *klass, const void *data)
