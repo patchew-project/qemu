@@ -70,6 +70,8 @@ long virtio_pci_notify(VRing *vr);
 bool virtio_pci_is_supported(VDev *vdev);
 int virtio_pci_setup(VDev *vdev);
 int virtio_pci_setup_device(void);
+bool virtio_pci_is_supported(VDev *vdev);
+bool virtio_pci_net_setup(void);
 
 int vpci_read_flex(uint64_t offset, uint8_t pcias, void *buf, int len);
 int vpci_read_bswap64(uint64_t offset, uint8_t pcias, uint64_t *buf);
