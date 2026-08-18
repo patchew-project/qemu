@@ -74,6 +74,8 @@ struct DisasContextBase {
     int max_insns;
     bool plugin_enabled;
     bool fake_insn;
+    /* Set when this TB can be part of a control flow cycle. */
+    bool needs_exit_check;
     uint8_t code_mmuidx;
     struct TCGOp *insn_start;
     void *host_addr[2];

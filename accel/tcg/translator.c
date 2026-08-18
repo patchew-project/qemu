@@ -43,12 +43,29 @@ bool translator_io_start(DisasContextBase *db)
     return true;
 }
 
+/*
+ * Any cycle in the guest control flow graph must contain an edge whose
+ * destination is at or below the start of the block it leaves from, or an
+ * edge whose destination is not known at translation time. Only blocks with
+ * such an edge need the interrupt check, so defer the decision until the end
+ * of translation, when we know which edges this TB has.
+ *
+ * icount needs the counter unconditionally, so it opts out.
+ */
+static bool defer_exit_check(uint32_t cflags)
+{
+    return !(cflags & CF_USE_ICOUNT);
+}
+
 static TCGOp *gen_tb_start(DisasContextBase *db, uint32_t cflags)
 {
     TCGv_i32 count = NULL;
     TCGOp *icount_start_insn = NULL;
 
-    if ((cflags & CF_USE_ICOUNT) || !(cflags & CF_NOIRQ)) {
+    tcg_ctx->exit_check_needed = false;
+
+    if ((cflags & CF_USE_ICOUNT) ||
+        (!(cflags & CF_NOIRQ) && !defer_exit_check(cflags))) {
         count = tcg_temp_new_i32();
         tcg_gen_ld_i32(count, tcg_env,
                        offsetof(CPUState, neg.icount_decr.u32) -
@@ -74,6 +91,12 @@ static TCGOp *gen_tb_start(DisasContextBase *db, uint32_t cflags)
      */
     if (cflags & CF_NOIRQ) {
         tcg_ctx->exitreq_label = NULL;
+    } else if (defer_exit_check(cflags)) {
+        /*
+         * Emitted retroactively by gen_tb_end(), but only if this TB can be
+         * part of a control flow cycle.
+         */
+        tcg_ctx->exitreq_label = gen_new_label();
     } else {
         tcg_ctx->exitreq_label = gen_new_label();
         tcg_gen_brcondi_i32(TCG_COND_LT, count, 0, tcg_ctx->exitreq_label);
@@ -89,7 +112,8 @@ static TCGOp *gen_tb_start(DisasContextBase *db, uint32_t cflags)
 }
 
 static void gen_tb_end(const TranslationBlock *tb, uint32_t cflags,
-                       TCGOp *icount_start_insn, int num_insns)
+                       TCGOp *icount_start_insn, int num_insns,
+                       DisasContextBase *db, TCGOp *first_insn_start)
 {
     if (cflags & CF_USE_ICOUNT) {
         /*
@@ -98,6 +122,23 @@ static void gen_tb_end(const TranslationBlock *tb, uint32_t cflags,
          */
         tcg_set_insn_param(icount_start_insn, 2,
                            tcgv_i32_arg(tcg_constant_i32(num_insns)));
+    }
+
+    if (tcg_ctx->exitreq_label && defer_exit_check(cflags) &&
+        !(cflags & CF_NOIRQ)) {
+        if (db->needs_exit_check || tcg_ctx->exit_check_needed) {
+            TCGv_i32 count = tcg_temp_new_i32();
+            TCGOp *save = tcg_ctx->emit_before_op;
+
+            tcg_ctx->emit_before_op = first_insn_start;
+            tcg_gen_ld_i32(count, tcg_env,
+                           offsetof(CPUState, neg.icount_decr.u32) -
+                           sizeof(CPUState));
+            tcg_gen_brcondi_i32(TCG_COND_LT, count, 0, tcg_ctx->exitreq_label);
+            tcg_ctx->emit_before_op = save;
+        } else {
+            tcg_ctx->exitreq_label = NULL;
+        }
     }
 
     if (tcg_ctx->exitreq_label) {
@@ -129,6 +170,14 @@ bool translator_use_goto_tb(DisasContextBase *db, vaddr dest)
         return false;
     }
 
+    /*
+     * A destination at or below the start of this TB can close a cycle, so
+     * this TB must poll for interrupts.  See defer_exit_check().
+     */
+    if (dest <= db->pc_first) {
+        db->needs_exit_check = true;
+    }
+
     return translator_is_same_page(db, dest);
 }
 
@@ -152,6 +201,7 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
     db->max_insns = *max_insns;
     db->insn_start = NULL;
     db->fake_insn = false;
+    db->needs_exit_check = false;
     db->host_addr[0] = host_pc;
     db->host_addr[1] = NULL;
     db->record_start = 0;
@@ -218,7 +268,8 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
 
     /* Emit code to exit the TB, as indicated by db->is_jmp.  */
     ops->tb_stop(db, cpu);
-    gen_tb_end(tb, cflags, icount_start_insn, db->num_insns);
+    gen_tb_end(tb, cflags, icount_start_insn, db->num_insns, db,
+               first_insn_start);
 
     /*
      * Manage can_do_io for the translation block: set to false before

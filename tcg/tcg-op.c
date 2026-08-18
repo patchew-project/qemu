@@ -2616,6 +2616,7 @@ void tcg_gen_lookup_and_goto_ptr(void)
         return;
     }
 
+    tcg_ctx->exit_check_needed = true;
     plugin_gen_disable_mem_helpers();
     ptr = tcg_temp_ebb_new_ptr();
     gen_helper_lookup_tb_ptr(ptr, tcg_env);
@@ -2644,6 +2645,7 @@ void tcg_gen_lookup_and_goto_ptr_inline(TCGv_i64 pc,
         return;
     }
 
+    tcg_ctx->exit_check_needed = true;
     plugin_gen_disable_mem_helpers();
 
     QEMU_BUILD_BUG_ON(sizeof(((CPUJumpCache *)0)->array[0]) != 16);
