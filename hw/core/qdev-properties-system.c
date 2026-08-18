@@ -484,6 +484,8 @@ const PropertyInfo qdev_prop_netdev = {
     .set   = set_netdev,
 };
 
+const PropertyInfo qdev_prop_netdev_list =
+    DEFINE_PROP_ARRAY_INFO(qdev_prop_netdev, NICPeers);
 
 /* --- audiodev --- */
 static void get_audiodev(Object *obj, Visitor *v, const char* name,
@@ -821,6 +823,9 @@ const PropertyInfo qdev_prop_reserved_region = {
     .get   = get_reserved_region,
     .set   = set_reserved_region,
 };
+
+const PropertyInfo qdev_prop_reserved_region_list =
+    DEFINE_PROP_ARRAY_INFO(qdev_prop_reserved_region, ReservedRegion);
 
 /* --- pci address --- */
 
