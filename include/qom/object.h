@@ -1224,6 +1224,15 @@ void object_property_set_default_bool(ObjectProperty *prop, bool value);
 void object_property_set_default_str(ObjectProperty *prop, const char *value);
 
 /**
+ * object_property_set_default_enum:
+ * @prop: the property to set
+ * @value: the value to be written to the property
+ *
+ * Set the property default value.
+ */
+void object_property_set_default_enum(ObjectProperty *prop, int value);
+
+/**
  * object_property_set_default_list:
  * @prop: the property to set
  *
