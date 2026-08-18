@@ -60,6 +60,7 @@ static testdef_t ppc64_tests_slow[] = {
 
 static testdef_t s390x_tests[] = {
     { "s390-ccw-virtio", "virtio-net-ccw" },
+    { "s390-ccw-virtio", "virtio-net-pci" },
     { NULL },
 };
 
