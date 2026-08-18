@@ -183,6 +183,7 @@ VhostShadowVirtqueue *vhost_svq_new(const VhostShadowVirtqueueOps *ops,
 
 void vhost_svq_free(gpointer vq);
 void vhost_svq_set_base_addr(VhostShadowVirtqueue *svq, void *addr);
+int vhost_svq_add_element(VhostShadowVirtqueue *svq, VirtQueueElement *elem);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(VhostShadowVirtqueue, vhost_svq_free);
 

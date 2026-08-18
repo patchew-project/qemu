@@ -350,7 +350,7 @@ int vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
 }
 
 /* Convenience wrapper to add a guest's element to SVQ */
-static int vhost_svq_add_element(VhostShadowVirtqueue *svq,
+int vhost_svq_add_element(VhostShadowVirtqueue *svq,
                                  VirtQueueElement *elem)
 {
     return vhost_svq_add(svq, elem->out_sg, elem->out_num, elem->out_addr,
