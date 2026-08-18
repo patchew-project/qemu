@@ -185,10 +185,9 @@ static void *mmap_activate(void *ptr, size_t size, int fd,
                            uint32_t qemu_map_flags, off_t map_offset)
 {
     const bool noreserve = qemu_map_flags & QEMU_MAP_NORESERVE;
-    const bool readonly = qemu_map_flags & QEMU_MAP_READONLY;
     const bool shared = qemu_map_flags & QEMU_MAP_SHARED;
     const bool sync = qemu_map_flags & QEMU_MAP_SYNC;
-    const int prot = PROT_READ | (readonly ? 0 : PROT_WRITE);
+    const int prot = qemu_map_flags_to_prot(qemu_map_flags);
     int map_sync_flags = 0;
     int flags = MAP_FIXED;
     void *activated_ptr;

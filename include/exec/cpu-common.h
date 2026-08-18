@@ -113,4 +113,5 @@ static inline CPUState *env_cpu(CPUArchState *env)
 }
 
 void qemu_init_guest_memory_pkey(void);
+int qemu_pkey_mprotect_guest_memory(void *addr, size_t len, int prot);
 #endif /* CPU_COMMON_H */

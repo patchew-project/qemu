@@ -2144,6 +2144,12 @@ static void dirty_memory_extend(ram_addr_t new_ram_size)
     ram_list.num_dirty_blocks = new_num_blocks;
 }
 
+static inline int ramblock_get_prot(const RAMBlock *rb)
+{
+  uint32_t map_flags = (rb->flags & RAM_READONLY) ? QEMU_MAP_READONLY : 0;
+  return qemu_map_flags_to_prot(map_flags);
+}
+
 static void ram_block_add(RAMBlock *new_block, Error **errp)
 {
     const bool noreserve = qemu_ram_is_noreserve(new_block);
@@ -2282,6 +2288,13 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
         }
         ram_block_notify_add(new_block->host, new_block->used_length,
                              new_block->max_length);
+        int prot = ramblock_get_prot(new_block);
+        int ret = qemu_pkey_mprotect_guest_memory(new_block->host,
+                                                  new_block->max_length, prot);
+        if (ret != 0) {
+            error_report("qemu_pkey_mprotect failed for guest RAMBlock: %s",
+                         strerror(errno));
+        }
     }
     return;
 
@@ -2624,8 +2637,7 @@ static int qemu_ram_remap_mmap(RAMBlock *block, uint64_t start, size_t length)
     flags = MAP_FIXED | MAP_ANONYMOUS;
     flags |= block->flags & RAM_SHARED ? MAP_SHARED : MAP_PRIVATE;
     flags |= block->flags & RAM_NORESERVE ? MAP_NORESERVE : 0;
-    prot = PROT_READ;
-    prot |= block->flags & RAM_READONLY ? 0 : PROT_WRITE;
+    prot = ramblock_get_prot(block);
     area = mmap(host_startaddr, length, prot, flags, -1, 0);
     return area != host_startaddr ? -errno : 0;
 }

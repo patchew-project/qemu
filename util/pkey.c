@@ -106,6 +106,17 @@ __attribute__((target("pku"))) void qemu_init_guest_memory_pkey(void)
     }
 }
 
+__attribute__((target("pku"))) int qemu_pkey_mprotect_guest_memory(void *addr,
+                                                                   size_t len,
+                                                                   int prot)
+{
+    int pkey = guest_memory_pkey;
+    if (pkey == -1) {
+        return 0;
+    }
+    return pkey_mprotect(addr, len, prot, pkey);
+}
+
 #else
 /* Dummy implementations for all other configurations (non-x86_64 Linux, */
 /* Windows, macOS, etc.) */
@@ -116,4 +127,9 @@ __attribute__((target("pku"))) void qemu_init_guest_memory_pkey(void)
 
 void qemu_init_guest_memory_pkey(void)
 {}
+
+int qemu_pkey_mprotect_guest_memory(void *addr, size_t len, int prot)
+{
+    return 0;
+}
 #endif

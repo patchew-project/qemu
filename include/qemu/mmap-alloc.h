@@ -63,4 +63,9 @@ void qemu_ram_munmap(int fd, void *ptr, size_t size);
  */
 #define QEMU_MAP_NORESERVE  (1 << 3)
 
+static inline int qemu_map_flags_to_prot(uint32_t qemu_map_flags)
+{
+  return PROT_READ | ((qemu_map_flags & QEMU_MAP_READONLY) ? 0 : PROT_WRITE);
+}
+
 #endif
