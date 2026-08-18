@@ -25,6 +25,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-types-machine.h"
 #include "qapi/qapi-visit-machine.h"
+#include "qapi/qapi-type-infos-machine.h"
 #include "trace.h"
 #include "qom/object.h"
 
@@ -354,33 +355,6 @@ static int pca955x_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static void pca955x_get_led(Object *obj, Visitor *v, const char *name,
-                            void *opaque, Error **errp)
-{
-    PCA955xClass *k = PCA955X_GET_CLASS(obj);
-    PCA955xState *s = PCA955X(obj);
-    int led, rc, reg;
-    Pca9552LedState state;
-
-    rc = sscanf(name, "led%2d", &led);
-    if (rc != 1) {
-        error_setg(errp, "%s: error reading %s", __func__, name);
-        return;
-    }
-    if (led < 0 || led >= k->pin_count) {
-        error_setg(errp, "%s: invalid led %s", __func__, name);
-        return;
-    }
-    /*
-     * Get the LSx register as the qom interface should expose the device
-     * state, not the modeled 'input line' behaviour which would come from
-     * reading the INPUTx reg
-     */
-    reg = PCA9552_LS0 + led / 4;
-    state = (pca955x_read(s, reg) >> ((led % 4) * 2)) & 0x3;
-    visit_type_Pca9552LedState(v, name, &state, errp);
-}
-
 /*
  * Return an LED selector register value based on an existing one, with
  * the appropriate 2-bit state value set for the given LED number (0-3).
@@ -391,96 +365,7 @@ static inline uint8_t pca955x_ledsel(uint8_t oldval, int led_num, int state)
                 ((state & 0x3) << (led_num << 1));
 }
 
-static void pca955x_set_led(Object *obj, Visitor *v, const char *name,
-                            void *opaque, Error **errp)
-{
-    PCA955xClass *k = PCA955X_GET_CLASS(obj);
-    PCA955xState *s = PCA955X(obj);
-    int led, rc, reg, val;
-    Pca9552LedState state;
-
-    if (!visit_type_Pca9552LedState(v, name, &state, errp)) {
-        return;
-    }
-    rc = sscanf(name, "led%2d", &led);
-    if (rc != 1) {
-        error_setg(errp, "%s: error reading %s", __func__, name);
-        return;
-    }
-    if (led < 0 || led >= k->pin_count) {
-        error_setg(errp, "%s: invalid led %s", __func__, name);
-        return;
-    }
-
-    reg = PCA9552_LS0 + led / 4;
-    val = pca955x_read(s, reg);
-    val = pca955x_ledsel(val, led % 4, state);
-    pca955x_write(s, reg, val);
-}
-
 static void pca955x_set_ext_state(PCA955xState *s, int pin, int level);
-
-static void pca955x_get_pin(Object *obj, Visitor *v, const char *name,
-                            void *opaque, Error **errp)
-{
-    PCA955xClass *k = PCA955X_GET_CLASS(obj);
-    PCA955xState *s = PCA955X(obj);
-    int pin, rc;
-    uint8_t input_reg;
-    Pca9552PinState state;
-
-    rc = sscanf(name, "pin%2d", &pin);
-    if (rc != 1) {
-        error_setg(errp, "%s: error reading %s", __func__, name);
-        return;
-    }
-    if (pin < 0 || pin >= k->pin_count) {
-        error_setg(errp, "%s invalid pin %s", __func__, name);
-        return;
-    }
-
-    /*
-     * Report the raw pin logic level; polarity inversion is a read-time
-     * transform applied to the INPUT register, not to the pin state itself.
-     */
-    input_reg = PCA9535_INPUT0 + (pin / 8);
-    state = (s->regs[input_reg] >> (pin % 8)) & 0x1;
-    visit_type_Pca9552PinState(v, name, &state, errp);
-}
-
-static void pca955x_set_pin(Object *obj, Visitor *v, const char *name,
-                            void *opaque, Error **errp)
-{
-    PCA955xClass *k = PCA955X_GET_CLASS(obj);
-    PCA955xState *s = PCA955X(obj);
-    int pin, rc;
-    Pca9552PinState state;
-    uint8_t config_reg;
-
-    if (!visit_type_Pca9552PinState(v, name, &state, errp)) {
-        return;
-    }
-    rc = sscanf(name, "pin%2d", &pin);
-    if (rc != 1) {
-        error_setg(errp, "%s: error reading %s", __func__, name);
-        return;
-    }
-    if (pin < 0 || pin >= k->pin_count) {
-        error_setg(errp, "%s invalid pin %s", __func__, name);
-        return;
-    }
-
-    /* Only input-configured pins can be driven by an external device. */
-    config_reg = PCA9535_CONFIG0 + (pin / 8);
-    if (!((s->regs[config_reg] >> (pin % 8)) & 0x1)) {
-        qemu_log_mask(LOG_UNIMP,
-                      "%s: pin %d is configured as output, ignoring set\n",
-                      s->description, pin);
-        return;
-    }
-
-    pca955x_set_ext_state(s, pin, state != PCA9552_PIN_STATE_LOW);
-}
 
 static const VMStateDescription pca9552_vmstate = {
     .name = "PCA9552",
@@ -536,26 +421,92 @@ static void pca9535_reset_hold(Object *obj, ResetType type)
     s->len = 0;
 }
 
+/*
+ * Get the LSx register as the qom interface should expose the device
+ * state, not the modeled 'input line' behaviour which would come from
+ * reading the INPUTx reg
+ */
+#define DEFINE_LED_ACCESSORS(n)                                              \
+static int prop_get_led##n(Object *obj, Error **errp)                        \
+{                                                                            \
+    PCA955xState *s = PCA955X(obj);                                          \
+    uint8_t reg = PCA9552_LS0 + (n) / 4;                                     \
+    return (pca955x_read(s, reg) >> (((n) % 4) * 2)) & 0x3;                  \
+}                                                                            \
+static void prop_set_led##n(Object *obj, int val, Error **errp)              \
+{                                                                            \
+    PCA955xState *s = PCA955X(obj);                                          \
+    uint8_t reg = PCA9552_LS0 + (n) / 4;                                     \
+    uint8_t old = pca955x_read(s, reg);                                      \
+    pca955x_write(s, reg, pca955x_ledsel(old, (n) % 4, val));                \
+}
+
+QEMU_REPEAT(PCA955X_PIN_COUNT_MAX, DEFINE_LED_ACCESSORS)
+
+#define LED_ENUM_PROP(n) {                                              \
+    .name = "led" #n,                                                   \
+    .default_value = -1,                                                \
+    .qapi_type = &Pca9552LedState_type_info,                            \
+    .get = prop_get_led##n,                                             \
+    .set = prop_set_led##n,                                             \
+},
+
+static const QapiEnumProp led_enum_props[] = {
+    QEMU_REPEAT(PCA955X_PIN_COUNT_MAX, LED_ENUM_PROP)
+};
+
+/*
+ * Report the raw pin logic level; polarity inversion is a read-time
+ * transform applied to the INPUT register, not to the pin state
+ * itself.
+ */
+#define DEFINE_PIN_ACCESSORS(n)                                              \
+static int prop_get_pin##n(Object *obj, Error **errp)                        \
+{                                                                            \
+    PCA955xState *s = PCA955X(obj);                                          \
+    uint8_t input_reg = PCA9535_INPUT0 + (n) / 8;                            \
+    return (s->regs[input_reg] >> ((n) % 8)) & 0x1;                          \
+}                                                                            \
+static void prop_set_pin##n(Object *obj, int val, Error **errp)              \
+{                                                                            \
+    PCA955xState *s = PCA955X(obj);                                          \
+    uint8_t config_reg = PCA9535_CONFIG0 + (n) / 8;                          \
+    /* Only input-configured pins can be driven by an external device */     \
+    if (!((s->regs[config_reg] >> ((n) % 8)) & 0x1)) {                       \
+        qemu_log_mask(LOG_UNIMP,                                             \
+                      "%s: pin %d configured as output, ignoring set\n",     \
+                      s->description, (n));                                  \
+        return;                                                              \
+    }                                                                        \
+    pca955x_set_ext_state(s, (n), val != PCA9552_PIN_STATE_LOW);             \
+}
+
+QEMU_REPEAT(PCA955X_PIN_COUNT_MAX, DEFINE_PIN_ACCESSORS)
+
+#define PIN_ENUM_PROP(n) {                                              \
+    .name = "pin" #n,                                                   \
+    .default_value = -1,                                                \
+    .qapi_type = &Pca9552PinState_type_info,                            \
+    .get = prop_get_pin##n,                                             \
+    .set = prop_set_pin##n,                                             \
+},
+
+static const QapiEnumProp pin_enum_props[] = {
+    QEMU_REPEAT(PCA955X_PIN_COUNT_MAX, PIN_ENUM_PROP)
+};
+
 static void pca955x_initfn(Object *obj)
 {
     PCA955xClass *k = PCA955X_GET_CLASS(obj);
 
     assert(k->pin_count <= PCA955X_PIN_COUNT_MAX);
+    /* use array/list instead of individual QAPI enum properties */
     for (int ix = 0; ix < k->pin_count; ix++) {
-        char *name;
-
         if (k->has_led_support) {
-            /* LED variant: expose the LED selector state as led%d. */
-            name = g_strdup_printf("led%d", ix);
-            object_property_add(obj, name, "Pca9552LedState",
-                                pca955x_get_led, pca955x_set_led, NULL, NULL);
+            object_property_add_qapi_enum(obj, &led_enum_props[ix]);
         } else {
-            /* GPIO variant: expose the pin logic level as pin%d. */
-            name = g_strdup_printf("pin%d", ix);
-            object_property_add(obj, name, "Pca9552PinState",
-                                pca955x_get_pin, pca955x_set_pin, NULL, NULL);
+            object_property_add_qapi_enum(obj, &pin_enum_props[ix]);
         }
-        g_free(name);
     }
 }
 
