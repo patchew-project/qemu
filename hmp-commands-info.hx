@@ -193,7 +193,8 @@ ERST
         .help       = "show virtual to physical memory mappings",
         .cmd        = hmp_info_tlb,
         .arch_bitmask = QEMU_ARCH_I386 | QEMU_ARCH_SH4 | QEMU_ARCH_SPARC \
-                        | QEMU_ARCH_PPC | QEMU_ARCH_XTENSA | QEMU_ARCH_M68K,
+                        | QEMU_ARCH_PPC | QEMU_ARCH_XTENSA | QEMU_ARCH_M68K \
+                        | QEMU_ARCH_HEXAGON,
     },
 
 SRST
