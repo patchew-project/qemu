@@ -213,6 +213,9 @@
 #
 # @param: parameter to pass to passt command
 #
+# @memory-isolation: isolate guest memory from vhost-user back-end
+#     (default: false) (Since 11.2)
+#
 # Since: 10.1
 ##
 { 'struct': 'NetdevPasstOptions',
@@ -250,7 +253,8 @@
     '*ipv6':               'bool',
     '*tcp-ports':          ['PasstPortForward'],
     '*udp-ports':          ['PasstPortForward'],
-    '*param':              ['PasstParameter'] },
+    '*param':              ['PasstParameter'],
+    '*memory-isolation':   'bool'},
     'if': 'CONFIG_PASST' }
 
 ##
@@ -685,13 +689,17 @@
 # @queues: number of queues to be created for multiqueue vhost-user
 #     (default: 1) (Since 2.5)
 #
+# @memory-isolation: isolate guest memory from vhost-user back-end
+#     (default: false) (Since 11.2)
+#
 # Since: 2.1
 ##
 { 'struct': 'NetdevVhostUserOptions',
   'data': {
-    'chardev':        'str',
-    '*vhostforce':    'bool',
-    '*queues':        'int' } }
+    'chardev':              'str',
+    '*vhostforce':          'bool',
+    '*queues':              'int',
+    '*memory-isolation':    'bool' } }
 
 ##
 # @NetdevVhostVDPAOptions:

@@ -477,6 +477,9 @@ int net_init_vhost_user(const Netdev *netdev, const char *name,
         return -1;
     }
 
+    memory_isolation = vhost_user_opts->has_memory_isolation ?
+                       vhost_user_opts->memory_isolation : false;
+
     return net_vhost_user_init(peer, "vhost_user", name, chr, queues,
                                memory_isolation);
 }

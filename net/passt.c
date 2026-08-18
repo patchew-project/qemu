@@ -741,6 +741,11 @@ int net_init_passt(const Netdev *netdev, const char *name,
     if (netdev->u.passt.has_vhost_user && netdev->u.passt.vhost_user) {
         bool memory_isolation = false;
 
+        if (netdev->u.passt.has_memory_isolation &&
+            netdev->u.passt.memory_isolation) {
+            memory_isolation = true;
+        }
+
         if (net_passt_vhost_user_init(s, memory_isolation, errp) == -1) {
             qemu_del_net_client(nc);
             return -1;
