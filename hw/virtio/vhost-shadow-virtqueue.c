@@ -812,6 +812,13 @@ size_t vhost_svq_device_area_size(const VhostShadowVirtqueue *svq)
     return ROUND_UP(used_size, qemu_real_host_page_size());
 }
 
+size_t vhost_svq_vring_total_size(VirtIODevice *vdev, VirtQueue *vq)
+{
+    VhostShadowVirtqueue svq;
+    svq.vring.num = virtio_queue_get_num(vdev, virtio_get_queue_index(vq));
+    return vhost_svq_driver_area_size(&svq) + vhost_svq_device_area_size(&svq);
+}
+
 /**
  * Set a new file descriptor for the guest to kick the SVQ and notify for avail
  *
@@ -843,14 +850,29 @@ void vhost_svq_set_svq_kick_fd(VhostShadowVirtqueue *svq, int svq_kick_fd)
 }
 
 /**
+ * Set vring base address if using fixed locations
+ *
+ * @svq: Shadow Virtqueue
+ * @addr: Points to new base address
+ */
+
+ void vhost_svq_set_base_addr(VhostShadowVirtqueue *svq, void *addr)
+ {
+    svq->base_addr = addr;
+ }
+
+
+/**
  * Start the shadow virtqueue operation.
  *
  * @svq: Shadow Virtqueue
  * @vdev: VirtIO device
  * @vq: Virtqueue to shadow
  * @iova_tree: Tree to perform descriptors translations
+ *
+ * Return 0 on success, -errno on failure
  */
-void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
+int vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
                      VirtQueue *vq, VhostIOVATree *iova_tree)
 {
     size_t desc_size;
@@ -868,14 +890,27 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
 
     svq->vring.num = virtio_queue_get_num(vdev, virtio_get_queue_index(vq));
     svq->num_free = svq->vring.num;
-    svq->vring.desc = mmap(NULL, vhost_svq_driver_area_size(svq),
-                           PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,
-                           -1, 0);
     desc_size = sizeof(vring_desc_t) * svq->vring.num;
-    svq->vring.avail = (void *)((char *)svq->vring.desc + desc_size);
-    svq->vring.used = mmap(NULL, vhost_svq_device_area_size(svq),
-                           PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,
-                           -1, 0);
+    if (svq->base_addr == NULL) {
+        svq->vring.desc = mmap(NULL, vhost_svq_driver_area_size(svq),
+                            PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,
+                            -1, 0);
+        svq->vring.avail = (void *)((char *)svq->vring.desc + desc_size);
+        svq->vring.used = mmap(NULL, vhost_svq_device_area_size(svq),
+                            PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,
+                            -1, 0);
+    } else {
+        svq->vring.desc = (void *)svq->base_addr;
+        svq->vring.avail = (void *)((char *)svq->vring.desc + desc_size);
+        svq->vring.used = (void *)((char *)svq->base_addr +
+                          vhost_svq_driver_area_size(svq));
+
+        if ((uint64_t)svq->vring.used + vhost_svq_device_area_size(svq) - 1 <
+           (uint64_t)svq->vring.desc) {
+                error_report("Invalid shadow vring location");
+                return -ENOMEM;
+        }
+    }
     svq->desc_state = g_new0(SVQDescState, svq->vring.num);
     if (virtio_vdev_has_feature(svq->vdev, VIRTIO_F_IN_ORDER)) {
         svq->batch_last.id = VIRTIO_RING_NOT_IN_BATCH;
@@ -884,6 +919,8 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
             svq->desc_state[i].next = i + 1;
         }
     }
+
+    return 0;
 }
 
 /**
@@ -920,8 +957,19 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
     }
     svq->vq = NULL;
     g_free(svq->desc_state);
-    munmap(svq->vring.desc, vhost_svq_driver_area_size(svq));
-    munmap(svq->vring.used, vhost_svq_device_area_size(svq));
+
+    if (!svq->base_addr) {
+        munmap(svq->vring.desc, vhost_svq_driver_area_size(svq));
+        munmap(svq->vring.used, vhost_svq_device_area_size(svq));
+    } else{
+        if (svq->vring.desc) {
+            memset(svq->vring.desc, 0, vhost_svq_driver_area_size(svq));
+        }
+        if (svq->vring.used) {
+            memset(svq->vring.used, 0, vhost_svq_device_area_size(svq));
+        }
+    }
+
     event_notifier_set_handler(&svq->hdev_call, NULL);
 }
 
@@ -940,6 +988,7 @@ VhostShadowVirtqueue *vhost_svq_new(const VhostShadowVirtqueueOps *ops,
     event_notifier_init_fd(&svq->svq_kick, VHOST_FILE_UNBIND);
     svq->ops = ops;
     svq->ops_opaque = ops_opaque;
+    svq->base_addr = NULL;
     return svq;
 }
 
