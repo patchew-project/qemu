@@ -107,7 +107,7 @@ static void vuv_device_realize(DeviceState *dev, Error **errp)
     }
 
     if (!vhost_user_init(&vsock->vhost_user, &vsock->conf.chardev,
-                         false, errp)) {
+                         vsock->conf.memory_isolation, errp)) {
         return;
     }
 
@@ -155,6 +155,8 @@ static void vuv_device_unrealize(DeviceState *dev)
 
 static const Property vuv_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserVSock, conf.chardev),
+    DEFINE_PROP_BOOL("memory-isolation", VHostUserVSock, conf.memory_isolation,
+                     false),
 };
 
 static void vuv_class_init(ObjectClass *klass, const void *data)

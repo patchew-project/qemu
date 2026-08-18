@@ -239,7 +239,7 @@ static void vuf_device_realize(DeviceState *dev, Error **errp)
     }
 
     if (!vhost_user_init(&fs->vhost_user, &fs->conf.chardev,
-                         false, errp)) {
+                         fs->conf.memory_isolation, errp)) {
         return;
     }
 
@@ -411,6 +411,8 @@ static const VMStateDescription vuf_backend_vmstate = {
 
 static const Property vuf_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserFS, conf.chardev),
+    DEFINE_PROP_BOOL("memory-isolation", VHostUserFS, conf.memory_isolation,
+                     false),
     DEFINE_PROP_STRING("tag", VHostUserFS, conf.tag),
     DEFINE_PROP_UINT16("num-request-queues", VHostUserFS,
                        conf.num_request_queues, 1),

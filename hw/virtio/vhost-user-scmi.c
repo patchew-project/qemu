@@ -245,7 +245,7 @@ static void vu_scmi_device_realize(DeviceState *dev, Error **errp)
     vdev->host_features |= (1ULL << VIRTIO_SCMI_F_P2A_CHANNELS);
 
     if (!vhost_user_init(&scmi->vhost_user, &scmi->chardev,
-                         false, errp)) {
+                         scmi->memory_isolation, errp)) {
         return;
     }
 
@@ -288,6 +288,8 @@ static const VMStateDescription vu_scmi_vmstate = {
 
 static const Property vu_scmi_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserSCMI, chardev),
+    DEFINE_PROP_BOOL("memory-isolation", VHostUserSCMI, memory_isolation,
+                     false),
 };
 
 static void vu_scmi_class_init(ObjectClass *klass, const void *data)

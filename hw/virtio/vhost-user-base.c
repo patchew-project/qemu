@@ -318,7 +318,7 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
     }
 
     if (!vhost_user_init(&vub->vhost_user, &vub->chardev,
-                         false, errp)) {
+                         vub->memory_isolation, errp)) {
         return;
     }
 
@@ -410,7 +410,9 @@ static void vub_device_unrealize(DeviceState *dev)
 
 /*Define common qdev properties.  Inherited by all children*/
 static const Property vub_properties[] = {
-    DEFINE_PROP_CHR("chardev", VHostUserBase, chardev)
+    DEFINE_PROP_CHR("chardev", VHostUserBase, chardev),
+    DEFINE_PROP_BOOL("memory-isolation", VHostUserBase, memory_isolation,
+                     false),
 };
 
 
