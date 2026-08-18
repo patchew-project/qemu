@@ -123,7 +123,7 @@ struct fpstate_64 {
 
 static int pkru_offset = -2; /* -2 means uninitialized */
 
-static int __attribute__((unused)) get_pkru_offset(void)
+static int get_pkru_offset(void)
 {
     uint32_t eax, ebx, ecx, edx;
     __cpuid_count(0xd, XFEATURE_PKRU, eax, ebx, ecx, edx);
@@ -133,12 +133,161 @@ static int __attribute__((unused)) get_pkru_offset(void)
     return (int)ebx;
 }
 
-static int __attribute__((unused)) qemu_get_pkru_offset(void)
+static int qemu_get_pkru_offset(void)
 {
     if (pkru_offset == -2) {
         pkru_offset = get_pkru_offset();
     }
     return pkru_offset;
+}
+
+static __attribute__((target("pku"))) bool do_qemu_pkey_sigsegv_recovery(
+    const siginfo_t *si, ucontext_t *ucontext, int pkey)
+{
+    if (pkey < 0 || pkey >= KEY_COUNT) {
+        return false;
+    }
+
+    if (!ucontext) {
+        return false;
+    }
+
+    void *fpstate = ucontext->uc_mcontext.fpregs;
+    if (fpstate == NULL) {
+        return false;
+    }
+
+    struct fpstate_64 *fpstate_64 = (struct fpstate_64 *)fpstate;
+
+    if (fpstate_64->sw_reserved.magic1 != FP_XSTATE_MAGIC1) {
+        return false;
+    }
+
+    uint32_t *magic2 =
+            (uint32_t *)((char *)fpstate + fpstate_64->sw_reserved.xstate_size);
+    if (*magic2 != FP_XSTATE_MAGIC2) {
+        return false;
+    }
+
+    if ((fpstate_64->sw_reserved.xstate_bv & XSTATE_PKRU) == 0) {
+        return false;
+    }
+
+    int pkr_offset = qemu_get_pkru_offset();
+    if (pkr_offset < 0 || pkr_offset >= fpstate_64->sw_reserved.xstate_size) {
+        return false;
+    }
+
+    uint32_t *pkru = (uint32_t *)((char *)fpstate + pkr_offset);
+
+    uint32_t access_rights = (*pkru >> (pkey * BITS_PER_KEY)) & KEY_MASK;
+    if (access_rights == 0) {
+        return false;
+    }
+
+    /*
+     * Flush microarchitectural state (IBPB) before returning to avoid
+     * speculative execution.
+     */
+    prctl(PR_SET_SPECULATION_CTRL, PR_SPEC_INDIRECT_BRANCH, PR_SPEC_DISABLE, 0,
+                0);
+
+    /*
+     * Clear bits in the saved PKRU so that access is unrestricted upon
+     * returning from the signal handler.
+     */
+    *pkru &= ~(KEY_MASK << (pkey * BITS_PER_KEY));
+
+    return true;
+}
+
+static void (*old_sigaction_func)(int, siginfo_t *, void *);
+static void (*old_sighandler_func)(int);
+
+static int pkey_recovery_handler_installed;
+static int pkey_for_recovery = -1;
+
+static void qemu_pkey_sigsegv_handler(int si_signo, siginfo_t *si,
+                                      void *raw_ucontext)
+{
+    ucontext_t *const ucontext = (ucontext_t *)raw_ucontext;
+
+    if (si_signo == SIGSEGV && si != NULL && si->si_code == SEGV_PKUERR) {
+        int pkey = qatomic_read(&pkey_for_recovery);
+        if (pkey >= 0 && do_qemu_pkey_sigsegv_recovery(si, ucontext, pkey)) {
+            return;
+        }
+    }
+
+    void (*old_sigaction)(int, siginfo_t *, void *) =
+            qatomic_read(&old_sigaction_func);
+    if (old_sigaction != NULL) {
+        old_sigaction(si_signo, si, raw_ucontext);
+        return;
+    }
+
+    void (*old_sighandler)(int) = qatomic_read(&old_sighandler_func);
+    if (old_sighandler != NULL && old_sighandler != SIG_DFL &&
+            old_sighandler != SIG_IGN)
+{
+        old_sighandler(si_signo);
+        return;
+    }
+
+    /* Fallback: abort */
+    const char msg[] = "QEMU: Received unexpected Pkey SIGSEGV\n";
+    int unused __attribute__((unused)) =
+        write(STDERR_FILENO, msg, sizeof(msg) - 1);
+    abort();
+}
+
+static void qemu_register_pkey_recovery_handler(void)
+{
+    struct sigaction old_sigact = {0};
+    struct sigaction new_sigact = {0};
+
+    if (qatomic_xchg(&pkey_recovery_handler_installed, 1)) {
+        return; /* Already installed */
+    }
+
+    if (sigaction(SIGSEGV, NULL, &old_sigact) < 0) {
+        error_report("QEMU Pkey: Failed to get current SIGSEGV handler");
+        qatomic_set(&pkey_recovery_handler_installed, 0);
+        return;
+    }
+
+    if (old_sigact.sa_flags & SA_RESETHAND) {
+        error_report(
+            "QEMU Pkey: Incompatible SA_RESETHAND flags in old handler");
+        qatomic_set(&pkey_recovery_handler_installed, 0);
+        return;
+    }
+
+    if (old_sigact.sa_flags & SA_SIGINFO) {
+        qatomic_set(&old_sigaction_func, old_sigact.sa_sigaction);
+    } else {
+        qatomic_set(&old_sighandler_func, old_sigact.sa_handler);
+    }
+
+    new_sigact = old_sigact;
+    new_sigact.sa_flags |= SA_SIGINFO;
+    new_sigact.sa_sigaction = &qemu_pkey_sigsegv_handler;
+
+    if (sigaction(SIGSEGV, &new_sigact, &old_sigact) < 0) {
+        error_report("QEMU Pkey: Failed to register SIGSEGV handler");
+        qatomic_set(&pkey_recovery_handler_installed, 0);
+        return;
+    }
+}
+
+static void qemu_add_pkey_for_recovery(int pkey)
+{
+    int expected = -1;
+    /* We only support one recovery pkey at a time */
+    if (qatomic_cmpxchg(&pkey_for_recovery, expected, pkey) != expected) {
+        error_report("QEMU Pkey: Recovery Pkey already set to %d",
+                     pkey_for_recovery);
+    }
 }
 
 __attribute__((target("pku"))) void qemu_init_guest_memory_pkey(void)
@@ -154,6 +303,10 @@ __attribute__((target("pku"))) void qemu_init_guest_memory_pkey(void)
             error_report("pkey_alloc failed for guest memory: %s",
                          strerror(errno));
         } else {
+            /* Register recovery signal handler and add pkey for recovery. */
+            qemu_register_pkey_recovery_handler();
+            qemu_add_pkey_for_recovery(pkey);
+
             guest_memory_pkey = pkey;
         }
     }
