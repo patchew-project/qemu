@@ -84,6 +84,8 @@ void tcg_gen_goto_tb(unsigned idx);
  * this op is equivalent to calling tcg_gen_exit_tb() with 0 as the argument.
  */
 void tcg_gen_lookup_and_goto_ptr(void);
+void tcg_gen_lookup_and_goto_ptr_inline(TCGv_i64 pc,
+                                        const TranslationBlock *tb);
 
 void tcg_gen_plugin_cb(unsigned from);
 void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo);
