@@ -303,3 +303,8 @@ int gpa_tree_insert(IOVATree *tree, const DMAMap *map)
 
     return IOVA_OK;
 }
+
+void iova_tree_foreach(IOVATree *tree, GTraverseFunc func, gpointer data)
+{
+    g_tree_foreach(tree->tree, func, data);
+}
