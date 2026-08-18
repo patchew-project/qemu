@@ -35,37 +35,37 @@ from .schema import (
 from .source import QAPISourceInfo
 
 
-class QAPISchemaUsedTypes(QAPISchemaVisitor):
-    """Collect the set of QMP-reachable types from a schema.
+class QAPISchemaTypeAnalysis(QAPISchemaVisitor):
+    """Analyze types from a QAPI schema.
 
-    Types are discovered transitively starting from commands and events.
-    Each type is also given a masked introspection name (an integer
-    string).
+    Every non-builtin, non-array type is given a masked introspection
+    name (an integer string).
     """
 
     def __init__(self, unmask: bool):
         self._unmask = unmask
         self._schema: Optional[QAPISchema] = None
         # Ordered list + set: insert during iteration + O(1) check
-        self._used_types: List[QAPISchemaType] = []
-        self._used_types_set: Set[QAPISchemaType] = set()
+        self._types: List[QAPISchemaType] = []
+        self._types_set: Set[QAPISchemaType] = set()
         self._name_map: Dict[str, str] = {}
 
     def visit_begin(self, schema: QAPISchema) -> None:
         self._schema = schema
-        self._used_types = []
-        self._used_types_set = set()
+        self._types = []
+        self._types_set = set()
         self._name_map = {}
 
     def visit_end(self) -> None:
         assert self._schema is not None
-        # Discover transitively-used types; the list grows as
+        # Discover type dependencies; the list grows as
         # visiting each type registers the types it references.
-        for typ in self._used_types:
+        for typ in self._types:
             typ.visit(self)
-        # Assign stable masked names now that all types are known
+
+        # Assign masked names now that all introspected types are known.
         counter = 0
-        for typ in self._used_types:
+        for typ in self._types:
             if isinstance(typ, (QAPISchemaBuiltinType, QAPISchemaArrayType)):
                 continue
             self._name_map[typ.name] = (
@@ -73,8 +73,14 @@ class QAPISchemaUsedTypes(QAPISchemaVisitor):
             counter += 1
 
     def visit_needed(self, entity: QAPISchemaEntity) -> bool:
-        # Skip types during main traversal; visit_end() handles them
-        return not isinstance(entity, QAPISchemaType)
+        # Side effect: register all introspectable types now, so that
+        # visit_end() can traverse them to discover type dependencies.
+        if isinstance(entity, QAPISchemaType):
+            if (not entity.is_implicit() or
+                    isinstance(entity, QAPISchemaArrayType)):
+                self._register_type(entity)
+            return False
+        return True
 
     def visit_command(self, name: str, info: Optional[QAPISourceInfo],
                       ifcond: QAPISchemaIfCond,
@@ -107,11 +113,6 @@ class QAPISchemaUsedTypes(QAPISchemaVisitor):
             for v in branches.variants:
                 self._register_type(v.type)
 
-    def visit_array_type(self, name: str, info: Optional[QAPISourceInfo],
-                         ifcond: QAPISchemaIfCond,
-                         element_type: QAPISchemaType) -> None:
-        self._register_type(element_type)
-
     def visit_alternate_type(
             self, name: str, info: Optional[QAPISourceInfo],
             ifcond: QAPISchemaIfCond,
@@ -121,11 +122,11 @@ class QAPISchemaUsedTypes(QAPISchemaVisitor):
             self._register_type(m.type)
 
     def _register_type(self, typ: QAPISchemaType) -> None:
-        """Record a type as QMP-reachable (idempotent)."""
+        """Record a type for introspection (idempotent)."""
         typ = self._canonicalize_type(typ)
-        if typ not in self._used_types_set:
-            self._used_types.append(typ)
-            self._used_types_set.add(typ)
+        if typ not in self._types_set:
+            self._types.append(typ)
+            self._types_set.add(typ)
             if isinstance(typ, QAPISchemaArrayType):
                 self._register_type(typ.element_type)
 
@@ -156,9 +157,9 @@ class QAPISchemaUsedTypes(QAPISchemaVisitor):
             return typ.name
         if isinstance(typ, QAPISchemaArrayType):
             return '[' + self.introspection_name(typ.element_type) + ']'
-        assert typ in self._used_types_set
+        assert typ in self._types_set
         return self.masked_name(typ.name)
 
-    def used_types(self) -> Sequence[QAPISchemaType]:
+    def types(self) -> Sequence[QAPISchemaType]:
         """Return the types to include in QAPI introspection."""
-        return self._used_types
+        return self._types

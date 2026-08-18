@@ -8,7 +8,7 @@ from .events import gen_events
 from .features import gen_features
 from .introspect import gen_introspect
 from .schema import QAPISchema
-from .schema_analysis import QAPISchemaUsedTypes
+from .schema_analysis import QAPISchemaTypeAnalysis
 from .types import gen_types
 from .visit import gen_visit
 
@@ -58,7 +58,7 @@ class QAPICBackend(QAPIBackend):
 
         :raise QAPIError: On failures.
         """
-        schema_types = QAPISchemaUsedTypes(unmask)
+        schema_types = QAPISchemaTypeAnalysis(unmask)
         schema.visit(schema_types)
         gen_types(schema, output_dir, prefix, builtins)
         gen_features(schema, output_dir, prefix)

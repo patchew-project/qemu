@@ -38,7 +38,7 @@ from .schema import (
     QAPISchemaType,
     QAPISchemaVariant,
 )
-from .schema_analysis import QAPISchemaUsedTypes
+from .schema_analysis import QAPISchemaTypeAnalysis
 from .source import QAPISourceInfo
 
 
@@ -168,7 +168,7 @@ def to_c_string(string: str) -> str:
 
 class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
 
-    def __init__(self, prefix: str, schema_types: QAPISchemaUsedTypes):
+    def __init__(self, prefix: str, schema_types: QAPISchemaTypeAnalysis):
         super().__init__(
             prefix, 'qapi-introspect',
             ' * QAPI/QMP schema introspection', __doc__)
@@ -187,7 +187,7 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
 
     def visit_end(self) -> None:
         # visit the types that are actually used
-        for typ in self._schema_types.used_types():
+        for typ in self._schema_types.types():
             typ.visit(self)
         # generate C
         name = c_name(self._prefix, protect=False) + 'qmp_schema_qlit'
