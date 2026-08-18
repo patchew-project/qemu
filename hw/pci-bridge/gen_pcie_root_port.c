@@ -104,6 +104,36 @@ static void gen_rp_realize(DeviceState *dev, Error **errp)
     }
 
     uint32_t offset = GEN_PCIE_ROOT_PORT_ACS_END;
+    /*
+     * dvsec rme-da
+     * https://developer.arm.com/documentation/den0129/latest/
+     * Arm RME System Architecture
+     * 0x0000 RMEDA_ECH See B3.2.6.2.1 RME-DA Extended Capability Header
+     * 0x0004 RMEDA_HEAD1 See B3.2.6.2.2 RME-DA DVSEC Header 1
+     * 0x0008 RMEDA_HEAD2 See B3.2.6.2.3 RME-DA DVSEC Header 2
+     * 0x000C RMEDA_CTL1 See B3.2.6.2.4 RME-DA Control register 1
+     * 0x0010 RMEDA_CTL2 See B3.2.6.2.5 RME-DA Control register 2
+     */
+    pcie_add_capability(d, PCI_EXT_CAP_ID_DVSEC, PCI_RMEDA_VER, offset,
+                        PCI_RMEDA_SIZEOF);
+    const uint32_t header1 = 0x010013b5;
+    const uint32_t header2 = 0xFF01;
+    const uint32_t ctl1 = 0x1; /* support tdisp */
+    const uint32_t ctl2 = 0x0; /* unlocked */
+    pci_set_long(d->config + offset + 0x4, header1);
+    pci_set_long(d->config + offset + 0x8, header2);
+    pci_set_long(d->config + offset + 0xC, ctl1);
+    pci_set_long(d->config + offset + 0x10, ctl2);
+    d->wmask[offset + 0xC] = 0xff;
+    d->wmask[offset + 0xC + 1] = 0xff;
+    d->wmask[offset + 0xC + 2] = 0xff;
+    d->wmask[offset + 0xC + 3] = 0xff;
+    d->wmask[offset + 0x10] = 0xff;
+    d->wmask[offset + 0x10 + 1] = 0xff;
+    d->wmask[offset + 0x10 + 2] = 0xff;
+    d->wmask[offset + 0x10 + 3] = 0xff;
+    offset += PCI_RMEDA_SIZEOF;
+
     pcie_ide_init(d, offset);
     offset += PCI_IDE_SIZEOF;
 
