@@ -27,6 +27,7 @@
 #include "qemu/target-info.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
+#include "qapi/qapi-type-infos-common.h"
 #include "target/microblaze/cpu.h"
 #include "hw/core/sysbus.h"
 #include "net/net.h"
@@ -174,14 +175,16 @@ static void petalogix_s3adsp1800_machine_class_init(ObjectClass *oc,
     mc->init = petalogix_s3adsp1800_init;
     mc->is_default = true;
 
-    prop = object_class_property_add_enum(oc, "endianness", "EndianMode",
-                                          &EndianMode_lookup,
-                                          machine_get_endianness,
-                                          machine_set_endianness);
-    object_property_set_default_str(prop, target_big_endian() ? "big"
-                                                              : "little");
-    object_class_property_set_description(oc, "endianness",
-            "Defines whether the machine runs in big or little endian mode");
+    prop = object_class_property_add_qapi_enum(oc, QAPI_ENUM_PROP(
+        .name = "endianness",
+        .description =
+            "Defines whether the machine runs in big or little endian mode",
+        .qapi_type = &EndianMode_type_info,
+        .get = machine_get_endianness,
+        .set = machine_set_endianness,
+    ));
+    object_property_set_default_enum(prop,
+        target_big_endian() ? ENDIAN_MODE_BIG : ENDIAN_MODE_LITTLE);
 }
 
 static const TypeInfo petalogix_s3adsp1800_machine_types[] = {

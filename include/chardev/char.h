@@ -343,12 +343,4 @@ static void set_encoding(Object *obj, int value, Error **errp)  \
     cast_func(obj)->encoding = value;                           \
 }
 
-static inline void chardev_vc_add_encoding_prop(ObjectClass *oc,
-    int (*get)(Object *, Error **),
-    void (*set)(Object *, int, Error **))
-{
-    object_class_property_add_enum(oc, "encoding", "ChardevVCEncoding",
-                                   &ChardevVCEncoding_lookup, get, set);
-}
-
 #endif
