@@ -5364,11 +5364,19 @@ DISAS_INSN(frestore)
         gen_exception(s, s->base.pc_next, EXCP_PRIVILEGE);
         return;
     }
-    if (m68k_feature(s->env, M68K_FEATURE_M68040)) {
+    if (m68k_feature(s->env, M68K_FEATURE_M68040) ||
+        m68k_feature(s->env, M68K_FEATURE_FPU)) {
         SRC_EA(env, addr, OS_LONG, 0, NULL);
-        /* FIXME: check the state frame */
+        if (m68k_feature(s->env, M68K_FEATURE_M68040)) {
+            /* FIXME: check the state frame */
+        } else {
+            /*
+             * 68881/68882 FRESTORE: read the state frame
+             * (NULL frame is 4 bytes)
+             */
+        }
     } else {
-        disas_undef(env, s, insn);
+        disas_undef_fpu(env, s, insn);
     }
 }
 
@@ -5383,8 +5391,12 @@ DISAS_INSN(fsave)
         /* always write IDLE */
         TCGv idle = tcg_constant_i32(0x41000000);
         DEST_EA(env, insn, OS_LONG, idle, NULL);
+    } else if (m68k_feature(s->env, M68K_FEATURE_FPU)) {
+        /* 68881/68882 FSAVE: always write NULL frame */
+        TCGv null_frame = tcg_constant_i32(0x00000000);
+        DEST_EA(env, insn, OS_LONG, null_frame, NULL);
     } else {
-        disas_undef(env, s, insn);
+        disas_undef_fpu(env, s, insn);
     }
 }
 #endif
