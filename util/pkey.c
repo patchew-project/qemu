@@ -117,15 +117,60 @@ __attribute__((target("pku"))) int qemu_pkey_mprotect_guest_memory(void *addr,
     return pkey_mprotect(addr, len, prot, pkey);
 }
 
+__attribute__((target("pku"))) void qemu_reset_pkey_with_ibpb(void)
+{
+    int pkey = guest_memory_pkey;
+    if (pkey == -1) {
+        return;
+    }
+    if (inline_pkey_get(pkey) == 0) {
+        return;
+    }
+
+    /* IBPB */
+    prctl(PR_SET_SPECULATION_CTRL, PR_SPEC_INDIRECT_BRANCH, PR_SPEC_DISABLE, 0,
+                0);
+
+    inline_pkey_set(pkey, 0);
+}
+
+__attribute__((target("pku"))) int qemu_pkey_kvm_run(int fd, void *arg)
+{
+    int pkey = guest_memory_pkey;
+    if (pkey == -1) {
+        return ioctl(fd, KVM_RUN, arg);
+    }
+
+    assert(pkey >= 0 && pkey < KEY_COUNT);
+
+    inline_pkey_set(pkey, 0);
+
+    intptr_t ret = local_syscall3(__NR_ioctl, fd, KVM_RUN, (intptr_t)arg);
+
+    inline_pkey_set(pkey, PKEY_DISABLE_ACCESS);
+
+    if (ret < 0) {
+        errno = -ret;
+        ret = -1;
+    }
+    return (int)ret;
+}
+
 #else
 /* Dummy implementations for all other configurations (non-x86_64 Linux, */
 /* Windows, macOS, etc.) */
 #if defined(CONFIG_LINUX)
 #include <linux/kvm.h>
 #include <sys/ioctl.h>
+
+int qemu_pkey_kvm_run(int fd, void *arg)
+{ return ioctl(fd, KVM_RUN, arg); }
 #endif
 
 void qemu_init_guest_memory_pkey(void)
+{}
+
+void qemu_reset_pkey_with_ibpb(void)
 {}
 
 int qemu_pkey_mprotect_guest_memory(void *addr, size_t len, int prot)

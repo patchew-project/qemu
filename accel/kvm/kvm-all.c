@@ -19,6 +19,7 @@
 
 #include <linux/kvm.h>
 
+#include "exec/cpu-common.h"
 #include "qemu/atomic.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
@@ -3666,7 +3667,11 @@ int kvm_vcpu_ioctl(CPUState *cpu, unsigned long type, ...)
 
     trace_kvm_vcpu_ioctl(cpu->cpu_index, type, arg);
     accel_cpu_ioctl_begin(cpu);
-    ret = ioctl(cpu->kvm_fd, type, arg);
+    if (type == KVM_RUN) {
+        ret = qemu_pkey_kvm_run(cpu->kvm_fd, arg);
+    } else {
+        ret = ioctl(cpu->kvm_fd, type, arg);
+    }
     accel_cpu_ioctl_end(cpu);
     if (ret == -1) {
         ret = -errno;

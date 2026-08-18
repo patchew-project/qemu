@@ -2755,7 +2755,11 @@ static void *qemu_ram_ptr_length(RAMBlock *block, ram_addr_t addr,
                                     1, lock, is_write);
     }
 
-    return ramblock_ptr(block, addr);
+    void *ptr = ramblock_ptr(block, addr);
+    if (ptr) {
+        qemu_reset_pkey_with_ibpb();
+    }
+    return ptr;
 }
 
 /*
