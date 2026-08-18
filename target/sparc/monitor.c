@@ -25,6 +25,7 @@
 #include "cpu.h"
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"
+#include "qobject/qdict.h"
 
 
 void hmp_info_tlb(Monitor *mon, const QDict *qdict)
@@ -35,5 +36,27 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "No CPU available\n");
         return;
     }
+
+#ifdef TARGET_SPARC64
+    if (qdict_haskey(qdict, "start") || qdict_haskey(qdict, "end")) {
+        monitor_printf(mon, "The range arguments will be ignored.\n");
+    }
+
     dump_mmu(env1);
+#else
+    hwaddr start = 0, end = HWADDR_MAX;
+
+    if (qdict_haskey(qdict, "start")) {
+        start = (hwaddr)qdict_get_int(qdict, "start");
+    }
+    if (qdict_haskey(qdict, "end")) {
+        end = (hwaddr)qdict_get_int(qdict, "end");
+    }
+    if (start > end) {
+        monitor_printf(mon, "Invalid address range: start > end.\n");
+        return;
+    }
+
+    dump_mmu_range(env1, start, end);
+#endif
 }

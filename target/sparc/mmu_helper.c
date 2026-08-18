@@ -354,7 +354,32 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
     return 0;
 }
 
+static void print_tlb_entry(target_ulong va, hwaddr pa, uint32_t pde,
+                            const char *indent, const char *kind,
+                            hwaddr size, hwaddr start, hwaddr end)
+{
+    hwaddr va_hw_start = (hwaddr)va;
+    hwaddr va_hw_end = (hwaddr)(va + size - 1);
+
+    /*
+     * Print current region [va_hw_start, va_hw_end] only if it overlaps the
+     * requested virtual address range [start, end].
+     */
+    if (va_hw_start > end || va_hw_end < start) {
+        return;
+    }
+
+    qemu_printf("%sVA: " TARGET_FMT_lx ", PA: " HWADDR_FMT_plx
+                " %s: " TARGET_FMT_lx "\n",
+                indent, va, pa, kind, pde);
+}
+
 void dump_mmu(CPUSPARCState *env)
+{
+    dump_mmu_range(env, 0, HWADDR_MAX);
+}
+
+void dump_mmu_range(CPUSPARCState *env, hwaddr start, hwaddr end)
 {
     CPUState *cs = env_cpu(env);
     target_ulong va, va1, va2;
@@ -373,8 +398,8 @@ void dump_mmu(CPUSPARCState *env)
             } else {
                 pa = tres.physaddr;
             }
-            qemu_printf("VA: " TARGET_FMT_lx ", PA: " HWADDR_FMT_plx
-                        " PDE: " TARGET_FMT_lx "\n", va, pa, pde);
+            print_tlb_entry(va, pa, pde, "", "PDE", 16 * 1024 * 1024,
+                            start, end);
             for (m = 0, va1 = va; m < 64; m++, va1 += 256 * 1024) {
                 pde = mmu_probe(env, va1, 1);
                 if (pde) {
@@ -383,9 +408,8 @@ void dump_mmu(CPUSPARCState *env)
                     } else {
                         pa = tres.physaddr;
                     }
-                    qemu_printf(" VA: " TARGET_FMT_lx ", PA: "
-                                HWADDR_FMT_plx " PDE: " TARGET_FMT_lx "\n",
-                                va1, pa, pde);
+                    print_tlb_entry(va1, pa, pde, " ", "PDE", 256 * 1024,
+                                    start, end);
                     for (o = 0, va2 = va1; o < 64; o++, va2 += 4 * 1024) {
                         pde = mmu_probe(env, va2, 0);
                         if (pde) {
@@ -394,10 +418,8 @@ void dump_mmu(CPUSPARCState *env)
                             } else {
                                 pa = tres.physaddr;
                             }
-                            qemu_printf("  VA: " TARGET_FMT_lx ", PA: "
-                                        HWADDR_FMT_plx " PTE: "
-                                        TARGET_FMT_lx "\n",
-                                        va2, pa, pde);
+                            print_tlb_entry(va2, pa, pde, "  ", "PTE",
+                                            4 * 1024, start, end);
                         }
                     }
                 }

@@ -461,27 +461,46 @@ void m68k_switch_sp(CPUM68KState *env)
 /* MMU: 68040 only */
 
 static void print_address_zone(uint32_t logical, uint32_t physical,
-                               uint32_t size, int attr)
+                               uint32_t size, int attr,
+                               hwaddr start, hwaddr end)
 {
+    uint64_t zone_start = logical;
+    uint64_t zone_end = zone_start + size - 1;
+    uint64_t zone_len;
+
+    /*
+     * Print current zone [zone_start, zone_end] only if it overlaps the
+     * requested virtual address range [start, end].
+     */
+    if (zone_end < start || zone_start > end) {
+        return;
+    }
+
+    physical += (uint32_t)(start > zone_start ? start - zone_start : 0);
+    zone_start = zone_start > start ? zone_start : start;
+    zone_end = zone_end < end ? zone_end : end;
+    zone_len = zone_end - zone_start + 1;
+
     qemu_printf("%08x - %08x -> %08x - %08x %c ",
-                logical, logical + size - 1,
-                physical, physical + size - 1,
+                (uint32_t)zone_start, (uint32_t)zone_end,
+                physical, physical + (uint32_t)(zone_len - 1),
                 attr & 4 ? 'W' : '-');
-    size >>= 10;
-    if (size < 1024) {
-        qemu_printf("(%d KiB)\n", size);
+    zone_len >>= 10;
+    if (zone_len < 1024) {
+        qemu_printf("(%d KiB)\n", (int)zone_len);
     } else {
-        size >>= 10;
-        if (size < 1024) {
-            qemu_printf("(%d MiB)\n", size);
+        zone_len >>= 10;
+        if (zone_len < 1024) {
+            qemu_printf("(%d MiB)\n", (int)zone_len);
         } else {
-            size >>= 10;
-            qemu_printf("(%d GiB)\n", size);
+            zone_len >>= 10;
+            qemu_printf("(%d GiB)\n", (int)zone_len);
         }
     }
 }
 
-static void dump_address_map(CPUM68KState *env, uint32_t root_pointer)
+static void dump_address_map(CPUM68KState *env, uint32_t root_pointer,
+                             hwaddr start, hwaddr end)
 {
     int tic_size, tic_shift;
     uint32_t tib_mask;
@@ -550,7 +569,8 @@ static void dump_address_map(CPUM68KState *env, uint32_t root_pointer)
                         size = last_logical + (1 << tic_shift) -
                                first_logical;
                         print_address_zone(first_logical,
-                                           first_physical, size, last_attr);
+                                           first_physical, size, last_attr,
+                                           start, end);
                     }
                     first_logical = logical;
                     first_physical = physical;
@@ -560,7 +580,8 @@ static void dump_address_map(CPUM68KState *env, uint32_t root_pointer)
     }
     if (first_logical != logical || (attr & 4) != (last_attr & 4)) {
         size = logical + (1 << tic_shift) - first_logical;
-        print_address_zone(first_logical, first_physical, size, last_attr);
+        print_address_zone(first_logical, first_physical, size, last_attr,
+                           start, end);
     }
 }
 
@@ -610,7 +631,7 @@ static void dump_ttr(uint32_t ttr)
                                M68K_DESC_USERATTR_SHIFT);
 }
 
-void dump_mmu(CPUM68KState *env)
+void dump_mmu(CPUM68KState *env, hwaddr start, hwaddr end)
 {
     if ((env->mmu.tcr & M68K_TCR_ENABLED) == 0) {
         qemu_printf("Translation disabled\n");
@@ -675,10 +696,10 @@ void dump_mmu(CPUM68KState *env)
     dump_ttr(env->mmu.ttr[M68K_DTTR1]);
 
     qemu_printf("SRP: 0x%08x\n", env->mmu.srp);
-    dump_address_map(env, env->mmu.srp);
+    dump_address_map(env, env->mmu.srp, start, end);
 
     qemu_printf("URP: 0x%08x\n", env->mmu.urp);
-    dump_address_map(env, env->mmu.urp);
+    dump_address_map(env, env->mmu.urp, start, end);
 }
 
 static int check_TTR(uint32_t ttr, int *prot, target_ulong addr,

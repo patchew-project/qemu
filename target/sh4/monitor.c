@@ -25,6 +25,7 @@
 #include "cpu.h"
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"
+#include "qobject/qdict.h"
 
 static void print_tlb(Monitor *mon, int idx, tlb_t *tlb)
 {
@@ -46,6 +47,10 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
     if (!env) {
         monitor_printf(mon, "No CPU available\n");
         return;
+    }
+
+    if (qdict_haskey(qdict, "start") || qdict_haskey(qdict, "end")) {
+        monitor_printf(mon, "The range arguments will be ignored.\n");
     }
 
     monitor_printf (mon, "ITLB:\n");
