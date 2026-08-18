@@ -49,7 +49,7 @@ from .source import QAPISourceInfo
 # A complexity over JSON is that our values may or may not be annotated.
 #
 # Un-annotated values may be:
-#     Scalar: str, bool, None.
+#     Scalar: str, bool, int, None.
 #     Non-scalar: List, Dict
 # _value = Union[str, bool, None, Dict[str, JSONValue], List[JSONValue]]
 #
@@ -59,10 +59,24 @@ from .source import QAPISourceInfo
 # Sadly, mypy does not support recursive types; so the _Stub alias is used to
 # mark the imprecision in the type model where we'd otherwise use JSONValue.
 _Stub = Any  # pylint: disable=invalid-name
-_Scalar = Union[str, bool, None]
+_Scalar = Union[str, bool, int, None]
 _NonScalar = Union[Dict[str, _Stub], List[_Stub]]
 _Value = Union[_Scalar, _NonScalar]
 JSONValue = Union[_Value, 'Annotated[_Value]']
+
+
+_INTEGER_TYPE_INFO = {
+    'int': (True, 64),
+    'int8': (True, 8),
+    'int16': (True, 16),
+    'int32': (True, 32),
+    'int64': (True, 64),
+    'uint8': (False, 8),
+    'uint16': (False, 16),
+    'uint32': (False, 32),
+    'uint64': (False, 64),
+    'size': (False, 64),
+}
 
 # These types are based on structures defined in QEMU's schema, so we
 # lack precise types for them here. Python 3.6 does not offer
@@ -135,6 +149,8 @@ def _tree_to_qlit(obj: JSONValue,
         ret += f"QLIT_QSTR({to_c_string(obj)})"
     elif isinstance(obj, bool):
         ret += f"QLIT_QBOOL({str(obj).lower()})"
+    elif isinstance(obj, int):
+        ret += f"QLIT_QNUM({obj})"
 
     # Non-scalars:
     elif isinstance(obj, list):
@@ -271,7 +287,14 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     def visit_builtin_type(self, name: str, info: Optional[QAPISourceInfo],
                            json_type: str) -> None:
-        self._gen_tree(name, 'builtin', {'json-type': json_type})
+        obj: Dict[str, object] = {'json-type': json_type}
+        if json_type == 'int':
+            signed, bits = _INTEGER_TYPE_INFO[name]
+            obj['integer'] = {
+                'signed': signed,
+                'bits': bits,
+            }
+        self._gen_tree(name, 'builtin', obj)
 
     def visit_enum_type(self, name: str, info: Optional[QAPISourceInfo],
                         ifcond: QAPISchemaIfCond,

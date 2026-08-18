@@ -123,26 +123,11 @@ class QAPISchemaTypeAnalysis(QAPISchemaVisitor):
 
     def _register_type(self, typ: QAPISchemaType) -> None:
         """Record a type for introspection (idempotent)."""
-        typ = self._canonicalize_type(typ)
         if typ not in self._types_set:
             self._types.append(typ)
             self._types_set.add(typ)
             if isinstance(typ, QAPISchemaArrayType):
                 self._register_type(typ.element_type)
-
-    def _canonicalize_type(self, typ: QAPISchemaType) -> QAPISchemaType:
-        """Canonicalize integer types to plain int."""
-        assert self._schema is not None
-        if typ.json_type() == 'int':
-            type_int = self._schema.lookup_type('int')
-            assert type_int
-            return type_int
-        if (isinstance(typ, QAPISchemaArrayType) and
-                typ.element_type.json_type() == 'int'):
-            type_intlist = self._schema.lookup_type('intList')
-            assert type_intlist
-            return type_intlist
-        return typ
 
     def masked_name(self, name: str) -> str:
         """Return the masked name for a non-builtin, non-array type."""
@@ -152,7 +137,6 @@ class QAPISchemaTypeAnalysis(QAPISchemaVisitor):
 
     def introspection_name(self, typ: QAPISchemaType) -> str:
         """Return the introspection name for a type."""
-        typ = self._canonicalize_type(typ)
         if isinstance(typ, QAPISchemaBuiltinType):
             return typ.name
         if isinstance(typ, QAPISchemaArrayType):

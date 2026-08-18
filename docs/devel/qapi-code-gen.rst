@@ -1400,14 +1400,19 @@ Example: the SchemaInfo for str ::
 
     { "name": "str", "meta-type": "builtin", "json-type": "string" }
 
-The QAPI schema supports a number of integer types that only differ in
-how they map to C.  They are identical as far as SchemaInfo is
-concerned.  Therefore, they get all mapped to a single type "int" in
-SchemaInfo.
+The QAPI schema supports a number of integer types with different widths
+and signedness.  Each has its own SchemaInfo with "json-type" "int" and
+variant member "integer" specifying its "signed" flag and width in
+"bits".
+
+Example: the SchemaInfo for uint8 ::
+
+    { "name": "uint8", "meta-type": "builtin", "json-type": "int",
+      "integer": { "signed": false, "bits": 8 } }
 
 As explained above, type names are not part of the wire ABI.  Not even
-the names of built-in types.  Clients should examine member
-"json-type" instead of hard-coding names of built-in types.
+the names of built-in types.  Clients should examine members "json-type"
+and "integer" instead of hard-coding names of built-in types.
 
 
 Compatibility considerations
@@ -2130,10 +2135,9 @@ Each ``QAPITypeInfo`` struct has the following fields:
 ``masked_name``
     For user-defined types, the masked name used in
     ``query-qmp-schema`` output. For array types, the corresponding
-    bracketed introspection name. Built-in types use their QAPI name;
-    note that introspection canonicalizes the integer built-in types
-    to ``int``. Internal types not present in introspection use
-    ``NULL``.
+    bracketed introspection name. Built-in types, including the distinct
+    integer types, use their QAPI name. Internal types not present in
+    introspection use ``NULL``.
 
 ``lookup``
     For enum types, a pointer to the corresponding ``QEnumLookup``
