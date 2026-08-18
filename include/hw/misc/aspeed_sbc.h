@@ -40,12 +40,17 @@ struct AspeedSBCState {
     uint32_t regs[ASPEED_SBC_NR_REGS];
 
     AspeedOTPState otp;
+
+    MemoryRegion *sram;
+    AddressSpace sram_as;
+    uint64_t sram_base;
 };
 
 struct AspeedSBCClass {
     SysBusDeviceClass parent_class;
 
     bool has_otp;
+    bool has_ecdsa;
 };
 
 #endif /* ASPEED_SBC_H */
