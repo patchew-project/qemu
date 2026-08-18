@@ -29,6 +29,7 @@
 #include "system/memory.h"
 #include "gdbstub/helpers.h"
 #include "fpu/softfloat.h"
+#include "qemu/log.h"
 #include "qemu/qemu-print.h"
 
 #define SIGNBIT (1u << 31)
