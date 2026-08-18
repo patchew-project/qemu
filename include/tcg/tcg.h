@@ -389,8 +389,6 @@ struct TCGContext {
     struct TCGLabelPoolData *pool_labels;
 
     TCGLabel *exitreq_label;
-    /* Set by goto_ptr emission: destination is not known statically. */
-    bool exit_check_needed;
 
 #ifdef CONFIG_PLUGIN
     /*

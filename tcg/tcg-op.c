@@ -2616,7 +2616,10 @@ void tcg_gen_lookup_and_goto_ptr(void)
         return;
     }
 
-    tcg_ctx->exit_check_needed = true;
+    /*
+     * No icount_decr poll is needed for this exit: the helper is called on
+     * every dispatch and returns to the main loop while an exit is pending.
+     */
     plugin_gen_disable_mem_helpers();
     ptr = tcg_temp_ebb_new_ptr();
     gen_helper_lookup_tb_ptr(ptr, tcg_env);
@@ -2645,7 +2648,11 @@ void tcg_gen_lookup_and_goto_ptr_inline(TCGv_i64 pc,
         return;
     }
 
-    tcg_ctx->exit_check_needed = true;
+    /*
+     * No icount_decr poll is needed for this exit either. A pending exit
+     * poisons tb_jmp_cache_probe, so the guarded load below finds a NULL tb,
+     * takes the slow path, and the helper returns to the main loop.
+     */
     plugin_gen_disable_mem_helpers();
 
     QEMU_BUILD_BUG_ON(sizeof(((CPUJumpCache *)0)->array[0]) != 16);
@@ -2667,7 +2674,7 @@ void tcg_gen_lookup_and_goto_ptr_inline(TCGv_i64 pc,
     tcg_gen_shli_i64(h, h, 4);
 
     tcg_gen_ld_ptr(jc, tcg_env,
-                   offsetof(CPUState, tb_jmp_cache) - sizeof(CPUState));
+                   offsetof(CPUState, tb_jmp_cache_probe) - sizeof(CPUState));
     tcg_gen_trunc_i64_ptr(ent, h);
     tcg_gen_add_ptr(ent, jc, ent);
 

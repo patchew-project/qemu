@@ -62,8 +62,6 @@ static TCGOp *gen_tb_start(DisasContextBase *db, uint32_t cflags)
     TCGv_i32 count = NULL;
     TCGOp *icount_start_insn = NULL;
 
-    tcg_ctx->exit_check_needed = false;
-
     if ((cflags & CF_USE_ICOUNT) ||
         (!(cflags & CF_NOIRQ) && !defer_exit_check(cflags))) {
         count = tcg_temp_new_i32();
@@ -126,7 +124,7 @@ static void gen_tb_end(const TranslationBlock *tb, uint32_t cflags,
 
     if (tcg_ctx->exitreq_label && defer_exit_check(cflags) &&
         !(cflags & CF_NOIRQ)) {
-        if (db->needs_exit_check || tcg_ctx->exit_check_needed) {
+        if (db->needs_exit_check) {
             TCGv_i32 count = tcg_temp_new_i32();
             TCGOp *save = tcg_ctx->emit_before_op;
 
