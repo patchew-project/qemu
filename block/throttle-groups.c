@@ -985,7 +985,7 @@ static void throttle_group_obj_class_init(ObjectClass *klass,
     for (i = 0; i < sizeof(properties) / sizeof(ThrottleParamInfo); i++) {
         object_class_property_add(klass,
                                   properties[i].name,
-                                  "int",
+                                  "int64",
                                   throttle_group_get,
                                   throttle_group_set,
                                   NULL, &properties[i]);
