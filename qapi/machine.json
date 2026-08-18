@@ -476,6 +476,20 @@
   'data': ['low', 'high'] }
 
 ##
+# @PCSouthBridgeOption:
+#
+# South bridge chipset option for PC i440FX machines.
+#
+# @piix3: Intel PIIX3 (default)
+#
+# @piix4: Intel PIIX4
+#
+# Since: 11.2
+##
+{ 'enum': 'PCSouthBridgeOption',
+  'data': ['piix3', 'piix4'] }
+
+##
 # @inject-nmi:
 #
 # Injects a Non-Maskable Interrupt (machine specific: for example on
