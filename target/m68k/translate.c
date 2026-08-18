@@ -163,10 +163,12 @@ static void do_writebacks(DisasContext *s)
 #define IS_USER(s) 1
 #else
 #define IS_USER(s)   (!(s->base.tb->flags & TB_FLAGS_MSR_S))
-#define SFC_INDEX(s) ((s->base.tb->flags & TB_FLAGS_SFC_S) ? \
-                      MMU_KERNEL_IDX : MMU_USER_IDX)
-#define DFC_INDEX(s) ((s->base.tb->flags & TB_FLAGS_DFC_S) ? \
-                      MMU_KERNEL_IDX : MMU_USER_IDX)
+#define SFC_INDEX(s) (MMU_MOVES_FC_BASE + \
+                     (((s)->base.tb->flags & TB_FLAGS_SFC_S) >> \
+                      TB_FLAGS_SFC_S_BIT))
+#define DFC_INDEX(s) (MMU_MOVES_FC_BASE + \
+                     (((s)->base.tb->flags & TB_FLAGS_DFC_S) >> \
+                      TB_FLAGS_DFC_S_BIT))
 #endif
 
 typedef void (*disas_proc)(CPUM68KState *env, DisasContext *s, uint16_t insn);
