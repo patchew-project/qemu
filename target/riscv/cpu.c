@@ -27,6 +27,7 @@
 #include "target/riscv/tcg/csr.h"
 #include "internals.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
@@ -1385,20 +1386,20 @@ void riscv_add_satp_mode_properties(Object *obj)
 {
     RISCVCPU *cpu = RISCV_CPU(obj);
 
-    object_property_add(obj, "svbare", "bool", cpu_riscv_get_satp,
-                        cpu_riscv_set_satp, NULL, &cpu->satp_modes);
+    object_property_add_qapi(obj, "svbare", &bool_type_info, cpu_riscv_get_satp,
+                             cpu_riscv_set_satp, NULL, &cpu->satp_modes);
 
     if (cpu->env.misa_mxl == MXL_RV32) {
-        object_property_add(obj, "sv32", "bool", cpu_riscv_get_satp,
+        object_property_add_qapi(obj, "sv32", &bool_type_info, cpu_riscv_get_satp,
                             cpu_riscv_set_satp, NULL, &cpu->satp_modes);
     } else {
-        object_property_add(obj, "sv39", "bool", cpu_riscv_get_satp,
+        object_property_add_qapi(obj, "sv39", &bool_type_info, cpu_riscv_get_satp,
                             cpu_riscv_set_satp, NULL, &cpu->satp_modes);
-        object_property_add(obj, "sv48", "bool", cpu_riscv_get_satp,
+        object_property_add_qapi(obj, "sv48", &bool_type_info, cpu_riscv_get_satp,
                             cpu_riscv_set_satp, NULL, &cpu->satp_modes);
-        object_property_add(obj, "sv57", "bool", cpu_riscv_get_satp,
+        object_property_add_qapi(obj, "sv57", &bool_type_info, cpu_riscv_get_satp,
                             cpu_riscv_set_satp, NULL, &cpu->satp_modes);
-        object_property_add(obj, "sv64", "bool", cpu_riscv_get_satp,
+        object_property_add_qapi(obj, "sv64", &bool_type_info, cpu_riscv_get_satp,
                             cpu_riscv_set_satp, NULL, &cpu->satp_modes);
     }
 }

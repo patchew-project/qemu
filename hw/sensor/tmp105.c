@@ -24,6 +24,7 @@
 #include "migration/vmstate.h"
 #include "hw/sensor/tmp105.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "qemu/module.h"
 #include "hw/core/registerfields.h"
@@ -308,7 +309,7 @@ static void tmp105_realize(DeviceState *dev, Error **errp)
 
 static void tmp105_initfn(Object *obj)
 {
-    object_property_add(obj, "temperature", "int",
+    object_property_add_qapi(obj, "temperature", &int_type_info,
                         tmp105_get_temperature,
                         tmp105_set_temperature, NULL, NULL);
 }
