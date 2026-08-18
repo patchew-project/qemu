@@ -156,6 +156,7 @@ F: target/i386/meson.build
 F: tools/i386/
 F: tests/functional/i386/
 F: tests/functional/x86_64/
+F: util/pkey.c
 
 X86 VM file descriptor change on reset test
 M: Ani Sinha <anisinha@redhat.com>
