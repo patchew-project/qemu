@@ -108,6 +108,17 @@ static void gen_tb_end(const TranslationBlock *tb, uint32_t cflags,
 
 bool translator_is_same_page(const DisasContextBase *db, vaddr addr)
 {
+    /*
+     * In user-only mode there are no page tables.  Every mmap, mprotect and
+     * munmap goes through page_set_flags(), which calls
+     * tb_invalidate_phys_range() whenever the flags actually change, and
+     * tb_phys_invalidate() unlinks incoming jumps.  A cross-page link is
+     * therefore broken whenever the destination page's permissions change,
+     * so the same-page restriction is not needed.
+     */
+    if (IS_ENABLED(CONFIG_USER_ONLY)) {
+        return true;
+    }
     return ((addr ^ db->pc_first) & TARGET_PAGE_MASK) == 0;
 }
 
@@ -118,7 +129,6 @@ bool translator_use_goto_tb(DisasContextBase *db, vaddr dest)
         return false;
     }
 
-    /* Check for the dest on the same page as the start of the TB.  */
     return translator_is_same_page(db, dest);
 }
 
