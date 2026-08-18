@@ -275,7 +275,7 @@ file_backend_class_init(ObjectClass *oc, const void *data)
         file_memory_backend_get_discard_data, file_memory_backend_set_discard_data);
     object_class_property_add_str(oc, "mem-path",
         get_mem_path, set_mem_path);
-    object_class_property_add(oc, "align", "int",
+    object_class_property_add(oc, "align", "size",
         file_memory_backend_get_align,
         file_memory_backend_set_align,
         NULL, NULL);
