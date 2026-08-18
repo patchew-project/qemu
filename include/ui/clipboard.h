@@ -69,6 +69,7 @@ enum QemuClipboardSelection {
  */
 struct QemuClipboardPeer {
     const char *name;
+    bool guest;
     Notifier notifier;
     void (*request)(QemuClipboardInfo *info,
                     QemuClipboardType type);
@@ -178,6 +179,13 @@ void qemu_clipboard_peer_register(QemuClipboardPeer *peer);
  * Unregister clipboard peer.
  */
 void qemu_clipboard_peer_unregister(QemuClipboardPeer *peer);
+
+/**
+ * qemu_clipboard_guest_peer_present
+ *
+ * Return TRUE if a guest side clipboard peer is currently registered.
+ */
+bool qemu_clipboard_guest_peer_present(void);
 
 /**
  * qemu_clipboard_peer_owns
