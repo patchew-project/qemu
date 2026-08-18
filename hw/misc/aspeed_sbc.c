@@ -464,8 +464,8 @@ static void aspeed_sbc_realize(DeviceState *dev, Error **errp)
 
 static const VMStateDescription vmstate_aspeed_sbc = {
     .name = TYPE_ASPEED_SBC,
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AspeedSBCState, ASPEED_SBC_NR_REGS),
         VMSTATE_END_OF_LIST(),
