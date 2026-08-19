@@ -48,6 +48,9 @@ applesmc_data_read(uint8_t c0, uint8_t c1, uint8_t c2, uint8_t c3, uint8_t pos, 
 applesmc_write_len(uint8_t c0, uint8_t c1, uint8_t c2, uint8_t c3, uint8_t len) "write key %c%c%c%c len %u"
 applesmc_write_data(uint8_t c0, uint8_t c1, uint8_t c2, uint8_t c3, uint8_t pos, uint8_t val) "write key %c%c%c%c [%u] 0x%02x"
 applesmc_write_complete(uint8_t c0, uint8_t c1, uint8_t c2, uint8_t c3, uint8_t len) "write key %c%c%c%c complete (%u bytes)"
+applesmc_wdt_arm(uint16_t seconds, uint8_t job) "watchdog armed %u s, job %u"
+applesmc_wdt_disarm(void) "watchdog disarmed"
+applesmc_wdt_expired(uint8_t job) "watchdog expired, job %u"
 
 # avr_power.c
 avr_power_read(uint8_t value) "power_reduc read value:%u"

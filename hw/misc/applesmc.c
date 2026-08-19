@@ -39,6 +39,7 @@
 #include "qemu/timer.h"
 #include "qom/object.h"
 #include "hw/acpi/acpi_aml_interface.h"
+#include "system/runstate.h"
 #include "trace.h"
 
 /* #define DEBUG_SMC */
@@ -80,6 +81,17 @@ enum {
     APPLESMC_ST_1E_BAD_INDEX         = 0xb8,
 };
 
+/*
+ * Job codes written to the "NATJ" key, and implied by "OSWD": the action the
+ * SMC watchdog takes when its countdown (seeded from "NATi"/"OSWD") elapses
+ * because the guest failed to power down in time.
+ */
+enum {
+    APPLESMC_WDT_DISABLE             = 0,
+    APPLESMC_WDT_SHUTDOWN            = 1,
+    APPLESMC_WDT_RESTART             = 2,
+};
+
 #ifdef DEBUG_SMC
 #define smc_debug(...) fprintf(stderr, "AppleSMC: " __VA_ARGS__)
 #else
@@ -116,6 +128,10 @@ struct AppleSMCState {
     uint8_t data[255];
     char *osk;
     QLIST_HEAD(, AppleSMCData) data_def;
+
+    QEMUTimer *wdt_timer;   /* shutdown watchdog, armed via NATi/NATJ/OSWD */
+    uint16_t wdt_timeout;   /* countdown in seconds */
+    uint8_t wdt_job;        /* action on expiry (APPLESMC_WDT_*) */
 };
 
 static void applesmc_io_cmd_write(void *opaque, hwaddr addr, uint64_t val,
@@ -160,6 +176,48 @@ static const struct AppleSMCData *applesmc_find_key(AppleSMCState *s)
         }
     }
     return NULL;
+}
+
+static void applesmc_wdt_expired(void *opaque)
+{
+    AppleSMCState *s = opaque;
+
+    trace_applesmc_wdt_expired(s->wdt_job);
+    warn_report("applesmc: watchdog expired, forcing the guest down");
+    if (s->wdt_job == APPLESMC_WDT_SHUTDOWN) {
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+    } else {
+        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+    }
+}
+
+static void applesmc_wdt_set(AppleSMCState *s, uint8_t job, uint16_t seconds)
+{
+    s->wdt_job = job;
+    if (job == APPLESMC_WDT_DISABLE || seconds == 0) {
+        timer_del(s->wdt_timer);
+        trace_applesmc_wdt_disarm();
+        return;
+    }
+    timer_mod(s->wdt_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+              (int64_t)seconds * NANOSECONDS_PER_SECOND);
+    trace_applesmc_wdt_arm(seconds, job);
+}
+
+/* Act on a guest write once its full payload has been received. */
+static void applesmc_write_key(AppleSMCState *s)
+{
+    if (!memcmp(s->key, "NATi", 4) && s->data_len >= 2) {
+        /* Big-endian seconds; stored only, the "NATJ" write arms the timer. */
+        s->wdt_timeout = (s->data[0] << 8) | s->data[1];
+    } else if (!memcmp(s->key, "NATJ", 4) && s->data_len >= 1) {
+        applesmc_wdt_set(s, s->data[0], s->wdt_timeout);
+    } else if (!memcmp(s->key, "OSWD", 4) && s->data_len >= 2) {
+        uint16_t seconds = (s->data[0] << 8) | s->data[1];
+        uint8_t job = seconds ? APPLESMC_WDT_RESTART : APPLESMC_WDT_DISABLE;
+
+        applesmc_wdt_set(s, job, seconds);
+    }
 }
 
 static void applesmc_io_data_write(void *opaque, hwaddr addr, uint64_t val,
@@ -218,6 +276,7 @@ static void applesmc_io_data_write(void *opaque, hwaddr addr, uint64_t val,
             trace_applesmc_write_len(s->key[0], s->key[1], s->key[2],
                                      s->key[3], s->data_len);
             if (s->data_len == 0) {
+                applesmc_write_key(s);
                 s->status = APPLESMC_ST_CMD_DONE;
                 s->status_1e = APPLESMC_ST_CMD_DONE;
             }
@@ -229,6 +288,7 @@ static void applesmc_io_data_write(void *opaque, hwaddr addr, uint64_t val,
                 s->data_pos++;
             }
             if (s->data_pos >= s->data_len) {
+                applesmc_write_key(s);
                 trace_applesmc_write_complete(s->key[0], s->key[1],
                                               s->key[2], s->key[3],
                                               s->data_len);
@@ -325,6 +385,12 @@ static void qdev_applesmc_isa_reset(DeviceState *dev)
     s->status = 0x00;
     s->status_1e = 0x00;
     s->last_ret = 0x00;
+
+    if (s->wdt_timer) {
+        timer_del(s->wdt_timer);
+    }
+    s->wdt_job = APPLESMC_WDT_DISABLE;
+    s->wdt_timeout = 0;
 }
 
 static const MemoryRegionOps applesmc_data_io_ops = {
@@ -388,12 +454,20 @@ static void applesmc_isa_realize(DeviceState *dev, Error **errp)
     applesmc_add_key(s, "NATJ", 1, "\x00");
     applesmc_add_key(s, "MSSP", 1, "\x00");
     applesmc_add_key(s, "MSSD", 1, "\x03");
+    applesmc_add_key(s, "NATi", 2, "\x00\x00");
+    applesmc_add_key(s, "OSWD", 2, "\x00\x00");
+
+    s->wdt_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, applesmc_wdt_expired, s);
 }
 
 static void applesmc_unrealize(DeviceState *dev)
 {
     AppleSMCState *s = APPLE_SMC(dev);
     struct AppleSMCData *d, *next;
+
+    if (s->wdt_timer) {
+        timer_free(s->wdt_timer);
+    }
 
     /* Remove existing entries */
     QLIST_FOREACH_SAFE(d, &s->data_def, node, next) {
