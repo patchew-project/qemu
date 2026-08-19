@@ -14,8 +14,8 @@ class Aarch64Raspi3Machine(LinuxKernelTest):
 
     ASSET_RPI3_UEFI = Asset(
         ('https://github.com/pbatard/RPi3/releases/download/'
-         'v1.15/RPi3_UEFI_Firmware_v1.15.zip'),
-        '8cff2e979560048b4c84921f41a91893240b9fb71a88f0b5c5d6c8edd994bd5b')
+         'v1.52/RPi3_UEFI_Firmware_v1.52.zip'),
+        '20b894d15cdb42e055872a7ee6a850aa9373aedcfefd27f19767d975ce4f7371')
 
     def test_aarch64_raspi3_atf(self):
         efi_name = 'RPI_EFI.fd'
@@ -27,7 +27,7 @@ class Aarch64Raspi3Machine(LinuxKernelTest):
                          '-nodefaults',
                          '-device', f'loader,file={efi_fd},force-raw=true')
         self.vm.launch()
-        self.wait_for_console_pattern('version UEFI Firmware v1.15')
+        self.wait_for_console_pattern('version UEFI Firmware v1.52')
 
     def test_aarch64_raspi3_bios(self):
         efi_name = 'RPI_EFI.fd'
@@ -39,7 +39,7 @@ class Aarch64Raspi3Machine(LinuxKernelTest):
                          '-nodefaults',
                          '-bios', efi_fd)
         self.vm.launch()
-        self.wait_for_console_pattern('version UEFI Firmware v1.15')
+        self.wait_for_console_pattern('version UEFI Firmware v1.52')
 
 
 if __name__ == '__main__':
