@@ -169,6 +169,20 @@ struct TCGCPUOps {
      */
     vaddr (*untagged_addr)(CPUState *cs, vaddr addr);
 #else
+    /**
+     * @process_async_events: Process target-specific asynchronous CPU events.
+     *
+     * Called at the start of cpu_exec() to handle target-specific event
+     * processing before instruction execution begins.
+     */
+    void (*process_async_events)(CPUState *cpu);
+    /**
+     * @transition_halt_to_exec: Prepare CPU state when exiting halt.
+     *
+     * Called after a halted CPU has detected pending work and is about to
+     * resume execution. Target-specific cleanup and state synchronization.
+     */
+    void (*transition_halt_to_exec)(CPUState *cpu);
     /** @do_interrupt: Callback for interrupt handling.  */
     void (*do_interrupt)(CPUState *cpu);
     /** @cpu_exec_interrupt: Callback for processing interrupts in cpu_exec */
@@ -185,7 +199,8 @@ struct TCGCPUOps {
      * if it should remain in the halted state. (This should generally
      * be the same value that cpu_has_work() would return.)
      *
-     * This method must be provided. If the target does not need to
+     * Either %transition_halt_to_exec() or this method must be provided.
+     * If the target does not need to
      * do anything special for halt, the same function used for its
      * SysemuCPUOps::has_work method can be used here, as they have the
      * same function signature.
