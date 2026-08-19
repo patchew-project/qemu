@@ -140,22 +140,28 @@ void x86_cpu_process_async_events(CPUState *cpu)
     }
 }
 
-bool x86_cpu_exec_halt(CPUState *cpu)
+void x86_cpu_transition_halt_to_exec(CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
+    CPUX86State *env = cpu_env(cpu);
 
-    x86_cpu_process_async_events(cpu);
-
-    if (!cpu_has_work(cpu)) {
-        return false;
-    }
+    assert(cpu_has_work(cpu));
 
     /* Complete HLT instruction.  */
     if (env->eflags & TF_MASK) {
         env->dr[6] |= DR6_BS;
         do_interrupt_all(x86_cpu, EXCP01_DB, 0, 0, env->eip, 0);
     }
+}
+
+bool x86_cpu_exec_halt(CPUState *cpu)
+{
+    if (!cpu_has_work(cpu)) {
+        return false;
+    }
+
+    x86_cpu_transition_halt_to_exec(cpu);
+
     return true;
 }
 
