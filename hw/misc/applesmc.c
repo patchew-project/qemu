@@ -128,6 +128,7 @@ static void applesmc_io_cmd_write(void *opaque, hwaddr addr, uint64_t val,
     smc_debug("CMD received: 0x%02x\n", (uint8_t)val);
     switch (val) {
     case APPLESMC_READ_CMD:
+    case APPLESMC_WRITE_CMD:
         /* did last command run through OK? */
         if (status == APPLESMC_ST_CMD_DONE || status == APPLESMC_ST_NEW_CMD) {
             s->cmd = val;
@@ -199,6 +200,44 @@ static void applesmc_io_data_write(void *opaque, hwaddr addr, uint64_t val,
             }
         }
         s->read_pos++;
+        break;
+    case APPLESMC_WRITE_CMD:
+        if (s->read_pos < 4) {
+            s->key[s->read_pos] = val;
+            s->status = APPLESMC_ST_ACK;
+            if (s->read_pos == 3) {
+                trace_applesmc_key_selected(s->key[0], s->key[1],
+                                            s->key[2], s->key[3]);
+            }
+            s->read_pos++;
+        } else if (s->read_pos == 4) {
+            s->data_len = val;
+            s->data_pos = 0;
+            s->read_pos++;
+            s->status = APPLESMC_ST_ACK;
+            trace_applesmc_write_len(s->key[0], s->key[1], s->key[2],
+                                     s->key[3], s->data_len);
+            if (s->data_len == 0) {
+                s->status = APPLESMC_ST_CMD_DONE;
+                s->status_1e = APPLESMC_ST_CMD_DONE;
+            }
+        } else {
+            if (s->data_pos < s->data_len) {
+                s->data[s->data_pos] = val;
+                trace_applesmc_write_data(s->key[0], s->key[1], s->key[2],
+                                          s->key[3], s->data_pos, (uint8_t)val);
+                s->data_pos++;
+            }
+            if (s->data_pos >= s->data_len) {
+                trace_applesmc_write_complete(s->key[0], s->key[1],
+                                              s->key[2], s->key[3],
+                                              s->data_len);
+                s->status = APPLESMC_ST_CMD_DONE;
+                s->status_1e = APPLESMC_ST_CMD_DONE;
+            } else {
+                s->status = APPLESMC_ST_ACK;
+            }
+        }
         break;
     default:
         s->status = APPLESMC_ST_CMD_DONE;
