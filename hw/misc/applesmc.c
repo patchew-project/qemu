@@ -104,6 +104,7 @@ static char default_osk[64] = "This is a dummy key. Enter the real key "
 struct AppleSMCData {
     uint8_t len;
     const char *key;
+    const char *type;
     const char *data;
     QLIST_ENTRY(AppleSMCData) node;
 };
@@ -145,6 +146,7 @@ static void applesmc_io_cmd_write(void *opaque, hwaddr addr, uint64_t val,
     switch (val) {
     case APPLESMC_READ_CMD:
     case APPLESMC_WRITE_CMD:
+    case APPLESMC_GET_KEY_TYPE_CMD:
         /* did last command run through OK? */
         if (status == APPLESMC_ST_CMD_DONE || status == APPLESMC_ST_NEW_CMD) {
             s->cmd = val;
@@ -299,6 +301,36 @@ static void applesmc_io_data_write(void *opaque, hwaddr addr, uint64_t val,
             }
         }
         break;
+    case APPLESMC_GET_KEY_TYPE_CMD:
+        /* Unlike a read, the guest sends only the 4 key bytes, no length. */
+        if (s->read_pos < 4) {
+            s->key[s->read_pos] = val;
+            s->status = APPLESMC_ST_ACK;
+            if (++s->read_pos == 4) {
+                trace_applesmc_key_selected(s->key[0], s->key[1],
+                                            s->key[2], s->key[3]);
+                d = applesmc_find_key(s);
+                if (d != NULL) {
+                    /* key info: 1-byte size, 4-byte type, 1-byte attributes */
+                    s->data[0] = d->len;
+                    memcpy(&s->data[1], d->type, 4);
+                    s->data[5] = 0;
+                    s->data_len = 6;
+                    s->data_pos = 0;
+                    s->status = APPLESMC_ST_ACK | APPLESMC_ST_DATA_READY;
+                    s->status_1e = APPLESMC_ST_CMD_DONE;
+                    trace_applesmc_key_type(s->key[0], s->key[1], s->key[2],
+                                            s->key[3], d->type[0], d->type[1],
+                                            d->type[2], d->type[3], d->len);
+                } else {
+                    trace_applesmc_key_not_found(s->key[0], s->key[1],
+                                                 s->key[2], s->key[3]);
+                    s->status = APPLESMC_ST_CMD_DONE;
+                    s->status_1e = APPLESMC_ST_1E_NOEXIST;
+                }
+            }
+        }
+        break;
     default:
         s->status = APPLESMC_ST_CMD_DONE;
         s->status_1e = APPLESMC_ST_1E_STILL_BAD_CMD;
@@ -318,6 +350,7 @@ static uint64_t applesmc_io_data_read(void *opaque, hwaddr addr, unsigned size)
 
     switch (s->cmd) {
     case APPLESMC_READ_CMD:
+    case APPLESMC_GET_KEY_TYPE_CMD:
         if (!(s->status & APPLESMC_ST_DATA_READY)) {
             break;
         }
@@ -366,12 +399,13 @@ static uint64_t applesmc_io_err_read(void *opaque, hwaddr addr, unsigned size)
 }
 
 static void applesmc_add_key(AppleSMCState *s, const char *key,
-                             int len, const char *data)
+                             const char *type, int len, const char *data)
 {
     struct AppleSMCData *def;
 
     def = g_new0(struct AppleSMCData, 1);
     def->key = key;
+    def->type = type;
     def->len = len;
     def->data = data;
 
@@ -448,14 +482,14 @@ static void applesmc_isa_realize(DeviceState *dev, Error **errp)
     }
 
     QLIST_INIT(&s->data_def);
-    applesmc_add_key(s, "REV ", 6, "\x01\x13\x0f\x00\x00\x03");
-    applesmc_add_key(s, "OSK0", 32, s->osk);
-    applesmc_add_key(s, "OSK1", 32, s->osk + 32);
-    applesmc_add_key(s, "NATJ", 1, "\x00");
-    applesmc_add_key(s, "MSSP", 1, "\x00");
-    applesmc_add_key(s, "MSSD", 1, "\x03");
-    applesmc_add_key(s, "NATi", 2, "\x00\x00");
-    applesmc_add_key(s, "OSWD", 2, "\x00\x00");
+    applesmc_add_key(s, "REV ", "{rev", 6, "\x01\x13\x0f\x00\x00\x03");
+    applesmc_add_key(s, "OSK0", "ch8*", 32, s->osk);
+    applesmc_add_key(s, "OSK1", "ch8*", 32, s->osk + 32);
+    applesmc_add_key(s, "NATJ", "ui8 ", 1, "\x00");
+    applesmc_add_key(s, "MSSP", "ui8 ", 1, "\x00");
+    applesmc_add_key(s, "MSSD", "si8 ", 1, "\x03");
+    applesmc_add_key(s, "NATi", "ui16", 2, "\x00\x00");
+    applesmc_add_key(s, "OSWD", "ui16", 2, "\x00\x00");
 
     s->wdt_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, applesmc_wdt_expired, s);
 }

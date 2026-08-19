@@ -44,6 +44,7 @@ applesmc_cmd_rejected(uint8_t cmd, uint8_t status_1e) "cmd 0x%02x rejected (stat
 applesmc_data_write(uint8_t cmd, uint8_t pos, uint8_t val) "cmd 0x%02x pos %u data 0x%02x"
 applesmc_key_selected(uint8_t c0, uint8_t c1, uint8_t c2, uint8_t c3) "key %c%c%c%c"
 applesmc_key_not_found(uint8_t c0, uint8_t c1, uint8_t c2, uint8_t c3) "key %c%c%c%c not found"
+applesmc_key_type(uint8_t c0, uint8_t c1, uint8_t c2, uint8_t c3, uint8_t t0, uint8_t t1, uint8_t t2, uint8_t t3, uint8_t len) "type key %c%c%c%c = %c%c%c%c[%u]"
 applesmc_data_read(uint8_t c0, uint8_t c1, uint8_t c2, uint8_t c3, uint8_t pos, uint8_t val) "read key %c%c%c%c [%u] 0x%02x"
 applesmc_write_len(uint8_t c0, uint8_t c1, uint8_t c2, uint8_t c3, uint8_t len) "write key %c%c%c%c len %u"
 applesmc_write_data(uint8_t c0, uint8_t c1, uint8_t c2, uint8_t c3, uint8_t pos, uint8_t val) "write key %c%c%c%c [%u] 0x%02x"
