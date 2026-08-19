@@ -242,7 +242,7 @@ BlockAIOCB *dma_blk_io(
     dbs->io_func = io_func;
     dbs->io_func_opaque = io_func_opaque;
     dbs->bh = NULL;
-    qemu_iovec_init(&dbs->iov, sg->nsg);
+    qemu_iovec_init(&dbs->iov, MIN(sg->nsg, IOV_MAX));
     dma_blk_cb(dbs, 0);
     return &dbs->common;
 }
