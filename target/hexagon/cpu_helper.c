@@ -36,7 +36,7 @@ uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
     uint64_t total = 0;
     CPUState *cs;
 
-    g_assert(bql_locked());
+    BQL_LOCK_GUARD();
     CPU_FOREACH(cs) {
         CPUHexagonState *thread_env = cpu_env(cs);
         total += thread_env->t_cycle_count;
@@ -54,11 +54,15 @@ uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env)
     return (uint32_t)(hexagon_get_sys_pcycle_count(env));
 }
 
+/*
+ * Every function in this family takes the BQL itself, so the guard below
+ * holds it across the read-modify-write.  Nested guards are no-ops.
+ */
 void hexagon_set_sys_pcycle_count_high(CPUHexagonState *env, uint32_t val)
 {
     uint64_t old;
 
-    g_assert(bql_locked());
+    BQL_LOCK_GUARD();
     old = hexagon_get_sys_pcycle_count(env);
     old = deposit64(old, 32, 32, val);
     hexagon_set_sys_pcycle_count(env, old);
@@ -68,7 +72,7 @@ void hexagon_set_sys_pcycle_count_low(CPUHexagonState *env, uint32_t val)
 {
     uint64_t old;
 
-    g_assert(bql_locked());
+    BQL_LOCK_GUARD();
     old = hexagon_get_sys_pcycle_count(env);
     old = deposit64(old, 0, 32, val);
     hexagon_set_sys_pcycle_count(env, old);
@@ -81,7 +85,7 @@ void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t val)
     int num_threads;
     int64_t delta, per_thread, remainder;
 
-    g_assert(bql_locked());
+    BQL_LOCK_GUARD();
     total = hexagon_get_sys_pcycle_count(env);
 
     /* Count active threads */
