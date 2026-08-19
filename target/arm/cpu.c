@@ -883,16 +883,6 @@ static void arm_cpu_transition_halt_to_exec(CPUState *cs)
     /* clear the halt reason */
     cpu->env.halt_reason = NOT_HALTED;
 }
-
-bool arm_cpu_exec_halt(CPUState *cs)
-{
-    bool leave_halt = cpu_has_work(cs);
-
-    if (leave_halt) {
-        arm_cpu_transition_halt_to_exec(cs);
-    }
-    return leave_halt;
-}
 #endif
 
 /*
@@ -2612,7 +2602,7 @@ static const TCGCPUOps arm_tcg_ops = {
     .tlb_fill_align = arm_cpu_tlb_fill_align,
     .pointer_wrap = aprofile_pointer_wrap,
     .cpu_exec_interrupt = arm_cpu_exec_interrupt,
-    .cpu_exec_halt = arm_cpu_exec_halt,
+    .transition_halt_to_exec = arm_cpu_transition_halt_to_exec,
     .cpu_exec_reset = cpu_reset,
     .do_interrupt = arm_cpu_do_interrupt,
     .do_transaction_failed = arm_cpu_do_transaction_failed,
