@@ -32,6 +32,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <hexagon_types.h>
+#include <hvx_hexagon_protos.h>
 
 typedef long HVX_Vector       __attribute__((__vector_size__(128)))
                               __attribute__((aligned(128)));
@@ -85,6 +87,23 @@ unsigned int   word_predicates[MATRIX_SIZE] __attribute__((aligned(128)));
 /* make this big enough for all the operations */
 const size_t region_len = sizeof(vtcm);
 
+/* Mu (region length - 1); offset is kept iff offset <= Mu */
+#define GATHER_LEN_TEST_MU 127
+static unsigned char gather_len_test_src[256] __attribute__((aligned(128)));
+static unsigned char gather_len_test_dst[128] __attribute__((aligned(128)));
+static unsigned char gather_len_test_dst_ref[128];
+static unsigned short gather_len_test_offsets[MATRIX_SIZE]
+    __attribute__((aligned(128)));
+
+/* offsets are unique so a dropped write can't be masked by another lane */
+#define SCATTER_LEN_TEST_MU 127
+static unsigned short scatter_len_test_dst[128] __attribute__((aligned(128)));
+static unsigned short scatter_len_test_dst_ref[128];
+static unsigned short scatter_len_test_offsets[MATRIX_SIZE]
+    __attribute__((aligned(128)));
+static unsigned short scatter_len_test_values[MATRIX_SIZE]
+    __attribute__((aligned(128)));
+
 /* optionally add sync instructions */
 #define SYNC_VECTOR 1
 
@@ -96,7 +115,7 @@ static void sync_scatter(void *addr)
      * synchronization.  Normally the dummy load would be deferred as
      * long as possible to minimize stalls.
      */
-    asm volatile("vmem(%0 + #0):scatter_release\n" : : "r"(addr));
+    asm volatile("vmem(%[addr] + #0):scatter_release\n" : : [addr] "r"(addr));
     /* use volatile to force the load */
     volatile HVX_Vector vDummy = *(HVX_Vector *)addr; vDummy = vDummy;
 #endif
@@ -855,6 +874,102 @@ void check_gather_16_32_masked(void)
                  MATRIX_SIZE * sizeof(unsigned short));
 }
 
+/* vgather must drop elements whose offset is beyond the region */
+void create_gather_region_len_test(void)
+{
+    for (int i = 0; i < 256; i++) {
+        gather_len_test_src[i] = (unsigned char)(13 + 7 * i);
+    }
+    memset(gather_len_test_offsets, 0, sizeof(gather_len_test_offsets));
+    gather_len_test_offsets[0] = 0;
+    gather_len_test_offsets[1] = GATHER_LEN_TEST_MU - 1;
+    gather_len_test_offsets[2] = GATHER_LEN_TEST_MU;
+    gather_len_test_offsets[3] = GATHER_LEN_TEST_MU + 1;
+    gather_len_test_offsets[4] = GATHER_LEN_TEST_MU + 73;
+    memset(gather_len_test_dst, FILL_CHAR, sizeof(gather_len_test_dst));
+}
+
+/* gather with a region shorter than the source buffer, using HVX */
+void vector_gather_region_len(void)
+{
+    HVX_Vector voff = *(HVX_Vector *)gather_len_test_offsets;
+
+    Q6_vgather_ARMVh((HVX_Vector *)gather_len_test_dst,
+                      (int)(uintptr_t)gather_len_test_src,
+                      GATHER_LEN_TEST_MU, voff);
+
+    sync_gather(gather_len_test_dst);
+}
+
+/* gather with a region shorter than the source buffer, using C */
+void scalar_gather_region_len(unsigned char *dst)
+{
+    for (int i = 0; i < MATRIX_SIZE; i++) {
+        unsigned short off = gather_len_test_offsets[i];
+        if (off <= GATHER_LEN_TEST_MU) {
+            dst[2 * i] = gather_len_test_src[off];
+            dst[2 * i + 1] = gather_len_test_src[off + 1];
+        }
+    }
+}
+
+void check_gather_region_len(void)
+{
+    memset(gather_len_test_dst_ref, FILL_CHAR,
+           sizeof(gather_len_test_dst_ref));
+    scalar_gather_region_len(gather_len_test_dst_ref);
+    check_buffer(__func__, gather_len_test_dst, gather_len_test_dst_ref,
+                 sizeof(gather_len_test_dst_ref));
+}
+
+/* vscatter must drop elements whose offset is beyond the region */
+void create_scatter_region_len_test(void)
+{
+    memset(scatter_len_test_offsets, 0, sizeof(scatter_len_test_offsets));
+    scatter_len_test_offsets[0] = 0;
+    scatter_len_test_offsets[1] = SCATTER_LEN_TEST_MU - 3;
+    scatter_len_test_offsets[2] = SCATTER_LEN_TEST_MU - 1;
+    scatter_len_test_offsets[3] = SCATTER_LEN_TEST_MU + 1;
+    scatter_len_test_offsets[4] = SCATTER_LEN_TEST_MU + 73;
+
+    for (int i = 0; i < MATRIX_SIZE; i++) {
+        scatter_len_test_values[i] = 0x4100 + i;
+    }
+    memset(scatter_len_test_dst, FILL_CHAR, sizeof(scatter_len_test_dst));
+}
+
+/* scatter with a region shorter than the destination buffer, using HVX */
+void vector_scatter_region_len(void)
+{
+    HVX_Vector voff = *(HVX_Vector *)scatter_len_test_offsets;
+    HVX_Vector vval = *(HVX_Vector *)scatter_len_test_values;
+
+    Q6_vscatter_RMVhV((int)(uintptr_t)scatter_len_test_dst,
+                       SCATTER_LEN_TEST_MU, voff, vval);
+
+    sync_scatter(scatter_len_test_dst);
+}
+
+/* scatter with a region shorter than the destination buffer, using C */
+void scalar_scatter_region_len(unsigned short *dst)
+{
+    for (int i = 0; i < MATRIX_SIZE; i++) {
+        unsigned short off = scatter_len_test_offsets[i];
+        if (off <= SCATTER_LEN_TEST_MU) {
+            dst[off / 2] = scatter_len_test_values[i];
+        }
+    }
+}
+
+void check_scatter_region_len(void)
+{
+    memset(scatter_len_test_dst_ref, FILL_CHAR,
+           sizeof(scatter_len_test_dst_ref));
+    scalar_scatter_region_len(scatter_len_test_dst_ref);
+    check_buffer(__func__, scatter_len_test_dst, scatter_len_test_dst_ref,
+                 sizeof(scatter_len_test_dst_ref));
+}
+
 /* print scatter16 buffer */
 void print_scatter16_buffer(void)
 {
@@ -1034,6 +1149,14 @@ int main()
     vector_scatter_16_32_masked();
     print_scatter16_32_buffer();
     check_scatter_16_32_masked();
+
+    create_gather_region_len_test();
+    vector_gather_region_len();
+    check_gather_region_len();
+
+    create_scatter_region_len_test();
+    vector_scatter_region_len();
+    check_scatter_region_len();
 
     puts(err ? "FAIL" : "PASS");
     return err;
