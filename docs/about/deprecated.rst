@@ -276,6 +276,20 @@ future release. Where no 'dh-params.pem' file is provided, the DH
 parameters will be automatically negotiated in accordance with
 RFC7919.
 
+Devices
+-------
+
+``virtio-crypto`` (since 11.2)
+''''''''''''''''''''''''''''''
+
+The ``virtio-crypto`` device emulation is quite complex code with a
+number of known flaws. It has never been migratable so is unlikely to
+be used in any serious virtualization setting. With most modern
+systems supporting on-CPU cryptography acceleration via their
+ISAs sets the need for off-CPU acceleration is also reduced. Add to
+that the kernel has recently removed the ability to use off-CPU
+acceleration suggests the time for this sort of off-load has passed.
+
 Device options
 --------------
 
