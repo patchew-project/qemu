@@ -37,6 +37,15 @@ allwinner_sid_write(uint64_t offset, uint64_t data, unsigned size) "offset 0x%" 
 allwinner_sramc_read(uint64_t offset, uint64_t data) "offset 0x%" PRIx64 " data 0x%" PRIx64
 allwinner_sramc_write(uint64_t offset, uint64_t data) "offset 0x%" PRIx64 " data 0x%" PRIx64
 
+# applesmc.c
+applesmc_cmd_write(uint8_t cmd, uint8_t status) "cmd 0x%02x (status 0x%02x)"
+applesmc_cmd_accepted(uint8_t cmd) "cmd 0x%02x accepted"
+applesmc_cmd_rejected(uint8_t cmd, uint8_t status_1e) "cmd 0x%02x rejected (status_1e 0x%02x)"
+applesmc_data_write(uint8_t cmd, uint8_t pos, uint8_t val) "cmd 0x%02x pos %u data 0x%02x"
+applesmc_key_selected(uint8_t c0, uint8_t c1, uint8_t c2, uint8_t c3) "key %c%c%c%c"
+applesmc_key_not_found(uint8_t c0, uint8_t c1, uint8_t c2, uint8_t c3) "key %c%c%c%c not found"
+applesmc_data_read(uint8_t c0, uint8_t c1, uint8_t c2, uint8_t c3, uint8_t pos, uint8_t val) "read key %c%c%c%c [%u] 0x%02x"
+
 # avr_power.c
 avr_power_read(uint8_t value) "power_reduc read value:%u"
 avr_power_write(uint8_t value) "power_reduc write value:%u"

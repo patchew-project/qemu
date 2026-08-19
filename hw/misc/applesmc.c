@@ -39,6 +39,7 @@
 #include "qemu/timer.h"
 #include "qom/object.h"
 #include "hw/acpi/acpi_aml_interface.h"
+#include "trace.h"
 
 /* #define DEBUG_SMC */
 
@@ -123,6 +124,7 @@ static void applesmc_io_cmd_write(void *opaque, hwaddr addr, uint64_t val,
     AppleSMCState *s = opaque;
     uint8_t status = s->status & 0x0f;
 
+    trace_applesmc_cmd_write((uint8_t)val, s->status);
     smc_debug("CMD received: 0x%02x\n", (uint8_t)val);
     switch (val) {
     case APPLESMC_READ_CMD:
@@ -130,6 +132,7 @@ static void applesmc_io_cmd_write(void *opaque, hwaddr addr, uint64_t val,
         if (status == APPLESMC_ST_CMD_DONE || status == APPLESMC_ST_NEW_CMD) {
             s->cmd = val;
             s->status = APPLESMC_ST_NEW_CMD | APPLESMC_ST_ACK;
+            trace_applesmc_cmd_accepted((uint8_t)val);
         } else {
             smc_debug("ERROR: previous command interrupted!\n");
             s->status = APPLESMC_ST_NEW_CMD;
@@ -140,6 +143,7 @@ static void applesmc_io_cmd_write(void *opaque, hwaddr addr, uint64_t val,
         smc_debug("UNEXPECTED CMD 0x%02x\n", (uint8_t)val);
         s->status = APPLESMC_ST_NEW_CMD;
         s->status_1e = APPLESMC_ST_1E_BAD_CMD;
+        trace_applesmc_cmd_rejected((uint8_t)val, s->status_1e);
     }
     s->read_pos = 0;
     s->data_pos = 0;
@@ -164,6 +168,7 @@ static void applesmc_io_data_write(void *opaque, hwaddr addr, uint64_t val,
     const struct AppleSMCData *d;
 
     smc_debug("DATA received: 0x%02x\n", (uint8_t)val);
+    trace_applesmc_data_write(s->cmd, s->read_pos, (uint8_t)val);
     switch (s->cmd) {
     case APPLESMC_READ_CMD:
         if ((s->status & 0x0f) == APPLESMC_ST_CMD_DONE) {
@@ -172,6 +177,10 @@ static void applesmc_io_data_write(void *opaque, hwaddr addr, uint64_t val,
         if (s->read_pos < 4) {
             s->key[s->read_pos] = val;
             s->status = APPLESMC_ST_ACK;
+            if (s->read_pos == 3) {
+                trace_applesmc_key_selected(s->key[0], s->key[1],
+                                            s->key[2], s->key[3]);
+            }
         } else if (s->read_pos == 4) {
             d = applesmc_find_key(s);
             if (d != NULL) {
@@ -183,6 +192,8 @@ static void applesmc_io_data_write(void *opaque, hwaddr addr, uint64_t val,
             } else {
                 smc_debug("READ_CMD: key '%c%c%c%c' not found!\n",
                           s->key[0], s->key[1], s->key[2], s->key[3]);
+                trace_applesmc_key_not_found(s->key[0], s->key[1],
+                                             s->key[2], s->key[3]);
                 s->status = APPLESMC_ST_CMD_DONE;
                 s->status_1e = APPLESMC_ST_1E_NOEXIST;
             }
@@ -213,6 +224,8 @@ static uint64_t applesmc_io_data_read(void *opaque, hwaddr addr, unsigned size)
         }
         if (s->data_pos < s->data_len) {
             s->last_ret = s->data[s->data_pos];
+            trace_applesmc_data_read(s->key[0], s->key[1], s->key[2],
+                                     s->key[3], s->data_pos, s->last_ret);
             smc_debug("READ '%c%c%c%c'[%d] = %02x\n",
                       s->key[0], s->key[1], s->key[2], s->key[3],
                       s->data_pos, s->last_ret);
