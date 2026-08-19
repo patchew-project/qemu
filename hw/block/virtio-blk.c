@@ -479,6 +479,18 @@ typedef struct ZoneCmdData {
 } ZoneCmdData;
 
 /*
+ * The write granularity that the device reports to the driver in
+ * virtio_blk_zoned_characteristics: the offset and size alignment constraint
+ * for writes and zone appends to sequential zones.
+ */
+static uint32_t virtio_blk_write_granularity(VirtIOBlock *s)
+{
+    BlockDriverState *bs = blk_bs(s->blk);
+
+    return MAX(bs->bl.write_granularity, s->conf.conf.logical_block_size);
+}
+
+/*
  * check zoned_request: error checking before issuing requests. If all checks
  * passed, return true.
  * append: true if only zone append requests issued.
@@ -500,11 +512,11 @@ static bool check_zoned_request(VirtIOBlock *s, int64_t offset, int64_t len,
     }
 
     if (append) {
-        if (bs->bl.write_granularity) {
-            if ((offset % bs->bl.write_granularity) != 0) {
-                *status = VIRTIO_BLK_S_ZONE_UNALIGNED_WP;
-                return false;
-            }
+        uint32_t wg = virtio_blk_write_granularity(s);
+
+        if ((offset % wg) != 0) {
+            *status = VIRTIO_BLK_S_ZONE_UNALIGNED_WP;
+            return false;
         }
 
         index = offset / bs->bl.zone_size;
@@ -1254,7 +1266,8 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
                      bs->bl.max_active_zones);
         virtio_stl_p(vdev, &blkcfg.zoned.max_open_zones,
                      bs->bl.max_open_zones);
-        virtio_stl_p(vdev, &blkcfg.zoned.write_granularity, blk_size);
+        virtio_stl_p(vdev, &blkcfg.zoned.write_granularity,
+                     virtio_blk_write_granularity(s));
         virtio_stl_p(vdev, &blkcfg.zoned.max_append_sectors,
                      bs->bl.max_append_sectors);
     } else {
