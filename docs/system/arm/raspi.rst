@@ -43,3 +43,15 @@ Missing devices
  * Pulse Width Modulation (PWM)
  * PCIE Root Port (raspi4b)
  * GENET Ethernet Controller (raspi4b)
+
+Boot options
+------------
+
+The Raspberry Pi models support booting via either a Linux kernel (``-kernel``)
+or UEFI/EDK2 firmware images (``-bios rpi_efi.fd``).
+
+When booting Raspberry Pi 3 (``raspi3b``, ``raspi3ap``) and Raspberry Pi 4 (``raspi4b``)
+boards with EDK2 firmware via ``-bios``, the firmware image is loaded at physical
+memory address ``0x0``, matching the platform expectations. Older 32-bit models
+(``raspi0``, ``raspi1ap``, ``raspi2b``) load firmware at their respective legacy addresses
+(``0x8000``).

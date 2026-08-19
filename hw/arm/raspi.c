@@ -33,8 +33,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(RaspiMachineState, RASPI_MACHINE)
 #define SMPBOOT_ADDR    0x300 /* this should leave enough space for ATAGS */
 #define MVBAR_ADDR      0x400 /* secure vectors */
 #define BOARDSETUP_ADDR (MVBAR_ADDR + 0x20) /* board setup code */
-#define FIRMWARE_ADDR_2 0x8000 /* Pi 2 loads kernel.img here by default */
-#define FIRMWARE_ADDR_3 0x80000 /* Pi 3 loads kernel.img here by default */
+#define KERNEL_ADDR_PI2 0x8000 /* Pi 2 loads kernel.img here by default */
 #define SPINTABLE_ADDR  0xd8 /* Pi 3 bootloader spintable */
 
 struct RaspiMachineState {
@@ -193,7 +192,7 @@ static void setup_boot(MachineState *machine, ARMCPU *cpu,
                        RaspiProcessorId processor_id, size_t ram_size)
 {
     RaspiBaseMachineState *s = RASPI_BASE_MACHINE(machine);
-    int r;
+    ssize_t r;
 
     s->binfo.ram_size = ram_size;
 
@@ -226,9 +225,15 @@ static void setup_boot(MachineState *machine, ARMCPU *cpu,
      * the normal Linux boot process
      */
     if (machine->firmware) {
-        hwaddr firmware_addr = processor_id <= PROCESSOR_ID_BCM2836
-                             ? FIRMWARE_ADDR_2 : FIRMWARE_ADDR_3;
-        /* load the firmware image (typically kernel.img) */
+        hwaddr firmware_addr;
+        if (processor_id <= PROCESSOR_ID_BCM2836) {
+            // For RPi 0/1/2 (arm, 32 bit mode) support kernel.img loading at default address
+            firmware_addr = KERNEL_ADDR_PI2;
+        } else {
+            // For RPi 3 or newer boards (aarch64), support edk2 firmware
+            firmware_addr = 0x0;
+        }
+        /* Load the firmware image (typically kernel.img or edk2 firmware) */
         r = load_image_targphys(machine->firmware, firmware_addr,
                                 ram_size - firmware_addr, NULL);
         if (r < 0) {

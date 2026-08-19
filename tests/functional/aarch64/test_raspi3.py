@@ -29,6 +29,18 @@ class Aarch64Raspi3Machine(LinuxKernelTest):
         self.vm.launch()
         self.wait_for_console_pattern('version UEFI Firmware v1.15')
 
+    def test_aarch64_raspi3_bios(self):
+        efi_name = 'RPI_EFI.fd'
+        efi_fd = self.archive_extract(self.ASSET_RPI3_UEFI, member=efi_name)
+
+        self.set_machine('raspi3b')
+        self.vm.set_console(console_index=1)
+        self.vm.add_args('-cpu', 'cortex-a53',
+                         '-nodefaults',
+                         '-bios', efi_fd)
+        self.vm.launch()
+        self.wait_for_console_pattern('version UEFI Firmware v1.15')
+
 
 if __name__ == '__main__':
     LinuxKernelTest.main()
