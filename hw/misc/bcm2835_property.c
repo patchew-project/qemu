@@ -168,7 +168,8 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
         /* Frame buffer */
 
         case RPI_FWREQ_FRAMEBUFFER_ALLOCATE:
-            stl_le_phys(&s->dma_as, value + 12, fbconfig.base);
+            stl_le_phys(&s->dma_as, value + 12,
+                        fbconfig.base | BCM2836_DMA_DEVICE_OFFSET);
             stl_le_phys(&s->dma_as, value + 16,
                         bcm2835_fb_get_size(&fbconfig));
             resplen = 8;
