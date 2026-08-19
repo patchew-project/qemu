@@ -8802,8 +8802,10 @@ static bool nvme_check_params(NvmeCtrl *n, Error **errp)
         host_memory_backend_set_mapped(n->pmr.dev, true);
     }
 
-    if (!n->params.mdts || ((1 << n->params.mdts) + 1) > IOV_MAX) {
-        error_setg(errp, "mdts exceeds IOV_MAX");
+    /* 2^mdts + 1 must fit IOV_MAX */
+    if ((n->params.cmb_size_mb || n->pmr.dev) &&
+        (!n->params.mdts || (params->mdts > 9))) {
+        error_setg(errp, "mdts=%u is incompatible with CMB/PMR", params->mdts);
         return false;
     }
 
