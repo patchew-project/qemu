@@ -593,6 +593,6 @@ ssize_t rust_fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
      * portable access to errno. :(
      */
     int ret = fwrite(ptr, size, nmemb, stream);
-    return ret < 0 ? -errno : 0;
+    return ret < 0 ? -errno : (ssize_t)(ret * size);
 }
 #endif
