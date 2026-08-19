@@ -1346,6 +1346,8 @@ char *create_tmp_file(Error **errp);
 void bdrv_parse_filename_strip_prefix(const char *filename, const char *prefix,
                                       QDict *options);
 
+bool bdrv_reopen_was_writable(const BDRVReopenState *state);
+
 
 int bdrv_check_qiov_request(int64_t offset, int64_t bytes,
                             QEMUIOVector *qiov, size_t qiov_offset,

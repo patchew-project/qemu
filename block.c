@@ -2193,14 +2193,18 @@ static int bdrv_reopen_get_flags(BlockReopenQueue *q, BlockDriverState *bs)
     return bs->open_flags;
 }
 
+/* An inactive node may not be written to, even though it is not read-only */
+static bool bdrv_flags_writable(int flags)
+{
+    return (flags & (BDRV_O_RDWR | BDRV_O_INACTIVE)) == BDRV_O_RDWR;
+}
+
 /* Returns whether the image file can be written to after the reopen queue @q
  * has been successfully applied, or right now if @q is NULL. */
 static bool bdrv_is_writable_after_reopen(BlockDriverState *bs,
                                           BlockReopenQueue *q)
 {
-    int flags = bdrv_reopen_get_flags(q, bs);
-
-    return (flags & (BDRV_O_RDWR | BDRV_O_INACTIVE)) == BDRV_O_RDWR;
+    return bdrv_flags_writable(bdrv_reopen_get_flags(q, bs));
 }
 
 /*
@@ -2212,6 +2216,12 @@ bool bdrv_is_writable(BlockDriverState *bs)
 {
     IO_CODE();
     return bdrv_is_writable_after_reopen(bs, NULL);
+}
+
+bool bdrv_reopen_was_writable(const BDRVReopenState *state)
+{
+    GLOBAL_STATE_CODE();
+    return bdrv_flags_writable(state->old_flags);
 }
 
 static char *bdrv_child_user_desc(BdrvChild *c)
@@ -4473,6 +4483,7 @@ bdrv_reopen_queue_child(BlockReopenQueue *bs_queue, BlockDriverState *bs,
     bs_entry->state.options = options;
     bs_entry->state.explicit_options = explicit_options;
     bs_entry->state.flags = flags;
+    bs_entry->state.old_flags = bs->open_flags;
 
     /*
      * If keep_old_opts is false then it means that unspecified
