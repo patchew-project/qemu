@@ -4582,6 +4582,10 @@ void bdrv_reopen_queue_free(BlockReopenQueue *bs_queue)
  * If all devices prepare successfully, then the changes are committed
  * to all devices.
  *
+ * A failure means either that the reopen was denied and nothing changed,
+ * or that it went through and a driver then found the node unusable. In
+ * the second case nothing is undone and the tree is no longer usable.
+ *
  * All affected nodes must be drained between bdrv_reopen_queue() and
  * bdrv_reopen_multiple().
  *
@@ -4658,15 +4662,29 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
     tran_commit(tran);
     bdrv_graph_wrunlock();
 
+    ret = 0;
     QTAILQ_FOREACH_REVERSE(bs_entry, bs_queue, entry) {
         BlockDriverState *bs = bs_entry->state.bs;
+        Error *local_err = NULL;
+        int commit_ret;
 
-        if (bs->drv->bdrv_reopen_commit_post) {
-            bs->drv->bdrv_reopen_commit_post(&bs_entry->state);
+        if (!bs->drv || !bs->drv->bdrv_reopen_commit_post) {
+            continue;
+        }
+
+        commit_ret = bs->drv->bdrv_reopen_commit_post(&bs_entry->state,
+                                                      &local_err);
+        assert(commit_ret >= 0 || local_err);
+
+        if (commit_ret < 0 && ret == 0) {
+            /* Committed already, so report the first failure and go on */
+            error_propagate(errp, local_err);
+            ret = commit_ret;
+        } else {
+            error_free(local_err);
         }
     }
 
-    ret = 0;
     goto cleanup;
 
 abort:
