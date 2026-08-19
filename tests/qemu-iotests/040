@@ -951,6 +951,128 @@ class TestCommitWithOverriddenBacking(iotests.QMPTestCase):
         self.vm.qmp('block-job-complete', device='commit')
         self.vm.event_wait('BLOCK_JOB_COMPLETED')
 
+QCOW2_INCOMPAT_FEATURES_OFFSET = 72
+QCOW2_INCOMPAT_DIRTY = 1 << 0
+
+image_size = 4 * 1024 * 1024
+dirty_base = os.path.join(iotests.test_dir, 'dirty-base.img')
+mid = os.path.join(iotests.test_dir, 'dirty-mid.img')
+top = os.path.join(iotests.test_dir, 'dirty-top.img')
+
+
+class TestCommitDirtyBase(iotests.QMPTestCase):
+    def setUp(self) -> None:
+        if iotests.imgfmt != 'qcow2':
+            self.case_skip('the dirty bit is a qcow2 feature')
+        iotests.qemu_img_create('-f', iotests.imgfmt, '-o',
+                                'compat=1.1,lazy_refcounts=on', dirty_base,
+                                str(image_size))
+        # Killing the process leaves the refcounts of the written cluster stale
+        iotests.qemu_io_popen('-t', 'writethrough',
+                              '-c', 'write -P 0x5a 0 512',
+                              '-c', 'sigraise 9', dirty_base).communicate()
+        iotests.qemu_img_create('-f', iotests.imgfmt, '-b', dirty_base,
+                                '-F', iotests.imgfmt, mid)
+        iotests.qemu_img_create('-f', iotests.imgfmt, '-b', mid,
+                                '-F', iotests.imgfmt, top)
+        # The commit has to allocate for this, which is where the stale
+        # refcounts hand out the cluster holding the data written above
+        qemu_io('-c', 'write -P 0xb1 1M 512', mid)
+
+        self.vm = iotests.VM()
+        self.vm.launch()
+        self.vm.cmd('blockdev-add', driver='file', filename=dirty_base,
+                    node_name='base-file')
+
+        self.assertEqual(self.incompatible_features(), QCOW2_INCOMPAT_DIRTY)
+
+    def tearDown(self) -> None:
+        if self.vm.is_running():
+            self.vm.shutdown()
+        for image in (dirty_base, mid, top):
+            os.remove(image)
+
+    def add_chain(self, base_file: str) -> None:
+        self.vm.cmd('blockdev-add', driver=iotests.imgfmt, file=base_file,
+                    node_name='base', read_only=True)
+        self.vm.cmd('blockdev-add', driver='file', filename=mid,
+                    node_name='mid-file')
+        self.vm.cmd('blockdev-add', driver=iotests.imgfmt, file='mid-file',
+                    node_name='mid', backing='base')
+        self.vm.cmd('blockdev-add', driver='file', filename=top,
+                    node_name='top-file')
+        self.vm.cmd('blockdev-add', driver=iotests.imgfmt, file='top-file',
+                    node_name='top', backing='mid')
+
+    def check_base(self) -> None:
+        result = iotests.qemu_img_check(dirty_base)
+        self.assertEqual(result['check-errors'], 0)
+        self.assertEqual(result.get('corruptions', 0), 0)
+        # Without the repair the commit would have aliased this cluster
+        qemu_io('-c', 'read -P 0x5a 0 512', '-c', 'read -P 0xb1 1M 512',
+                dirty_base)
+
+    def incompatible_features(self) -> int:
+        with open(dirty_base, 'rb') as img:
+            img.seek(QCOW2_INCOMPAT_FEATURES_OFFSET)
+            return struct.unpack('>Q', img.read(8))[0]
+
+    def test_commit_repairs_base(self) -> None:
+        self.add_chain('base-file')
+
+        self.vm.cmd('block-commit', job_id='job0', device='top',
+                    top_node='mid', base_node='base')
+        self.wait_until_completed(drive='job0')
+
+        self.vm.shutdown()
+        self.assertEqual(self.incompatible_features(), 0)
+        self.check_base()
+
+    def test_active_commit_repairs_base(self) -> None:
+        self.add_chain('base-file')
+
+        # Without top-node the whole chain commits, through
+        # commit_active_start() rather than commit_start()
+        self.vm.cmd('block-commit', job_id='job0', device='top',
+                    base_node='base')
+        self.complete_and_wait(drive='job0')
+
+        self.vm.shutdown()
+        self.assertEqual(self.incompatible_features(), 0)
+        self.check_base()
+
+    def test_failed_repair_fails_the_commit(self) -> None:
+        self.vm.cmd('blockdev-add', driver='blkdebug', image='base-file',
+                    node_name='base-blkdebug',
+                    inject_error=[{'event': 'none', 'iotype': 'write',
+                                   'errno': 5}])
+        self.add_chain('base-blkdebug')
+
+        result = self.vm.qmp('block-commit', job_id='job0', device='top',
+                             top_node='mid', base_node='base')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assertIn("Could not repair dirty image 'base'",
+                      result['error']['desc'])
+
+        # The base is left in the graph, and nothing can be queried while
+        # it is there
+        result = self.vm.qmp('query-named-block-nodes', flat=True)
+        self.assert_qmp(result, 'error/desc', 'Block device base is ejected')
+
+        # It only goes away once nothing refers to it
+        result = self.vm.qmp('blockdev-del', node_name='base')
+        self.assert_qmp(result, 'error/desc',
+                        "Node 'base' is busy: node is used as backing hd of "
+                        "'mid'")
+
+        # Marking the image corrupt needs a write of its own, which fails too
+        self.assertEqual(self.incompatible_features(), QCOW2_INCOMPAT_DIRTY)
+
+        # Nothing can use the base any more, and that is what is reported
+        result = self.vm.qmp('block-commit', job_id='job1', device='top',
+                             top_node='mid', base_node='base')
+        self.assert_qmp(result, 'error/desc', 'Device has no medium')
+
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'],
                  supported_protocols=['file'])
