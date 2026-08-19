@@ -52,7 +52,8 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
         case RPI_FWREQ_PROPERTY_END:
             break;
         case RPI_FWREQ_GET_FIRMWARE_REVISION:
-            stl_le_phys(&s->dma_as, value + 12, 346337);
+            // Use timestamp of first released Raspberry Pi as minimum 'revision': 2012-02-29T00:00:00.000Z
+            stl_le_phys(&s->dma_as, value + 12, 1330473600);
             resplen = 4;
             break;
         case RPI_FWREQ_GET_BOARD_MODEL:
