@@ -31,6 +31,10 @@ config SERIAL_MM
     bool
     select SERIAL
 
+config AM64_UART
+    bool
+    select SERIAL
+
 config SERIAL_PCI
     bool
     default y if PCI_DEVICES
