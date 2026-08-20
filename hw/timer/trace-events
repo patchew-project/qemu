@@ -133,3 +133,5 @@ imx_epit_cmp(uint32_t sr) "sr was %d"
 qtimer_interrupt(void) "qtimer interrupt line updated"
 qtimer_read(uint64_t offset) "offset 0x%" PRIx64
 qtimer_write(uint64_t offset, uint64_t value) "offset 0x%" PRIx64 " value 0x%" PRIx64
+imx95_sysctr_cmp(uint64_t cmpcv) "compare value 0x%" PRIx64
+imx95_sysctr_expire(void) "compare fired"
