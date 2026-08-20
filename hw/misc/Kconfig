@@ -268,3 +268,6 @@ config IMX_MU
 config IMX95_ELE_SERVER
     bool
     select IMX_MU
+
+config IMX95_WDOG
+    bool
