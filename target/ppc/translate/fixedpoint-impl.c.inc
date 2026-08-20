@@ -18,6 +18,46 @@
  */
 
 /*
+ * Byte-Reverse Instructions
+ */
+static bool do_byte_reverse_X_sa(DisasContext *ctx, arg_X_sa *a, int kind)
+{
+#if defined(TARGET_PPC64)
+    switch (kind) {
+    case 0: /* brd */
+        tcg_gen_bswap64_i64(cpu_gpr[a->ra], cpu_gpr[a->rs]);
+        break;
+    case 1: /* brw */
+        tcg_gen_bswap64_i64(cpu_gpr[a->ra], cpu_gpr[a->rs]);
+        tcg_gen_rotli_i64(cpu_gpr[a->ra], cpu_gpr[a->ra], 32);
+        break;
+    case 2: /* brh */
+    {
+        TCGv_i64 mask = tcg_constant_i64(0x00ff00ff00ff00ffull);
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        TCGv_i64 t2 = tcg_temp_new_i64();
+
+        tcg_gen_shri_i64(t1, cpu_gpr[a->rs], 8);
+        tcg_gen_and_i64(t2, t1, mask);
+        tcg_gen_and_i64(t1, cpu_gpr[a->rs], mask);
+        tcg_gen_shli_i64(t1, t1, 8);
+        tcg_gen_or_i64(cpu_gpr[a->ra], t1, t2);
+        break;
+    }
+    default:
+        g_assert_not_reached();
+    }
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+TRANS64_FLAGS2(ISA310, BRD, do_byte_reverse_X_sa, 0)
+TRANS64_FLAGS2(ISA310, BRW, do_byte_reverse_X_sa, 1)
+TRANS64_FLAGS2(ISA310, BRH, do_byte_reverse_X_sa, 2)
+
+/*
  * Fixed-Point Load/Store Instructions
  */
 
