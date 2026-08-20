@@ -220,7 +220,8 @@ qtests_npcm7xx = \
 qtests_npcm8xx = \
   ['npcm_gmac-test']
 qtests_aspeed = \
-  ['aspeed_gpio-test',
+  ['aspeed-acry-test',
+   'aspeed_gpio-test',
    'aspeed_hace-test',
    'aspeed_scu-test',
    'aspeed_smc-test']
@@ -392,6 +393,8 @@ if get_option('replication').allowed()
 endif
 
 qtests = {
+  'aspeed-acry-test': [files('aspeed-acry-test.c'),
+                       crypto],
   'aspeed_hace-test': [files('aspeed-hace-utils.c', 'aspeed_hace-test.c'),
                        crypto],
   'aspeed_smc-test': files('aspeed-smc-utils.c', 'aspeed_smc-test.c'),
