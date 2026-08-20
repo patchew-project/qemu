@@ -69,6 +69,19 @@ ecc_diag_mem_readb(uint64_t addr, uint32_t ret) "Read diagnostic %"PRId64"= 0x%0
 # empty_slot.c
 empty_slot_write(uint64_t addr, unsigned width, uint64_t value, unsigned size, const char *name) "wr addr:0x%04"PRIx64" data:0x%0*"PRIx64" size %u [%s]"
 
+# ti-mailbox.c
+ti_mailbox_read(uint64_t offset, uint32_t value, unsigned size, const char *reg, uint8_t mailbox_id, const char *cpu_str, const char *mbox_str, const char *user_str, const char *irq_bits_str) "off=0x%" PRIx64 " value=0x%08x size=%u reg=%s mailbox_id=%u%s%s%s%s"
+ti_mailbox_write(uint64_t offset, uint32_t value, unsigned size, const char *reg, uint8_t mailbox_id, const char *cpu_str, const char *mbox_str, const char *user_str, const char *irq_bits_str) "off=0x%" PRIx64 " value=0x%08x size=%u reg=%s mailbox_id=%u%s%s%s%s"
+ti_mailbox_irq(uint8_t mailbox_id, uint8_t user, int level, uint32_t raw, uint32_t enable, uint32_t masked) "mailbox_id=%u user=%u level=%d raw=0x%08x enable=0x%08x masked=0x%08x"
+ti_mailbox_irq_eval(uint8_t mailbox_id, uint8_t user, uint32_t hw_raw, uint32_t raw, uint32_t enable, uint32_t masked) "mailbox_id=%u user=%u hw_raw=0x%08x raw=0x%08x enable=0x%08x masked=0x%08x"
+ti_mailbox_fifo_push(uint8_t mailbox_id, int mbox, uint8_t depth, uint32_t used_before, uint32_t val, int ok) "mailbox_id=%u mbox=%d depth=%u used_before=%u val=0x%08x ok=%d"
+ti_mailbox_fifo_pop(uint8_t mailbox_id, int mbox, uint8_t depth, uint32_t used_before, uint32_t val, int ok) "mailbox_id=%u mbox=%d depth=%u used_before=%u val=0x%08x ok=%d"
+ti_mailbox_reset_state(uint8_t mailbox_id) "mailbox_id=%u reset"
+ti_mailbox_raw_set(uint8_t mailbox_id, uint8_t user, uint32_t mask, uint32_t raw_set) "mailbox_id=%u user=%u mask=0x%08x raw_set=0x%08x"
+ti_mailbox_raw_clear(uint8_t mailbox_id, uint8_t user, uint32_t mask, uint32_t raw_set, uint32_t raw_clear_mask) "mailbox_id=%u user=%u mask=0x%08x raw_set=0x%08x raw_clear_mask=0x%08x"
+ti_mailbox_irq_enable(uint8_t mailbox_id, uint8_t user, int set, uint32_t mask, uint32_t irq_enable) "mailbox_id=%u user=%u set=%d mask=0x%08x irq_enable=0x%08x"
+ti_mailbox_msg_write_pc(uint8_t mailbox_id, int mbox, uint64_t pc, const char *cpu_str) "mailbox_id=%u mbox=%d pc=0x%" PRIx64 "%s"
+
 # slavio_misc.c
 slavio_misc_update_irq_raise(void) "Raise IRQ"
 slavio_misc_update_irq_lower(void) "Lower IRQ"
