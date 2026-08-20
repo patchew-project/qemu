@@ -137,6 +137,7 @@ config OMAP
     bool
     select FRAMEBUFFER
     select I2C
+    select OMAP_I2C
     select PFLASH_CFI01
     select SD
     select SERIAL_MM
