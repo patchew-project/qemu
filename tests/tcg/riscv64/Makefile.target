@@ -13,6 +13,19 @@ run-test-noc: QEMU_OPTS += -cpu rv64,c=false
 TESTS += test-aes
 run-test-aes: QEMU_OPTS += -cpu rv64,zk=on
 
+# Vector load test
+TESTS += test-rvv-ldst
+test-rvv-ldst: CFLAGS += -march=rv64gcv
+test-rvv-ldst: LDFLAGS = -nostdlib -static
+run-test-rvv-ldst: QEMU_OPTS += -cpu max
+
+# Re-run the vector tests at each supported VLEN
+TEST_RVV_VLENS = 128 256 512 1024
+EXTRA_RUNS += $(patsubst %,run-test-rvv-ldst-vlen%,$(TEST_RVV_VLENS))
+run-test-rvv-ldst-vlen%: test-rvv-ldst
+	$(call run-test, $@, env QEMU=$(QEMU) $(QEMU) $(QEMU_OPTS) -cpu max$(COMMA)vlen=$* $<, \
+		test-rvv-ldst with vlen=$*)
+
 # Test for fcvtmod
 TESTS += test-fcvtmod
 test-fcvtmod: CFLAGS += -march=rv64imafdc
