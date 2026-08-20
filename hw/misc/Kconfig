@@ -271,3 +271,15 @@ config IMX95_ELE_SERVER
 
 config IMX95_WDOG
     bool
+
+config IMX95_ANATOP
+    bool
+
+config IMX95_AONMIX
+    bool
+
+config IMX95_GPC
+    bool
+
+config IMX95_SRC
+    bool

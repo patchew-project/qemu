@@ -450,3 +450,11 @@ imx95_ele_msg(uint8_t command, uint8_t tag, uint32_t size) "received cmd 0x%02x 
 imx95_ele_response(uint8_t command) "response cmd 0x%02x"
 imx95_wdog_config(uint32_t cs) "CS <- 0x%08x"
 imx95_wdog_unlock(void) "unlock word written"
+imx95_anatop_read(uint64_t offset) "read off 0x%" PRIx64
+imx95_anatop_write(uint64_t offset, uint64_t value) "write off 0x%" PRIx64 " <- 0x%08" PRIx64
+imx95_aonmix_read(uint64_t offset) "read off 0x%" PRIx64
+imx95_aonmix_write(uint64_t offset, uint64_t value) "write off 0x%" PRIx64 " <- 0x%08" PRIx64
+imx95_aonmix_m7_gate(int run) "M7 wait gate -> run=%d"
+imx95_gpc_mode(uint64_t offset, uint32_t target) "CMC_MODE_CTRL off 0x%" PRIx64 " target %u"
+imx95_src_m7mix_release(void) "SRC_GEN.SCR M7MIX reset released"
+imx95_src_slice_ctrl(uint64_t offset, uint32_t value) "SLICE_SW_CTRL off 0x%" PRIx64 " <- 0x%08x"
