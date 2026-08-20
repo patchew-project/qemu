@@ -290,3 +290,6 @@ config IMX95_PMIC
 
 config IMX95_XCACHE
     bool
+
+config IMX95_DPU
+    bool
