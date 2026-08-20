@@ -456,6 +456,38 @@ iommu_testdev_dma_verify(uint32_t expected, uint32_t actual) "expected=0x%x actu
 iommu_testdev_dma_result(uint32_t result) "DMA completed result=0x%x"
 iommu_testdev_dma_armed(bool armed) "armed=%d"
 
+# ti-dmsc.c
+dmsc_handle_set_clock(const char *type, const char *host_name, const char *device_name, int clk) "%s received from host %s, device %s, clk: %i"
+dmsc_handle_get_device(const char *type, const char *host_name, const char *device_name, uint8_t prog_state, uint8_t current_state) "%s received from host %s, device %s, response: prog_state: %i, current_state: %i"
+dmsc_handle_get_clock(const char *type, const char *host_name, const char *device_name, uint8_t clk, uint32_t clk32) "%s received from host %s, device %s, clk %u, clk32 %u"
+dmsc_handle_get_clock_parents(const char *type, const char *host_name, const char *device_name, uint8_t clk, uint32_t clk32) "%s received from host %s, device %s, clk %u, clk32 %u"
+dmsc_handle_set_clock_parent(const char *type, const char *host_name, const char *device_name, uint8_t clk_id, uint8_t parent_id) "%s received from host %s, device %s, clk_id %u, parent_id %u"
+dmsc_handle_query_freq(const char *type, const char *host_name, const char *device_name, uint8_t clk, uint32_t clk32, uint64_t target_freq) "%s received from host %s, device %s, clk %u, clk32 %u, target_frequency %"PRIu64
+dmsc_handle_get_freq(const char *type, const char *host_name, const char *device_name, uint8_t clk) "%s received from host %s, device %s, clk %u"
+dmsc_handle_proc_set_config(const char *type, const char *host_name) "%s received from host %s"
+dmsc_handle_set_device_state(const char *type, const char *host_name, const char *device_name, const char *state) "%s received from host %s, device %s, state %s"
+dmsc_handle_set_device_resets(const char *type, const char *host_name, const char *device_name, uint32_t resets) "%s received from host %s, device %s, resets 0x%08x"
+dmsc_handle_get_status(const char *type, const char *host_name, const char *proc_name, uint8_t proc_id) "%s received from host %s, proc %s (%u)"
+dmsc_handle_wait_proc_boot_status(const char *type, const char *host_name, const char *proc_name, uint8_t proc_id) "%s received from host %s, proc %s (%u)"
+dmsc_get_status_resp(const char *proc_name, uint8_t proc_id, uint32_t status_flags, int m4_running) "GET_STATUS response for %s (%u): status_flags=0x%08x, m4_running=%d"
+dmsc_unsupported_message(const char *msg, int type, const char *host, int thread_id) "No handler for message type=%s (%i) from host %s ... (thread id: %i) dropping"
+dmsc_new_message_received(int type, const char *msg, const char *host, int thread_id) "Handling message type=0x%04x (%s) from host=%s, thread=%u"
+dmsc_get_version(const char* msg, const char *host, const char *description) "Get Version received %s from host %s. Description returned %s"
+dmsc_get_fw_caps(const char* msg, const char *host) "Get FW Caps Request received %s from host %s"
+dmsc_start_proc(const char* proc_name, int proc_id, const char *host) "Requested to start Processor %s (%i) from host %s"
+dmsc_stop_proc(const char* proc_name, int proc_id, const char *host) "Requested to stop Processor %s (%i) from host %s"
+dmsc_handover_proc(const char* proc_name, int proc_id, const char *new_host, const char *host) "Requested to hand over Processor %s (%i) to host %s, from host %s"
+dmsc_a53_bootvector(uint8_t proc_id, uint64_t bootvector) "Captured boot vector for A53 proc %u: 0x%" PRIx64
+dmsc_a53_start(int core, uint64_t entry) "Cold-starting A53 core %d at entry 0x%" PRIx64 " (EL3/AArch64)"
+dmsc_a53_stop(int core) "Powering off A53 core %d"
+dmsc_handle_sys_reset(const char *type, const char *host_name) "%s received from host %s, requesting machine reset"
+dmsc_handle_fwl_set(const char *type, const char *host_name, uint16_t fwl_id, uint16_t region) "%s received from host %s, fwl_id %u, region %u"
+dmsc_handle_fwl_get(const char *type, const char *host_name, uint16_t fwl_id, uint16_t region) "%s received from host %s, fwl_id %u, region %u"
+dmsc_handle_fwl_change_owner(const char *type, const char *host_name, uint16_t fwl_id, uint16_t region, uint8_t owner_index) "%s received from host %s, fwl_id %u, region %u, owner_index %u"
+dmsc_handle_sa2ul_get_dkek(const char *type, const char *host_name, uint8_t sa2ul_instance) "%s received from host %s, sa2ul_instance %u (returning zeroed DKEK)"
+dmsc_handle_read_swrev(const char *type, const char *host_name) "%s received from host %s (returning swrev=0)"
+dmsc_handle_read_keycnt_keyrev(const char *type, const char *host_name) "%s received from host %s (returning keycnt=keyrev=0)"
+
 # ti-rat.c
 rat_enable_region(int idx, uint64_t size, uint64_t source, uint64_t dest) "Enabling RAT Region %u: size 0x%"PRIx64" map 0x%"PRIx64" -> 0x%"PRIx64
 rat_disable_region(int idx) "Disabling RAT Region %u"

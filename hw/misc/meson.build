@@ -123,6 +123,7 @@ system_ss.add(when: 'CONFIG_STM32L4X5_RCC', if_true: files('stm32l4x5_rcc.c'))
 system_ss.add(when: 'CONFIG_MPS2_FPGAIO', if_true: files('mps2-fpgaio.c'))
 system_ss.add(when: 'CONFIG_MPS2_SCC', if_true: files('mps2-scc.c'))
 
+system_ss.add(when: 'CONFIG_TI_DMSC', if_true: files('ti-dmsc.c'))
 system_ss.add(when: 'CONFIG_TI_RAT', if_true: files('ti-rat.c'))
 system_ss.add(when: 'CONFIG_TI_K3_CTRLMMR', if_true: files('ti-k3-ctrlmmr.c'))
 system_ss.add(when: 'CONFIG_TI_K3_GTC', if_true: files('ti-k3-gtc.c'))
