@@ -764,3 +764,10 @@ config FSL_IMX95
     select IMX_LPI2C
     select SDHCI
     select UNIMP
+
+config FSL_IMX95_EVK
+    bool
+    default y
+    depends on AARCH64
+    depends on TCG
+    select FSL_IMX95
