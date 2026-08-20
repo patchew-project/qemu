@@ -6240,6 +6240,48 @@ void kvm_arch_remove_all_gdbstub_hw_breakpoints(void)
 
 static CPUWatchpoint hw_watchpoint;
 
+static int kvm_debug_exit_icebp_len(CPUState *cs, CPUX86State *env,
+                                    const struct kvm_debug_exit_arch *arch_info)
+{
+    int offset;
+
+    if (arch_info->exception != EXCP01_DB ||
+        arch_info->dr6 & ~DR6_FIXED_1) {
+        return 0;
+    }
+
+    /* An x86 instruction is at most fifteen bytes, including prefixes. */
+    for (offset = 0; offset < 15; offset++) {
+        uint8_t opcode;
+
+        if (cpu_memory_rw_debug(cs, arch_info->pc + offset,
+                                &opcode, sizeof(opcode), false) != 0) {
+            break;
+        }
+
+        if (opcode == 0xf1) {
+            return offset + 1;
+        }
+
+        switch (opcode) {
+        case 0x26: case 0x2e: case 0x36: case 0x3e:
+        case 0x64: case 0x65: case 0x66: case 0x67:
+        case 0xf0: case 0xf2: case 0xf3:
+            continue;
+        default:
+            if ((env->hflags & HF_CS64_MASK) &&
+                opcode >= 0x40 && opcode <= 0x4f) {
+                continue;
+            }
+            break;
+        }
+
+        break;
+    }
+
+    return 0;
+}
+
 static int kvm_handle_debug(X86CPU *cpu,
                             struct kvm_debug_exit_arch *arch_info)
 {
@@ -6280,13 +6322,31 @@ static int kvm_handle_debug(X86CPU *cpu,
         ret = EXCP_DEBUG;
     }
     if (ret == 0) {
+        uint64_t exception_payload = arch_info->dr6;
+
         cpu_synchronize_state(cs);
+
+        if (arch_info->exception == EXCP01_DB) {
+            int icebp_len;
+
+            icebp_len = kvm_debug_exit_icebp_len(cs, env, arch_info);
+            if (icebp_len != 0) {
+                env->eip += icebp_len;
+            }
+
+            /*
+             * KVM_EXIT_DEBUG reports an architectural DR6 image, while
+             * exception payloads use the VMX pending-debug format.
+             */
+            exception_payload &= ~DR6_FIXED_1;
+        }
+
         assert(env->exception_nr == -1);
 
         /* pass to guest */
         kvm_queue_exception(env, arch_info->exception,
                             arch_info->exception == EXCP01_DB,
-                            arch_info->dr6);
+                            exception_payload);
         env->has_error_code = 0;
     }
 
