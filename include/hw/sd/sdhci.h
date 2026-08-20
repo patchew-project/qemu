@@ -115,6 +115,27 @@ typedef struct SDHCIState SDHCIState;
  */
 #define SDHCI_QUIRK_NO_BUSY_IRQ    BIT(14)
 
+/*
+ * The i.MX (u)SDHC gates the SD card clock automatically and has no
+ * software-visible "SD Clock Enable" bit: its driver programs only the
+ * divider and the internal-clock enable, never SDHC_CLOCK_SDCLK_EN. With
+ * this quirk the controller is considered ready to issue commands once the
+ * internal clock is enabled and stable, instead of also requiring
+ * SDHC_CLOCK_SDCLK_EN (which such a driver never sets). QEMU-internal bit,
+ * taken from the top of the word to avoid the Linux quirk numbering.
+ */
+#define SDHCI_QUIRK_SDCLK_AUTO_GATE    BIT(31)
+
+/*
+ * The i.MX uSDHC silicon does not implement the SDHCI "Host SDMA Buffer
+ * Boundary" mechanism; it streams all blocks back-to-back regardless of the
+ * buffer-boundary alignment, never pausing at the boundary. With this quirk
+ * the SDMA engine skips the page-aligned boundary-break path so the transfer
+ * runs to completion. QEMU-internal bit, taken from the top of the word to
+ * avoid the Linux quirk numbering.
+ */
+#define SDHCI_QUIRK_NO_SDMA_BOUNDARY    BIT(30)
+
 #define TYPE_PCI_SDHCI "sdhci-pci"
 DECLARE_INSTANCE_CHECKER(SDHCIState, PCI_SDHCI,
                          TYPE_PCI_SDHCI)
