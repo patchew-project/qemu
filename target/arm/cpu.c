@@ -1349,6 +1349,16 @@ static const Property arm_cpu_pmsav7_dregion_property =
             DEFINE_PROP_UNSIGNED_NODEFAULT("pmsav7-dregion", ARMCPU,
                                            pmsav7_dregion,
                                            qdev_prop_uint32, uint32_t);
+
+/*
+ * Opt-in: treat a PMSAv7 MPU region base that is not aligned to its region
+ * size as aligned-down instead of UNPREDICTABLE (see get_phys_addr_pmsav7()).
+ * Only registered on PMSAv7 (v7-M / v7-R) CPUs, and only enabled by an
+ * integrator whose firmware relies on it (e.g. the i.MX 95 Cortex-M7).
+ */
+static const Property arm_cpu_pmsav7_rbar_align_down_property =
+            DEFINE_PROP_BOOL("pmsav7-rbar-align-down", ARMCPU,
+                             pmsav7_rbar_align_down, false);
 #endif
 
 static bool arm_get_pmu(Object *obj, Error **errp)
@@ -1659,6 +1669,15 @@ static void arm_cpu_post_init(Object *obj)
         if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
             qdev_property_add_static(DEVICE(obj),
                                      &arm_cpu_pmsav7_dregion_property);
+            /*
+             * get_phys_addr_pmsav7() only runs on PMSAv7 CPUs, i.e. v7
+             * without v8 (a v8 M/R core uses the PMSAv8 MPU, which has no
+             * such alignment rule), so only offer the property there.
+             */
+            if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+                qdev_property_add_static(DEVICE(obj),
+                        &arm_cpu_pmsav7_rbar_align_down_property);
+            }
         }
     }
 

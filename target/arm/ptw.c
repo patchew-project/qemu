@@ -2757,11 +2757,29 @@ static bool get_phys_addr_pmsav7(CPUARMState *env,
             rmask = (1ull << rsize) - 1;
 
             if (base & rmask) {
-                qemu_log_mask(LOG_GUEST_ERROR,
-                              "DRBAR[%d]: 0x%" PRIx32 " misaligned "
-                              "to DRSR region size, mask = 0x%" PRIx32 "\n",
-                              n, base, rmask);
-                continue;
+                if (cpu->pmsav7_rbar_align_down) {
+                    /*
+                     * Opt-in behaviour for Cortex-M silicon such as the
+                     * i.MX 95 M-cores: a region base not aligned to its size
+                     * is treated as aligned-down (RBAR.ADDR is only
+                     * [31:log2(size)]), matching that hardware, whose SM/RT
+                     * firmware programs e.g. DRBAR 0x4c800000 with a 512MB
+                     * size intended as 0x40000000. Off by default because the
+                     * architecture calls a misaligned base UNPREDICTABLE.
+                     */
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "DRBAR[%d]: 0x%" PRIx32 " not aligned to "
+                                  "DRSR region size (mask 0x%" PRIx32 "); "
+                                  "aligning down to 0x%" PRIx32 "\n",
+                                  n, base, rmask, base & ~rmask);
+                    base &= ~rmask;
+                } else {
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "DRBAR[%d]: 0x%" PRIx32 " misaligned "
+                                  "to DRSR region size, mask = 0x%" PRIx32 "\n",
+                                  n, base, rmask);
+                    continue;
+                }
             }
 
             if (address < base || address > base + rmask) {

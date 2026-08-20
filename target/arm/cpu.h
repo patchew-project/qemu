@@ -1145,6 +1145,12 @@ struct ArchCPU {
      * architecture version.
      */
     bool cfgend;
+    /*
+     * If set, a PMSAv7 MPU region base that is not aligned to its region
+     * size is treated as aligned-down (matching Cortex-M silicon such as the
+     * i.MX 95 M-cores) instead of the architectural UNPREDICTABLE drop.
+     */
+    bool pmsav7_rbar_align_down;
 
     QLIST_HEAD(, ARMELChangeHook) pre_el_change_hooks;
     QLIST_HEAD(, ARMELChangeHook) el_change_hooks;
