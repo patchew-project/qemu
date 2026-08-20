@@ -37,6 +37,7 @@ struct OMAPI2CState {
     I2CBus *bus;
 
     uint8_t revision;
+    uint8_t mmio_version;
     void *iclk;
     void *fclk;
 
@@ -57,6 +58,61 @@ struct OMAPI2CState {
 
 #define OMAP2_INTR_REV  0x34
 #define OMAP2_GC_REV    0x34
+
+/*
+ * MMIO register layout selector.  The classic OMAP1/OMAP2 "IP V1" map is the
+ * default and is what every existing OMAP board relies on.  "IP V2" is the
+ * OMAP4-and-later layout ("ti,omap4-i2c" / "ti,am64-i2c"), which relocates the
+ * registers and adds the IRQSTATUS_RAW / IRQENABLE_SET / IRQENABLE_CLR set.
+ * The transfer/reset/NACK engine is shared; only the address decode differs.
+ */
+#define OMAP_I2C_MMIO_V1  0
+#define OMAP_I2C_MMIO_V2  2
+
+/* IP V2 register offsets, as used from OMAP4 onwards. */
+#define OMAP_I2C_V2_REVNB_LO       0x00
+#define OMAP_I2C_V2_REVNB_HI       0x04
+#define OMAP_I2C_V2_SYSC           0x10
+#define OMAP_I2C_V2_IRQSTATUS_RAW  0x24
+#define OMAP_I2C_V2_IRQSTATUS      0x28
+#define OMAP_I2C_V2_IRQENABLE_SET  0x2c
+#define OMAP_I2C_V2_IRQENABLE_CLR  0x30
+#define OMAP_I2C_V2_WE             0x34
+#define OMAP_I2C_V2_SYSS           0x90
+#define OMAP_I2C_V2_BUF            0x94
+#define OMAP_I2C_V2_CNT            0x98
+#define OMAP_I2C_V2_DATA           0x9c
+#define OMAP_I2C_V2_CON            0xa4
+#define OMAP_I2C_V2_OA             0xa8
+#define OMAP_I2C_V2_SA             0xac
+#define OMAP_I2C_V2_PSC            0xb0
+#define OMAP_I2C_V2_SCLL           0xb4
+#define OMAP_I2C_V2_SCLH           0xb8
+#define OMAP_I2C_V2_SYSTEST        0xbc
+#define OMAP_I2C_V2_BUFSTAT        0xc0
+
+/*
+ * Translate an IP-V2 offset for a register whose semantics are identical to
+ * the V1 model into the V1 offset the shared read/write switch decodes.
+ * Returns -1 for offsets that have no direct V1 equivalent (those are handled
+ * inline by the V2 front-end).
+ */
+static int omap_i2c_v2_to_v1(int offset)
+{
+    switch (offset) {
+    case OMAP_I2C_V2_BUF:     return 0x14;
+    case OMAP_I2C_V2_CNT:     return 0x18;
+    /* DATA (0x9c) is handled inline byte-wise by the V2 front-end. */
+    case OMAP_I2C_V2_CON:     return 0x24;
+    case OMAP_I2C_V2_OA:      return 0x28;
+    case OMAP_I2C_V2_SA:      return 0x2c;
+    case OMAP_I2C_V2_PSC:     return 0x30;
+    case OMAP_I2C_V2_SCLL:    return 0x34;
+    case OMAP_I2C_V2_SCLH:    return 0x38;
+    case OMAP_I2C_V2_SYSTEST: return 0x3c;
+    default:                  return -1;
+    }
+}
 
 static void omap_i2c_interrupts_update(OMAPI2CState *s)
 {
@@ -162,6 +218,83 @@ static uint32_t omap_i2c_read(void *opaque, hwaddr addr)
     int offset = addr & OMAP_MPUI_REG_MASK;
     uint16_t ret;
 
+    if (s->mmio_version == OMAP_I2C_MMIO_V2) {
+        switch (offset) {
+        case OMAP_I2C_V2_REVNB_LO:
+            return s->revision;
+        case OMAP_I2C_V2_REVNB_HI:
+            return 0;
+        case OMAP_I2C_V2_SYSC:
+            return 0;
+        case OMAP_I2C_V2_IRQSTATUS_RAW:
+        case OMAP_I2C_V2_IRQSTATUS:     /* STAT mirrors IRQSTATUS_RAW */
+            return s->stat | (i2c_bus_busy(s->bus) << 12);
+        case OMAP_I2C_V2_IRQENABLE_SET:
+        case OMAP_I2C_V2_IRQENABLE_CLR:
+            return s->mask;
+        case OMAP_I2C_V2_WE:
+            return 0;
+        case OMAP_I2C_V2_SYSS:
+            /* reset is instantaneous in the model: RDONE always reads set */
+            return 1;
+        case OMAP_I2C_V2_BUFSTAT:
+            return 0;
+        case OMAP_I2C_V2_DATA: {
+            /*
+             * The OMAP4/AM64x driver accesses the DATA register one byte per
+             * MMIO access (readw of a single byte), unlike the classic V1
+             * 16-bit FIFO convention.  Pop exactly one byte (oldest first,
+             * FIFO is filled LSB-first by omap_i2c_fifo_run()).
+             */
+            uint8_t b = s->fifo & 0xff;
+            if (s->rxlen > 0) {
+                s->fifo >>= 8;
+                s->rxlen--;
+            }
+            /*
+             * Refill from the slave while the transfer is still live (this
+             * may complete count_cur and issue the STOP, leaving the last
+             * few prefetched bytes buffered in the FIFO with the bus idle).
+             */
+            omap_i2c_fifo_run(s);
+            /*
+             * Drive the RRDY/ARDY handshake directly off the FIFO drain
+             * state so it keeps working after the bus has gone idle: RRDY
+             * stays asserted while buffered bytes remain, and ARDY is raised
+             * once the last byte has been consumed (master-receive).
+             */
+            if (s->rxlen > 0) {
+                s->stat |= 1 << 3;                          /* RRDY */
+            } else {
+                s->stat &= ~(1 << 3);                       /* RRDY */
+                if (((s->control >> 10) & 1) &&             /* MST */
+                    ((~s->control >> 9) & 1)) {             /* TRX (receive) */
+                    s->stat |= 1 << 2;                      /* ARDY */
+                    s->control &= ~(1 << 10);               /* MST */
+                    /*
+                     * DCOUNT decrements to 0 on real hardware and stays
+                     * there; leave it at 0 so a following address-only probe
+                     * (which programs no CNT) starts from 0 and completes
+                     * with ARDY instead of waiting for phantom TX bytes.
+                     */
+                    s->count = 0;
+                    s->count_cur = 0;
+                }
+            }
+            s->stat &= ~(1 << 11);                          /* ROVR */
+            omap_i2c_interrupts_update(s);
+            return b;
+        }
+        default:
+            offset = omap_i2c_v2_to_v1(offset);
+            if (offset < 0) {
+                OMAP_BAD_REG(addr);
+                return 0;
+            }
+            break;
+        }
+    }
+
     switch (offset) {
     case 0x00:  /* I2C_REV */
         return s->revision;                     /* REV */
@@ -265,6 +398,83 @@ static void omap_i2c_write(void *opaque, hwaddr addr,
     OMAPI2CState *s = opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
     int nack;
+
+    if (s->mmio_version == OMAP_I2C_MMIO_V2) {
+        switch (offset) {
+        case OMAP_I2C_V2_SYSC:
+            if (value & 2) {                    /* SRST */
+                omap_i2c_reset(DEVICE(s));
+            }
+            return;
+        case OMAP_I2C_V2_DATA:
+            /*
+             * The OMAP4/AM64x driver writes the DATA register one byte per
+             * MMIO access (writew of a single byte).  Push exactly one byte,
+             * mirroring the classic 8-bit FIFO path (omap_i2c_writeb()).
+             */
+            if (s->txlen <= 2) {
+                s->fifo <<= 8;
+                s->txlen += 1;
+                s->fifo |= value & 0xff;
+                s->stat &= ~(1 << 10);                  /* XUDF */
+                if (s->txlen > 2) {
+                    s->stat &= ~(1 << 4);               /* XRDY */
+                }
+                omap_i2c_fifo_run(s);
+                /*
+                 * If the transmit finished and issued its STOP, leave DCOUNT
+                 * at 0 (see the DATA read path) so the next probe/transfer
+                 * that does not reprogram CNT is not tricked into expecting
+                 * stale phantom bytes.
+                 */
+                if (!i2c_bus_busy(s->bus)) {
+                    s->count = 0;
+                    s->count_cur = 0;
+                }
+                omap_i2c_interrupts_update(s);
+            }
+            return;
+        case OMAP_I2C_V2_IRQSTATUS_RAW:
+        case OMAP_I2C_V2_IRQSTATUS:             /* write-1-to-clear */
+            s->stat &= ~(value & 0x7fff);
+            /*
+             * XRDY/RRDY are level events: after the driver clears them it
+             * expects them to re-assert while the transfer still has room /
+             * data.  Re-run the FIFO engine for a live transfer, then
+             * re-assert RRDY if bytes remain buffered even after the bus has
+             * gone idle (the tail of a receive drains from the FIFO).
+             */
+            omap_i2c_fifo_run(s);
+            if (s->rxlen > 0) {
+                s->stat |= 1 << 3;              /* RRDY */
+            }
+            omap_i2c_interrupts_update(s);
+            return;
+        case OMAP_I2C_V2_IRQENABLE_SET:
+            s->mask |= value & 0xff;
+            omap_i2c_interrupts_update(s);
+            return;
+        case OMAP_I2C_V2_IRQENABLE_CLR:
+            s->mask &= ~(value & 0xff);
+            omap_i2c_interrupts_update(s);
+            return;
+        case OMAP_I2C_V2_WE:
+            return;                             /* wakeup enable: ignored */
+        case OMAP_I2C_V2_REVNB_LO:
+        case OMAP_I2C_V2_REVNB_HI:
+        case OMAP_I2C_V2_SYSS:
+        case OMAP_I2C_V2_BUFSTAT:
+            OMAP_RO_REG(addr);
+            return;
+        default:
+            offset = omap_i2c_v2_to_v1(offset);
+            if (offset < 0) {
+                OMAP_BAD_REG(addr);
+                return;
+            }
+            break;
+        }
+    }
 
     switch (offset) {
     case 0x00:  /* I2C_REV */
@@ -412,6 +622,10 @@ static void omap_i2c_writeb(void *opaque, hwaddr addr,
     OMAPI2CState *s = opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
 
+    if (s->mmio_version == OMAP_I2C_MMIO_V2 && offset == OMAP_I2C_V2_DATA) {
+        offset = 0x1c;                          /* I2C_DATA */
+    }
+
     switch (offset) {
     case 0x1c:  /* I2C_DATA */
         if (s->txlen > 2) {
@@ -489,10 +703,24 @@ static void omap_i2c_init(Object *obj)
 static void omap_i2c_realize(DeviceState *dev, Error **errp)
 {
     OMAPI2CState *s = OMAP_I2C(dev);
+    uint64_t size;
 
+    if (s->mmio_version == OMAP_I2C_MMIO_V2) {
+        size = 0x100;                           /* AM64x main_i2c reg length */
+    } else {
+        size = (s->revision < OMAP2_INTR_REV) ? 0x800 : 0x1000;
+    }
     memory_region_init_io(&s->iomem, OBJECT(dev), &omap_i2c_ops, s, "omap.i2c",
-                          (s->revision < OMAP2_INTR_REV) ? 0x800 : 0x1000);
+                          size);
 
+    /*
+     * The IP-V2 wiring (e.g. TI AM64x) drives the module from the SoC clock
+     * tree rather than the legacy omap_clk pointer stubs, so the fclk/iclk
+     * requirement only applies to the classic OMAP boards.
+     */
+    if (s->mmio_version == OMAP_I2C_MMIO_V2) {
+        return;
+    }
     if (!s->fclk) {
         error_setg(errp, "omap_i2c: fclk not connected");
         return;
@@ -516,6 +744,8 @@ void omap_i2c_set_fclk(OMAPI2CState *i2c, omap_clk clk)
 
 static const Property omap_i2c_properties[] = {
     DEFINE_PROP_UINT8("revision", OMAPI2CState, revision, 0),
+    DEFINE_PROP_UINT8("mmio-version", OMAPI2CState, mmio_version,
+                      OMAP_I2C_MMIO_V1),
 };
 
 static void omap_i2c_class_init(ObjectClass *klass, const void *data)
