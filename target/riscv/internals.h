@@ -203,7 +203,7 @@ static inline target_ulong get_xepc_mask(CPURISCVState *env)
 
 #ifndef CONFIG_USER_ONLY
 /* Our implementation of SysemuCPUOps::has_work */
-bool riscv_cpu_has_work(CPUState *cs);
+bool riscv_cpu_has_work(const CPUState *cs);
 #endif
 
 /* Zjpm addr masking routine */

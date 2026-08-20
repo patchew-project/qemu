@@ -111,9 +111,9 @@ static void tricore_cpu_reset_hold(Object *obj, ResetType type)
     cpu_state_reset(cpu_env(cs));
 }
 
-static bool tricore_cpu_has_work(CPUState *cs)
+static bool tricore_cpu_has_work(const CPUState *cs)
 {
-    return true;
+    return true; /* XXX */
 }
 
 static int tricore_cpu_mmu_index(CPUState *cs, bool ifetch)

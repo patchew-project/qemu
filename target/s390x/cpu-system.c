@@ -39,7 +39,7 @@
 #include "system/tcg.h"
 #include "hw/core/sysemu-cpu-ops.h"
 
-bool s390_cpu_has_work(CPUState *cs)
+bool s390_cpu_has_work(const CPUState *cs)
 {
     S390CPU *cpu = S390_CPU(cs);
 
