@@ -461,6 +461,14 @@ rat_enable_region(int idx, uint64_t size, uint64_t source, uint64_t dest) "Enabl
 rat_disable_region(int idx) "Disabling RAT Region %u"
 rat_read_entry(int entry, int rel_offset, uint64_t offset) "Reading Entry %i at offset %i: offset: 0x%"PRIx64
 
+# ti-sec-proxy.c
+ti_sec_proxy_read_scfg(const char *name, int reg, uint64_t addr) "thread: %s, reg: %i. read from SCFG addr 0x%" PRIx64
+ti_sec_proxy_write_scfg(const char *name, int reg, uint64_t addr, uint64_t value) "thread: %s, reg: %i. write 0x%" PRIx64 "0x%" PRIx64
+ti_sec_proxy_complete_read(const char *name, int num) "thread: %s completed read message %i. Resetting number of messages"
+ti_sec_proxy_complete_write(const char *name, int num) "thread: %s completed write message %i. Resetting number of messages"
+ti_sec_proxy_announce_callback(const char *name) "invoce callback for thread: %s"
+ti_sec_proxy_read_rt(const char *name, int reg, uint64_t addr) "thread: %s, reg: 0x%x, read from RT addr 0x%" PRIx64
+
 # ti-k3-trng.c
 ti_k3_trng_read(uint64_t addr, uint32_t val) "offset 0x%" PRIx64 " -> 0x%08x"
 ti_k3_trng_write(uint64_t addr, uint64_t val) "offset 0x%" PRIx64 " <- 0x%" PRIx64

@@ -161,6 +161,9 @@ config TI_K3_SDHCI_PHY
 config TI_K3_TRNG
     bool
 
+config TI_SEC_PROXY
+    bool
+
 config TI_MAILBOX
     bool
 
