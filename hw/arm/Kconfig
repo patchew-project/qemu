@@ -415,6 +415,22 @@ config STM32L4X5_SOC
     select STM32L4X5_GPIO
     select STM32L4X5_USART
 
+config TI_AM64X
+    bool
+    select ARM_V7M
+    select ARM_GIC
+    select OMAP_I2C
+    select TI_MAILBOX
+    select TI_RAT
+    select TI_K3_CTRLMMR
+    select TI_K3_GTC
+    select TI_K3_DDRSS
+    select TI_K3_DMTIMER
+    select TI_K3_SDHCI_PHY
+    select TI_K3_TRNG
+    select SDHCI
+    select AM64_UART
+
 config XLNX_ZYNQMP_ARM
     bool
     default y if PIXMAN

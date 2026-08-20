@@ -96,3 +96,7 @@ z2_aer915_event(int8_t event, int8_t len) "i2c event =0x%x len=%d bytes"
 
 # bcm2838.c
 bcm2838_gic_set_irq(int irq, int level) "gic irq:%d lvl:%d"
+
+# k3-bootrom.c
+k3_bootrom_component(uint32_t comp_type, uint64_t dest, uint32_t size) "comp_type %u dest 0x%" PRIx64 " size 0x%x"
+k3_bootrom_boot(uint64_t entry) "starting R5F0_0 at 0x%" PRIx64
