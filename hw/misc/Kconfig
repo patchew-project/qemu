@@ -283,3 +283,10 @@ config IMX95_GPC
 
 config IMX95_SRC
     bool
+
+config IMX95_PMIC
+    bool
+    select I2C
+
+config IMX95_XCACHE
+    bool

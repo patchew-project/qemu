@@ -458,3 +458,11 @@ imx95_aonmix_m7_gate(int run) "M7 wait gate -> run=%d"
 imx95_gpc_mode(uint64_t offset, uint32_t target) "CMC_MODE_CTRL off 0x%" PRIx64 " target %u"
 imx95_src_m7mix_release(void) "SRC_GEN.SCR M7MIX reset released"
 imx95_src_slice_ctrl(uint64_t offset, uint32_t value) "SLICE_SW_CTRL off 0x%" PRIx64 " <- 0x%08x"
+imx95_xcache_read(uint64_t offset) "read off 0x%" PRIx64
+imx95_xcache_write(uint64_t offset, uint64_t value) "write off 0x%" PRIx64 " <- 0x%08" PRIx64
+pf09_reg_read(uint8_t reg, uint8_t val) "PF09 reg 0x%02x -> 0x%02x"
+pf09_reg_write(uint8_t reg, uint8_t val) "PF09 reg 0x%02x <- 0x%02x"
+pcal6408a_reg_read(uint8_t reg, uint8_t val) "PCAL6408A reg 0x%02x -> 0x%02x"
+pcal6408a_reg_write(uint8_t reg, uint8_t val) "PCAL6408A reg 0x%02x <- 0x%02x"
+pf53_reg_read(uint8_t reg, uint8_t val) "PF53 reg 0x%02x -> 0x%02x"
+pf53_reg_write(uint8_t reg, uint8_t val) "PF53 reg 0x%02x <- 0x%02x"
