@@ -41,6 +41,7 @@ tests = {
   'test-bitops': [],
   'test-bitcnt': [],
   'test-qgraph': ['../qtest/libqos/qgraph.c'],
+  'test-k3-bootrom': ['../../hw/arm/k3-bootrom-parse.c'],
   'check-qom-interface': [qom],
   'check-qom-proplist': [qom],
   'test-qemu-opts': [],

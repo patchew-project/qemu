@@ -274,6 +274,7 @@ qtests_aarch64 = \
   (config_all_devices.has_key('CONFIG_IOMMU_TESTDEV') and
    config_all_devices.has_key('CONFIG_ARM_VIRT') ?
    ['iommu-smmuv3-test'] : []) + \
+  (config_all_devices.has_key('CONFIG_AM64_VIRT') ? ['am64-virt-test', 'ti-am64-i2c-test', 'am64-adma-pacing-test'] : []) + \
   qtests_cxl +                                                                                  \
   ['arm-cpu-features',
    'numa-test',
