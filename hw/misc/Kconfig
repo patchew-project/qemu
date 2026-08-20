@@ -264,3 +264,7 @@ source macio/Kconfig
 
 config IMX_MU
     bool
+
+config IMX95_ELE_SERVER
+    bool
+    select IMX_MU
