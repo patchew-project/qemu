@@ -745,3 +745,22 @@ config AXIADO_EVK
     default y
     depends on TCG && ARM
     select AXIADO_SOC
+config FSL_IMX95
+    bool
+    select ARM_GIC
+    select ARM_GICV3
+    select IMX_LPUART
+    select IMX_MU
+    select IMX95_ELE_SERVER
+    select IMX95_WDOG
+    select IMX95_XCACHE
+    select IMX95_PMIC
+    select IMX95_GPC
+    select IMX95_SRC
+    select IMX95_AONMIX
+    select IMX95_ANATOP
+    select IMX95_DPU
+    select IMX95_SYSCTR
+    select IMX_LPI2C
+    select SDHCI
+    select UNIMP

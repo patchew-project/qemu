@@ -117,5 +117,6 @@ arm_common_ss.add(when: ['CONFIG_AXIADO_EVK', 'TARGET_AARCH64'], if_true: files(
   'ax3000-evk.c'))
 
 arm_common_ss.add(files('boot.c'))
+arm_common_ss.add(when: 'CONFIG_FSL_IMX95', if_true: files('fsl-imx95.c'))
 
 hw_common_arch += {'arm': arm_common_ss}
