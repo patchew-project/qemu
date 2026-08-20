@@ -143,6 +143,21 @@ config MPS2_SCC
     bool
     select LED
 
+config TI_K3_CTRLMMR
+    bool
+
+config TI_K3_GTC
+    bool
+
+config TI_K3_DDRSS
+    bool
+
+config TI_K3_SDHCI_PHY
+    bool
+
+config TI_K3_TRNG
+    bool
+
 config TZ_MPC
     bool
 
