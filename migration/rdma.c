@@ -199,7 +199,7 @@ typedef struct RDMALocalBlock {
     unsigned int   src_index;       /* (Only used on dest) */
     bool           is_ram_block;
     int            nb_chunks;
-    unsigned long *transit_bitmap;
+    unsigned int  *transit_refcnt;
     unsigned long *unregister_bitmap;
 } RDMALocalBlock;
 
@@ -552,6 +552,29 @@ static inline uint8_t *ram_chunk_end(const RDMALocalBlock *rdma_ram_block,
     return result;
 }
 
+static inline bool qemu_rdma_chunk_in_transit(const RDMALocalBlock *block,
+                                              uint64_t chunk)
+{
+    assert(chunk < block->nb_chunks);
+    return block->transit_refcnt[chunk] > 0;
+}
+
+static inline void qemu_rdma_chunk_transit_inc(RDMALocalBlock *block,
+                                               uint64_t chunk)
+{
+    assert(chunk < block->nb_chunks);
+    assert(block->transit_refcnt[chunk] < UINT_MAX);
+    block->transit_refcnt[chunk]++;
+}
+
+static inline void qemu_rdma_chunk_transit_dec(RDMALocalBlock *block,
+                                               uint64_t chunk)
+{
+    assert(chunk < block->nb_chunks);
+    assert(block->transit_refcnt[chunk] > 0);
+    block->transit_refcnt[chunk]--;
+}
+
 static void rdma_add_block(RDMAContext *rdma, const char *block_name,
                            void *host_addr,
                            ram_addr_t block_offset, uint64_t length)
@@ -585,8 +608,7 @@ static void rdma_add_block(RDMAContext *rdma, const char *block_name,
     block->index = local->nb_blocks;
     block->src_index = ~0U; /* Filled in by the receipt of the block list */
     block->nb_chunks = ram_chunk_index(host_addr, host_addr + length) + 1UL;
-    block->transit_bitmap = bitmap_new(block->nb_chunks);
-    bitmap_clear(block->transit_bitmap, 0, block->nb_chunks);
+    block->transit_refcnt = g_new0(unsigned int, block->nb_chunks);
     block->unregister_bitmap = bitmap_new(block->nb_chunks);
     bitmap_clear(block->unregister_bitmap, 0, block->nb_chunks);
     block->remote_keys = g_new0(uint32_t, block->nb_chunks);
@@ -601,8 +623,7 @@ static void rdma_add_block(RDMAContext *rdma, const char *block_name,
                          (uintptr_t) block->local_host_addr,
                          block->offset, block->length,
                          (uintptr_t) (block->local_host_addr + block->length),
-                         BITS_TO_LONGS(block->nb_chunks) *
-                             sizeof(unsigned long) * 8,
+                         block->nb_chunks * sizeof(*block->transit_refcnt),
                          block->nb_chunks);
 
     local->nb_blocks++;
@@ -673,8 +694,8 @@ static void rdma_delete_block(RDMAContext *rdma, RDMALocalBlock *block)
         block->mr = NULL;
     }
 
-    g_free(block->transit_bitmap);
-    block->transit_bitmap = NULL;
+    g_free(block->transit_refcnt);
+    block->transit_refcnt = NULL;
 
     g_free(block->unregister_bitmap);
     block->unregister_bitmap = NULL;
@@ -716,8 +737,9 @@ static void rdma_delete_block(RDMAContext *rdma, RDMALocalBlock *block)
     trace_rdma_delete_block(block, (uintptr_t)block->local_host_addr,
                            block->offset, block->length,
                             (uintptr_t)(block->local_host_addr + block->length),
-                           BITS_TO_LONGS(block->nb_chunks) *
-                               sizeof(unsigned long) * 8, block->nb_chunks);
+                           block->nb_chunks *
+                               sizeof(*block->transit_refcnt),
+                           block->nb_chunks);
 
     g_free(old);
 
@@ -1237,7 +1259,7 @@ static int qemu_rdma_unregister_waiting(RDMAContext *rdma)
          */
         clear_bit(chunk, block->unregister_bitmap);
 
-        if (test_bit(chunk, block->transit_bitmap)) {
+        if (qemu_rdma_chunk_in_transit(block, chunk)) {
             trace_qemu_rdma_unregister_waiting_inflight(chunk);
             continue;
         }
@@ -1328,7 +1350,7 @@ static int qemu_rdma_poll(RDMAContext *rdma, struct ibv_cq *cq,
                                    index, chunk, block->local_host_addr,
                                    (void *)(uintptr_t)block->remote_host_addr);
 
-        clear_bit(chunk, block->transit_bitmap);
+        qemu_rdma_chunk_transit_dec(block, chunk);
 
         if (rdma->nb_sent > 0) {
             rdma->nb_sent--;
@@ -1879,7 +1901,7 @@ retry:
     chunk_end = ram_chunk_end(block, chunk + chunks);
 
 
-    while (test_bit(chunk, block->transit_bitmap)) {
+    while (qemu_rdma_chunk_in_transit(block, chunk)) {
         (void)count;
         trace_qemu_rdma_write_one_block(count++, current_index, chunk,
                 sge.addr, length, rdma->nb_sent, block->nb_chunks);
@@ -2043,7 +2065,7 @@ retry:
         return -1;
     }
 
-    set_bit(chunk, block->transit_bitmap);
+    qemu_rdma_chunk_transit_inc(block, chunk);
     qatomic_add(&mig_stats.normal_pages, sge.length / qemu_target_page_size());
     /*
      * We are adding to transferred the amount of data written, but no
