@@ -594,6 +594,12 @@ struct CPUState {
 QEMU_BUILD_BUG_ON(offsetof(CPUState, neg) !=
                   sizeof(CPUState) - sizeof(CPUNegativeOffsetState));
 
+static inline const CPUArchState *cpu_env_const(const CPUState *cpu)
+{
+    /* We validate that CPUArchState follows CPUState in cpu-target.c */
+    return (const CPUArchState *)(cpu + 1);
+}
+
 static inline CPUArchState *cpu_env(CPUState *cpu)
 {
     /* We validate that CPUArchState follows CPUState in cpu-target.c */

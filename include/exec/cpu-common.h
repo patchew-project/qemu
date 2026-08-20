@@ -80,6 +80,17 @@ static inline bool cpu_loop_exit_requested(const CPUState *cpu)
 #endif /* CONFIG_TCG */
 
 /**
+ * env_archcpu_const(env)
+ * @env: The architecture environment (const).
+ *
+ * Return the const ArchCPU associated with the environment.
+ */
+static inline const ArchCPU *env_archcpu_const(const CPUArchState *env)
+{
+    return (const void *)env - sizeof(CPUState);
+}
+
+/**
  * env_archcpu(env)
  * @env: The architecture environment
  *
