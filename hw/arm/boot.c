@@ -997,8 +997,16 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
      * don't tell us their exact size (eg self-decompressing 32-bit kernels)
      * we might still make a bad choice here.
      */
-    info->initrd_start = info->loader_start +
-        MIN(info->ram_size / 2, 128 * MiB);
+    /*
+     * Boards may preset info->initrd_start to force a placement (e.g. to
+     * dodge a guest reserved-memory carveout that happens to sit where the
+     * default heuristic would land the initrd). Only compute a default when
+     * the board left it unset.
+     */
+    if (!info->initrd_start) {
+        info->initrd_start = info->loader_start +
+            MIN(info->ram_size / 2, 128 * MiB);
+    }
     if (image_high_addr) {
         info->initrd_start = MAX(info->initrd_start, image_high_addr);
     }
