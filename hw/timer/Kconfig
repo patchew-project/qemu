@@ -68,3 +68,6 @@ config AVR_TIMER16
 
 config HEX_QTIMER
     bool
+
+config TI_K3_DMTIMER
+    bool
