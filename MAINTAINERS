@@ -1674,6 +1674,7 @@ F: pc-bios/slof.bin
 F: docs/system/ppc/pseries.rst
 F: docs/specs/ppc-spapr-*
 F: tests/qtest/spapr*
+F: tests/spapr/
 F: tests/qtest/libqos/*spapr*
 F: tests/qtest/rtas*
 F: tests/qtest/libqos/rtas*
