@@ -86,7 +86,14 @@ typedef struct vscsi_req {
     uint16_t                total_desc;
     uint16_t                cdb_offset;
     uint16_t                cur_desc_num;
-    uint16_t                cur_desc_offset;
+    /*
+     * Byte offset reached inside the current descriptor.  Must be at
+     * least 32 bit: scsi-disk delivers a command in SCSI_DMA_BUF_SIZE
+     * (128 KiB) chunks, so a DIRECT descriptor larger than 64 KiB would
+     * wrap a uint16_t back to zero and make every chunk after the first
+     * overwrite the head of the guest buffer.
+     */
+    uint32_t                cur_desc_offset;
 } vscsi_req;
 
 #define TYPE_VIO_SPAPR_VSCSI_DEVICE "spapr-vscsi"
