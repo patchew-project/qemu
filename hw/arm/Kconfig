@@ -38,6 +38,15 @@ config ARM_VIRT
     select ACPI_HMAT
     select WDT_SBSA
 
+config AM64_VIRT
+    bool
+    default y
+    depends on TCG && ARM
+    select AT24C  # I2C EEPROMs can be attached with -device
+    select TI_AM64X
+    select TI_DMSC
+    select TI_SEC_PROXY
+
 config CUBIEBOARD
     bool
     default y

@@ -1,0 +1,74 @@
+.. SPDX-License-Identifier: GPL-2.0-or-later
+.. Copyright (c) 2026 CMBLU Energy AG
+
+Texas Instruments AM64x (``am64-virt``)
+======================================
+
+The ``am64-virt`` machine models a board built around the Texas Instruments
+AM64x (AM6442) Sitara SoC. The AM64x is a heterogeneous multi-core device;
+the model implements enough of it to run the stock TI boot chain
+(ROM boot -> R5 SPL -> TF-A/OP-TEE -> U-Boot -> Linux).
+
+Implemented CPU cores
+---------------------
+
+* Cortex-A53 cluster (2 cores, GICv3)
+* Cortex-R5F ``MCU_R5FSS0_CORE0`` boot core
+* Cortex-M4F ``MCU_M4FSS0_CORE0``
+
+Only one R5F core is modelled today; ``max_cpus`` reserves room for the
+remaining R5F cores of both clusters.
+
+Implemented devices
+-------------------
+
+* GICv3 (GIC-500) at the real AM64x addresses
+* MCU and MAIN domain UARTs (8250-compatible)
+* TI mailbox (IPC) blocks
+* TI secure proxy and the DMSC (TI-SCI system controller firmware) model
+* RAT (region address translation) for the R5F/M4F views of the memory map
+* CTRL_MMR (including the DEVSTAT boot pins), GTC, DDRSS, SDHCI PHY and TRNG
+* K3 DMTimer
+* SDHCI controllers (MMC1/eMMC and MMC2/SD)
+* OMAP-style MAIN I2C0 (no slaves; attach them with -device)
+* OCSRAM, DDR and a small set of virtio/PCIe/PL011/PL031/PL061 conveniences
+
+Boot modes
+----------
+
+Direct kernel boot::
+
+  qemu-system-aarch64 -M am64-virt -nographic \
+      -kernel Image -append "console=ttyAMA0" \
+      -dtb pc-bios/dtb/am64-virt.dtb
+
+ROM boot from a TI combined boot image (``tiboot3.bin``). The image is parsed
+the way the on-chip boot ROM does (X.509 certificate with the TI boot
+extension, followed by the individual components), the SYSFW component is
+handed to the DMSC model and the R5 SPL is started at the certified entry
+point::
+
+  qemu-system-aarch64 -M am64-virt -nographic \
+      -bios tiboot3.bin \
+      -drive if=sd,format=raw,file=core-image.wic
+
+Boot only the M4F core::
+
+  qemu-system-aarch64 -M am64-virt -M m4boot-cpu=0 -kernel m4-firmware.elf
+
+Machine options
+---------------
+
+``m4boot-cpu``
+  Set to ``0`` to hold the A53 and R5F cores in reset and boot only the M4F
+  core. Mutually exclusive with ``-bios``.
+
+Caveats
+-------
+
+Migration is not supported: the new device models have no VMState yet.
+
+Because the SoC realizes M4F and R5F vCPUs in addition to the A53s, every
+core needs a TCG context slot inside ``smp.max_cpus``. The machine therefore
+defaults to the full vCPU budget; if you pass ``-smp`` explicitly you must
+size ``maxcpus`` accordingly, for example ``-smp cpus=2,maxcpus=7``.

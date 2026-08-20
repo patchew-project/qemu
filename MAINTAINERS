@@ -1266,6 +1266,28 @@ F: hw/arm/msf2-som.c
 F: docs/system/arm/emcraft-sf2.rst
 F: tests/functional/arm/test_emcraft_sf2.py
 
+TI AM64x / K3
+M: Wadim Mueller <wafgo01@gmail.com>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/am64-virt.c
+F: hw/arm/ti-am64x.c
+F: hw/arm/k3-bootrom*.c
+F: hw/char/ti-am64-uart.c
+F: hw/misc/ti-*.c
+F: hw/timer/ti-k3-dmtimer.c
+F: include/hw/arm/ti-am64x.h
+F: include/hw/arm/k3-bootrom.h
+F: include/hw/char/ti-am64-uart.h
+F: include/hw/misc/ti-*.h
+F: include/hw/timer/ti-k3-dmtimer.h
+F: pc-bios/dtb/am64-virt.dt[sb]
+F: tests/functional/aarch64/test_am64_bootrom.py
+F: tests/qtest/am64-*.c
+F: tests/qtest/ti-am64-i2c-test.c
+F: tests/unit/test-k3-bootrom.c
+F: docs/system/arm/am64.rst
+
 ASPEED BMCs
 M: Cédric Le Goater <clg@kaod.org>
 M: Peter Maydell <peter.maydell@linaro.org>

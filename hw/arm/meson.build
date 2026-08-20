@@ -112,6 +112,7 @@ arm_common_ss.add(when: 'CONFIG_VEXPRESS', if_true: files('vexpress.c'))
 arm_common_ss.add(when: 'CONFIG_TI_AM64X', if_true: files('ti-am64x.c'))
 arm_common_ss.add(when: 'CONFIG_TI_AM64X', if_true: files('k3-bootrom-parse.c'))
 arm_common_ss.add(when: 'CONFIG_TI_AM64X', if_true: files('k3-bootrom.c'))
+arm_common_ss.add(when: 'CONFIG_AM64_VIRT', if_true: files('am64-virt.c'))
 
 arm_common_ss.add(when: ['CONFIG_AXIADO_SOC', 'TARGET_AARCH64'], if_true: files(
   'ax3000-soc.c'))
