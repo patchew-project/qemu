@@ -52,6 +52,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(ARMv7MState, ARMV7M)
  * + Property "init-nsvtor": non-secure VTOR reset value (forwarded to CPU object)
  * + Property "vfp": enable VFP (forwarded to CPU object)
  * + Property "dsp": enable DSP (forwarded to CPU object)
+ * + Property "pmsav7-rbar-align-down": align down a misaligned PMSAv7 MPU
+ *   region base rather than treating it as UNPREDICTABLE (forwarded to the
+ *   CPU object, which only offers it on PMSAv7 cores)
  * + Property "enable-bitband": expose bitbanded IO
  * + Property "mpu-ns-regions": number of Non-Secure MPU regions (forwarded
  *   to CPU object pmsav7-dregion property; default is whatever the default
@@ -108,6 +111,7 @@ struct ARMv7MState {
     bool start_powered_off;
     bool vfp;
     bool dsp;
+    bool pmsav7_rbar_align_down;
 };
 
 #endif
