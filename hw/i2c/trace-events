@@ -61,3 +61,7 @@ pca954x_read_data(uint8_t value) "PCA954X read data: 0x%02x"
 
 imx_i2c_read(const char *id, const char *reg, uint64_t ofs, uint64_t value) "%s:[%s (0x%" PRIx64 ")] -> 0x%02" PRIx64
 imx_i2c_write(const char *id, const char *reg, uint64_t ofs, uint64_t value) "%s:[%s (0x%" PRIx64 ")] <- 0x%02" PRIx64
+imx_lpi2c_start(uint8_t addr, int recv) "start addr 0x%02x recv %d"
+imx_lpi2c_send(uint8_t data) "tx 0x%02x"
+imx_lpi2c_recv(uint8_t data) "rx 0x%02x"
+imx_lpi2c_stop(void) "stop"
