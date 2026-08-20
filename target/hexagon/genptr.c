@@ -1557,7 +1557,8 @@ static void vec_to_qvec(size_t size, intptr_t dstoff, intptr_t srcoff)
             tcg_gen_deposit_i64(mask, mask, bits, j, size);
         }
 
-        tcg_gen_st8_i64(mask, tcg_env, dstoff + i);
+        tcg_gen_st8_i64(mask, tcg_env,
+                        dstoff + (i ^ (HOST_BIG_ENDIAN ? 3 : 0)));
     }
 }
 
