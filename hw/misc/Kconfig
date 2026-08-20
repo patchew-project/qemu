@@ -143,6 +143,9 @@ config MPS2_SCC
     bool
     select LED
 
+config TI_RAT
+    bool
+
 config TI_K3_CTRLMMR
     bool
 
