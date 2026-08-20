@@ -956,6 +956,24 @@ F: docs/system/arm/imx8m.rst
 F: tests/functional/aarch64/test_imx8mp_evk.py
 F: tests/qtest/rs5c372-test.c
 
+MCIMX95-19X19-EVK / i.MX95
+M: Kyle Fox <kylefoxaustin.github@gmail.com>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/imx95-evk.c
+F: hw/arm/fsl-imx95.c
+F: hw/misc/imx95_*.c
+F: hw/timer/imx95_sysctr.c
+F: hw/char/imx_lpuart.c
+F: hw/i2c/imx_lpi2c.c
+F: hw/misc/imx_mu.c
+F: include/hw/arm/fsl-imx95.h
+F: include/hw/char/imx_lpuart.h
+F: include/hw/misc/imx_mu.h
+F: include/hw/misc/imx95_*.h
+F: docs/system/arm/imx95-evk.rst
+F: tests/functional/aarch64/test_imx95_evk.py
+
 MPS2 / MPS3
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
