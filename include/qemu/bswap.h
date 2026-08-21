@@ -301,6 +301,11 @@ static inline int lduw_le_p(const void *ptr)
     return (uint16_t)le_bswap(lduw_he_p(ptr), 16);
 }
 
+static inline int lduw_le_p_aligned(const void *ptr)
+{
+    return le16_to_cpu(*(uint16_t *)ptr);
+}
+
 static inline int ldsw_le_p(const void *ptr)
 {
     return (int16_t)le_bswap(lduw_he_p(ptr), 16);
@@ -319,6 +324,11 @@ static inline uint64_t ldq_le_p(const void *ptr)
 static inline void stw_le_p(void *ptr, uint16_t v)
 {
     stw_he_p(ptr, le_bswap(v, 16));
+}
+
+static inline void stw_le_p_aligned(void *ptr, uint16_t v)
+{
+    *(uint16_t *)ptr = cpu_to_le16(v);
 }
 
 static inline void st24_le_p(void *ptr, uint32_t v)
@@ -341,6 +351,11 @@ static inline int lduw_be_p(const void *ptr)
     return (uint16_t)be_bswap(lduw_he_p(ptr), 16);
 }
 
+static inline int lduw_be_p_aligned(const void *ptr)
+{
+    return be16_to_cpu(*(uint16_t *)ptr);
+}
+
 static inline int ldsw_be_p(const void *ptr)
 {
     return (int16_t)be_bswap(lduw_he_p(ptr), 16);
@@ -359,6 +374,11 @@ static inline uint64_t ldq_be_p(const void *ptr)
 static inline void stw_be_p(void *ptr, uint16_t v)
 {
     stw_he_p(ptr, be_bswap(v, 16));
+}
+
+static inline void stw_be_p_aligned(void *ptr, uint16_t v)
+{
+    *(uint16_t *)ptr = cpu_to_be16(v);
 }
 
 static inline void st24_be_p(void *ptr, uint32_t v)

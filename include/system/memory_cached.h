@@ -96,6 +96,22 @@ void address_space_stb_cached(const MemoryRegionCache *cache,
 #define ARG1_DECL    const MemoryRegionCache *cache
 #include "system/memory_ldst_phys.h.inc"
 
+/*
+ * Aligned counterparts of the cached load accessors.
+ *
+ * The fast path (direct RAM access) uses the ld*_p_aligned() pointer helpers,
+ * which assume the host pointer is naturally aligned to the access size and
+ * therefore let the compiler emit an aligned load instruction.
+ *
+ * Callers MUST ensure @addr is aligned to the access size before invoking
+ * these helpers; otherwise the behavior is undefined.
+ */
+#define ENDIANNESS   _le
+#include "system/memory_ldst_cached_aligned.h.inc"
+
+#define ENDIANNESS   _be
+#include "system/memory_ldst_cached_aligned.h.inc"
+
 /**
  * address_space_cache_init: prepare for repeated access to a physical
  *                           memory region

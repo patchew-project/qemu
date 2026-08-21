@@ -223,9 +223,9 @@ static inline uint16_t virtio_lduw_phys_cached(VirtIODevice *vdev,
                                                hwaddr pa)
 {
     if (virtio_vdev_is_big_endian(vdev)) {
-        return lduw_be_phys_cached(cache, pa);
+        return lduw_be_phys_cached_aligned(cache, pa);
     }
-    return lduw_le_phys_cached(cache, pa);
+    return lduw_le_phys_cached_aligned(cache, pa);
 }
 
 static inline void virtio_stw_phys_cached(VirtIODevice *vdev,
@@ -233,9 +233,9 @@ static inline void virtio_stw_phys_cached(VirtIODevice *vdev,
                                           hwaddr pa, uint16_t value)
 {
     if (virtio_vdev_is_big_endian(vdev)) {
-        stw_be_phys_cached(cache, pa, value);
+        stw_be_phys_cached_aligned(cache, pa, value);
     } else {
-        stw_le_phys_cached(cache, pa, value);
+        stw_le_phys_cached_aligned(cache, pa, value);
     }
 }
 
