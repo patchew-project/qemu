@@ -18,10 +18,6 @@
 #endif
 #include "cpregs.h"
 
-
-/* CPU models. These are not needed for the AArch64 linux-user build. */
-#if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
-
 static void arm926_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -750,14 +746,19 @@ static void arm_tcg_cpu_register_types(void)
 {
     size_t i;
 
+    /* CPU models. These are not needed for the AArch64 linux-user build. */
+#ifdef CONFIG_USER_ONLY
+    if (target_aarch64()) {
+        return;
+    }
+#endif
+
     for (i = 0; i < ARRAY_SIZE(arm_tcg_cpus); ++i) {
         arm_cpu_register(&arm_tcg_cpus[i]);
     }
 }
 
 type_init(arm_tcg_cpu_register_types)
-
-#endif /* !CONFIG_USER_ONLY || !TARGET_AARCH64 */
 
 /* Share AArch32 -cpu max features with AArch64. */
 void aa32_max_features(ARMCPU *cpu)
