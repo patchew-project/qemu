@@ -305,6 +305,16 @@ the addition of volatile memory support, it is now necessary to distinguish
 between persistent and volatile memory backends.  As such, memdev is deprecated
 in favor of persistent-memdev.
 
+``ioapic.version=xxxx`` (since 11.2)
+''''''''''''''''''''''''''''''''''''
+
+The ``ioapic`` device ``version`` property configures the IOAPIC version for x86
+machines and is typically set from the command line using
+``-global`` as it is an in-built device. It was originally set to 0x11 but since
+version 2.8 all x86 machines have defaulted to using 0x20. As all machines prior
+to v4.2 have now been removed, this property is no longer required. Deprecate the
+``ioapic`` device ``version`` property so that it can be removed in a future QEMU
+release.
 
 RISC-V CPU properties which start with capital 'Z' (since 8.2)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
