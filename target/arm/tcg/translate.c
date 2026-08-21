@@ -6039,6 +6039,16 @@ static bool trans_IT(DisasContext *s, arg_IT *a)
     int cond_mask = a->cond_mask;
 
     /*
+     * IT insn introduced in v6T2 for A-profile; it is only present
+     * on M-profile if the Main Extension is implemented.
+     */
+    if (!arm_dc_feature(s, ARM_FEATURE_THUMB2) ||
+        (arm_dc_feature(s, ARM_FEATURE_M) &&
+         !arm_dc_feature(s, ARM_FEATURE_M_MAIN))) {
+        return false;
+    }
+
+    /*
      * No actual code generated for this insn, just setup state.
      *
      * Combinations of firstcond and mask which set up an 0b1111
