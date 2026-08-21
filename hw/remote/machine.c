@@ -152,7 +152,8 @@ static const TypeInfo remote_machine = {
         { TYPE_TARGET_AARCH64_MACHINE },
         { TYPE_TARGET_ARM_MACHINE },
         { }
-    }
+    },
+    .available_if = TARGET_REQS(TARGET_REQ_BASE_ARM)
 };
 
 static void remote_machine_register_types(void)
