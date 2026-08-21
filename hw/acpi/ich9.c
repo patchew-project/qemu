@@ -409,6 +409,16 @@ void ich9_pm_add_class_properties(ObjectClass *oc, ptrdiff_t pm_offset)
                                        offsetof(ICH9LPCPMRegs,
                                                 keep_pci_slot_hpc),
                                        OBJ_PROP_FLAG_READWRITE);
+    object_class_property_add_uint16_ptr(oc, ACPI_PCIHP_IO_BASE_PROP,
+                               pm_offset +
+                               offsetof(ICH9LPCPMRegs,
+                                   acpi_pci_hotplug.io_base),
+                               OBJ_PROP_FLAG_READ);
+    object_class_property_add_uint16_ptr(oc, ACPI_PCIHP_IO_LEN_PROP,
+                               pm_offset +
+                               offsetof(ICH9LPCPMRegs,
+                                   acpi_pci_hotplug.io_len),
+                               OBJ_PROP_FLAG_READ);
 }
 
 void ich9_pm_device_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
