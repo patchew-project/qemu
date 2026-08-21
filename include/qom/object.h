@@ -24,6 +24,7 @@ typedef struct TypeInfo TypeInfo;
 
 typedef struct InterfaceClass InterfaceClass;
 typedef struct InterfaceInfo InterfaceInfo;
+typedef enum TargetReq TargetReq;
 
 #define TYPE_OBJECT "object"
 #define TYPE_CONTAINER "container"
@@ -469,6 +470,9 @@ struct Object
  * @class_data: Data to pass to the @class_init,
  *   @class_base_init. This can be useful when building dynamic
  *   classes.
+ * @available_if: List of requirements for type to be available. This
+ *   should point to a static array that's terminated with a zero filled
+ *   element.
  * @interfaces: The list of interfaces associated with this type.  This
  *   should point to a static array that's terminated with a zero filled
  *   element.
@@ -491,6 +495,7 @@ struct TypeInfo
     void (*class_base_init)(ObjectClass *klass, const void *data);
     const void *class_data;
 
+    const TargetReq *available_if;
     const InterfaceInfo *interfaces;
 };
 

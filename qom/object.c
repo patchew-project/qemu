@@ -17,6 +17,7 @@
 #include "qom/object_interfaces.h"
 #include "qemu/cutils.h"
 #include "qemu/memalign.h"
+#include "qemu/target-info.h"
 #include "qapi/visitor.h"
 #include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
@@ -172,6 +173,15 @@ static TypeImpl *type_register_internal(const TypeInfo *info)
 TypeImpl *type_register_static(const TypeInfo *info)
 {
     assert(info->parent);
+
+    if (info->available_if) {
+        for (const TargetReq *req = info->available_if; *req; ++req) {
+            if (!target_requirement(*req)) {
+                return NULL;
+            }
+        }
+    }
+
     return type_register_internal(info);
 }
 

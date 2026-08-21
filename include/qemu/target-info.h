@@ -50,6 +50,17 @@ const char *target_cpu_type(void);
  */
 bool target_big_endian(void);
 
+typedef enum TargetReq {
+    /* 0 is reserved for end of array */
+    TARGET_REQ_BASE_ARM = 1,
+    TARGET_REQ_AARCH64,
+    TARGET_REQ_ARM,
+} TargetReq;
+
+#define TARGET_REQS(...) (const TargetReq[]){__VA_ARGS__, 0}
+
+bool target_requirement(TargetReq Req);
+
 /**
  * target_base_arm:
  *

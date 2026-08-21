@@ -47,6 +47,19 @@ bool target_big_endian(void)
     return target_endian_mode() == ENDIAN_MODE_BIG;
 }
 
+bool target_requirement(TargetReq req)
+{
+    switch (req) {
+    case TARGET_REQ_BASE_ARM:
+        return target_base_arm();
+    case TARGET_REQ_AARCH64:
+        return target_aarch64();
+    case TARGET_REQ_ARM:
+        return target_arm();
+    }
+    g_assert_not_reached();
+}
+
 bool target_base_arm(void)
 {
     switch (target_arch()) {
