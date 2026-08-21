@@ -130,6 +130,10 @@
 #define AST2600_HW_STRAP2_PROT    TO_REG(0x518)
 #define AST2600_RNG_CTRL          TO_REG(0x520)
 #define AST2600_RNG_DATA          TO_REG(0x524)
+#define AST2600_RNG2_CTRL         TO_REG(0x530)
+#define AST2600_RNG2_CTRL_MASK    0x3F
+#define AST2600_RNG2_CTRL_VLD     BIT(31)
+#define AST2600_RNG2_DATA         TO_REG(0x534)
 #define AST2600_CHIP_ID0          TO_REG(0x5B0)
 #define AST2600_CHIP_ID1          TO_REG(0x5B4)
 
@@ -679,13 +683,14 @@ static uint64_t aspeed_ast2600_scu_read(void *opaque, hwaddr offset,
         /* PLLs are always "locked" */
         return s->regs[reg] | BIT(31);
     case AST2600_RNG_DATA:
+    case AST2600_RNG2_DATA:
         /*
          * On hardware, RNG_DATA works regardless of the state of the
          * enable bit in RNG_CTRL
          *
          * TODO: Check this is true for ast2600
          */
-        s->regs[AST2600_RNG_DATA] = aspeed_scu_get_random();
+        s->regs[reg] = aspeed_scu_get_random();
         break;
     }
 
@@ -756,6 +761,7 @@ static void aspeed_ast2600_scu_write(void *opaque, hwaddr offset,
         return;
 
     case AST2600_RNG_DATA:
+    case AST2600_RNG2_DATA:
     case AST2600_SILICON_REV:
     case AST2600_SILICON_REV2:
     case AST2600_CHIP_ID0:
@@ -765,6 +771,14 @@ static void aspeed_ast2600_scu_write(void *opaque, hwaddr offset,
                       "%s: Write to read-only offset 0x%" HWADDR_PRIx "\n",
                       __func__, offset);
         return;
+    case AST2600_RNG2_CTRL:
+        data &= AST2600_RNG2_CTRL_MASK;
+        if (data & BIT(4)) {
+            data |= AST2600_RNG2_CTRL_VLD;
+        } else {
+            data &= ~AST2600_RNG2_CTRL_VLD;
+        }
+        break;
     }
 
     s->regs[reg] = data;
@@ -803,6 +817,7 @@ static const uint32_t ast2600_a3_resets[ASPEED_AST2600_SCU_NR_REGS] = {
     [AST2600_HUARTCLK]          = 0x000145C0,
     [AST2600_CHIP_ID0]          = 0x1234ABCD,
     [AST2600_CHIP_ID1]          = 0x88884444,
+    [AST2600_RNG2_CTRL]         = 0x8000000E,
 };
 
 static void aspeed_ast2600_scu_reset_hold(Object *obj, ResetType type)
@@ -1122,6 +1137,7 @@ static void aspeed_ast1030_scu_reset_hold(Object *obj, ResetType type)
     s->regs[AST2600_HW_STRAP1] = s->hw_strap1;
     s->regs[AST2600_HW_STRAP2] = s->hw_strap2;
     s->regs[PROT_KEY] = s->hw_prot_key;
+    s->regs[AST2600_RNG2_CTRL] = 0x8000000E;
 }
 
 static void aspeed_1030_scu_class_init(ObjectClass *klass, const void *data)
