@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+[package]
+name = "stm32f1xx_gpio"
+version = "0.1.0"
+description = "STM32F1xx GPIO device model for QEMU"
+resolver = "2"
+publish = false
+
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+glib-sys.workspace = true
+
+# QEMU Rust foundations crate
+common = { path = "../../common" }
+util = { path = "../../util" }
+bql = { path = "../../bql" }
+migration = { path = "../../migration" }
+qom = { path = "../../qom" }
+system = { path = "../../system" }
+hwcore = { path = "../../hw/core" }
+trace = { path = "../../trace" }
+
+[lints]
+workspace = true

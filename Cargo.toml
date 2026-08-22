@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "rust/hw/char/pl011",
+    "rust/hw/gpio",
     "rust/hw/timer/hpet",
     "rust/tests",
 ]
