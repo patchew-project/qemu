@@ -5,7 +5,7 @@
 ALPHA_SRC=$(SRC_PATH)/tests/tcg/alpha
 VPATH+=$(ALPHA_SRC)
 
-ALPHA_TESTS=hello-alpha test-cond test-cmov test-ovf test-cvttq
+ALPHA_TESTS=hello-alpha test-cond test-cmov test-ovf test-cvttq test-xpage-chain
 TESTS+=$(ALPHA_TESTS)
 
 test-cmov: EXTRA_CFLAGS=-DTEST_CMOV
@@ -16,3 +16,18 @@ test-cmov: test-cond.c
 test-plugin-mem-access: CFLAGS+=-mbwx
 
 run-test-cmov: test-cmov
+
+ifneq ($(GDB),)
+GDB_SCRIPT=$(SRC_PATH)/tests/guest-debug/run-test.py
+
+# The chaining this exercises is only enabled when no gdbstub was requested,
+# so what is under test here is that requesting one turns it back off.
+run-gdbstub-xpage-bp: test-xpage-chain
+	$(call run-test, $@, $(GDB_SCRIPT) \
+		--gdb $(GDB) \
+		--qemu $(QEMU) --qargs "$(QEMU_OPTS)" \
+		--bin "$< -b" --test $(ALPHA_SRC)/gdbstub/xpage-bp.py, \
+	breakpoint behind an established cross-page chain)
+
+EXTRA_RUNS += run-gdbstub-xpage-bp
+endif
