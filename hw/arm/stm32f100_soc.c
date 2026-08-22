@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 #include "hw/arm/boot.h"
 #include "system/address-spaces.h"
 #include "hw/arm/stm32f100_soc.h"
@@ -36,9 +37,19 @@
 
 /* stm32f100_soc implementation is derived from stm32f205_soc */
 
+#define TYPE_STM32F1XX_GPIO_RUST "stm32f1xx-gpio-rust"
+
 static const uint32_t usart_addr[STM_NUM_USARTS] = { 0x40013800, 0x40004400,
     0x40004800 };
 static const uint32_t spi_addr[STM_NUM_SPIS] = { 0x40013000, 0x40003800 };
+
+static const uint32_t gpio_addr[STM32F100_NUM_GPIOS] = {
+    0x40010800, 0x40010c00, 0x40011000, 0x40011400, 0x40011800,
+};
+
+static const char *const gpio_name[STM32F100_NUM_GPIOS] = {
+    "GPIOA", "GPIOB", "GPIOC", "GPIOD", "GPIOE",
+};
 
 static const int usart_irq[STM_NUM_USARTS] = {37, 38, 39};
 static const int spi_irq[STM_NUM_SPIS] = {35, 36};
@@ -149,6 +160,25 @@ static void stm32f100_soc_realize(DeviceState *dev_soc, Error **errp)
         sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, spi_irq[i]));
     }
 
+    /* GPIO interrupts are routed through the currently unmodelled EXTI. */
+    if (object_class_by_name(TYPE_STM32F1XX_GPIO_RUST)) {
+        for (i = 0; i < STM32F100_NUM_GPIOS; i++) {
+            g_autofree char *name = g_strdup_printf("gpio%c", 'a' + i);
+
+            s->gpio[i] = qdev_new(TYPE_STM32F1XX_GPIO_RUST);
+            object_property_add_child(OBJECT(s), name, OBJECT(s->gpio[i]));
+            busdev = SYS_BUS_DEVICE(s->gpio[i]);
+            if (!sysbus_realize_and_unref(busdev, errp)) {
+                return;
+            }
+            sysbus_mmio_map(busdev, 0, gpio_addr[i]);
+        }
+    } else {
+        for (i = 0; i < STM32F100_NUM_GPIOS; i++) {
+            create_unimplemented_device(gpio_name[i], gpio_addr[i], 0x400);
+        }
+    }
+
     create_unimplemented_device("timer[2]",  0x40000000, 0x400);
     create_unimplemented_device("timer[3]",  0x40000400, 0x400);
     create_unimplemented_device("timer[4]",  0x40000800, 0x400);
@@ -165,11 +195,6 @@ static void stm32f100_soc_realize(DeviceState *dev_soc, Error **errp)
     create_unimplemented_device("CEC",       0x40007800, 0x400);
     create_unimplemented_device("AFIO",      0x40010000, 0x400);
     create_unimplemented_device("EXTI",      0x40010400, 0x400);
-    create_unimplemented_device("GPIOA",     0x40010800, 0x400);
-    create_unimplemented_device("GPIOB",     0x40010C00, 0x400);
-    create_unimplemented_device("GPIOC",     0x40011000, 0x400);
-    create_unimplemented_device("GPIOD",     0x40011400, 0x400);
-    create_unimplemented_device("GPIOE",     0x40011800, 0x400);
     create_unimplemented_device("ADC1",      0x40012400, 0x400);
     create_unimplemented_device("timer[1]",  0x40012C00, 0x400);
     create_unimplemented_device("timer[15]", 0x40014000, 0x400);
