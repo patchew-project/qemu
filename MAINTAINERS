@@ -1854,6 +1854,7 @@ F: tests/qtest/k230-wdt-test.c
 Milk-V Duo
 M: Kuan-Wei Chiu <visitorckw@gmail.com>
 S: Maintained
+F: docs/system/riscv/milkv-duo.rst
 F: hw/char/dw8250.c
 F: hw/misc/cv1800b_clk.c
 F: hw/riscv/cv1800b.c
