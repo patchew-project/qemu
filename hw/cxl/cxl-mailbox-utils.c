@@ -1947,22 +1947,28 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
         data_transfer_flag ==  CXL_SET_FEATURE_FLAG_ABORT_DATA_TRANSFER) {
         memset(&set_feat_info->uuid, 0, sizeof(QemuUUID));
         if (qemu_uuid_is_equal(&hdr->uuid, &patrol_scrub_uuid)) {
-            memset(&ct3d->patrol_scrub_wr_attrs, 0, set_feat_info->data_size);
+            memset(&ct3d->patrol_scrub_wr_attrs, 0,
+                   sizeof(ct3d->patrol_scrub_wr_attrs));
         } else if (qemu_uuid_is_equal(&hdr->uuid, &ecs_uuid)) {
-            memset(&ct3d->ecs_wr_attrs, 0, set_feat_info->data_size);
+            memset(&ct3d->ecs_wr_attrs, 0, sizeof(ct3d->ecs_wr_attrs));
         } else if (qemu_uuid_is_equal(&hdr->uuid, &soft_ppr_uuid)) {
-            memset(&ct3d->soft_ppr_wr_attrs, 0, set_feat_info->data_size);
+            memset(&ct3d->soft_ppr_wr_attrs, 0,
+                   sizeof(ct3d->soft_ppr_wr_attrs));
         } else if (qemu_uuid_is_equal(&hdr->uuid, &hard_ppr_uuid)) {
-            memset(&ct3d->hard_ppr_wr_attrs, 0, set_feat_info->data_size);
+            memset(&ct3d->hard_ppr_wr_attrs, 0,
+                   sizeof(ct3d->hard_ppr_wr_attrs));
         } else if (qemu_uuid_is_equal(&hdr->uuid, &cacheline_sparing_uuid)) {
             memset(&ct3d->cacheline_sparing_wr_attrs, 0,
-                   set_feat_info->data_size);
+                   sizeof(ct3d->cacheline_sparing_wr_attrs));
         } else if (qemu_uuid_is_equal(&hdr->uuid, &row_sparing_uuid)) {
-            memset(&ct3d->row_sparing_wr_attrs, 0, set_feat_info->data_size);
+            memset(&ct3d->row_sparing_wr_attrs, 0,
+                   sizeof(ct3d->row_sparing_wr_attrs));
         } else if (qemu_uuid_is_equal(&hdr->uuid, &bank_sparing_uuid)) {
-            memset(&ct3d->bank_sparing_wr_attrs, 0, set_feat_info->data_size);
+            memset(&ct3d->bank_sparing_wr_attrs, 0,
+                   sizeof(ct3d->bank_sparing_wr_attrs));
         } else if (qemu_uuid_is_equal(&hdr->uuid, &rank_sparing_uuid)) {
-            memset(&ct3d->rank_sparing_wr_attrs, 0, set_feat_info->data_size);
+            memset(&ct3d->rank_sparing_wr_attrs, 0,
+                   sizeof(ct3d->rank_sparing_wr_attrs));
         }
         set_feat_info->data_transfer_flag = 0;
         set_feat_info->data_saved_across_reset = false;
