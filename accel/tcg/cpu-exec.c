@@ -388,6 +388,16 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
      */
     cpu->neg.can_do_io = true;
 
+    /*
+     * A block that dispatches indirectly does not emit the icount_decr poll,
+     * so this is where a pending exit is noticed for that path: either the
+     * probe was poisoned and every dispatch arrives here, or the target uses
+     * the out-of-line lookup and always did.
+     */
+    if (unlikely(cpu_loop_exit_requested(cpu))) {
+        return tcg_code_gen_epilogue;
+    }
+
     TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
     s.cflags = curr_cflags(cpu);
 
@@ -757,8 +767,9 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
  * slow path when the entry it finds has a NULL tb.  Pointing the probe at a
  * region that is all zeroes therefore forces every indirect dispatch into
  * helper_lookup_tb_ptr(), which does the full lookup the inline probe only
- * approximates.  The real jump cache is untouched, so no contents are lost
- * and recovery is a single store.
+ * approximates and returns to the main loop while an exit is pending.  The
+ * real jump cache is untouched, so no contents are lost and recovery is a
+ * single store.
  *
  * Only ever read from, and only the tb field of one entry per dispatch, so
  * one shared zero-filled cache is enough for every CPU.
@@ -785,10 +796,13 @@ static const CPUJumpCache *tb_jmp_cache_poison(void)
  * the rest of the page.  A block translated before the breakpoint was set is
  * therefore still in the jump cache, and dispatching to it inline would step
  * straight over the breakpoint.
+ *
+ * A block that dispatches indirectly also does not emit the icount_decr
+ * poll, so the dispatch is where a pending exit has to be noticed.
  */
 static bool tcg_cpu_may_dispatch(CPUState *cpu)
 {
-    return QTAILQ_EMPTY(&cpu->breakpoints);
+    return QTAILQ_EMPTY(&cpu->breakpoints) && !cpu_loop_exit_requested(cpu);
 }
 
 /*
@@ -857,6 +871,9 @@ void tcg_kick_vcpu_thread(CPUState *cpu)
 
     /* Ensure cpu_exec will see the exit request after TCG has exited.  */
     qatomic_store_release(&cpu->neg.icount_decr.u16.high, -1);
+
+    /* Blocks that only dispatch indirectly do not poll; stop them chaining. */
+    tcg_cpu_poison_jmp_cache(cpu);
 }
 
 static inline bool icount_exit_request(CPUState *cpu)
