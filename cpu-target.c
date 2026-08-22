@@ -24,6 +24,7 @@
 #include "exec/replay-core.h"
 #include "exec/log.h"
 #include "hw/core/cpu.h"
+#include "system/tcg.h"
 #include "trace/trace-root.h"
 
 /* enable or disable single step mode. EXCP_DEBUG is returned by the
@@ -34,6 +35,8 @@ void cpu_single_step(CPUState *cpu, unsigned flags)
         trace_cpu_change_singlestep_flags(cpu->cpu_index,
                                           cpu->singlestep_flags, flags);
         cpu->singlestep_flags = flags;
+
+        tcg_update_cflags(cpu);
 
 #if !defined(CONFIG_USER_ONLY)
         const AccelOpsClass *ops = cpus_get_accel();
