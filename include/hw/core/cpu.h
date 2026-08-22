@@ -519,6 +519,15 @@ struct CPUState {
     MemoryRegion *memory;
 
     struct CPUJumpCache *tb_jmp_cache;
+    /*
+     * @tb_jmp_cache_probe: base the inline jump cache probe reads.
+     *
+     * Normally @tb_jmp_cache.  Pointed at a shared page of zeroes to force
+     * every inline dispatch to miss and fall back to helper_lookup_tb_ptr();
+     * see tcg_cpu_sync_jmp_cache().  NULL before tcg_exec_realizefn() and
+     * after tcg_exec_unrealizefn().
+     */
+    struct CPUJumpCache *tb_jmp_cache_probe;
 
     GArray *gdb_regs;
     int gdb_num_regs;

@@ -49,6 +49,18 @@ typedef TCGv_i64 TCGv;
 #error Unhandled TARGET_LONG_BITS value
 #endif
 
+/*
+ * See tcg_gen_lookup_and_goto_ptr_tmp().  @pc may be NULL, for a target
+ * whose guest PC is not directly the key the jump cache is indexed by.
+ * A translator that is built for more than one value of TARGET_LONG_BITS,
+ * and so cannot include this header, calls the _tmp() form directly.
+ */
+static inline void
+tcg_gen_lookup_and_goto_ptr(TCGv pc, const TranslationBlock *tb)
+{
+    tcg_gen_lookup_and_goto_ptr_tmp(pc ? tcgv_tl_temp(pc) : NULL, tb);
+}
+
 #if TARGET_LONG_BITS == 64
 #define tcg_gen_movi_tl tcg_gen_movi_i64
 #define tcg_gen_mov_tl tcg_gen_mov_i64

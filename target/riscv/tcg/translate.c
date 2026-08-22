@@ -287,7 +287,7 @@ static void lookup_and_goto_ptr(DisasContext *ctx)
         gen_helper_itrigger_match(tcg_env);
     }
 #endif
-    tcg_gen_lookup_and_goto_ptr();
+    tcg_gen_lookup_and_goto_ptr(NULL, ctx->base.tb);
 }
 
 static void exit_tb(DisasContext *ctx)

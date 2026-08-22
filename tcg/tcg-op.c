@@ -28,6 +28,8 @@
 #include "tcg/tcg-op-common.h"
 #include "exec/translation-block.h"
 #include "exec/plugin-gen.h"
+#include "hw/core/cpu.h"
+#include "../accel/tcg/tb-jmp-cache.h"
 #include "tcg-internal.h"
 #include "tcg-has.h"
 
@@ -2715,7 +2717,81 @@ void tcg_gen_goto_tb(unsigned idx)
     tcg_gen_op1i(INDEX_op_goto_tb, 0, idx);
 }
 
-void tcg_gen_lookup_and_goto_ptr(void)
+static void gen_jmp_cache_probe(TCGv_i64 pc, const TranslationBlock *tb)
+{
+    TCGv_ptr jc, ent, tbp, ptr;
+    TCGv_i64 h, tmp;
+    TCGLabel *slow;
+    uint64_t fpair;
+
+    QEMU_BUILD_BUG_ON(sizeof(((CPUJumpCache *)0)->array[0]) != 16);
+    QEMU_BUILD_BUG_ON(offsetof(TranslationBlock, cflags) !=
+                      offsetof(TranslationBlock, flags) + 4);
+
+    jc = tcg_temp_ebb_new_ptr();
+    ent = tcg_temp_ebb_new_ptr();
+    tbp = tcg_temp_ebb_new_ptr();
+    ptr = tcg_temp_ebb_new_ptr();
+    h = tcg_temp_ebb_new_i64();
+    tmp = tcg_temp_ebb_new_i64();
+    slow = gen_new_label();
+
+    /* h = tb_jmp_cache_hash_func(pc) * sizeof(array[0]) */
+    tcg_gen_shri_i64(h, pc, TB_JMP_CACHE_BITS);
+    tcg_gen_xor_i64(h, h, pc);
+    tcg_gen_andi_i64(h, h, TB_JMP_CACHE_SIZE - 1);
+    tcg_gen_shli_i64(h, h, 4);
+
+    /*
+     * Not cpu->tb_jmp_cache: the probe reads its own base so that the main
+     * loop can poison it, which is how conditions the probe cannot test for
+     * itself force every dispatch back into the helper.  See
+     * tcg_cpu_sync_jmp_cache().
+     */
+    tcg_gen_ld_ptr(jc, tcg_env,
+                   offsetof(CPUState, tb_jmp_cache_probe) - sizeof(CPUState));
+    tcg_gen_trunc_i64_ptr(ent, h);
+    tcg_gen_add_ptr(ent, jc, ent);
+
+    tcg_gen_ld_ptr(tbp, ent, offsetof(CPUJumpCache, array[0].tb));
+    tcg_gen_brcondi_ptr(TCG_COND_EQ, tbp, 0, slow);
+
+    tcg_gen_ld_i64(tmp, ent, offsetof(CPUJumpCache, array[0].pc));
+    tcg_gen_brcond_i64(TCG_COND_NE, tmp, pc, slow);
+
+    /*
+     * flags and cflags are adjacent uint32_t, so one aligned 64-bit load
+     * and compare covers both.
+     */
+#if HOST_BIG_ENDIAN
+    fpair = ((uint64_t)tb->flags << 32) | tb->cflags;
+#else
+    fpair = ((uint64_t)tb->cflags << 32) | tb->flags;
+#endif
+    tcg_gen_ld_i64(tmp, tbp, offsetof(TranslationBlock, flags));
+    tcg_gen_brcondi_i64(TCG_COND_NE, tmp, fpair, slow);
+
+    /*
+     * The destination must have been translated with the same cs_base, which
+     * the pc alone does not imply on a target that uses it.
+     */
+    tcg_gen_ld_i64(tmp, tbp, offsetof(TranslationBlock, cs_base));
+    tcg_gen_brcondi_i64(TCG_COND_NE, tmp, tb->cs_base, slow);
+
+    tcg_gen_ld_ptr(ptr, tbp, offsetof(TranslationBlock, tc.ptr));
+    tcg_gen_op1i(INDEX_op_goto_ptr, TCG_TYPE_PTR, tcgv_ptr_arg(ptr));
+
+    /*
+     * Emit a second goto_ptr rather than branching to a shared one: a temp
+     * live across the label would be spilled and reloaded on every dispatch.
+     */
+    gen_set_label(slow);
+    ptr = tcg_temp_ebb_new_ptr();
+    gen_helper_lookup_tb_ptr(ptr, tcg_env);
+    tcg_gen_op1i(INDEX_op_goto_ptr, TCG_TYPE_PTR, tcgv_ptr_arg(ptr));
+}
+
+void tcg_gen_lookup_and_goto_ptr_tmp(TCGTemp *pc, const TranslationBlock *tb)
 {
     TCGv_ptr ptr;
 
@@ -2724,7 +2800,21 @@ void tcg_gen_lookup_and_goto_ptr(void)
         return;
     }
 
+    /*
+     * No icount_decr poll is needed for this exit: the helper is called on
+     * every dispatch and returns to the main loop while an exit is pending.
+     */
     plugin_gen_disable_mem_helpers();
+
+    /*
+     * The inline probe hashes and compares the pc as a single 64-bit value.
+     * A target with a 32-bit guest PC keeps the helper call.
+     */
+    if (pc && pc->type == TCG_TYPE_I64) {
+        gen_jmp_cache_probe(temp_tcgv_i64(pc), tb);
+        return;
+    }
+
     ptr = tcg_temp_ebb_new_ptr();
     gen_helper_lookup_tb_ptr(ptr, tcg_env);
     tcg_gen_op1i(INDEX_op_goto_ptr, TCG_TYPE_PTR, tcgv_ptr_arg(ptr));

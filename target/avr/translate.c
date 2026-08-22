@@ -992,7 +992,7 @@ static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_idx,
         tcg_gen_exit_tb(tb, tb_slot_idx);
     } else {
         tcg_gen_movi_i32(cpu_pc, dest);
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_lookup_and_goto_ptr(NULL, ctx->base.tb);
     }
     ctx->base.is_jmp = DISAS_NORETURN;
 }
@@ -2778,7 +2778,7 @@ static void avr_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         /* fall through */
     case DISAS_LOOKUP:
         if (!force_exit) {
-            tcg_gen_lookup_and_goto_ptr();
+            tcg_gen_lookup_and_goto_ptr(NULL, ctx->base.tb);
             break;
         }
         /* fall through */

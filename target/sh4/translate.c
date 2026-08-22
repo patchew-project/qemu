@@ -242,7 +242,7 @@ static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_idx, vaddr dest)
         if (use_exit_tb(ctx)) {
             tcg_gen_exit_tb(NULL, 0);
         } else {
-            tcg_gen_lookup_and_goto_ptr();
+            tcg_gen_lookup_and_goto_ptr(NULL, ctx->base.tb);
         }
     }
     ctx->base.is_jmp = DISAS_NORETURN;
@@ -258,7 +258,7 @@ static void gen_jump(DisasContext * ctx)
         if (use_exit_tb(ctx)) {
             tcg_gen_exit_tb(NULL, 0);
         } else {
-            tcg_gen_lookup_and_goto_ptr();
+            tcg_gen_lookup_and_goto_ptr(NULL, ctx->base.tb);
         }
         ctx->base.is_jmp = DISAS_NORETURN;
     } else {

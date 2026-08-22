@@ -816,7 +816,7 @@ static void gen_goto_tb(DisasContext *ctx, int which,
         tcg_gen_goto_tb(which);
         tcg_gen_exit_tb(ctx->base.tb, which);
     } else {
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_lookup_and_goto_ptr(NULL, ctx->base.tb);
     }
 }
 
@@ -2027,7 +2027,7 @@ static bool do_ibranch(DisasContext *ctx, unsigned link,
         store_psw_xb(ctx, PSW_B);
     }
 
-    tcg_gen_lookup_and_goto_ptr();
+    tcg_gen_lookup_and_goto_ptr(NULL, ctx->base.tb);
     ctx->base.is_jmp = DISAS_NORETURN;
     return nullify_end(ctx);
 }
@@ -4838,7 +4838,7 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         }
         /* FALLTHRU */
     case DISAS_IAQ_N_UPDATED:
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_lookup_and_goto_ptr(NULL, ctx->base.tb);
         break;
     case DISAS_EXIT:
         tcg_gen_exit_tb(NULL, 0);

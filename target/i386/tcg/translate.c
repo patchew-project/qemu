@@ -2005,7 +2005,7 @@ gen_eob(DisasContext *s, int mode)
     } else if (mode == DISAS_JUMP &&
                /* give irqs a chance to happen */
                !inhibit_reset) {
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_lookup_and_goto_ptr(NULL, s->base.tb);
     } else {
         tcg_gen_exit_tb(NULL, 0);
     }

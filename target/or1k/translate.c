@@ -1605,7 +1605,7 @@ static void openrisc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
             /* The jump destination is indirect/computed; use jmp_pc.  */
             tcg_gen_mov_i32(cpu_pc, jmp_pc);
             tcg_gen_discard_i32(jmp_pc);
-            tcg_gen_lookup_and_goto_ptr();
+            tcg_gen_lookup_and_goto_ptr(NULL, dc->base.tb);
             break;
         }
         /* The jump destination is direct; use jmp_pc_imm.
@@ -1622,7 +1622,7 @@ static void openrisc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
             break;
         }
         tcg_gen_movi_i32(cpu_pc, jmp_dest);
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_lookup_and_goto_ptr(NULL, dc->base.tb);
         break;
 
     case DISAS_EXIT:

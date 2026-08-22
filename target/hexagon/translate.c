@@ -181,7 +181,7 @@ static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_idx,
         if (move_to_pc) {
             tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
         }
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_lookup_and_goto_ptr(NULL, ctx->base.tb);
     }
 }
 
@@ -218,7 +218,7 @@ static void gen_end_tb(DisasContext *ctx)
         gen_set_label(skip);
         gen_goto_tb(ctx, 1, ctx->next_PC, false);
     } else {
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_lookup_and_goto_ptr(NULL, ctx->base.tb);
     }
 
     ctx->base.is_jmp = DISAS_NORETURN;

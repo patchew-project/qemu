@@ -3664,7 +3664,7 @@ static void gen_lookup_and_goto_ptr(DisasContext *ctx)
             pmu_count_insns(ctx);
         }
 
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_lookup_and_goto_ptr(cpu_nip, ctx->base.tb);
     }
 }
 
@@ -6690,7 +6690,7 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
             pmu_count_insns(ctx);
         }
 
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_lookup_and_goto_ptr(cpu_nip, ctx->base.tb);
         break;
 
     case DISAS_EXIT_UPDATE:

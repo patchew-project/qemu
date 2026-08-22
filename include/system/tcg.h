@@ -29,6 +29,15 @@ extern bool tcg_allowed;
 void tcg_update_cflags(CPUState *cpu);
 void tcg_update_all_cflags(void);
 
+/*
+ * Force @cpu's generated code back into the slow dispatch path, which
+ * re-checks everything the inline jump cache probe assumes.  Safe to call
+ * from any thread, and a no-op for a CPU that is not running TCG.  Call
+ * whenever something the probe cannot see changes under a running vCPU;
+ * the main loop undoes it once the reason is gone.
+ */
+void tcg_cpu_poison_jmp_cache(CPUState *cpu);
+
 /**
  * qemu_tcg_mttcg_enabled:
  * Check whether we are running MultiThread TCG or not.

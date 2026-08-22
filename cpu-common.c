@@ -22,6 +22,7 @@
 #include "exec/cpu-common.h"
 #include "hw/core/cpu.h"
 #include "qemu/lockable.h"
+#include "system/tcg.h"
 #include "trace/trace-root.h"
 
 QemuMutex qemu_cpu_list_lock;
@@ -428,6 +429,16 @@ int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
     if (breakpoint) {
         *breakpoint = bp;
     }
+
+    /*
+     * Nothing is invalidated here, so blocks translated before this point
+     * are still live and still dispatch to each other without consulting
+     * cpu->breakpoints.  Stop the ones that can: a TCG vCPU dispatching
+     * inline reads a base pointer that this poisons, so the next dispatch
+     * takes the slow path and sees the new breakpoint.  @cpu may be another
+     * thread, and may be running.
+     */
+    tcg_cpu_poison_jmp_cache(cpu);
 
     trace_breakpoint_insert(cpu->cpu_index, pc, flags);
     return 0;

@@ -75,15 +75,25 @@ void tcg_gen_exit_tb(const TranslationBlock *tb, unsigned idx);
 void tcg_gen_goto_tb(unsigned idx);
 
 /**
- * tcg_gen_lookup_and_goto_ptr() - look up the current TB, jump to it if valid
- * @addr: Guest address of the target TB
+ * tcg_gen_lookup_and_goto_ptr() - look up the destination TB, jump to it
+ * @pc: temp holding the destination guest PC, or NULL
+ * @tb: the translation block being generated
  *
  * If the TB is not valid, jump to the epilogue.
+ *
+ * The lookup is normally a call to helper_lookup_tb_ptr().  If @pc is
+ * non-NULL and the destination can be keyed on it directly, the jump cache
+ * is probed inline instead and only a miss reaches the helper.  @pc must
+ * then hold exactly the value get_tb_cpu_state() reports as the pc for the
+ * destination; a target whose pc is derived (avr's word address, i386's
+ * eip before segmentation) must pass NULL.  The destination is required to
+ * match @tb's flags, cflags and cs_base, which is what makes them
+ * constants in the probe.
  *
  * This operation is optional. If the TCG backend does not implement goto_ptr,
  * this op is equivalent to calling tcg_gen_exit_tb() with 0 as the argument.
  */
-void tcg_gen_lookup_and_goto_ptr(void);
+void tcg_gen_lookup_and_goto_ptr_tmp(TCGTemp *pc, const TranslationBlock *tb);
 
 void tcg_gen_plugin_cb(unsigned from);
 void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo);

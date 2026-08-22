@@ -376,7 +376,7 @@ static void gen_goto_tb(DisasContext *s, unsigned tb_slot_idx,
         /* jump to another page: we can use an indirect jump */
         tcg_gen_movi_tl(cpu_pc, pc);
         tcg_gen_movi_tl(cpu_npc, npc);
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_lookup_and_goto_ptr(NULL, s->base.tb);
     }
 }
 
@@ -5807,7 +5807,7 @@ static void sparc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
             tcg_gen_movi_tl(cpu_npc, dc->npc);
         }
         if (may_lookup) {
-            tcg_gen_lookup_and_goto_ptr();
+            tcg_gen_lookup_and_goto_ptr(NULL, dc->base.tb);
         } else {
             tcg_gen_exit_tb(NULL, 0);
         }

@@ -6095,7 +6095,7 @@ static void m68k_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         if (dc->ss_active) {
             gen_raise_exception_format2(dc, EXCP_TRACE, dc->pc_prev);
         } else {
-            tcg_gen_lookup_and_goto_ptr();
+            tcg_gen_lookup_and_goto_ptr(NULL, dc->base.tb);
         }
         break;
     case DISAS_EXIT:

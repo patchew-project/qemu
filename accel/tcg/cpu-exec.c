@@ -752,6 +752,99 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
     return false;
 }
 
+/*
+ * The inline jump cache probe reads cpu->tb_jmp_cache_probe and takes the
+ * slow path when the entry it finds has a NULL tb.  Pointing the probe at a
+ * region that is all zeroes therefore forces every indirect dispatch into
+ * helper_lookup_tb_ptr(), which does the full lookup the inline probe only
+ * approximates.  The real jump cache is untouched, so no contents are lost
+ * and recovery is a single store.
+ *
+ * Only ever read from, and only the tb field of one entry per dispatch, so
+ * one shared zero-filled cache is enough for every CPU.
+ */
+static const CPUJumpCache *tb_jmp_cache_poison(void)
+{
+    static CPUJumpCache *poison;
+
+    if (unlikely(poison == NULL)) {
+        /* Raced allocations are harmless: both are all zeroes. */
+        qatomic_cmpxchg(&poison, NULL, g_new0(CPUJumpCache, 1));
+    }
+    return poison;
+}
+
+/*
+ * Whether the generated code may dispatch to the next block by itself.
+ *
+ * The inline probe matches on the destination pc and on the flags and
+ * cflags the dispatching block was translated with.  It does not consult
+ * cpu->breakpoints, so it must not run while one is set: setting a
+ * breakpoint deliberately invalidates nothing, and check_for_breakpoints()
+ * both raises EXCP_DEBUG on an exact match and picks CF_BP_PAGE cflags for
+ * the rest of the page.  A block translated before the breakpoint was set is
+ * therefore still in the jump cache, and dispatching to it inline would step
+ * straight over the breakpoint.
+ */
+static bool tcg_cpu_may_dispatch(CPUState *cpu)
+{
+    return QTAILQ_EMPTY(&cpu->breakpoints);
+}
+
+/*
+ * Poison @cpu's probe, from any thread.  Called when a breakpoint is
+ * inserted, which is what makes the poison take effect at the dispatch
+ * after the insert rather than whenever @cpu next reaches its main loop:
+ * a vCPU chaining indirectly need never reach it, and would run past a
+ * breakpoint another thread had just set.
+ *
+ * A plain store is enough.  The value only ever costs a slow path that is
+ * correct on its own, and the generated code re-reads the base on every
+ * dispatch.  Un-poisoning is tcg_cpu_sync_jmp_cache()'s job.
+ */
+void tcg_cpu_poison_jmp_cache(CPUState *cpu)
+{
+    if (qatomic_read(&cpu->tb_jmp_cache_probe) != NULL) {
+        qatomic_set(&cpu->tb_jmp_cache_probe,
+                    (CPUJumpCache *)tb_jmp_cache_poison());
+    }
+}
+
+/*
+ * Called from the main loop, which is the only context that can establish
+ * that no reason to be poisoned is left.  Cheap enough to call every time
+ * round: the common case is a load, a compare and no store at all.
+ */
+void tcg_cpu_sync_jmp_cache(CPUState *cpu)
+{
+    CPUJumpCache *want;
+
+    if (qatomic_read(&cpu->tb_jmp_cache_probe) == NULL) {
+        return;  /* not realized, or already unrealized */
+    }
+
+    want = tcg_cpu_may_dispatch(cpu)
+           ? cpu->tb_jmp_cache
+           : (CPUJumpCache *)tb_jmp_cache_poison();
+
+    if (qatomic_read(&cpu->tb_jmp_cache_probe) != want) {
+        qatomic_set(&cpu->tb_jmp_cache_probe, want);
+
+        /*
+         * Un-poisoning races a concurrent tcg_cpu_poison_jmp_cache(): the
+         * reason may have appeared after tcg_cpu_may_dispatch() read it and
+         * the poison may have landed before the store above.  Order the
+         * store against a re-read, and lose the race in the safe direction.
+         */
+        if (want == cpu->tb_jmp_cache) {
+            smp_mb();
+            if (!tcg_cpu_may_dispatch(cpu)) {
+                tcg_cpu_poison_jmp_cache(cpu);
+            }
+        }
+    }
+}
+
 void tcg_kick_vcpu_thread(CPUState *cpu)
 {
     /*
@@ -964,6 +1057,13 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
                 break;
             }
 
+            /*
+             * Reaching here means the main loop has just re-evaluated
+             * everything the inline probe assumes, so this is where the
+             * probe is allowed to come back after a poison.
+             */
+            tcg_cpu_sync_jmp_cache(cpu);
+
             tb = tb_lookup(cpu, s);
             if (tb == NULL) {
                 CPUJumpCache *jc;
@@ -1072,6 +1172,7 @@ bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
     tcg_update_cflags(cpu);
 
     cpu->tb_jmp_cache = g_new0(CPUJumpCache, 1);
+    qatomic_set(&cpu->tb_jmp_cache_probe, cpu->tb_jmp_cache);
     tlb_init(cpu);
 #ifndef CONFIG_USER_ONLY
     tcg_iommu_init_notifier_list(cpu);
@@ -1089,5 +1190,6 @@ void tcg_exec_unrealizefn(CPUState *cpu)
 #endif /* !CONFIG_USER_ONLY */
 
     tlb_destroy(cpu);
+    qatomic_set(&cpu->tb_jmp_cache_probe, NULL);
     g_free_rcu(cpu->tb_jmp_cache, rcu);
 }

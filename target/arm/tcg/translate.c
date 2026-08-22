@@ -1306,9 +1306,9 @@ void write_neon_element64(TCGv_i64 src, int reg, int ele, MemOp memop)
     }
 }
 
-static void gen_goto_ptr(void)
+static void gen_goto_ptr(DisasContext *s)
 {
-    tcg_gen_lookup_and_goto_ptr();
+    tcg_gen_lookup_and_goto_ptr_tmp(NULL, s->base.tb);
 }
 
 /* This will end the TB but doesn't guarantee we'll return to
@@ -1336,7 +1336,7 @@ static void gen_goto_tb(DisasContext *s, unsigned tb_slot_idx, int64_t diff)
         tcg_gen_exit_tb(s->base.tb, tb_slot_idx);
     } else {
         gen_update_pc(s, diff);
-        gen_goto_ptr();
+        gen_goto_ptr(s);
     }
     s->base.is_jmp = DISAS_NORETURN;
 }
@@ -1373,7 +1373,7 @@ static void gen_jmp_tb(DisasContext *s, int64_t diff, int tbno)
          * and don't chain to another TB.
          */
         gen_update_pc(s, diff);
-        gen_goto_ptr();
+        gen_goto_ptr(s);
         s->base.is_jmp = DISAS_NORETURN;
         break;
     default:
@@ -6858,7 +6858,7 @@ static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
             gen_update_pc(dc, curr_insn_len(dc));
             /* fall through */
         case DISAS_JUMP:
-            gen_goto_ptr();
+            gen_goto_ptr(dc);
             break;
         case DISAS_UPDATE_EXIT:
             gen_update_pc(dc, curr_insn_len(dc));

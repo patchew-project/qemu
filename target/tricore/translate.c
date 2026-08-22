@@ -2857,7 +2857,7 @@ static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_index, vaddr dest)
         tcg_gen_exit_tb(ctx->base.tb, tb_slot_index);
     } else {
         gen_save_pc(dest);
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_lookup_and_goto_ptr(NULL, ctx->base.tb);
     }
     ctx->base.is_jmp = DISAS_NORETURN;
 }
@@ -8478,7 +8478,7 @@ static void tricore_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         tcg_gen_exit_tb(NULL, 0);
         break;
     case DISAS_JUMP:
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_lookup_and_goto_ptr(NULL, ctx->base.tb);
         break;
     case DISAS_NORETURN:
         break;
