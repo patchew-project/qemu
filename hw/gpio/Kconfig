@@ -16,6 +16,11 @@ config SIFIVE_GPIO
 config STM32L4X5_GPIO
     bool
 
+config STM32F1XX_GPIO
+    bool
+    depends on HAVE_RUST
+    select X_STM32F1XX_GPIO_RUST
+
 config PCA9552
     bool
     depends on I2C
