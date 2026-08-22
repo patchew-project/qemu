@@ -30,6 +30,9 @@
 #define TCG_TARGET_NB_REGS   32
 #define MAX_CODE_GEN_BUFFER_SIZE  (2 * GiB)
 
+/* A guest displacement can go in the disp32 of the addressing mode. */
+#define TCG_TARGET_HAS_ldst_disp  1
+
 typedef enum {
     TCG_REG_EAX = 0,
     TCG_REG_ECX,
