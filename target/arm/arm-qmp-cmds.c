@@ -32,6 +32,7 @@
 #include "qobject/qdict.h"
 #include "qom/qom-qobject.h"
 #include "cpu.h"
+#include "qemu/target-info-qom.h"
 
 static GICCapability *gic_cap_new(int version)
 {
@@ -79,9 +80,10 @@ static const char *cpu_model_advertised_features[] = {
     NULL
 };
 
-CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
-                                                     CpuModelInfo *model,
-                                                     Error **errp)
+static CpuModelExpansionInfo *
+arm_query_cpu_model_expansion(CpuModelExpansionType type,
+                              CpuModelInfo *model,
+                              Error **errp)
 {
     CpuModelExpansionInfo *expansion_info;
     const QDict *qdict_in;
@@ -216,7 +218,7 @@ static void arm_cpu_add_definition(gpointer data, gpointer user_data)
     QAPI_LIST_PREPEND(*cpu_list, info);
 }
 
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
+static CpuDefinitionInfoList *arm_query_cpu_definitions(Error **errp)
 {
     CpuDefinitionInfoList *cpu_list = NULL;
     GSList *list;
@@ -227,3 +229,8 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
 
     return cpu_list;
 }
+
+TARGET_INFO_CPU_OP(CPU_RESOLVING_TYPE, query_cpu_definitions,
+                   arm_query_cpu_definitions);
+TARGET_INFO_CPU_OP(CPU_RESOLVING_TYPE, query_cpu_model_expansion,
+                   arm_query_cpu_model_expansion);

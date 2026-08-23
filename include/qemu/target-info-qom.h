@@ -10,7 +10,11 @@
 #define QEMU_TARGET_INFO_QOM_H
 
 #include "qemu/target-info-impl.h"
+#include "qapi/error.h"
+#include "qemu/compiler.h"
 #include "qom/object.h"
+
+#include <stddef.h>
 
 #define TYPE_TARGET_INFO "target-info"
 
@@ -39,6 +43,43 @@ typedef struct TargetInfoQomClass {
 } TargetInfoQomClass;
 
 OBJECT_DECLARE_TYPE(TargetInfoQom, TargetInfoQomClass, TARGET_INFO)
+
+typedef struct ArchDumpInfo ArchDumpInfo;
+struct GuestPhysBlockList;
+typedef struct CPUSemihostingOps CPUSemihostingOps;
+
+typedef struct TargetCpuOps {
+    CpuDefinitionInfoList *(*query_cpu_definitions)(Error **errp);
+    CpuModelExpansionInfo *(*query_cpu_model_expansion)(
+        CpuModelExpansionType type, CpuModelInfo *model, Error **errp);
+    int (*get_dump_info)(ArchDumpInfo *info,
+                         const struct GuestPhysBlockList *guest_phys_blocks);
+    ssize_t (*get_note_size)(int class, int machine, int nr_cpus);
+    const CPUSemihostingOps *semihosting;
+} TargetCpuOps;
+
+/**
+ * target_info_register_cpu_op:
+ * @cpu_type: CPU_RESOLVING_TYPE of the registering architecture
+ * @offset: offsetof(TargetCpuOps, member) for the slot being filled
+ * @impl: handler or ops table stored at that offset
+ *
+ * Combined binaries merge one member at a time so QMP, dump, and
+ * semihosting (or split QMP files) can register independently.
+ * MODULE_INIT_QOM runs after target_info_qom_set_target(), so only
+ * the selected cpu_type is stored.
+ */
+void target_info_register_cpu_op(const char *cpu_type, size_t offset,
+                                 void *impl);
+const TargetCpuOps *target_info_cpu_ops(void);
+
+#define TARGET_INFO_CPU_OP(cpu_type, member, impl)                            \
+static void glue(target_info_cpu_op_, impl)(void)                             \
+{                                                                             \
+    target_info_register_cpu_op((cpu_type), offsetof(TargetCpuOps, member),   \
+                                (void *)&(impl));                             \
+}                                                                             \
+type_init(glue(target_info_cpu_op_, impl))
 
 /**
  * target_info_qom_set_target:

@@ -36,6 +36,7 @@
 #include "cpu-qom.h"
 #include "cpu.h"
 #include "target/riscv/tcg/csr.h"
+#include "qemu/target-info-qom.h"
 
 static void riscv_cpu_add_definition(gpointer data, gpointer user_data)
 {
@@ -54,7 +55,7 @@ static void riscv_cpu_add_definition(gpointer data, gpointer user_data)
     QAPI_LIST_PREPEND(*cpu_list, info);
 }
 
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
+static CpuDefinitionInfoList *riscv_query_cpu_definitions(Error **errp)
 {
     CpuDefinitionInfoList *cpu_list = NULL;
     GSList *list = object_class_get_list(TYPE_RISCV_CPU, false);
@@ -154,9 +155,10 @@ err:
     visit_free(visitor);
 }
 
-CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
-                                                     CpuModelInfo *model,
-                                                     Error **errp)
+static CpuModelExpansionInfo *
+riscv_query_cpu_model_expansion(CpuModelExpansionType type,
+                                CpuModelInfo *model,
+                                Error **errp)
 {
     CpuModelExpansionInfo *expansion_info;
     QDict *qdict_out;
@@ -225,3 +227,8 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
 
     return expansion_info;
 }
+
+TARGET_INFO_CPU_OP(CPU_RESOLVING_TYPE, query_cpu_definitions,
+                   riscv_query_cpu_definitions);
+TARGET_INFO_CPU_OP(CPU_RESOLVING_TYPE, query_cpu_model_expansion,
+                   riscv_query_cpu_model_expansion);

@@ -34,12 +34,56 @@
 #ifndef COMMON_SEMI_H
 #define COMMON_SEMI_H
 
+#include "exec/cpu-common.h"
+#include "qemu/target-info-qom.h"
+
+typedef struct CPUSemihostingOps {
+    uint64_t (*arg)(CPUState *cs, int argno);
+    void (*set_ret)(CPUState *cs, uint64_t ret);
+    bool (*is_64bit)(CPUArchState *env);
+    bool (*sys_exit_is_extended)(CPUState *cs);
+    uint64_t (*stack_bottom)(CPUState *cs);
+    bool (*has_synccache)(CPUArchState *env);
+} CPUSemihostingOps;
+
 void do_common_semihosting(CPUState *cs);
-uint64_t common_semi_arg(CPUState *cs, int argno);
-void common_semi_set_ret(CPUState *cs, uint64_t ret);
-bool is_64bit_semihosting(CPUArchState *env);
-bool common_semi_sys_exit_is_extended(CPUState *cs);
-uint64_t common_semi_stack_bottom(CPUState *cs);
-bool common_semi_has_synccache(CPUArchState *env);
+
+static inline const CPUSemihostingOps *cpu_semihosting_ops(void)
+{
+    const CPUSemihostingOps *ops = target_info_cpu_ops()->semihosting;
+
+    g_assert(ops);
+    return ops;
+}
+
+static inline uint64_t common_semi_arg(CPUState *cs, int argno)
+{
+    return cpu_semihosting_ops()->arg(cs, argno);
+}
+
+static inline void common_semi_set_ret(CPUState *cs, uint64_t ret)
+{
+    cpu_semihosting_ops()->set_ret(cs, ret);
+}
+
+static inline bool is_64bit_semihosting(CPUArchState *env)
+{
+    return cpu_semihosting_ops()->is_64bit(env);
+}
+
+static inline bool common_semi_sys_exit_is_extended(CPUState *cs)
+{
+    return cpu_semihosting_ops()->sys_exit_is_extended(cs);
+}
+
+static inline uint64_t common_semi_stack_bottom(CPUState *cs)
+{
+    return cpu_semihosting_ops()->stack_bottom(cs);
+}
+
+static inline bool common_semi_has_synccache(CPUArchState *env)
+{
+    return cpu_semihosting_ops()->has_synccache(env);
+}
 
 #endif /* COMMON_SEMI_H */

@@ -7,9 +7,11 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/target-info.h"
 #include "qemu/target-info-qapi.h"
 #include "qemu/target-info-impl.h"
+#include "qemu/target-info-qom.h"
 #include "qapi/error.h"
 
 const char *target_name(void)
@@ -123,4 +125,34 @@ bool target_config_nitro(void)
 bool target_config_xen(void)
 {
     return target_info()->config_xen;
+}
+
+static TargetCpuOps target_cpu_ops;
+
+void target_info_register_cpu_op(const char *cpu_type, size_t offset,
+                                 void *impl)
+{
+    const TargetInfo *ti = target_info();
+    void **slot;
+
+    g_assert(ti);
+    g_assert(offset + sizeof(void *) <= sizeof(TargetCpuOps));
+    g_assert((offset % sizeof(void *)) == 0);
+
+    if (strcmp(cpu_type, ti->cpu_type)) {
+        return;
+    }
+
+    slot = (void **)((char *)&target_cpu_ops + offset);
+    if (*slot) {
+        error_report("TargetCpuOps already registered for type '%s' (offset %zu)",
+                     cpu_type, offset);
+        return;
+    }
+    *slot = impl;
+}
+
+const TargetCpuOps *target_info_cpu_ops(void)
+{
+    return &target_cpu_ops;
 }

@@ -449,3 +449,29 @@ void qmp_dump_skeys(const char *filename, Error **errp)
     }
     DUMP_SKEYS_INTERFACE_CLASS(oc)->qmp_dump_skeys(filename, errp);
 }
+
+CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
+{
+    const TargetCpuOps *ops = target_info_cpu_ops();
+
+    if (!ops->query_cpu_definitions) {
+        error_setg(errp,
+                   "CPU model definitions are not supported on this target");
+        return NULL;
+    }
+    return ops->query_cpu_definitions(errp);
+}
+
+CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
+                                                     CpuModelInfo *model,
+                                                     Error **errp)
+{
+    const TargetCpuOps *ops = target_info_cpu_ops();
+
+    if (!ops->query_cpu_model_expansion) {
+        error_setg(errp,
+                   "CPU model expansion is not supported on this target");
+        return NULL;
+    }
+    return ops->query_cpu_model_expansion(type, model, errp);
+}
