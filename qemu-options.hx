@@ -223,6 +223,19 @@ SRST
     as -machine.
 ERST
 
+DEF("target", HAS_ARG, QEMU_OPTION_target,
+    "-target name    select target ('-target help' for list)\n", QEMU_ARCH_ALL)
+SRST
+``-target name``
+    Select the emulation target (``-target help`` for the list). The
+    default endian is the architecture default (``riscv64`` is little
+    endian). The other endian uses a ``-be`` or ``-le`` suffix
+    (``riscv64-be``, ``ppc64-le``). If omitted, a matching suffix of
+    the program basename is used (``qemu-system-riscv64-be``, and
+    ``qemu-system-aarch64w.exe`` on Windows). ``-target`` overrides
+    the program name.
+ERST
+
 DEF("cpu", HAS_ARG, QEMU_OPTION_cpu,
     "-cpu cpu        select CPU ('-cpu help' for list)\n", QEMU_ARCH_ALL)
 SRST

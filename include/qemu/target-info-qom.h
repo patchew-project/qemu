@@ -40,7 +40,15 @@ typedef struct TargetInfoQomClass {
 
 OBJECT_DECLARE_TYPE(TargetInfoQom, TargetInfoQomClass, TARGET_INFO)
 
-void target_info_qom_set_target(void);
+/**
+ * target_info_qom_set_target:
+ * @name: -target token, or NULL/%empty to infer from the program
+ * basename or the unique default
+ *
+ * Tokens are target_name (arch default endian) or target_name-be /
+ * target_name-le. -target overrides the program basename.
+ */
+void target_info_qom_set_target(const char *name);
 
 /**
  * get_machine_types_available:

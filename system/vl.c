@@ -166,6 +166,7 @@ typedef struct DeviceOption {
     QTAILQ_ENTRY(DeviceOption) next;
 } DeviceOption;
 
+static const char *target_option;
 static const char *cpu_option;
 static const char *mem_path;
 static const char *incoming;
@@ -2899,19 +2900,12 @@ void qemu_init(int argc, char **argv)
 
     os_setup_limits();
 
-    module_call_init(MODULE_INIT_TARGET_INFO);
-    target_info_qom_set_target();
-
-    module_init_info(qemu_modinfo);
-    module_allow_arch(target_name());
-
-    qemu_init_subsystems();
-
-    /* first pass of option parsing */
+    /*
+     * First pass: options needed before TargetInfo is fixed.
+     */
     optind = 1;
     while (optind < argc) {
         if (argv[optind][0] != '-') {
-            /* disk image */
             optind++;
         } else {
             const QEMUOption *popt;
@@ -2921,9 +2915,20 @@ void qemu_init(int argc, char **argv)
             case QEMU_OPTION_nouserconfig:
                 userconfig = false;
                 break;
+            case QEMU_OPTION_target:
+                target_option = optarg;
+                break;
             }
         }
     }
+
+    module_call_init(MODULE_INIT_TARGET_INFO);
+    target_info_qom_set_target(target_option);
+
+    module_init_info(qemu_modinfo);
+    module_allow_arch(target_name());
+
+    qemu_init_subsystems();
 
     machine_opts_dict = qdict_new();
     if (userconfig) {
@@ -3686,6 +3691,9 @@ void qemu_init(int argc, char **argv)
                 break;
             case QEMU_OPTION_nouserconfig:
                 /* Nothing to be parsed here. Especially, do not error out below. */
+                break;
+            case QEMU_OPTION_target:
+                /* Parsed before TargetInfo is selected. */
                 break;
 #if defined(CONFIG_POSIX) && !defined(EMSCRIPTEN)
             case QEMU_OPTION_daemonize:
