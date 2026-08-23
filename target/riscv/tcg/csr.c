@@ -3305,6 +3305,14 @@ static RISCVException read_senvcfg(CPURISCVState *env, int csrno,
     }
 
     *val = env->senvcfg;
+
+    if (env_archcpu(env)->cfg.ext_zicfiss) {
+        if (!(env->menvcfg & MENVCFG_SSE) ||
+            (env->virt_enabled && !(env->henvcfg & HENVCFG_SSE))) {
+            *val &= ~SENVCFG_SSE;
+        }
+    }
+
     return RISCV_EXCP_NONE;
 }
 
