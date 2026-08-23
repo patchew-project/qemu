@@ -201,15 +201,34 @@ static RISCVException cfi_ss(CPURISCVState *env, int csrno)
         return RISCV_EXCP_NONE;
     }
 
-    /* if bcfi not active for current env, access to csr is illegal */
-    if (!cpu_get_bcfien(env)) {
 #if !defined(CONFIG_USER_ONLY)
-        if (env->debugger) {
-            return RISCV_EXCP_NONE;
-        } else if (env->virt_enabled) {
+    if (env->debugger) {
+        return RISCV_EXCP_NONE;
+    }
+
+    /* priv < M and menvcfg.SSE = 0 must raise illegal-instruction */
+    if (!(env->menvcfg & MENVCFG_SSE)) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    if (env->virt_enabled) {
+        if (env->priv == PRV_S) {
+            if (env->henvcfg & HENVCFG_SSE) {
+                return RISCV_EXCP_NONE;
+            }
             return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
         }
+        if (env->priv == PRV_U) {
+            if ((env->henvcfg & HENVCFG_SSE) &&
+                (env->senvcfg & SENVCFG_SSE)) {
+                return RISCV_EXCP_NONE;
+            }
+            return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
+        }
+    }
 #endif
+
+    if (!cpu_get_bcfien(env)) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
