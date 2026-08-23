@@ -24,6 +24,12 @@ typedef struct TargetInfo {
     /* related to TARGET_BIG_ENDIAN definition */
     EndianMode endianness;
     /*
+     * True on the endian variant that matches this translation unit's
+     * TARGET_BIG_ENDIAN. target_info_qom_set_target() uses this when
+     * more than one TargetInfo is registered and -target is omitted.
+     */
+    bool is_default;
+    /*
      * runtime equivalent of
      *   TARGET_PAGE_BITS_VARY ? TARGET_PAGE_BITS_LEGACY : TARGET_PAGE_BITS
      */

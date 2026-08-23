@@ -90,13 +90,34 @@ const TargetInfo *target_info(void)
 void target_info_qom_set_target(void)
 {
     g_autoptr(GSList) targets = object_class_get_list(TYPE_TARGET_INFO, false);
-
+    const TargetInfo *chosen = NULL;
     size_t num_found = g_slist_length(targets);
-    if (num_found != 1) {
-        error_setg(&error_fatal, num_found == 0 ?
-                                 "no target-info is available" :
-                                 "more than one target-info is available");
+    size_t num_default = 0;
+
+    if (num_found == 0) {
+        error_setg(&error_fatal, "no target-info is available");
     }
 
-    target_info_ptr = TARGET_INFO_CLASS(targets->data)->target_info;
+    if (num_found == 1) {
+        target_info_ptr = TARGET_INFO_CLASS(targets->data)->target_info;
+        return;
+    }
+
+    for (GSList *l = targets; l; l = l->next) {
+        const TargetInfo *ti = TARGET_INFO_CLASS(l->data)->target_info;
+
+        if (ti->is_default) {
+            num_default++;
+            chosen = ti;
+        }
+    }
+
+    if (num_default != 1) {
+        error_setg(&error_fatal, num_default == 0 ?
+                                 "no default target-info is available" :
+                                 "more than one default target-info "
+                                 "is available");
+    }
+
+    target_info_ptr = chosen;
 }

@@ -28,39 +28,72 @@ QEMU_BUILD_BUG_ON(offsetof(ArchCPU, env) != sizeof(CPUState));
 QEMU_BUILD_BUG_ON(TARGET_PAGE_BITS < TARGET_PAGE_BITS_MIN);
 #endif
 
-static const TargetInfo target_info_def = {
-    .target_name = TARGET_NAME,
-    .target_arch = glue(SYS_EMU_TARGET_, TARGET_ARCH),
-    .long_bits = TARGET_LONG_BITS,
-    .cpu_type = CPU_RESOLVING_TYPE,
-    .endianness = TARGET_BIG_ENDIAN ? ENDIAN_MODE_BIG : ENDIAN_MODE_LITTLE,
 #ifdef TARGET_PAGE_BITS_VARY
-    .page_bits_vary = true,
 # ifdef TARGET_PAGE_BITS_LEGACY
+#  define TARGET_INFO_PAGE_BITS \
+    .page_bits_vary = true, \
     .page_bits_init = TARGET_PAGE_BITS_LEGACY,
+# else
+#  define TARGET_INFO_PAGE_BITS \
+    .page_bits_vary = true,
 # endif
 #else
-    .page_bits_vary = false,
+# define TARGET_INFO_PAGE_BITS \
+    .page_bits_vary = false, \
     .page_bits_init = TARGET_PAGE_BITS,
 #endif
 
 #ifndef CONFIG_USER_ONLY
 # ifdef CONFIG_MULTIPROCESS
-    .config_multiprocess = true,
+#  define TARGET_INFO_CONFIG_MULTIPROCESS .config_multiprocess = true,
 # else
-    .config_multiprocess = false,
+#  define TARGET_INFO_CONFIG_MULTIPROCESS .config_multiprocess = false,
 # endif
 # ifdef CONFIG_NITRO
-    .config_nitro = true,
+#  define TARGET_INFO_CONFIG_NITRO .config_nitro = true,
 # else
-    .config_nitro = false,
+#  define TARGET_INFO_CONFIG_NITRO .config_nitro = false,
 # endif
 # ifdef CONFIG_XEN
-    .config_xen = true,
+#  define TARGET_INFO_CONFIG_XEN .config_xen = true,
 # else
-    .config_xen = false,
+#  define TARGET_INFO_CONFIG_XEN .config_xen = false,
 # endif
+# define TARGET_INFO_CONFIG \
+    TARGET_INFO_CONFIG_MULTIPROCESS \
+    TARGET_INFO_CONFIG_NITRO \
+    TARGET_INFO_CONFIG_XEN
+#else
+# define TARGET_INFO_CONFIG
 #endif
+
+#define TARGET_INFO_COMMON                                                  \
+    .target_name = TARGET_NAME,                                             \
+    .target_arch = glue(SYS_EMU_TARGET_, TARGET_ARCH),                      \
+    .long_bits = TARGET_LONG_BITS,                                          \
+    .cpu_type = CPU_RESOLVING_TYPE,                                         \
+    TARGET_INFO_PAGE_BITS                                                   \
+    TARGET_INFO_CONFIG
+
+#ifdef CONFIG_USER_ONLY
+static const TargetInfo target_info_def = {
+    TARGET_INFO_COMMON
+    .endianness = TARGET_BIG_ENDIAN ? ENDIAN_MODE_BIG : ENDIAN_MODE_LITTLE,
 };
 
 target_info_init(target_info_def)
+#else
+static const TargetInfo target_info_le = {
+    TARGET_INFO_COMMON
+    .endianness = ENDIAN_MODE_LITTLE,
+    .is_default = !TARGET_BIG_ENDIAN,
+};
+
+static const TargetInfo target_info_be = {
+    TARGET_INFO_COMMON
+    .endianness = ENDIAN_MODE_BIG,
+    .is_default = TARGET_BIG_ENDIAN,
+};
+
+target_info_init_le_be(target_info_le, target_info_be)
+#endif
