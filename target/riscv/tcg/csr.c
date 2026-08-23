@@ -5563,6 +5563,10 @@ static RISCVException write_mnstatus(CPURISCVState *env, int csrno,
         mask |= MNSTATUS_MNPV;
     }
 
+    if (env_archcpu(env)->cfg.ext_zicfilp) {
+        mask |= MNSTATUS_MNPELP;
+    }
+
     /* mnstatus.mnie can only be cleared by hardware. */
     env->mnstatus = (env->mnstatus & MNSTATUS_NMIE) | (val & mask);
     return RISCV_EXCP_NONE;
