@@ -4250,6 +4250,10 @@ endif
 
 traceable = []
 emulators = {}
+target_softmmu = {}
+combo_softmmu = ['aarch64-softmmu', 'arm-softmmu', 'riscv32-softmmu', 'riscv64-softmmu']
+have_qemu_system_combo = ('aarch64-softmmu' in target_dirs
+                          and 'riscv64-softmmu' in target_dirs)
 foreach target : target_dirs
   config_target = config_target_mak[target]
   target_name = config_target['TARGET_NAME']
@@ -4399,20 +4403,37 @@ foreach target : target_dirs
                  c_args: c_args,
                  build_by_default: false)
 
+  if target in combo_softmmu
+    target_softmmu += {target: {
+      'lib': lib,
+      'arch_srcs': arch_srcs,
+      'arch_deps': arch_deps,
+      'c_args': c_args,
+      'link_args': link_args,
+      'target_stubs': target_stubs,
+      'main_rs': main_rs,
+      'config_target': config_target,
+      'target_base_arch': target_base_arch,
+    }}
+  endif
+
   if target.endswith('-softmmu')
-    execs = [{
-      'name': 'qemu-system-' + target_name,
-      'win_subsystem': 'console',
-      'sources': [main_rs, files('system/main.c')],
-      'dependencies': [sdl, target_stubs],
-    }]
-    if host_os == 'windows' and (sdl.found() or gtk.found())
+    execs = []
+    if not (have_qemu_system_combo and target in combo_softmmu)
       execs += [{
-        'name': 'qemu-system-' + target_name + 'w',
-        'win_subsystem': 'windows',
+        'name': 'qemu-system-' + target_name,
+        'win_subsystem': 'console',
         'sources': [main_rs, files('system/main.c')],
         'dependencies': [sdl, target_stubs],
       }]
+      if host_os == 'windows' and (sdl.found() or gtk.found())
+        execs += [{
+          'name': 'qemu-system-' + target_name + 'w',
+          'win_subsystem': 'windows',
+          'sources': [main_rs, files('system/main.c')],
+          'dependencies': [sdl, target_stubs],
+        }]
+      endif
     endif
     if get_option('fuzzing')
       specific_fuzz = specific_fuzz_ss.apply(config_target, strict: false)
@@ -4480,6 +4501,123 @@ foreach target : target_dirs
 
   endforeach
 endforeach
+
+# Combined ARM + RISC-V system emulator (32 and 64).
+# Common/system objects come from aarch64. RISC-V arch objects come
+# from the existing riscv64 lib. 32-bit TargetInfo and 32-only boards
+# come from the arm/riscv32 libs. Per-target qemu-system-* names are
+# symlinks to qemu-system (argv[0] selects TargetInfo).
+if have_qemu_system_combo
+  a64 = target_softmmu['aarch64-softmmu']
+  rv = target_softmmu['riscv64-softmmu']
+  extra_objs = []
+  target_info_def = files('target-info-def.c')
+  foreach spec : [[common_ss, common_all], [system_ss, libsystem]]
+    rv_src = spec[0].apply(rv['config_target'], strict: false)
+    a64_src = spec[0].apply(a64['config_target'], strict: false)
+    extra = []
+    foreach f : rv_src.sources()
+      if f not in a64_src.sources() and not f.full_path().endswith('_stubs.c')
+        extra += f
+      endif
+    endforeach
+    if extra.length() > 0
+      extra_objs += spec[1].extract_objects(extra)
+    endif
+  endforeach
+  rv_base = rv['target_base_arch']
+  if rv_base in target_common_arch_libs
+    src = target_common_arch[rv_base].apply(rv['config_target'], strict: false)
+    extra_objs += target_common_arch_libs[rv_base].extract_objects(src.sources())
+  endif
+  if rv_base in target_common_system_arch_libs
+    src = target_common_system_arch[rv_base].apply(rv['config_target'], strict: false)
+    extra_objs += target_common_system_arch_libs[rv_base].extract_objects(src.sources())
+  endif
+  foreach pair : [['arm-softmmu', 'aarch64-softmmu'], ['riscv32-softmmu', 'riscv64-softmmu']]
+    t32 = pair[0]
+    t64 = pair[1]
+    if t32 in target_softmmu
+      extra_objs += target_softmmu[t32]['lib'].extract_objects(target_info_def)
+      base32 = target_softmmu[t32]['target_base_arch']
+      if base32 in hw_arch
+        hw32 = hw_arch[base32].apply(target_softmmu[t32]['config_target'], strict: false)
+        hw64 = hw_arch[base32].apply(target_softmmu[t64]['config_target'], strict: false)
+        extra_hw = []
+        foreach f : hw32.sources()
+          if f not in hw64.sources()
+            extra_hw += f
+          endif
+        endforeach
+        if extra_hw.length() > 0
+          extra_objs += target_softmmu[t32]['lib'].extract_objects(extra_hw)
+        endif
+      endif
+    endif
+  endforeach
+  combo_objects = extra_objs
+  combo_objects += a64['lib'].extract_all_objects(recursive: true)
+  combo_objects += rv['lib'].extract_objects(rv['arch_srcs'])
+  combo_deps = a64['arch_deps'] + rv['arch_deps'] + [sdl, a64['target_stubs'], rv['target_stubs']]
+  if 'arm-softmmu' in target_softmmu
+    combo_deps += target_softmmu['arm-softmmu']['arch_deps']
+  endif
+  if 'riscv32-softmmu' in target_softmmu
+    combo_deps += target_softmmu['riscv32-softmmu']['arch_deps']
+  endif
+  combo_execs = [{
+    'name': 'qemu-system',
+    'win_subsystem': 'console',
+  }]
+  if host_os == 'windows' and (sdl.found() or gtk.found())
+    combo_execs += [{
+      'name': 'qemu-systemw',
+      'win_subsystem': 'windows',
+    }]
+  endif
+  combo_exe_suffix = host_os == 'windows' ? '.exe' : ''
+  combo_alias_py = 'import os, sys; src, dst = sys.argv[1:3]; os.path.exists(dst) and os.remove(dst); os.symlink(os.path.basename(src), dst)'
+  foreach exe : combo_execs
+    emulator = executable(exe['name'], [a64['main_rs'], files('system/main.c')],
+               install: true,
+               c_args: a64['c_args'],
+               dependencies: combo_deps,
+               objects: combo_objects,
+               link_depends: [block_syms, qemu_syms],
+               link_args: a64['link_args'],
+               win_subsystem: exe['win_subsystem'])
+    emulators += {exe['name']: emulator}
+    traceable += [{
+      'exe': exe['name'],
+      'probe-prefix': 'qemu.system.multi',
+    }]
+    foreach t : combo_softmmu
+      if t not in target_softmmu
+        continue
+      endif
+      tname = target_softmmu[t]['config_target']['TARGET_NAME']
+      if exe['name'] == 'qemu-systemw'
+        alias = 'qemu-system-' + tname + 'w'
+      else
+        alias = 'qemu-system-' + tname
+      endif
+      alias_tgt = custom_target(alias,
+                                input: emulator,
+                                output: alias + combo_exe_suffix,
+                                command: [python, '-c', combo_alias_py, '@INPUT@', '@OUTPUT@'],
+                                build_by_default: true,
+                                install: false)
+      emulators += {alias: alias_tgt}
+      install_symlink(alias + combo_exe_suffix,
+                      pointing_to: exe['name'] + combo_exe_suffix,
+                      install_dir: get_option('bindir'))
+      traceable += [{
+        'exe': alias,
+        'probe-prefix': 'qemu.system.' + tname,
+      }]
+    endforeach
+  endforeach
+endif
 
 # Other build targets
 
