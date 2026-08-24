@@ -235,6 +235,7 @@ static const TypeInfo axiado_soc_types[] = {
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(Ax3000SoCState),
         .instance_init  = ax3000_init,
+        .class_size     = sizeof(Ax3000SoCClass),
         .class_init     = ax3000_class_init,
         .class_size     = sizeof(Ax3000SoCClass),
     }
