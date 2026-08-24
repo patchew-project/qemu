@@ -2027,9 +2027,6 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
     if (!CODE64(s)) {
         if (ot == MO_16) {
             mask = 0xffff;
-            if (tb_cflags(s->base.tb) & CF_PCREL && CODE32(s)) {
-                use_goto_tb = false;
-            }
         } else {
             mask = 0xffffffff;
         }
@@ -2039,11 +2036,18 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
     if (tb_cflags(s->base.tb) & CF_PCREL) {
         tcg_gen_addi_tl(cpu_eip, cpu_eip, new_pc - s->pc_save);
         /*
-         * If we can prove the branch does not leave the page and we have
-         * no extra masking to apply (data16 branch in code32, see above),
-         * then we have also proven that the addition does not wrap.
+         * The same-page test proves that the addition does not wrap EIP
+         * only if the wrap boundary (mask + 1) corresponds to a
+         * page-aligned linear address, i.e. only if cs_base is page
+         * aligned: then crossing the boundary would cross a page
+         * boundary, which the test excludes.  This must not be relaxed
+         * to a translation-time check of EIP itself, because a CF_PCREL
+         * TB may later run at a different linear address, shifting EIP
+         * by a multiple of the page size.
          */
-        if (!use_goto_tb || !translator_is_same_page(&s->base, new_pc)) {
+        if (!use_goto_tb
+            || (s->cs_base & ~TARGET_PAGE_MASK) != 0
+            || !translator_is_same_page(&s->base, new_pc)) {
             tcg_gen_andi_tl(cpu_eip, cpu_eip, mask);
             use_goto_tb = false;
         }
