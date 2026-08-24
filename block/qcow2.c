@@ -2147,7 +2147,28 @@ static void qcow2_reopen_commit(BDRVReopenState *state)
 
 static int qcow2_reopen_commit_post(BDRVReopenState *state, Error **errp)
 {
+    ERRP_GUARD();
+    BDRVQcow2State *s = state->bs->opaque;
+
     GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    if (!bdrv_reopen_was_writable(state) && bdrv_is_writable(state->bs) &&
+        (s->incompatible_features & QCOW2_INCOMPAT_DIRTY)) {
+        BdrvCheckResult result = {0};
+        int ret;
+
+        ret = bdrv_check(state->bs, &result, BDRV_FIX_ERRORS | BDRV_FIX_LEAKS);
+        if (ret < 0 || result.check_errors || !state->bs->drv) {
+            ret = ret < 0 ? ret : -EIO;
+            /* No write may reach an image whose refcounts are unaccounted */
+            state->bs->drv = NULL;
+            error_setg_errno(errp, -ret, "Could not repair dirty image '%s'",
+                             bdrv_get_device_or_node_name(state->bs));
+            error_append_hint(errp, "The image is left dirty and this node "
+                              "holds it open until the node is removed\n");
+            return ret;
+        }
+    }
 
     if (state->flags & BDRV_O_RDWR) {
         Error *local_err = NULL;
