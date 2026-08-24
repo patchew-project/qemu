@@ -282,7 +282,7 @@ static void vfio_ccw_req_notifier_handler(void *opaque)
         return;
     }
 
-    qdev_unplug(DEVICE(vcdev), &err);
+    qdev_unplug(DEVICE(vcdev), false, &err);
     if (err) {
         warn_reportf_err(err, VFIO_MSG_PREFIX, vcdev->vdev.name);
     }

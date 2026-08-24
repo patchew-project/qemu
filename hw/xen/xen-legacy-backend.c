@@ -186,7 +186,7 @@ static struct XenLegacyDevice *xen_be_get_xendev(const char *type, int dom,
     xendev->evtchndev = qemu_xen_evtchn_open();
     if (xendev->evtchndev == NULL) {
         xen_pv_printf(NULL, 0, "can't open evtchn device\n");
-        qdev_unplug(DEVICE(xendev), NULL);
+        qdev_unplug(DEVICE(xendev), false, NULL);
         return NULL;
     }
     qemu_set_cloexec(qemu_xen_evtchn_fd(xendev->evtchndev));

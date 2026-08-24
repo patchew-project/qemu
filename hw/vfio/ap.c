@@ -79,7 +79,7 @@ static void vfio_ap_req_notifier_handler(void *opaque)
         return;
     }
 
-    qdev_unplug(DEVICE(vapdev), &err);
+    qdev_unplug(DEVICE(vapdev), false, &err);
 
     if (err) {
         warn_reportf_err(err, VFIO_MSG_PREFIX, vapdev->vdev.name);

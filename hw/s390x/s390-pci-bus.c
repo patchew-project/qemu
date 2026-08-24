@@ -1276,7 +1276,7 @@ static void s390_pcihost_unplug_request(HotplugHandler *hotplug_dev,
         }
 
         pbdev->pci_unplug_request_processed = true;
-        qdev_unplug(DEVICE(pbdev), errp);
+        qdev_unplug(DEVICE(pbdev), false, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_S390_PCI_DEVICE)) {
         pbdev = S390_PCI_DEVICE(dev);
 
@@ -1287,7 +1287,7 @@ static void s390_pcihost_unplug_request(HotplugHandler *hotplug_dev,
          * is not blocked, e.g. because it's a PCI bridge).
          */
         if (pbdev->pdev && !pbdev->pci_unplug_request_processed) {
-            qdev_unplug(DEVICE(pbdev->pdev), errp);
+            qdev_unplug(DEVICE(pbdev->pdev), false, errp);
             return;
         }
         pbdev->pci_unplug_request_processed = false;

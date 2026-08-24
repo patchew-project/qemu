@@ -3328,7 +3328,7 @@ static void vfio_req_notifier_handler(void *opaque)
         return;
     }
 
-    qdev_unplug(DEVICE(vdev), &err);
+    qdev_unplug(DEVICE(vdev), false, &err);
     if (err) {
         warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }

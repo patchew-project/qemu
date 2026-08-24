@@ -912,7 +912,7 @@ static DeviceState *find_device_state(const char *id, bool use_generic_error,
     return dev;
 }
 
-void qdev_unplug(DeviceState *dev, Error **errp)
+void qdev_unplug(DeviceState *dev, bool force, Error **errp)
 {
     HotplugHandler *hotplug_ctrl;
     HotplugHandlerClass *hdc;
@@ -960,7 +960,7 @@ void qmp_device_del(const char *id, Error **errp)
             return;
         }
 
-        qdev_unplug(dev, errp);
+        qdev_unplug(dev, false, errp);
     }
 }
 
