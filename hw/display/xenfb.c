@@ -851,9 +851,14 @@ static void xenfb_handle_events(struct XenFB *xenfb)
 
 static int fb_init(struct XenLegacyDevice *xendev)
 {
+    struct XenFB *fb = container_of(xendev, struct XenFB, c.xendev);
+
 #ifdef XENFB_TYPE_RESIZE
     xenstore_write_be_int(xendev, "feature-resize", 1);
 #endif
+
+    fb->con = qemu_graphic_console_create(NULL, 0, &xenfb_ops, fb);
+
     return 0;
 }
 
@@ -881,8 +886,6 @@ static int fb_initialise(struct XenLegacyDevice *xendev)
     rc = xenfb_map_fb(fb);
     if (rc != 0)
         return rc;
-
-    fb->con = qemu_graphic_console_create(NULL, 0, &xenfb_ops, fb);
 
     if (xenstore_read_fe_int(xendev, "feature-update", &fb->feature_update) == -1)
         fb->feature_update = 0;
@@ -973,9 +976,6 @@ static const GraphicHwOps xenfb_ops = {
 static void xen_ui_register_backend(void)
 {
     xen_be_register("vkbd", &xen_kbdmouse_ops);
-
-    if (vga_interface_type == VGA_XENFB) {
-        xen_be_register("vfb", &xen_framebuffer_ops);
-    }
+    xen_be_register("vfb", &xen_framebuffer_ops);
 }
 xen_backend_init(xen_ui_register_backend);
