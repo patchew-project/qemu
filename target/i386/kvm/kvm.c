@@ -2166,24 +2166,53 @@ static void kvm_init_pmu_info_amd(struct kvm_cpuid2 *cpuid, X86CPU *cpu)
     }
 }
 
-static bool is_host_compat_vendor(CPUX86State *env)
+typedef enum X86PMUVendor {
+    X86_PMU_VENDOR_UNKNOWN,
+    X86_PMU_VENDOR_INTEL,
+    X86_PMU_VENDOR_AMD,
+} X86PMUVendor;
+
+static X86PMUVendor x86_cpu_pmu_vendor(const CPUX86State *env)
+{
+    if (IS_INTEL_CPU(env) || IS_ZHAOXIN_CPU(env)) {
+        return X86_PMU_VENDOR_INTEL;
+    }
+
+    if (IS_AMD_CPU(env)) {
+        return X86_PMU_VENDOR_AMD;
+    }
+
+    return X86_PMU_VENDOR_UNKNOWN;
+}
+
+static X86PMUVendor x86_host_pmu_vendor(void)
 {
     char host_vendor[CPUID_VENDOR_SZ + 1];
 
     host_cpu_vendor_fms(host_vendor, NULL, NULL, NULL);
 
-    /*
-     * Intel and Zhaoxin are compatible.
-     */
-    if ((g_str_equal(host_vendor, CPUID_VENDOR_INTEL) ||
-         g_str_equal(host_vendor, CPUID_VENDOR_ZHAOXIN1) ||
-         g_str_equal(host_vendor, CPUID_VENDOR_ZHAOXIN2)) &&
-        (IS_INTEL_CPU(env) || IS_ZHAOXIN_CPU(env))) {
-        return true;
+    if (g_str_equal(host_vendor, CPUID_VENDOR_INTEL) ||
+        g_str_equal(host_vendor, CPUID_VENDOR_ZHAOXIN1) ||
+        g_str_equal(host_vendor, CPUID_VENDOR_ZHAOXIN2)) {
+        return X86_PMU_VENDOR_INTEL;
     }
 
-    return g_str_equal(host_vendor, CPUID_VENDOR_AMD) &&
-           IS_AMD_CPU(env);
+    if (g_str_equal(host_vendor, CPUID_VENDOR_AMD)) {
+        return X86_PMU_VENDOR_AMD;
+    }
+
+    return X86_PMU_VENDOR_UNKNOWN;
+}
+
+/*
+ * The guest vPMU can be virtualized only when the host and guest PMU
+ * architectures are compatible.
+ */
+static bool is_host_compat_vendor(CPUX86State *env)
+{
+    X86PMUVendor guest = x86_cpu_pmu_vendor(env);
+
+    return guest != X86_PMU_VENDOR_UNKNOWN && guest == x86_host_pmu_vendor();
 }
 
 static void kvm_init_pmu_info(struct kvm_cpuid2 *cpuid, X86CPU *cpu)
@@ -2211,10 +2240,15 @@ static void kvm_init_pmu_info(struct kvm_cpuid2 *cpuid, X86CPU *cpu)
         return;
     }
 
-    if (IS_INTEL_CPU(env) || IS_ZHAOXIN_CPU(env)) {
+    switch (x86_cpu_pmu_vendor(env)) {
+    case X86_PMU_VENDOR_INTEL:
         kvm_init_pmu_info_intel(cpuid);
-    } else if (IS_AMD_CPU(env)) {
+        break;
+    case X86_PMU_VENDOR_AMD:
         kvm_init_pmu_info_amd(cpuid, cpu);
+        break;
+    case X86_PMU_VENDOR_UNKNOWN:
+        break;
     }
 }
 
@@ -4268,7 +4302,8 @@ static int kvm_put_msrs(X86CPU *cpu, KvmPutState level)
             kvm_msr_entry_add(cpu, MSR_KVM_POLL_CONTROL, env->poll_control_msr);
         }
 
-        if ((IS_INTEL_CPU(env) || IS_ZHAOXIN_CPU(env)) && pmu_version > 0) {
+        if (x86_cpu_pmu_vendor(env) == X86_PMU_VENDOR_INTEL &&
+            pmu_version > 0) {
             if (pmu_version > 1) {
                 /* Stop the counter.  */
                 kvm_msr_entry_add(cpu, MSR_CORE_PERF_FIXED_CTR_CTRL, 0);
@@ -4300,7 +4335,8 @@ static int kvm_put_msrs(X86CPU *cpu, KvmPutState level)
             }
         }
 
-        if (IS_AMD_CPU(env) && pmu_version > 0) {
+        if (x86_cpu_pmu_vendor(env) == X86_PMU_VENDOR_AMD &&
+            pmu_version > 0) {
             uint32_t sel_base = MSR_K7_EVNTSEL0;
             uint32_t ctr_base = MSR_K7_PERFCTR0;
             /*
@@ -4846,7 +4882,8 @@ static int kvm_get_msrs(X86CPU *cpu)
         kvm_msr_entry_add(cpu, MSR_KVM_POLL_CONTROL, 1);
     }
 
-    if ((IS_INTEL_CPU(env) || IS_ZHAOXIN_CPU(env)) && pmu_version > 0) {
+    if (x86_cpu_pmu_vendor(env) == X86_PMU_VENDOR_INTEL &&
+        pmu_version > 0) {
         if (pmu_version > 1) {
             kvm_msr_entry_add(cpu, MSR_CORE_PERF_FIXED_CTR_CTRL, 0);
             kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_CTRL, 0);
@@ -4862,7 +4899,8 @@ static int kvm_get_msrs(X86CPU *cpu)
         }
     }
 
-    if (IS_AMD_CPU(env) && pmu_version > 0) {
+    if (x86_cpu_pmu_vendor(env) == X86_PMU_VENDOR_AMD &&
+        pmu_version > 0) {
         uint32_t sel_base = MSR_K7_EVNTSEL0;
         uint32_t ctr_base = MSR_K7_PERFCTR0;
         /*
