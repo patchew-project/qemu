@@ -139,6 +139,14 @@ timer_read(void *opaque, hwaddr addr, unsigned int size)
     return r;
 }
 
+static uint64_t timer_limit(struct xlx_timer *xt)
+{
+    if (xt->regs[R_TCSR] & TCSR_UDT)
+        return xt->regs[R_TLR];
+    else
+        return ~0 - xt->regs[R_TLR];
+}
+
 /* Must be called inside ptimer transaction block */
 static void timer_enable(struct xlx_timer *xt)
 {
@@ -149,12 +157,14 @@ static void timer_enable(struct xlx_timer *xt)
 
     ptimer_stop(xt->ptimer);
 
-    if (xt->regs[R_TCSR] & TCSR_UDT)
-        count = xt->regs[R_TLR];
-    else
-        count = ~0 - xt->regs[R_TLR];
+    count = timer_limit(xt);
     ptimer_set_limit(xt->ptimer, count, 1);
-    ptimer_run(xt->ptimer, 1);
+    /*
+     * The auto reload and hold bit makes the count periodic.  Let the ptimer
+     * carry the period, so that it reloads at the expiry rather than when the
+     * callback runs.
+     */
+    ptimer_run(xt->ptimer, !(xt->regs[R_TCSR] & TCSR_ARHT));
 }
 
 static void
@@ -195,6 +205,19 @@ timer_write(void *opaque, hwaddr addr,
             break;
         }
  
+        case R_TLR:
+            xt->regs[addr] = value;
+            /*
+             * A running periodic count takes the new load value at its next
+             * reload.
+             */
+            if (xt->regs[R_TCSR] & TCSR_ENT) {
+                ptimer_transaction_begin(xt->ptimer);
+                ptimer_set_limit(xt->ptimer, timer_limit(xt), 0);
+                ptimer_transaction_commit(xt->ptimer);
+            }
+            break;
+
         default:
             if (addr < ARRAY_SIZE(xt->regs))
                 xt->regs[addr] = value;
@@ -226,9 +249,6 @@ static void timer_hit(void *opaque)
     XpsTimerState *t = xt->parent;
     D(fprintf(stderr, "%s %d\n", __func__, xt->nr));
     xt->regs[R_TCSR] |= TCSR_TINT;
-
-    if (xt->regs[R_TCSR] & TCSR_ARHT)
-        timer_enable(xt);
     timer_update_irq(t);
 }
 
