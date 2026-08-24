@@ -48,6 +48,8 @@ typedef void (*hotplug_fn)(HotplugHandler *plug_handler,
  * @unplug: unplug callback.
  *          Used for device removal with devices that implement
  *          asynchronous and synchronous (surprise) removal.
+ * @force_unplug: force unplug callback.
+ *                Used to complete enforced removal without guest cooperation.
  * @is_hotpluggable_bus: called to check if bus/its parent allow hotplug on bus
  */
 struct HotplugHandlerClass {
@@ -59,6 +61,7 @@ struct HotplugHandlerClass {
     hotplug_fn plug;
     hotplug_fn unplug_request;
     hotplug_fn unplug;
+    hotplug_fn force_unplug;
     bool (*is_hotpluggable_bus)(HotplugHandler *plug_handler, BusState *bus);
 };
 
@@ -96,4 +99,13 @@ void hotplug_handler_unplug_request(HotplugHandler *plug_handler,
 void hotplug_handler_unplug(HotplugHandler *plug_handler,
                             DeviceState *plugged_dev,
                             Error **errp);
+
+/**
+ * hotplug_handler_force_unplug:
+ *
+ * Calls #HotplugHandlerClass.force_unplug callback of @plug_handler.
+ */
+void hotplug_handler_force_unplug(HotplugHandler *plug_handler,
+                                  DeviceState *plugged_dev,
+                                  Error **errp);
 #endif

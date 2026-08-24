@@ -937,7 +937,15 @@ void qdev_unplug(DeviceState *dev, bool force, Error **errp)
     /* If device supports async unplug just request it to be done,
      * otherwise just remove it synchronously */
     hdc = HOTPLUG_HANDLER_GET_CLASS(hotplug_ctrl);
-    if (hdc->unplug_request) {
+
+    if (force) {
+        if (!hdc->force_unplug) {
+            error_setg(&local_err, "Device '%s' does not support forced unplug",
+                       dev->id ? dev->id : object_get_typename(OBJECT(dev)));
+        } else {
+            hotplug_handler_force_unplug(hotplug_ctrl, dev, &local_err);
+        }
+    } else if (hdc->unplug_request) {
         hotplug_handler_unplug_request(hotplug_ctrl, dev, &local_err);
     } else {
         hotplug_handler_unplug(hotplug_ctrl, dev, &local_err);
