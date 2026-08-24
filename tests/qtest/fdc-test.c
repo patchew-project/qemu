@@ -31,7 +31,8 @@
 #define DRIVE_FLOPPY_BLANK \
     "-drive if=floppy,file=null-co://,file.read-zeroes=on,format=raw,size=1440k"
 
-#define TEST_IMAGE_SIZE 1440 * 1024
+#define TEST_IMAGE_1440KB (1440 * 1024)
+#define TEST_IMAGE_720KB (720 * 1024)
 
 #define FLOPPY_BASE 0x3f0
 #define FLOPPY_IRQ 6
@@ -49,8 +50,11 @@ enum {
 enum {
     CMD_SENSE_INT           = 0x08,
     CMD_READ_ID             = 0x0a,
+    CMD_FORMAT_TRACK        = 0x4d,
     CMD_SEEK                = 0x0f,
     CMD_VERIFY              = 0x16,
+    CMD_SAVE                = 0x2e,
+    CMD_RESTORE             = 0x4e,
     CMD_READ                = 0xe6,
     CMD_RELATIVE_SEEK_OUT   = 0x8f,
     CMD_RELATIVE_SEEK_IN    = 0xcf,
@@ -69,9 +73,11 @@ enum {
     ST0_IC_ABNTERM = 0x40,  /* abnormal termination */
 
     ST1_MA       = 0x01,    /* missing address mark */
+    ST1_EC       = 0x80,    /* end of cylinder / sector past last_sect */
 };
 
 static char *test_image;
+static char *test_image_720k;
 
 #define assert_bit_set(data, mask) g_assert_cmphex((data) & (mask), ==, (mask))
 #define assert_bit_clear(data, mask) g_assert_cmphex((data) & (mask), ==, 0)
@@ -276,12 +282,17 @@ static void test_cmos(void)
     g_assert(cmos == 0x40 || cmos == 0x50);
 }
 
-static void media_insert(void)
+static void media_insert_path(const char *path)
 {
     qtest_qmp_assert_success(global_qtest,
                              "{'execute':'blockdev-change-medium', 'arguments':{"
                              " 'id':'floppy0', 'filename': %s, 'format': 'raw' }}",
-                             test_image);
+                             path);
+}
+
+static void media_insert(void)
+{
+    media_insert_path(test_image);
 }
 
 static void media_eject(void)
@@ -586,6 +597,222 @@ static void test_verify(void)
     g_assert(ret == 0);
 }
 
+/*
+ * Query cur_drv->last_sect using the SAVE command (CMD_SAVE, 0x2e).
+ * Byte 8 of the 15 result bytes returned by CMD_SAVE holds last_sect.
+ */
+static uint8_t get_lastsect(void)
+{
+    uint8_t res[15];
+    int i;
+
+    floppy_send(CMD_SAVE);
+    for (i = 0; i < 15; i++) {
+        res[i] = floppy_recv();
+    }
+    return res[8];
+}
+
+/*
+ * Attempt to set cur_drv->last_sect directly using the RESTORE command
+ * (CMD_RESTORE, 0x4e).
+ * While the 82078 datasheet describes RESTORE for restoring a previously
+ * saved state, a guest can issue raw RESTORE commands with arbitrary
+ * parameters without having issued SAVE. Parameter byte 9 is used by the
+ * controller to restore cur_drv->last_sect.
+ */
+static void fake_lastsect(uint8_t last_sect)
+{
+    floppy_send(CMD_RESTORE);
+    floppy_send(0); /* fifo[1] */
+    floppy_send(0); /* fifo[2] */
+    floppy_send(0); /* fifo[3]: drv0 track */
+    floppy_send(0); /* fifo[4]: drv1 track */
+    floppy_send(0); /* fifo[5]: drv2 track */
+    floppy_send(0); /* fifo[6]: drv3 track */
+    floppy_send(0); /* fifo[7]: timer0 */
+    floppy_send(0); /* fifo[8]: timer1 */
+    floppy_send(last_sect); /* fifo[9]: last_sect */
+    floppy_send(0); /* fifo[10]: lock/perpendicular */
+    floppy_send(0); /* fifo[11]: config */
+    floppy_send(0); /* fifo[12]: precomp_trk */
+    floppy_send(0); /* fifo[13]: pwrd */
+    floppy_send(0); /* fifo[14] */
+    floppy_send(0); /* fifo[15] */
+    floppy_send(0); /* fifo[16] */
+    floppy_send(0); /* fifo[17] */
+}
+
+static void send_format_track(uint8_t drive, uint8_t head, uint8_t last_sect,
+                              uint8_t *st0_out, uint8_t *st1_out)
+{
+    uint8_t st0, st1;
+
+    floppy_send(CMD_FORMAT_TRACK);
+    floppy_send((head << 2) | drive);
+    floppy_send(2);          /* 512 bytes per sector */
+    floppy_send(last_sect);  /* sectors per track */
+    floppy_send(0x1b);       /* GAP length */
+    floppy_send(0x00);       /* filler byte */
+
+    g_assert(get_irq(FLOPPY_IRQ));
+    st0 = floppy_recv();
+    st1 = floppy_recv();
+    floppy_recv(); /* st2 */
+    floppy_recv(); /* track */
+    floppy_recv(); /* head */
+    floppy_recv(); /* sect */
+    g_assert(get_irq(FLOPPY_IRQ));
+    floppy_recv(); /* sz */
+    g_assert(!get_irq(FLOPPY_IRQ));
+
+    if (st0_out) {
+        *st0_out = st0;
+    }
+    if (st1_out) {
+        *st1_out = st1;
+    }
+}
+
+/*
+ * Test that guest cannot set last_sect beyond the probed media size
+ * via RESTORE or FORMAT TRACK commands (gitlab issue #3800).
+ */
+static void test_last_sect_bounds(void)
+{
+    uint8_t st0, st1;
+
+    /* Start with 1.44 MB media inserted (last_sect = 18) */
+    media_insert();
+    send_seek(1);
+    send_seek(0);
+
+    /* Valid last_sect values (<= 18) should succeed */
+    fake_lastsect(18);
+    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert_cmpint(get_lastsect(), ==, 18);
+
+    fake_lastsect(9);
+    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert_cmpint(get_lastsect(), ==, 9);
+
+    /* Restoring to the default 18 */
+    fake_lastsect(18);
+    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert_cmpint(get_lastsect(), ==, 18);
+
+    /* Invalid last_sect value (> 18) must fail */
+    fake_lastsect(19);
+    g_assert(get_irq(FLOPPY_IRQ));
+    st0 = floppy_recv();
+    st1 = floppy_recv();
+    floppy_recv(); /* st2 */
+    floppy_recv(); /* track */
+    floppy_recv(); /* head */
+    floppy_recv(); /* sect */
+    g_assert(get_irq(FLOPPY_IRQ));
+    floppy_recv(); /* sz */
+    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert_cmpint(st0 & ST0_IC_MASK, ==, ST0_IC_ABNTERM);
+    g_assert_cmpint(st1 & ST1_EC, ==, ST1_EC);
+
+    /* Verify last_sect was not changed to 19 */
+    g_assert_cmpint(get_lastsect(), ==, 18);
+
+    /* FORMAT TRACK with valid last_sect (18) should succeed */
+    send_format_track(0, 0, 18, &st0, &st1);
+    g_assert_cmpint(st0 & ST0_IC_MASK, ==, 0);
+    g_assert_cmpint(st1, ==, 0);
+
+    /* FORMAT TRACK with invalid last_sect (19) must fail */
+    send_format_track(0, 0, 19, &st0, &st1);
+    g_assert_cmpint(st0 & ST0_IC_MASK, ==, ST0_IC_ABNTERM);
+    g_assert_cmpint(st1 & ST1_EC, ==, ST1_EC);
+
+    /* Change media to 720 kB floppy (last_sect = 9) */
+    media_eject();
+    media_insert_path(test_image_720k);
+    send_seek(1);
+    send_seek(0);
+
+    /* Probed geometry now has last_sect = 9 */
+    fake_lastsect(9);
+    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert_cmpint(get_lastsect(), ==, 9);
+
+    /* Values exceeding 9 (e.g. 10 or 18) must now fail */
+    fake_lastsect(10);
+    g_assert(get_irq(FLOPPY_IRQ));
+    st0 = floppy_recv();
+    st1 = floppy_recv();
+    floppy_recv();
+    floppy_recv();
+    floppy_recv();
+    floppy_recv();
+    g_assert(get_irq(FLOPPY_IRQ));
+    floppy_recv();
+    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert_cmpint(st0 & ST0_IC_MASK, ==, ST0_IC_ABNTERM);
+    g_assert_cmpint(st1 & ST1_EC, ==, ST1_EC);
+
+    fake_lastsect(18);
+    g_assert(get_irq(FLOPPY_IRQ));
+    st0 = floppy_recv();
+    st1 = floppy_recv();
+    floppy_recv();
+    floppy_recv();
+    floppy_recv();
+    floppy_recv();
+    g_assert(get_irq(FLOPPY_IRQ));
+    floppy_recv();
+    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert_cmpint(st0 & ST0_IC_MASK, ==, ST0_IC_ABNTERM);
+    g_assert_cmpint(st1 & ST1_EC, ==, ST1_EC);
+
+    /* FORMAT TRACK on 720 kB floppy */
+    send_format_track(0, 0, 9, &st0, &st1);
+    g_assert_cmpint(st0 & ST0_IC_MASK, ==, 0);
+    g_assert_cmpint(st1, ==, 0);
+
+    send_format_track(0, 0, 10, &st0, &st1);
+    g_assert_cmpint(st0 & ST0_IC_MASK, ==, ST0_IC_ABNTERM);
+    g_assert_cmpint(st1 & ST1_EC, ==, ST1_EC);
+
+    send_format_track(0, 0, 18, &st0, &st1);
+    g_assert_cmpint(st0 & ST0_IC_MASK, ==, ST0_IC_ABNTERM);
+    g_assert_cmpint(st1 & ST1_EC, ==, ST1_EC);
+
+    /*
+     * Change back to 1.44 MB floppy and verify last_sect = 18 is allowed
+     * again.
+     */
+    media_eject();
+    media_insert();
+    send_seek(1);
+    send_seek(0);
+
+    fake_lastsect(18);
+    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert_cmpint(get_lastsect(), ==, 18);
+
+    fake_lastsect(19);
+    g_assert(get_irq(FLOPPY_IRQ));
+    st0 = floppy_recv();
+    st1 = floppy_recv();
+    floppy_recv();
+    floppy_recv();
+    floppy_recv();
+    floppy_recv();
+    g_assert(get_irq(FLOPPY_IRQ));
+    floppy_recv();
+    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert_cmpint(st0 & ST0_IC_MASK, ==, ST0_IC_ABNTERM);
+    g_assert_cmpint(st1 & ST1_EC, ==, ST1_EC);
+
+    /* Leave drive empty */
+    media_eject();
+}
+
 /* success if no crash or abort */
 static void fuzz_registers(void)
 {
@@ -661,10 +888,16 @@ int main(int argc, char **argv)
     int fd;
     int ret;
 
-    /* Create a temporary raw image */
+    /* Create temporary raw images */
     fd = g_file_open_tmp("qtest.XXXXXX", &test_image, NULL);
     g_assert(fd >= 0);
-    ret = ftruncate(fd, TEST_IMAGE_SIZE);
+    ret = ftruncate(fd, TEST_IMAGE_1440KB);
+    g_assert(ret == 0);
+    close(fd);
+
+    fd = g_file_open_tmp("qtest720.XXXXXX", &test_image_720k, NULL);
+    g_assert(fd >= 0);
+    ret = ftruncate(fd, TEST_IMAGE_720KB);
     g_assert(ret == 0);
     close(fd);
 
@@ -686,6 +919,7 @@ int main(int argc, char **argv)
     qtest_add_func("/fdc/read_no_dma_1", test_read_no_dma_1);
     qtest_add_func("/fdc/read_no_dma_18", test_read_no_dma_18);
     qtest_add_func("/fdc/read_no_dma_19", test_read_no_dma_19);
+    qtest_add_func("/fdc/last_sect_bounds", test_last_sect_bounds);
     qtest_add_func("/fdc/fuzz-registers", fuzz_registers);
     qtest_add_func("/fdc/fuzz/cve_2021_20196", test_cve_2021_20196);
     qtest_add_func("/fdc/fuzz/cve_2021_3507", test_cve_2021_3507);
@@ -696,6 +930,8 @@ int main(int argc, char **argv)
     qtest_end();
     unlink(test_image);
     g_free(test_image);
+    unlink(test_image_720k);
+    g_free(test_image_720k);
 
     return ret;
 }
