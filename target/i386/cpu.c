@@ -10222,7 +10222,8 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
          * needs to happen after the evenual setting of ucode_rev in
          * accel-specific code in cpu_common_realize.
          */
-        if (IS_AMD_CPU(env)) {
+        if (IS_AMD_CPU(env) ||
+            (IS_HYGON_CPU(env) && cpu->hygon_vendor_abi_fixes)) {
             cpu->ucode_rev = 0x01000065;
         } else {
             cpu->ucode_rev = 0x100000000ULL;
