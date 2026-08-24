@@ -221,6 +221,7 @@ static void pcie_slot_class_init(ObjectClass *oc, const void *data)
     hc->plug = pcie_cap_slot_plug_cb;
     hc->unplug = pcie_cap_slot_unplug_cb;
     hc->unplug_request = pcie_cap_slot_unplug_request_cb;
+    hc->force_unplug = pcie_cap_slot_force_unplug_cb;
     hc->is_hotpluggable_bus = pcie_slot_is_hotpluggable_bus;
 }
 

@@ -666,6 +666,26 @@ void pcie_cap_slot_unplug_request_cb(HotplugHandler *hotplug_dev,
     pcie_cap_slot_push_attention_button(hotplug_pdev);
 }
 
+void pcie_cap_slot_force_unplug_cb(HotplugHandler *hotplug_dev,
+                                   DeviceState *dev, Error **errp)
+{
+    PCIDevice *hotplug_pdev = PCI_DEVICE(hotplug_dev);
+    uint8_t *exp_cap = hotplug_pdev->config + hotplug_pdev->exp.exp_cap;
+    uint32_t sltcap = pci_get_word(exp_cap + PCI_EXP_SLTCAP);
+
+    if ((sltcap & PCI_EXP_SLTCAP_HPC) == 0) {
+        error_setg(errp, "Hot-unplug failed: "
+                   "unsupported by the port device '%s'",
+                   DEVICE(hotplug_pdev)->id);
+        return;
+    }
+
+    pcie_cap_slot_do_unplug(hotplug_pdev);
+    pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
+                                 PCI_EXP_SLTSTA_ABP);
+    hotplug_event_notify(hotplug_pdev);
+}
+
 /* pci express slot for pci express root/downstream port
    PCI express capability slot registers */
 void pcie_cap_slot_init(PCIDevice *dev, PCIESlot *s)

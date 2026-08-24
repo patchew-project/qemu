@@ -154,6 +154,8 @@ void pcie_cap_slot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                              Error **errp);
 void pcie_cap_slot_unplug_request_cb(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp);
+void pcie_cap_slot_force_unplug_cb(HotplugHandler *hotplug_dev,
+                                   DeviceState *dev, Error **errp);
 
 void pcie_pasid_common_init(PCIDevice *dev, uint16_t offset,
                             uint8_t pasid_width, bool exec_perm, bool priv_mod);
