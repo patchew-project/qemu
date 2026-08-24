@@ -192,6 +192,7 @@ static void fd_init(FDrive *drv)
     drv->max_track = 0;
     drv->ro = true;
     drv->media_changed = 1;
+    drv->media_last_sect = 0;
 }
 
 #define NUM_SIDES(drv) ((drv)->flags & FDISK_DBL_SIDES ? 2 : 1)
@@ -373,6 +374,7 @@ static int pick_geometry(FDrive *drv)
     }
     drv->max_track = parse->max_track;
     drv->last_sect = parse->last_sect;
+    drv->media_last_sect = parse->last_sect;
     drv->disk = parse->drive;
     drv->media_rate = parse->rate;
     return 0;
@@ -1905,6 +1907,17 @@ static void fdctrl_handle_partid(FDCtrl *fdctrl, int direction)
     fdctrl_to_result_phase(fdctrl, 1);
 }
 
+static bool fd_validate_last_sect(FDrive *drv, uint8_t new_last_sect_val)
+{
+    if (drv->media_validated && new_last_sect_val > drv->media_last_sect) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "FDC: Guest attempted to set last_sect to %u, exceeding valid media max of %u\n",
+                      new_last_sect_val, drv->media_last_sect);
+        return false;
+    }
+    return true;
+}
+
 static void fdctrl_handle_restore(FDCtrl *fdctrl, int direction)
 {
     FDrive *cur_drv = get_cur_drv(fdctrl);
@@ -1919,6 +1932,10 @@ static void fdctrl_handle_restore(FDCtrl *fdctrl, int direction)
     /* timers */
     fdctrl->timer0 = fdctrl->fifo[7];
     fdctrl->timer1 = fdctrl->fifo[8];
+    if (!fd_validate_last_sect(cur_drv, fdctrl->fifo[9])) {
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, FD_SR1_EC, 0x00);
+        return;
+    }
     cur_drv->last_sect = fdctrl->fifo[9];
     fdctrl->lock = fdctrl->fifo[10] >> 7;
     cur_drv->perpendicular = (fdctrl->fifo[10] >> 2) & 0xF;
@@ -1976,6 +1993,12 @@ static void fdctrl_handle_format_track(FDCtrl *fdctrl, int direction)
 
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
+
+    if (!fd_validate_last_sect(cur_drv, fdctrl->fifo[3])) {
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, FD_SR1_EC, 0x00);
+        return;
+    }
+
     fdctrl->data_state |= FD_STATE_FORMAT;
     if (fdctrl->fifo[0] & 0x80)
         fdctrl->data_state |= FD_STATE_MULTI;
@@ -1983,13 +2006,8 @@ static void fdctrl_handle_format_track(FDCtrl *fdctrl, int direction)
         fdctrl->data_state &= ~FD_STATE_MULTI;
     cur_drv->bps =
         fdctrl->fifo[2] > 7 ? 16384 : 128 << fdctrl->fifo[2];
-#if 0
-    cur_drv->last_sect =
-        cur_drv->flags & FDISK_DBL_SIDES ? fdctrl->fifo[3] :
-        fdctrl->fifo[3] / 2;
-#else
+
     cur_drv->last_sect = fdctrl->fifo[3];
-#endif
     /* TODO: implement format using DMA expected by the Bochs BIOS
      * and Linux fdformat (read 3 bytes per sector via DMA and fill
      * the sector with the specified fill byte
