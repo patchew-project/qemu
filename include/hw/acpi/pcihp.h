@@ -75,6 +75,9 @@ void acpi_pcihp_device_unplug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
 void acpi_pcihp_device_unplug_request_cb(HotplugHandler *hotplug_dev,
                                          AcpiPciHpState *s, DeviceState *dev,
                                          Error **errp);
+void acpi_pcihp_device_force_unplug_cb(HotplugHandler *hotplug_dev,
+                                       AcpiPciHpState *s, DeviceState *dev,
+                                       Error **errp);
 
 void build_acpi_pci_hotplug(Aml *table, AmlRegionSpace rs, uint64_t pcihp_addr);
 void build_append_pci_dsm_func0_common(Aml *ctx, Aml *retvar);

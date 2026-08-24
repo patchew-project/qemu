@@ -367,6 +367,23 @@ void acpi_pcihp_device_unplug_request_cb(HotplugHandler *hotplug_dev,
     acpi_send_event(DEVICE(hotplug_dev), ACPI_PCI_HOTPLUG_STATUS);
 }
 
+void acpi_pcihp_device_force_unplug_cb(HotplugHandler *hotplug_dev,
+                                       AcpiPciHpState *s, DeviceState *dev,
+                                       Error **errp)
+{
+    PCIDevice *pdev = PCI_DEVICE(dev);
+    int slot = PCI_SLOT(pdev->devfn);
+    int bsel = acpi_pcihp_get_bsel(pci_get_bus(pdev));
+
+    if (bsel < 0) {
+        error_setg(errp, "Unsupported bus. Bus doesn't have property '"
+                   ACPI_PCIHP_PROP_BSEL "' set");
+        return;
+    }
+
+    acpi_pcihp_eject_slot(s, bsel, 1U << slot);
+}
+
 bool acpi_pcihp_is_hotpluggable_bus(AcpiPciHpState *s, BusState *bus)
 {
     Object *o = OBJECT(bus->parent);
