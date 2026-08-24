@@ -21,6 +21,12 @@ mappings:
   python3-sphinx-rtd-theme:
     CentOSStream9:
 
+  python3-numpy:
+    CentOSStream9:
+
+  python3-opencv:
+    CentOSStream9:
+
   python3-venv:
     CentOSStream9: python3.11
 
@@ -54,3 +60,9 @@ pypi_mappings:
     apk:
     Fedora:
     Debian12:
+
+  python3-numpy:
+    CentOSStream9: numpy
+
+  python3-opencv:
+    CentOSStream9: opencv-python
