@@ -2178,7 +2178,7 @@ static X86PMUVendor x86_cpu_pmu_vendor(const CPUX86State *env)
         return X86_PMU_VENDOR_INTEL;
     }
 
-    if (IS_AMD_CPU(env)) {
+    if (IS_AMD_CPU(env) || IS_HYGON_CPU(env)) {
         return X86_PMU_VENDOR_AMD;
     }
 
@@ -2197,7 +2197,8 @@ static X86PMUVendor x86_host_pmu_vendor(void)
         return X86_PMU_VENDOR_INTEL;
     }
 
-    if (g_str_equal(host_vendor, CPUID_VENDOR_AMD)) {
+    if (g_str_equal(host_vendor, CPUID_VENDOR_AMD) ||
+        g_str_equal(host_vendor, CPUID_VENDOR_HYGON)) {
         return X86_PMU_VENDOR_AMD;
     }
 
