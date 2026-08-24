@@ -708,17 +708,18 @@ ERST
 
     {
         .name       = "device_del",
-        .args_type  = "id:s",
-        .params     = "device",
-        .help       = "remove device",
+        .args_type  = "force:-f,id:s",
+        .params     = "[-f] device",
+        .help       = "remove device, use -f to force removal",
         .cmd        = hmp_device_del,
         .command_completion = device_del_completion,
     },
 
 SRST
-``device_del`` *id*
+``device_del`` [*-f*] *id*
   Remove device *id*. *id* may be a short ID
-  or a QOM object path.
+  or a QOM object path.  Use -f to force removal without waiting for
+  guest cooperation.
 ERST
 
     {

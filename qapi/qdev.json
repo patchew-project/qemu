@@ -90,6 +90,11 @@
 #
 # @id: the device's ID or QOM path
 #
+# @force: if true, remove the device without waiting for guest
+#     cooperation.  The guest may still be using the device.  This can
+#     cause guest-visible errors, I/O failures, or guest crashes.
+#     (since 11.2)
+#
 # Errors:
 #     - If @id is not a valid device, DeviceNotFound
 #
@@ -101,7 +106,9 @@
 #    will automatically complete removal for all devices.  If a
 #    guest-side error in the hot removal process is detected, the
 #    device will not be removed and a `DEVICE_UNPLUG_GUEST_ERROR`
-#    event is sent.  Some errors cannot be detected.
+#    event is sent.  Some errors cannot be detected.  If @force is
+#    true, guest cooperation is bypassed, but backend cleanup is still
+#    performed through the device's normal unrealize path.
 #
 # Since: 0.14
 #
@@ -117,7 +124,7 @@
 #          "arguments": { "id": "/machine/peripheral-anon/device[0]" } }
 #     <- { "return": {} }
 ##
-{ 'command': 'device_del', 'data': {'id': 'str'} }
+{ 'command': 'device_del', 'data': {'id': 'str', '*force': 'bool'} }
 
 ##
 # @DEVICE_DELETED:

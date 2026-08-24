@@ -956,11 +956,13 @@ void qdev_unplug(DeviceState *dev, bool force, Error **errp)
     error_propagate(errp, local_err);
 }
 
-void qmp_device_del(const char *id, Error **errp)
+void qmp_device_del(const char *id, bool has_force, bool force, Error **errp)
 {
     DeviceState *dev = find_device_state(id, false, errp);
+    bool do_force = has_force && force;
+
     if (dev != NULL) {
-        if (dev->pending_deleted_event &&
+        if (!do_force && dev->pending_deleted_event &&
             (dev->pending_deleted_expires_ms == 0 ||
              dev->pending_deleted_expires_ms > qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL))) {
             error_setg(errp, "Device %s is already in the "
@@ -968,7 +970,7 @@ void qmp_device_del(const char *id, Error **errp)
             return;
         }
 
-        qdev_unplug(dev, false, errp);
+        qdev_unplug(dev, do_force, errp);
     }
 }
 
@@ -1046,9 +1048,10 @@ out:
 void hmp_device_del(Monitor *mon, const QDict *qdict)
 {
     const char *id = qdict_get_str(qdict, "id");
+    bool force = qdict_get_try_bool(qdict, "force", false);
     Error *err = NULL;
 
-    qmp_device_del(id, &err);
+    qmp_device_del(id, true, force, &err);
     hmp_handle_error(mon, err);
 }
 
