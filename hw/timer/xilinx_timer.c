@@ -175,17 +175,25 @@ timer_write(void *opaque, hwaddr addr,
     addr &= 3;
     switch (addr) 
     {
-        case R_TCSR:
+        case R_TCSR: {
+            uint32_t old = xt->regs[R_TCSR];
+
             if (value & TCSR_TINT)
                 value &= ~TCSR_TINT;
 
             xt->regs[addr] = value & 0x7ff;
-            if (value & TCSR_ENT) {
+            /*
+             * Only a transition of the enable bit to one starts the count.
+             * A write which leaves the bit set, such as the acknowledge of
+             * an interrupt, does not restart it.
+             */
+            if ((value & TCSR_ENT) && !(old & TCSR_ENT)) {
                 ptimer_transaction_begin(xt->ptimer);
                 timer_enable(xt);
                 ptimer_transaction_commit(xt->ptimer);
             }
             break;
+        }
  
         default:
             if (addr < ARRAY_SIZE(xt->regs))
