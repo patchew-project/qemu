@@ -78,6 +78,7 @@ void cpu_loop(CPUHexagonState *env)
             break;
             case HEX_CAUSE_MISALIGNED_LOAD:
             case HEX_CAUSE_MISALIGNED_STORE:
+            case HEX_CAUSE_PC_NOT_ALIGNED:
             force_sig_fault(TARGET_SIGBUS, TARGET_BUS_ADRALN,
                     env->gpr[HEX_REG_PC]);
             break;
@@ -87,10 +88,6 @@ void cpu_loop(CPUHexagonState *env)
                     env->cause_code);
                 exit(EXIT_FAILURE);
             }
-            break;
-        case HEX_CAUSE_PC_NOT_ALIGNED:
-            force_sig_fault(TARGET_SIGBUS, TARGET_BUS_ADRALN,
-                            env->gpr[HEX_REG_R31]);
             break;
         case HEX_CAUSE_INVALID_PACKET:
         case HEX_CAUSE_REG_WRITE_CONFLICT:

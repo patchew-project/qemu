@@ -245,7 +245,11 @@ static void gen_exception_decode_fail(DisasContext *ctx, int nwords, int excp)
 
     gen_exec_counters(ctx);
     tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], fail_pc);
+#ifdef CONFIG_USER_ONLY
     gen_exception(excp, fail_pc);
+#else
+    gen_precise_exception(excp, fail_pc);
+#endif
     ctx->base.is_jmp = DISAS_NORETURN;
     ctx->base.pc_next = fail_pc;
 }
