@@ -9300,7 +9300,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     case 0x80000021:
         *eax = *ebx = *ecx = *edx = 0;
         *eax = env->features[FEAT_8000_0021_EAX];
-        *ebx = env->features[FEAT_8000_0021_EBX];
+
+        if (kvm_enabled() && (*eax & CPUID_8000_0021_EAX_ERAPS)) {
+            *ebx |=
+              kvm_arch_get_supported_cpuid(cs->kvm_state, index, count, R_EBX) &
+              CPUID_8000_0021_EBX_RAPSIZE;
+        }
+
         *ecx = env->features[FEAT_8000_0021_ECX];
         break;
     case 0x80000022:
