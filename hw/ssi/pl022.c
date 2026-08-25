@@ -74,7 +74,6 @@ static void pl022_xfer(PL022State *s)
 {
     int i;
     int o;
-    int val;
 
     if ((s->cr1 & PL022_CR1_SSE) == 0) {
         pl022_update(s);
@@ -99,13 +98,18 @@ static void pl022_xfer(PL022State *s)
        the transfer has completed.  */
     while (s->tx_fifo_len && s->rx_fifo_len < 8) {
         DPRINTF("xfer\n");
-        val = s->tx_fifo[i];
+        uint16_t tx = s->tx_fifo[i];
+        uint16_t rx = 0;
         if (s->cr1 & PL022_CR1_LBM) {
             /* Loopback mode.  */
+            rx = tx;
         } else {
-            val = ssi_transfer8(s->ssi, val);
+            if (s->bitmask > 0xff) {
+                rx |= (ssi_transfer8(s->ssi, (tx >> 8) & 0xff) << 8);
+            }
+            rx |= ssi_transfer8(s->ssi, tx & 0xff);
         }
-        s->rx_fifo[o] = val & s->bitmask;
+        s->rx_fifo[o] = rx & s->bitmask;
         i = (i + 1) & 7;
         o = (o + 1) & 7;
         s->tx_fifo_len--;
