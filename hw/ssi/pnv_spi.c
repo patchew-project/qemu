@@ -194,32 +194,26 @@ static void spi_response(PnvSpi *s)
 
 static void transfer(PnvSpi *s)
 {
-    uint32_t tx, rx, payload_len;
+    uint32_t payload_len;
     uint8_t rx_byte;
 
     payload_len = fifo8_num_used(&s->tx_fifo);
     for (int offset = 0; offset < payload_len; offset += s->transfer_len) {
-        tx = 0;
         for (int i = 0; i < s->transfer_len; i++) {
             if ((offset + i) >= payload_len) {
-                tx <<= 8;
-            } else if (!fifo8_is_empty(&s->tx_fifo)) {
-                tx = (tx << 8) | fifo8_pop(&s->tx_fifo);
+                break;
+            }
+
+            if (!fifo8_is_empty(&s->tx_fifo)) {
+                rx_byte = ssi_transfer8(s->ssi_bus, fifo8_pop(&s->tx_fifo));
+                if (!fifo8_is_full(&s->rx_fifo)) {
+                    fifo8_push(&s->rx_fifo, rx_byte);
+                } else {
+                    qemu_log_mask(LOG_GUEST_ERROR, "pnv_spi: RX_FIFO is full\n");
+                    break;
+                }
             } else {
                 qemu_log_mask(LOG_GUEST_ERROR, "pnv_spi: TX_FIFO underflow\n");
-            }
-        }
-        rx = ssi_transfer8(s->ssi_bus, tx);
-        for (int i = 0; i < s->transfer_len; i++) {
-            if ((offset + i) >= payload_len) {
-                break;
-            }
-            rx_byte = (rx >> (8 * (s->transfer_len - 1) - i * 8)) & 0xFF;
-            if (!fifo8_is_full(&s->rx_fifo)) {
-                fifo8_push(&s->rx_fifo, rx_byte);
-            } else {
-                qemu_log_mask(LOG_GUEST_ERROR, "pnv_spi: RX_FIFO is full\n");
-                break;
             }
         }
     }
