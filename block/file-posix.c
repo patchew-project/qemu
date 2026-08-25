@@ -1490,10 +1490,15 @@ static void raw_refresh_zoned_limits(BlockDriverState *bs, struct stat *st,
     }
     bs->bl.nr_zones = ret;
 
-    ret = get_sysfs_long_val(st, "zone_append_max_bytes");
-    if (ret > 0) {
-        bs->bl.max_append_sectors = ret >> BDRV_SECTOR_BITS;
-    }
+    /*
+     * raw_co_zone_append() carries out an append as an ordinary write at the
+     * write pointer, so the zone_append_max_bytes attribute, which bounds an
+     * operation that this driver never issues, does not apply. The kernel
+     * splits a write that is larger than the transfer limit rather than
+     * refusing it, but there is no use in telling a guest that it may append
+     * more than the device carries in one command.
+     */
+    bs->bl.max_append_sectors = bs->bl.max_hw_transfer >> BDRV_SECTOR_BITS;
 
     ret = get_sysfs_long_val(st, "zone_write_granularity");
     if (ret >= 0) {
