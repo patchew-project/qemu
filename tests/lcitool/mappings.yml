@@ -4,14 +4,14 @@ mappings:
     Ubuntu2204:
 
   python3:
-    CentOSStream9: python3.11
+    CentOSStream9: python3.12
 
   python3-pip:
-    CentOSStream9: python3.11-pip
+    CentOSStream9: python3.12-pip
     FreeBSD: py312-pip
 
   python3-setuptools:
-    CentOSStream9: python3.11-setuptools
+    CentOSStream9: python3.12-setuptools
     FreeBSD: py312-setuptools
 
   python3-sphinx:
@@ -26,10 +26,10 @@ mappings:
     CentOSStream9:
 
   python3-venv:
-    CentOSStream9: python3.11
+    CentOSStream9: python3.12
 
   python3-wheel:
-    CentOSStream9: python3.11-wheel
+    CentOSStream9: python3.12-wheel
     FreeBSD: py312-wheel
 
   python3-numpy:
