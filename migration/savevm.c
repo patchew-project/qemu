@@ -1107,7 +1107,7 @@ void qemu_savevm_state_end(QEMUFile *f)
 static inline bool qemu_savevm_state_active(SaveStateEntry *se)
 {
     /* When no is_active() hook, always treat it as ACTIVE */
-    if (!se->ops->is_active) {
+    if (!se->ops || !se->ops->is_active) {
         return true;
     }
 
@@ -1750,6 +1750,10 @@ bool qemu_savevm_state_non_iterable(QEMUFile *f, Error **errp)
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (se->vmsd && se->vmsd->early_setup) {
             /* Already saved during qemu_savevm_state_setup(). */
+            continue;
+        }
+
+        if (!qemu_savevm_state_active(se)) {
             continue;
         }
 
