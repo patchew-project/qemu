@@ -27,10 +27,14 @@ int qemu_vprintf(const char *fmt, va_list ap)
 
     /* for all monitors: QMP & HMP */
     if (cur_mon) {
+#ifdef CONFIG_HMP
         /* don't use monitor_cur_hmp(), to avoid a second lookup */
         MonitorHMP *hmp = (MonitorHMP *)
             object_dynamic_cast(OBJECT(cur_mon), TYPE_MONITOR_HMP);
         return monitor_hmp_vprintf(hmp, fmt, ap);
+#else
+        return -1;
+#endif
     }
     return vprintf(fmt, ap);
 }
@@ -60,10 +64,12 @@ int qemu_printf(const char *fmt, ...)
  */
 int qemu_vfprintf(FILE *stream, const char *fmt, va_list ap)
 {
+#ifdef CONFIG_HMP
     if (!stream) {
         MonitorHMP *hmp = monitor_cur_hmp();
         return monitor_hmp_vprintf(hmp, fmt, ap);
     }
+#endif
     return vfprintf(stream, fmt, ap);
 }
 
