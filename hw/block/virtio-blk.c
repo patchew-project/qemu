@@ -522,7 +522,7 @@ static bool check_zoned_request(VirtIOBlock *s, int64_t offset, int64_t len,
     if (append) {
         uint32_t wg_mask = blkconf_zone_write_granularity(&s->conf.conf) - 1;
 
-        if (offset & wg_mask) {
+        if (offset & wg_mask || len & wg_mask) {
             *status = VIRTIO_BLK_S_ZONE_UNALIGNED_WP;
             return false;
         }
@@ -909,6 +909,29 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
                                is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
             g_free(req);
             return 0;
+        }
+
+        if (is_write) {
+            BlockDriverState *bs = blk_bs(s->blk);
+            int64_t offset = req->sector_num << BDRV_SECTOR_BITS;
+            uint32_t wg_mask =
+                blkconf_zone_write_granularity(&s->conf.conf) - 1;
+
+            /*
+             * Both the offset and the size of a write to a sequential zone
+             * must be a multiple of the write granularity reported by the
+             * device. Conventional zones are not constrained. The zone index
+             * is derived from a guest supplied sector, so this must come after
+             * virtio_blk_sect_range_ok() has bounded it.
+             */
+            if (bs->bl.zoned != BLK_Z_NONE &&
+                (offset & wg_mask || req->qiov.size & wg_mask) &&
+                !BDRV_ZT_IS_CONV(bs->wps->wp[offset / bs->bl.zone_size])) {
+                virtio_blk_req_complete(req, VIRTIO_BLK_S_ZONE_UNALIGNED_WP);
+                block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_WRITE);
+                g_free(req);
+                return 0;
+            }
         }
 
         block_acct_start(blk_get_stats(s->blk), &req->acct, req->qiov.size,
