@@ -1512,11 +1512,14 @@ static void strongarm_ssp_write(void *opaque, hwaddr addr,
          * there directly to the slave, no need to buffer it.
          */
         if (s->sscr[0] & SSCR0_SSE) {
-            uint32_t readval;
+            uint32_t readval = 0;
             if (s->sscr[1] & SSCR1_LBM) {
                 readval = value;
             } else {
-                readval = ssi_transfer8(s->bus, value);
+                if (SSCR0_DSS(s->sscr[0]) > 8) {
+                    readval |= ssi_transfer8(s->bus, (value >> 8) & 0xff) << 8;
+                }
+                readval |= ssi_transfer8(s->bus, value & 0xff);
             }
 
             if (s->rx_level < 0x08) {
