@@ -11,21 +11,29 @@ mappings:
 
   python3-pip:
     CentOSStream9: python3.11-pip
+    FreeBSD: py312-pip
 
   python3-setuptools:
     CentOSStream9: python3.11-setuptools
+    FreeBSD: py312-setuptools
 
   python3-sphinx:
     CentOSStream9:
+    FreeBSD: py312-sphinx
 
   python3-sphinx-rtd-theme:
     CentOSStream9:
+    FreeBSD: py312-sphinx_rtd_theme
 
   python3-venv:
     CentOSStream9: python3.11
 
   python3-wheel:
     CentOSStream9: python3.11-wheel
+    FreeBSD: py312-wheel
+
+  python3-numpy:
+    FreeBSD: py312-numpy
 
   meson:
     # Use Meson from PyPI wherever Rust is enabled
@@ -38,6 +46,7 @@ mappings:
     apk:
     Fedora:
     Debian12:
+    FreeBSD: py312-tomli
 
   rust:
     Debian12: rustc-web
