@@ -575,8 +575,9 @@ static bool do_populate_cpu_state(FadumpSection *region)
 
     if (region->source_len != region->bytes_dumped) {
         /*
-         * Log the error, but don't fail the dump collection here, let
-         * kernel handle the mismatch
+         * Log the error, but don't fail the dump collection here.
+         * This is probably because of maxcpus config. Linux kernel would
+         * not collect any dump if dumped_bytes does not match source_len.
          */
         qemu_log_mask(LOG_GUEST_ERROR,
                 "FADump: Mismatch in CPU State region's length exported:"
@@ -584,6 +585,8 @@ static bool do_populate_cpu_state(FadumpSection *region)
                 " QEMU exported: 0x%" PRIx64 " bytes\n",
                 be64_to_cpu(region->source_len),
                 be64_to_cpu(region->bytes_dumped));
+
+        region->bytes_dumped = region->source_len;
     }
 
     return true;
