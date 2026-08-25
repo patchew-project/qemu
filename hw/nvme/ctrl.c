@@ -7832,7 +7832,7 @@ static int nvme_atomic_write_check(NvmeCtrl *n, NvmeCmd *cmd,
     int i;
 
     if ((cmd->opcode == NVME_CMD_READ) || ((cmd->opcode == NVME_CMD_WRITE) &&
-        ((rw->nlb + 1) > atomic->atomic_max_write_size))) {
+        ((nlb + 1) > atomic->atomic_max_write_size))) {
         cmd_atomic_wr = false;
     }
 
@@ -7869,7 +7869,7 @@ static int nvme_atomic_write_check(NvmeCtrl *n, NvmeCmd *cmd,
 
             if (((req_rw->opcode == NVME_CMD_WRITE) ||
                  (req_rw->opcode == NVME_CMD_READ)) &&
-                (cmd->nsid == req->ns->params.nsid)) {
+                (le32_to_cpu(cmd->nsid) == req->ns->params.nsid)) {
                 req_slba = le64_to_cpu(req_rw->slba);
                 req_nlb = (uint32_t)le16_to_cpu(req_rw->nlb);
                 req_elba = req_slba + req_nlb;
@@ -7895,7 +7895,7 @@ static int nvme_atomic_write_check(NvmeCtrl *n, NvmeCmd *cmd,
 
 static NvmeAtomic *nvme_get_atomic(NvmeCtrl *n, NvmeCmd *cmd)
 {
-    NvmeNamespace *ns = nvme_ns(n, cmd->nsid);
+    NvmeNamespace *ns = nvme_ns(n, le32_to_cpu(cmd->nsid));
 
     if (ns && ns->atomic.atomic_writes) {
         return &ns->atomic;
@@ -8889,6 +8889,7 @@ static void nvme_init_state(NvmeCtrl *n)
     NvmeSecCtrlEntry *sctrl;
     PCIDevice *pci = PCI_DEVICE(n);
     NvmeIdCtrl *id = &n->id_ctrl;
+    uint16_t awun, awupf;
     uint8_t max_vfs;
     int i;
 
@@ -8950,19 +8951,20 @@ static void nvme_init_state(NvmeCtrl *n)
     }
 
     /* Atomic Write */
-    id->awun = cpu_to_le16(n->params.atomic_awun);
-    id->awupf = cpu_to_le16(n->params.atomic_awupf);
     n->dn = n->params.atomic_dn;
+    awun = n->params.atomic_awun;
+    awupf = n->params.atomic_awupf;
 
-    if (id->awun || id->awupf) {
-        if (id->awupf > id->awun) {
-            id->awupf = 0;
+    if (awun || awupf) {
+        if (awupf > awun) {
+            awupf = 0;
         }
 
-        nvme_atomic_configure_max_write_size(n->dn, n->params.atomic_awun,
-                                             n->params.atomic_awupf,
-                                             &n->atomic);
+        nvme_atomic_configure_max_write_size(n->dn, awun, awupf, &n->atomic);
     }
+
+    id->awun = cpu_to_le16(awun);
+    id->awupf = cpu_to_le16(awupf);
 }
 
 static void nvme_init_cmb(NvmeCtrl *n, PCIDevice *pci_dev)
