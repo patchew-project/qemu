@@ -41,8 +41,8 @@
  *              sriov_max_vi_per_vf=<N[optional]> \
  *              sriov_max_vq_per_vf=<N[optional]> \
  *              atomic.dn=<on|off[optional]>, \
- *              atomic.awun<N[optional]>, \
- *              atomic.awupf<N[optional]>, \
+ *              atomic.awun=<N[optional]>, \
+ *              atomic.awupf=<N[optional]>, \
  *              subsys=<subsys_id>, \
  *              model=<model-str>, \
  *              firmware-version=<version-str>
@@ -55,7 +55,12 @@
  *              zoned.descr_ext_size=<N[optional]>, \
  *              zoned.max_active=<N[optional]>, \
  *              zoned.max_open=<N[optional]>, \
- *              zoned.cross_read=<true|false[optional]>
+ *              zoned.cross_read=<true|false[optional]>, \
+ *              atomic.nabo=<N[optional]>, \
+ *              atomic.nabsn=<N[optional]>, \
+ *              atomic.nabspf=<N[optional]>, \
+ *              atomic.nawun=<N[optional]>, \
+ *              atomic.nawupf=<N[optional]>
  *
  * Note cmb_size_mb denotes size of CMB in MB. CMB is assumed to be at
  * offset 0 in BAR2 and supports only WDS, RDS and SQS for now. By default, the
