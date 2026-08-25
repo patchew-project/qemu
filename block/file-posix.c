@@ -2567,8 +2567,34 @@ raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr, uint64_t bytes,
         bs->bl.zoned != BLK_Z_NONE) {
         qemu_co_mutex_lock(&bs->wps->colock);
         if (type & QEMU_AIO_ZONE_APPEND) {
-            int index = offset / bs->bl.zone_size;
-            offset = bs->wps->wp[index];
+            uint32_t index = offset / bs->bl.zone_size;
+            uint64_t wp = bs->wps->wp[index];
+            uint64_t zone_end =
+                MIN((uint64_t)(index + 1) * bs->bl.zone_size,
+                    (uint64_t)bs->total_sectors << BDRV_SECTOR_BITS);
+
+            /*
+             * The write pointer of the addressed zone becomes the offset of
+             * the write, so it has to name a position inside that zone. It
+             * does not for a conventional zone, which has no write pointer and
+             * stores a type marker in the top bit instead, and it does not for
+             * a full zone, whose write pointer is reported at the zone end.
+             * Either would send the data to a zone that was never addressed.
+             */
+            if (BDRV_ZT_IS_CONV(wp)) {
+                error_report("zone append at offset 0x%" PRIx64 " addresses a "
+                             "conventional zone", offset);
+                qemu_co_mutex_unlock(&bs->wps->colock);
+                return -EINVAL;
+            }
+            if (wp >= zone_end) {
+                error_report("zone append at offset 0x%" PRIx64 " addresses a "
+                             "full zone", offset);
+                qemu_co_mutex_unlock(&bs->wps->colock);
+                return -ENOSPC;
+            }
+
+            offset = wp;
         }
     }
 #endif
