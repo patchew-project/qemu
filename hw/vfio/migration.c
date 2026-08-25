@@ -723,6 +723,13 @@ static bool vfio_is_active_iterate(void *opaque)
     return vfio_device_state_is_precopy(vbasedev);
 }
 
+static bool vfio_is_active(void *opaque)
+{
+    MigMode mode = migrate_mode();
+
+    return mode != MIG_MODE_CPR_EXEC && mode != MIG_MODE_CPR_TRANSFER;
+}
+
 /*
  * Note about migration rate limiting: VFIO migration buffer size is currently
  * limited to 1MB, so there is no need to check if migration rate exceeded (as
@@ -951,6 +958,7 @@ static const SaveVMHandlers savevm_vfio_handlers = {
     .save_cleanup = vfio_save_cleanup,
     .save_query_pending = vfio_state_pending,
     .is_active_iterate = vfio_is_active_iterate,
+    .is_active = vfio_is_active,
     .save_live_iterate = vfio_save_iterate,
     .save_complete = vfio_save_complete_precopy,
     .save_state = vfio_save_state,
