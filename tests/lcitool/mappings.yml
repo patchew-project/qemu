@@ -22,6 +22,9 @@ mappings:
     CentOSStream9:
     FreeBSD: py312-sphinx_rtd_theme
 
+  python3-opencv:
+    CentOSStream9:
+
   python3-venv:
     CentOSStream9: python3.11
 
@@ -30,6 +33,7 @@ mappings:
     FreeBSD: py312-wheel
 
   python3-numpy:
+    CentOSStream9:
     FreeBSD: py312-numpy
 
   meson:
@@ -60,3 +64,9 @@ pypi_mappings:
     apk:
     Fedora:
     Debian12:
+
+  python3-numpy:
+    CentOSStream9: numpy
+
+  python3-opencv:
+    CentOSStream9: opencv-python
