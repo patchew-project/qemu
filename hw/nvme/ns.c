@@ -769,7 +769,7 @@ static bool nvme_ns_set_nab(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
         }
 
         if (nabspf && nabspf < le16_to_cpu(id_ns->nawupf)) {
-            error_setg(errp, "nabspf must be great than or equal to nawupf");
+            error_setg(errp, "nabspf must be greater than or equal to nawupf");
             return false;
         }
     }
@@ -786,6 +786,30 @@ static bool nvme_ns_set_nab(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
     ns->atomic.atomic_nabo = nabo;
 
     nvme_ns_atomic_configure_boundary(n->dn, nabsn, nabspf, &ns->atomic);
+
+    if (ns->params.atomic.mam) {
+        uint16_t nawupf = le16_to_cpu(id_ns->nawupf);
+        uint16_t nawun = le16_to_cpu(id_ns->nawun);
+
+        if (!(id_ns->nsfeat & NVME_ID_NS_NSFEAT_NSABP)) {
+            error_setg(errp, "atomic.mam requires per-namespace atomic writes");
+            return false;
+        }
+
+        if (!nabsn || !nabspf) {
+            error_setg(errp, "atomic.mam requires a nonzero atomic.nabsn and "
+                             "atomic.nabspf");
+            return false;
+        }
+
+        if (nabsn != nawun || nabspf != nawupf || nawun != nawupf) {
+            error_setg(errp, "atomic.mam requires atomic.nabsn == atomic.nawun "
+                             "== atomic.nabspf == atomic.nawupf");
+            return false;
+        }
+
+        id_ns->nsfeat |= NVME_ID_NS_NSFEAT_MAM;
+    }
 
     return true;
 }
@@ -1096,6 +1120,7 @@ static const Property nvme_ns_props[] = {
     DEFINE_PROP_UINT16("atomic.nabsn", NvmeNamespace, params.atomic.nabsn, 0),
     DEFINE_PROP_UINT16("atomic.nabspf", NvmeNamespace, params.atomic.nabspf, 0),
     DEFINE_PROP_UINT16("atomic.nabo", NvmeNamespace, params.atomic.nabo, 0),
+    DEFINE_PROP_BOOL("atomic.mam", NvmeNamespace, params.atomic.mam, 0),
 };
 
 static void nvme_ns_class_init(ObjectClass *oc, const void *data)

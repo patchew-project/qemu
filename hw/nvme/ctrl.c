@@ -56,6 +56,7 @@
  *              zoned.max_active=<N[optional]>, \
  *              zoned.max_open=<N[optional]>, \
  *              zoned.cross_read=<true|false[optional]>, \
+ *              atomic.mam=<on|off[optional]>, \
  *              atomic.nabo=<N[optional]>, \
  *              atomic.nabsn=<N[optional]>, \
  *              atomic.nabspf=<N[optional]>, \
@@ -7830,6 +7831,8 @@ static int nvme_atomic_write_check(NvmeCtrl *n, NvmeCmd *cmd,
     NvmeAtomic *atomic)
 {
     NvmeRwCmd *rw = (NvmeRwCmd *)cmd;
+    NvmeNamespace *ns = nvme_ns(n, le32_to_cpu(cmd->nsid));
+    bool mam = ns && (ns->id_ns.nsfeat & NVME_ID_NS_NSFEAT_MAM);
     uint64_t slba = le64_to_cpu(rw->slba);
     uint32_t nlb = (uint32_t)le16_to_cpu(rw->nlb);
     uint64_t elba = slba + nlb;
@@ -7837,14 +7840,14 @@ static int nvme_atomic_write_check(NvmeCtrl *n, NvmeCmd *cmd,
     int i;
 
     if ((cmd->opcode == NVME_CMD_READ) || ((cmd->opcode == NVME_CMD_WRITE) &&
-        ((nlb + 1) > atomic->atomic_max_write_size))) {
+        !mam && ((nlb + 1) > atomic->atomic_max_write_size))) {
         cmd_atomic_wr = false;
     }
 
     /*
      * Check if a write crosses an atomic boundary.
      */
-    if (cmd->opcode == NVME_CMD_WRITE) {
+    if (cmd->opcode == NVME_CMD_WRITE && !mam) {
         if (!nvme_atomic_boundary_check(n, cmd, atomic)) {
             cmd_atomic_wr = false;
         }
