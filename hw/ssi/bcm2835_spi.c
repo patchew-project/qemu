@@ -91,7 +91,7 @@ static void bcm2835_spi_flush_tx_fifo(BCM2835SPIState *s)
 
     while (!fifo8_is_empty(&s->tx_fifo) && !fifo8_is_full(&s->rx_fifo)) {
         tx_byte = fifo8_pop(&s->tx_fifo);
-        rx_byte = ssi_transfer(s->bus, tx_byte);
+        rx_byte = ssi_transfer8(s->bus, tx_byte);
         fifo8_push(&s->rx_fifo, rx_byte);
     }
 

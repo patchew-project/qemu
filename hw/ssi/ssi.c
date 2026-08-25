@@ -153,11 +153,11 @@ SSIBus *ssi_create_bus(DeviceState *parent, const char *name)
     return SSI_BUS(bus);
 }
 
-uint32_t ssi_transfer(SSIBus *bus, uint32_t val)
+uint8_t ssi_transfer8(SSIBus *bus, uint8_t val)
 {
     BusState *b = BUS(bus);
     BusChild *kid;
-    uint32_t r = 0;
+    uint8_t r = 0;
 
     QTAILQ_FOREACH(kid, &b->children, sibling) {
         SSIPeripheral *p = SSI_PERIPHERAL(kid->child);

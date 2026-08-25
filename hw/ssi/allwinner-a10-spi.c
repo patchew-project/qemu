@@ -300,7 +300,7 @@ static void allwinner_a10_spi_flush_txfifo(AWA10SPIState *s)
         trace_allwinner_a10_spi_tx(tx);
 
         /* Write one byte at a time */
-        rx = ssi_transfer(s->bus, tx);
+        rx = ssi_transfer8(s->bus, tx);
 
         trace_allwinner_a10_spi_rx(rx);
 

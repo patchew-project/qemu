@@ -176,18 +176,18 @@ static inline int spi_master_enabled(XilinxSPI *s)
 
 static void spi_flush_txfifo(XilinxSPI *s)
 {
-    uint32_t tx;
-    uint32_t rx;
+   uint8_t tx;
+   uint8_t rx;
 
     while (!fifo8_is_empty(&s->tx_fifo)) {
-        tx = (uint32_t)fifo8_pop(&s->tx_fifo);
+        tx = fifo8_pop(&s->tx_fifo);
         DB_PRINT("data tx:%x\n", tx);
-        rx = ssi_transfer(s->spi, tx);
+        rx = ssi_transfer8(s->spi, tx);
         DB_PRINT("data rx:%x\n", rx);
         if (fifo8_is_full(&s->rx_fifo)) {
             s->regs[R_IPISR] |= IRQ_DRR_OVERRUN;
         } else {
-            fifo8_push(&s->rx_fifo, (uint8_t)rx);
+            fifo8_push(&s->rx_fifo, rx);
             if (fifo8_is_full(&s->rx_fifo)) {
                 s->regs[R_SPISR] |= SR_RX_FULL;
                 s->regs[R_IPISR] |= IRQ_DRR_FULL;

@@ -134,7 +134,7 @@ static void sifive_spi_flush_txfifo(SiFiveSPIState *s)
 
     while (!fifo8_is_empty(&s->tx_fifo)) {
         tx = fifo8_pop(&s->tx_fifo);
-        rx = ssi_transfer(s->spi, tx);
+        rx = ssi_transfer8(s->spi, tx);
 
         if (!fifo8_is_full(&s->rx_fifo)) {
             if (!(s->regs[R_FMT] & FMT_DIR)) {

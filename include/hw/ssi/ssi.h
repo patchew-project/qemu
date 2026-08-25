@@ -38,7 +38,7 @@ struct SSIPeripheralClass {
 
     /* if you have standard or no CS behaviour, just override transfer.
      * This is called when the device cs is active (true by default).
-     * See ssi_transfer().
+     * See ssi_transfer8().
      */
     uint32_t (*transfer)(SSIPeripheral *dev, uint32_t val);
     /* called when the CS line changes. Optional, devices only need to implement
@@ -53,7 +53,7 @@ struct SSIPeripheralClass {
      * of the CS behaviour at the device level. transfer, set_cs, and
      * cs_polarity are unused if this is overwritten. Transfer_raw will
      * always be called for the device for every txrx access to the parent bus
-     * See ssi_transfer().
+     * See ssi_transfer8().
      */
     uint32_t (*transfer_raw)(SSIPeripheral *dev, uint32_t val);
 };
@@ -113,18 +113,17 @@ bool ssi_realize_and_unref(DeviceState *dev, SSIBus *bus, Error **errp);
 SSIBus *ssi_create_bus(DeviceState *parent, const char *name);
 
 /**
- * Transfer a word on a SSI bus
+ * Transfer a byte on a SSI bus
  * @bus: SSI bus
- * @val: word to transmit
+ * @val: byte to transmit
  *
- * At the same time, read a word and write the @val one on the SSI bus.
+ * At the same time, read a byte and write the @val one on the SSI bus.
  *
- * SSI words might vary between 8 and 32 bits. The same number of bits
- * written is received.
+ * SSI always transfers and receives 8-bits.
  *
- * Return: word value received
+ * Return: byte received
  */
-uint32_t ssi_transfer(SSIBus *bus, uint32_t val);
+uint8_t ssi_transfer8(SSIBus *bus, uint8_t val);
 
 DeviceState *ssi_get_cs(SSIBus *bus, uint8_t cs_index);
 

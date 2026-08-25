@@ -194,7 +194,7 @@ static void imx_spi_flush_txfifo(IMXSPIState *s)
             DPRINTF("writing 0x%02x\n", (uint32_t)byte);
 
             /* We need to write one byte at a time */
-            byte = ssi_transfer(s->bus, byte);
+            byte = ssi_transfer8(s->bus, byte);
 
             DPRINTF("0x%02x read\n", (uint32_t)byte);
 

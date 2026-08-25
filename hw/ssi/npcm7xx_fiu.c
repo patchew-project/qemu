@@ -162,16 +162,16 @@ static uint64_t npcm7xx_fiu_flash_read(void *opaque, hwaddr addr,
     npcm7xx_fiu_select(fiu, npcm7xx_fiu_cs_index(fiu, f));
 
     drd_cfg = fiu->regs[NPCM7XX_FIU_DRD_CFG];
-    ssi_transfer(fiu->spi, FIU_DRD_CFG_RDCMD(drd_cfg));
+    ssi_transfer8(fiu->spi, FIU_DRD_CFG_RDCMD(drd_cfg));
 
     switch (FIU_DRD_CFG_ADDSIZ(drd_cfg)) {
     case FIU_ADDSIZ_4BYTES:
-        ssi_transfer(fiu->spi, extract32(addr, 24, 8));
+        ssi_transfer8(fiu->spi, extract32(addr, 24, 8));
         /* fall through */
     case FIU_ADDSIZ_3BYTES:
-        ssi_transfer(fiu->spi, extract32(addr, 16, 8));
-        ssi_transfer(fiu->spi, extract32(addr, 8, 8));
-        ssi_transfer(fiu->spi, extract32(addr, 0, 8));
+        ssi_transfer8(fiu->spi, extract32(addr, 16, 8));
+        ssi_transfer8(fiu->spi, extract32(addr, 8, 8));
+        ssi_transfer8(fiu->spi, extract32(addr, 0, 8));
         break;
 
     default:
@@ -182,11 +182,11 @@ static uint64_t npcm7xx_fiu_flash_read(void *opaque, hwaddr addr,
 
     dummy_bytes = FIU_DRD_CFG_DBW(drd_cfg);
     for (i = 0; i < dummy_bytes; i++) {
-        ssi_transfer(fiu->spi, 0);
+        ssi_transfer8(fiu->spi, 0);
     }
 
     for (i = 0; i < size; i++) {
-        value = deposit64(value, 8 * i, 8, ssi_transfer(fiu->spi, 0));
+        value = deposit64(value, 8 * i, 8, ssi_transfer8(fiu->spi, 0));
     }
 
     trace_npcm7xx_fiu_flash_read(DEVICE(fiu)->canonical_path, fiu->active_cs,
@@ -219,16 +219,16 @@ static void npcm7xx_fiu_flash_write(void *opaque, hwaddr addr, uint64_t v,
     npcm7xx_fiu_select(fiu, cs_id);
 
     dwr_cfg = fiu->regs[NPCM7XX_FIU_DWR_CFG];
-    ssi_transfer(fiu->spi, FIU_DWR_CFG_WRCMD(dwr_cfg));
+    ssi_transfer8(fiu->spi, FIU_DWR_CFG_WRCMD(dwr_cfg));
 
     switch (FIU_DWR_CFG_ADDSIZ(dwr_cfg)) {
     case FIU_ADDSIZ_4BYTES:
-        ssi_transfer(fiu->spi, extract32(addr, 24, 8));
+        ssi_transfer8(fiu->spi, extract32(addr, 24, 8));
         /* fall through */
     case FIU_ADDSIZ_3BYTES:
-        ssi_transfer(fiu->spi, extract32(addr, 16, 8));
-        ssi_transfer(fiu->spi, extract32(addr, 8, 8));
-        ssi_transfer(fiu->spi, extract32(addr, 0, 8));
+        ssi_transfer8(fiu->spi, extract32(addr, 16, 8));
+        ssi_transfer8(fiu->spi, extract32(addr, 8, 8));
+        ssi_transfer8(fiu->spi, extract32(addr, 0, 8));
         break;
 
     default:
@@ -238,7 +238,7 @@ static void npcm7xx_fiu_flash_write(void *opaque, hwaddr addr, uint64_t v,
     }
 
     for (i = 0; i < size; i++) {
-        ssi_transfer(fiu->spi, extract64(v, i * 8, 8));
+        ssi_transfer8(fiu->spi, extract64(v, i * 8, 8));
     }
 
     npcm7xx_fiu_deselect(fiu);
@@ -287,16 +287,16 @@ static void send_address(SSIBus *spi, unsigned int addsiz, uint32_t addr)
 {
     switch (addsiz) {
     case 4:
-        ssi_transfer(spi, extract32(addr, 24, 8));
+        ssi_transfer8(spi, extract32(addr, 24, 8));
         /* fall through */
     case 3:
-        ssi_transfer(spi, extract32(addr, 16, 8));
+        ssi_transfer8(spi, extract32(addr, 16, 8));
         /* fall through */
     case 2:
-        ssi_transfer(spi, extract32(addr, 8, 8));
+        ssi_transfer8(spi, extract32(addr, 8, 8));
         /* fall through */
     case 1:
-        ssi_transfer(spi, extract32(addr, 0, 8));
+        ssi_transfer8(spi, extract32(addr, 0, 8));
         /* fall through */
     case 0:
         break;
@@ -309,7 +309,7 @@ static void send_dummy_bytes(SSIBus *spi, uint32_t uma_cfg)
     unsigned int i;
 
     for (i = 0; i < FIU_UMA_CFG_DBSIZ(uma_cfg); i++) {
-        ssi_transfer(spi, 0);
+        ssi_transfer8(spi, 0);
     }
 }
 
@@ -329,7 +329,7 @@ static void npcm7xx_fiu_uma_transaction(NPCM7xxFIUState *s)
     /* Send command, if present. */
     uma_cfg = s->regs[NPCM7XX_FIU_UMA_CFG];
     if (FIU_UMA_CFG_CMDSIZ(uma_cfg) > 0) {
-        ssi_transfer(s->spi, extract32(s->regs[NPCM7XX_FIU_UMA_CMD], 0, 8));
+        ssi_transfer8(s->spi, extract32(s->regs[NPCM7XX_FIU_UMA_CMD], 0, 8));
     }
 
     /* Send address, if present. */
@@ -342,7 +342,7 @@ static void npcm7xx_fiu_uma_transaction(NPCM7xxFIUState *s)
             (i < 16) ? (NPCM7XX_FIU_UMA_DW0 + i / 4) : NPCM7XX_FIU_UMA_DW3;
         unsigned int field = (i % 4) * 8;
 
-        ssi_transfer(s->spi, extract32(s->regs[reg], field, 8));
+        ssi_transfer8(s->spi, extract32(s->regs[reg], field, 8));
     }
 
     /* Send dummy bytes, if present */
@@ -354,7 +354,7 @@ static void npcm7xx_fiu_uma_transaction(NPCM7xxFIUState *s)
         unsigned int field = (i % 4) * 8;
         uint8_t c;
 
-        c = ssi_transfer(s->spi, 0);
+        c = ssi_transfer8(s->spi, 0);
         if (reg <= NPCM7XX_FIU_UMA_DR3) {
             s->regs[reg] = deposit32(s->regs[reg], field, 8, c);
         }

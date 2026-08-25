@@ -631,9 +631,9 @@ static void ospi_disable_cs(XlnxVersalOspi *s)
 static void ospi_flush_txfifo(XlnxVersalOspi *s)
 {
     while (!fifo8_is_empty(&s->tx_fifo)) {
-        uint32_t tx_rx = fifo8_pop(&s->tx_fifo);
+        uint8_t tx_rx = fifo8_pop(&s->tx_fifo);
 
-        tx_rx = ssi_transfer(s->spi, tx_rx);
+        tx_rx = ssi_transfer8(s->spi, tx_rx);
         fifo8_push(&s->rx_fifo, tx_rx);
     }
 }

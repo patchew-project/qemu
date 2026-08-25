@@ -234,7 +234,7 @@ static void spi_flush_txfifo(MSSSpiState *s)
 
         tx = fifo32_pop(&s->tx_fifo);
         DB_PRINT("data tx:0x%" PRIx32, tx);
-        rx = ssi_transfer(s->spi, tx);
+        rx = ssi_transfer8(s->spi, tx);
         DB_PRINT("data rx:0x%" PRIx32, rx);
 
         if (fifo32_num_used(&s->rx_fifo) == s->fifo_depth) {

@@ -236,7 +236,8 @@ static void ibex_spi_host_irq(IbexSPIHostState *s)
 
 static void ibex_spi_host_transfer(IbexSPIHostState *s)
 {
-    uint32_t rx, tx, data;
+    uint32_t data;
+    uint8_t rx, tx;
     /* Get num of one byte transfers */
     uint8_t segment_len = FIELD_EX32(s->regs[IBEX_SPI_HOST_COMMAND],
                                      COMMAND,  LEN);
@@ -254,7 +255,7 @@ static void ibex_spi_host_transfer(IbexSPIHostState *s)
             tx = fifo8_pop(&s->tx_fifo);
         }
 
-        rx = ssi_transfer(s->ssi, tx);
+        rx = ssi_transfer8(s->ssi, tx);
 
         trace_ibex_spi_host_transfer(tx, rx);
 

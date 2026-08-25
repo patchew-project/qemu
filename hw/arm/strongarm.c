@@ -1516,7 +1516,7 @@ static void strongarm_ssp_write(void *opaque, hwaddr addr,
             if (s->sscr[1] & SSCR1_LBM) {
                 readval = value;
             } else {
-                readval = ssi_transfer(s->bus, value);
+                readval = ssi_transfer8(s->bus, value);
             }
 
             if (s->rx_level < 0x08) {

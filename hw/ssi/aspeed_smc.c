@@ -488,10 +488,10 @@ static void aspeed_smc_flash_setup(AspeedSMCFlash *fl, uint32_t addr)
     /* Flash access can not exceed CS segment */
     addr = aspeed_smc_check_segment_addr(fl, addr);
 
-    ssi_transfer(s->spi, cmd);
+    ssi_transfer8(s->spi, cmd);
     while (i--) {
         if (aspeed_smc_addr_byte_enabled(s, i)) {
-            ssi_transfer(s->spi, (addr >> (i * 8)) & 0xff);
+            ssi_transfer8(s->spi, (addr >> (i * 8)) & 0xff);
         }
     }
 
@@ -503,7 +503,7 @@ static void aspeed_smc_flash_setup(AspeedSMCFlash *fl, uint32_t addr)
      */
     if (aspeed_smc_flash_mode(fl) == CTRL_FREADMODE) {
         for (i = 0; i < aspeed_smc_flash_dummy_bytes(fl); i++) {
-            ssi_transfer(fl->controller->spi, s->regs[R_DUMMY_DATA] & 0xff);
+            ssi_transfer8(fl->controller->spi, s->regs[R_DUMMY_DATA] & 0xff);
         }
     }
 }
@@ -519,7 +519,7 @@ static MemTxResult aspeed_smc_flash_read(void *opaque, hwaddr addr,
     switch (aspeed_smc_flash_mode(fl)) {
     case CTRL_USERMODE:
         for (i = 0; i < size; i++) {
-            *data |= (uint64_t) ssi_transfer(s->spi, 0x0) << (8 * i);
+            *data |= (uint64_t) ssi_transfer8(s->spi, 0x0) << (8 * i);
         }
         break;
     case CTRL_READMODE:
@@ -528,7 +528,7 @@ static MemTxResult aspeed_smc_flash_read(void *opaque, hwaddr addr,
         aspeed_smc_flash_setup(fl, addr);
 
         for (i = 0; i < size; i++) {
-            *data |= (uint64_t) ssi_transfer(s->spi, 0x0) << (8 * i);
+            *data |= (uint64_t) ssi_transfer8(s->spi, 0x0) << (8 * i);
         }
 
         aspeed_smc_flash_unselect(fl);
@@ -561,7 +561,7 @@ static MemTxResult aspeed_smc_flash_write(void *opaque, hwaddr addr,
     switch (aspeed_smc_flash_mode(fl)) {
     case CTRL_USERMODE:
         for (i = 0; i < size; i++) {
-            ssi_transfer(s->spi, (data >> (8 * i)) & 0xff);
+            ssi_transfer8(s->spi, (data >> (8 * i)) & 0xff);
         }
         break;
     case CTRL_WRITEMODE:
@@ -569,7 +569,7 @@ static MemTxResult aspeed_smc_flash_write(void *opaque, hwaddr addr,
         aspeed_smc_flash_setup(fl, addr);
 
         for (i = 0; i < size; i++) {
-            ssi_transfer(s->spi, (data >> (8 * i)) & 0xff);
+            ssi_transfer8(s->spi, (data >> (8 * i)) & 0xff);
         }
 
         aspeed_smc_flash_unselect(fl);

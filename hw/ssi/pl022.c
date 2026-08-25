@@ -103,7 +103,7 @@ static void pl022_xfer(PL022State *s)
         if (s->cr1 & PL022_CR1_LBM) {
             /* Loopback mode.  */
         } else {
-            val = ssi_transfer(s->ssi, val);
+            val = ssi_transfer8(s->ssi, val);
         }
         s->rx_fifo[o] = val & s->bitmask;
         i = (i + 1) & 7;

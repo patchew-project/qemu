@@ -209,7 +209,7 @@ static void transfer(PnvSpi *s)
                 qemu_log_mask(LOG_GUEST_ERROR, "pnv_spi: TX_FIFO underflow\n");
             }
         }
-        rx = ssi_transfer(s->ssi_bus, tx);
+        rx = ssi_transfer8(s->ssi_bus, tx);
         for (int i = 0; i < s->transfer_len; i++) {
             if ((offset + i) >= payload_len) {
                 break;

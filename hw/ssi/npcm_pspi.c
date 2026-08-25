@@ -77,9 +77,9 @@ static void npcm_pspi_write_data(NPCMPSPIState *s, uint16_t data)
     uint16_t value = 0;
 
     if (FIELD_EX16(s->regs[R_PSPI_CTL1], PSPI_CTL1, MOD)) {
-        value = ssi_transfer(s->spi, extract16(data, 8, 8)) << 8;
+        value = ssi_transfer8(s->spi, extract16(data, 8, 8)) << 8;
     }
-    value |= ssi_transfer(s->spi, extract16(data, 0, 8));
+    value |= ssi_transfer8(s->spi, extract16(data, 0, 8));
     s->regs[R_PSPI_DATA] = value;
 
     /* Mark data as available */

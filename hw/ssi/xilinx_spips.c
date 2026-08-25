@@ -576,7 +576,7 @@ static void xlnx_zynqmp_qspips_flush_fifo_g(XlnxZynqMPQSPIPS *s)
         busses = ARRAY_FIELD_EX32(s->regs, GQSPI_GF_SNAPSHOT, DATA_BUS_SELECT);
         for (i = 0; i < 2; ++i) {
             DB_PRINT_L(1, "bus %d tx = %02x\n", i, tx_rx[i]);
-            tx_rx[i] = ssi_transfer(XILINX_SPIPS(s)->spi[i], tx_rx[i]);
+            tx_rx[i] = ssi_transfer8(XILINX_SPIPS(s)->spi[i], tx_rx[i]);
             DB_PRINT_L(1, "bus %d rx = %02x\n", i, tx_rx[i]);
         }
         if (s->regs[R_GQSPI_DATA_STS] > 1 &&
@@ -696,7 +696,7 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
             int bus = num_effective_busses(s) - 1 - i;
 
             DB_PRINT_L(debug_level, "tx = %02x\n", tx_rx[i]);
-            tx_rx[i] = ssi_transfer(s->spi[bus], (uint32_t)tx_rx[i]);
+            tx_rx[i] = ssi_transfer8(s->spi[bus], tx_rx[i]);
             DB_PRINT_L(debug_level, "rx = %02x\n", tx_rx[i]);
         }
 
