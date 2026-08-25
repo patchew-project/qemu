@@ -744,6 +744,10 @@ static const ARMCPUInfo arm_tcg_cpus[] = {
     { .name = "ti925t",      .initfn = ti925t_initfn },
     { .name = "sa1100",      .initfn = sa1100_initfn },
     { .name = "sa1110",      .initfn = sa1110_initfn },
+#ifndef TARGET_AARCH64
+    /* For aarch64, max-v8 is defined in cpu64.c */
+    { .name = "max-v8",      .initfn = aarch32_max_v8_tcg_initfn },
+#endif
 };
 
 static void arm_tcg_cpu_register_types(void)
