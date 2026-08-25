@@ -212,6 +212,9 @@ typedef enum X86InsnSpecial {
      */
     X86_SPECIAL_Op0_Rd,
 
+    /* ZU-modified APX instruction.  */
+    X86_SPECIAL_Op0_ZU,
+
     /*
      * Ry/Mb in the manual (PINSRB).  However, the high bits are never used by
      * the instruction in either the register or memory cases; the *real* effect
