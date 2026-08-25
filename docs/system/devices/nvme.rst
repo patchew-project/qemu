@@ -9,8 +9,8 @@ See the following sections for specific information on
 
   * `Adding NVMe Devices`_, `additional namespaces`_ and `NVM subsystems`_.
   * Configuration of `Optional Features`_ such as `Controller Memory Buffer`_,
-    `Simple Copy`_, `Zoned Namespaces`_, `metadata`_ and `End-to-End Data
-    Protection`_,
+    `Simple Copy`_, `Zoned Namespaces`_, `metadata`_, `End-to-End Data
+    Protection`_, and `Atomic Writes`_.
 
 Adding NVMe Devices
 ===================
@@ -386,3 +386,40 @@ controller are:
 .. code-block:: console
 
    echo 0000:01:00.1 > /sys/bus/pci/drivers/nvme/bind
+
+Atomic Writes
+-------------
+
+Specific Atomic Boundaries parameters for ``nvme`` devices. Unless specified,
+values are in logical block units.
+
+``atomic.awun=UINT16`` (default: ``0``)
+  Set the Atomic Write Unit Normal (``AWUN``).
+
+``atomic.awupf=UINT16`` (default: ``0``)
+  Set the Atomic Write Unit Power Fail (``AWUPF``).
+
+``atomic.dn=BOOL`` (default: ``off``)
+  Set the Disable Normal (``DN``). When set, the controller ignores ``AWUN``
+  and ``NAWUN``.
+
+Namespace specific Atomic Boundaries parameters for ``nvme-ns`` devices:
+
+``atomic.nabo=UINT16`` (default: ``0``)
+  Set the Namespace Atomic Boundary Offset (``NABO``).
+
+``atomic.nabsn=UINT16`` (default: ``0``)
+  Set the Namespace Atomic Boundary Size Normal (``NABSN``). ``0`` means no
+  atomic boundaries for normal operations.
+
+``atomic.nabspf=UINT16`` (default: ``0``)
+  Set the Namespace Atomic Boundary Size Power Fail (``NABSPF``). ``0`` means no
+  atomic boundaries for power fail operations.
+
+``atomic.nawun=UINT16`` (default: ``0``)
+  Set the Namespace Atomic Write Unit Normal (``NAWUN``). ``0`` means that
+  ``AWUN`` will be used for the size of this namespace.
+
+``atomic.nawupf=UINT16`` (default: ``0``)
+  Set the Namespace Atomic Write Unit Power Fail (``NAWUPF``). ``0`` means that
+  ``AWUPF`` will be used for the size of this namespace.
