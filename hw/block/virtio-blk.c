@@ -499,6 +499,27 @@ typedef struct ZoneCmdData {
 } ZoneCmdData;
 
 /*
+ * The maximum zone append data size that the device reports to the driver in
+ * virtio_blk_zoned_characteristics, in 512 byte sectors.
+ *
+ * A backend that has no limit of its own leaves BlockLimits.max_append_sectors
+ * at zero, in which case the limit is whatever else bounds the request: an
+ * append cannot cross a zone boundary, and the block layer cannot carry a
+ * larger one. The result is never zero, which the driver would read as zone
+ * append not being supported at all.
+ */
+static uint32_t virtio_blk_max_append_sectors(VirtIOBlock *s)
+{
+    BlockDriverState *bs = blk_bs(s->blk);
+    uint64_t sectors;
+
+    sectors = MIN_NON_ZERO(bs->bl.zone_size >> BDRV_SECTOR_BITS,
+                           bs->bl.max_append_sectors);
+
+    return MIN_NON_ZERO(sectors, BDRV_REQUEST_MAX_SECTORS);
+}
+
+/*
  * check zoned_request: error checking before issuing requests. If all checks
  * passed, return true.
  * append: true if only zone append requests issued.
@@ -533,12 +554,8 @@ static bool check_zoned_request(VirtIOBlock *s, int64_t offset, int64_t len,
             return false;
         }
 
-        if (len / 512 > bs->bl.max_append_sectors) {
-            if (bs->bl.max_append_sectors == 0) {
-                *status = VIRTIO_BLK_S_UNSUPP;
-            } else {
-                *status = VIRTIO_BLK_S_ZONE_INVALID_CMD;
-            }
+        if ((len >> BDRV_SECTOR_BITS) > virtio_blk_max_append_sectors(s)) {
+            *status = VIRTIO_BLK_S_ZONE_INVALID_CMD;
             return false;
         }
     }
@@ -1300,7 +1317,7 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
         virtio_stl_p(vdev, &blkcfg.zoned.write_granularity,
                      blkconf_zone_write_granularity(conf));
         virtio_stl_p(vdev, &blkcfg.zoned.max_append_sectors,
-                     bs->bl.max_append_sectors);
+                     virtio_blk_max_append_sectors(s));
     } else {
         blkcfg.zoned.model = VIRTIO_BLK_Z_NONE;
     }
