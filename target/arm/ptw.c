@@ -1172,19 +1172,13 @@ static bool get_phys_addr_v5(CPUARMState *env, S1Translate *ptw,
         fi->type = ARMFault_Translation;
         goto do_fault;
     }
-    if (type != 2) {
-        level = 2;
-    }
-    if (domain_prot == 0 || domain_prot == 2) {
-        fi->type = ARMFault_Domain;
-        goto do_fault;
-    }
     if (type == 2) {
         /* 1Mb section.  */
         phys_addr = (desc & 0xfff00000) | (address & 0x000fffff);
         ap = (desc >> 10) & 3;
         result->f.lg_page_size = 20; /* 1MB */
     } else {
+        level = 2;
         /* Lookup l2 entry.  */
         if (type == 1) {
             /* Coarse pagetable.  */
@@ -1239,6 +1233,10 @@ static bool get_phys_addr_v5(CPUARMState *env, S1Translate *ptw,
             g_assert_not_reached();
         }
     }
+    if (domain_prot == 0 || domain_prot == 2) {
+        fi->type = ARMFault_Domain;
+        goto do_fault;
+    }
     result->f.prot = ap_to_rw_prot(env, ptw->in_mmu_idx, ap, domain_prot);
     result->f.prot |= result->f.prot ? PAGE_EXEC : 0;
     if (ptw->in_prot_check & ~result->f.prot) {
@@ -1254,6 +1252,7 @@ do_fault:
     return false;
 }
 
+/* See TranslationTableWalkSD() in Armv7 ARM (DDI0406C) */
 static bool get_phys_addr_v6(CPUARMState *env, S1Translate *ptw,
                              uint32_t address, MMUAccessType access_type,
                              GetPhysAddrResult *result, ARMMMUFaultInfo *fi)
@@ -1288,6 +1287,7 @@ static bool get_phys_addr_v6(CPUARMState *env, S1Translate *ptw,
     if (fi->type != ARMFault_None) {
         goto do_fault;
     }
+    /* l1desc<1:0> */
     type = (desc & 3);
     if (type == 0 || (type == 3 && !cpu_isar_feature(aa32_pxn, cpu))) {
         /* Section translation fault, or attempt to use the encoding
@@ -1304,15 +1304,6 @@ static bool get_phys_addr_v6(CPUARMState *env, S1Translate *ptw,
         dacr = env->cp15.dacr_ns;
     } else {
         dacr = env->cp15.dacr_s;
-    }
-    if (type == 1) {
-        level = 2;
-    }
-    domain_prot = (dacr >> (domain * 2)) & 3;
-    if (domain_prot == 0 || domain_prot == 2) {
-        /* Section or Page domain fault */
-        fi->type = ARMFault_Domain;
-        goto do_fault;
     }
     if (type != 1) {
         if (desc & (1 << 18)) {
@@ -1331,6 +1322,7 @@ static bool get_phys_addr_v6(CPUARMState *env, S1Translate *ptw,
         pxn = desc & 1;
         ns = extract32(desc, 19, 1);
     } else {
+        level = 2;
         if (cpu_isar_feature(aa32_pxn, cpu)) {
             pxn = (desc >> 2) & 1;
         }
@@ -1372,6 +1364,13 @@ static bool get_phys_addr_v6(CPUARMState *env, S1Translate *ptw,
          * regime, because the output space will already be non-secure.
          */
         out_space = ARMSS_NonSecure;
+    }
+    /* Extract from DACR indexed by domain */
+    domain_prot = (dacr >> (domain * 2)) & 3;
+    if (domain_prot == 0 || domain_prot == 2) {
+        /* Section or Page domain fault */
+        fi->type = ARMFault_Domain;
+        goto do_fault;
     }
     if (domain_prot == 3) {
         result->f.prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;

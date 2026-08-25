@@ -20,10 +20,31 @@ run-test-armv6m-undef: QEMU_OPTS=-semihosting-config enable=on,target=native,cha
 
 ARM_TESTS+=test-armv6m-undef
 
+# Domain fault ordering tests (GitLab issue #4233)
+test-armv5-domainfault: test-domainfault-start.S test-domainfault.c
+	$(CC) -march=armv5te -marm -mfloat-abi=soft \
+		-ffreestanding -fno-builtin -nostdlib -static \
+		-Wl,--build-id=none -Wl,--no-warn-rwx-segments \
+		$< $(ARM_SRC)/test-domainfault.c -o $@ \
+		-T $(ARM_SRC)/test-domainfault.ld
+
+run-test-armv5-domainfault: QEMU_OPTS=-audio none -semihosting-config enable=on,target=native,chardev=output -M versatilepb -cpu arm926 -kernel
+
+test-armv6-domainfault: test-domainfault-start.S test-domainfault.c
+	$(CC) -march=armv6k -marm -mfloat-abi=soft -DV6_SHORT_DESC_TEST \
+		-ffreestanding -fno-builtin -nostdlib -static \
+		-Wl,--build-id=none -Wl,--no-warn-rwx-segments \
+		$< $(ARM_SRC)/test-domainfault.c -o $@ \
+		-T $(ARM_SRC)/test-domainfault.ld
+
+run-test-armv6-domainfault: QEMU_OPTS=-audio none -semihosting-config enable=on,target=native,chardev=output -M versatilepb -cpu arm11mpcore -kernel
+
+ARM_TESTS+=test-armv5-domainfault test-armv6-domainfault
+
 # These objects provide the basic boot code and helper functions for all tests
 CRT_OBJS=boot.o
 
-ARM_TEST_SRCS=$(wildcard $(ARM_SRC)/*.c)
+ARM_TEST_SRCS=$(filter-out $(ARM_SRC)/test-domainfault.c, $(wildcard $(ARM_SRC)/*.c))
 ARM_TESTS+=$(patsubst $(ARM_SRC)/%.c, %, $(ARM_TEST_SRCS))
 
 CRT_PATH=$(ARM_SRC)
