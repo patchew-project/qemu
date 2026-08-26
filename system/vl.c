@@ -281,6 +281,15 @@ static QemuOptsList qemu_accel_opts = {
     },
 };
 
+static QemuOptsList qemu_target_opts = {
+    .name = "target",
+    .implied_opt_name = "target",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_target_opts.head),
+    .desc = {
+        { /* end of list */ },
+    },
+};
+
 static QemuOptsList qemu_boot_opts = {
     .name = "boot-opts",
     .implied_opt_name = "order",
@@ -2856,6 +2865,7 @@ void qemu_init(int argc, char **argv)
     const char *optarg;
     MachineClass *machine_class;
     bool userconfig = true;
+    const char *target_name_option = NULL;
     FILE *vmstate_dump_file = NULL;
 
     qemu_add_opts(&qemu_drive_opts);
@@ -2889,6 +2899,7 @@ void qemu_init(int argc, char **argv)
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
     qemu_add_opts(&qemu_action_opts);
+    qemu_add_opts(&qemu_target_opts);
     qemu_add_run_with_opts();
     module_call_init(MODULE_INIT_OPTS);
 
@@ -2898,13 +2909,6 @@ void qemu_init(int argc, char **argv)
     os_setup_limits();
 
     module_call_init(MODULE_INIT_TARGET_INFO);
-    target_info_qom_set_target();
-
-    module_init_info(qemu_modinfo);
-    module_allow_arch(target_name());
-
-    qemu_init_subsystems();
-
     /* first pass of option parsing */
     optind = 1;
     while (optind < argc) {
@@ -2919,9 +2923,24 @@ void qemu_init(int argc, char **argv)
             case QEMU_OPTION_nouserconfig:
                 userconfig = false;
                 break;
+            case QEMU_OPTION_target:
+                target_name_option = optarg;
+                break;
             }
         }
     }
+
+    /*
+     * Identify target: first from option, then from argv[0].
+     * This happens even before handling --help option, because it may contain
+     * entries that are target specific.
+     */
+    target_info_qom_set_target(target_name_option, &error_fatal);
+
+    module_init_info(qemu_modinfo);
+    module_allow_arch(target_name());
+
+    qemu_init_subsystems();
 
     machine_opts_dict = qdict_new();
     if (userconfig) {
@@ -2946,6 +2965,9 @@ void qemu_init(int argc, char **argv)
                 exit(1);
             }
             switch(popt->index) {
+            case QEMU_OPTION_target:
+                /* handled previously, ignore it here */
+                break;
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
                 cpu_option = optarg;

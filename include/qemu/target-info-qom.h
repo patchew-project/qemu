@@ -10,6 +10,7 @@
 #define QEMU_TARGET_INFO_QOM_H
 
 #include "qemu/target-info-impl.h"
+#include "qapi/error.h"
 #include "qom/object.h"
 
 #define TYPE_TARGET_INFO "target-info"
@@ -40,7 +41,7 @@ typedef struct TargetInfoQomClass {
 
 OBJECT_DECLARE_TYPE(TargetInfoQom, TargetInfoQomClass, TARGET_INFO)
 
-void target_info_qom_set_target(void);
+void target_info_qom_set_target(const char *name, Error **errp);
 
 /**
  * get_machine_types_available:

@@ -7,6 +7,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/help_option.h"
 #include "qapi/error.h"
 #include "qom/object.h"
 #include "qemu/target-info-impl.h"
@@ -87,16 +88,78 @@ const TargetInfo *target_info(void)
     return target_info_ptr;
 }
 
-void target_info_qom_set_target(void)
+static void set_target_info(const TargetInfo *chosen)
+{
+    target_info_ptr = chosen;
+}
+
+static void list_targets_available(void)
+{
+    printf("List of targets available:\n");
+    g_autoptr(GSList) targets = object_class_get_list_sorted(TYPE_TARGET_INFO, false);
+    for (GSList *elem = targets; elem; elem = elem->next) {
+        const TargetInfo *ti = TARGET_INFO_CLASS(elem->data)->target_info;
+
+        printf("- %s\n", ti->target_name);
+    }
+}
+
+static bool target_info_matches_name(const TargetInfo *ti, const char *name)
+{
+    return !strcmp(name, ti->target_name);
+}
+
+/* qemu-system-aarch64[.exe] -> aarch64; qemu-system[.exe] -> NULL. */
+static const char *target_from_argv0(char *base)
+{
+    if (g_str_has_prefix(base, "qemu-system-")) {
+        return base + strlen("qemu-system-");
+    }
+    return NULL;
+}
+
+void target_info_qom_set_target(const char *name, Error **errp)
 {
     g_autoptr(GSList) targets = object_class_get_list(TYPE_TARGET_INFO, false);
-
+    g_autofree char *prg_base = NULL;
     size_t num_found = g_slist_length(targets);
-    if (num_found != 1) {
-        error_setg(&error_fatal, num_found == 0 ?
-                                 "no target-info is available" :
-                                 "more than one target-info is available");
+
+    if (num_found == 0) {
+        error_setg(errp, "no target-info is available");
+        return;
     }
 
-    target_info_ptr = TARGET_INFO_CLASS(targets->data)->target_info;
+    if (!name) {
+        const char *prg = g_get_prgname();
+        if (prg && prg[0]) {
+            char *dot;
+
+            prg_base = g_path_get_basename(prg);
+            dot = strrchr(prg_base, '.');
+            if (dot && g_ascii_strcasecmp(dot, ".exe") == 0) {
+                *dot = '\0';
+            }
+            name = target_from_argv0(prg_base);
+        }
+    }
+
+    if (name) {
+        if (is_help_option(name)) {
+            list_targets_available();
+            exit(0);
+        }
+        for (GSList *elem = targets; elem; elem = elem->next) {
+            const TargetInfo *ti = TARGET_INFO_CLASS(elem->data)->target_info;
+            if (target_info_matches_name(ti, name)) {
+                set_target_info(ti);
+                return;
+            }
+        }
+        error_setg(errp, "target '%s' is not available, "
+                   "use -target ? to list available targets", name);
+        return;
+    }
+
+    error_setg(errp, "no target specified, "
+               "use -target ? to list available targets");
 }
