@@ -43,11 +43,17 @@ enum {
 
 typedef struct VFIODeviceOps VFIODeviceOps;
 typedef struct VFIODeviceIOOps VFIODeviceIOOps;
+typedef struct VFIORegion VFIORegion;
 typedef struct VFIOMigration VFIOMigration;
 
 typedef struct IOMMUFDBackend IOMMUFDBackend;
 typedef struct VFIOIOASHwpt VFIOIOASHwpt;
 typedef struct VFIOUserProxy VFIOUserProxy;
+
+typedef struct VFIORegionFDs {
+    int *fds;
+    int nr_fds;
+} VFIORegionFDs;
 
 typedef struct VFIODevice {
     QLIST_ENTRY(VFIODevice) next;
@@ -89,7 +95,7 @@ typedef struct VFIODevice {
     VFIOIOASHwpt *hwpt;
     QLIST_ENTRY(VFIODevice) hwpt_next;
     struct vfio_region_info **reginfo;
-    int *region_fds;
+    struct VFIORegionFDs *region_fds;
     VFIODeviceCPR cpr;
     VFIOUserProxy *proxy;
 } VFIODevice;
@@ -211,12 +217,29 @@ struct VFIODeviceIOOps {
      * @vdev: #VFIODevice to use
      * @info: set @info->index to the region index to look up; the rest of the
      *        struct will be filled in on success
-     * @fd: pointer to the fd for the region; will be -1 if not found
+     * @fds: pointer to the collection of fds for the region, will have nr_fds =
+     *       0 if not found
      *
      * Returns 0 on success or -errno.
      */
     int (*get_region_info)(VFIODevice *vdev,
-                           struct vfio_region_info *info, int *fd);
+                           struct vfio_region_info *info,
+                           struct VFIORegionFDs *fds);
+
+    /**
+     * @setup_sparse_mmaps
+     *
+     * Parse sparse mmap capabilities for a region and initialize region->mmaps.
+     *
+     * @region: #VFIORegion to set up
+     * @info: region info struct containing capabilities
+     * @errp: pointer to Error*, to store an error if it happens
+     *
+     * Returns 0 on success, -ENODEV if not sparse, or negative error code.
+     */
+    int (*setup_sparse_mmaps)(VFIORegion *region,
+                              struct vfio_region_info *info,
+                              Error **errp);
 
     /**
      * @get_irq_info
@@ -317,7 +340,8 @@ int vfio_device_get_region_info_type(VFIODevice *vbasedev, uint32_t type,
  *
  * Returns the fd.
  */
-int vfio_device_get_region_fd(VFIODevice *vbasedev, int index);
+int vfio_device_get_region_fd(VFIODevice *vbasedev, int index,
+                              uint32_t fd_index);
 
 bool vfio_device_has_region_cap(VFIODevice *vbasedev, int region, uint16_t cap_type);
 

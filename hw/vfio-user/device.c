@@ -207,10 +207,14 @@ static int vfio_user_get_region_info(VFIOUserProxy *proxy,
 
 static int vfio_user_device_io_get_region_info(VFIODevice *vbasedev,
                                                struct vfio_region_info *info,
-                                               int *fd)
+                                               struct VFIORegionFDs *region_fds)
 {
-    VFIOUserFDs fds = { 0, 1, fd};
+    int fd = -1;
+    VFIOUserFDs fds = { 0, 1, &fd };
     int ret;
+
+    region_fds->fds = NULL;
+    region_fds->nr_fds = 0;
 
     if (info->index > vbasedev->num_initial_regions) {
         return -EINVAL;
@@ -227,6 +231,13 @@ static int vfio_user_device_io_get_region_info(VFIODevice *vbasedev,
          || info->cap_offset + sizeof(struct vfio_info_cap_header) > info->argsz)) {
         return -EINVAL;
     }
+
+    if (fds.recv_fds > 0) {
+        region_fds->fds = g_new0(int, 1);
+        region_fds->nr_fds = 1;
+        region_fds->fds[0] = fd;
+    }
+
 
     return 0;
 }
