@@ -91,6 +91,8 @@ option('tcg', type: 'feature', value: 'enabled',
        description: 'TCG support')
 option('plugins', type: 'boolean', value: false,
        description: 'TCG plugins via shared library loading')
+option('single_binary', type: 'boolean', value: true,
+       description: 'combined qemu-system binary')
 option('debug_tcg', type: 'boolean', value: false,
        description: 'TCG debugging')
 option('debug_remap', type: 'boolean', value: false,

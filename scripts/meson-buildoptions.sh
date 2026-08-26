@@ -19,6 +19,7 @@ meson_options_help() {
   printf "%s\n" '  --disable-install-blobs  install provided firmware blobs'
   printf "%s\n" '  --disable-qom-cast-debug cast debugging support'
   printf "%s\n" '  --disable-relocatable    toggle relocatable install'
+  printf "%s\n" '  --disable-single-binary  combined qemu-system binary'
   printf "%s\n" '  --docdir=VALUE           Base directory for documentation installation'
   printf "%s\n" '                           (can be empty) [share/doc]'
   printf "%s\n" '  --enable-asan            enable address sanitizer'
@@ -486,6 +487,8 @@ _meson_option_parse() {
     --disable-seccomp) printf "%s" -Dseccomp=disabled ;;
     --enable-selinux) printf "%s" -Dselinux=enabled ;;
     --disable-selinux) printf "%s" -Dselinux=disabled ;;
+    --enable-single-binary) printf "%s" -Dsingle_binary=true ;;
+    --disable-single-binary) printf "%s" -Dsingle_binary=false ;;
     --enable-slirp) printf "%s" -Dslirp=enabled ;;
     --disable-slirp) printf "%s" -Dslirp=disabled ;;
     --enable-slirp-smbd) printf "%s" -Dslirp_smbd=enabled ;;

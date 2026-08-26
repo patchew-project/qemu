@@ -4249,6 +4249,18 @@ if host_os == 'darwin'
 endif
 
 traceable = []
+single_binary_arch_objects = []
+single_binary_bases_config = {}
+single_binary_deps = []
+single_binary_crates = []
+# base arch -> softmmu target that supplies arch_srcs
+single_binary_primary = {
+  'arm': 'aarch64-softmmu',
+  'riscv': 'riscv64-softmmu',
+}
+if not get_option('single_binary')
+  single_binary_primary = {}
+endif
 emulators = {}
 foreach target : target_dirs
   config_target = config_target_mak[target]
@@ -4321,8 +4333,6 @@ foreach target : target_dirs
     endif
   endif
 
-  arch_srcs += files('target-info-def.c')
-
   if target_base_arch in target_arch
     t = target_arch[target_base_arch].apply(config_target, strict: false)
     arch_srcs += t.sources()
@@ -4391,8 +4401,9 @@ foreach target : target_dirs
     lib_deps += dep.partial_dependency(compile_args: true, includes: true)
   endforeach
 
+  target_info_src = files('target-info-def.c')
   lib = static_library('qemu-' + target,
-                 sources: arch_srcs + genh,
+                 sources: target_info_src + arch_srcs + genh,
                  dependencies: lib_deps,
                  objects: objects,
                  include_directories: target_inc,
@@ -4400,6 +4411,16 @@ foreach target : target_dirs
                  build_by_default: false)
 
   if target.endswith('-softmmu')
+    if target_base_arch in single_binary_primary
+      single_binary_bases_config += config_target
+      single_binary_arch_objects += lib.extract_objects(target_info_src)
+      if target == single_binary_primary[target_base_arch]
+        single_binary_arch_objects += lib.extract_objects(arch_srcs)
+        single_binary_deps += arch_deps
+        single_binary_deps += target_stubs
+        single_binary_crates += main_rs
+      endif
+    endif
     execs = [{
       'name': 'qemu-system-' + target_name,
       'win_subsystem': 'console',
@@ -4480,6 +4501,47 @@ foreach target : target_dirs
 
   endforeach
 endforeach
+
+if single_binary_arch_objects.length() != 0
+  single_binary_objects = []
+  foreach spec: [[common_ss, common_all], [system_ss, libsystem]]
+    src = spec[0].apply(single_binary_bases_config, strict: false)
+    single_binary_objects += spec[1].extract_objects(src.sources())
+    single_binary_deps += src.dependencies()
+  endforeach
+  foreach base, tgt: single_binary_primary
+    if base in target_common_arch_libs
+      src = target_common_arch[base].apply(single_binary_bases_config,
+                                           strict: false)
+      single_binary_objects += target_common_arch_libs[base].extract_objects(
+        src.sources())
+      single_binary_deps += src.dependencies()
+    endif
+    if base in target_common_system_arch_libs
+      src = target_common_system_arch[base].apply(single_binary_bases_config,
+                                                  strict: false)
+      single_binary_objects += target_common_system_arch_libs[base].extract_objects(
+        src.sources())
+      single_binary_deps += src.dependencies()
+    endif
+  endforeach
+  single_binary_objects += single_binary_arch_objects
+
+  single_binary_link_args = emulator_link_args
+  single_binary_link_args += enable_modules ? ['@block.syms', '@qemu.syms'] : []
+  emulator = executable('qemu-system',
+             sources: [single_binary_crates, files('system/main.c')],
+             dependencies: single_binary_deps + [sdl],
+             objects: single_binary_objects,
+             link_depends: [block_syms, qemu_syms],
+             link_args: single_binary_link_args,
+             install: true)
+  emulators += {'qemu-system': emulator}
+  traceable += [{
+    'exe': 'qemu-system',
+    'probe-prefix': 'qemu.system.multi',
+  }]
+endif
 
 # Other build targets
 
@@ -4833,6 +4895,7 @@ if config_all_accel.has_key('CONFIG_TCG')
   endif
 endif
 summary_info += {'target list':       ' '.join(target_dirs)}
+summary_info += {'single binary':     get_option('single_binary')}
 if have_system
   summary_info += {'default devices':   get_option('default_devices')}
   summary_info += {'out of process emulation': multiprocess_allowed}
