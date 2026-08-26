@@ -852,6 +852,14 @@ elif host_os == 'darwin'
   host_dsosuf = '.dylib'
   pvg = dependency('appleframeworks', modules: ['ParavirtualizedGraphics', 'Metal'],
                    required: get_option('pvg'))
+  if pvg.found() and not objc.has_type('PGTask_t',
+                          prefix: '#import <ParavirtualizedGraphics/ParavirtualizedGraphics.h>',
+                          dependencies: pvg)
+    if get_option('pvg').enabled()
+      error('ParavirtualizedGraphics framework found, but the API lacks PGTask_t')
+    endif
+    pvg = not_found
+  endif
 elif host_os == 'sunos'
   socket = [cc.find_library('socket'),
             cc.find_library('nsl'),
