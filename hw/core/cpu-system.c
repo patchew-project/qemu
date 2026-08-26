@@ -24,7 +24,9 @@
 #include "exec/cputlb.h"
 #include "exec/target_page.h"
 #include "system/memory.h"
+#include "system/dump-arch.h"
 #include "qemu/target-info.h"
+#include "qemu/target-info-qom.h"
 #include "hw/core/qdev.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/sysemu-cpu-ops.h"
@@ -125,6 +127,27 @@ int cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,
         return -1;
     }
     return (*cpu->cc->sysemu_ops->write_elf64_note)(f, cpu, cpuid, opaque);
+}
+
+int cpu_get_dump_info(ArchDumpInfo *info,
+                      const struct GuestPhysBlockList *guest_phys_blocks)
+{
+    const TargetCpuOps *ops = target_info_cpu_ops();
+
+    if (!ops->get_dump_info) {
+        return -1;
+    }
+    return ops->get_dump_info(info, guest_phys_blocks);
+}
+
+ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
+{
+    const TargetCpuOps *ops = target_info_cpu_ops();
+
+    if (!ops->get_note_size) {
+        return -1;
+    }
+    return ops->get_note_size(class, machine, nr_cpus);
 }
 
 bool cpu_internal_is_big_endian(CPUState *cpu)

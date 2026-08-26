@@ -24,6 +24,7 @@
 #include "system/dump.h"
 #include "cpu-features.h"
 #include "internals.h"
+#include "qemu/target-info-qom.h"
 
 /* struct user_pt_regs from arch/arm64/include/uapi/asm/ptrace.h */
 struct aarch64_user_regs {
@@ -385,7 +386,7 @@ int arm_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
     return 0;
 }
 
-int cpu_get_dump_info(ArchDumpInfo *info,
+static int arm_get_dump_info(ArchDumpInfo *info,
                       const GuestPhysBlockList *guest_phys_blocks)
 {
     ARMCPU *cpu;
@@ -439,7 +440,7 @@ int cpu_get_dump_info(ArchDumpInfo *info,
     return 0;
 }
 
-ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
+static ssize_t arm_get_note_size(int class, int machine, int nr_cpus)
 {
     ARMCPU *cpu = ARM_CPU(first_cpu);
     size_t note_size;
@@ -459,3 +460,6 @@ ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
 
     return note_size * nr_cpus;
 }
+
+TARGET_INFO_CPU_OP(CPU_RESOLVING_TYPE, get_dump_info, arm_get_dump_info);
+TARGET_INFO_CPU_OP(CPU_RESOLVING_TYPE, get_note_size, arm_get_note_size);

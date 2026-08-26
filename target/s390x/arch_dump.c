@@ -18,6 +18,7 @@
 #include "elf.h"
 #include "system/dump.h"
 #include "kvm/kvm_s390x.h"
+#include "qemu/target-info-qom.h"
 #include "target/s390x/kvm/pv.h"
 
 struct S390xUserRegsStruct {
@@ -449,7 +450,7 @@ static void arch_cleanup(DumpState *s)
     }
 }
 
-int cpu_get_dump_info(ArchDumpInfo *info,
+static int s390_get_dump_info(ArchDumpInfo *info,
                       const struct GuestPhysBlockList *guest_phys_blocks)
 {
     info->d_machine = EM_S390;
@@ -469,7 +470,7 @@ int cpu_get_dump_info(ArchDumpInfo *info,
     return 0;
 }
 
-ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
+static ssize_t s390_get_note_size(int class, int machine, int nr_cpus)
 {
     int name_size = 8; /* "LINUX" or "CORE" + pad */
     size_t elf_note_size = 0;
@@ -495,3 +496,6 @@ ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
 
     return (elf_note_size) * nr_cpus;
 }
+
+TARGET_INFO_CPU_OP(CPU_RESOLVING_TYPE, get_dump_info, s390_get_dump_info);
+TARGET_INFO_CPU_OP(CPU_RESOLVING_TYPE, get_note_size, s390_get_note_size);

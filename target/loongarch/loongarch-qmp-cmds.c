@@ -14,6 +14,7 @@
 #include "qobject/qdict.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qom/qom-qobject.h"
+#include "qemu/target-info-qom.h"
 
 static void loongarch_cpu_add_definition(gpointer data, gpointer user_data)
 {
@@ -28,7 +29,7 @@ static void loongarch_cpu_add_definition(gpointer data, gpointer user_data)
     QAPI_LIST_PREPEND(*cpu_list, info);
 }
 
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
+static CpuDefinitionInfoList *loongarch_query_cpu_definitions(Error **errp)
 {
     CpuDefinitionInfoList *cpu_list = NULL;
     GSList *list;
@@ -45,9 +46,10 @@ static const char *cpu_model_advertised_features[] = {
     "ptw", NULL
 };
 
-CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
-                                                     CpuModelInfo *model,
-                                                     Error **errp)
+static CpuModelExpansionInfo *
+loongarch_query_cpu_model_expansion(CpuModelExpansionType type,
+                                    CpuModelInfo *model,
+                                    Error **errp)
 {
     Visitor *visitor;
     CpuModelExpansionInfo *expansion_info;
@@ -133,3 +135,8 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
 
     return expansion_info;
 }
+
+TARGET_INFO_CPU_OP(CPU_RESOLVING_TYPE, query_cpu_definitions,
+                   loongarch_query_cpu_definitions);
+TARGET_INFO_CPU_OP(CPU_RESOLVING_TYPE, query_cpu_model_expansion,
+                   loongarch_query_cpu_model_expansion);

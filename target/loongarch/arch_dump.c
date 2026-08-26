@@ -22,6 +22,7 @@
 #include "elf.h"
 #include "system/dump.h"
 #include "internals.h"
+#include "qemu/target-info-qom.h"
 
 /* struct user_pt_regs from arch/loongarch/include/uapi/asm/ptrace.h */
 struct loongarch_user_regs {
@@ -142,7 +143,7 @@ int loongarch_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
     return ret;
 }
 
-int cpu_get_dump_info(ArchDumpInfo *info,
+static int loongarch_get_dump_info(ArchDumpInfo *info,
                       const GuestPhysBlockList *guest_phys_blocks)
 {
     info->d_machine = EM_LOONGARCH;
@@ -152,7 +153,7 @@ int cpu_get_dump_info(ArchDumpInfo *info,
     return 0;
 }
 
-ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
+static ssize_t loongarch_get_note_size(int class, int machine, int nr_cpus)
 {
     size_t note_size = 0;
 
@@ -162,3 +163,6 @@ ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
 
     return note_size * nr_cpus;
 }
+
+TARGET_INFO_CPU_OP(CPU_RESOLVING_TYPE, get_dump_info, loongarch_get_dump_info);
+TARGET_INFO_CPU_OP(CPU_RESOLVING_TYPE, get_note_size, loongarch_get_note_size);

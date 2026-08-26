@@ -42,13 +42,10 @@ arm_stubs_ss.add(files(
 arm_user_ss.add(files(
   'el2-stubs.c',
   'cpregs-omap-stub.c',
+  'common-semi-target.c',
 ))
-arm_user_ss.add(when: 'CONFIG_ARM_COMPATIBLE_SEMIHOSTING',
-		        if_true: files('common-semi-target.c'))
 
-arm_common_system_ss.add(files('cpu.c'))
-arm_common_system_ss.add(when: 'CONFIG_ARM_COMPATIBLE_SEMIHOSTING',
-		                 if_true: files('common-semi-target.c'))
+arm_common_system_ss.add(files('cpu.c', 'common-semi-target.c'))
 arm_common_system_ss.add(files(
   'arch_dump.c',
   'arm-powerctl.c',
