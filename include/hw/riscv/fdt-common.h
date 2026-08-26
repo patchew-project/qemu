@@ -41,4 +41,9 @@ void create_fdt_syscon(void *fdt, uint32_t *phandle,
                        hwaddr addr, hwaddr size,
                        uint32_t reboot, uint32_t poweroff,
                        bool sifive_test_compat);
+void create_fdt_riscv_iommu_sys(void *fdt, hwaddr addr, hwaddr size,
+                                uint32_t irq_chip,
+                                uint32_t msi_phandle,
+                                uint32_t *iommu_sys_phandle,
+                                uint32_t iommu_sys_irq);
 #endif
