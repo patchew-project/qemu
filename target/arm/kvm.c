@@ -200,6 +200,46 @@ void kvm_arm_destroy_scratch_host_vcpu(int *fdarray)
     }
 }
 
+static bool kvm_arm_pauth_supported(void)
+{
+    return (kvm_check_extension(kvm_state, KVM_CAP_ARM_PTRAUTH_ADDRESS) &&
+            kvm_check_extension(kvm_state, KVM_CAP_ARM_PTRAUTH_GENERIC));
+}
+
+bool kvm_arm_create_scratch_max_host_vcpu(int *fdarray,
+                                          uint32_t *init_features,
+                                          uint32_t *target, Error **errp)
+{
+    struct kvm_vcpu_init init = { .target = -1, };
+    bool ret;
+
+    if (!kvm_enabled()) {
+        return false;
+    }
+
+    if (kvm_check_extension(kvm_state, KVM_CAP_ARM_SVE)) {
+        init.features[0] |= 1 << KVM_ARM_VCPU_SVE;
+    }
+    if (kvm_arm_el2_supported()) {
+        init.features[0] |= 1 << KVM_ARM_VCPU_HAS_EL2;
+    }
+    if (kvm_arm_pauth_supported()) {
+        init.features[0] |= (1 << KVM_ARM_VCPU_PTRAUTH_ADDRESS |
+                         1 << KVM_ARM_VCPU_PTRAUTH_GENERIC);
+    }
+    if (kvm_check_extension(kvm_state, KVM_CAP_ARM_PMU_V3)) {
+        init.features[0] |= 1 << KVM_ARM_VCPU_PMU_V3;
+    }
+
+    ret = kvm_arm_create_scratch_host_vcpu(fdarray, &init, errp);
+
+    if (ret) {
+        *init_features = init.features[0];
+        *target = init.target;
+    }
+    return ret;
+}
+
 static int read_sys_reg32(int fd, uint32_t *pret, uint64_t id)
 {
     uint64_t ret;
@@ -222,13 +262,6 @@ static int read_sys_reg64(int fd, uint64_t *pret, uint64_t id)
     assert((id & KVM_REG_SIZE_MASK) == KVM_REG_SIZE_U64);
     return ioctl(fd, KVM_GET_ONE_REG, &idreg);
 }
-
-static bool kvm_arm_pauth_supported(void)
-{
-    return (kvm_check_extension(kvm_state, KVM_CAP_ARM_PTRAUTH_ADDRESS) &&
-            kvm_check_extension(kvm_state, KVM_CAP_ARM_PTRAUTH_GENERIC));
-}
-
 
 static uint64_t idregs_sysreg_to_kvm_reg(ARMSysRegs sysreg)
 {
@@ -543,11 +576,11 @@ kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
      * and then query that CPU for the relevant ID registers.
      */
     int fdarray[3];
-    bool sve_supported;
-    bool el2_supported;
-    bool pmu_supported = false;
+    bool sve_supported, pmu_supported;
+    uint32_t init_features0 = 0;
     uint64_t features = 0;
     Error *local_err = NULL;
+    uint32_t target;
     int err;
 
     ahcf->target = QEMU_KVM_ARM_TARGET_NONE;
@@ -558,46 +591,23 @@ kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     }
 
     /*
-     * target = -1 informs kvm_arm_create_scratch_host_vcpu()
-     * to use the preferred target
+     * Instantiate a scratch vcpu of preferred target with the following
+     * features, if advertised by KVM:
+     * SVE (so that ID_AA64ZFR0 can be queried, otherwise RAS), PMUv3, EL2,
+     * PAUTH (to get the unsanitized field values for AA64ISAR1_EL1)
      */
-    struct kvm_vcpu_init init = { .target = -1, };
-
-    /*
-     * Ask for SVE if supported, so that we can query ID_AA64ZFR0,
-     * which is otherwise RAZ.
-     */
-    sve_supported = kvm_check_extension(kvm_state, KVM_CAP_ARM_SVE);
-    if (sve_supported) {
-        init.features[0] |= 1 << KVM_ARM_VCPU_SVE;
-    }
-
-    /*
-     * Ask for EL2 if supported.
-     */
-    el2_supported = kvm_arm_el2_supported();
-    if (el2_supported) {
-        init.features[0] |= 1 << KVM_ARM_VCPU_HAS_EL2;
-    }
-
-    /*
-     * Ask for Pointer Authentication if supported, so that we get
-     * the unsanitized field values for AA64ISAR1_EL1.
-     */
-    if (kvm_arm_pauth_supported()) {
-        init.features[0] |= (1 << KVM_ARM_VCPU_PTRAUTH_ADDRESS |
-                             1 << KVM_ARM_VCPU_PTRAUTH_GENERIC);
-    }
-
-    if (kvm_check_extension(kvm_state, KVM_CAP_ARM_PMU_V3)) {
-        init.features[0] |= 1 << KVM_ARM_VCPU_PMU_V3;
-        pmu_supported = true;
-        features |= 1ULL << ARM_FEATURE_PMU;
-    }
-
-    if (!kvm_arm_create_scratch_host_vcpu(fdarray, &init, &local_err)) {
+    if (!kvm_arm_create_scratch_max_host_vcpu(fdarray,
+                                              &init_features0, &target,
+                                              &local_err)) {
         error_report_err(local_err);
         return;
+    }
+
+    pmu_supported = init_features0 & (1 << KVM_ARM_VCPU_PMU_V3);
+    sve_supported = init_features0 & (1 << KVM_ARM_VCPU_SVE);
+
+    if (pmu_supported) {
+        features |= 1ULL << ARM_FEATURE_PMU;
     }
 
     int fd = fdarray[2];
@@ -746,11 +756,11 @@ kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     features |= 1ULL << ARM_FEATURE_AARCH64;
     features |= 1ULL << ARM_FEATURE_GENERIC_TIMER;
 
-    if (el2_supported) {
+    if (init_features0 & (1 << KVM_ARM_VCPU_HAS_EL2)) {
         features |= 1ULL << ARM_FEATURE_EL2;
     }
 
-    ahcf->target = init.target;
+    ahcf->target = target;
     ahcf->features = features;
 }
 

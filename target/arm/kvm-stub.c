@@ -125,3 +125,10 @@ bool kvm_idreg_write_scratch_vcpu(int cpufd, Visitor *v, const char *name,
 {
     g_assert_not_reached();
 }
+
+bool kvm_arm_create_scratch_max_host_vcpu(int *fdarray,
+                                          uint32_t *init_features0,
+                                          uint32_t *target, Error **errp)
+{
+    g_assert_not_reached();
+}

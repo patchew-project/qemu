@@ -126,6 +126,26 @@ bool kvm_arm_create_scratch_host_vcpu(int *fdarray,
 void kvm_arm_destroy_scratch_host_vcpu(int *fdarray);
 
 /**
+ * kvm_arm_create_scratch_max_host_vcpu:
+ * @fdarray: filled in with kvmfd, vmfd, cpufd file descriptors in that order
+ * @init_features0: kvm_vcpu_init.features[0] feature flags used during
+ *                  the init
+ * @target: target eventually chosen
+ * @errp: Error handle
+ *
+ * calls kvm_arm_create_scratch_host_vcpu() with kvm_vcpu_init initialized
+ * with all max kvm capabilities supported by the platform among
+ * KVM_CAP_ARM_PMU_V3, KVM_CAP_ARM_SVE, KVM_CAP_ARM_PTRAUTH_ADDRESS,
+ * KVM_CAP_ARM_PTRAUTH_GENERIC, KVM_CAP_ARM_EL2
+ *
+ * Returns: true on success (and fdarray and init are filled in),
+ * false on failure (and fdarray and init are not valid).
+ */
+bool kvm_arm_create_scratch_max_host_vcpu(int *fdarray,
+                                          uint32_t *init_features0,
+                                          uint32_t *target, Error **errp);
+
+/**
  * kvm_arm_set_cpu_features_from_host:
  * @cpu: ARMCPU to set the features for
  *
