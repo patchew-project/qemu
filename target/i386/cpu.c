@@ -7208,10 +7208,7 @@ static const X86CPUDefinition builtin_x86_defs[] = {
         .features[FEAT_8000_0001_ECX] =
             CPUID_EXT3_3DNOWPREFETCH | CPUID_EXT3_ABM | CPUID_EXT3_LAHF_LM,
         .features[FEAT_8000_0007_EDX] = CPUID_APM_INVTSC,
-        /*
-         * TODO: When the Linux kernel introduces other existing definitions
-         * for this leaf, remember to update the definitions here.
-         */
+        /* missing: PARALLAX/PARALLAX_EN, TM3/TM3_EN */
         .features[FEAT_C000_0001_EDX] =
             CPUID_C000_0001_EDX_PMM_EN | CPUID_C000_0001_EDX_PMM |
             CPUID_C000_0001_EDX_PHE_EN | CPUID_C000_0001_EDX_PHE |
@@ -7306,6 +7303,23 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                 .cache_info = &yongfeng_cache_info,
                 .props = (PropValue[]) {
                     { "x-force-cpuid-0x1f", "on" },
+                    { /* end of list */ },
+                }
+            },
+            {
+                .version = 4,
+                .note = "with additional cryptographic features",
+                .props = (PropValue[]) {
+                    { "sm2", "on" },
+                    { "sm2-en", "on" },
+                    { "ccs", "on" },
+                    { "ccs-en", "on" },
+                    { "rng2", "on" },
+                    { "rng2-en", "on" },
+                    { "phe2", "on" },
+                    { "phe2-en", "on" },
+                    { "rsa", "on" },
+                    { "rsa-en", "on" },
                     { /* end of list */ },
                 }
             },
