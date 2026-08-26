@@ -132,3 +132,8 @@ bool kvm_arm_create_scratch_max_host_vcpu(int *fdarray,
 {
     g_assert_not_reached();
 }
+
+void kvm_arm_destroy_scratch_host_vcpu(int *fdarray)
+{
+    g_assert_not_reached();
+}

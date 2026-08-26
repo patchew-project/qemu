@@ -21,6 +21,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/target-info.h"
 #include "hw/core/boards.h"
 #include "kvm_arm.h"
@@ -30,7 +31,10 @@
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-misc-arm.h"
 #include "qobject/qdict.h"
+#include "qobject/qnum.h"
 #include "qom/qom-qobject.h"
+#include <linux/kvm.h>
+#include "system/kvm.h"
 #include "cpu.h"
 
 static GICCapability *gic_cap_new(int version)
@@ -84,11 +88,14 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
                                                      Error **errp)
 {
     CpuModelExpansionInfo *expansion_info;
+    ObjectPropertyIterator iter;
     const QDict *qdict_in;
+    ObjectProperty *idregprop;
     QDict *qdict_out;
     ObjectClass *oc;
     Object *obj;
     const char *name;
+    int fdarray[3];
     int i;
 
     if (type != CPU_MODEL_EXPANSION_TYPE_FULL) {
@@ -133,6 +140,17 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
 
     obj = object_new(object_class_get_name(oc));
 
+    if (kvm_enabled()) {
+        uint32_t init_features0, target;
+        bool success;
+
+        success = kvm_arm_create_scratch_max_host_vcpu(fdarray, &init_features0,
+                                                       &target, errp);
+        if (!success) {
+            return NULL;
+        }
+    }
+
     if (model->props) {
         Visitor *visitor;
         Error *err = NULL;
@@ -145,6 +163,45 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
         }
 
         qdict_in = qobject_to(QDict, model->props);
+
+        for (const QDictEntry *entry = qdict_first(qdict_in);
+                 entry != NULL; entry = qdict_next(qdict_in, entry)) {
+            const char *key = qdict_entry_key(entry);
+            QObject *val_obj = qdict_entry_value(entry);
+            ObjectProperty *prop;
+            Visitor *v;
+            bool success;
+            uint64_t val;
+
+            prop = object_property_find(obj, key);
+
+            if (!g_str_has_prefix(key, "SYSREG_")) {
+                continue;
+            }
+
+            /* consume the prop to avoid unexpected parameter */
+            if (!visit_type_uint64(visitor, key, &val, errp)) {
+                return NULL;
+            }
+
+            v = qobject_input_visitor_new(val_obj);
+
+            if (!object_property_set(obj, key, v, errp)) {
+                visit_free(v);
+                return NULL;
+            }
+
+            if (kvm_enabled()) {
+                success = kvm_idreg_write_scratch_vcpu(fdarray[2], v, key,
+                                                       prop->opaque, errp);
+                if (!success) {
+                    visit_free(v);
+                    return NULL;
+                }
+            }
+            visit_free(v);
+        }
+
         i = 0;
         while ((name = cpu_model_advertised_features[i++]) != NULL) {
             if (qdict_get(qdict_in, name)) {
@@ -159,6 +216,10 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
         }
         if (!err) {
             arm_cpu_finalize_features(ARM_CPU(obj), &err);
+        }
+
+        if (kvm_enabled()) {
+            kvm_arm_destroy_scratch_host_vcpu(fdarray);
         }
         visit_end_struct(visitor, NULL);
         visit_free(visitor);
@@ -188,6 +249,18 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
 
             qdict_put_obj(qdict_out, name, value);
         }
+    }
+
+    object_property_iter_init(&iter, obj);
+
+    while ((idregprop = object_property_iter_next(&iter))) {
+        QObject *value;
+
+        if (!g_str_has_prefix(idregprop->name, "SYSREG_")) {
+            continue;
+        }
+        value = object_property_get_qobject(obj, idregprop->name, &error_abort);
+        qdict_put_obj(qdict_out, idregprop->name, value);
     }
 
     if (!qdict_size(qdict_out)) {
