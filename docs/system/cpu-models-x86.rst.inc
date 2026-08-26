@@ -25,7 +25,7 @@ Two ways to configure CPU models with QEMU / KVM
     typically refer to specific generations of hardware released by
     Intel and AMD.  These allow the guest VMs to have a degree of
     isolation from the host CPU, allowing greater flexibility in live
-    migrating between hosts with differing hardware.  @end table
+    migrating between hosts with differing hardware.
 
 In both cases, it is possible to optionally add or remove individual CPU
 features, to alter what is presented to the guest by default.
