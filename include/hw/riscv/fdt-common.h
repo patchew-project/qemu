@@ -63,6 +63,15 @@ typedef struct APLICFdtProps {
     int aia_type;
 } APLICFdtProps;
 
+typedef struct ACLINTFdtProps {
+    const MemMapEntry *clint;
+    const MemMapEntry *aclint_sswi;
+    int socket;
+    int num_harts;
+    int aia_type;
+    bool numa_enabled;
+} ACLINTFdtProps;
+
 void *create_board_device_tree(const char *model, const char *compatible,
                                int *fdt_size);
 void create_fdt_socket_memory(void *fdt, hwaddr addr, uint64_t size,
@@ -112,4 +121,6 @@ void create_fdt_socket_aplic(void *fdt, APLICFdtProps *props,
                              uint32_t *phandle,
                              uint32_t *intc_phandles,
                              uint32_t *aplic_phandles);
+void create_fdt_socket_aclint(void *fdt, ACLINTFdtProps *props,
+                              uint32_t *intc_phandles);
 #endif
