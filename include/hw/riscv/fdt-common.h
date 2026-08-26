@@ -132,4 +132,7 @@ void riscv_create_fdt_uart(void *fdt, const MemMapEntry *uart_mem,
                            int uart_irq, int aia_type,
                            bool uses_32_bit_spacing, bool is_serial0,
                            uint32_t irq_mmio_phandle);
+void riscv_create_fdt_rtc(void *fdt, const MemMapEntry *rtc_mem,
+                          int rtc_irq, int aia_type,
+                          uint32_t irq_mmio_phandle);
 #endif
