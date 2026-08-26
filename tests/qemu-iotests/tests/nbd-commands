@@ -141,6 +141,26 @@ class TestNbdCommands(iotests.QMPTestCase):
     def test_commands_extended_headers(self):
         self.check_commands(structured=True, extended=True)
 
+    def contexts_reported(self, h, wanted=None):
+        seen = []
+
+        def cb(meta, offset, entries, err):
+            seen.append(meta)
+
+        if wanted is None:
+            h.block_status(size, 0, cb)
+        else:
+            h.block_status_filter(size, 0, wanted, cb)
+        return sorted(seen)
+
+    def test_block_status_payload_filter(self):
+        with self.open_nbd() as h:
+            self.assertEqual(self.contexts_reported(h),
+                             ['base:allocation', 'qemu:allocation-depth'])
+
+            for wanted in (['base:allocation'], ['qemu:allocation-depth']):
+                self.assertEqual(self.contexts_reported(h, wanted), wanted)
+
     def test_cache_past_end_of_export(self):
         with self.open_nbd() as h:
             self.assertRaises(nbd.Error, h.cache, size + 1, 0)
