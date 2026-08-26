@@ -1243,10 +1243,18 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 /* CPUID[0x80000007].EDX flags: */
 #define CPUID_APM_INVTSC       (1U << 8)
 
+/* SM2 algorithm */
+#define CPUID_C000_0001_EDX_SM2                (1U << 0)
+/* SM2 enabled */
+#define CPUID_C000_0001_EDX_SM2_EN             (1U << 1)
 /* "rng" RNG present (xstore) */
 #define CPUID_C000_0001_EDX_XSTORE             (1U << 2)
 /* "rng_en" RNG enabled */
 #define CPUID_C000_0001_EDX_XSTORE_EN          (1U << 3)
+/* SM3 and SM4 algorithms */
+#define CPUID_C000_0001_EDX_CCS                (1U << 4)
+/* CCS enabled */
+#define CPUID_C000_0001_EDX_CCS_EN             (1U << 5)
 /* "ace" on-CPU crypto (xcrypt) */
 #define CPUID_C000_0001_EDX_XCRYPT             (1U << 6)
 /* "ace_en" on-CPU crypto enabled */
@@ -1263,6 +1271,18 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define CPUID_C000_0001_EDX_PMM                (1U << 12)
 /* PMM enabled */
 #define CPUID_C000_0001_EDX_PMM_EN             (1U << 13)
+/* Random Number Generator v2 */
+#define CPUID_C000_0001_EDX_RNG2               (1U << 22)
+/* RNG2 enabled */
+#define CPUID_C000_0001_EDX_RNG2_EN            (1U << 23)
+/* PadLock Hash Engine v2 */
+#define CPUID_C000_0001_EDX_PHE2               (1U << 25)
+/* PHE2 enabled */
+#define CPUID_C000_0001_EDX_PHE2_EN            (1U << 26)
+/* Big-number arithmetic */
+#define CPUID_C000_0001_EDX_RSA                (1U << 27)
+/* RSA enabled */
+#define CPUID_C000_0001_EDX_RSA_EN             (1U << 28)
 
 #define CPUID_VENDOR_SZ     12
 #define CPUID_MODEL_ID_SZ   48
