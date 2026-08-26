@@ -1243,7 +1243,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
             "sha512", "sm3", "sm4", NULL,
-            "avx-vnni", "avx512-bf16", NULL, "cmpccxadd",
+            "avx-vnni", "avx512-bf16", "lass", "cmpccxadd",
             NULL, NULL, "fzrm", "fsrs",
             "fsrc", NULL, NULL, NULL,
             NULL, "fred", "lkgs", "wrmsrns",
