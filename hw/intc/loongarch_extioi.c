@@ -10,6 +10,7 @@
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "hw/core/irq.h"
+#include "hw/intc/intc.h"
 #include "hw/loongarch/virt.h"
 #include "system/address-spaces.h"
 #include "system/kvm.h"
@@ -420,11 +421,63 @@ static int vmstate_extioi_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static void loongarch_extioi_print_info(InterruptStatsProvider *obj,
+                                        GString *buf)
+{
+    LoongArchExtIOICommonState *s = LOONGARCH_EXTIOI_COMMON(obj);
+    uint64_t *val;
+    unsigned long irq;
+    ExtIOICore *core;
+    int i;
+
+    vmstate_extioi_pre_save(s);
+    g_string_append_printf(buf, "%s:\n", object_get_typename(OBJECT(obj)));
+
+    val = (uint64_t *)s->isr;
+    g_string_append_printf(buf, "  ISR     0x%016"PRIx64" 0x%016"PRIx64
+                                " 0x%016"PRIx64" 0x%016"PRIx64"\n",
+                                *val, *(val + 1), *(val + 2), *(val + 3));
+    val = (uint64_t *)s->enable;
+    g_string_append_printf(buf, "  ENABLE  0x%016"PRIx64" 0x%016"PRIx64
+                                " 0x%016"PRIx64" 0x%016"PRIx64"\n",
+                                *val, *(val + 1), *(val + 2), *(val + 3));
+    val = (uint64_t *)s->ipmap;
+    g_string_append_printf(buf, "  IPMAP   0x%016"PRIx64"\n", *val);
+
+    val = (uint64_t *)s->coremap;
+    for (i = 0; i < EXTIOI_IRQS; i += 32) {
+        g_string_append_printf(buf, "  COREMAP 0x%016"PRIx64" 0x%016"PRIx64
+                                    " 0x%016"PRIx64" 0x%016"PRIx64"\n",
+                                    *val, *(val + 1), *(val + 2), *(val + 3));
+        val += 4;
+    }
+
+    core = s->cpu;
+    for (i = 0; i < s->num_cpu; i++, core++) {
+        if (!core->cpu) {
+            continue;
+        }
+
+        irq = find_first_bit((unsigned long *)core->coreisr, EXTIOI_IRQS);
+        /* No pending IRQ */
+        if (irq == EXTIOI_IRQS) {
+            continue;
+        }
+
+        val = (uint64_t *)core->coreisr;
+        g_string_append_printf(buf, "  CPU[%d] ISR 0x%016"PRIx64" 0x%016"PRIx64
+                                    " 0x%016"PRIx64" 0x%016"PRIx64"\n",
+                                    i, *val, *(val + 1), *(val + 2),
+                                    *(val + 3));
+    }
+}
+
 static void loongarch_extioi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     LoongArchExtIOIClass *lec = LOONGARCH_EXTIOI_CLASS(klass);
     LoongArchExtIOICommonClass *lecc = LOONGARCH_EXTIOI_COMMON_CLASS(klass);
+    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     device_class_set_parent_realize(dc, loongarch_extioi_realize,
@@ -433,6 +486,7 @@ static void loongarch_extioi_class_init(ObjectClass *klass, const void *data)
                                        NULL, &lec->parent_phases);
     lecc->pre_save  = vmstate_extioi_pre_save;
     lecc->post_load = vmstate_extioi_post_load;
+    ic->print_info = loongarch_extioi_print_info;
 }
 
 static const TypeInfo loongarch_extioi_types[] = {
@@ -442,6 +496,10 @@ static const TypeInfo loongarch_extioi_types[] = {
         .instance_size = sizeof(LoongArchExtIOIState),
         .class_size    = sizeof(LoongArchExtIOIClass),
         .class_init    = loongarch_extioi_class_init,
+        .interfaces         = (const InterfaceInfo[]) {
+            { TYPE_INTERRUPT_STATS_PROVIDER },
+            { }
+        },
     }
 };
 
