@@ -6,6 +6,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+#include <stdint.h>
 
 uintptr_t __semi_call(uintptr_t type, uintptr_t arg0)
 {
