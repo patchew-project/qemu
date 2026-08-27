@@ -318,6 +318,7 @@ as="${AS-${cross_prefix}as}"
 ccas="${CCAS-$cc}"
 dlltool="${DLLTOOL-${cross_prefix}dlltool}"
 objcopy="${OBJCOPY-${cross_prefix}objcopy}"
+objdump="${OBJDUMP-${cross_prefix}objdump}"
 ld="${LD-${cross_prefix}ld}"
 ranlib="${RANLIB-${cross_prefix}ranlib}"
 nm="${NM-${cross_prefix}nm}"
@@ -1384,6 +1385,7 @@ probe_target_compiler() {
   container_cross_ld=
   container_cross_nm=
   container_cross_objcopy=
+  container_cross_objdump=
   container_cross_ranlib=
   container_cross_strip=
 
@@ -1489,6 +1491,7 @@ probe_target_compiler() {
     : ${container_cross_ld:=${container_cross_prefix}ld}
     : ${container_cross_nm:=${container_cross_prefix}nm}
     : ${container_cross_objcopy:=${container_cross_prefix}objcopy}
+    : ${container_cross_objdump:=${container_cross_prefix}objdump}
     : ${container_cross_ranlib:=${container_cross_prefix}ranlib}
     : ${container_cross_strip:=${container_cross_prefix}strip}
   done
@@ -1517,6 +1520,7 @@ probe_target_compiler() {
       target_ld=$ld
       target_nm=$nm
       target_objcopy=$objcopy
+      target_objdump=$objdump
       target_ranlib=$ranlib
       target_strip=$strip
       ;;
@@ -1535,6 +1539,7 @@ probe_target_compiler() {
       compute_target_variable $target_arch target_ld ld
       compute_target_variable $target_arch target_nm nm
       compute_target_variable $target_arch target_objcopy objcopy
+      compute_target_variable $target_arch target_objdump objdump
       compute_target_variable $target_arch target_ranlib ranlib
       compute_target_variable $target_arch target_strip strip
       ;;
@@ -1596,6 +1601,7 @@ probe_target_compiler() {
     target_ld=
     target_nm=
     target_objcopy=
+    target_objdump=
     target_ranlib=
     target_strip=
   fi
@@ -1617,6 +1623,7 @@ write_target_makefile() {
     echo "LD=$docker_py cc --cc $container_cross_ld -i qemu/$container_image -s $source_path --"
     echo "NM=$docker_py cc --cc $container_cross_nm -i qemu/$container_image -s $source_path --"
     echo "OBJCOPY=$docker_py cc --cc $container_cross_objcopy -i qemu/$container_image -s $source_path --"
+    echo "OBJDUMP=$docker_py cc --cc $container_cross_objdump -i qemu/$container_image -s $source_path --"
     echo "RANLIB=$docker_py cc --cc $container_cross_ranlib -i qemu/$container_image -s $source_path --"
     echo "STRIP=$docker_py cc --cc $container_cross_strip -i qemu/$container_image -s $source_path --"
   else
@@ -1638,6 +1645,9 @@ write_target_makefile() {
     fi
     if test -n "$target_objcopy"; then
       echo "OBJCOPY=$target_objcopy"
+    fi
+    if test -n "$target_objdump"; then
+      echo "OBJDUMP=$target_objdump"
     fi
     if test -n "$target_ranlib"; then
       echo "RANLIB=$target_ranlib"
@@ -1998,6 +2008,7 @@ preserve_env LD_LIBRARY_PATH
 preserve_env NM
 preserve_env OBJCFLAGS
 preserve_env OBJCOPY
+preserve_env OBJDUMP
 preserve_env PATH
 preserve_env PKG_CONFIG
 preserve_env PKG_CONFIG_LIBDIR
