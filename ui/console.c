@@ -904,8 +904,9 @@ void qemu_console_set_cursor(QemuConsole *c, QEMUCursor *cursor)
     DisplayState *s = c->ds;
     DisplayChangeListener *dcl;
 
+    cursor_ref(cursor);
     cursor_unref(con->cursor);
-    con->cursor = cursor_ref(cursor);
+    con->cursor = cursor;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (c != dcl->con) {
             continue;
