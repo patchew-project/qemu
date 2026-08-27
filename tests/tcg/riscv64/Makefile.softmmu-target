@@ -79,6 +79,7 @@ memory: private CFLAGS += -DCHECK_UNALIGNED=1
 memory-rvv: memory.c $(LINK_SCRIPT) $(CRT_OBJS) $(MINILIB_OBJS)
 	$(call quiet-command, \
 	 $(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS) $(CRT_OBJS), CC, $@)
+	$(call check-vectorised,vle,vse[0-9])
 memory-rvv: private CFLAGS += -DCHECK_UNALIGNED=1 -march=rv64gcv -O3
 run-memory-rvv: QEMU_CPU = rv64,v=true
 

@@ -79,6 +79,14 @@ conditional-diff-out = 							\
 		$(call diff-out,$1,$2), 				\
 		$(call skip-test,"$1 check","no reference"))
 
+# Check an ELF for vector load ($1) and store ($2) patterns.
+# Deleted on failure so the check runs again on the next make.
+check-vectorised = $(if $(OBJDUMP), \
+	$(call quiet-command, \
+	    ld=$$($(OBJDUMP) -d $@ | grep -cE '[[:space:]]$1'); \
+	    st=$$($(OBJDUMP) -d $@ | grep -cE '[[:space:]]$2'); \
+	    printf "  %-7s %s\n" CHECK "$@ contains $$ld vector loads and $$st stores"; \
+	    test "$$ld" -gt 0 && test "$$st" -gt 0 || { rm -f $@; exit 1; }))
 
 # Tests we are building
 TESTS=
