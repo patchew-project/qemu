@@ -187,6 +187,16 @@ struct PCIDevice {
     uint32_t max_bounce_buffer_size;
 
     char *sriov_pf;
+
+    /*
+     * pci-bars property holds user-supplied fixed BAR addresses.
+     * pci_bars is the raw property string (barN@<addr>,...).
+     * fixed_bar_addrs is the parsed array (PCI_NUM_REGIONS-1 entries);
+     * each slot is PCI_BAR_UNMAPPED or the address for that BAR.
+     * NULL when the property is not set.
+     */
+    char      *pci_bars;
+    pcibus_t  *fixed_bar_addrs;
 };
 
 static inline int pci_intx(PCIDevice *pci_dev)

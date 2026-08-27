@@ -65,6 +65,7 @@ struct PCIESlot {
 
     /* broken ACPI hotplug compat knob to preserve 6.1 ABI intact */
     bool        hide_native_hotplug_cap;
+    bool        fixed_bar;
 
     QLIST_ENTRY(PCIESlot) next;
 };
