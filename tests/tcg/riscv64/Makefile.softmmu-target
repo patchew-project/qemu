@@ -5,9 +5,11 @@
 TEST_SRC = $(SRC_PATH)/tests/tcg/riscv64
 VPATH += $(TEST_SRC)
 
+CRT_OBJS = boot.o system.o
+
 LINK_SCRIPT = $(TEST_SRC)/semihost.ld
-LDFLAGS = -T $(LINK_SCRIPT)
-CFLAGS += -g -Og
+LDFLAGS = -Wl,-T$(LINK_SCRIPT) -static -nostdlib $(MINILIB_OBJS) -lgcc
+CFLAGS += -g -Og $(MINILIB_INC)
 
 # Used by riscv64 tcg tests and shared 'multiarch' tests
 QEMU_CPU = rv64
@@ -53,23 +55,23 @@ test-zicclsm-off.o: test-zicclsm.S
 	$(call quiet-command, \
 	  $(CC) $(CFLAGS) $< -Wa$(COMMA)--noexecstack -c -o $@, CC, $@)
 
-EXTRA_RUNS += run-plugin-doubletrap
-run-plugin-doubletrap: doubletrap
-	$(call run-test, $<, \
-	  $(QEMU) -monitor none -display none \
-		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
-		  -plugin ../plugins/libdiscons.so -d plugin -D $<.pout \
-		  $(QEMU_OPTS) $<)
-
-EXTRA_RUNS += run-plugin-interruptedmemory
-run-plugin-interruptedmemory: interruptedmemory
-	$(call run-test, $<, \
-	  $(QEMU) -monitor none -display none \
-		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
-		  -plugin ../plugins/libdiscons.so -d plugin -D $<.pout \
-		  $(QEMU_OPTS) $<)
+ifeq ($(CONFIG_PLUGIN),y)
+EXTRA_RUNS_WITH_PLUGIN += run-plugin-doubletrap-with-libdiscons.so \
+	run-plugin-interruptedmemory-with-libdiscons.so
+endif
 
 CLEANFILES += interruptedmemory doubletrap
 
-# We don't currently support the multiarch system tests
-undefine MULTIARCH_TESTS
+# Multiarch tests
+TESTS += $(MULTIARCH_TESTS)
+EXTRA_RUNS += $(MULTIARCH_RUNS)
+
+.PRECIOUS: $(CRT_OBJS)
+
+# Build and link the multiarch tests
+%: %.c $(LINK_SCRIPT) $(CRT_OBJS) $(MINILIB_OBJS)
+	$(call quiet-command, \
+	 $(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS) $(CRT_OBJS), CC, $@)
+
+# Default is zicclsm=true, so misaligned accesses must work
+memory: private CFLAGS += -DCHECK_UNALIGNED=1
