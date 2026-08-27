@@ -9,6 +9,7 @@
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "hw/core/irq.h"
+#include "hw/intc/intc.h"
 #include "hw/intc/loongarch_pch_pic.h"
 #include "system/kvm.h"
 #include "trace.h"
@@ -331,11 +332,43 @@ static int loongarch_pic_post_load(LoongArchPICCommonState *opaque,
     return 0;
 }
 
+static void loongarch_pic_print_info(InterruptStatsProvider *obj, GString *buf)
+{
+    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(obj);
+    uint64_t *vector;
+
+    loongarch_pic_pre_save(s);
+    g_string_append_printf(buf, "%s:\n", object_get_typename(OBJECT(obj)));
+
+    g_string_append_printf(buf, "  mask     0x%016"PRIx64" msi_en 0x%016"PRIx64
+                                " edge 0x%016"PRIx64" clr    0x%016"PRIx64"\n",
+                                s->int_mask, s->htmsi_en, s->intedge,
+                                s->intclr);
+
+    g_string_append_printf(buf, "  last_irr 0x%016"PRIx64" irr    0x%016"PRIx64
+                                " isr  0x%016"PRIx64" polary 0x%016"PRIx64"\n",
+                                s->last_intirr, s->intirr, s->intisr,
+                                s->int_polarity);
+
+    vector = (uint64_t *)s->htmsi_vector;
+    g_string_append_printf(buf, "  MSI map  0x%016"PRIx64" 0x%016"PRIx64
+                                " 0x%016"PRIx64" 0x%016"PRIx64"\n",
+                                *vector, *(vector + 1), *(vector + 2),
+                                *(vector + 3));
+
+    vector += 4;
+    g_string_append_printf(buf, "           0x%016"PRIx64" 0x%016"PRIx64
+                                " 0x%016"PRIx64" 0x%016"PRIx64"\n",
+                                *vector, *(vector + 1), *(vector + 2),
+                                *(vector + 3));
+}
+
 static void loongarch_pic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     LoongarchPICClass *lpc = LOONGARCH_PIC_CLASS(klass);
     LoongArchPICCommonClass *lpcc = LOONGARCH_PIC_COMMON_CLASS(klass);
+    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     resettable_class_set_parent_phases(rc, NULL, loongarch_pic_reset_hold,
@@ -344,6 +377,7 @@ static void loongarch_pic_class_init(ObjectClass *klass, const void *data)
                                     &lpc->parent_realize);
     lpcc->pre_save = loongarch_pic_pre_save;
     lpcc->post_load = loongarch_pic_post_load;
+    ic->print_info = loongarch_pic_print_info;
 }
 
 static const TypeInfo loongarch_pic_types[] = {
@@ -353,6 +387,10 @@ static const TypeInfo loongarch_pic_types[] = {
         .instance_size      = sizeof(LoongarchPICState),
         .class_size         = sizeof(LoongarchPICClass),
         .class_init         = loongarch_pic_class_init,
+        .interfaces         = (const InterfaceInfo[]) {
+            { TYPE_INTERRUPT_STATS_PROVIDER },
+            { }
+        },
     }
 };
 
