@@ -2515,8 +2515,33 @@ static void virt_set_high_memmap(VirtMachineState *vms,
 
     for (i = VIRT_LOWMEMMAP_LAST; i < ARRAY_SIZE(extended_memmap); i++) {
         region_enabled = virt_get_high_memmap_enabled(vms, i);
-        region_base = ROUND_UP(base, extended_memmap[i].size);
         region_size = extended_memmap[i].size;
+
+        if (i == VIRT_HIGH_PCIE_MMIO && extended_memmap[i].base) {
+            region_base = extended_memmap[i].base;
+
+            if (region_base < base) {
+                error_report("highmem-mmio-base 0x%"PRIx64" overlaps prior "
+                             "high memory layout (must be >= 0x%"PRIx64")",
+                             region_base, base);
+                exit(1);
+            }
+            if (region_base % region_size != 0) {
+                error_report("highmem-mmio-base 0x%"PRIx64" must be "
+                             "aligned to highmem-mmio-size 0x%"PRIx64,
+                             region_base, region_size);
+                exit(1);
+            }
+            if (region_base + region_size > BIT_ULL(pa_bits)) {
+                error_report("highmem-mmio-base + highmem-mmio-size "
+                             "[0x%"PRIx64", 0x%"PRIx64") exceeds %d-bit PA "
+                             "space", region_base,
+                             region_base + region_size, pa_bits);
+                exit(1);
+            }
+        } else {
+            region_base = ROUND_UP(base, region_size);
+        }
 
         vms->memmap[i].base = region_base;
         vms->memmap[i].size = region_size;
@@ -3418,6 +3443,33 @@ static void virt_set_highmem_mmio_size(Object *obj, Visitor *v,
     extended_memmap[VIRT_HIGH_PCIE_MMIO].size = size;
 }
 
+static void virt_get_highmem_mmio_base(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    uint64_t base = extended_memmap[VIRT_HIGH_PCIE_MMIO].base;
+
+    visit_type_size(v, name, &base, errp);
+}
+
+static void virt_set_highmem_mmio_base(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    uint64_t base;
+
+    if (!visit_type_size(v, name, &base, errp)) {
+        return;
+    }
+
+    if (base == 0) {
+        error_setg(errp, "highmem-mmio-base cannot be 0");
+        return;
+    }
+
+    extended_memmap[VIRT_HIGH_PCIE_MMIO].base = base;
+}
+
 static char *virt_get_msi(Object *obj, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -4283,6 +4335,14 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
                                    NULL, NULL);
     object_class_property_set_description(oc, "highmem-mmio-size",
                                           "Set the high memory region size "
+                                          "for PCI MMIO");
+
+    object_class_property_add(oc, "highmem-mmio-base", "size",
+                                   virt_get_highmem_mmio_base,
+                                   virt_set_highmem_mmio_base,
+                                   NULL, NULL);
+    object_class_property_set_description(oc, "highmem-mmio-base",
+                                          "Set the high memory region base "
                                           "for PCI MMIO");
 
     object_class_property_add(oc, "virtio-mmio-transports", "uint8",
