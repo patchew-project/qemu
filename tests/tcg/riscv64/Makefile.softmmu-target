@@ -9,67 +9,67 @@ LINK_SCRIPT = $(TEST_SRC)/semihost.ld
 LDFLAGS = -T $(LINK_SCRIPT)
 CFLAGS += -g -Og
 
+# Used by riscv64 tcg tests and shared 'multiarch' tests
+QEMU_CPU = rv64
+QEMU_BASE_MACHINE = -M virt -cpu $(QEMU_CPU) -display none -bios none
+QEMU_BASE_ARGS = -semihosting-config enable=on,chardev=output
+QEMU_OPTS += $(QEMU_BASE_MACHINE) $(QEMU_EXTRA) $(QEMU_BASE_ARGS) -kernel
+
+# These tests provide _start and use semihosting directly.
+# -kernel entry point is the lowest loaded address, not the ELF entry
+# point, so _start must remain first in .text.
+RISCV64_TESTS = issue1060 test-mepc-masking test-minstret-ecall \
+	doubletrap interruptedmemory test-crc32 \
+	test-zicclsm test-zicclsm-off test-misa-w
+
+# -Wl,--noexecstack to avoid linker warnings for .S files
 %.o: %.S
-	$(CC) $(CFLAGS) $< -Wa,--noexecstack -c -o $@
-%: %.o $(LINK_SCRIPT)
-	$(LD) $(LDFLAGS) $< -o $@
+	$(call quiet-command, \
+	  $(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -Wa$(COMMA)--noexecstack -c -o $@, CC, $@)
 
-QEMU_OPTS += -M virt -display none -bios none -semihosting -kernel
+%.o: %.c
+	$(call quiet-command, \
+	  $(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -c -o $@, CC, $@)
 
-EXTRA_RUNS += run-issue1060
-run-issue1060: issue1060
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<)
+$(RISCV64_TESTS): %: %.o $(LINK_SCRIPT)
+	$(call quiet-command, $(LD) -T $(LINK_SCRIPT) $< -o $@, LD, $@)
 
-EXTRA_RUNS += run-test-mepc-masking
-run-test-mepc-masking: test-mepc-masking
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<)
+TESTS += issue1060 test-mepc-masking test-minstret-ecall test-crc32 \
+	 test-misa-w test-zicclsm test-zicclsm-off
 
-EXTRA_RUNS += run-test-minstret-ecall
-run-test-minstret-ecall: test-minstret-ecall
-	$(call run-test, $<, $(QEMU) -icount shift=1 $(QEMU_OPTS) $<)
-
-EXTRA_RUNS += run-plugin-doubletrap
-run-plugin-doubletrap: doubletrap
-	$(call run-test, $<, \
-	  $(QEMU) -plugin ../plugins/libdiscons.so -d plugin -D $<.pout \
-	  $(QEMU_OPTS) $<)
-
-EXTRA_RUNS += run-plugin-interruptedmemory
-run-plugin-interruptedmemory: interruptedmemory
-	$(call run-test, $<, \
-	  $(QEMU) -plugin ../plugins/libdiscons.so -d plugin -D $<.pout \
-	  $(QEMU_OPTS) $<)
-
-EXTRA_RUNS += run-test-crc32
-comma:= ,
-run-test-crc32: test-crc32
-	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)xlrbr=true $(QEMU_OPTS) $<)
+# Tests can provide a custom kernel command line here
+run-test-minstret-ecall: QEMU_EXTRA = -icount shift=1
+run-test-crc32: QEMU_CPU = rv64,xlrbr=true
+run-test-misa-w: QEMU_CPU = rv64,x-misa-w=true,c=true,v=true
+run-test-zicclsm: QEMU_CPU = rv64,v=true,zfh=true,zicclsm=true
+run-test-zicclsm-off: QEMU_CPU = rv64,v=true,zfh=true,zicclsm=false
 
 # Zicclsm: misaligned load/store support. Assemble one source twice: the
 # default build expects every misaligned access to succeed (zicclsm=true),
 # the -DZICCLSM_DISABLED build expects every one to trap (zicclsm=false).
-ZICCLSM_MARCH = -march=rv64gcv_zfh
-CLEANFILES += test-zicclsm test-zicclsm-off
+test-zicclsm.o test-zicclsm-off.o: CFLAGS += -march=rv64gcv_zfh
+test-zicclsm-off.o: CFLAGS += -DZICCLSM_DISABLED
+test-zicclsm-off.o: test-zicclsm.S
+	$(call quiet-command, \
+	  $(CC) $(CFLAGS) $< -Wa$(COMMA)--noexecstack -c -o $@, CC, $@)
 
-test-zicclsm: test-zicclsm.S $(LINK_SCRIPT)
-	$(CC) $(CFLAGS) $(ZICCLSM_MARCH) $< -Wa,--noexecstack -c -o test-zicclsm.o
-	$(LD) $(LDFLAGS) test-zicclsm.o -o $@
+EXTRA_RUNS += run-plugin-doubletrap
+run-plugin-doubletrap: doubletrap
+	$(call run-test, $<, \
+	  $(QEMU) -monitor none -display none \
+		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
+		  -plugin ../plugins/libdiscons.so -d plugin -D $<.pout \
+		  $(QEMU_OPTS) $<)
 
-test-zicclsm-off: test-zicclsm.S $(LINK_SCRIPT)
-	$(CC) $(CFLAGS) $(ZICCLSM_MARCH) -DZICCLSM_DISABLED $< -Wa,--noexecstack -c -o test-zicclsm-off.o
-	$(LD) $(LDFLAGS) test-zicclsm-off.o -o $@
+EXTRA_RUNS += run-plugin-interruptedmemory
+run-plugin-interruptedmemory: interruptedmemory
+	$(call run-test, $<, \
+	  $(QEMU) -monitor none -display none \
+		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
+		  -plugin ../plugins/libdiscons.so -d plugin -D $<.pout \
+		  $(QEMU_OPTS) $<)
 
-EXTRA_RUNS += run-test-zicclsm
-run-test-zicclsm: test-zicclsm
-	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)v=true$(comma)zfh=true$(comma)zicclsm=true $(QEMU_OPTS) $<)
-
-EXTRA_RUNS += run-test-zicclsm-off
-run-test-zicclsm-off: test-zicclsm-off
-	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)v=true$(comma)zfh=true$(comma)zicclsm=false $(QEMU_OPTS) $<)
-
-EXTRA_RUNS += run-test-misa-w
-run-test-misa-w: test-misa-w
-	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)x-misa-w=true$(comma)c=true$(comma)v=true $(QEMU_OPTS)$<)
+CLEANFILES += interruptedmemory doubletrap
 
 # We don't currently support the multiarch system tests
 undefine MULTIARCH_TESTS
