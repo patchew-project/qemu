@@ -309,6 +309,23 @@ virtio_gpu_virgl_unmap_resource_blob(VirtIOGPU *g,
 }
 #endif
 
+static struct virtio_gpu_virgl_resource *
+virtio_gpu_virgl_resource_new(uint32_t resource_id, uint32_t width,
+                              uint32_t height, uint32_t format)
+{
+    struct virtio_gpu_virgl_resource *res = g_new0(struct virtio_gpu_virgl_resource, 1);
+
+    res->base.share_handle = SHAREABLE_NONE;
+    res->base.dmabuf_fd = -1;
+
+    res->base.resource_id = resource_id;
+    res->base.width = width;
+    res->base.height = height;
+    res->base.format = format;
+
+    return res;
+}
+
 static void virgl_cmd_create_resource_2d(VirtIOGPU *g,
                                          struct virtio_gpu_ctrl_command *cmd)
 {
@@ -335,12 +352,7 @@ static void virgl_cmd_create_resource_2d(VirtIOGPU *g,
         return;
     }
 
-    res = g_new0(struct virtio_gpu_virgl_resource, 1);
-    res->base.width = c2d.width;
-    res->base.height = c2d.height;
-    res->base.format = c2d.format;
-    res->base.resource_id = c2d.resource_id;
-    res->base.dmabuf_fd = -1;
+    res = virtio_gpu_virgl_resource_new(c2d.resource_id, c2d.width, c2d.height, c2d.format);
     QTAILQ_INSERT_HEAD(&g->reslist, &res->base, next);
 
     args.handle = c2d.resource_id;
@@ -383,12 +395,7 @@ static void virgl_cmd_create_resource_3d(VirtIOGPU *g,
         return;
     }
 
-    res = g_new0(struct virtio_gpu_virgl_resource, 1);
-    res->base.width = c3d.width;
-    res->base.height = c3d.height;
-    res->base.format = c3d.format;
-    res->base.resource_id = c3d.resource_id;
-    res->base.dmabuf_fd = -1;
+    res = virtio_gpu_virgl_resource_new(c3d.resource_id, c3d.width, c3d.height, c3d.format);
     QTAILQ_INSERT_HEAD(&g->reslist, &res->base, next);
 
     args.handle = c3d.resource_id;
@@ -853,8 +860,7 @@ static void virgl_cmd_resource_create_blob(VirtIOGPU *g,
         return;
     }
 
-    res = g_new0(struct virtio_gpu_virgl_resource, 1);
-    res->base.resource_id = cblob.resource_id;
+    res = virtio_gpu_virgl_resource_new(cblob.resource_id, 0, 0, 0);
     res->base.blob_size = cblob.size;
     res->base.dmabuf_fd = -1;
 

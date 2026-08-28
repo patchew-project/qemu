@@ -64,6 +64,10 @@ struct virtio_gpu_simple_resource {
     QTAILQ_ENTRY(virtio_gpu_simple_resource) next;
 };
 
+struct virtio_gpu_simple_resource *
+virtio_gpu_simple_resource_new(uint32_t resource_id, uint32_t width,
+                               uint32_t height, uint32_t format);
+
 struct virtio_gpu_framebuffer {
     pixman_format_code_t format;
     uint32_t width, height;
