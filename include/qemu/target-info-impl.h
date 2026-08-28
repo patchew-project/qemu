@@ -31,6 +31,8 @@ typedef struct TargetInfo {
     /* runtime equivalent of TARGET_PAGE_BITS_VARY definition */
     bool page_bits_vary;
 
+    /* CONFIG_DPCD */
+    bool config_dpcd;
     /* CONFIG_MULTIPROCESS */
     bool config_multiprocess;
     /* CONFIG_NITRO */

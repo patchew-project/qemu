@@ -43,6 +43,13 @@ const char *target_cpu_type(void);
 bool target_big_endian(void);
 
 /**
+ * target_config_dpcd:
+ *
+ * Returns true if target defines CONFIG_DPCD.
+ */
+bool target_config_dpcd(void);
+
+/**
  * target_config_multiprocess:
  *
  * Returns true if target defines CONFIG_MULTIPROCESS.
