@@ -75,7 +75,7 @@ void riscv_rpmi_fdt_add_service(void *fdt, hwaddr shmem_base,
                                 const char *node_name,
                                 const char *compatible,
                                 uint32_t mbox_handle,
-                                uint32_t service_group,
+                                enum rpmi_servicegroup_id service_group,
                                 bool has_mpxy_channel,
                                 uint32_t mpxy_channel)
 {
