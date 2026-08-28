@@ -936,6 +936,7 @@ static const TypeInfo aspeed_pcie_types[] = {
         .parent = TYPE_PCIE_ROOT_PORT,
         .instance_size = sizeof(AspeedPCIERootPortState),
         .class_init = aspeed_pcie_root_port_class_init,
+        .is_available = target_base_arm,
     },
     {
         .name       = TYPE_ASPEED_PCIE_CFG,
