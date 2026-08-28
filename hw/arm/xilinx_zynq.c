@@ -478,6 +478,7 @@ static const TypeInfo zynq_machine_type = {
     .parent = TYPE_MACHINE,
     .class_init = zynq_machine_class_init,
     .instance_size = sizeof(ZynqMachineState),
+    .is_available = target_base_arm,
 };
 
 static void zynq_machine_register_types(void)

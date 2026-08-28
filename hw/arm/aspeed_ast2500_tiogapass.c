@@ -82,6 +82,7 @@ static const TypeInfo aspeed_ast2500_tiogapass_types[] = {
         .name          = MACHINE_TYPE_NAME("tiogapass-bmc"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_tiogapass_class_init,
+        .is_available  = target_base_arm,
     }
 };
 

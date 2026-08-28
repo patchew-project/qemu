@@ -47,4 +47,4 @@ static void max78000_machine_init(MachineClass *mc)
     mc->valid_cpu_types = valid_cpu_types;
 }
 
-DEFINE_MACHINE("max78000fthr", max78000_machine_init, NULL)
+DEFINE_MACHINE("max78000fthr", max78000_machine_init, target_base_arm)

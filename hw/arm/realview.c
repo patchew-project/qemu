@@ -436,6 +436,7 @@ static const TypeInfo realview_eb_type = {
     .parent = TYPE_MACHINE,
     .class_init = realview_eb_class_init,
     .instance_size = sizeof(RealViewMachineState),
+    .is_available = target_base_arm,
 };
 
 static void realview_eb_mpcore_class_init(ObjectClass *oc, const void *data)
@@ -458,6 +459,7 @@ static const TypeInfo realview_eb_mpcore_type = {
     .parent = TYPE_MACHINE,
     .class_init = realview_eb_mpcore_class_init,
     .instance_size = sizeof(RealViewMachineState),
+    .is_available = target_base_arm,
 };
 
 static void realview_pb_a8_class_init(ObjectClass *oc, const void *data)
@@ -478,6 +480,7 @@ static const TypeInfo realview_pb_a8_type = {
     .parent = TYPE_MACHINE,
     .class_init = realview_pb_a8_class_init,
     .instance_size = sizeof(RealViewMachineState),
+    .is_available = target_base_arm,
 };
 
 static void realview_pbx_a9_class_init(ObjectClass *oc, const void *data)
@@ -499,6 +502,7 @@ static const TypeInfo realview_pbx_a9_type = {
     .parent = TYPE_MACHINE,
     .class_init = realview_pbx_a9_class_init,
     .instance_size = sizeof(RealViewMachineState),
+    .is_available = target_base_arm,
 };
 
 static void realview_machine_init(void)

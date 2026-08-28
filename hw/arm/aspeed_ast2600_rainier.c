@@ -190,6 +190,7 @@ static const TypeInfo aspeed_ast2600_rainier_types[] = {
         .name          = MACHINE_TYPE_NAME("rainier-bmc"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_rainier_class_init,
+        .is_available  = target_base_arm,
     }
 };
 

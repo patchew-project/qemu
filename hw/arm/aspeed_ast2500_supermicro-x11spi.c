@@ -69,6 +69,7 @@ static const TypeInfo aspeed_ast2500_supermicro_x11spi_types[] = {
         .name          = MACHINE_TYPE_NAME("supermicro-x11spi-bmc"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_supermicro_x11spi_bmc_class_init,
+        .is_available  = target_base_arm,
     }
 };
 

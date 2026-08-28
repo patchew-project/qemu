@@ -59,6 +59,7 @@ static const TypeInfo aspeed_ast2500_evb_types[] = {
         .name          = MACHINE_TYPE_NAME("ast2500-evb"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_ast2500_evb_class_init,
+        .is_available  = target_base_arm,
     }
 };
 

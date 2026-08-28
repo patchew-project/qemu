@@ -68,4 +68,5 @@ static void stm32vldiscovery_machine_init(MachineClass *mc)
     mc->valid_cpu_types = valid_cpu_types;
 }
 
-DEFINE_MACHINE("stm32vldiscovery", stm32vldiscovery_machine_init, NULL)
+DEFINE_MACHINE("stm32vldiscovery", stm32vldiscovery_machine_init,
+               target_base_arm)

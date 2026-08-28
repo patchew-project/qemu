@@ -367,6 +367,7 @@ static const TypeInfo aspeed_ast2600_anacapa_types[] = {
         .name          = MACHINE_TYPE_NAME("anacapa-bmc"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_anacapa_class_init,
+        .is_available  = target_base_arm,
     }
 };
 

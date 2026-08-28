@@ -71,4 +71,5 @@ static void olimex_stm32_h405_machine_init(MachineClass *mc)
     mc->default_ram_size = 0;
 }
 
-DEFINE_MACHINE("olimex-stm32-h405", olimex_stm32_h405_machine_init, NULL)
+DEFINE_MACHINE("olimex-stm32-h405", olimex_stm32_h405_machine_init,
+               target_base_arm)

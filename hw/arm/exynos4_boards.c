@@ -168,6 +168,7 @@ static const TypeInfo nuri_type = {
     .name = MACHINE_TYPE_NAME("nuri"),
     .parent = TYPE_MACHINE,
     .class_init = nuri_class_init,
+    .is_available = target_base_arm,
 };
 
 static void smdkc210_class_init(ObjectClass *oc, const void *data)
@@ -188,6 +189,7 @@ static const TypeInfo smdkc210_type = {
     .name = MACHINE_TYPE_NAME("smdkc210"),
     .parent = TYPE_MACHINE,
     .class_init = smdkc210_class_init,
+    .is_available = target_base_arm,
 };
 
 static void exynos4_machines_init(void)

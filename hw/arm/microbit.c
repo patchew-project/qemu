@@ -74,6 +74,7 @@ static const TypeInfo microbit_info = {
     .parent = TYPE_MACHINE,
     .instance_size = sizeof(MicrobitMachineState),
     .class_init = microbit_machine_class_init,
+    .is_available = target_base_arm,
 };
 
 static void microbit_machine_init(void)

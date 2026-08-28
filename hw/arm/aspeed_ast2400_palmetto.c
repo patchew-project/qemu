@@ -72,6 +72,7 @@ static const TypeInfo aspeed_ast2400_palmetto_types[] = {
         .name          = MACHINE_TYPE_NAME("palmetto-bmc"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_palmetto_class_init,
+        .is_available  = target_base_arm,
     }
 };
 

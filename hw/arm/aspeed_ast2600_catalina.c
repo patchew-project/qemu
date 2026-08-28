@@ -674,6 +674,7 @@ static const TypeInfo aspeed_ast2600_catalina_types[] = {
         .name          = MACHINE_TYPE_NAME("catalina-bmc"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_catalina_class_init,
+        .is_available  = target_base_arm,
     }
 };
 

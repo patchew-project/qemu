@@ -225,6 +225,7 @@ static const TypeInfo sx1_machine_v2_type = {
     .parent = TYPE_MACHINE,
     .class_init = sx1_machine_v2_class_init,
     .instance_size = sizeof(Sx1MachineState),
+    .is_available = target_base_arm,
 };
 
 static void sx1_machine_v1_class_init(ObjectClass *oc, const void *data)
@@ -245,6 +246,7 @@ static const TypeInfo sx1_machine_v1_type = {
     .parent = TYPE_MACHINE,
     .class_init = sx1_machine_v1_class_init,
     .instance_size = sizeof(Sx1MachineState),
+    .is_available = target_base_arm,
 };
 
 static void sx1_machine_init(void)
