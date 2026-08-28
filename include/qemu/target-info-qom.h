@@ -27,5 +27,6 @@ OBJECT_DECLARE_TYPE(TargetInfoQom, TargetInfoQomClass, TARGET_INFO)
 
 void target_info_qom_set_target(void);
 void target_info_qom_set_target_from_name(const char *name);
+void target_info_qom_set_target_from_argv0(const char *argv0);
 
 #endif /* QEMU_TARGET_INFO_QOM_H */

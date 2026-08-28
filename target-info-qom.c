@@ -84,3 +84,64 @@ void target_info_qom_set_target_from_name(const char *name)
     list_targets_available();
     exit(1);
 }
+
+void target_info_qom_set_target_from_argv0(const char *argv0)
+{
+    g_autoptr(GSList) targets = object_class_get_list(TYPE_TARGET_INFO, false);
+    size_t num_targets = g_slist_length(targets);
+    g_assert(num_targets > 0);
+
+    /* if we have only one target, set it as default */
+    if (num_targets == 1) {
+        const TargetInfo *ti = TARGET_INFO_CLASS(targets->data)->target_info;
+        target_info_ptr = ti;
+        return;
+    }
+
+    g_autofree char *basename_cstr = g_path_get_basename(argv0);
+    g_autoptr(GString) basename = g_string_new(basename_cstr);
+
+    const char *rm_common_patterns[] = {"qemu-system",
+                                        "qemu-fuzz",
+                                        "-target",
+                                        "-unsigned",
+                                        ".exe",
+                                        NULL};
+    for (const char **rm = rm_common_patterns; *rm; ++rm) {
+        size_t len = strlen(*rm);
+        char *found = strstr(basename->str, *rm);
+        if (found) {
+            size_t pos = found - basename->str;
+            g_string_erase(basename, pos, len);
+        }
+    }
+
+    /* remove ^[-.] */
+    const char *rm_separator[] = {"-", ".", NULL};
+    for (const char **rm = rm_separator; *rm; ++rm) {
+        size_t len = strlen(*rm);
+        if (!strncmp(basename->str, *rm, len)) {
+            g_string_erase(basename, 0, len);
+        }
+    }
+
+    /* remove [-.]{ok, ko, this-is-my-custom-binary-name, .*} */
+    for (const char **rm = rm_separator; *rm; ++rm) {
+        char *end = strstr(basename->str, *rm);
+        if (end) {
+            size_t pos = end - basename->str;
+            size_t len = basename->len - pos;
+            g_string_erase(basename, pos, len);
+        }
+    }
+
+    if (basename->len > 0) {
+        target_info_qom_set_target_from_name(basename->str);
+        return;
+    }
+
+    /* we have a qemu-system single-binary and multiple targets */
+    error_report("missing -target parameter");
+    list_targets_available();
+    exit(1);
+}

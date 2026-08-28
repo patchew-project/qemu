@@ -2928,7 +2928,7 @@ void qemu_init(int argc, char **argv)
         }
     }
     if (!target_info()) {
-        target_info_qom_set_target();
+        target_info_qom_set_target_from_argv0(argv[0]);
     }
 
     module_init_info(qemu_modinfo);
