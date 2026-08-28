@@ -236,7 +236,6 @@ static void riscv_rpmi_hsm_destroy(RiscvRpmiState *s)
     g_clear_pointer(&s->hsm_hw_states, g_free);
 }
 
-
 bool riscv_rpmi_hsm_add(RiscvRpmiState *s, Error **errp)
 {
     struct rpmi_service_group *group;
@@ -275,6 +274,15 @@ void riscv_rpmi_hsm_reset(RiscvRpmiState *s)
     for (uint32_t i = 0; i < s->hart_count; i++) {
         s->hsm_hw_states[i] = RPMI_HART_HW_STATE_STARTED;
     }
+    if (s->hsm) {
+        rpmi_hsm_process_state_changes(s->hsm);
+    }
+}
+
+void riscv_rpmi_hsm_resume(RiscvRpmiState *s, uint32_t hart_index,
+                           uint64_t resume_addr)
+{
+    riscv_rpmi_hsm_set_hw_state(s, hart_index, RPMI_HART_HW_STATE_STARTED);
     if (s->hsm) {
         rpmi_hsm_process_state_changes(s->hsm);
     }
