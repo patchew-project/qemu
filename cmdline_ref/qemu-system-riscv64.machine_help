@@ -1,0 +1,13 @@
+Supported machines are:
+amd-microblaze-v-generic AMD Microblaze-V generic platform
+boston-aia           MIPS Boston-aia
+k230                 RISC-V Board compatible with Kendryte K230 SDK
+microchip-icicle-kit Microchip PolarFire SoC Icicle Kit
+none                 empty machine
+shakti_c             RISC-V Board compatible with Shakti SDK (deprecated)
+sifive_e             RISC-V Board compatible with SiFive E SDK
+sifive_u             RISC-V Board compatible with SiFive U SDK
+spike                RISC-V Spike board
+tt-atlantis          Tenstorrent Atlantis RISC-V SoC (Experimental)
+virt                 RISC-V VirtIO board
+xiangshan-kunminghu  RISC-V Board compatible with the Xiangshan Kunminghu FPGA prototype platform

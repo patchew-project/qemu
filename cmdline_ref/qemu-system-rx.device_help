@@ -1,0 +1,10 @@
+
+Misc devices:
+name "guest-loader", desc "Guest Loader"
+name "loader", desc "Generic Loader"
+name "uefi-vars-sysbus", bus System
+name "uefi-vars-x64", bus System
+
+Uncategorized devices:
+name "r5f562n7-mcu"
+name "r5f562n8-mcu"

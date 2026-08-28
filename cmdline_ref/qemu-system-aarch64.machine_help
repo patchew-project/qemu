@@ -1,0 +1,114 @@
+Supported machines are:
+xlnx-versal-virt     AMD Versal Virtual development board (alias of amd-versal-virt)
+amd-versal-virt      AMD Versal Virtual development board
+amd-versal2-virt     AMD Versal Gen 2 Virtual development board
+anacapa-bmc          Facebook Anacapa BMC (Cortex-A7)
+ast1030-evb          Aspeed AST1030 MiniBMC (Cortex-M4)
+ast1040-evb          Aspeed AST1040 BIC EVB (Cortex-M4F)
+ast1060-evb          Aspeed AST1060 Platform Root of Trust (Cortex-M4)
+ast2500-evb          Aspeed AST2500 EVB (ARM1176)
+ast2600-evb          Aspeed AST2600 EVB (Cortex-A7)
+ast2700a1-evb        Aspeed AST2700 A1 EVB (Cortex-A35)
+ast2700-evb          Aspeed AST2700 A2 EVB (Cortex-A35) (alias of ast2700a2-evb)
+ast2700a2-evb        Aspeed AST2700 A2 EVB (Cortex-A35)
+ast2700fc            ast2700 full core support
+axiado-scm3003       Axiado SCM3003 EVK Board
+b-l475e-iot01a       B-L475E-IOT01A Discovery Kit (Cortex-M4)
+bletchley-bmc        Facebook Bletchley BMC (Cortex-A7)
+bpim2u               Bananapi M2U (Cortex-A7)
+canon-a1100          Canon PowerShot A1100 IS (ARM946)
+catalina-bmc         Facebook Catalina BMC (Cortex-A7)
+collie               Sharp SL-5500 (Collie) PDA (SA-1110)
+cubieboard           cubietech cubieboard (Cortex-A8)
+emcraft-sf2          SmartFusion2 SOM kit from Emcraft (M2S010)
+fby35-bmc            Facebook fby35 BMC (Cortex-A7)
+fuji-bmc             Facebook Fuji BMC (Cortex-A7)
+g220a-bmc            Bytedance G220A BMC (ARM1176)
+gb200nvl-bmc         Nvidia GB200NVL BMC (Cortex-A7)
+imx25-pdk            ARM i.MX25 PDK board (ARM926)
+imx8mm-evk           NXP i.MX 8MM EVK Board
+imx8mp-evk           NXP i.MX 8M Plus EVK Board
+integratorcp         ARM Integrator/CP (ARM926EJ-S)
+kudo-bmc             Kudo BMC (Cortex-A9)
+kzm                  ARM KZM Emulation Baseboard (ARM1136)
+lm3s6965evb          Stellaris LM3S6965EVB (Cortex-M3)
+lm3s811evb           Stellaris LM3S811EVB (Cortex-M3)
+max78000fthr         MAX78000FTHR Board (Cortex-M4 / (Unimplemented) RISC-V)
+mcimx6ul-evk         Freescale i.MX6UL Evaluation Kit (Cortex-A7)
+mcimx7d-sabre        Freescale i.MX7 DUAL SABRE (Cortex-A7)
+microbit             BBC micro:bit (Cortex-M0)
+mori-bmc             Mori BMC (Cortex-A9)
+mps2-an385           ARM MPS2 with AN385 FPGA image for Cortex-M3
+mps2-an386           ARM MPS2 with AN386 FPGA image for Cortex-M4
+mps2-an500           ARM MPS2 with AN500 FPGA image for Cortex-M7
+mps2-an505           ARM MPS2 with AN505 FPGA image for Cortex-M33
+mps2-an511           ARM MPS2 with AN511 DesignStart FPGA image for Cortex-M3
+mps2-an521           ARM MPS2 with AN521 FPGA image for dual Cortex-M33
+mps3-an524           ARM MPS3 with AN524 FPGA image for dual Cortex-M33
+mps3-an536           ARM MPS3 with AN536 FPGA image for Cortex-R52
+mps3-an547           ARM MPS3 with AN547 FPGA image for Cortex-M55
+musca-a              ARM Musca-A board (dual Cortex-M33)
+musca-b1             ARM Musca-B1 board (dual Cortex-M33)
+musicpal             Marvell 88w8618 / MusicPal (ARM926EJ-S)
+netduino2            Netduino 2 Machine (Cortex-M3)
+netduinoplus2        Netduino Plus 2 Machine (Cortex-M4)
+nitro                Nitro Enclave
+none                 empty machine
+npcm750-evb          Nuvoton NPCM750 Evaluation Board (Cortex-A9)
+npcm845-evb          Nuvoton NPCM845 Evaluation Board (Cortex-A35)
+nuri                 Samsung NURI board (Exynos4210)
+olimex-stm32-h405    Olimex STM32-H405 (Cortex-M4)
+orangepi-pc          Orange Pi PC (Cortex-A7)
+palmetto-bmc         OpenPOWER Palmetto BMC (ARM926EJ-S)
+quanta-gbs-bmc       Quanta GBS (Cortex-A9)
+quanta-gsj           Quanta GSJ (Cortex-A9)
+quanta-q71l-bmc      Quanta-Q71l BMC (ARM926EJ-S)
+rainier-bmc          IBM Rainier BMC (Cortex-A7)
+raspi0               Raspberry Pi Zero (revision 1.2)
+raspi1ap             Raspberry Pi A+ (revision 1.1)
+raspi2b              Raspberry Pi 2B (revision 1.1)
+raspi3ap             Raspberry Pi 3A+ (revision 1.0)
+raspi3b              Raspberry Pi 3B (revision 1.2)
+raspi4b              Raspberry Pi 4B (revision 1.5)
+realview-eb          ARM RealView Emulation Baseboard (ARM926EJ-S)
+realview-eb-mpcore   ARM RealView Emulation Baseboard (ARM11MPCore)
+realview-pb-a8       ARM RealView Platform Baseboard for Cortex-A8
+realview-pbx-a9      ARM RealView Platform Baseboard Explore for Cortex-A9
+romulus-bmc          OpenPOWER Romulus BMC (ARM1176)
+sabrelite            Freescale i.MX6 Quad SABRE Lite Board (Cortex-A9)
+sbsa-ref             QEMU 'SBSA Reference' ARM Virtual Machine
+smdkc210             Samsung SMDKC210 board (Exynos4210)
+stm32vldiscovery     ST STM32VLDISCOVERY (Cortex-M3)
+supermicro-x11spi-bmc Supermicro X11 SPI BMC (ARM1176)
+supermicrox11-bmc    Supermicro X11 BMC (ARM926EJ-S)
+sx1                  Siemens SX1 (OMAP310) V2
+sx1-v1               Siemens SX1 (OMAP310) V1
+tiogapass-bmc        Facebook Tiogapass BMC (ARM1176)
+versatileab          ARM Versatile/AB (ARM926EJ-S)
+versatilepb          ARM Versatile/PB (ARM926EJ-S)
+vexpress-a15         ARM Versatile Express for Cortex-A15
+vexpress-a9          ARM Versatile Express for Cortex-A9
+virt-10.0            QEMU 10.0 ARM Virtual Machine
+virt-10.1            QEMU 10.1 ARM Virtual Machine
+virt-10.2            QEMU 10.2 ARM Virtual Machine
+virt-11.0            QEMU 11.0 ARM Virtual Machine
+virt-11.1            QEMU 11.1 ARM Virtual Machine
+virt                 QEMU 11.2 ARM Virtual Machine (alias of virt-11.2)
+virt-11.2            QEMU 11.2 ARM Virtual Machine
+virt-6.0             QEMU 6.0 ARM Virtual Machine (deprecated)
+virt-6.1             QEMU 6.1 ARM Virtual Machine (deprecated)
+virt-6.2             QEMU 6.2 ARM Virtual Machine (deprecated)
+virt-7.0             QEMU 7.0 ARM Virtual Machine (deprecated)
+virt-7.1             QEMU 7.1 ARM Virtual Machine (deprecated)
+virt-7.2             QEMU 7.2 ARM Virtual Machine (deprecated)
+virt-8.0             QEMU 8.0 ARM Virtual Machine (deprecated)
+virt-8.1             QEMU 8.1 ARM Virtual Machine (deprecated)
+virt-8.2             QEMU 8.2 ARM Virtual Machine (deprecated)
+virt-9.0             QEMU 9.0 ARM Virtual Machine
+virt-9.1             QEMU 9.1 ARM Virtual Machine
+virt-9.2             QEMU 9.2 ARM Virtual Machine
+witherspoon-bmc      OpenPOWER Witherspoon BMC (ARM1176)
+x-remote             Experimental remote machine
+xilinx-zynq-a9       Xilinx Zynq 7000 Platform Baseboard for Cortex-A9
+xlnx-zcu102          Xilinx ZynqMP ZCU102 board with 4xA53s and 2xR5Fs based on the value of smp
+yosemitev2-bmc       Facebook YosemiteV2 BMC (ARM1176)

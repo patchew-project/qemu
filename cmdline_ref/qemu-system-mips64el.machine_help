@@ -1,0 +1,8 @@
+Supported machines are:
+boston               MIPS Boston
+fuloong2e            Fuloong 2e mini pc
+loongson3-virt       Loongson-3 Virtualization Platform
+magnum               MIPS Magnum
+malta                MIPS Malta Core LV (default)
+none                 empty machine
+pica61               Acer Pica 61

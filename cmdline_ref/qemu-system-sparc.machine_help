@@ -1,0 +1,12 @@
+Supported machines are:
+LX                   Sun4m platform, SPARCstation LX
+SPARCClassic         Sun4m platform, SPARCClassic
+SPARCbook            Sun4m platform, SPARCbook
+SS-10                Sun4m platform, SPARCstation 10
+SS-20                Sun4m platform, SPARCstation 20
+SS-4                 Sun4m platform, SPARCstation 4
+SS-5                 Sun4m platform, SPARCstation 5 (default)
+SS-600MP             Sun4m platform, SPARCserver 600MP
+Voyager              Sun4m platform, SPARCstation Voyager
+leon3_generic        Leon-3 generic
+none                 empty machine

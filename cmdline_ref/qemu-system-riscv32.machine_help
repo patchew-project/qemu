@@ -1,0 +1,8 @@
+Supported machines are:
+amd-microblaze-v-generic AMD Microblaze-V generic platform
+none                 empty machine
+opentitan            RISC-V Board compatible with OpenTitan
+sifive_e             RISC-V Board compatible with SiFive E SDK
+sifive_u             RISC-V Board compatible with SiFive U SDK
+spike                RISC-V Spike board
+virt                 RISC-V VirtIO board

@@ -1,0 +1,5 @@
+Supported machines are:
+niagara              Sun4v platform, Niagara
+none                 empty machine
+sun4u                Sun4u platform (default)
+sun4v                Sun4v platform

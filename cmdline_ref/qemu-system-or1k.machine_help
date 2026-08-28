@@ -1,0 +1,4 @@
+Supported machines are:
+none                 empty machine
+or1k-sim             or1k simulation (default)
+virt                 or1k virtual machine

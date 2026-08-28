@@ -1,0 +1,14 @@
+Supported machines are:
+40p                  IBM RS/6000 7020 (40p)
+amigaone             Eyetech AmigaOne/Mai Logic Teron
+bamboo               bamboo
+g3beige              Heathrow based PowerMac (default)
+mac99                Mac99 based PowerMac
+mpc8544ds            mpc8544ds
+none                 empty machine
+pegasos1             Genesi/bPlan Pegasos I
+pegasos2             Genesi/bPlan Pegasos II
+ppce500              generic paravirt e500 platform
+ppe42_machine        PPE42 Test Machine
+sam460ex             aCube Sam460ex
+virtex-ml507         Xilinx Virtex ML507 reference design

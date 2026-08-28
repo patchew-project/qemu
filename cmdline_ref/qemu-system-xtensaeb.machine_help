@@ -1,0 +1,12 @@
+Supported machines are:
+kc705                kc705 EVB (fsf)
+kc705-nommu          kc705 noMMU EVB (fsf)
+lx200                lx200 EVB (fsf)
+lx200-nommu          lx200 noMMU EVB (fsf)
+lx60                 lx60 EVB (fsf)
+lx60-nommu           lx60 noMMU EVB (fsf)
+ml605                ml605 EVB (fsf)
+ml605-nommu          ml605 noMMU EVB (fsf)
+none                 empty machine
+sim                  sim machine (fsf) (default)
+virt                 virt machine (fsf)

@@ -1,0 +1,257 @@
+Controller/Bridge/Hub devices:
+name "pci-bridge", bus PCI, desc "Standard PCI Bridge"
+name "pci-bridge-seat", bus PCI, desc "Standard PCI Bridge (multiseat)"
+name "usb-host", bus usb-bus
+name "usb-hub", bus usb-bus
+
+USB devices:
+name "qemu-xhci", bus PCI
+
+Storage devices:
+name "nvme", bus PCI, desc "Non-Volatile Memory Express"
+name "nvme-ns", bus nvme-bus, desc "Virtual NVMe namespace"
+name "nvme-subsys", desc "Virtual NVMe subsystem"
+name "scsi-block", bus SCSI, desc "SCSI block device passthrough"
+name "scsi-cd", bus SCSI, desc "virtual SCSI CD-ROM"
+name "scsi-generic", bus SCSI, desc "pass through generic scsi device (/dev/sg*)"
+name "scsi-hd", bus SCSI, desc "virtual SCSI disk"
+name "usb-bot", bus usb-bus
+name "usb-mtp", bus usb-bus, desc "USB Media Transfer Protocol device"
+name "usb-storage", bus usb-bus
+name "usb-uas", bus usb-bus
+name "vhost-scsi", bus virtio-bus
+name "vhost-scsi-ccw", bus virtual-css-bus
+name "vhost-scsi-pci", bus PCI
+name "vhost-scsi-pci-non-transitional", bus PCI
+name "vhost-scsi-pci-transitional", bus PCI
+name "vhost-user-blk", bus virtio-bus
+name "vhost-user-blk-pci", bus PCI
+name "vhost-user-blk-pci-non-transitional", bus PCI
+name "vhost-user-blk-pci-transitional", bus PCI
+name "vhost-user-fs-ccw", bus virtual-css-bus
+name "vhost-user-fs-device", bus virtio-bus
+name "vhost-user-fs-pci", bus PCI
+name "vhost-user-scsi", bus virtio-bus
+name "vhost-user-scsi-pci", bus PCI
+name "vhost-user-scsi-pci-non-transitional", bus PCI
+name "vhost-user-scsi-pci-transitional", bus PCI
+name "virtio-9p-ccw", bus virtual-css-bus, alias "virtio-9p"
+name "virtio-9p-device", bus virtio-bus
+name "virtio-9p-pci", bus PCI
+name "virtio-9p-pci-non-transitional", bus PCI
+name "virtio-9p-pci-transitional", bus PCI
+name "virtio-blk-ccw", bus virtual-css-bus, alias "virtio-blk"
+name "virtio-blk-device", bus virtio-bus
+name "virtio-blk-pci", bus PCI
+name "virtio-blk-pci-non-transitional", bus PCI
+name "virtio-blk-pci-transitional", bus PCI
+name "virtio-scsi-ccw", bus virtual-css-bus, alias "virtio-scsi"
+name "virtio-scsi-device", bus virtio-bus
+name "virtio-scsi-pci", bus PCI
+name "virtio-scsi-pci-non-transitional", bus PCI
+name "virtio-scsi-pci-transitional", bus PCI
+
+Network devices:
+name "e1000e", bus PCI, desc "Intel 82574L GbE Controller"
+name "igb", bus PCI, desc "Intel 82576 Gigabit Ethernet Controller"
+name "usb-net", bus usb-bus
+name "virtio-net-ccw", bus virtual-css-bus, alias "virtio-net"
+name "virtio-net-device", bus virtio-bus
+name "virtio-net-pci", bus PCI
+name "virtio-net-pci-non-transitional", bus PCI
+name "virtio-net-pci-transitional", bus PCI
+
+Input devices:
+name "ccid-card-emulated", bus ccid-bus, desc "emulated smartcard"
+name "ccid-card-passthru", bus ccid-bus, desc "passthrough smartcard"
+name "sclpconsole", bus s390-sclp-events-bus
+name "sclplmconsole", bus s390-sclp-events-bus
+name "usb-braille", bus usb-bus
+name "usb-ccid", bus usb-bus, desc "CCID Rev 1.1 smartcard reader"
+name "usb-kbd", bus usb-bus
+name "usb-mouse", bus usb-bus
+name "usb-serial", bus usb-bus
+name "usb-tablet", bus usb-bus
+name "usb-wacom-tablet", bus usb-bus, desc "QEMU PenPartner Tablet"
+name "vhost-user-gpio-device", bus virtio-bus
+name "vhost-user-gpio-pci", bus PCI
+name "vhost-user-i2c-device", bus virtio-bus
+name "vhost-user-i2c-pci", bus PCI
+name "vhost-user-input", bus virtio-bus
+name "vhost-user-input-pci", bus PCI
+name "vhost-user-rng", bus virtio-bus
+name "vhost-user-rng-pci", bus PCI
+name "vhost-user-spi-device", bus virtio-bus
+name "vhost-user-spi-pci", bus PCI
+name "vhost-user-test-device", bus virtio-bus
+name "vhost-user-test-device-pci", bus PCI
+name "virtconsole", bus virtio-serial-bus
+name "virtio-input-host-device", bus virtio-bus
+name "virtio-input-host-pci", bus PCI
+name "virtio-keyboard-ccw", bus virtual-css-bus, alias "virtio-keyboard"
+name "virtio-keyboard-device", bus virtio-bus
+name "virtio-keyboard-pci", bus PCI
+name "virtio-mouse-ccw", bus virtual-css-bus, alias "virtio-mouse"
+name "virtio-mouse-device", bus virtio-bus
+name "virtio-mouse-pci", bus PCI
+name "virtio-multitouch-device", bus virtio-bus
+name "virtio-multitouch-pci", bus PCI
+name "virtio-serial-ccw", bus virtual-css-bus, alias "virtio-serial"
+name "virtio-serial-device", bus virtio-bus
+name "virtio-serial-pci", bus PCI
+name "virtio-serial-pci-non-transitional", bus PCI
+name "virtio-serial-pci-transitional", bus PCI
+name "virtio-tablet-ccw", bus virtual-css-bus, alias "virtio-tablet"
+name "virtio-tablet-device", bus virtio-bus
+name "virtio-tablet-pci", bus PCI
+name "virtserialport", bus virtio-serial-bus
+
+Display devices:
+name "vhost-user-gpu", bus virtio-bus
+name "vhost-user-gpu-pci", bus PCI
+name "virtio-gpu-ccw", bus virtual-css-bus, alias "virtio-gpu"
+name "virtio-gpu-device", bus virtio-bus
+name "virtio-gpu-gl-device", bus virtio-bus
+name "virtio-gpu-gl-pci", bus PCI
+name "virtio-gpu-pci", bus PCI
+name "x-terminal3270", bus virtual-css-bus
+
+Sound devices:
+name "usb-audio", bus usb-bus
+name "vhost-user-snd", bus virtio-bus
+name "vhost-user-snd-pci", bus PCI
+name "virtio-sound-device", bus virtio-bus
+name "virtio-sound-pci", bus PCI, desc "Virtio Sound"
+
+Misc devices:
+name "loader", desc "Generic Loader"
+name "u2f-passthru", bus usb-bus, desc "QEMU U2F passthrough key"
+name "uefi-vars-sysbus", bus System
+name "uefi-vars-x64", bus System
+name "usb-redir", bus usb-bus
+name "vfio-ap", bus ap-bus, desc "VFIO-based AP device assignment"
+name "vfio-ccw", bus virtual-css-bus, desc "VFIO-based subchannel assignment"
+name "vfio-pci", bus PCI, desc "VFIO-based PCI device assignment"
+name "vfio-pci-nohotplug", bus PCI, desc "VFIO-based PCI device assignment"
+name "vfio-user-pci", bus PCI, desc "VFIO over socket PCI device assignment"
+name "vhost-user-rtc", bus virtio-bus
+name "vhost-user-rtc-pci", bus PCI
+name "vhost-user-vsock-device", bus virtio-bus
+name "vhost-user-vsock-pci", bus PCI
+name "vhost-user-vsock-pci-non-transitional", bus PCI
+name "vhost-vdpa-device", bus virtio-bus, desc "VDPA-based generic device assignment"
+name "vhost-vdpa-device-pci", bus PCI
+name "vhost-vdpa-device-pci-non-transitional", bus PCI
+name "vhost-vdpa-device-pci-transitional", bus PCI
+name "vhost-vsock-ccw", bus virtual-css-bus
+name "vhost-vsock-device", bus virtio-bus
+name "vhost-vsock-pci", bus PCI
+name "vhost-vsock-pci-non-transitional", bus PCI
+name "virtio-balloon-ccw", bus virtual-css-bus, alias "virtio-balloon"
+name "virtio-balloon-device", bus virtio-bus
+name "virtio-balloon-pci", bus PCI
+name "virtio-balloon-pci-non-transitional", bus PCI
+name "virtio-balloon-pci-transitional", bus PCI
+name "virtio-crypto-ccw", bus virtual-css-bus
+name "virtio-crypto-device", bus virtio-bus
+name "virtio-crypto-pci", bus PCI
+name "virtio-iommu-device", bus virtio-bus
+name "virtio-iommu-pci", bus PCI
+name "virtio-mem", bus virtio-bus
+name "virtio-mem-ccw", bus virtual-css-bus
+name "virtio-mem-pci", bus PCI
+name "virtio-rng-ccw", bus virtual-css-bus, alias "virtio-rng"
+name "virtio-rng-device", bus virtio-bus
+name "virtio-rng-pci", bus PCI
+name "virtio-rng-pci-non-transitional", bus PCI
+name "virtio-rng-pci-transitional", bus PCI
+name "virtio-rtc-device", bus virtio-bus
+name "virtio-rtc-pci", bus PCI
+name "zpci", bus s390-pcibus, desc "zpci device"
+
+CPU devices:
+name "gen15a-base-s390x-cpu"
+name "gen15a-s390x-cpu"
+name "gen15b-base-s390x-cpu"
+name "gen15b-s390x-cpu"
+name "gen16a-base-s390x-cpu"
+name "gen16a-s390x-cpu"
+name "gen16b-base-s390x-cpu"
+name "gen16b-s390x-cpu"
+name "gen17a-base-s390x-cpu"
+name "gen17a-s390x-cpu"
+name "gen17b-base-s390x-cpu"
+name "gen17b-s390x-cpu"
+name "max-s390x-cpu"
+name "qemu-s390x-cpu"
+name "z10BC-base-s390x-cpu"
+name "z10BC-s390x-cpu"
+name "z10BC.2-base-s390x-cpu"
+name "z10BC.2-s390x-cpu"
+name "z10EC-base-s390x-cpu"
+name "z10EC-s390x-cpu"
+name "z10EC.2-base-s390x-cpu"
+name "z10EC.2-s390x-cpu"
+name "z10EC.3-base-s390x-cpu"
+name "z10EC.3-s390x-cpu"
+name "z114-base-s390x-cpu"
+name "z114-s390x-cpu"
+name "z13-base-s390x-cpu"
+name "z13-s390x-cpu"
+name "z13.2-base-s390x-cpu"
+name "z13.2-s390x-cpu"
+name "z13s-base-s390x-cpu"
+name "z13s-s390x-cpu"
+name "z14-base-s390x-cpu"
+name "z14-s390x-cpu"
+name "z14.2-base-s390x-cpu"
+name "z14.2-s390x-cpu"
+name "z14ZR1-base-s390x-cpu"
+name "z14ZR1-s390x-cpu"
+name "z196-base-s390x-cpu"
+name "z196-s390x-cpu"
+name "z196.2-base-s390x-cpu"
+name "z196.2-s390x-cpu"
+name "z800-base-s390x-cpu"
+name "z800-s390x-cpu"
+name "z890-base-s390x-cpu"
+name "z890-s390x-cpu"
+name "z890.2-base-s390x-cpu"
+name "z890.2-s390x-cpu"
+name "z890.3-base-s390x-cpu"
+name "z890.3-s390x-cpu"
+name "z900-base-s390x-cpu"
+name "z900-s390x-cpu"
+name "z900.2-base-s390x-cpu"
+name "z900.2-s390x-cpu"
+name "z900.3-base-s390x-cpu"
+name "z900.3-s390x-cpu"
+name "z990-base-s390x-cpu"
+name "z990-s390x-cpu"
+name "z990.2-base-s390x-cpu"
+name "z990.2-s390x-cpu"
+name "z990.3-base-s390x-cpu"
+name "z990.3-s390x-cpu"
+name "z990.4-base-s390x-cpu"
+name "z990.4-s390x-cpu"
+name "z990.5-base-s390x-cpu"
+name "z990.5-s390x-cpu"
+name "z9BC-base-s390x-cpu"
+name "z9BC-s390x-cpu"
+name "z9BC.2-base-s390x-cpu"
+name "z9BC.2-s390x-cpu"
+name "z9EC-base-s390x-cpu"
+name "z9EC-s390x-cpu"
+name "z9EC.2-base-s390x-cpu"
+name "z9EC.2-s390x-cpu"
+name "z9EC.3-base-s390x-cpu"
+name "z9EC.3-s390x-cpu"
+name "zBC12-base-s390x-cpu"
+name "zBC12-s390x-cpu"
+name "zEC12-base-s390x-cpu"
+name "zEC12-s390x-cpu"
+name "zEC12.2-base-s390x-cpu"
+name "zEC12.2-s390x-cpu"
+
+Watchdog devices:
+name "diag288", desc "diag288 device for s390x platform"

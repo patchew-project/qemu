@@ -1,0 +1,5 @@
+Supported machines are:
+none                 empty machine
+petalogix-ml605      PetaLogix linux refdesign for xilinx ml605 (little endian)
+petalogix-s3adsp1800 PetaLogix linux refdesign for xilinx Spartan 3ADSP1800 (default)
+xlnx-zynqmp-pmu      Xilinx ZynqMP PMU machine (little endian)

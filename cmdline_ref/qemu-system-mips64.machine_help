@@ -1,0 +1,5 @@
+Supported machines are:
+magnum               MIPS Magnum
+malta                MIPS Malta Core LV (default)
+none                 empty machine
+pica61               Acer Pica 61

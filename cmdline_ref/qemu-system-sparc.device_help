@@ -1,0 +1,12 @@
+
+Storage devices:
+name "floppy", bus floppy-bus, desc "virtual floppy drive"
+name "scsi-block", bus SCSI, desc "SCSI block device passthrough"
+name "scsi-cd", bus SCSI, desc "virtual SCSI CD-ROM"
+name "scsi-generic", bus SCSI, desc "pass through generic scsi device (/dev/sg*)"
+name "scsi-hd", bus SCSI, desc "virtual SCSI disk"
+
+Misc devices:
+name "loader", desc "Generic Loader"
+name "uefi-vars-sysbus", bus System
+name "uefi-vars-x64", bus System

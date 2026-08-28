@@ -1,0 +1,4 @@
+Supported machines are:
+V66G_1024            Hexagon V66G_1024 (default)
+none                 empty machine
+virt                 Hexagon Virtual Machine

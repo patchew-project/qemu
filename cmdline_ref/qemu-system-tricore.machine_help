@@ -1,0 +1,4 @@
+Supported machines are:
+KIT_AURIX_TC277_TRB  Infineon AURIX TriBoard TC277 (D-Step)
+none                 empty machine
+tricore_testboard    a minimal TriCore board

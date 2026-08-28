@@ -1,0 +1,53 @@
+
+Storage devices:
+name "scsi-block", bus SCSI, desc "SCSI block device passthrough"
+name "scsi-cd", bus SCSI, desc "virtual SCSI CD-ROM"
+name "scsi-generic", bus SCSI, desc "pass through generic scsi device (/dev/sg*)"
+name "scsi-hd", bus SCSI, desc "virtual SCSI disk"
+name "vhost-scsi", bus virtio-bus
+name "vhost-user-fs-device", bus virtio-bus
+name "virtio-9p-device", bus virtio-bus, alias "virtio-9p"
+name "virtio-blk-device", bus virtio-bus, alias "virtio-blk"
+name "virtio-scsi-device", bus virtio-bus, alias "virtio-scsi"
+
+Network devices:
+name "virtio-net-device", bus virtio-bus, alias "virtio-net"
+
+Input devices:
+name "vhost-user-gpio-device", bus virtio-bus
+name "vhost-user-i2c-device", bus virtio-bus
+name "vhost-user-input", bus virtio-bus
+name "vhost-user-rng", bus virtio-bus
+name "vhost-user-spi-device", bus virtio-bus
+name "vhost-user-test-device", bus virtio-bus
+name "virtconsole", bus virtio-serial-bus
+name "virtio-input-host-device", bus virtio-bus, alias "virtio-input-host"
+name "virtio-keyboard-device", bus virtio-bus, alias "virtio-keyboard"
+name "virtio-mouse-device", bus virtio-bus, alias "virtio-mouse"
+name "virtio-multitouch-device", bus virtio-bus
+name "virtio-serial-device", bus virtio-bus, alias "virtio-serial"
+name "virtio-tablet-device", bus virtio-bus, alias "virtio-tablet"
+name "virtserialport", bus virtio-serial-bus
+
+Display devices:
+name "vhost-user-gpu", bus virtio-bus
+name "virtio-gpu-device", bus virtio-bus, alias "virtio-gpu"
+name "virtio-gpu-gl-device", bus virtio-bus, alias "virtio-gpu-gl"
+
+Sound devices:
+name "vhost-user-snd", bus virtio-bus
+name "virtio-sound-device", bus virtio-bus, alias "virtio-sound"
+
+Misc devices:
+name "guest-loader", desc "Guest Loader"
+name "loader", desc "Generic Loader"
+name "uefi-vars-sysbus", bus System
+name "uefi-vars-x64", bus System
+name "vhost-user-rtc", bus virtio-bus
+name "vhost-user-vsock-device", bus virtio-bus
+name "vhost-vdpa-device", bus virtio-bus, desc "VDPA-based generic device assignment"
+name "vhost-vsock-device", bus virtio-bus
+name "virtio-balloon-device", bus virtio-bus, alias "virtio-balloon"
+name "virtio-crypto-device", bus virtio-bus
+name "virtio-rng-device", bus virtio-bus, alias "virtio-rng"
+name "virtio-rtc-device", bus virtio-bus

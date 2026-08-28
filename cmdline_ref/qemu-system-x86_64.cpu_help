@@ -1,0 +1,259 @@
+Available CPUs:
+  486                   (alias configured by machine type)
+  486-v1
+  Broadwell             (alias configured by machine type)
+  Broadwell-IBRS        (alias of Broadwell-v3)
+  Broadwell-noTSX       (alias of Broadwell-v2)
+  Broadwell-noTSX-IBRS  (alias of Broadwell-v4)
+  Broadwell-v1          Intel Core Processor (Broadwell)
+  Broadwell-v2          Intel Core Processor (Broadwell, no TSX)
+  Broadwell-v3          Intel Core Processor (Broadwell, IBRS)
+  Broadwell-v4          Intel Core Processor (Broadwell, no TSX, IBRS)
+  Cascadelake-Server    (alias configured by machine type)
+  Cascadelake-Server-noTSX  (alias of Cascadelake-Server-v3)
+  Cascadelake-Server-v1  Intel Xeon Processor (Cascadelake)
+  Cascadelake-Server-v2  Intel Xeon Processor (Cascadelake) [ARCH_CAPABILITIES]
+  Cascadelake-Server-v3  Intel Xeon Processor (Cascadelake) [ARCH_CAPABILITIES, no TSX]
+  Cascadelake-Server-v4  Intel Xeon Processor (Cascadelake) [ARCH_CAPABILITIES, EPT switching, no TSX]
+  Cascadelake-Server-v5  Intel Xeon Processor (Cascadelake) [ARCH_CAPABILITIES, EPT switching, XSAVES, no TSX]
+  Cascadelake-Server-v6  Intel Xeon Processor (Cascadelake) [with MMIO/GDS/RFDS mitigation status]
+  Cascadelake-Server-v7  Intel Xeon Processor (Cascadelake) [with MBEC enabled]
+  ClearwaterForest      (alias configured by machine type)
+  ClearwaterForest-v1   Intel Xeon Processor (ClearwaterForest)
+  ClearwaterForest-v2   Intel Xeon Processor (ClearwaterForest) [with cet-ss and cet-ibt]
+  ClearwaterForest-v3   Intel Xeon Processor (ClearwaterForest) [with its-no, cwf-ap cache model and 0x1f leaf]
+  ClearwaterForest-v4   Intel Xeon Processor (ClearwaterForest) [with MBEC enabled]
+  Conroe                (alias configured by machine type)
+  Conroe-v1             Intel Celeron_4x0 (Conroe/Merom Class Core 2)
+  Cooperlake            (alias configured by machine type)
+  Cooperlake-v1         Intel Xeon Processor (Cooperlake)
+  Cooperlake-v2         Intel Xeon Processor (Cooperlake) [XSAVES]
+  Denverton             (alias configured by machine type)
+  Denverton-v1          Intel Atom Processor (Denverton)
+  Denverton-v2          Intel Atom Processor (Denverton) [no MPX, no MONITOR]
+  Denverton-v3          Intel Atom Processor (Denverton) [XSAVES, no MPX, no MONITOR]
+  Dhyana                (alias configured by machine type)
+  Dhyana-v1             Hygon Dhyana Processor
+  Dhyana-v2             Hygon Dhyana Processor [XSAVES]
+  DiamondRapids         (alias configured by machine type)
+  DiamondRapids-v1      Intel Xeon Processor (DiamondRapids)
+  DiamondRapids-v2      Intel Xeon Processor (DiamondRapids) [with MBEC enabled]
+  EPYC                  (alias configured by machine type)
+  EPYC-Genoa            (alias configured by machine type)
+  EPYC-Genoa-v1         AMD EPYC-Genoa Processor
+  EPYC-Genoa-v2         AMD EPYC-Genoa-v2 Processor
+  EPYC-Genoa-v3         AMD EPYC-Genoa-v3 Processor
+  EPYC-IBPB             (alias of EPYC-v2)
+  EPYC-Milan            (alias configured by machine type)
+  EPYC-Milan-v1         AMD EPYC-Milan Processor
+  EPYC-Milan-v2         AMD EPYC-Milan-v2 Processor
+  EPYC-Milan-v3         AMD EPYC-Milan-v3 Processor
+  EPYC-Milan-v4         AMD EPYC-Milan-v4 Processor
+  EPYC-Rome             (alias configured by machine type)
+  EPYC-Rome-v1          AMD EPYC-Rome Processor
+  EPYC-Rome-v2          AMD EPYC-Rome Processor
+  EPYC-Rome-v3          AMD EPYC-Rome-v3 Processor
+  EPYC-Rome-v4          AMD EPYC-Rome-v4 Processor (no XSAVES)
+  EPYC-Rome-v5          AMD EPYC-Rome-v5 Processor
+  EPYC-Turin            (alias configured by machine type)
+  EPYC-Turin-v1         AMD EPYC-Turin Processor
+  EPYC-Turin-v2         AMD EPYC-Turin-v2 Processor
+  EPYC-v1               AMD EPYC Processor
+  EPYC-v2               AMD EPYC Processor (with IBPB)
+  EPYC-v3               AMD EPYC Processor
+  EPYC-v4               AMD EPYC-v4 Processor
+  EPYC-v5               AMD EPYC-v5 Processor
+  GraniteRapids         (alias configured by machine type)
+  GraniteRapids-v1      Intel Xeon Processor (GraniteRapids)
+  GraniteRapids-v2      Intel Xeon Processor (GraniteRapids)
+  GraniteRapids-v3      Intel Xeon Processor (GraniteRapids) [with gnr-sp cache model and 0x1f leaf]
+  GraniteRapids-v4      Intel Xeon Processor (GraniteRapids) [with cet-ss and cet-ibt]
+  GraniteRapids-v5      Intel Xeon Processor (GraniteRapids) [with its-no]
+  GraniteRapids-v6      Intel Xeon Processor (GraniteRapids) [with GDS and RFDS mitigation status]
+  GraniteRapids-v7      Intel Xeon Processor (GraniteRapids) [with MBEC enabled]
+  Haswell               (alias configured by machine type)
+  Haswell-IBRS          (alias of Haswell-v3)
+  Haswell-noTSX         (alias of Haswell-v2)
+  Haswell-noTSX-IBRS    (alias of Haswell-v4)
+  Haswell-v1            Intel Core Processor (Haswell)
+  Haswell-v2            Intel Core Processor (Haswell, no TSX)
+  Haswell-v3            Intel Core Processor (Haswell, IBRS)
+  Haswell-v4            Intel Core Processor (Haswell, no TSX, IBRS)
+  Icelake-Server        (alias configured by machine type)
+  Icelake-Server-noTSX  (alias of Icelake-Server-v2)
+  Icelake-Server-v1     Intel Xeon Processor (Icelake)
+  Icelake-Server-v2     Intel Xeon Processor (Icelake) [no TSX]
+  Icelake-Server-v3     Intel Xeon Processor (Icelake)
+  Icelake-Server-v4     Intel Xeon Processor (Icelake)
+  Icelake-Server-v5     Intel Xeon Processor (Icelake) [XSAVES]
+  Icelake-Server-v6     Intel Xeon Processor (Icelake) [5-level EPT]
+  Icelake-Server-v7     Intel Xeon Processor (Icelake) [TSX, taa-no]
+  Icelake-Server-v8     Intel Xeon Processor (Icelake) [with MMIO/GDS/RFDS mitigation status]
+  Icelake-Server-v9     Intel Xeon Processor (Icelake) [with MBEC enabled]
+  IvyBridge             (alias configured by machine type)
+  IvyBridge-IBRS        (alias of IvyBridge-v2)
+  IvyBridge-v1          Intel Xeon E3-12xx v2 (Ivy Bridge)
+  IvyBridge-v2          Intel Xeon E3-12xx v2 (Ivy Bridge, IBRS)
+  KnightsMill           (alias configured by machine type)
+  KnightsMill-v1        Intel Xeon Phi Processor (Knights Mill)
+  Nehalem               (alias configured by machine type)
+  Nehalem-IBRS          (alias of Nehalem-v2)
+  Nehalem-v1            Intel Core i7 9xx (Nehalem Class Core i7)
+  Nehalem-v2            Intel Core i7 9xx (Nehalem Core i7, IBRS update)
+  Opteron_G1            (alias configured by machine type)
+  Opteron_G1-v1         AMD Opteron 240 (Gen 1 Class Opteron)
+  Opteron_G2            (alias configured by machine type)
+  Opteron_G2-v1         AMD Opteron 22xx (Gen 2 Class Opteron)
+  Opteron_G3            (alias configured by machine type)
+  Opteron_G3-v1         AMD Opteron 23xx (Gen 3 Class Opteron)
+  Opteron_G4            (alias configured by machine type)
+  Opteron_G4-v1         AMD Opteron 62xx class CPU
+  Opteron_G5            (alias configured by machine type)
+  Opteron_G5-v1         AMD Opteron 63xx class CPU
+  Penryn                (alias configured by machine type)
+  Penryn-v1             Intel Core 2 Duo P9xxx (Penryn Class Core 2)
+  SandyBridge           (alias configured by machine type)
+  SandyBridge-IBRS      (alias of SandyBridge-v2)
+  SandyBridge-v1        Intel Xeon E312xx (Sandy Bridge)
+  SandyBridge-v2        Intel Xeon E312xx (Sandy Bridge, IBRS update)
+  SapphireRapids        (alias configured by machine type)
+  SapphireRapids-v1     Intel Xeon Processor (SapphireRapids)
+  SapphireRapids-v2     Intel Xeon Processor (SapphireRapids)
+  SapphireRapids-v3     Intel Xeon Processor (SapphireRapids)
+  SapphireRapids-v4     Intel Xeon Processor (SapphireRapids) [with spr-sp cache model and 0x1f leaf]
+  SapphireRapids-v5     Intel Xeon Processor (SapphireRapids) [with cet-ss and cet-ibt]
+  SapphireRapids-v6     Intel Xeon Processor (SapphireRapids) [with its-no]
+  SapphireRapids-v7     Intel Xeon Processor (SapphireRapids) [with GDS and RFDS mitigation status]
+  SapphireRapids-v8     Intel Xeon Processor (SapphireRapids) [with MBEC enabled]
+  SierraForest          (alias configured by machine type)
+  SierraForest-v1       Intel Xeon Processor (SierraForest)
+  SierraForest-v2       Intel Xeon Processor (SierraForest)
+  SierraForest-v3       Intel Xeon Processor (SierraForest) [with srf-sp cache model and 0x1f leaf]
+  SierraForest-v4       Intel Xeon Processor (SierraForest) [with cet-ss and cet-ibt]
+  SierraForest-v5       Intel Xeon Processor (SierraForest) [with its-no]
+  SierraForest-v6       Intel Xeon Processor (SierraForest) [with MBEC enabled]
+  Skylake-Client        (alias configured by machine type)
+  Skylake-Client-IBRS   (alias of Skylake-Client-v2)
+  Skylake-Client-noTSX-IBRS  (alias of Skylake-Client-v3)
+  Skylake-Client-v1     Intel Core Processor (Skylake)
+  Skylake-Client-v2     Intel Core Processor (Skylake, IBRS)
+  Skylake-Client-v3     Intel Core Processor (Skylake, IBRS, no TSX)
+  Skylake-Client-v4     Intel Core Processor (Skylake, IBRS, no TSX) [IBRS, XSAVES, no TSX]
+  Skylake-Server        (alias configured by machine type)
+  Skylake-Server-IBRS   (alias of Skylake-Server-v2)
+  Skylake-Server-noTSX-IBRS  (alias of Skylake-Server-v3)
+  Skylake-Server-v1     Intel Xeon Processor (Skylake)
+  Skylake-Server-v2     Intel Xeon Processor (Skylake, IBRS)
+  Skylake-Server-v3     Intel Xeon Processor (Skylake, IBRS, no TSX)
+  Skylake-Server-v4     Intel Xeon Processor (Skylake, IBRS, no TSX) [IBRS, EPT switching, no TSX]
+  Skylake-Server-v5     Intel Xeon Processor (Skylake, IBRS, no TSX) [IBRS, XSAVES, EPT switching, no TSX]
+  Skylake-Server-v6     Intel Xeon Processor (Skylake, IBRS, no TSX) [with MBEC enabled]
+  Snowridge             (alias configured by machine type)
+  Snowridge-v1          Intel Atom Processor (SnowRidge)
+  Snowridge-v2          Intel Atom Processor (Snowridge, no MPX)
+  Snowridge-v3          Intel Atom Processor (Snowridge, no MPX) [XSAVES, no MPX]
+  Snowridge-v4          Intel Atom Processor (Snowridge, no MPX) [no split lock detect, no core-capability]
+  Westmere              (alias configured by machine type)
+  Westmere-IBRS         (alias of Westmere-v2)
+  Westmere-v1           Westmere E56xx/L56xx/X56xx (Nehalem-C)
+  Westmere-v2           Westmere E56xx/L56xx/X56xx (IBRS update)
+  YongFeng              (alias configured by machine type)
+  YongFeng-v1           Zhaoxin YongFeng Processor
+  YongFeng-v2           Zhaoxin YongFeng Processor [with the correct model number]
+  YongFeng-v3           Zhaoxin YongFeng Processor [with the cache model and 0x1f leaf]
+  athlon                (alias configured by machine type)
+  athlon-v1             QEMU Virtual CPU version 2.5+
+  core2duo              (alias configured by machine type)
+  core2duo-v1           Intel(R) Core(TM)2 Duo CPU     T7700  @ 2.40GHz
+  coreduo               (alias configured by machine type)
+  coreduo-v1            Genuine Intel(R) CPU           T2600  @ 2.16GHz
+  kvm32                 (alias configured by machine type)
+  kvm32-v1              Common 32-bit KVM processor
+  kvm64                 (alias configured by machine type)
+  kvm64-v1              Common KVM processor
+  n270                  (alias configured by machine type)
+  n270-v1               Intel(R) Atom(TM) CPU N270   @ 1.60GHz
+  pentium               (alias configured by machine type)
+  pentium-v1
+  pentium2              (alias configured by machine type)
+  pentium2-v1
+  pentium3              (alias configured by machine type)
+  pentium3-v1
+  phenom                (alias configured by machine type)
+  phenom-v1             AMD Phenom(tm) 9550 Quad-Core Processor
+  qemu32                (alias configured by machine type)
+  qemu32-v1             QEMU Virtual CPU version 2.5+
+  qemu64                (alias configured by machine type)
+  qemu64-v1             QEMU Virtual CPU version 2.5+
+  base                  base CPU model type with no features enabled
+  max                   Enables all features supported by the accelerator in the current host
+
+Recognized CPUID flags:
+  3dnow 3dnowext 3dnowprefetch abm ace2 ace2-en acpi adx aes amd-no-ssb
+  amd-psfd amd-ssbd amd-stibp amx-avx512 amx-bf16 amx-bf16-alias
+  amx-complex amx-complex-alias amx-fp16 amx-fp16-alias amx-fp8 amx-int8
+  amx-int8-alias amx-movrs amx-tf32 amx-tile apic apx-nci-ndd-nf apxf arat
+  arch-capabilities arch-lbr auto-ibrs avic avx avx-ifma avx-ne-convert
+  avx-vnni avx-vnni-int16 avx-vnni-int8 avx10 avx10-128 avx10-256 avx10-512
+  avx10-vnni-int avx2 avx512-4fmaps avx512-4vnniw avx512-bf16 avx512-fp16
+  avx512-vp2intersect avx512-vpopcntdq avx512bitalg avx512bw avx512cd
+  avx512dq avx512er avx512f avx512ifma avx512pf avx512vbmi avx512vbmi2
+  avx512vl avx512vnni bhi-ctrl bhi-no bmi1 bmi2 bus-lock-detect cet-ibt
+  cet-ss cid cldemote clflush clflushopt clwb clzero cmov cmp-legacy
+  cmpccxadd core-capability cr8legacy cx16 cx8 dca ddpd-u de decodeassists
+  ds ds-cpl dtes64 eraps erms est extapic f16c fb-clear fbsdp-no
+  fdp-excptn-only flush-l1d flushbyasid fma fma4 fpu fred fs-gs-base-ns
+  fsgsbase fsrc fsrm fsrs full-width-write fxsr fxsr-opt fzrm gds-no gfni
+  gmet hle ht hypervisor ia64 ibpb ibpb-brtype ibrs ibrs-all ibs intel-psfd
+  intel-pt intel-pt-lip invpcid invtsc ipred-ctrl its-no kvm-asyncpf
+  kvm-asyncpf-int kvm-asyncpf-vmexit kvm-hint-dedicated kvm-mmu
+  kvm-msi-ext-dest-id kvm-nopiodelay kvm-poll-control kvm-pv-eoi kvm-pv-ipi
+  kvm-pv-sched-yield kvm-pv-tlb-flush kvm-pv-unhalt kvm-steal-time kvmclock
+  kvmclock kvmclock-stable-bit la57 lahf-lm lam lbrv
+  lfence-always-serializing lkgs lm lwp mca mcdt-no mce md-clear mds-no
+  misalignsse mmx mmxext monitor movbe movdir64b movdiri movrs mpx msr
+  msr-imm mtrr no-nested-data-bp nodeid-msr npt nrip-save null-sel-clr-base
+  nx osvw overflow-recov pae pat pause-filter pbe pbrsb-no pcid pclmulqdq
+  pcommit pdcm pdpe1gb perfctr-core perfctr-nb perfmon-v2 pfthreshold pge
+  phe phe-en pks pku pmm pmm-en pn pni popcnt prefetchi prefetchiti
+  pschange-mc-no psdp-no pse pse36 rdctl-no rdpid rdrand rdseed rdtscp
+  rfds-clear rfds-no rrsba-ctrl rsba rtm sbdr-ssdp-no sbpb sep serialize
+  sgx sgx-aex-notify sgx-debug sgx-edeccssa sgx-exinfo sgx-kss sgx-mode64
+  sgx-provisionkey sgx-tokenkey sgx1 sgx2 sgxlc sha-ni sha512 skinit
+  skip-l1dfl-vmentry sm3 sm4 smap smep smx spec-ctrl split-lock-detect
+  srso-no srso-user-kernel-no ss ssb-no ssbd sse sse2 sse4.1 sse4.2 sse4a
+  ssse3 stibp stibp-always-on succor svm svm-lock svme-addr-chk syscall
+  taa-no tbm tce tm tm2 topoext tsa-l1-no tsa-sq-no tsc tsc-adjust
+  tsc-deadline tsc-scale tsx-ctrl tsx-ldtrk umip v-vmsave-vmload vaes
+  verw-clear vgif virt-ssbd vmcb-clean vme vmx vmx-activity-hlt
+  vmx-activity-shutdown vmx-activity-wait-sipi vmx-any-errcode
+  vmx-apicv-register vmx-apicv-vid vmx-apicv-x2apic vmx-apicv-xapic
+  vmx-cr3-load-noexit vmx-cr3-store-noexit vmx-cr8-load-exit
+  vmx-cr8-store-exit vmx-desc-exit vmx-enable-user-wait-pause
+  vmx-encls-exit vmx-entry-ia32e-mode vmx-entry-load-bndcfgs
+  vmx-entry-load-cet vmx-entry-load-efer vmx-entry-load-fred
+  vmx-entry-load-pat vmx-entry-load-perf-global-ctrl vmx-entry-load-pkrs
+  vmx-entry-load-rtit-ctl vmx-entry-noload-debugctl vmx-ept vmx-ept-1gb
+  vmx-ept-2mb vmx-ept-advanced-exitinfo vmx-ept-execonly vmx-eptad
+  vmx-eptp-switching vmx-exit-ack-intr vmx-exit-clear-bndcfgs
+  vmx-exit-clear-rtit-ctl vmx-exit-load-efer vmx-exit-load-pat
+  vmx-exit-load-perf-global-ctrl vmx-exit-load-pkrs
+  vmx-exit-nosave-debugctl vmx-exit-save-cet vmx-exit-save-efer
+  vmx-exit-save-pat vmx-exit-save-preemption-timer vmx-exit-secondary-ctls
+  vmx-flexpriority vmx-hlt-exit vmx-ins-outs vmx-intr-exit vmx-invept
+  vmx-invept-all-context vmx-invept-single-context
+  vmx-invept-single-context vmx-invept-single-context-noglobals
+  vmx-invlpg-exit vmx-invpcid-exit vmx-invvpid vmx-invvpid-all-context
+  vmx-invvpid-single-addr vmx-io-bitmap vmx-io-exit vmx-mbec
+  vmx-monitor-exit vmx-movdr-exit vmx-msr-bitmap vmx-mtf vmx-mwait-exit
+  vmx-nested-exception vmx-nmi-exit vmx-page-walk-4 vmx-page-walk-5
+  vmx-pause-exit vmx-ple vmx-pml vmx-posted-intr vmx-preemption-timer
+  vmx-rdpmc-exit vmx-rdrand-exit vmx-rdseed-exit vmx-rdtsc-exit
+  vmx-rdtscp-exit vmx-secondary-ctls vmx-shadow-vmcs vmx-store-lma
+  vmx-true-ctls vmx-tsc-offset vmx-tsc-scaling vmx-unrestricted-guest
+  vmx-vintr-pending vmx-vmfunc vmx-vmwrite-vmexit-fields vmx-vnmi
+  vmx-vnmi-pending vmx-vpid vmx-wbinvd-exit vmx-xsaves vmx-zero-len-inject
+  vnmi vpclmulqdq waitpkg wbnoinvd wdt wrmsrns x2apic xcrypt xcrypt-en xfd
+  xgetbv1 xop xsave xsavec xsaveerptr xsaveopt xsaves xstore xstore-en xtpr
+  zero-fcs-fds
+

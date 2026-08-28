@@ -1,0 +1,39 @@
+Supported machines are:
+40p                  IBM RS/6000 7020 (40p)
+amigaone             Eyetech AmigaOne/Mai Logic Teron
+bamboo               bamboo
+g3beige              Heathrow based PowerMac
+mac99                Mac99 based PowerMac
+mpc8544ds            mpc8544ds
+none                 empty machine
+pegasos1             Genesi/bPlan Pegasos I
+pegasos2             Genesi/bPlan Pegasos II
+powernv10            IBM PowerNV (Non-Virtualized) POWER10
+powernv10-rainier    IBM PowerNV (Non-Virtualized) POWER10 Rainier
+powernv              IBM PowerNV (Non-Virtualized) Power11 (alias of powernv11)
+powernv11            IBM PowerNV (Non-Virtualized) Power11
+powernv8             IBM PowerNV (Non-Virtualized) POWER8
+powernv9             IBM PowerNV (Non-Virtualized) POWER9
+ppce500              generic paravirt e500 platform
+ppe42_machine        PPE42 Test Machine
+pseries-10.0         pSeries Logical Partition (PAPR compliant)
+pseries-10.1         pSeries Logical Partition (PAPR compliant)
+pseries-10.2         pSeries Logical Partition (PAPR compliant)
+pseries-11.0         pSeries Logical Partition (PAPR compliant)
+pseries-11.1         pSeries Logical Partition (PAPR compliant)
+pseries              pSeries Logical Partition (PAPR compliant) (alias of pseries-11.2)
+pseries-11.2         pSeries Logical Partition (PAPR compliant) (default)
+pseries-6.0          pSeries Logical Partition (PAPR compliant) (deprecated)
+pseries-6.1          pSeries Logical Partition (PAPR compliant) (deprecated)
+pseries-6.2          pSeries Logical Partition (PAPR compliant) (deprecated)
+pseries-7.0          pSeries Logical Partition (PAPR compliant) (deprecated)
+pseries-7.1          pSeries Logical Partition (PAPR compliant) (deprecated)
+pseries-7.2          pSeries Logical Partition (PAPR compliant) (deprecated)
+pseries-8.0          pSeries Logical Partition (PAPR compliant) (deprecated)
+pseries-8.1          pSeries Logical Partition (PAPR compliant) (deprecated)
+pseries-8.2          pSeries Logical Partition (PAPR compliant) (deprecated)
+pseries-9.0          pSeries Logical Partition (PAPR compliant)
+pseries-9.1          pSeries Logical Partition (PAPR compliant)
+pseries-9.2          pSeries Logical Partition (PAPR compliant)
+sam460ex             aCube Sam460ex
+virtex-ml507         Xilinx Virtex ML507 reference design

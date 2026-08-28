@@ -1,0 +1,9 @@
+Available CPUs:
+  lowrisc-ibex
+  max
+  rv32
+  rv32e
+  rv32i
+  sifive-e31
+  sifive-e34
+  sifive-u34

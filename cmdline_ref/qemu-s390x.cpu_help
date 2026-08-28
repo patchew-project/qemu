@@ -1,0 +1,512 @@
+Available CPUs:
+  qemu            QEMU Virtual CPU version 2.5+       (migration-safe)
+  max             Enables all features supported by the accelerator in the current host
+  z900-base       IBM zSeries 900 GA1                 (static, migration-safe)
+  z900            IBM zSeries 900 GA1                 (migration-safe)
+  z900.2-base     IBM zSeries 900 GA2                 (static, migration-safe)
+  z900.2          IBM zSeries 900 GA2                 (migration-safe)
+  z900.3-base     IBM zSeries 900 GA3                 (static, migration-safe)
+  z900.3          IBM zSeries 900 GA3                 (migration-safe)
+  z800-base       IBM zSeries 800 GA1                 (static, migration-safe)
+  z800            IBM zSeries 800 GA1                 (migration-safe)
+  z990-base       IBM zSeries 990 GA1                 (static, migration-safe)
+  z990            IBM zSeries 990 GA1                 (migration-safe)
+  z990.2-base     IBM zSeries 990 GA2                 (static, migration-safe)
+  z990.2          IBM zSeries 990 GA2                 (migration-safe)
+  z990.3-base     IBM zSeries 990 GA3                 (static, migration-safe)
+  z990.3          IBM zSeries 990 GA3                 (migration-safe)
+  z890-base       IBM zSeries 880 GA1                 (static, migration-safe)
+  z890            IBM zSeries 880 GA1                 (migration-safe)
+  z990.4-base     IBM zSeries 990 GA4                 (static, migration-safe)
+  z990.4          IBM zSeries 990 GA4                 (migration-safe)
+  z890.2-base     IBM zSeries 880 GA2                 (static, migration-safe)
+  z890.2          IBM zSeries 880 GA2                 (migration-safe)
+  z990.5-base     IBM zSeries 990 GA5                 (static, migration-safe)
+  z990.5          IBM zSeries 990 GA5                 (migration-safe)
+  z890.3-base     IBM zSeries 880 GA3                 (static, migration-safe)
+  z890.3          IBM zSeries 880 GA3                 (migration-safe)
+  z9EC-base       IBM System z9 EC GA1                (static, migration-safe)
+  z9EC            IBM System z9 EC GA1                (migration-safe)
+  z9EC.2-base     IBM System z9 EC GA2                (static, migration-safe)
+  z9EC.2          IBM System z9 EC GA2                (migration-safe)
+  z9BC-base       IBM System z9 BC GA1                (static, migration-safe)
+  z9BC            IBM System z9 BC GA1                (migration-safe)
+  z9EC.3-base     IBM System z9 EC GA3                (static, migration-safe)
+  z9EC.3          IBM System z9 EC GA3                (migration-safe)
+  z9BC.2-base     IBM System z9 BC GA2                (static, migration-safe)
+  z9BC.2          IBM System z9 BC GA2                (migration-safe)
+  z10EC-base      IBM System z10 EC GA1               (static, migration-safe)
+  z10EC           IBM System z10 EC GA1               (migration-safe)
+  z10EC.2-base    IBM System z10 EC GA2               (static, migration-safe)
+  z10EC.2         IBM System z10 EC GA2               (migration-safe)
+  z10BC-base      IBM System z10 BC GA1               (static, migration-safe)
+  z10BC           IBM System z10 BC GA1               (migration-safe)
+  z10EC.3-base    IBM System z10 EC GA3               (static, migration-safe)
+  z10EC.3         IBM System z10 EC GA3               (migration-safe)
+  z10BC.2-base    IBM System z10 BC GA2               (static, migration-safe)
+  z10BC.2         IBM System z10 BC GA2               (migration-safe)
+  z196-base       IBM zEnterprise 196 GA1             (static, migration-safe)
+  z196            IBM zEnterprise 196 GA1             (migration-safe)
+  z196.2-base     IBM zEnterprise 196 GA2             (static, migration-safe)
+  z196.2          IBM zEnterprise 196 GA2             (migration-safe)
+  z114-base       IBM zEnterprise 114 GA1             (static, migration-safe)
+  z114            IBM zEnterprise 114 GA1             (migration-safe)
+  zEC12-base      IBM zEnterprise EC12 GA1            (static, migration-safe)
+  zEC12           IBM zEnterprise EC12 GA1            (migration-safe)
+  zEC12.2-base    IBM zEnterprise EC12 GA2            (static, migration-safe)
+  zEC12.2         IBM zEnterprise EC12 GA2            (migration-safe)
+  zBC12-base      IBM zEnterprise BC12 GA1            (static, migration-safe)
+  zBC12           IBM zEnterprise BC12 GA1            (migration-safe)
+  z13-base        IBM z13 GA1                         (static, migration-safe)
+  z13             IBM z13 GA1                         (migration-safe)
+  z13.2-base      IBM z13 GA2                         (static, migration-safe)
+  z13.2           IBM z13 GA2                         (migration-safe)
+  z13s-base       IBM z13s GA1                        (static, migration-safe)
+  z13s            IBM z13s GA1                        (migration-safe)
+  z14-base        IBM z14 GA1                         (static, migration-safe)
+  z14             IBM z14 GA1                         (migration-safe)
+  z14.2-base      IBM z14 GA2                         (static, migration-safe)
+  z14.2           IBM z14 GA2                         (migration-safe)
+  z14ZR1-base     IBM z14 Model ZR1 GA1               (static, migration-safe)
+  z14ZR1          IBM z14 Model ZR1 GA1               (migration-safe)
+  gen15a-base     IBM z15 T01 GA1                     (static, migration-safe)
+  gen15a          IBM z15 T01 GA1                     (migration-safe)
+  gen15b-base     IBM z15 T02 GA1                     (static, migration-safe)
+  gen15b          IBM z15 T02 GA1                     (migration-safe)
+  gen16a-base     IBM 3931 GA1                        (static, migration-safe)
+  gen16a          IBM 3931 GA1                        (migration-safe)
+  gen16b-base     IBM 3932 GA1                        (static, migration-safe)
+  gen16b          IBM 3932 GA1                        (migration-safe)
+  gen17a-base     IBM 9175 GA1                        (static, migration-safe)
+  gen17a          IBM 9175 GA1                        (migration-safe)
+  gen17b-base     IBM 9176 GA1                        (static, migration-safe)
+  gen17b          IBM 9176 GA1                        (migration-safe)
+
+Recognized feature flags:
+  esan3                Instructions marked as n3
+  zarch                z/Architecture architectural mode
+  dateh                DAT-enhancement facility
+  idtes                IDTE selective TLB segment-table clearing
+  idter                IDTE selective TLB region-table clearing
+  asnlxr               ASN-and-LX reuse facility
+  stfle                Store-facility-list-extended facility
+  edat                 Enhanced-DAT facility
+  srs                  Sense-running-status facility
+  csske                Conditional-SSKE facility
+  ctop                 Configuration-topology facility
+  apqci                Query AP Configuration Information facility
+  ipter                IPTE-range facility
+  nonqks               Nonquiescing key-setting facility
+  apft                 AP Facilities Test facility
+  etf2                 Extended-translation facility 2
+  msa-base             Message-security-assist facility (excluding subfunctions)
+  ldisp                Long-displacement facility
+  ldisphp              Long-displacement facility has high performance
+  hfpm                 HFP-multiply-add/subtract facility
+  eimm                 Extended-immediate facility
+  etf3                 Extended-translation facility 3
+  hfpue                HFP-unnormalized-extension facility
+  etf2eh               ETF2-enhancement facility
+  stckf                Store-clock-fast facility
+  parseh               Parsing-enhancement facility
+  mvcos                Move-with-optional-specification facility
+  tods-base            TOD-clock-steering facility (excluding subfunctions)
+  etf3eh               ETF3-enhancement facility
+  ectg                 Extract-CPU-time facility
+  csst                 Compare-and-swap-and-store facility
+  csst2                Compare-and-swap-and-store facility 2
+  ginste               General-instructions-extension facility
+  exrl                 Execute-extensions facility
+  emon                 Enhanced-monitor facility
+  fpe                  Floating-point extension facility
+  opc                  Order Preserving Compression facility
+  sprogp               Set-program-parameters facility
+  fpseh                Floating-point-support-enhancement facilities
+  dfp                  DFP (decimal-floating-point) facility
+  dfphp                DFP (decimal-floating-point) facility has high performance
+  pfpo                 PFPO instruction
+  stfle45              Various facilities introduced with z196
+  cmpsceh              CMPSC-enhancement facility
+  dfpzc                Decimal-floating-point zoned-conversion facility
+  stfle49              Various facilities introduced with zEC12
+  cte                  Constrained transactional-execution facility
+  ltlbc                Local-TLB-clearing facility
+  iacc2                Interlocked-access facility 2
+  stfle53              Various facilities introduced with z13
+  eec                  Entropy encoding compression facility
+  msa5-base            Message-security-assist-extension-5 facility (excluding subfunctions)
+  minste2              Miscellaneous-instruction-extensions facility 2
+  sema                 Semaphore-assist facility
+  tsi                  Time-slice Instrumentation facility
+  minste3              Miscellaneous-Instruction-Extensions Facility 3
+  ri                   CPU runtime-instrumentation facility
+  apqi                 AP-Queue interruption facility
+  zpci                 z/PCI facility
+  aen                  General-purpose-adapter-event-notification facility
+  ais                  General-purpose-adapter-interruption-suppression facility
+  te                   Transactional-execution facility
+  sthyi                Store-hypervisor-information facility
+  aefsi                Access-exception-fetch/store-indication facility
+  msa3-base            Message-security-assist-extension-3 facility (excluding subfunctions)
+  msa4-base            Message-security-assist-extension-4 facility (excluding subfunctions)
+  edat2                Enhanced-DAT facility 2
+  dfppc                Decimal-floating-point packed-conversion facility
+  ppa15                PPA15 is installed
+  bpb                  Branch prediction blocking
+  minste4              Miscellaneous-Instruction-Extensions Facility 4
+  sif                  Sequential-instruction-fetching facility
+  msa12-base           Message-security-assist-extension-12 facility (excluding subfunctions)
+  plo-ext              PLO-extension facility
+  vx                   Vector facility
+  iep                  Instruction-execution-protection facility
+  sea_esop2            Side-effect-access facility and Enhanced-suppression-on-protection facility 2
+  gs                   Guarded-storage facility
+  vxpd                 Vector packed decimal facility
+  vxeh                 Vector enhancements facility
+  mepoch               Multiple-epoch facility
+  els                  Extended-length SCCB facility
+  tpei                 Test-pending-external-interruption facility
+  irbm                 Insert-reference-bits-multiple facility
+  msa8-base            Message-security-assist-extension-8 facility (excluding subfunctions)
+  cmmnt                CMM: ESSA-enhancement (no translate) facility
+  vxeh2                Vector Enhancements facility 2
+  esort-base           Enhanced-sort facility (excluding subfunctions)
+  deflate-base         Deflate-conversion facility (excluding subfunctions)
+  vxpdeh               Vector-Packed-Decimal-Enhancement Facility
+  msa9-base            Message-security-assist-extension-9 facility (excluding subfunctions)
+  etoken               Etoken facility
+  unpack               Unpack facility
+  nnpa                 NNPA facility
+  ineff_nc_tx          Ineffective-nonconstrained-transaction facility
+  vxpdeh2              Vector-Packed-Decimal-Enhancement facility 2
+  beareh               BEAR-enhancement facility
+  rdp                  Reset-DAT-protection facility
+  pai                  Processor-Activity-Instrumentation facility
+  paie                 Processor-Activity-Instrumentation extension-1
+  vxeh3                Vector Enhancements facility 3
+  vxpdeh3              Vector-Packed-Decimal-Enhancement facility 3
+  ccf-base             Concurrent-Functions facility
+  gsls                 SIE: Guest-storage-limit-suppression facility
+  esop                 Enhanced-suppression-on-protection facility
+  hpma2                Host page management assist 2 Facility
+  kss                  SIE: Keyless-subset facility
+  64bscao              SIE: 64-bit-SCAO facility
+  cmma                 SIE: Collaborative-memory-management assist
+  pfmfi                SIE: PFMF interpretation facility
+  ibs                  SIE: Interlock-and-broadcast-suppression facility
+  diag318              Control program name and version codes
+  cstore               Certificate Store functions
+  sipl                 Secure-IPL facility
+  sclaf                Secure-IPL-code-loading-attributes facility
+  astfleie2            SIE: ASTFLE interpretation execution facility 2
+  sief2                SIE: interception format 2 (Virtual SIE)
+  skey                 SIE: Storage-key facility
+  gpereh               SIE: Guest-PER enhancement facility
+  siif                 SIE: Shared IPTE-interlock facility
+  sigpif               SIE: SIGP interpretation facility
+  ib                   SIE: Intervention bypass facility
+  cei                  SIE: Conditional-external-interception facility
+  dateh2               DAT-enhancement facility 2
+  cmm                  Collaborative-memory-management facility
+  ap                   AP instructions installed
+  plo-cl               PLO Compare and load (32 bit in general registers)
+  plo-clg              PLO Compare and load (64 bit in parameter list)
+  plo-clgr             PLO Compare and load (64 bit in general registers)
+  plo-clx              PLO Compare and load (128 bit in parameter list)
+  plo-cs               PLO Compare and swap (32 bit in general registers)
+  plo-csg              PLO Compare and swap (64 bit in parameter list)
+  plo-csgr             PLO Compare and swap (64 bit in general registers)
+  plo-csx              PLO Compare and swap (128 bit in parameter list)
+  plo-dcs              PLO Double compare and swap (32 bit in general registers)
+  plo-dcsg             PLO Double compare and swap (64 bit in parameter list)
+  plo-dcsgr            PLO Double compare and swap (64 bit in general registers)
+  plo-dcsx             PLO Double compare and swap (128 bit in parameter list)
+  plo-csst             PLO Compare and swap and store (32 bit in general registers)
+  plo-csstg            PLO Compare and swap and store (64 bit in parameter list)
+  plo-csstgr           PLO Compare and swap and store (64 bit in general registers)
+  plo-csstx            PLO Compare and swap and store (128 bit in parameter list)
+  plo-csdst            PLO Compare and swap and double store (32 bit in general registers)
+  plo-csdstg           PLO Compare and swap and double store (64 bit in parameter list)
+  plo-csdstgr          PLO Compare and swap and double store (64 bit in general registers)
+  plo-csdstx           PLO Compare and swap and double store (128 bit in parameter list)
+  plo-cstst            PLO Compare and swap and triple store (32 bit in general registers)
+  plo-cststg           PLO Compare and swap and triple store (64 bit in parameter list)
+  plo-cststgr          PLO Compare and swap and triple store (64 bit in general registers)
+  plo-cststx           PLO Compare and swap and triple store (128 bit in parameter list)
+  plo-clo              PLO Compare and load (256 bit in parameter list)
+  plo-cso              PLO Compare and swap (256 bit in parameter list)
+  plo-dcso             PLO Double compare and swap (256 bit in parameter list)
+  plo-cssto            PLO Compare and swap and store (256 bit in parameter list)
+  plo-csdsto           PLO Compare and swap and double store (256 bit in parameter list)
+  plo-cststo           PLO Compare and swap and triple store (256 bit in parameter list)
+  plo-tcs              Triple compare and swap (32 bit in parameter list)
+  plo-tcsg             Triple compare and swap (64 bit in parameter list)
+  plo-tcsx             Triple compare and swap (128 bit in parameter list)
+  plo-tcso             Triple compare and swap (256 bit in parameter list)
+  plo-qcs              Quadruple compare and swap (32 bit in parameter list)
+  plo-qcsg             Quadruple compare and swap (64 bit in parameter list)
+  plo-qcsx             Quadruple compare and swap (128 bit in parameter list)
+  plo-qcso             Quadruple compare and swap (256 bit in parameter list)
+  plo-lo               Load (256 bit in parameter list)
+  plo-dlx              Double load (128 bit in parameter list)
+  plo-dlo              Double load (256 bit in parameter list)
+  plo-tl               Triple load (32 bit in parameter list)
+  plo-tlg              Triple load (64 bit in parameter list)
+  plo-tlx              Triple load (128 bit in parameter list)
+  plo-tlo              Triple load (256 bit in parameter list)
+  plo-ql               Quadruple load (32 bit in parameter list)
+  plo-qlg              Quadruple load (64 bit in parameter list)
+  plo-qlx              Quadruple load (128 bit in parameter list)
+  plo-qlo              Quadruple load (256 bit in parameter list)
+  plo-sto              Store (256 bit in parameter list)
+  plo-dst              Double store (32 bit in parameter list)
+  plo-dstg             Double store (64 bit in parameter list)
+  plo-dstx             Double store (128 bit in parameter list)
+  plo-dsto             Double store (256 bit in parameter list)
+  plo-tst              Triple store (32 bit in parameter list)
+  plo-tstg             Triple store (64 bit in parameter list)
+  plo-tstx             Triple store (128 bit in parameter list)
+  plo-tsto             Triple store (256 bit in parameter list)
+  plo-qst              Quadruple store (32 bit in parameter list)
+  plo-qstg             Quadruple store (64 bit in parameter list)
+  plo-qstx             Quadruple store (128 bit in parameter list)
+  plo-qsto             Quadruple store (256 bit in parameter list)
+  ptff-qto             PTFF Query TOD Offset
+  ptff-qsi             PTFF Query Steering Information
+  ptff-qpc             PTFF Query Physical Clock
+  ptff-qui             PTFF Query UTC Information
+  ptff-qtou            PTFF Query TOD Offset User
+  ptff-qtse            PTFF Query Time-Stamp Event
+  ptff-qsie            PTFF Query Steering Information Extended
+  ptff-qtoue           PTFF Query TOD Offset User Extended
+  ptff-sto             PTFF Set TOD Offset
+  ptff-stou            PTFF Set TOD Offset User
+  ptff-stoe            PTFF Set TOD Offset Extended
+  ptff-stoue           PTFF Set TOD Offset User Extended
+  kmac-dea             KMAC DEA
+  kmac-tdea-128        KMAC TDEA-128
+  kmac-tdea-192        KMAC TDEA-192
+  kmac-edea            KMAC Encrypted-DEA
+  kmac-etdea-128       KMAC Encrypted-TDEA-128
+  kmac-etdea-192       KMAC Encrypted-TDEA-192
+  kmac-aes-128         KMAC AES-128
+  kmac-aes-192         KMAC AES-192
+  kmac-aes-256         KMAC AES-256
+  kmac-eaes-128        KMAC Encrypted-AES-128
+  kmac-eaes-192        KMAC Encrypted-AES-192
+  kmac-eaes-256        KMAC Encrypted-AES-256
+  kmac-hmac-sha-224    KMAC HMAC-SHA-224
+  kmac-hmac-sha-246    KMAC HMAC-SHA-256
+  kmac-hmac-sha-384    KMAC HMAC-SHA-384
+  kmac-hmac-sha-512    KMAC HMAC-SHA-512
+  kmac-hmac-esha-224   KMAC HMAC-Encrypted-SHA-224
+  kmac-hmac-esha-246   KMAC HMAC-Encrypted-SHA-256
+  kmac-hmac-esha-384   KMAC HMAC-Encrypted-SHA-384
+  kmac-hmac-esha-512   KMAC HMAC-Encrypted-SHA-512
+  kmac-qai             KMAC Query-Authentication-Information
+  kmc-dea              KMC DEA
+  kmc-tdea-128         KMC TDEA-128
+  kmc-tdea-192         KMC TDEA-192
+  kmc-edea             KMC Encrypted-DEA
+  kmc-etdea-128        KMC Encrypted-TDEA-128
+  kmc-etdea-192        KMC Encrypted-TDEA-192
+  kmc-aes-128          KMC AES-128
+  kmc-aes-192          KMC AES-192
+  kmc-aes-256          KMC AES-256
+  kmc-eaes-128         KMC Encrypted-AES-128
+  kmc-eaes-192         KMC Encrypted-AES-192
+  kmc-eaes-256         KMC Encrypted-AES-256
+  kmc-prng             KMC PRNG
+  km-dea               KM DEA
+  km-tdea-128          KM TDEA-128
+  km-tdea-192          KM TDEA-192
+  km-edea              KM Encrypted-DEA
+  km-etdea-128         KM Encrypted-TDEA-128
+  km-etdea-192         KM Encrypted-TDEA-192
+  km-aes-128           KM AES-128
+  km-aes-192           KM AES-192
+  km-aes-256           KM AES-256
+  km-eaes-128          KM Encrypted-AES-128
+  km-eaes-192          KM Encrypted-AES-192
+  km-eaes-256          KM Encrypted-AES-256
+  km-xts-aes-128       KM XTS-AES-128
+  km-xts-aes-256       KM XTS-AES-256
+  km-xts-eaes-128      KM XTS-Encrypted-AES-128
+  km-xts-eaes-256      KM XTS-Encrypted-AES-256
+  km-full-xts-aes-128  KM Full-XTS-AES-128
+  km-full-xts-aes-256  KM Full-XTS-AES-256
+  km-full-xts-eaes-128 KM Full-XTS-Encrypted-AES-128
+  km-full-xts-eaes-256 KM Full-XTS-Encrypted-AES-256
+  km-qai               KM Query-Authentication-Information
+  kimd-sha-1           KIMD SHA-1
+  kimd-sha-256         KIMD SHA-256
+  kimd-sha-512         KIMD SHA-512
+  kimd-sha3-224        KIMD SHA3-224
+  kimd-sha3-256        KIMD SHA3-256
+  kimd-sha3-384        KIMD SHA3-384
+  kimd-sha3-512        KIMD SHA3-512
+  kimd-shake-128       KIMD SHAKE-128
+  kimd-shake-256       KIMD SHAKE-256
+  kimd-ghash           KIMD GHASH
+  kimd-qai             KIMD Query-Authentication-Information
+  klmd-sha-1           KLMD SHA-1
+  klmd-sha-256         KLMD SHA-256
+  klmd-sha-512         KLMD SHA-512
+  klmd-sha3-224        KLMD SHA3-224
+  klmd-sha3-256        KLMD SHA3-256
+  klmd-sha3-384        KLMD SHA3-384
+  klmd-sha3-512        KLMD SHA3-512
+  klmd-shake-128       KLMD SHAKE-128
+  klmd-shake-256       KLMD SHAKE-256
+  klmd-qai             KLMD Query-Authentication-Information
+  pckmo-edea           PCKMO Encrypted-DEA-Key
+  pckmo-etdea-128      PCKMO Encrypted-TDEA-128-Key
+  pckmo-etdea-192      PCKMO Encrypted-TDEA-192-Key
+  pckmo-aes-128        PCKMO Encrypted-AES-128-Key
+  pckmo-aes-192        PCKMO Encrypted-AES-192-Key
+  pckmo-aes-256        PCKMO Encrypted-AES-256-Key
+  pckmo-aes-xts-128-dk PCKMO Encrypt-AES-XTS-128-Double-Key
+  pckmo-aes-xts-256-dk PCKMO Encrypt-AES-XTS-256-Double-Key
+  pckmo-ecc-p256       PCKMO Encrypt-ECC-P256-Key
+  pckmo-ecc-p384       PCKMO Encrypt-ECC-P384-Key
+  pckmo-ecc-p521       PCKMO Encrypt-ECC-P521-Key
+  pckmo-ecc-ed25519    PCKMO Encrypt-ECC-Ed25519-Key
+  pckmo-ecc-ed448      PCKMO Encrypt-ECC-Ed448-Key
+  pckmo-hmac-512       PCKMO Encrypt-HMAC-512-Key
+  pckmo-hmac-1024      PCKMO Encrypt-HMAC-1024-Key
+  pckmo-qai            PCKMO Query-Authentication-Information
+  kmctr-dea            KMCTR DEA
+  kmctr-tdea-128       KMCTR TDEA-128
+  kmctr-tdea-192       KMCTR TDEA-192
+  kmctr-edea           KMCTR Encrypted-DEA
+  kmctr-etdea-128      KMCTR Encrypted-TDEA-128
+  kmctr-etdea-192      KMCTR Encrypted-TDEA-192
+  kmctr-aes-128        KMCTR AES-128
+  kmctr-aes-192        KMCTR AES-192
+  kmctr-aes-256        KMCTR AES-256
+  kmctr-eaes-128       KMCTR Encrypted-AES-128
+  kmctr-eaes-192       KMCTR Encrypted-AES-192
+  kmctr-eaes-256       KMCTR Encrypted-AES-256
+  kmctr-qai            KMCTR Query-Authentication-Information
+  kmf-dea              KMF DEA
+  kmf-tdea-128         KMF TDEA-128
+  kmf-tdea-192         KMF TDEA-192
+  kmf-edea             KMF Encrypted-DEA
+  kmf-etdea-128        KMF Encrypted-TDEA-128
+  kmf-etdea-192        KMF Encrypted-TDEA-192
+  kmf-aes-128          KMF AES-128
+  kmf-aes-192          KMF AES-192
+  kmf-aes-256          KMF AES-256
+  kmf-eaes-128         KMF Encrypted-AES-128
+  kmf-eaes-192         KMF Encrypted-AES-192
+  kmf-eaes-256         KMF Encrypted-AES-256
+  kmf-qai              KMF Query-Authentication-Information
+  kmo-dea              KMO DEA
+  kmo-tdea-128         KMO TDEA-128
+  kmo-tdea-192         KMO TDEA-192
+  kmo-edea             KMO Encrypted-DEA
+  kmo-etdea-128        KMO Encrypted-TDEA-128
+  kmo-etdea-192        KMO Encrypted-TDEA-192
+  kmo-aes-128          KMO AES-128
+  kmo-aes-192          KMO AES-192
+  kmo-aes-256          KMO AES-256
+  kmo-eaes-128         KMO Encrypted-AES-128
+  kmo-eaes-192         KMO Encrypted-AES-192
+  kmo-eaes-256         KMO Encrypted-AES-256
+  kmo-qai              KMO Query-Authentication-Information
+  pcc-cmac-dea         PCC Compute-Last-Block-CMAC-Using-DEA
+  pcc-cmac-tdea-128    PCC Compute-Last-Block-CMAC-Using-TDEA-128
+  pcc-cmac-tdea-192    PCC Compute-Last-Block-CMAC-Using-TDEA-192
+  pcc-cmac-edea        PCC Compute-Last-Block-CMAC-Using-Encrypted-DEA
+  pcc-cmac-etdea-128   PCC Compute-Last-Block-CMAC-Using-Encrypted-TDEA-128
+  pcc-cmac-etdea-192   PCC Compute-Last-Block-CMAC-Using-EncryptedTDEA-192
+  pcc-cmac-aes-128     PCC Compute-Last-Block-CMAC-Using-AES-128
+  pcc-cmac-aes-192     PCC Compute-Last-Block-CMAC-Using-AES-192
+  pcc-cmac-aes-256     PCC Compute-Last-Block-CMAC-Using-AES-256
+  pcc-cmac-eaes-128    PCC Compute-Last-Block-CMAC-Using-Encrypted-AES-128
+  pcc-cmac-eaes-192    PCC Compute-Last-Block-CMAC-Using-Encrypted-AES-192
+  pcc-cmac-eaes-256    PCC Compute-Last-Block-CMAC-Using-Encrypted-AES-256
+  pcc-xts-aes-128      PCC Compute-XTS-Parameter-Using-AES-128
+  pcc-xts-aes-256      PCC Compute-XTS-Parameter-Using-AES-256
+  pcc-xts-eaes-128     PCC Compute-XTS-Parameter-Using-Encrypted-AES-128
+  pcc-xts-eaes-256     PCC Compute-XTS-Parameter-Using-Encrypted-AES-256
+  pcc-scalar-mult-p256 PCC Scalar-Multiply-P256
+  pcc-scalar-mult-p384 PCC Scalar-Multiply-P384
+  pcc-scalar-mult-p521 PCC Scalar-Multiply-P521
+  pcc-scalar-mult-ed25519 PCC Scalar-Multiply-Ed25519
+  pcc-scalar-mult-ed448 PCC Scalar-Multiply-Ed448
+  pcc-scalar-mult-x25519 PCC Scalar-Multiply-X25519
+  pcc-scalar-mult-x448 PCC Scalar-Multiply-X448
+  pcc-qai              PCC Query-Authentication-Information
+  ppno-sha-512-drng    PPNO SHA-512-DRNG
+  prno-trng-qrtcr      PRNO TRNG-Query-Raw-to-Conditioned-Ratio
+  prno-trng            PRNO TRNG
+  prno-qai             PRNO Query-Authentication-Information
+  kma-gcm-aes-128      KMA GCM-AES-128
+  kma-gcm-aes-192      KMA GCM-AES-192
+  kma-gcm-aes-256      KMA GCM-AES-256
+  kma-gcm-eaes-128     KMA GCM-Encrypted-AES-128
+  kma-gcm-eaes-192     KMA GCM-Encrypted-AES-192
+  kma-gcm-eaes-256     KMA GCM-Encrypted-AES-256
+  kma-qai              KMA Query-Authentication-Information
+  kdsa-ecdsa-verify-p256 KDSA ECDSA-Verify-P256
+  kdsa-ecdsa-verify-p384 KDSA ECDSA-Verify-P384
+  kdsa-ecdsa-verify-p521 KDSA ECDSA-Verify-P521
+  kdsa-ecdsa-sign-p256 KDSA ECDSA-Sign-P256
+  kdsa-ecdsa-sign-p384 KDSA ECDSA-Sign-P384
+  kdsa-ecdsa-sign-p521 KDSA ECDSA-Sign-P521
+  kdsa-eecdsa-sign-p256 KDSA Encrypted-ECDSA-Sign-P256
+  kdsa-eecdsa-sign-p384 KDSA Encrypted-ECDSA-Sign-P384
+  kdsa-eecdsa-sign-p521 KDSA Encrypted-ECDSA-Sign-P521
+  kdsa-eddsa-verify-ed25519 KDSA EdDSA-Verify-Ed25519
+  kdsa-eddsa-verify-ed448 KDSA EdDSA-Verify-Ed448
+  kdsa-eddsa-sign-ed25519 KDSA EdDSA-Sign-Ed25519
+  kdsa-eddsa-sign-ed448 KDSA EdDSA-Sign-Ed448
+  kdsa-eeddsa-sign-ed25519 KDSA Encrypted-EdDSA-Sign-Ed25519
+  kdsa-eeddsa-sign-ed448 KDSA Encrypted-EdDSA-Sign-Ed448
+  kdsa-qai             KDSA Query-Authentication-Information
+  sortl-sflr           SORTL SFLR
+  sortl-svlr           SORTL SVLR
+  sortl-32             SORTL 32 input lists
+  sortl-128            SORTL 128 input lists
+  sortl-f0             SORTL format 0 parameter-block
+  dfltcc-gdht          DFLTCC GDHT
+  dfltcc-cmpr          DFLTCC CMPR
+  dfltcc-xpnd          DFLTCC XPND
+  dfltcc-f0            DFLTCC format 0 parameter-block
+  appv                 AP instructions installed for secure guests
+  appvi                AP instructions interruption support for secure guests
+  pfcr-qaf             PFCR Query-Available-Functions
+  pfcr-csdst           PFCR Compare-and-Swap-and-Double-Store (32)
+  pfcr-csdstg          PFCR Compare-and-Swap-and-Double-Store (64)
+  pfcr-cstst           PFCR Compare-and-Swap-and-Triple-Store (32)
+  pfcr-cststg          PFCR Compare-and-Swap-and-Triple-Store (64)
+
+Recognized feature groups:
+  plo                  Perform-locked-operation facility
+  plo_ext              PLO-extension facility
+  tods                 Tod-clock-steering facility
+  gen13ptff            PTFF enhancements introduced with z13
+  gen17ptff            PTFF enhancements introduced with gen17
+  msa                  Message-security-assist facility
+  msa1                 Message-security-assist-extension 1 facility
+  msa2                 Message-security-assist-extension 2 facility
+  msa3                 Message-security-assist-extension 3 facility
+  msa4                 Message-security-assist-extension 4 facility
+  msa5                 Message-security-assist-extension 5 facility
+  msa6                 Message-security-assist-extension 6 facility
+  msa7                 Message-security-assist-extension 7 facility
+  msa8                 Message-security-assist-extension 8 facility
+  msa9                 Message-security-assist-extension 9 facility
+  msa9_pckmo           Message-security-assist-extension 9 PCKMO subfunctions
+  msa10                Message-security-assist-extension 10 facility
+  msa10_pckmo          Message-security-assist-extension 10 PCKMO subfunctions
+  msa11                Message-security-assist-extension 11 facility
+  msa11_pckmo          Message-security-assist-extension 11 PCKMO subfunctions
+  msa12                Message-security-assist-extension 12 facility
+  msa13                Message-security-assist-extension 13 facility
+  msa13_pckmo          Message-security-assist-extension 13 PCKMO subfunctions
+  mepochptff           PTFF enhancements introduced with Multiple-epoch facility
+  esort                Enhanced-sort facility
+  deflate              Deflate-conversion facility
+  ccf                  Concurrent-functions facility

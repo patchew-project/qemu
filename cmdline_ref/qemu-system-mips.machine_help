@@ -1,0 +1,3 @@
+Supported machines are:
+malta                MIPS Malta Core LV (default)
+none                 empty machine

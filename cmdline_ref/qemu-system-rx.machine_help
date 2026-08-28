@@ -1,0 +1,4 @@
+Supported machines are:
+gdbsim-r5f562n7      gdb simulator (R5F562N7 MCU and external RAM)
+gdbsim-r5f562n8      gdb simulator (R5F562N8 MCU and external RAM)
+none                 empty machine

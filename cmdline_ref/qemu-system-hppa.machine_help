@@ -1,0 +1,6 @@
+Supported machines are:
+715                  HP 715/64 workstation
+A400                 HP A400-44 server
+B160L                HP B160L workstation (default)
+C3700                HP C3700 workstation
+none                 empty machine

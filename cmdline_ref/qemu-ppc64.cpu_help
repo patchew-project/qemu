@@ -1,0 +1,464 @@
+Available CPUs:
+  mpc5xx           PVR 00020020
+  rcpu             (alias for mpc5xx)
+  mgt560           (alias for mpc5xx)
+  mpc509           (alias for mpc5xx)
+  mpc533           (alias for mpc5xx)
+  mpc534           (alias for mpc5xx)
+  mpc555           (alias for mpc5xx)
+  mpc556           (alias for mpc5xx)
+  mpc560           (alias for mpc5xx)
+  mpc561           (alias for mpc5xx)
+  mpc562           (alias for mpc5xx)
+  mpc563           (alias for mpc5xx)
+  mpc564           (alias for mpc5xx)
+  mpc565           (alias for mpc5xx)
+  mpc566           (alias for mpc5xx)
+  603              PVR 00030100
+  mpc8240          (alias for 603)
+  vanilla          (alias for 603)
+  604              PVR 00040103
+  ppc32            (alias for 604)
+  ppc              (alias for 604)
+  603e_v1.1        PVR 00060101
+  603e_v1.2        PVR 00060102
+  603e_v1.3        PVR 00060103
+  603e_v1.4        PVR 00060104
+  603e_v2.2        PVR 00060202
+  603e_v3          PVR 00060300
+  603e_v4          PVR 00060400
+  603e_v4.1        PVR 00060401
+  603e             (alias for 603e_v4.1)
+  stretch          (alias for 603e_v4.1)
+  603p             PVR 00070000
+  603e7v           PVR 00070100
+  vaillant         (alias for 603e7v)
+  603e7v1          PVR 00070101
+  603e7            PVR 00070200
+  603e7v2          PVR 00070201
+  603e7t           PVR 00071201
+  603r             (alias for 603e7t)
+  goldeneye        (alias for 603e7t)
+  740_v1.0         PVR 00080100
+  740e             PVR 00080100
+  750_v1.0         PVR 00080100
+  740_v2.0         PVR 00080200
+  750_v2.0         PVR 00080200
+  750e             PVR 00080200
+  740_v2.1         PVR 00080201
+  750_v2.1         PVR 00080201
+  740_v2.2         PVR 00080202
+  750_v2.2         PVR 00080202
+  740_v3.0         PVR 00080300
+  750_v3.0         PVR 00080300
+  740_v3.1         PVR 00080301
+  740              (alias for 740_v3.1)
+  arthur           (alias for 740_v3.1)
+  750_v3.1         PVR 00080301
+  750              (alias for 750_v3.1)
+  typhoon          (alias for 750_v3.1)
+  g3               (alias for 750_v3.1)
+  750cx_v1.0       PVR 00082100
+  750cx_v2.0       PVR 00082200
+  750cx_v2.1       PVR 00082201
+  750cx_v2.2       PVR 00082202
+  750cx            (alias for 750cx_v2.2)
+  750cxe_v2.1      PVR 00082211
+  750cxe_v2.2      PVR 00082212
+  750cxe_v2.3      PVR 00082213
+  750cxe_v2.4      PVR 00082214
+  750cxe_v3.0      PVR 00082310
+  750cxe_v3.1      PVR 00082311
+  745_v1.0         PVR 00083100
+  755_v1.0         PVR 00083100
+  745_v1.1         PVR 00083101
+  755_v1.1         PVR 00083101
+  745_v2.0         PVR 00083200
+  755_v2.0         PVR 00083200
+  745_v2.1         PVR 00083201
+  755_v2.1         PVR 00083201
+  745_v2.2         PVR 00083202
+  755_v2.2         PVR 00083202
+  745_v2.3         PVR 00083203
+  755_v2.3         PVR 00083203
+  745_v2.4         PVR 00083204
+  755_v2.4         PVR 00083204
+  745_v2.5         PVR 00083205
+  755_v2.5         PVR 00083205
+  745_v2.6         PVR 00083206
+  755_v2.6         PVR 00083206
+  745_v2.7         PVR 00083207
+  755_v2.7         PVR 00083207
+  745_v2.8         PVR 00083208
+  745              (alias for 745_v2.8)
+  755_v2.8         PVR 00083208
+  755              (alias for 755_v2.8)
+  goldfinger       (alias for 755_v2.8)
+  750cxe_v2.4b     PVR 00083214
+  750cxe_v3.1b     PVR 00083311
+  750cxe           (alias for 750cxe_v3.1b)
+  750cxr           PVR 00083410
+  750cl_v1.0       PVR 00087200
+  750cl_v2.0       PVR 00087210
+  750cl            (alias for 750cl_v2.0)
+  750l_v2.0        PVR 00088200
+  750l_v2.1        PVR 00088201
+  750l_v2.2        PVR 00088202
+  750l_v3.0        PVR 00088300
+  750l_v3.2        PVR 00088302
+  750l             (alias for 750l_v3.2)
+  lonestar         (alias for 750l_v3.2)
+  604e_v1.0        PVR 00090100
+  604e_v2.2        PVR 00090202
+  604e_v2.4        PVR 00090204
+  604e             (alias for 604e_v2.4)
+  sirocco          (alias for 604e_v2.4)
+  604r             PVR 000a0101
+  mach5            (alias for 604r)
+  7400_v1.0        PVR 000c0100
+  7400_v1.1        PVR 000c0101
+  7400_v2.0        PVR 000c0200
+  7400_v2.1        PVR 000c0201
+  7400_v2.2        PVR 000c0202
+  7400_v2.6        PVR 000c0206
+  7400_v2.7        PVR 000c0207
+  7400_v2.8        PVR 000c0208
+  7400_v2.9        PVR 000c0209
+  7400             (alias for 7400_v2.9)
+  g4               (alias for 7400_v2.9)
+  970_v2.2         PVR 00390202
+  970              (alias for 970_v2.2)
+  970fx_v1.0       PVR 00391100
+  power5p_v2.1     PVR 003b0201
+  power5+          (alias for power5p_v2.1)
+  power5+_v2.1     (alias for power5p_v2.1)
+  power5gs         (alias for power5p_v2.1)
+  970fx_v2.0       PVR 003c0200
+  970fx_v2.1       PVR 003c0201
+  970fx_v3.0       PVR 003c0300
+  970fx_v3.1       PVR 003c0301
+  970fx            (alias for 970fx_v3.1)
+  ppc64            (alias for 970fx_v3.1)
+  power7_v2.3      PVR 003f0203
+  power7           (alias for power7_v2.3)
+  970mp_v1.0       PVR 00440100
+  970mp_v1.1       PVR 00440101
+  970mp            (alias for 970mp_v1.1)
+  power7p_v2.1     PVR 004a0201
+  power7+          (alias for power7p_v2.1)
+  power7+_v2.1     (alias for power7p_v2.1)
+  power8_v2.0      PVR 004d0200
+  power8           (alias for power8_v2.0)
+  power9_v2.0      PVR 004e1200
+  power9_v2.2      PVR 004e1202
+  power9           (alias for power9_v2.2)
+  mpc8xx           PVR 00500000
+  powerquicc       (alias for mpc8xx)
+  mgt823           (alias for mpc8xx)
+  mpc821           (alias for mpc8xx)
+  mpc823           (alias for mpc8xx)
+  mpc850           (alias for mpc8xx)
+  mpc852t          (alias for mpc8xx)
+  mpc855t          (alias for mpc8xx)
+  mpc857           (alias for mpc8xx)
+  mpc859           (alias for mpc8xx)
+  mpc860           (alias for mpc8xx)
+  mpc862           (alias for mpc8xx)
+  mpc866           (alias for mpc8xx)
+  mpc870           (alias for mpc8xx)
+  mpc875           (alias for mpc8xx)
+  mpc880           (alias for mpc8xx)
+  mpc885           (alias for mpc8xx)
+  power10_v2.0     PVR 00801200
+  power10          (alias for power10_v2.0)
+  g2               PVR 00810011
+  mpc603           PVR 00810100
+  g2hip3           PVR 00810101
+  mpc8250_hip3     (alias for g2hip3)
+  mpc8255_hip3     (alias for g2hip3)
+  mpc8260_hip3     (alias for g2hip3)
+  mpc8264_hip3     (alias for g2hip3)
+  mpc8265_hip3     (alias for g2hip3)
+  mpc8266_hip3     (alias for g2hip3)
+  power11_v2.0     PVR 00821200
+  power11          (alias for power11_v2.0)
+  e300c1           PVR 00830010
+  mpc8343          PVR 00830010
+  mpc8343a         PVR 00830010
+  mpc8343e         PVR 00830010
+  mpc8343ea        PVR 00830010
+  mpc8347ap        PVR 00830010
+  mpc8347at        PVR 00830010
+  mpc8347a         (alias for mpc8347at)
+  mpc8347eap       PVR 00830010
+  mpc8347eat       PVR 00830010
+  mpc8347ea        (alias for mpc8347eat)
+  mpc8347ep        PVR 00830010
+  mpc8347et        PVR 00830010
+  mpc8347e         (alias for mpc8347et)
+  mpc8347p         PVR 00830010
+  mpc8347t         PVR 00830010
+  mpc8347          (alias for mpc8347t)
+  mpc8349          PVR 00830010
+  mpc8349a         PVR 00830010
+  mpc8349e         PVR 00830010
+  mpc8349ea        PVR 00830010
+  e300c2           PVR 00840010
+  e300c3           PVR 00850010
+  e300             (alias for e300c3)
+  e300c4           PVR 00860010
+  mpc8377          PVR 00860010
+  mpc8377e         PVR 00860010
+  mpc8378          PVR 00860010
+  mpc8378e         PVR 00860010
+  mpc8379          PVR 00860010
+  mpc8379e         PVR 00860010
+  740p             PVR 10080000
+  750p             PVR 10080000
+  conan/doyle      (alias for 750p)
+  460exb           PVR 130218a4
+  460ex            (alias for 460exb)
+  440epx           PVR 200008d0
+  440grx           PVR 200008d0
+  405d2            PVR 20010000
+  x2vp4            PVR 20010820
+  x2vp7            (alias for x2vp4)
+  x2vp20           PVR 20010860
+  x2vp50           (alias for x2vp20)
+  405gpa           PVR 40110000
+  405gpb           PVR 40110040
+  405cra           PVR 40110041
+  405gpc           PVR 40110082
+  405gpd           PVR 401100c4
+  405gp            (alias for 405gpd)
+  405crb           PVR 401100c5
+  405crc           PVR 40110145
+  405cr            (alias for 405crc)
+  405gpe           (alias for 405crc)
+  440gpb           PVR 40120440
+  440gpc           PVR 40120481
+  440gp            (alias for 440gpc)
+  stb03            PVR 40310000
+  npe4gs3          PVR 40b10000
+  npe405h          PVR 414100c0
+  npe405h2         PVR 41410140
+  405ez            PVR 41511460
+  npe405l          PVR 416100c0
+  405d4            PVR 41810000
+  405              (alias for 405d4)
+  stb04            PVR 41810000
+  405lp            PVR 41f10000
+  PPE42            PVR 42000000
+  PPE42X           PVR 42100000
+  PPE42XM          PVR 42200000
+  440epa           PVR 42221850
+  440epb           PVR 422218d3
+  440ep            (alias for 440epb)
+  440gra           PVR 422218d3
+  440gr            (alias for 440gra)
+  405gpr           PVR 50910951
+  405ep            PVR 51210950
+  stb25            PVR 51510950
+  440gxa           PVR 51b21850
+  440gxb           PVR 51b21851
+  440gxc           PVR 51b21892
+  440              PVR 51b21894
+  440gxf           PVR 51b21894
+  440gx            (alias for 440gxf)
+  440sp            PVR 53221850
+  440sp2           PVR 53221891
+  440spe           PVR 53421890
+  750fx_v1.0       PVR 70000100
+  750fx_v2.0       PVR 70000200
+  750fx_v2.1       PVR 70000201
+  750fx_v2.2       PVR 70000202
+  750fl            PVR 70000203
+  750fx_v2.3       PVR 70000203
+  750fx            (alias for 750fx_v2.3)
+  750gx_v1.0       PVR 70020100
+  750gx_v1.1       PVR 70020101
+  750gl            PVR 70020102
+  750gx_v1.2       PVR 70020102
+  750gx            (alias for 750gx_v1.2)
+  440-xilinx       PVR 7ff21910
+  440-xilinx-w-dfpu PVR 7ff21910
+  7450_v1.0        PVR 80000100
+  7450_v1.1        PVR 80000101
+  7450_v1.2        PVR 80000102
+  7450_v2.0        PVR 80000200
+  7441_v2.1        PVR 80000201
+  7450_v2.1        PVR 80000201
+  7450             (alias for 7450_v2.1)
+  vger             (alias for 7450_v2.1)
+  7441_v2.3        PVR 80000203
+  7441             (alias for 7441_v2.3)
+  7451_v2.3        PVR 80000203
+  7451             (alias for 7451_v2.3)
+  7441_v2.10       PVR 80000210
+  7451_v2.10       PVR 80000210
+  7445_v1.0        PVR 80010100
+  7455_v1.0        PVR 80010100
+  7445_v2.1        PVR 80010201
+  7455_v2.1        PVR 80010201
+  7445_v3.2        PVR 80010302
+  7445             (alias for 7445_v3.2)
+  7455_v3.2        PVR 80010302
+  7455             (alias for 7455_v3.2)
+  apollo6          (alias for 7455_v3.2)
+  7445_v3.3        PVR 80010303
+  7455_v3.3        PVR 80010303
+  7445_v3.4        PVR 80010304
+  7455_v3.4        PVR 80010304
+  7447_v1.0        PVR 80020100
+  7457_v1.0        PVR 80020100
+  7447_v1.1        PVR 80020101
+  7447             (alias for 7447_v1.1)
+  7457_v1.1        PVR 80020101
+  7457_v1.2        PVR 80020102
+  7457             (alias for 7457_v1.2)
+  apollo7          (alias for 7457_v1.2)
+  7447a_v1.0       PVR 80030100
+  7457a_v1.0       PVR 80030100
+  apollo7pm        (alias for 7457a_v1.0)
+  7447a_v1.1       PVR 80030101
+  7457a_v1.1       PVR 80030101
+  7447a_v1.2       PVR 80030102
+  7447a            (alias for 7447a_v1.2)
+  7457a_v1.2       PVR 80030102
+  7457a            (alias for 7457a_v1.2)
+  e600             PVR 80040010
+  mpc8610          PVR 80040010
+  mpc8641          PVR 80040010
+  mpc8641d         PVR 80040010
+  7448_v1.0        PVR 80040100
+  7448_v1.1        PVR 80040101
+  7448_v2.0        PVR 80040200
+  7448_v2.1        PVR 80040201
+  7448             (alias for 7448_v2.1)
+  7410_v1.0        PVR 800c1100
+  7410_v1.1        PVR 800c1101
+  7410_v1.2        PVR 800c1102
+  7410_v1.3        PVR 800c1103
+  7410_v1.4        PVR 800c1104
+  7410             (alias for 7410_v1.4)
+  nitro            (alias for 7410_v1.4)
+  e500_v10         PVR 80200010
+  mpc8540_v10      PVR 80200010
+  mpc8560_v10      PVR 80200010
+  e500_v20         PVR 80200020
+  e500v1           (alias for e500_v20)
+  mpc8540_v20      PVR 80200020
+  mpc8540_v21      PVR 80200020
+  mpc8540          (alias for mpc8540_v21)
+  mpc8541_v10      PVR 80200020
+  mpc8541_v11      PVR 80200020
+  mpc8541          (alias for mpc8541_v11)
+  mpc8541e_v10     PVR 80200020
+  mpc8541e_v11     PVR 80200020
+  mpc8541e         (alias for mpc8541e_v11)
+  mpc8555_v10      PVR 80200020
+  mpc8555_v11      PVR 80200020
+  mpc8555          (alias for mpc8555_v11)
+  mpc8555e_v10     PVR 80200020
+  mpc8555e_v11     PVR 80200020
+  mpc8555e         (alias for mpc8555e_v11)
+  mpc8560_v20      PVR 80200020
+  mpc8560_v21      PVR 80200020
+  mpc8560          (alias for mpc8560_v21)
+  e500v2_v10       PVR 80210010
+  mpc8543_v10      PVR 80210010
+  mpc8543e_v10     PVR 80210010
+  mpc8548_v10      PVR 80210010
+  mpc8548e_v10     PVR 80210010
+  mpc8543_v11      PVR 80210011
+  mpc8543e_v11     PVR 80210011
+  mpc8548_v11      PVR 80210011
+  mpc8548e_v11     PVR 80210011
+  e500v2_v20       PVR 80210020
+  mpc8543_v20      PVR 80210020
+  mpc8543e_v20     PVR 80210020
+  mpc8545_v20      PVR 80210020
+  mpc8545e_v20     PVR 80210020
+  mpc8547e_v20     PVR 80210020
+  mpc8548_v20      PVR 80210020
+  mpc8548e_v20     PVR 80210020
+  e500v2_v21       PVR 80210021
+  mpc8533_v10      PVR 80210021
+  mpc8533e_v10     PVR 80210021
+  mpc8543_v21      PVR 80210021
+  mpc8543          (alias for mpc8543_v21)
+  mpc8543e_v21     PVR 80210021
+  mpc8543e         (alias for mpc8543e_v21)
+  mpc8544_v10      PVR 80210021
+  mpc8544e_v10     PVR 80210021
+  mpc8545_v21      PVR 80210021
+  mpc8545          (alias for mpc8545_v21)
+  mpc8545e_v21     PVR 80210021
+  mpc8545e         (alias for mpc8545e_v21)
+  mpc8547e_v21     PVR 80210021
+  mpc8547e         (alias for mpc8547e_v21)
+  mpc8548_v21      PVR 80210021
+  mpc8548          (alias for mpc8548_v21)
+  mpc8548e_v21     PVR 80210021
+  mpc8548e         (alias for mpc8548e_v21)
+  e500v2_v22       PVR 80210022
+  e500             (alias for e500v2_v22)
+  e500v2           (alias for e500v2_v22)
+  mpc8533_v11      PVR 80210022
+  mpc8533          (alias for mpc8533_v11)
+  mpc8533e_v11     PVR 80210022
+  mpc8533e         (alias for mpc8533e_v11)
+  mpc8544_v11      PVR 80210022
+  mpc8544          (alias for mpc8544_v11)
+  mpc8544e_v11     PVR 80210022
+  mpc8544e         (alias for mpc8544e_v11)
+  mpc8567          PVR 80210022
+  mpc8567e         PVR 80210022
+  mpc8568          PVR 80210022
+  mpc8568e         PVR 80210022
+  e500v2_v30       PVR 80210030
+  mpc8572          PVR 80210030
+  mpc8572e         PVR 80210030
+  e500mc           PVR 80230020
+  e5500            PVR 80240020
+  e6500            PVR 80400020
+  g2h4             PVR 80811010
+  g2hip4           PVR 80811014
+  mpc8241          (alias for g2hip4)
+  mpc8245          (alias for g2hip4)
+  mpc8250          (alias for g2hip4)
+  mpc8250_hip4     (alias for g2hip4)
+  mpc8255          (alias for g2hip4)
+  mpc8255_hip4     (alias for g2hip4)
+  mpc8260          (alias for g2hip4)
+  mpc8260_hip4     (alias for g2hip4)
+  mpc8264          (alias for g2hip4)
+  mpc8264_hip4     (alias for g2hip4)
+  mpc8265          (alias for g2hip4)
+  mpc8265_hip4     (alias for g2hip4)
+  mpc8266          (alias for g2hip4)
+  mpc8266_hip4     (alias for g2hip4)
+  g2le             PVR 80820010
+  g2gp             PVR 80821010
+  g2legp           PVR 80822010
+  g2legp1          PVR 80822011
+  mpc5200_v10      PVR 80822011
+  mpc5200_v11      PVR 80822011
+  mpc5200_v12      PVR 80822011
+  mpc52xx          (alias for mpc5200_v12)
+  mpc5200          (alias for mpc5200_v12)
+  mpc5200b_v20     PVR 80822011
+  mpc5200b_v21     PVR 80822011
+  mpc5200b         (alias for mpc5200b_v21)
+  g2legp3          PVR 80822013
+  mpc82xx          (alias for g2legp3)
+  powerquicc-ii    (alias for g2legp3)
+  mpc8247          (alias for g2legp3)
+  mpc8248          (alias for g2legp3)
+  mpc8270          (alias for g2legp3)
+  mpc8271          (alias for g2legp3)
+  mpc8272          (alias for g2legp3)
+  mpc8275          (alias for g2legp3)
+  mpc8280          (alias for g2legp3)
+  g2ls             PVR 90810010
+  g2lels           PVR a0822010

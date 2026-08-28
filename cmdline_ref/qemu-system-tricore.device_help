@@ -1,0 +1,5 @@
+
+Misc devices:
+name "loader", desc "Generic Loader"
+name "uefi-vars-sysbus", bus System
+name "uefi-vars-x64", bus System

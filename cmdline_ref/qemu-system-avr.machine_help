@@ -1,0 +1,10 @@
+Supported machines are:
+2009                 Arduino Duemilanove (ATmega168) (alias of arduino-duemilanove)
+arduino-duemilanove  Arduino Duemilanove (ATmega168)
+mega2560             Arduino Mega 2560 (ATmega2560) (alias of arduino-mega-2560-v3)
+arduino-mega-2560-v3 Arduino Mega 2560 (ATmega2560)
+mega                 Arduino Mega (ATmega1280) (alias of arduino-mega)
+arduino-mega         Arduino Mega (ATmega1280)
+uno                  Arduino UNO (ATmega328P) (alias of arduino-uno)
+arduino-uno          Arduino UNO (ATmega328P)
+none                 empty machine
