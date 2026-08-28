@@ -190,6 +190,7 @@ static const TypeInfo petalogix_s3adsp1800_machine_types[] = {
         .parent         = TYPE_MACHINE,
         .class_init     = petalogix_s3adsp1800_machine_class_init,
         .instance_size  = sizeof(S3Adsp1800MachineState),
+        .is_available   = target_microblaze,
     },
 };
 

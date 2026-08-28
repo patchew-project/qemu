@@ -185,4 +185,5 @@ static void xlnx_zynqmp_pmu_machine_init(MachineClass *mc)
     mc->init = xlnx_zynqmp_pmu_init;
 }
 
-DEFINE_MACHINE("xlnx-zynqmp-pmu", xlnx_zynqmp_pmu_machine_init, NULL)
+DEFINE_MACHINE("xlnx-zynqmp-pmu", xlnx_zynqmp_pmu_machine_init,
+               target_microblaze)
