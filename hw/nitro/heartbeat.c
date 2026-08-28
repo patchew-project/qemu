@@ -105,6 +105,7 @@ static const TypeInfo nitro_heartbeat_info = {
     .parent = TYPE_NITRO_VSOCK_DEVICE,
     .instance_size = sizeof(NitroHeartbeatState),
     .class_init = nitro_heartbeat_class_init,
+    .is_available = target_config_nitro,
 };
 
 static void nitro_heartbeat_register(void)

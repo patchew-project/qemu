@@ -113,6 +113,7 @@ static const TypeInfo nitro_serial_vsock_info = {
     .parent = TYPE_NITRO_VSOCK_DEVICE,
     .instance_size = sizeof(NitroSerialVsockState),
     .class_init = nitro_serial_vsock_class_init,
+    .is_available = target_config_nitro,
 };
 
 static void nitro_serial_vsock_register(void)
