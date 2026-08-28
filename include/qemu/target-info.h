@@ -43,6 +43,13 @@ const char *target_cpu_type(void);
 bool target_big_endian(void);
 
 /**
+ * target_config_multiprocess:
+ *
+ * Returns true if target defines CONFIG_MULTIPROCESS.
+ */
+bool target_config_multiprocess(void);
+
+/**
  * target_base_arm:
  *
  * Returns whether the target architecture is ARM or Aarch64.

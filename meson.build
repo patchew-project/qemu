@@ -4259,6 +4259,7 @@ foreach target : target_dirs
   arch_deps = []
   c_args = ['-DCOMPILING_PER_TARGET',
             '-DCONFIG_TARGET="@0@-config-target.h"'.format(target),
+            '-DCONFIG_DEVICES="@0@-config-devices.h"'.format(target),
   ]
   link_args = emulator_link_args
 

@@ -42,6 +42,11 @@ bool target_big_endian(void)
     return target_endian_mode() == ENDIAN_MODE_BIG;
 }
 
+bool target_config_multiprocess(void)
+{
+    return target_info()->config_multiprocess;
+}
+
 bool target_base_arm(void)
 {
     switch (target_arch()) {

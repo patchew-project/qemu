@@ -15,6 +15,10 @@
 #include "exec/cpu-defs.h"
 #include "exec/page-vary.h"
 
+#ifndef CONFIG_USER_ONLY
+#include CONFIG_DEVICES
+#endif
+
 /* Validate correct placement of CPUArchState. */
 QEMU_BUILD_BUG_ON(offsetof(ArchCPU, parent_obj) != 0);
 QEMU_BUILD_BUG_ON(offsetof(ArchCPU, env) != sizeof(CPUState));
@@ -38,6 +42,9 @@ static const TargetInfo target_info_stub = {
 #else
     .page_bits_vary = false,
     .page_bits_init = TARGET_PAGE_BITS,
+#endif
+#ifdef CONFIG_MULTIPROCESS
+    .config_multiprocess = true,
 #endif
 };
 
