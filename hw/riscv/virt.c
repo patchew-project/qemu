@@ -1250,6 +1250,14 @@ static void virt_machine_done(Notifier *notifier, void *data)
 
     if (s->cxl_devices_state.is_enabled) {
         cxl_fmws_link_targets(&error_fatal);
+
+        /*
+         * Let firmware enumerate the pxb-cxl root buses and assign bus
+         * numbers and windows; build_crs() builds the ACPI0016 _CRS from
+         * the resulting state when the guest reads the ACPI tables.
+         */
+        pci_bus_add_fw_cfg_extra_pci_roots(s->fw_cfg, s->pci_bus,
+                                           &error_abort);
     }
     hwaddr firmware_end_addr;
     vaddr kernel_start_addr;
