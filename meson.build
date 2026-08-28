@@ -4258,6 +4258,7 @@ single_binary_available = false
 single_binary_supported_targets = [
   'aarch64-softmmu',
   'arm-softmmu',
+  'microblaze-softmmu',
 ]
 
 emulators = {}
