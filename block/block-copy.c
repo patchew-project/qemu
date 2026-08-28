@@ -37,6 +37,8 @@
 #define BLOCK_COPY_MAX_WORKERS 64
 #define BLOCK_COPY_SLICE_TIME 100000000ULL /* ns */
 #define BLOCK_COPY_CLUSTER_SIZE_DEFAULT (1 << 16)
+/* Bounded by BDRV_REQUEST_MAX_BYTES, rate limiting and cancel latency. */
+#define BLOCK_COPY_MAX_ZERO_CHUNK (256 * MiB)
 
 typedef enum {
     COPY_READ_WRITE_CLUSTER,
@@ -188,6 +190,34 @@ static int64_t block_copy_chunk_size(BlockCopyState *s)
 }
 
 /*
+ * A write-zeroes task carries no buffer, so it may cover far more than
+ * block_copy_chunk_size(). Return how far it may run; the caller clamps it
+ * to where the zero run ends.
+ */
+static int64_t block_copy_widen_zero_area(BlockCopyState *s,
+                                          BlockCopyCallState *call_state,
+                                          int64_t offset, int64_t search_end,
+                                          int64_t bytes)
+{
+    int64_t aligned = QEMU_ALIGN_DOWN(BLOCK_COPY_MAX_ZERO_CHUNK,
+                                      s->cluster_size);
+    int64_t zero_chunk = MIN_NON_ZERO(MAX(aligned, s->cluster_size),
+                                      call_state->max_chunk);
+    int64_t wide_offset, wide_bytes;
+
+    if (!bdrv_dirty_bitmap_next_dirty_area(s->copy_bitmap, offset, search_end,
+                                           zero_chunk, &wide_offset,
+                                           &wide_bytes)) {
+        return bytes;
+    }
+
+    /* @offset is dirty, so the search cannot have moved past it. */
+    assert(wide_offset == offset);
+
+    return wide_bytes;
+}
+
+/*
  * Search for the first dirty area in offset/bytes range and create task at
  * the beginning of it.
  */
@@ -198,6 +228,7 @@ block_copy_task_create(BlockCopyState *s, BlockCopyCallState *call_state,
     BlockCopyTask *task;
     BlockCopyMethod method;
     int64_t max_chunk;
+    int64_t search_end = offset + bytes;
 
     QEMU_LOCK_GUARD(&s->lock);
     max_chunk = MIN_NON_ZERO(block_copy_chunk_size(s), call_state->max_chunk);
@@ -219,6 +250,8 @@ block_copy_task_create(BlockCopyState *s, BlockCopyCallState *call_state,
 
         if (hbitmap_get(s->zero_bitmap, offset)) {
             method = COPY_WRITE_ZEROES;
+            bytes = block_copy_widen_zero_area(s, call_state, offset,
+                                               search_end, bytes);
             boundary = hbitmap_next_zero(s->zero_bitmap, offset, bytes);
         } else {
             boundary = hbitmap_next_dirty(s->zero_bitmap, offset, bytes);
