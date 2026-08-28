@@ -498,6 +498,51 @@ void tcg_gen_sari_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
     }
 }
 
+void tcg_gen_lea_i32(TCGv_i32 ret, TCGv_i32 a1, TCGv_i32 a2,
+                     int32_t sh, int32_t imm)
+{
+    TCGv_i32 t = tcg_temp_ebb_new_i32();
+
+    if (imm != 0) {
+        if (TCG_TARGET_lea_imm_valid(TCG_TYPE_I32, imm)) {
+            /*
+             * The immediate is non-zero and valid.
+             * If the shift is out of range, perform the shift first
+             * so that we can still emit (a1 + t + imm) as one insn.
+             */
+            if (!TCG_TARGET_lea_sh_valid(TCG_TYPE_I32, sh)) {
+                tcg_gen_shli_i32(t, a2, sh);
+                a2 = t;
+                sh = 0;
+            }
+            tcg_gen_op5ii_i32(INDEX_op_lea, ret, a1, a2, sh, imm);
+            goto done;
+        }
+
+        /*
+         * If we can make the immediate smaller by folding it
+         * into a2 before the shift, do so.
+         */
+        if (sh != 0 && imm == (imm >> sh) << sh) {
+            tcg_gen_addi_i32(t, a2, imm >> sh);
+            a2 = t;
+            imm = 0;
+        }
+    }
+
+    if (sh == 0) {
+        tcg_gen_add_i32(ret, a1, a2);
+    } else if (TCG_TARGET_lea_sh_valid(TCG_TYPE_I32, sh)) {
+        tcg_gen_op5ii_i32(INDEX_op_lea, ret, a1, a2, sh, 0);
+    } else {
+        tcg_gen_shli_i32(t, a2, sh);
+        tcg_gen_add_i32(ret, a1, t);
+    }
+    tcg_gen_addi_i32(ret, ret, imm);
+ done:
+    tcg_temp_free_i32(t);
+}
+
 void tcg_gen_brcond_i32(TCGCond cond, TCGv_i32 arg1, TCGv_i32 arg2, TCGLabel *l)
 {
     if (cond == TCG_COND_ALWAYS) {
@@ -1621,6 +1666,51 @@ void tcg_gen_sari_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
     } else {
         tcg_gen_sar_i64(ret, arg1, tcg_constant_i64(arg2));
     }
+}
+
+void tcg_gen_lea_i64(TCGv_i64 ret, TCGv_i64 a1, TCGv_i64 a2,
+                     int64_t sh, int64_t imm)
+{
+    TCGv_i64 t = tcg_temp_ebb_new_i64();
+
+    if (imm != 0) {
+        if (TCG_TARGET_lea_imm_valid(TCG_TYPE_I64, imm)) {
+            /*
+             * The immediate is non-zero and valid.
+             * If the shift is out of range, perform the shift first
+             * so that we can still emit (a1 + t + imm) as one insn.
+             */
+            if (!TCG_TARGET_lea_sh_valid(TCG_TYPE_I64, sh)) {
+                tcg_gen_shli_i64(t, a2, sh);
+                a2 = t;
+                sh = 0;
+            }
+            tcg_gen_op5ii_i64(INDEX_op_lea, ret, a1, a2, sh, imm);
+            goto done;
+        }
+
+        /*
+         * If we can make the immediate smaller by folding it
+         * into a2 before the shift, do so.
+         */
+        if (sh != 0 && imm == (imm >> sh) << sh) {
+            tcg_gen_addi_i64(t, a2, imm >> sh);
+            a2 = t;
+            imm = 0;
+        }
+    }
+
+    if (sh == 0) {
+        tcg_gen_add_i64(ret, a1, a2);
+    } else if (TCG_TARGET_lea_sh_valid(TCG_TYPE_I64, sh)) {
+        tcg_gen_op5ii_i64(INDEX_op_lea, ret, a1, a2, sh, 0);
+    } else {
+        tcg_gen_shli_i64(t, a2, sh);
+        tcg_gen_add_i64(ret, a1, t);
+    }
+    tcg_gen_addi_i64(ret, ret, imm);
+ done:
+    tcg_temp_free_i64(t);
 }
 
 void tcg_gen_brcond_i64(TCGCond cond, TCGv_i64 arg1, TCGv_i64 arg2, TCGLabel *l)
