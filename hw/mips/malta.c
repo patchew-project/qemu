@@ -1301,7 +1301,7 @@ static void mips_malta_machine_init(MachineClass *mc)
     compat_props_add(mc->compat_props, malta_compat, malta_compat_len);
 }
 
-DEFINE_MACHINE("malta", mips_malta_machine_init)
+DEFINE_MACHINE("malta", mips_malta_machine_init, NULL)
 
 static void mips_malta_register_types(void)
 {

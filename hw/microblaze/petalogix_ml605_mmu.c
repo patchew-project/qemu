@@ -220,4 +220,4 @@ static void petalogix_ml605_machine_init(MachineClass *mc)
     mc->init = petalogix_ml605_init;
 }
 
-DEFINE_MACHINE("petalogix-ml605", petalogix_ml605_machine_init)
+DEFINE_MACHINE("petalogix-ml605", petalogix_ml605_machine_init, NULL)

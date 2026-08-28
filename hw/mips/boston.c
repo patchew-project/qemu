@@ -850,4 +850,4 @@ static void boston_mach_class_init(MachineClass *mc)
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("I6400");
 }
 
-DEFINE_MACHINE("boston", boston_mach_class_init)
+DEFINE_MACHINE("boston", boston_mach_class_init, NULL)

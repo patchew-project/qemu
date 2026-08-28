@@ -427,4 +427,4 @@ static void amigaone_machine_init(MachineClass *mc)
     mc->default_ram_size = 512 * MiB;
 }
 
-DEFINE_MACHINE("amigaone", amigaone_machine_init)
+DEFINE_MACHINE("amigaone", amigaone_machine_init, NULL)

@@ -519,4 +519,4 @@ static void sam460ex_machine_init(MachineClass *mc)
     mc->default_ram_id = "ppc4xx.sdram";
 }
 
-DEFINE_MACHINE("sam460ex", sam460ex_machine_init)
+DEFINE_MACHINE("sam460ex", sam460ex_machine_init, NULL)

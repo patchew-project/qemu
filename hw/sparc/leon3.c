@@ -443,4 +443,4 @@ static void leon3_generic_machine_init(MachineClass *mc)
     mc->max_cpus = MAX_CPUS;
 }
 
-DEFINE_MACHINE("leon3_generic", leon3_generic_machine_init)
+DEFINE_MACHINE("leon3_generic", leon3_generic_machine_init, NULL)

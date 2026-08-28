@@ -339,4 +339,4 @@ static void mips_fuloong2e_machine_init(MachineClass *mc)
     machine_add_audiodev_property(mc);
 }
 
-DEFINE_MACHINE("fuloong2e", mips_fuloong2e_machine_init)
+DEFINE_MACHINE("fuloong2e", mips_fuloong2e_machine_init, NULL)

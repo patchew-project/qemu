@@ -137,4 +137,4 @@ static void kzm_machine_init(MachineClass *mc)
     mc->default_ram_id = "kzm.ram";
 }
 
-DEFINE_MACHINE("kzm", kzm_machine_init)
+DEFINE_MACHINE("kzm", kzm_machine_init, NULL)

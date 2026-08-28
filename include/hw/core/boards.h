@@ -536,9 +536,9 @@ struct MachineState {
     } \
     type_init(machine_initfn##_register_types)
 
-#define DEFINE_MACHINE(namestr, machine_initfn) \
+#define DEFINE_MACHINE(namestr, machine_initfn, available_cb) \
     DEFINE_MACHINE_EXTENDED(namestr, MACHINE, MachineState, machine_initfn, \
-                            false, NULL, NULL)
+                            false, available_cb, NULL)
 
 /*
  * Helper for dispatching different macros based on how

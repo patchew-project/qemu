@@ -289,4 +289,4 @@ static void virtex_machine_init(MachineClass *mc)
     mc->default_ram_id = "ram";
 }
 
-DEFINE_MACHINE("virtex-ml507", virtex_machine_init)
+DEFINE_MACHINE("virtex-ml507", virtex_machine_init, NULL)

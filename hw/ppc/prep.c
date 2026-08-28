@@ -456,4 +456,4 @@ static void ibm_40p_machine_init(MachineClass *mc)
     machine_add_audiodev_property(mc);
 }
 
-DEFINE_MACHINE("40p", ibm_40p_machine_init)
+DEFINE_MACHINE("40p", ibm_40p_machine_init, NULL)

@@ -265,4 +265,4 @@ static void bamboo_machine_init(MachineClass *mc)
     mc->default_nic = "e1000";
 }
 
-DEFINE_MACHINE("bamboo", bamboo_machine_init)
+DEFINE_MACHINE("bamboo", bamboo_machine_init, NULL)

@@ -131,4 +131,4 @@ static void xtensa_sim_machine_init(MachineClass *mc)
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
 }
 
-DEFINE_MACHINE("sim", xtensa_sim_machine_init)
+DEFINE_MACHINE("sim", xtensa_sim_machine_init, NULL)

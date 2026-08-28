@@ -213,4 +213,4 @@ static void clipper_machine_init(MachineClass *mc)
     mc->default_nic = "e1000";
 }
 
-DEFINE_MACHINE("clipper", clipper_machine_init)
+DEFINE_MACHINE("clipper", clipper_machine_init, NULL)

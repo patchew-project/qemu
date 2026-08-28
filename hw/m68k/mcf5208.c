@@ -398,4 +398,4 @@ static void mcf5208evb_machine_init(MachineClass *mc)
     mc->default_ram_id = "mcf5208.ram";
 }
 
-DEFINE_MACHINE("mcf5208evb", mcf5208evb_machine_init)
+DEFINE_MACHINE("mcf5208evb", mcf5208evb_machine_init, NULL)

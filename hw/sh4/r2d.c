@@ -387,4 +387,4 @@ static void r2d_machine_init(MachineClass *mc)
     mc->default_nic = "rtl8139";
 }
 
-DEFINE_MACHINE("r2d", r2d_machine_init)
+DEFINE_MACHINE("r2d", r2d_machine_init, NULL)

@@ -108,4 +108,4 @@ static void emcraft_sf2_machine_init(MachineClass *mc)
     mc->valid_cpu_types = valid_cpu_types;
 }
 
-DEFINE_MACHINE("emcraft-sf2", emcraft_sf2_machine_init)
+DEFINE_MACHINE("emcraft-sf2", emcraft_sf2_machine_init, NULL)

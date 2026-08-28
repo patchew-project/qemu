@@ -101,4 +101,4 @@ static void an5206_machine_init(MachineClass *mc)
     mc->default_ram_id = "an5206.ram";
 }
 
-DEFINE_MACHINE("an5206", an5206_machine_init)
+DEFINE_MACHINE("an5206", an5206_machine_init, NULL)
