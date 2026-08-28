@@ -127,7 +127,7 @@ static const ARMCPUInfo arm_max_cpu = {
 
 static void arm_max_cpu_register_types(void)
 {
-    arm_cpu_register(&arm_max_cpu);
+    arm_cpu_register(&arm_max_cpu, target_base_arm);
 }
 
 type_init(arm_max_cpu_register_types)

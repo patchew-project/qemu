@@ -2670,13 +2670,14 @@ static void cpu_register_class_init(ObjectClass *oc, const void *data)
     }
 }
 
-void arm_cpu_register(const ARMCPUInfo *info)
+void arm_cpu_register(const ARMCPUInfo *info, bool (*is_available)(void))
 {
     TypeInfo type_info = {
         .parent = TYPE_ARM_CPU,
         .instance_init = arm_cpu_instance_init,
         .class_init = info->class_init ?: cpu_register_class_init,
         .class_data = info,
+        .is_available = is_available,
     };
 
     type_info.name = g_strdup_printf("%s-" TYPE_ARM_CPU, info->name);

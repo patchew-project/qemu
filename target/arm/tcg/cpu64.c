@@ -1548,7 +1548,7 @@ static void aarch64_cpu_register_types(void)
     size_t i;
 
     for (i = 0; i < ARRAY_SIZE(aarch64_cpus); ++i) {
-        arm_cpu_register(&aarch64_cpus[i]);
+        arm_cpu_register(&aarch64_cpus[i], target_aarch64);
     }
 }
 

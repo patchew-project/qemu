@@ -406,7 +406,7 @@ static inline int r14_bank_number(int mode)
     return (mode == ARM_CPU_MODE_HYP) ? BANK_USRSYS : bank_number(mode);
 }
 
-void arm_cpu_register(const ARMCPUInfo *info);
+void arm_cpu_register(const ARMCPUInfo *info, bool (*is_available)(void));
 
 void arm_do_plugin_vcpu_discon_cb(CPUState *cs, uint64_t from);
 void register_cp_regs_for_features(ARMCPU *cpu);
