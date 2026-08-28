@@ -43,6 +43,9 @@ static const TargetInfo target_info_stub = {
     .page_bits_vary = false,
     .page_bits_init = TARGET_PAGE_BITS,
 #endif
+#ifdef CONFIG_CXL
+    .config_cxl = true,
+#endif
 #ifdef CONFIG_DPCD
     .config_dpcd = true,
 #endif

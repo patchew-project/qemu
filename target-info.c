@@ -42,6 +42,11 @@ bool target_big_endian(void)
     return target_endian_mode() == ENDIAN_MODE_BIG;
 }
 
+bool target_config_cxl(void)
+{
+    return target_info()->config_cxl;
+}
+
 bool target_config_dpcd(void)
 {
     return target_info()->config_dpcd;
