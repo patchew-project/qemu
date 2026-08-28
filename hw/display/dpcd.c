@@ -155,6 +155,7 @@ static const TypeInfo dpcd_info = {
     .instance_size = sizeof(DPCDState),
     .class_init    = dpcd_class_init,
     .instance_init = dpcd_init,
+    .is_available  = target_config_dpcd,
 };
 
 static void dpcd_register_types(void)
