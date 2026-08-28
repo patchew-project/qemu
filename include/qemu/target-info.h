@@ -85,6 +85,13 @@ bool target_arm(void);
 bool target_aarch64(void);
 
 /**
+ * target_microblaze:
+ *
+ * Returns whether the target architecture is Microblaze.
+ */
+bool target_microblaze(void);
+
+/**
  * target_base_ppc:
  *
  * Returns whether the target architecture is PowerPC 32-bit or 64-bit.

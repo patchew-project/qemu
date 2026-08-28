@@ -78,6 +78,12 @@ bool target_aarch64(void)
     return target_arch() == SYS_EMU_TARGET_AARCH64;
 }
 
+bool target_microblaze(void)
+{
+    return target_arch() == SYS_EMU_TARGET_MICROBLAZE;
+}
+
+
 bool target_base_ppc(void)
 {
     switch (target_arch()) {
