@@ -281,6 +281,15 @@ static QemuOptsList qemu_accel_opts = {
     },
 };
 
+static QemuOptsList qemu_target_opts = {
+    .name = "target",
+    .implied_opt_name = "target",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_target_opts.head),
+    .desc = {
+        { /* end of list */ },
+    },
+};
+
 static QemuOptsList qemu_boot_opts = {
     .name = "boot-opts",
     .implied_opt_name = "order",
@@ -2891,6 +2900,7 @@ void qemu_init(int argc, char **argv)
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
     qemu_add_opts(&qemu_action_opts);
+    qemu_add_opts(&qemu_target_opts);
     qemu_add_run_with_opts();
     module_call_init(MODULE_INIT_OPTS);
 
@@ -2900,7 +2910,26 @@ void qemu_init(int argc, char **argv)
     os_setup_limits();
 
     module_call_init(MODULE_INIT_TARGET_INFO);
-    target_info_qom_set_target();
+
+    /*
+     * Identify target: first from option, then from argv[0].
+     * This happens even before handling --help option, because it may contain
+     * entries that are target specific.
+     */
+    for (int idx = 1; idx < argc;) {
+        if (argv[idx][0] != '-') {
+            idx++;
+        } else {
+            const QEMUOption *popt = lookup_opt(argc, argv, &optarg, &idx);
+            if (popt->index == QEMU_OPTION_target) {
+                target_info_qom_set_target_from_name(optarg);
+                break;
+            }
+        }
+    }
+    if (!target_info()) {
+        target_info_qom_set_target();
+    }
 
     module_init_info(qemu_modinfo);
     module_allow_arch(target_name());
@@ -2948,6 +2977,9 @@ void qemu_init(int argc, char **argv)
                 exit(1);
             }
             switch(popt->index) {
+            case QEMU_OPTION_target:
+                /* handled previously, ignore it here */
+                break;
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
                 cpu_option = optarg;

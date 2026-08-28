@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qom/object.h"
+#include "qemu/error-report.h"
 #include "qemu/target-info-impl.h"
 #include "qemu/target-info-init.h"
 #include "qemu/target-info-qom.h"
@@ -50,6 +51,36 @@ void target_info_qom_set_target(void)
                                  "no target-info is available" :
                                  "more than one target-info is available");
     }
-
     target_info_ptr = TARGET_INFO_CLASS(targets->data)->target_info;
+}
+
+static void list_targets_available(void)
+{
+    printf("List of targets available:\n");
+    g_autoptr(GSList) targets = object_class_get_list_sorted(TYPE_TARGET_INFO, false);
+    for (GSList *elem = targets; elem; elem = elem->next) {
+        const TargetInfo *ti = TARGET_INFO_CLASS(elem->data)->target_info;
+        printf("- %s\n", ti->target_name);
+    }
+}
+
+void target_info_qom_set_target_from_name(const char *name)
+{
+    if (!strcmp(name, "help")) {
+        list_targets_available();
+        exit(0);
+    }
+
+    g_autoptr(GSList) targets = object_class_get_list(TYPE_TARGET_INFO, false);
+    for (GSList *elem = targets; elem; elem = elem->next) {
+        const TargetInfo *ti = TARGET_INFO_CLASS(elem->data)->target_info;
+        if (!strcmp(name, ti->target_name)) {
+            target_info_ptr = ti;
+            return;
+        }
+    }
+
+    error_report("target '%s' is not available", name);
+    list_targets_available();
+    exit(1);
 }

@@ -24,6 +24,14 @@ SRST
     Display version information and exit
 ERST
 
+DEF("target", HAS_ARG, QEMU_OPTION_target, \
+    "-target target  selects the target architecture ('-target help' for list)\n",
+    QEMU_ARCH_ALL)
+SRST
+``-target target``
+    Selects target architecture ('-target help' for list)
+ERST
+
 DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "-machine [type=]name[,prop=value[,...]]\n"
     "                selects emulated machine ('-machine help' for list)\n"
