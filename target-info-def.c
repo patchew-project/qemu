@@ -46,6 +46,9 @@ static const TargetInfo target_info_stub = {
 #ifdef CONFIG_MULTIPROCESS
     .config_multiprocess = true,
 #endif
+#ifdef CONFIG_NITRO
+    .config_nitro = true,
+#endif
 };
 
 target_info_init(target_info_stub)

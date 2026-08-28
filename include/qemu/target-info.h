@@ -50,6 +50,13 @@ bool target_big_endian(void);
 bool target_config_multiprocess(void);
 
 /**
+ * target_config_nitro:
+ *
+ * Returns true if target defines CONFIG_NITRO.
+ */
+bool target_config_nitro(void);
+
+/**
  * target_base_arm:
  *
  * Returns whether the target architecture is ARM or Aarch64.

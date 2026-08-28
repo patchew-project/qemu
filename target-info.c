@@ -47,6 +47,11 @@ bool target_config_multiprocess(void)
     return target_info()->config_multiprocess;
 }
 
+bool target_config_nitro(void)
+{
+    return target_info()->config_nitro;
+}
+
 bool target_base_arm(void)
 {
     switch (target_arch()) {
