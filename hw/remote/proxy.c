@@ -230,6 +230,7 @@ static const TypeInfo pci_proxy_dev_type_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIProxyDev),
     .class_init    = pci_proxy_dev_class_init,
+    .is_available  = target_config_multiprocess,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
