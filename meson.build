@@ -4250,6 +4250,16 @@ if host_os == 'darwin'
 endif
 
 traceable = []
+single_binary_libs = []
+single_binary_deps = []
+single_binary_crates = []
+single_binary_available = false
+
+single_binary_supported_targets = [
+  'aarch64-softmmu',
+  'arm-softmmu',
+]
+
 emulators = {}
 foreach target : target_dirs
   config_target = config_target_mak[target]
@@ -4402,6 +4412,13 @@ foreach target : target_dirs
                  build_by_default: false)
 
   if target.endswith('-softmmu')
+    if target in single_binary_supported_targets
+      single_binary_libs += lib
+      single_binary_deps += arch_deps
+      single_binary_deps += target_stubs
+      single_binary_crates += main_rs
+      single_binary_available = true
+    endif
     execs = [{
       'name': 'qemu-system-' + target_name,
       'win_subsystem': 'console',
@@ -4482,6 +4499,33 @@ foreach target : target_dirs
 
   endforeach
 endforeach
+
+single_binary_objects = []
+foreach lib: single_binary_libs
+  single_binary_objects += lib.extract_all_objects(recursive: true)
+endforeach
+
+single_binary_link_args = emulator_link_args
+single_binary_link_args += enable_modules ? ['@block.syms', '@qemu.syms'] : []
+
+if single_binary_available
+  executable('qemu-system',
+             sources: [single_binary_crates, files('system/main.c')],
+             dependencies: single_binary_deps,
+             objects: single_binary_objects,
+             link_depends: [block_syms, qemu_syms],
+             link_args: single_binary_link_args,
+             build_by_default: false)
+else
+  error_str = f'''qemu-system only support targets:
+@single_binary_supported_targets@
+
+use ./configure --target-list= to choose at least one of them'''
+  t = custom_target(command: ['sh', '-c', 'echo "' + error_str + '" && exit 1'],
+                    output: 'none',
+                    build_by_default: false)
+  alias_target('qemu-system', t)
+endif
 
 # Other build targets
 
