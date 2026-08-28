@@ -161,6 +161,7 @@ static const TypeInfo imx8mp_evk_machine_types[] = {
         .class_init = imx8mp_evk_machine_class_init,
         .instance_init = imx8mp_evk_machine_init,
         .instance_size = sizeof(FslImx8mpEvkState),
+        .is_available = target_aarch64,
     },
 };
 

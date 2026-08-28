@@ -21,6 +21,7 @@ static const TypeInfo ax3000_evk_types[] = {
         .name          = MACHINE_TYPE_NAME("axiado-scm3003"),
         .parent        = TYPE_AX3000_MACHINE,
         .class_init    = axiado_scm3003_class_init,
+        .is_available  = target_aarch64,
     }
 };
 

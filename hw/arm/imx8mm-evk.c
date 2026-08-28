@@ -122,8 +122,10 @@ static const char *imx8mm_evk_get_default_cpu_type(const MachineState *ms)
     return ARM_CPU_TYPE_NAME("cortex-a53");
 }
 
-static void imx8mm_evk_machine_init(MachineClass *mc)
+static void imx8mm_evk_machine_class_init(ObjectClass *oc, const void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "NXP i.MX 8MM EVK Board";
     mc->init = imx8mm_evk_init;
     mc->max_cpus = FSL_IMX8MM_NUM_CPUS;
@@ -133,6 +135,14 @@ static void imx8mm_evk_machine_init(MachineClass *mc)
     mc->get_default_cpu_type = imx8mm_evk_get_default_cpu_type;
 }
 
-DEFINE_MACHINE_EXTENDED("imx8mm-evk", MACHINE, Imx8mmEvkMachineState,
-                        imx8mm_evk_machine_init, false,
-                        NULL)
+static const TypeInfo imx8mm_evk_machine_types[] = {
+    {
+        .name = TYPE_IMX8MM_EVK_MACHINE,
+        .parent = TYPE_MACHINE,
+        .class_init = imx8mm_evk_machine_class_init,
+        .instance_size = sizeof(Imx8mmEvkMachineState),
+        .is_available = target_aarch64,
+    },
+};
+
+DEFINE_TYPES(imx8mm_evk_machine_types)
