@@ -1626,6 +1626,9 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         break;
     case 0xd08: /* Vector Table Offset.  */
         cpu->env.v7m.vecbase[attrs.secure] = value & 0xffffff80;
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_SECURITY)) {
+            cpu->env.v7m.vecbase[!attrs.secure] = value & 0xffffff80;
+        }
         break;
     case 0xd0c: /* Application Interrupt/Reset Control (AIRCR) */
         if ((value >> R_V7M_AIRCR_VECTKEY_SHIFT) == 0x05fa) {
