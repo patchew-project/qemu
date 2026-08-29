@@ -379,10 +379,12 @@ config RP2040
     select ARM_V7M
     select PL011
     select RP2040_NYI
+    select RP2040_ROSC
     select RP2040_SYSCFG
     select RP2040_SYSINFO
     select RP2040_TBMAN
     select RP2040_VREG
+    select RP2040_XOSC
     select UNIMP
 
 config STM32F100_SOC
