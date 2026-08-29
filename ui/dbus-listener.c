@@ -896,16 +896,18 @@ static void dbus_cursor_define(DisplayChangeListener *dcl,
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
     GVariant *v_data = NULL;
+    size_t size = c->width * c->height * 4;
+    void *copy = g_memdup2(c->data, size);
 
     ddl_discard_cursor_messages(ddl);
 
     v_data = g_variant_new_from_data(
         G_VARIANT_TYPE("ay"),
-        c->data,
-        c->width * c->height * 4,
+        copy,
+        size,
         TRUE,
-        (GDestroyNotify)cursor_unref,
-        cursor_ref(c));
+        g_free,
+        copy);
 
     qemu_dbus_display1_listener_call_cursor_define(
         ddl->proxy,
