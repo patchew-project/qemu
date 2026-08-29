@@ -20,6 +20,30 @@ run-test-armv6m-undef: QEMU_OPTS=-semihosting-config enable=on,target=native,cha
 
 ARM_TESTS+=test-armv6m-undef
 
+RP2040_TESTS=rp2040-boot rp2040-uart rp2040-mpu
+
+$(RP2040_TESTS): %: %.S rp2040-minimal.ld
+	$(CC) -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft \
+		-Wl,--build-id=none -x assembler-with-cpp \
+		$< -o $@ -nostdlib -static \
+		-T $(ARM_SRC)/rp2040-minimal.ld
+
+run-rp2040-boot: QEMU_OPTS=-M raspi-pico \
+	-semihosting-config enable=on,target=native -kernel
+
+run-rp2040-uart run-rp2040-mpu: QEMU_OPTS=-M raspi-pico \
+	-serial chardev:output \
+	-semihosting-config enable=on,target=native -kernel
+
+run-rp2040-uart run-rp2040-mpu: run-rp2040-%: rp2040-%
+	$(call run-test, $<, \
+	  $(QEMU) -monitor none -display none \
+		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
+		  $(QEMU_OPTS) $<)
+	$(call diff-out,$<,$(ARM_SRC)/$<.ref)
+
+ARM_TESTS+=$(RP2040_TESTS)
+
 # These objects provide the basic boot code and helper functions for all tests
 CRT_OBJS=boot.o
 

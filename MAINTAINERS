@@ -1042,6 +1042,7 @@ S: Maintained
 F: hw/*/rp2040*
 F: include/hw/*/rp2040*
 F: hw/arm/raspi_pico.c
+F: tests/tcg/arm/system/rp2040*
 
 Real View
 M: Peter Maydell <peter.maydell@linaro.org>
