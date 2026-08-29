@@ -380,6 +380,7 @@ config RP2040
     select PL011
     select RP2040_CLOCKS
     select RP2040_NYI
+    select RP2040_PADS
     select RP2040_PLL
     select RP2040_PSM
     select RP2040_RESETS

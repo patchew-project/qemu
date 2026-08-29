@@ -107,6 +107,9 @@ config RP2040_CLOCKS
 config RP2040_NYI
     bool
 
+config RP2040_PADS
+    bool
+
 config RP2040_PLL
     bool
 
