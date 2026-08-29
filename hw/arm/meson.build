@@ -32,6 +32,8 @@ arm_common_ss.add(when: 'CONFIG_RASPI', if_true: files(
   'raspi.c',
   'raspi4b.c'
 ))
+arm_common_ss.add(when: 'CONFIG_RP2040', if_true: files('rp2040.c'))
+arm_common_ss.add(when: 'CONFIG_RASPI_PICO', if_true: files('raspi_pico.c'))
 arm_common_ss.add(when: 'CONFIG_STM32F100_SOC', if_true: files('stm32f100_soc.c'))
 arm_common_ss.add(when: 'CONFIG_STM32F205_SOC', if_true: files('stm32f205_soc.c'))
 arm_common_ss.add(when: 'CONFIG_STM32F405_SOC', if_true: files('stm32f405_soc.c'))
