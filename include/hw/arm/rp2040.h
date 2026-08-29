@@ -14,6 +14,7 @@
 #include "hw/core/clock.h"
 #include "hw/core/sysbus.h"
 #include "hw/misc/rp2040_clocks.h"
+#include "hw/misc/rp2040_iobank0.h"
 #include "hw/misc/rp2040_pads.h"
 #include "hw/misc/rp2040_pll.h"
 #include "hw/misc/rp2040_psm.h"
@@ -47,6 +48,7 @@ struct RP2040State {
     ARMv7MState armv7m;
     PL011State uart[2];
     RP2040ClocksState clocks;
+    RP2040IoBank0State iobank0;
     RP2040PadsBank0State pads_bank0;
     RP2040PadsQspiState pads_qspi;
     RP2040PllState pll_sys;

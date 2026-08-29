@@ -104,6 +104,9 @@ config FSL_IMX8MP_CCM
 config RP2040_CLOCKS
     bool
 
+config RP2040_IOBANK0
+    bool
+
 config RP2040_NYI
     bool
 
