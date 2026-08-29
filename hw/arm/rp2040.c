@@ -18,8 +18,6 @@
 #include "qemu/datadir.h"
 #include "target/arm/cpu-qom.h"
 
-#define RP2040_SYSCLK_FRQ 125000000
-
 #define RP2040_UART0_BASE 0x40034000
 #define RP2040_UART0_IRQ  20
 #define RP2040_UART1_BASE 0x40038000
@@ -50,15 +48,12 @@ static const struct {
     hwaddr base;
     hwaddr size;
 } rp2040_unimplemented[] = {
-    { "rp2040.clocks",   0x40008000, 0x4000 },
     { "rp2040.resets",   0x4000c000, 0x4000 },
     { "rp2040.psm",      0x40010000, 0x4000 },
     { "rp2040.iobank0",  0x40014000, 0x4000 },
     { "rp2040.ioqspi",   0x40018000, 0x4000 },
     { "rp2040.padsbank0", 0x4001c000, 0x4000 },
     { "rp2040.padsqspi", 0x40020000, 0x4000 },
-    { "rp2040.pll_sys",  0x40028000, 0x4000 },
-    { "rp2040.pll_usb",  0x4002c000, 0x4000 },
     { "rp2040.busctrl",  0x40030000, 0x4000 },
     { "rp2040.uart0_aliases", 0x40035000, 0x3000 },
     { "rp2040.uart1_aliases", 0x40039000, 0x3000 },
@@ -173,6 +168,20 @@ static void rp2040_soc_init(Object *obj)
                                   "chardev");
     }
 
+    object_initialize_child(obj, "clocks", &s->clocks, TYPE_RP2040_CLOCKS);
+
+    object_initialize_child(obj, "pll-sys", &s->pll_sys, TYPE_RP2040_PLL);
+    qdev_prop_set_string(DEVICE(&s->pll_sys), "trace-name",
+                         "rp2040.pll_sys");
+    qdev_prop_set_uint32(DEVICE(&s->pll_sys), "base", RP2040_PLL_SYS_BASE);
+    qdev_prop_set_uint32(DEVICE(&s->pll_sys), "fallback-hz", 125000000);
+
+    object_initialize_child(obj, "pll-usb", &s->pll_usb, TYPE_RP2040_PLL);
+    qdev_prop_set_string(DEVICE(&s->pll_usb), "trace-name",
+                         "rp2040.pll_usb");
+    qdev_prop_set_uint32(DEVICE(&s->pll_usb), "base", RP2040_PLL_USB_BASE);
+    qdev_prop_set_uint32(DEVICE(&s->pll_usb), "fallback-hz", 48000000);
+
     object_initialize_child(obj, "syscfg", &s->syscfg, TYPE_RP2040_SYSCFG);
     object_initialize_child(obj, "sysinfo", &s->sysinfo, TYPE_RP2040_SYSINFO);
     object_initialize_child(obj, "rosc", &s->rosc, TYPE_RP2040_ROSC);
@@ -182,7 +191,6 @@ static void rp2040_soc_init(Object *obj)
 
     s->irq = qemu_allocate_irqs(rp2040_set_irq, s, RP2040_NUM_IRQS);
     s->sysclk = clock_new(obj, "sysclk");
-    clock_set_hz(s->sysclk, RP2040_SYSCLK_FRQ);
 }
 
 static bool rp2040_init_memory(RP2040State *s, Error **errp)
@@ -298,6 +306,27 @@ static void rp2040_soc_realize(DeviceState *dev, Error **errp)
                                     rp2040_unimplemented[i].size);
     }
 
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->pll_sys), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->pll_sys), 0, RP2040_PLL_SYS_BASE);
+
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->pll_usb), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->pll_usb), 0, RP2040_PLL_USB_BASE);
+
+    qdev_connect_clock_in(DEVICE(&s->clocks), "pll-sys",
+                          qdev_get_clock_out(DEVICE(&s->pll_sys), "clk"));
+    qdev_connect_clock_in(DEVICE(&s->clocks), "pll-usb",
+                          qdev_get_clock_out(DEVICE(&s->pll_usb), "clk"));
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->clocks), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->clocks), 0, RP2040_CLOCKS_BASE);
+    clock_set_source(s->sysclk, qdev_get_clock_out(DEVICE(&s->clocks),
+                                                   "clk-sys"));
+
     qdev_connect_clock_in(DEVICE(&s->armv7m), "cpuclk", s->sysclk);
     object_property_set_link(OBJECT(&s->armv7m), "memory",
                              OBJECT(s->board_memory), &err);
@@ -346,7 +375,9 @@ static void rp2040_soc_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->xosc), 0, RP2040_XOSC_BASE);
 
     for (i = 0; i < ARRAY_SIZE(s->uart); i++) {
-        qdev_connect_clock_in(DEVICE(&s->uart[i]), "clk", s->sysclk);
+        qdev_connect_clock_in(DEVICE(&s->uart[i]), "clk",
+                              qdev_get_clock_out(DEVICE(&s->clocks),
+                                                 "clk-peri"));
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), errp)) {
             return;
         }
