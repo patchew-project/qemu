@@ -107,6 +107,9 @@ config RP2040_CLOCKS
 config RP2040_IOBANK0
     bool
 
+config RP2040_IOQSPI
+    bool
+
 config RP2040_NYI
     bool
 
