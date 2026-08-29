@@ -110,6 +110,12 @@ config RP2040_NYI
 config RP2040_PLL
     bool
 
+config RP2040_PSM
+    bool
+
+config RP2040_RESETS
+    bool
+
 config RP2040_ROSC
     bool
 

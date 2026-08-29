@@ -15,6 +15,8 @@
 #include "hw/core/sysbus.h"
 #include "hw/misc/rp2040_clocks.h"
 #include "hw/misc/rp2040_pll.h"
+#include "hw/misc/rp2040_psm.h"
+#include "hw/misc/rp2040_resets.h"
 #include "hw/misc/rp2040_rosc.h"
 #include "hw/misc/rp2040_syscfg.h"
 #include "hw/misc/rp2040_sysinfo.h"
@@ -45,6 +47,8 @@ struct RP2040State {
     RP2040ClocksState clocks;
     RP2040PllState pll_sys;
     RP2040PllState pll_usb;
+    RP2040PsmState psm;
+    RP2040ResetsState resets;
     RP2040SysCfgState syscfg;
     RP2040SysInfoState sysinfo;
     RP2040RoscState rosc;

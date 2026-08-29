@@ -257,6 +257,7 @@ qtests_arm = \
   (config_all_devices.has_key('CONFIG_MICROBIT') ? ['microbit-test'] : []) + \
   (config_all_devices.has_key('CONFIG_RASPI_PICO') ? ['rp2040-sysinfo-syscfg-test',
                                                        'rp2040-clocks-test',
+                                                       'rp2040-resets-test',
                                                        'rp2040-rosc-test',
                                                        'rp2040-tbman-test',
                                                        'rp2040-vreg-test'] : []) + \

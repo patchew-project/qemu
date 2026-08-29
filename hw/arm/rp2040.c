@@ -48,8 +48,6 @@ static const struct {
     hwaddr base;
     hwaddr size;
 } rp2040_unimplemented[] = {
-    { "rp2040.resets",   0x4000c000, 0x4000 },
-    { "rp2040.psm",      0x40010000, 0x4000 },
     { "rp2040.iobank0",  0x40014000, 0x4000 },
     { "rp2040.ioqspi",   0x40018000, 0x4000 },
     { "rp2040.padsbank0", 0x4001c000, 0x4000 },
@@ -182,6 +180,8 @@ static void rp2040_soc_init(Object *obj)
     qdev_prop_set_uint32(DEVICE(&s->pll_usb), "base", RP2040_PLL_USB_BASE);
     qdev_prop_set_uint32(DEVICE(&s->pll_usb), "fallback-hz", 48000000);
 
+    object_initialize_child(obj, "psm", &s->psm, TYPE_RP2040_PSM);
+    object_initialize_child(obj, "resets", &s->resets, TYPE_RP2040_RESETS);
     object_initialize_child(obj, "syscfg", &s->syscfg, TYPE_RP2040_SYSCFG);
     object_initialize_child(obj, "sysinfo", &s->sysinfo, TYPE_RP2040_SYSINFO);
     object_initialize_child(obj, "rosc", &s->rosc, TYPE_RP2040_ROSC);
@@ -326,6 +326,16 @@ static void rp2040_soc_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->clocks), 0, RP2040_CLOCKS_BASE);
     clock_set_source(s->sysclk, qdev_get_clock_out(DEVICE(&s->clocks),
                                                    "clk-sys"));
+
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->psm), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->psm), 0, RP2040_PSM_BASE);
+
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->resets), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->resets), 0, RP2040_RESETS_BASE);
 
     qdev_connect_clock_in(DEVICE(&s->armv7m), "cpuclk", s->sysclk);
     object_property_set_link(OBJECT(&s->armv7m), "memory",

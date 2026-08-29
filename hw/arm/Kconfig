@@ -381,6 +381,8 @@ config RP2040
     select RP2040_CLOCKS
     select RP2040_NYI
     select RP2040_PLL
+    select RP2040_PSM
+    select RP2040_RESETS
     select RP2040_ROSC
     select RP2040_SYSCFG
     select RP2040_SYSINFO
