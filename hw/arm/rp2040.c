@@ -62,7 +62,6 @@ static const struct {
     { "rp2040.adc",      0x4004c000, 0x4000 },
     { "rp2040.pwm",      0x40050000, 0x4000 },
     { "rp2040.timer",    0x40054000, 0x4000 },
-    { "rp2040.watchdog", 0x40058000, 0x4000 },
     { "rp2040.rtc",      0x4005c000, 0x4000 },
     { "rp2040.dma",      0x50000000, 0x1000 },
     { "rp2040.usbctrl_dpram", 0x50100000, 0x10000 },
@@ -187,6 +186,8 @@ static void rp2040_soc_init(Object *obj)
     object_initialize_child(obj, "rosc", &s->rosc, TYPE_RP2040_ROSC);
     object_initialize_child(obj, "tbman", &s->tbman, TYPE_RP2040_TBMAN);
     object_initialize_child(obj, "vreg", &s->vreg, TYPE_RP2040_VREG);
+    object_initialize_child(obj, "watchdog", &s->watchdog,
+                            TYPE_RP2040_WATCHDOG);
     object_initialize_child(obj, "xosc", &s->xosc, TYPE_RP2040_XOSC);
 
     s->irq = qemu_allocate_irqs(rp2040_set_irq, s, RP2040_NUM_IRQS);
@@ -378,6 +379,14 @@ static void rp2040_soc_realize(DeviceState *dev, Error **errp)
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->vreg), 0, RP2040_VREG_BASE);
+
+    qdev_connect_clock_in(DEVICE(&s->watchdog), "clk-ref",
+                          qdev_get_clock_out(DEVICE(&s->clocks), "clk-ref"));
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->watchdog), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->watchdog), 0,
+                    RP2040_WATCHDOG_BASE);
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->xosc), errp)) {
         return;

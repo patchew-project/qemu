@@ -22,6 +22,7 @@
 #include "hw/misc/rp2040_sysinfo.h"
 #include "hw/misc/rp2040_tbman.h"
 #include "hw/misc/rp2040_vreg.h"
+#include "hw/misc/rp2040_watchdog.h"
 #include "hw/misc/rp2040_xosc.h"
 #include "qom/object.h"
 
@@ -54,6 +55,7 @@ struct RP2040State {
     RP2040RoscState rosc;
     RP2040TbmanState tbman;
     RP2040VregState vreg;
+    RP2040WatchdogState watchdog;
     RP2040XoscState xosc;
 
     MemoryRegion *board_memory;

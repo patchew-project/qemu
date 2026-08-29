@@ -131,6 +131,9 @@ config RP2040_TBMAN
 config RP2040_VREG
     bool
 
+config RP2040_WATCHDOG
+    bool
+
 config RP2040_XOSC
     bool
 
