@@ -763,6 +763,7 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/char/pl011.c
 F: include/hw/char/pl011.h
+F: tests/qtest/pl011-test.c
 F: hw/display/pl110*
 F: hw/dma/pl080.c
 F: include/hw/dma/pl080.h
