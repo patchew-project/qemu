@@ -110,6 +110,12 @@ config RP2040_SYSCFG
 config RP2040_SYSINFO
     bool
 
+config RP2040_TBMAN
+    bool
+
+config RP2040_VREG
+    bool
+
 config STM32_RCC
     bool
 

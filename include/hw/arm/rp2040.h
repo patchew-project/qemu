@@ -15,6 +15,8 @@
 #include "hw/core/sysbus.h"
 #include "hw/misc/rp2040_syscfg.h"
 #include "hw/misc/rp2040_sysinfo.h"
+#include "hw/misc/rp2040_tbman.h"
+#include "hw/misc/rp2040_vreg.h"
 #include "qom/object.h"
 
 #define TYPE_RP2040 "rp2040"
@@ -38,6 +40,8 @@ struct RP2040State {
     PL011State uart[2];
     RP2040SysCfgState syscfg;
     RP2040SysInfoState sysinfo;
+    RP2040TbmanState tbman;
+    RP2040VregState vreg;
 
     MemoryRegion *board_memory;
     MemoryRegion rom;
