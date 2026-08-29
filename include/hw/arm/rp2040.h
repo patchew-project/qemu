@@ -13,6 +13,8 @@
 #include "hw/char/pl011.h"
 #include "hw/core/clock.h"
 #include "hw/core/sysbus.h"
+#include "hw/misc/rp2040_syscfg.h"
+#include "hw/misc/rp2040_sysinfo.h"
 #include "qom/object.h"
 
 #define TYPE_RP2040 "rp2040"
@@ -34,11 +36,21 @@ struct RP2040State {
 
     ARMv7MState armv7m;
     PL011State uart[2];
+    RP2040SysCfgState syscfg;
+    RP2040SysInfoState sysinfo;
 
     MemoryRegion *board_memory;
     MemoryRegion rom;
+    MemoryRegion rom_poweroff;
     MemoryRegion sram[6];
+    MemoryRegion sram_poweroff[6];
     char *bootrom_file;
+
+    qemu_irq *irq;
+    qemu_irq cpu_irq[RP2040_NUM_IRQS];
+    qemu_irq nmi_irq;
+    bool irq_level[RP2040_NUM_IRQS];
+    bool mempowerdown_ready;
 
     Clock *sysclk;
 };

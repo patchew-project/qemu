@@ -1042,6 +1042,7 @@ S: Maintained
 F: hw/*/rp2040*
 F: include/hw/*/rp2040*
 F: hw/arm/raspi_pico.c
+F: tests/qtest/rp2040*
 F: tests/tcg/arm/system/rp2040*
 
 Real View

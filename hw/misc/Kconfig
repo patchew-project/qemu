@@ -104,6 +104,12 @@ config FSL_IMX8MP_CCM
 config RP2040_NYI
     bool
 
+config RP2040_SYSCFG
+    bool
+
+config RP2040_SYSINFO
+    bool
+
 config STM32_RCC
     bool
 
