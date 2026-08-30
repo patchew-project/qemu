@@ -152,6 +152,56 @@ run-rp2040-bootrom-float run-rp2040-flash-lockout: run-%: %
 
 RP2040_TESTS+=rp2040-bootrom-float rp2040-flash-lockout
 
+rp2040-bkpt-hardfault: rp2040-bkpt-hardfault.S \
+		rp2040-boot2-w25q080.S rp2040.ld
+	$(CC) -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft \
+		-Wl,--build-id=none -x assembler-with-cpp \
+		$(ARM_SRC)/rp2040-boot2-w25q080.S $< \
+		-o $@ -nostdlib -static \
+		-T $(ARM_SRC)/rp2040.ld
+
+run-rp2040-bkpt-hardfault: QEMU_OPTS=-M raspi-pico,strict-uart-pins=off \
+	-serial chardev:output \
+	-semihosting-config enable=on,target=native -kernel
+run-rp2040-bkpt-hardfault: rp2040-bkpt-hardfault
+	$(call run-test, $<, \
+	  $(QEMU) -monitor none -display none \
+		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
+		  $(QEMU_OPTS) $<)
+	$(call diff-out,$<,$(ARM_SRC)/rp2040-bkpt-hardfault.ref)
+
+RP2040_TESTS+=rp2040-bkpt-hardfault
+
+rp2040-semihost-exit: rp2040-exit.S \
+		rp2040-boot2-w25q080.S rp2040.ld
+	$(CC) -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft \
+		-DEXIT_MODE=0 -Wl,--build-id=none -x assembler-with-cpp \
+		$(ARM_SRC)/rp2040-boot2-w25q080.S $< \
+		-o $@ -nostdlib -static \
+		-T $(ARM_SRC)/rp2040.ld
+
+run-rp2040-semihost-exit: rp2040-semihost-exit
+	@$(QEMU) -M raspi-pico -monitor none -display none -serial none \
+		-semihosting-config enable=on$(COMMA)target=native \
+		-kernel $<; rc=$$?; test $$rc -eq 23
+
+RP2040_TESTS+=rp2040-semihost-exit
+
+rp2040-pico-sdk-exit: rp2040-exit.S \
+		rp2040-boot2-w25q080.S rp2040.ld
+	$(CC) -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft \
+		-DEXIT_MODE=1 -Wl,--build-id=none -x assembler-with-cpp \
+		$(ARM_SRC)/rp2040-boot2-w25q080.S $< \
+		-o $@ -nostdlib -static \
+		-T $(ARM_SRC)/rp2040.ld
+
+run-rp2040-pico-sdk-exit: rp2040-pico-sdk-exit
+	@$(QEMU) -M raspi-pico$(COMMA)pico-sdk-exit=on \
+		-monitor none -display none -serial none -kernel $<; \
+		rc=$$?; test $$rc -eq 23
+
+RP2040_TESTS+=rp2040-pico-sdk-exit
+
 ARM_TESTS+=$(RP2040_TESTS) $(RP2040_FLASH_TESTS) $(RP2040_DMA_TESTS)
 
 # These objects provide the basic boot code and helper functions for all tests

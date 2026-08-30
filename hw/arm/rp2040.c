@@ -20,6 +20,7 @@
 #include "qemu/datadir.h"
 #include "qemu/log.h"
 #include "system/address-spaces.h"
+#include "system/runstate.h"
 #include "target/arm/cpu.h"
 #include "target/arm/cpu-qom.h"
 #include "trace.h"
@@ -76,6 +77,8 @@
 #define RP2040_BOOTROM_FLOAT_STUBS_OFFSET 0x0600
 #define RP2040_BOOTROM_DOUBLE_STUBS_OFFSET 0x0b00
 #define RP2040_BOOTROM_FP_STUB_SIZE 36
+#define RP2040_APP_HARDFAULT_VECTOR_OFFSET 0x10c
+#define RP2040_PICO_SDK_EXIT_ORIGINAL_HANDLER_OFFSET 0x38
 
 #define RP2040_SYNTHETIC_ROM_DBG_CMD  0x00
 #define RP2040_SYNTHETIC_ROM_DBG_ARG0 0x04
@@ -87,6 +90,7 @@
 #define RP2040_SYNTHETIC_ROM_DBG_RESULT2 0x1c
 #define RP2040_SYNTHETIC_ROM_DBG_RESULT3 0x20
 #define RP2040_SYNTHETIC_ROM_DBG_FLASH_COUNT0 0x40
+#define RP2040_SYNTHETIC_ROM_DBG_CMD_EXIT 0x54495845 /* "EXIT" */
 
 #define RP2040_SYNTHETIC_FP_CMD_MASK   0xffffff00
 #define RP2040_SYNTHETIC_FP_CMD_FLOAT  0x80000000
@@ -473,6 +477,17 @@ static const uint8_t rp2040_bootrom_nyi_stub[] = {
     0xfe, 0xe7,             /* b . */
     0xc0, 0x46,             /* nop; align literal */
     0x00, 0x00, 0x00, 0x00, /* function code literal */
+};
+
+static const uint8_t rp2040_pico_sdk_exit_trampoline[] = {
+    0x73, 0x46, 0x04, 0x22, 0x13, 0x42, 0x02, 0xd0,
+    0xef, 0xf3, 0x09, 0x80, 0x01, 0xe0, 0xef, 0xf3,
+    0x08, 0x80, 0x81, 0x69, 0x0a, 0x88, 0x05, 0x4b,
+    0x9a, 0x42, 0x05, 0xd1, 0x01, 0x68, 0x04, 0x4a,
+    0x51, 0x60, 0x04, 0x49, 0x11, 0x60, 0xfe, 0xe7,
+    0x03, 0x48, 0x00, 0x47, 0x00, 0xbe, 0x00, 0x00,
+    0x00, 0x00, 0xff, 0x5f, 0x45, 0x58, 0x49, 0x54,
+    0x00, 0x00, 0x00, 0x00,
 };
 
 static void rp2040_store_hword(uint8_t *rom, uint32_t offset, uint16_t value)
@@ -1316,6 +1331,12 @@ static void rp2040_synthetic_rom_dbg_write(void *opaque, hwaddr addr,
         return;
     }
 
+    if (command == RP2040_SYNTHETIC_ROM_DBG_CMD_EXIT) {
+        qemu_system_shutdown_request_with_code(SHUTDOWN_CAUSE_GUEST_SHUTDOWN,
+                                               s->synthetic_rom_dbg_arg[0]);
+        return;
+    }
+
     switch (code) {
     case RP2040_ROM_TABLE_CODE('C', 'X'):
         rp2040_synthetic_flash_helper_hit(
@@ -1418,6 +1439,55 @@ static const MemoryRegionOps rp2040_synthetic_rom_dbg_ops = {
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
+    },
+};
+
+static MemTxResult rp2040_pico_sdk_exit_page_read(void *opaque, hwaddr addr,
+                                                  uint64_t *data,
+                                                  unsigned size,
+                                                  MemTxAttrs attrs)
+{
+    RP2040State *s = opaque;
+    MemTxResult result;
+    unsigned int i;
+
+    result = rp2040_xip_read_data(&s->xip, addr, data, size);
+    if (result != MEMTX_OK) {
+        return result;
+    }
+
+    for (i = 0; i < size; i++) {
+        hwaddr cur = addr + i;
+
+        if (cur >= RP2040_APP_HARDFAULT_VECTOR_OFFSET &&
+            cur < RP2040_APP_HARDFAULT_VECTOR_OFFSET + sizeof(uint32_t)) {
+            uint8_t byte = extract32(
+                RP2040_PICO_SDK_EXIT_TRAMPOLINE_BASE | 1,
+                (cur - RP2040_APP_HARDFAULT_VECTOR_OFFSET) * 8, 8);
+
+            *data = deposit64(*data, i * 8, 8, byte);
+        }
+    }
+    return MEMTX_OK;
+}
+
+static MemTxResult rp2040_pico_sdk_exit_page_write(void *opaque,
+                                                   hwaddr addr,
+                                                   uint64_t value,
+                                                   unsigned size,
+                                                   MemTxAttrs attrs)
+{
+    return MEMTX_ERROR;
+}
+
+static const MemoryRegionOps rp2040_pico_sdk_exit_page_ops = {
+    .read_with_attrs = rp2040_pico_sdk_exit_page_read,
+    .write_with_attrs = rp2040_pico_sdk_exit_page_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+        .unaligned = true,
     },
 };
 
@@ -1729,6 +1799,15 @@ static bool rp2040_init_memory(RP2040State *s, Error **errp)
     memory_region_add_subregion(s->board_memory,
                                 RP2040_SYNTHETIC_ROM_DBG_BASE,
                                 &s->synthetic_rom_dbg);
+    if (!memory_region_init_rom(&s->pico_sdk_exit_trampoline, OBJECT(s),
+                                "rp2040.pico-sdk-exit-trampoline",
+                                RP2040_PICO_SDK_EXIT_TRAMPOLINE_SIZE, errp)) {
+        return false;
+    }
+    memory_region_add_subregion(s->board_memory,
+                                RP2040_PICO_SDK_EXIT_TRAMPOLINE_BASE,
+                                &s->pico_sdk_exit_trampoline);
+    memory_region_set_enabled(&s->pico_sdk_exit_trampoline, false);
 
     s->mempowerdown_ready = true;
 
@@ -1778,6 +1857,13 @@ static void rp2040_soc_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->xip), 1, RP2040_XIP_CTRL_BASE);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->xip), 2, RP2040_XIP_SSI_BASE);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->xip), 3, RP2040_XIP_AUX_BASE);
+    /* A page-sized overlay avoids QEMU's slower subpage dispatch path. */
+    memory_region_init_io(&s->pico_sdk_exit_page, OBJECT(dev),
+                          &rp2040_pico_sdk_exit_page_ops, s,
+                          "rp2040.pico-sdk-exit-page", 4 * KiB);
+    memory_region_add_subregion_overlap(
+        s->board_memory, RP2040_XIP_BASE, &s->pico_sdk_exit_page, 1);
+    memory_region_set_enabled(&s->pico_sdk_exit_page, false);
     memory_region_add_subregion(get_system_memory(), RP2040_XIP_NOALLOC_BASE,
                                 &s->xip.xip_noalloc);
     memory_region_add_subregion(get_system_memory(), RP2040_XIP_NOCACHE_BASE,
@@ -1999,6 +2085,37 @@ static void rp2040_soc_realize(DeviceState *dev, Error **errp)
                                        RP2040_DREQ_UART0_RX));
     }
     rp2040_update_uart_pins(s);
+}
+
+void rp2040_set_pico_sdk_exit(RP2040State *s, bool enabled, Error **errp)
+{
+    uint8_t *trampoline;
+    uint32_t original_handler;
+
+    memory_region_set_enabled(&s->pico_sdk_exit_page, false);
+    memory_region_set_enabled(&s->pico_sdk_exit_trampoline, false);
+    if (!enabled) {
+        return;
+    }
+
+    original_handler = ldl_le_p(
+        s->xip.storage + RP2040_APP_HARDFAULT_VECTOR_OFFSET);
+    if (!(original_handler & 1) || original_handler == UINT32_MAX) {
+        error_setg(errp, "pico-sdk-exit requires a valid Thumb HardFault "
+                   "handler at 0x%08x",
+                   RP2040_XIP_BASE + RP2040_APP_HARDFAULT_VECTOR_OFFSET);
+        return;
+    }
+
+    trampoline = memory_region_get_ram_ptr(&s->pico_sdk_exit_trampoline);
+    memset(trampoline, 0, RP2040_PICO_SDK_EXIT_TRAMPOLINE_SIZE);
+    memcpy(trampoline, rp2040_pico_sdk_exit_trampoline,
+           sizeof(rp2040_pico_sdk_exit_trampoline));
+    stl_le_p(trampoline + RP2040_PICO_SDK_EXIT_ORIGINAL_HANDLER_OFFSET,
+             original_handler);
+    s->pico_sdk_exit_original_handler = original_handler;
+    memory_region_set_enabled(&s->pico_sdk_exit_trampoline, true);
+    memory_region_set_enabled(&s->pico_sdk_exit_page, true);
 }
 
 static const Property rp2040_soc_properties[] = {

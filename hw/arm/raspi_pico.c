@@ -34,6 +34,7 @@ struct RaspiPicoMachineState {
     uint64_t rosc_random_seed_value;
     bool rosc_random_seed_set;
     bool strict_uart_pins;
+    bool pico_sdk_exit;
 };
 
 static char *raspi_pico_get_flash_file(Object *obj, Error **errp)
@@ -164,6 +165,7 @@ static void raspi_pico_init(MachineState *machine)
 
     rp2040_xip_load_image(&s->soc.xip, machine->kernel_filename,
                           &error_fatal);
+    rp2040_set_pico_sdk_exit(&s->soc, s->pico_sdk_exit, &error_fatal);
     armv7m_load_kernel(s->soc.armv7m[0].cpu, NULL,
                        RP2040_XIP_BASE, 2 * MiB);
     rp2040_xip_set_writable(&s->soc.xip, false);
@@ -191,6 +193,21 @@ static void raspi_pico_set_strict_uart_pins(Object *obj, bool value,
     RaspiPicoMachineState *s = RASPI_PICO_MACHINE(obj);
 
     s->strict_uart_pins = value;
+}
+
+static bool raspi_pico_get_pico_sdk_exit(Object *obj, Error **errp)
+{
+    RaspiPicoMachineState *s = RASPI_PICO_MACHINE(obj);
+
+    return s->pico_sdk_exit;
+}
+
+static void raspi_pico_set_pico_sdk_exit(Object *obj, bool value,
+                                         Error **errp)
+{
+    RaspiPicoMachineState *s = RASPI_PICO_MACHINE(obj);
+
+    s->pico_sdk_exit = value;
 }
 
 static void raspi_pico_machine_initfn(Object *obj)
@@ -241,6 +258,12 @@ static void raspi_pico_machine_class_init(ObjectClass *oc, const void *data)
                                           "Require the RP2040 IO_BANK0 "
                                           "UART pinmux before UART0 or UART1 "
                                           "reaches its host serial backend");
+    object_class_property_add_bool(oc, "pico-sdk-exit",
+                                   raspi_pico_get_pico_sdk_exit,
+                                   raspi_pico_set_pico_sdk_exit);
+    object_class_property_set_description(oc, "pico-sdk-exit",
+                                          "Convert Pico SDK exit BKPT #0 "
+                                          "HardFaults into QEMU exits");
 }
 
 static const TypeInfo raspi_pico_machine_info = {

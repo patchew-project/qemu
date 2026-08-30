@@ -54,6 +54,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(RP2040State, RP2040)
 #define RP2040_USBCTRL_REGS_SIZE  0x4000
 #define RP2040_SYNTHETIC_ROM_DBG_BASE 0x5fff0000
 #define RP2040_SYNTHETIC_ROM_DBG_SIZE 0x1000
+#define RP2040_PICO_SDK_EXIT_TRAMPOLINE_BASE 0x00004000
+#define RP2040_PICO_SDK_EXIT_TRAMPOLINE_SIZE 0x1000
 #define RP2040_SYNTHETIC_ROM_FLASH_HELPER_COUNT 6
 
 #define RP2040_NUM_CORES      2
@@ -96,6 +98,8 @@ struct RP2040State {
     MemoryRegion usbctrl_dpram_poweroff;
     MemoryRegion usbctrl_regs;
     MemoryRegion synthetic_rom_dbg;
+    MemoryRegion pico_sdk_exit_trampoline;
+    MemoryRegion pico_sdk_exit_page;
     uint32_t usbctrl_reg[0x100 / sizeof(uint32_t)];
     char *bootrom_file;
 
@@ -113,8 +117,11 @@ struct RP2040State {
     uint32_t synthetic_rom_dbg_result[4];
     uint32_t synthetic_rom_flash_helper_count[
         RP2040_SYNTHETIC_ROM_FLASH_HELPER_COUNT];
+    uint32_t pico_sdk_exit_original_handler;
 
     Clock *sysclk;
 };
+
+void rp2040_set_pico_sdk_exit(RP2040State *s, bool enabled, Error **errp);
 
 #endif
