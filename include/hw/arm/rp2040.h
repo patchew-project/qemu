@@ -54,6 +54,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(RP2040State, RP2040)
 #define RP2040_USBCTRL_REGS_SIZE  0x4000
 #define RP2040_SYNTHETIC_ROM_DBG_BASE 0x5fff0000
 #define RP2040_SYNTHETIC_ROM_DBG_SIZE 0x1000
+#define RP2040_SYNTHETIC_ROM_FLASH_HELPER_COUNT 6
 
 #define RP2040_NUM_CORES      2
 #define RP2040_NUM_IRQS       32
@@ -108,6 +109,10 @@ struct RP2040State {
     bool uart0_rx_pin_enabled;
     bool uart1_tx_pin_enabled;
     bool uart1_rx_pin_enabled;
+    uint32_t synthetic_rom_dbg_arg[4];
+    uint32_t synthetic_rom_dbg_result[4];
+    uint32_t synthetic_rom_flash_helper_count[
+        RP2040_SYNTHETIC_ROM_FLASH_HELPER_COUNT];
 
     Clock *sysclk;
 };

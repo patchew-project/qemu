@@ -16,10 +16,15 @@
 #include "hw/core/irq.h"
 #include "hw/misc/rp2040_nyi.h"
 #include "hw/misc/unimp.h"
+#include "fpu/softfloat.h"
 #include "qemu/datadir.h"
+#include "qemu/log.h"
 #include "system/address-spaces.h"
 #include "target/arm/cpu.h"
 #include "target/arm/cpu-qom.h"
+#include "trace.h"
+
+#include <math.h>
 
 #define RP2040_UART0_BASE 0x40034000
 #define RP2040_UART0_IRQ  20
@@ -64,6 +69,70 @@
 #define RP2040_BOOTROM_ROM_VERSION_OFFSET 0x13
 #define RP2040_BOOTROM_SYNTHETIC_ROM_VERSION 2
 #define RP2040_BOOTROM_FLOAT_TABLE_WORDS 32
+#define RP2040_BOOTROM_HELPER_NOARG_CODE_LITERAL_OFFSET 8
+#define RP2040_BOOTROM_HELPER_ARGS4_CODE_LITERAL_OFFSET 24
+#define RP2040_BOOTROM_HELPER_ARGS3_CODE_LITERAL_OFFSET 20
+#define RP2040_BOOTROM_FP_STUB_CODE_LITERAL_OFFSET 32
+#define RP2040_BOOTROM_FLOAT_STUBS_OFFSET 0x0600
+#define RP2040_BOOTROM_DOUBLE_STUBS_OFFSET 0x0b00
+#define RP2040_BOOTROM_FP_STUB_SIZE 36
+
+#define RP2040_SYNTHETIC_ROM_DBG_CMD  0x00
+#define RP2040_SYNTHETIC_ROM_DBG_ARG0 0x04
+#define RP2040_SYNTHETIC_ROM_DBG_ARG1 0x08
+#define RP2040_SYNTHETIC_ROM_DBG_ARG2 0x0c
+#define RP2040_SYNTHETIC_ROM_DBG_ARG3 0x10
+#define RP2040_SYNTHETIC_ROM_DBG_RESULT0 0x14
+#define RP2040_SYNTHETIC_ROM_DBG_RESULT1 0x18
+#define RP2040_SYNTHETIC_ROM_DBG_RESULT2 0x1c
+#define RP2040_SYNTHETIC_ROM_DBG_RESULT3 0x20
+#define RP2040_SYNTHETIC_ROM_DBG_FLASH_COUNT0 0x40
+
+#define RP2040_SYNTHETIC_FP_CMD_MASK   0xffffff00
+#define RP2040_SYNTHETIC_FP_CMD_FLOAT  0x80000000
+#define RP2040_SYNTHETIC_FP_CMD_DOUBLE 0x80000100
+
+enum RP2040SyntheticFlashHelper {
+    RP2040_SYNTHETIC_FLASH_CONNECT_INTERNAL_FLASH,
+    RP2040_SYNTHETIC_FLASH_EXIT_XIP,
+    RP2040_SYNTHETIC_FLASH_FLUSH_CACHE,
+    RP2040_SYNTHETIC_FLASH_ENTER_CMD_XIP,
+    RP2040_SYNTHETIC_FLASH_RANGE_ERASE,
+    RP2040_SYNTHETIC_FLASH_RANGE_PROGRAM,
+};
+
+#define RP2040_SF_TABLE_FADD            0x00
+#define RP2040_SF_TABLE_FSUB            0x04
+#define RP2040_SF_TABLE_FMUL            0x08
+#define RP2040_SF_TABLE_FDIV            0x0c
+#define RP2040_SF_TABLE_FCMP_FAST       0x10
+#define RP2040_SF_TABLE_FCMP_FAST_FLAGS 0x14
+#define RP2040_SF_TABLE_FSQRT           0x18
+#define RP2040_SF_TABLE_FLOAT2INT       0x1c
+#define RP2040_SF_TABLE_FLOAT2FIX       0x20
+#define RP2040_SF_TABLE_FLOAT2UINT      0x24
+#define RP2040_SF_TABLE_FLOAT2UFIX      0x28
+#define RP2040_SF_TABLE_INT2FLOAT       0x2c
+#define RP2040_SF_TABLE_FIX2FLOAT       0x30
+#define RP2040_SF_TABLE_UINT2FLOAT      0x34
+#define RP2040_SF_TABLE_UFIX2FLOAT      0x38
+#define RP2040_SF_TABLE_FCOS            0x3c
+#define RP2040_SF_TABLE_FSIN            0x40
+#define RP2040_SF_TABLE_FTAN            0x44
+#define RP2040_SF_TABLE_V3_FSINCOS      0x48
+#define RP2040_SF_TABLE_FEXP            0x4c
+#define RP2040_SF_TABLE_FLN             0x50
+#define RP2040_SF_TABLE_FCMP_BASIC      0x54
+#define RP2040_SF_TABLE_FATAN2          0x58
+#define RP2040_SF_TABLE_INT642FLOAT     0x5c
+#define RP2040_SF_TABLE_FIX642FLOAT     0x60
+#define RP2040_SF_TABLE_UINT642FLOAT    0x64
+#define RP2040_SF_TABLE_UFIX642FLOAT    0x68
+#define RP2040_SF_TABLE_FLOAT2INT64     0x6c
+#define RP2040_SF_TABLE_FLOAT2FIX64     0x70
+#define RP2040_SF_TABLE_FLOAT2UINT64    0x74
+#define RP2040_SF_TABLE_FLOAT2UFIX64    0x78
+#define RP2040_SF_TABLE_FLOAT2DOUBLE    0x7c
 
 /*
  * Temporary boot ROM used until a faithful RP2040 boot ROM is requested.  It
@@ -192,6 +261,7 @@ typedef struct RP2040BootromFunction {
     const char *name;
     const uint8_t *impl;
     size_t impl_size;
+    uint32_t code_literal_offset;
 } RP2040BootromFunction;
 
 typedef struct RP2040BootromData {
@@ -254,23 +324,98 @@ static const uint8_t rp2040_bootrom_memset4[] = {
     0x10, 0xbc, 0x70, 0x47,
 };
 
+static const uint8_t rp2040_bootrom_flash_noarg[] = {
+    /*
+     * Synthetic-ROM-only acceleration.  These stubs call the QEMU helper
+     * aperture directly; they do not model RP2040 SSI transactions.
+     */
+    0x01, 0x49,             /* ldr r1, [pc, #4] ; function code */
+    0x02, 0x48,             /* ldr r0, [pc, #8] ; debug base */
+    0x01, 0x60,             /* str r1, [r0] */
+    0x70, 0x47,             /* bx lr */
+    0x00, 0x00, 0x00, 0x00, /* function code literal */
+    0x00, 0x00, 0xff, 0x5f, /* 0x5fff0000 */
+};
+
+static const uint8_t rp2040_bootrom_flash_args4[] = {
+    0x10, 0xb5,             /* push {r4, lr} */
+    0x04, 0x4c,             /* ldr r4, [pc, #16] ; debug base */
+    0x60, 0x60,             /* str r0, [r4, #4] */
+    0xa1, 0x60,             /* str r1, [r4, #8] */
+    0xe2, 0x60,             /* str r2, [r4, #12] */
+    0x23, 0x61,             /* str r3, [r4, #16] */
+    0x02, 0x48,             /* ldr r0, [pc, #8] ; function code */
+    0x20, 0x60,             /* str r0, [r4] */
+    0x10, 0xbd,             /* pop {r4, pc} */
+    0xc0, 0x46,             /* nop; align literal */
+    0x00, 0x00, 0xff, 0x5f, /* 0x5fff0000 */
+    0x00, 0x00, 0x00, 0x00, /* function code literal */
+};
+
+static const uint8_t rp2040_bootrom_flash_args3[] = {
+    0x10, 0xb5,             /* push {r4, lr} */
+    0x03, 0x4c,             /* ldr r4, [pc, #12] ; debug base */
+    0x60, 0x60,             /* str r0, [r4, #4] */
+    0xa1, 0x60,             /* str r1, [r4, #8] */
+    0xe2, 0x60,             /* str r2, [r4, #12] */
+    0x02, 0x48,             /* ldr r0, [pc, #8] ; function code */
+    0x20, 0x60,             /* str r0, [r4] */
+    0x10, 0xbd,             /* pop {r4, pc} */
+    0x00, 0x00, 0xff, 0x5f, /* 0x5fff0000 */
+    0x00, 0x00, 0x00, 0x00, /* function code literal */
+};
+
+static const uint8_t rp2040_bootrom_fp_stub[] = {
+    0x10, 0xb5,             /* push {r4, lr} */
+    0x06, 0x4c,             /* ldr r4, [pc, #24] ; debug base */
+    0x60, 0x60,             /* str r0, [r4, #4] */
+    0xa1, 0x60,             /* str r1, [r4, #8] */
+    0xe2, 0x60,             /* str r2, [r4, #12] */
+    0x23, 0x61,             /* str r3, [r4, #16] */
+    0x04, 0x48,             /* ldr r0, [pc, #16] ; command */
+    0x20, 0x60,             /* str r0, [r4] */
+    0x60, 0x69,             /* ldr r0, [r4, #20] */
+    0xa1, 0x69,             /* ldr r1, [r4, #24] */
+    0xe2, 0x69,             /* ldr r2, [r4, #28] */
+    0x23, 0x6a,             /* ldr r3, [r4, #32] */
+    0x10, 0xbd,             /* pop {r4, pc} */
+    0xc0, 0x46,             /* nop; align literal */
+    0x00, 0x00, 0xff, 0x5f, /* 0x5fff0000 */
+    0x00, 0x00, 0x00, 0x00, /* command literal */
+};
+
 #define RP2040_BOOTROM_IMPL(_code, _name, _impl) \
-    { _code, _name, _impl, sizeof(_impl) }
+    { _code, _name, _impl, sizeof(_impl), UINT32_MAX }
+#define RP2040_BOOTROM_IMPL_CODE(_code, _name, _impl, _offset) \
+    { _code, _name, _impl, sizeof(_impl), _offset }
 #define RP2040_BOOTROM_NYI(_code, _name) \
-    { _code, _name, NULL, 0 }
+    { _code, _name, NULL, 0, UINT32_MAX }
 
 static const RP2040BootromFunction rp2040_bootrom_functions[] = {
-    RP2040_BOOTROM_NYI(RP2040_ROM_TABLE_CODE('C', 'X'),
-                       "flash_enter_cmd_xip"),
-    RP2040_BOOTROM_NYI(RP2040_ROM_TABLE_CODE('E', 'X'), "flash_exit_xip"),
-    RP2040_BOOTROM_NYI(RP2040_ROM_TABLE_CODE('F', 'C'),
-                       "flash_flush_cache"),
-    RP2040_BOOTROM_NYI(RP2040_ROM_TABLE_CODE('I', 'F'),
-                       "connect_internal_flash"),
-    RP2040_BOOTROM_NYI(RP2040_ROM_TABLE_CODE('R', 'E'),
-                       "flash_range_erase"),
-    RP2040_BOOTROM_NYI(RP2040_ROM_TABLE_CODE('R', 'P'),
-                       "flash_range_program"),
+    RP2040_BOOTROM_IMPL_CODE(RP2040_ROM_TABLE_CODE('C', 'X'),
+                             "flash_enter_cmd_xip",
+                             rp2040_bootrom_flash_noarg,
+                             RP2040_BOOTROM_HELPER_NOARG_CODE_LITERAL_OFFSET),
+    RP2040_BOOTROM_IMPL_CODE(RP2040_ROM_TABLE_CODE('E', 'X'),
+                             "flash_exit_xip",
+                             rp2040_bootrom_flash_noarg,
+                             RP2040_BOOTROM_HELPER_NOARG_CODE_LITERAL_OFFSET),
+    RP2040_BOOTROM_IMPL_CODE(RP2040_ROM_TABLE_CODE('F', 'C'),
+                             "flash_flush_cache",
+                             rp2040_bootrom_flash_noarg,
+                             RP2040_BOOTROM_HELPER_NOARG_CODE_LITERAL_OFFSET),
+    RP2040_BOOTROM_IMPL_CODE(RP2040_ROM_TABLE_CODE('I', 'F'),
+                             "connect_internal_flash",
+                             rp2040_bootrom_flash_noarg,
+                             RP2040_BOOTROM_HELPER_NOARG_CODE_LITERAL_OFFSET),
+    RP2040_BOOTROM_IMPL_CODE(RP2040_ROM_TABLE_CODE('R', 'E'),
+                             "flash_range_erase",
+                             rp2040_bootrom_flash_args4,
+                             RP2040_BOOTROM_HELPER_ARGS4_CODE_LITERAL_OFFSET),
+    RP2040_BOOTROM_IMPL_CODE(RP2040_ROM_TABLE_CODE('R', 'P'),
+                             "flash_range_program",
+                             rp2040_bootrom_flash_args3,
+                             RP2040_BOOTROM_HELPER_ARGS3_CODE_LITERAL_OFFSET),
     RP2040_BOOTROM_IMPL(RP2040_ROM_TABLE_CODE('C', '4'), "memcpy44",
                         rp2040_bootrom_memcpy44),
     RP2040_BOOTROM_IMPL(RP2040_ROM_TABLE_CODE('L', '3'), "clz32",
@@ -296,17 +441,38 @@ static const RP2040BootromData rp2040_bootrom_data[] = {
 };
 
 static const uint8_t rp2040_bootrom_lookup[] = {
-    0x02, 0x88, 0x00, 0x2a, 0x05, 0xd0, 0x91, 0x42,
-    0x01, 0xd0, 0x04, 0x30, 0xf8, 0xe7, 0x40, 0x88,
-    0x70, 0x47, 0x5f, 0x22, 0x12, 0x06, 0xff, 0x23,
-    0x1b, 0x04, 0x1a, 0x43, 0x11, 0x60, 0x00, 0xbe,
-    0x00, 0x20, 0x70, 0x47,
+    0x02, 0x88,             /* ldrh r2, [r0] */
+    0x00, 0x2a,             /* cmp r2, #0 */
+    0x05, 0xd0,             /* beq not_found */
+    0x91, 0x42,             /* cmp r1, r2 */
+    0x01, 0xd0,             /* beq found */
+    0x04, 0x30,             /* adds r0, #4 */
+    0xf8, 0xe7,             /* b loop */
+    0x40, 0x88,             /* found: ldrh r0, [r0, #2] */
+    0x70, 0x47,             /* bx lr */
+    0x5f, 0x22,             /* not_found: movs r2, #0x5f */
+    0x12, 0x06,             /* lsls r2, r2, #24 */
+    0xff, 0x23,             /* movs r3, #0xff */
+    0x1b, 0x04,             /* lsls r3, r3, #16 */
+    0x1a, 0x43,             /* orrs r2, r3 ; 0x5fff0000 */
+    0x11, 0x60,             /* str r1, [r2] */
+    0x00, 0xbe,             /* bkpt #0 */
+    0x00, 0x20,             /* movs r0, #0 */
+    0x70, 0x47,             /* bx lr */
 };
 
 static const uint8_t rp2040_bootrom_nyi_stub[] = {
-    0x04, 0x49, 0x5f, 0x20, 0x00, 0x06, 0xff, 0x22,
-    0x12, 0x04, 0x10, 0x43, 0x01, 0x60, 0x00, 0xbe,
-    0xfe, 0xe7, 0xc0, 0x46, 0x00, 0x00, 0x00, 0x00,
+    0x04, 0x49,             /* ldr r1, [pc, #16] ; function code */
+    0x5f, 0x20,             /* movs r0, #0x5f */
+    0x00, 0x06,             /* lsls r0, r0, #24 */
+    0xff, 0x22,             /* movs r2, #0xff */
+    0x12, 0x04,             /* lsls r2, r2, #16 */
+    0x10, 0x43,             /* orrs r0, r2 ; 0x5fff0000 */
+    0x01, 0x60,             /* str r1, [r0] */
+    0x00, 0xbe,             /* bkpt #0 */
+    0xfe, 0xe7,             /* b . */
+    0xc0, 0x46,             /* nop; align literal */
+    0x00, 0x00, 0x00, 0x00, /* function code literal */
 };
 
 static void rp2040_store_hword(uint8_t *rom, uint32_t offset, uint16_t value)
@@ -321,6 +487,56 @@ static void rp2040_store_word(uint8_t *rom, uint32_t offset, uint32_t value)
     rom[offset + 1] = value >> 8;
     rom[offset + 2] = value >> 16;
     rom[offset + 3] = value >> 24;
+}
+
+static bool rp2040_bootrom_fp_supported(uint32_t offset)
+{
+    switch (offset) {
+    case RP2040_SF_TABLE_FADD:
+    case RP2040_SF_TABLE_FSUB:
+    case RP2040_SF_TABLE_FMUL:
+    case RP2040_SF_TABLE_FDIV:
+    case RP2040_SF_TABLE_FCMP_FAST:
+    case RP2040_SF_TABLE_FCMP_FAST_FLAGS:
+    case RP2040_SF_TABLE_FSQRT:
+    case RP2040_SF_TABLE_FLOAT2INT:
+    case RP2040_SF_TABLE_FLOAT2FIX:
+    case RP2040_SF_TABLE_FLOAT2UINT:
+    case RP2040_SF_TABLE_FLOAT2UFIX:
+    case RP2040_SF_TABLE_INT2FLOAT:
+    case RP2040_SF_TABLE_FIX2FLOAT:
+    case RP2040_SF_TABLE_UINT2FLOAT:
+    case RP2040_SF_TABLE_UFIX2FLOAT:
+    case RP2040_SF_TABLE_FCOS:
+    case RP2040_SF_TABLE_FSIN:
+    case RP2040_SF_TABLE_FTAN:
+    case RP2040_SF_TABLE_V3_FSINCOS:
+    case RP2040_SF_TABLE_FEXP:
+    case RP2040_SF_TABLE_FLN:
+    case RP2040_SF_TABLE_FCMP_BASIC:
+    case RP2040_SF_TABLE_FATAN2:
+    case RP2040_SF_TABLE_INT642FLOAT:
+    case RP2040_SF_TABLE_FIX642FLOAT:
+    case RP2040_SF_TABLE_UINT642FLOAT:
+    case RP2040_SF_TABLE_UFIX642FLOAT:
+    case RP2040_SF_TABLE_FLOAT2INT64:
+    case RP2040_SF_TABLE_FLOAT2FIX64:
+    case RP2040_SF_TABLE_FLOAT2UINT64:
+    case RP2040_SF_TABLE_FLOAT2UFIX64:
+    case RP2040_SF_TABLE_FLOAT2DOUBLE:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static void rp2040_install_bootrom_fp_stub(uint8_t *rom, uint32_t offset,
+                                          uint32_t command)
+{
+    memcpy(rom + offset, rp2040_bootrom_fp_stub,
+           sizeof(rp2040_bootrom_fp_stub));
+    rp2040_store_word(rom, offset + RP2040_BOOTROM_FP_STUB_CODE_LITERAL_OFFSET,
+                      command);
 }
 
 static void rp2040_install_synthetic_bootrom(void)
@@ -338,6 +554,7 @@ static void rp2040_install_synthetic_bootrom(void)
         RP2040_BOOTROM_SYNTHETIC_ROM_VERSION;
     memcpy(rom + RP2040_BOOTROM_LOOKUP_OFFSET, rp2040_bootrom_lookup,
            sizeof(rp2040_bootrom_lookup));
+
     rp2040_store_hword(rom, RP2040_BOOTROM_FUNC_TABLE_PTR_OFFSET,
                        RP2040_BOOTROM_FUNC_TABLE_OFFSET);
     rp2040_store_hword(rom, RP2040_BOOTROM_DATA_TABLE_PTR_OFFSET,
@@ -351,6 +568,10 @@ static void rp2040_install_synthetic_bootrom(void)
 
         if (func->impl) {
             memcpy(rom + func_base, func->impl, func->impl_size);
+            if (func->code_literal_offset != UINT32_MAX) {
+                rp2040_store_word(rom, func_base + func->code_literal_offset,
+                                  func->code);
+            }
             func_base += ROUND_UP(func->impl_size, 4);
         } else {
             memcpy(rom + func_base, rp2040_bootrom_nyi_stub,
@@ -361,6 +582,7 @@ static void rp2040_install_synthetic_bootrom(void)
                               func->code);
             func_base += ROUND_UP(sizeof(rp2040_bootrom_nyi_stub), 4);
         }
+
         rp2040_store_hword(rom, func_table +
                            i * RP2040_BOOTROM_FUNC_TABLE_ENTRY_SIZE,
                            func->code);
@@ -379,13 +601,34 @@ static void rp2040_install_synthetic_bootrom(void)
     rp2040_store_word(rom, RP2040_BOOTROM_DOUBLE_NYI_STUB_OFFSET +
                       RP2040_BOOTROM_NYI_CODE_LITERAL_OFFSET,
                       RP2040_ROM_TABLE_CODE('S', 'D'));
+
     rom[RP2040_BOOTROM_FLOAT_TABLE_OFFSET] = RP2040_BOOTROM_FLOAT_TABLE_WORDS;
     rom[RP2040_BOOTROM_DOUBLE_TABLE_OFFSET] = RP2040_BOOTROM_FLOAT_TABLE_WORDS;
     for (i = 0; i < RP2040_BOOTROM_FLOAT_TABLE_WORDS; i++) {
-        rp2040_store_word(rom, RP2040_BOOTROM_FLOAT_TABLE_OFFSET + 2 +
-                          i * sizeof(uint32_t), float_nyi);
-        rp2040_store_word(rom, RP2040_BOOTROM_DOUBLE_TABLE_OFFSET + 2 +
-                          i * sizeof(uint32_t), double_nyi);
+        uint32_t table_offset = i * sizeof(uint32_t);
+
+        if (rp2040_bootrom_fp_supported(table_offset)) {
+            uint32_t float_stub = RP2040_BOOTROM_FLOAT_STUBS_OFFSET +
+                                  i * RP2040_BOOTROM_FP_STUB_SIZE;
+            uint32_t double_stub = RP2040_BOOTROM_DOUBLE_STUBS_OFFSET +
+                                   i * RP2040_BOOTROM_FP_STUB_SIZE;
+
+            rp2040_install_bootrom_fp_stub(rom, float_stub,
+                                           RP2040_SYNTHETIC_FP_CMD_FLOAT |
+                                           table_offset);
+            rp2040_install_bootrom_fp_stub(rom, double_stub,
+                                           RP2040_SYNTHETIC_FP_CMD_DOUBLE |
+                                           table_offset);
+            rp2040_store_word(rom, RP2040_BOOTROM_FLOAT_TABLE_OFFSET + 2 +
+                              table_offset, float_stub | 1);
+            rp2040_store_word(rom, RP2040_BOOTROM_DOUBLE_TABLE_OFFSET + 2 +
+                              table_offset, double_stub | 1);
+        } else {
+            rp2040_store_word(rom, RP2040_BOOTROM_FLOAT_TABLE_OFFSET + 2 +
+                              table_offset, float_nyi);
+            rp2040_store_word(rom, RP2040_BOOTROM_DOUBLE_TABLE_OFFSET + 2 +
+                              table_offset, double_nyi);
+        }
     }
 
     for (i = 0; i < ARRAY_SIZE(rp2040_bootrom_data); i++) {
@@ -401,6 +644,21 @@ static void rp2040_install_synthetic_bootrom(void)
 
     rom_add_blob_fixed("rp2040.bootrom", rom, RP2040_ROM_SIZE,
                        RP2040_ROM_BASE);
+}
+
+static uint32_t rp2040_apply_atomic_alias(uint32_t old, uint32_t value,
+                                          hwaddr alias)
+{
+    switch (alias) {
+    case ATOMIC_XOR:
+        return old ^ value;
+    case ATOMIC_SET:
+        return old | value;
+    case ATOMIC_CLR:
+        return old & ~value;
+    default:
+        return value;
+    }
 }
 
 static MemTxResult rp2040_powered_off_read(void *opaque, hwaddr addr,
@@ -428,20 +686,6 @@ static const MemoryRegionOps rp2040_powered_off_ops = {
     },
 };
 
-static uint32_t rp2040_apply_atomic_alias(uint32_t old, uint32_t value,
-                                          hwaddr alias)
-{
-    switch (alias) {
-    case ATOMIC_XOR:
-        return old ^ value;
-    case ATOMIC_SET:
-        return old | value;
-    case ATOMIC_CLR:
-        return old & ~value;
-    default:
-        return value;
-    }
-}
 
 static void rp2040_update_mempowerdown(RP2040State *s)
 {
@@ -538,30 +782,632 @@ static const char *rp2040_bootrom_function_name(uint16_t code)
             return rp2040_bootrom_functions[i].name;
         }
     }
+
     return NULL;
+}
+
+static void rp2040_init_float_status(float_status *status)
+{
+    *status = (float_status) { 0 };
+    set_float_rounding_mode(float_round_nearest_even, status);
+}
+
+static void rp2040_synthetic_fp_nyi(bool is_double, uint32_t offset)
+{
+    g_autofree char *detail = g_strdup_printf("%s table offset 0x%02" PRIx32,
+                                              is_double ? "double" : "float",
+                                              offset);
+
+    rp2040_log_nyi("bootrom", "floating-point helper", detail);
+}
+
+static float rp2040_u32_to_host_float(uint32_t value)
+{
+    union {
+        uint32_t u;
+        float f;
+    } v = { .u = value };
+
+    return v.f;
+}
+
+static uint32_t rp2040_host_float_to_u32(float value)
+{
+    union {
+        float f;
+        uint32_t u;
+    } v = { .f = value };
+
+    return v.u;
+}
+
+static double rp2040_u64_to_host_double(uint64_t value)
+{
+    union {
+        uint64_t u;
+        double d;
+    } v = { .u = value };
+
+    return v.d;
+}
+
+static uint64_t rp2040_host_double_to_u64(double value)
+{
+    union {
+        double d;
+        uint64_t u;
+    } v = { .d = value };
+
+    return v.u;
+}
+
+static uint32_t rp2040_synthetic_fp_compare(double a, double b)
+{
+    if (isnan(a) || isnan(b)) {
+        return 1;
+    }
+    if (a < b) {
+        return -1;
+    }
+    if (a > b) {
+        return 1;
+    }
+    return 0;
+}
+
+static int32_t rp2040_synthetic_double_to_i32(double value)
+{
+    if (isnan(value)) {
+        return 0;
+    }
+    if (value >= INT32_MAX) {
+        return INT32_MAX;
+    }
+    if (value <= INT32_MIN) {
+        return INT32_MIN;
+    }
+    return value;
+}
+
+static uint32_t rp2040_synthetic_double_to_u32(double value)
+{
+    if (isnan(value) || value <= 0) {
+        return 0;
+    }
+    if (value >= UINT32_MAX) {
+        return UINT32_MAX;
+    }
+    return value;
+}
+
+static int64_t rp2040_synthetic_double_to_i64(double value)
+{
+    if (isnan(value)) {
+        return 0;
+    }
+    if (value >= 0x1p63) {
+        return INT64_MAX;
+    }
+    if (value <= -0x1p63) {
+        return INT64_MIN;
+    }
+    return value;
+}
+
+static uint64_t rp2040_synthetic_double_to_u64(double value)
+{
+    if (isnan(value) || value <= 0) {
+        return 0;
+    }
+    if (value >= 0x1p64) {
+        return UINT64_MAX;
+    }
+    return value;
+}
+
+static void rp2040_synthetic_float_op(RP2040State *s, uint32_t offset)
+{
+    float_status status;
+    float32 a = make_float32(s->synthetic_rom_dbg_arg[0]);
+    float32 b = make_float32(s->synthetic_rom_dbg_arg[1]);
+    float host_a = rp2040_u32_to_host_float(s->synthetic_rom_dbg_arg[0]);
+    float host_b = rp2040_u32_to_host_float(s->synthetic_rom_dbg_arg[1]);
+    float32 r32;
+    float64 r64;
+    uint64_t r;
+    double scaled;
+
+    rp2040_init_float_status(&status);
+    memset(s->synthetic_rom_dbg_result, 0, sizeof(s->synthetic_rom_dbg_result));
+    s->synthetic_rom_dbg_result[1] = 0;
+
+    switch (offset) {
+    case RP2040_SF_TABLE_FADD:
+        s->synthetic_rom_dbg_result[0] =
+            float32_val(float32_add(a, b, &status));
+        break;
+    case RP2040_SF_TABLE_FSUB:
+        s->synthetic_rom_dbg_result[0] =
+            float32_val(float32_sub(a, b, &status));
+        break;
+    case RP2040_SF_TABLE_FMUL:
+        s->synthetic_rom_dbg_result[0] =
+            float32_val(float32_mul(a, b, &status));
+        break;
+    case RP2040_SF_TABLE_FDIV:
+        s->synthetic_rom_dbg_result[0] =
+            float32_val(float32_div(a, b, &status));
+        break;
+    case RP2040_SF_TABLE_FCMP_FAST:
+    case RP2040_SF_TABLE_FCMP_FAST_FLAGS:
+    case RP2040_SF_TABLE_FCMP_BASIC:
+        s->synthetic_rom_dbg_result[0] =
+            rp2040_synthetic_fp_compare(host_a, host_b);
+        break;
+    case RP2040_SF_TABLE_FSQRT:
+        s->synthetic_rom_dbg_result[0] =
+            float32_val(float32_sqrt(a, &status));
+        break;
+    case RP2040_SF_TABLE_FLOAT2INT:
+        s->synthetic_rom_dbg_result[0] =
+            float32_to_int32_round_to_zero(a, &status);
+        break;
+    case RP2040_SF_TABLE_FLOAT2FIX:
+        scaled = ldexp((double)host_a, s->synthetic_rom_dbg_arg[1] & 0xff);
+        s->synthetic_rom_dbg_result[0] =
+            rp2040_synthetic_double_to_i32(scaled);
+        break;
+    case RP2040_SF_TABLE_FLOAT2UINT:
+        s->synthetic_rom_dbg_result[0] =
+            float32_to_uint32_round_to_zero(a, &status);
+        break;
+    case RP2040_SF_TABLE_FLOAT2UFIX:
+        scaled = ldexp((double)host_a, s->synthetic_rom_dbg_arg[1] & 0xff);
+        s->synthetic_rom_dbg_result[0] =
+            rp2040_synthetic_double_to_u32(scaled);
+        break;
+    case RP2040_SF_TABLE_INT2FLOAT:
+        s->synthetic_rom_dbg_result[0] =
+            float32_val(int32_to_float32(s->synthetic_rom_dbg_arg[0],
+                                         &status));
+        break;
+    case RP2040_SF_TABLE_FIX2FLOAT:
+        r32 = float64_to_float32(make_float64(rp2040_host_double_to_u64(
+                                  ldexp((double)(int32_t)
+                                        s->synthetic_rom_dbg_arg[0],
+                                        -(int)(s->synthetic_rom_dbg_arg[1] &
+                                               0xff)))),
+                                 &status);
+        s->synthetic_rom_dbg_result[0] = float32_val(r32);
+        break;
+    case RP2040_SF_TABLE_UINT2FLOAT:
+        s->synthetic_rom_dbg_result[0] =
+            float32_val(uint32_to_float32(s->synthetic_rom_dbg_arg[0],
+                                          &status));
+        break;
+    case RP2040_SF_TABLE_UFIX2FLOAT:
+        r32 = float64_to_float32(make_float64(rp2040_host_double_to_u64(
+                                  ldexp((double)
+                                        s->synthetic_rom_dbg_arg[0],
+                                        -(int)(s->synthetic_rom_dbg_arg[1] &
+                                               0xff)))),
+                                 &status);
+        s->synthetic_rom_dbg_result[0] = float32_val(r32);
+        break;
+    case RP2040_SF_TABLE_FCOS:
+        s->synthetic_rom_dbg_result[0] =
+            rp2040_host_float_to_u32(cosf(host_a));
+        break;
+    case RP2040_SF_TABLE_FSIN:
+        s->synthetic_rom_dbg_result[0] =
+            rp2040_host_float_to_u32(sinf(host_a));
+        s->synthetic_rom_dbg_result[1] =
+            rp2040_host_float_to_u32(cosf(host_a));
+        break;
+    case RP2040_SF_TABLE_FTAN:
+        s->synthetic_rom_dbg_result[0] =
+            rp2040_host_float_to_u32(tanf(host_a));
+        break;
+    case RP2040_SF_TABLE_V3_FSINCOS:
+        s->synthetic_rom_dbg_result[0] =
+            rp2040_host_float_to_u32(sinf(host_a));
+        s->synthetic_rom_dbg_result[1] =
+            rp2040_host_float_to_u32(cosf(host_a));
+        break;
+    case RP2040_SF_TABLE_FEXP:
+        s->synthetic_rom_dbg_result[0] =
+            rp2040_host_float_to_u32(expf(host_a));
+        break;
+    case RP2040_SF_TABLE_FLN:
+        s->synthetic_rom_dbg_result[0] =
+            rp2040_host_float_to_u32(logf(host_a));
+        break;
+    case RP2040_SF_TABLE_FATAN2:
+        s->synthetic_rom_dbg_result[0] =
+            rp2040_host_float_to_u32(atan2f(host_a, host_b));
+        break;
+    case RP2040_SF_TABLE_INT642FLOAT:
+        r = deposit64(s->synthetic_rom_dbg_arg[0], 32, 32,
+                      s->synthetic_rom_dbg_arg[1]);
+        r32 = int64_to_float32((int64_t)r, &status);
+        s->synthetic_rom_dbg_result[0] = float32_val(r32);
+        break;
+    case RP2040_SF_TABLE_FIX642FLOAT:
+        r = deposit64(s->synthetic_rom_dbg_arg[0], 32, 32,
+                      s->synthetic_rom_dbg_arg[1]);
+        r32 = float64_to_float32(make_float64(rp2040_host_double_to_u64(
+                                  ldexp((double)(int64_t)r,
+                                        -(int)(s->synthetic_rom_dbg_arg[2] &
+                                               0xff)))),
+                                 &status);
+        s->synthetic_rom_dbg_result[0] = float32_val(r32);
+        break;
+    case RP2040_SF_TABLE_UINT642FLOAT:
+        r = deposit64(s->synthetic_rom_dbg_arg[0], 32, 32,
+                      s->synthetic_rom_dbg_arg[1]);
+        r32 = uint64_to_float32(r, &status);
+        s->synthetic_rom_dbg_result[0] = float32_val(r32);
+        break;
+    case RP2040_SF_TABLE_UFIX642FLOAT:
+        r = deposit64(s->synthetic_rom_dbg_arg[0], 32, 32,
+                      s->synthetic_rom_dbg_arg[1]);
+        r32 = float64_to_float32(make_float64(rp2040_host_double_to_u64(
+                                  ldexp((double)r,
+                                        -(int)(s->synthetic_rom_dbg_arg[2] &
+                                               0xff)))),
+                                 &status);
+        s->synthetic_rom_dbg_result[0] = float32_val(r32);
+        break;
+    case RP2040_SF_TABLE_FLOAT2INT64:
+        r = float32_to_int64_round_to_zero(a, &status);
+        s->synthetic_rom_dbg_result[0] = r;
+        s->synthetic_rom_dbg_result[1] = r >> 32;
+        break;
+    case RP2040_SF_TABLE_FLOAT2FIX64:
+        scaled = ldexp((double)host_a, s->synthetic_rom_dbg_arg[1] & 0xff);
+        r = rp2040_synthetic_double_to_i64(scaled);
+        s->synthetic_rom_dbg_result[0] = r;
+        s->synthetic_rom_dbg_result[1] = r >> 32;
+        break;
+    case RP2040_SF_TABLE_FLOAT2UINT64:
+        r = float32_to_uint64_round_to_zero(a, &status);
+        s->synthetic_rom_dbg_result[0] = r;
+        s->synthetic_rom_dbg_result[1] = r >> 32;
+        break;
+    case RP2040_SF_TABLE_FLOAT2UFIX64:
+        scaled = ldexp((double)host_a, s->synthetic_rom_dbg_arg[1] & 0xff);
+        r = rp2040_synthetic_double_to_u64(scaled);
+        s->synthetic_rom_dbg_result[0] = r;
+        s->synthetic_rom_dbg_result[1] = r >> 32;
+        break;
+    case RP2040_SF_TABLE_FLOAT2DOUBLE:
+        r64 = float32_to_float64(a, &status);
+        r = float64_val(r64);
+        s->synthetic_rom_dbg_result[0] = r;
+        s->synthetic_rom_dbg_result[1] = r >> 32;
+        break;
+    default:
+        s->synthetic_rom_dbg_result[0] = 0;
+        rp2040_synthetic_fp_nyi(false, offset);
+        break;
+    }
+}
+
+static void rp2040_synthetic_double_op(RP2040State *s, uint32_t offset)
+{
+    float_status status;
+    uint64_t av = deposit64(s->synthetic_rom_dbg_arg[0], 32, 32,
+                            s->synthetic_rom_dbg_arg[1]);
+    uint64_t bv = deposit64(s->synthetic_rom_dbg_arg[2], 32, 32,
+                            s->synthetic_rom_dbg_arg[3]);
+    float64 a = make_float64(av);
+    float64 b = make_float64(bv);
+    double host_a = rp2040_u64_to_host_double(av);
+    double host_b = rp2040_u64_to_host_double(bv);
+    float64 r64;
+    float32 r32;
+    uint64_t r;
+    double scaled;
+
+    rp2040_init_float_status(&status);
+    memset(s->synthetic_rom_dbg_result, 0, sizeof(s->synthetic_rom_dbg_result));
+
+    switch (offset) {
+    case RP2040_SF_TABLE_FADD:
+        r64 = float64_add(a, b, &status);
+        goto return_double;
+    case RP2040_SF_TABLE_FSUB:
+        r64 = float64_sub(a, b, &status);
+        goto return_double;
+    case RP2040_SF_TABLE_FMUL:
+        r64 = float64_mul(a, b, &status);
+        goto return_double;
+    case RP2040_SF_TABLE_FDIV:
+        r64 = float64_div(a, b, &status);
+        goto return_double;
+    case RP2040_SF_TABLE_FCMP_FAST:
+    case RP2040_SF_TABLE_FCMP_FAST_FLAGS:
+    case RP2040_SF_TABLE_FCMP_BASIC:
+        s->synthetic_rom_dbg_result[0] =
+            rp2040_synthetic_fp_compare(host_a, host_b);
+        s->synthetic_rom_dbg_result[1] = 0;
+        break;
+    case RP2040_SF_TABLE_FSQRT:
+        r64 = float64_sqrt(a, &status);
+        goto return_double;
+    case RP2040_SF_TABLE_FLOAT2INT:
+        s->synthetic_rom_dbg_result[0] =
+            float64_to_int32_round_to_zero(a, &status);
+        s->synthetic_rom_dbg_result[1] = 0;
+        break;
+    case RP2040_SF_TABLE_FLOAT2FIX:
+        scaled = ldexp(host_a, s->synthetic_rom_dbg_arg[2] & 0xff);
+        s->synthetic_rom_dbg_result[0] =
+            rp2040_synthetic_double_to_i32(scaled);
+        s->synthetic_rom_dbg_result[1] = 0;
+        break;
+    case RP2040_SF_TABLE_FLOAT2UINT:
+        s->synthetic_rom_dbg_result[0] =
+            float64_to_uint32_round_to_zero(a, &status);
+        s->synthetic_rom_dbg_result[1] = 0;
+        break;
+    case RP2040_SF_TABLE_FLOAT2UFIX:
+        scaled = ldexp(host_a, s->synthetic_rom_dbg_arg[2] & 0xff);
+        s->synthetic_rom_dbg_result[0] =
+            rp2040_synthetic_double_to_u32(scaled);
+        s->synthetic_rom_dbg_result[1] = 0;
+        break;
+    case RP2040_SF_TABLE_INT2FLOAT:
+        r64 = int32_to_float64(s->synthetic_rom_dbg_arg[0], &status);
+        goto return_double;
+    case RP2040_SF_TABLE_FIX2FLOAT:
+        r64 = make_float64(rp2040_host_double_to_u64(
+              ldexp((double)(int32_t)s->synthetic_rom_dbg_arg[0],
+                    -(int)(s->synthetic_rom_dbg_arg[1] & 0xff))));
+        goto return_double;
+    case RP2040_SF_TABLE_UINT2FLOAT:
+        r64 = uint32_to_float64(s->synthetic_rom_dbg_arg[0], &status);
+        goto return_double;
+    case RP2040_SF_TABLE_UFIX2FLOAT:
+        r64 = make_float64(rp2040_host_double_to_u64(
+              ldexp((double)s->synthetic_rom_dbg_arg[0],
+                    -(int)(s->synthetic_rom_dbg_arg[1] & 0xff))));
+        goto return_double;
+    case RP2040_SF_TABLE_FCOS:
+        r64 = make_float64(rp2040_host_double_to_u64(cos(host_a)));
+        goto return_double;
+    case RP2040_SF_TABLE_FSIN:
+        r64 = make_float64(rp2040_host_double_to_u64(sin(host_a)));
+        goto return_double;
+    case RP2040_SF_TABLE_FTAN:
+        r64 = make_float64(rp2040_host_double_to_u64(tan(host_a)));
+        goto return_double;
+    case RP2040_SF_TABLE_V3_FSINCOS:
+        r = rp2040_host_double_to_u64(sin(host_a));
+        s->synthetic_rom_dbg_result[0] = r;
+        s->synthetic_rom_dbg_result[1] = r >> 32;
+        r = rp2040_host_double_to_u64(cos(host_a));
+        s->synthetic_rom_dbg_result[2] = r;
+        s->synthetic_rom_dbg_result[3] = r >> 32;
+        break;
+    case RP2040_SF_TABLE_FEXP:
+        r64 = make_float64(rp2040_host_double_to_u64(exp(host_a)));
+        goto return_double;
+    case RP2040_SF_TABLE_FLN:
+        r64 = make_float64(rp2040_host_double_to_u64(log(host_a)));
+        goto return_double;
+    case RP2040_SF_TABLE_FATAN2:
+        r64 = make_float64(rp2040_host_double_to_u64(atan2(host_a, host_b)));
+        goto return_double;
+    case RP2040_SF_TABLE_INT642FLOAT:
+        r64 = int64_to_float64((int64_t)av, &status);
+        goto return_double;
+    case RP2040_SF_TABLE_FIX642FLOAT:
+        r64 = make_float64(rp2040_host_double_to_u64(
+              ldexp((double)(int64_t)av,
+                    -(int)(s->synthetic_rom_dbg_arg[2] & 0xff))));
+        goto return_double;
+    case RP2040_SF_TABLE_UINT642FLOAT:
+        r64 = uint64_to_float64(av, &status);
+        goto return_double;
+    case RP2040_SF_TABLE_UFIX642FLOAT:
+        r64 = make_float64(rp2040_host_double_to_u64(
+              ldexp((double)av,
+                    -(int)(s->synthetic_rom_dbg_arg[2] & 0xff))));
+        goto return_double;
+    case RP2040_SF_TABLE_FLOAT2INT64:
+        r = float64_to_int64_round_to_zero(a, &status);
+        s->synthetic_rom_dbg_result[0] = r;
+        s->synthetic_rom_dbg_result[1] = r >> 32;
+        break;
+    case RP2040_SF_TABLE_FLOAT2FIX64:
+        scaled = ldexp(host_a, s->synthetic_rom_dbg_arg[2] & 0xff);
+        r = rp2040_synthetic_double_to_i64(scaled);
+        s->synthetic_rom_dbg_result[0] = r;
+        s->synthetic_rom_dbg_result[1] = r >> 32;
+        break;
+    case RP2040_SF_TABLE_FLOAT2UINT64:
+        r = float64_to_uint64_round_to_zero(a, &status);
+        s->synthetic_rom_dbg_result[0] = r;
+        s->synthetic_rom_dbg_result[1] = r >> 32;
+        break;
+    case RP2040_SF_TABLE_FLOAT2UFIX64:
+        scaled = ldexp(host_a, s->synthetic_rom_dbg_arg[2] & 0xff);
+        r = rp2040_synthetic_double_to_u64(scaled);
+        s->synthetic_rom_dbg_result[0] = r;
+        s->synthetic_rom_dbg_result[1] = r >> 32;
+        break;
+    case RP2040_SF_TABLE_FLOAT2DOUBLE:
+        r32 = float64_to_float32(a, &status);
+        s->synthetic_rom_dbg_result[0] = float32_val(r32);
+        s->synthetic_rom_dbg_result[1] = 0;
+        break;
+    default:
+        s->synthetic_rom_dbg_result[0] = 0;
+        s->synthetic_rom_dbg_result[1] = 0;
+        rp2040_synthetic_fp_nyi(true, offset);
+        break;
+    }
+    return;
+
+return_double:
+    r = float64_val(r64);
+    s->synthetic_rom_dbg_result[0] = r;
+    s->synthetic_rom_dbg_result[1] = r >> 32;
+}
+
+static bool rp2040_synthetic_fp_op(RP2040State *s, uint32_t command)
+{
+    uint32_t offset = command & 0xff;
+
+    switch (command & RP2040_SYNTHETIC_FP_CMD_MASK) {
+    case RP2040_SYNTHETIC_FP_CMD_FLOAT:
+        rp2040_synthetic_float_op(s, offset);
+        return true;
+    case RP2040_SYNTHETIC_FP_CMD_DOUBLE:
+        rp2040_synthetic_double_op(s, offset);
+        return true;
+    default:
+        return false;
+    }
+}
+
+static void rp2040_synthetic_flash_helper_hit(RP2040State *s,
+                                              unsigned int helper,
+                                              const char *name)
+{
+    uint32_t count;
+
+    g_assert(helper < RP2040_SYNTHETIC_ROM_FLASH_HELPER_COUNT);
+
+    count = ++s->synthetic_rom_flash_helper_count[helper];
+    trace_rp2040_synthetic_flash_helper(name, count);
 }
 
 static void rp2040_synthetic_rom_dbg_write(void *opaque, hwaddr addr,
                                            uint64_t value, unsigned size)
 {
+    RP2040State *s = opaque;
+    hwaddr offset = addr & 0xfff;
+    uint32_t command = value;
     uint16_t code = value;
     const char *name = rp2040_bootrom_function_name(code);
     char feature[64];
     char detail[64];
+    Error *local_err = NULL;
+
+    switch (offset) {
+    case RP2040_SYNTHETIC_ROM_DBG_ARG0:
+    case RP2040_SYNTHETIC_ROM_DBG_ARG1:
+    case RP2040_SYNTHETIC_ROM_DBG_ARG2:
+    case RP2040_SYNTHETIC_ROM_DBG_ARG3:
+        s->synthetic_rom_dbg_arg[(offset - RP2040_SYNTHETIC_ROM_DBG_ARG0) /
+                                 sizeof(uint32_t)] = value;
+        return;
+    case RP2040_SYNTHETIC_ROM_DBG_CMD:
+        break;
+    default:
+        rp2040_log_nyi("bootrom", "synthetic diagnostic register write",
+                       "unknown register");
+        return;
+    }
+
+    if (rp2040_synthetic_fp_op(s, command)) {
+        return;
+    }
+
+    switch (code) {
+    case RP2040_ROM_TABLE_CODE('C', 'X'):
+        rp2040_synthetic_flash_helper_hit(
+            s, RP2040_SYNTHETIC_FLASH_ENTER_CMD_XIP,
+            "flash_enter_cmd_xip");
+        rp2040_log_nyi("bootrom", "flash_enter_cmd_xip",
+                       "synthetic helper does not reconfigure SSI hardware");
+        return;
+    case RP2040_ROM_TABLE_CODE('E', 'X'):
+        rp2040_synthetic_flash_helper_hit(
+            s, RP2040_SYNTHETIC_FLASH_EXIT_XIP, "flash_exit_xip");
+        rp2040_log_nyi("bootrom", "flash_exit_xip",
+                       "synthetic helper does not send serial flash commands");
+        return;
+    case RP2040_ROM_TABLE_CODE('F', 'C'):
+        rp2040_synthetic_flash_helper_hit(
+            s, RP2040_SYNTHETIC_FLASH_FLUSH_CACHE, "flash_flush_cache");
+        rp2040_log_nyi("bootrom", "flash_flush_cache",
+                       "XIP cache is not modeled");
+        return;
+    case RP2040_ROM_TABLE_CODE('I', 'F'):
+        rp2040_synthetic_flash_helper_hit(
+            s, RP2040_SYNTHETIC_FLASH_CONNECT_INTERNAL_FLASH,
+            "connect_internal_flash");
+        rp2040_log_nyi("bootrom", "connect_internal_flash",
+                       "synthetic helper assumes the QSPI flash is connected");
+        return;
+    case RP2040_ROM_TABLE_CODE('R', 'E'):
+        rp2040_synthetic_flash_helper_hit(
+            s, RP2040_SYNTHETIC_FLASH_RANGE_ERASE, "flash_range_erase");
+        if (!rp2040_xip_flash_range_erase(&s->xip,
+                                          s->synthetic_rom_dbg_arg[0],
+                                          s->synthetic_rom_dbg_arg[1],
+                                          s->synthetic_rom_dbg_arg[2],
+                                          s->synthetic_rom_dbg_arg[3],
+                                          &local_err)) {
+            warn_report_err(local_err);
+        }
+        return;
+    case RP2040_ROM_TABLE_CODE('R', 'P'):
+        rp2040_synthetic_flash_helper_hit(
+            s, RP2040_SYNTHETIC_FLASH_RANGE_PROGRAM, "flash_range_program");
+        if (!rp2040_xip_flash_range_program(&s->xip,
+                                            s->synthetic_rom_dbg_arg[0],
+                                            s->synthetic_rom_dbg_arg[1],
+                                            s->synthetic_rom_dbg_arg[2],
+                                            &local_err)) {
+            warn_report_err(local_err);
+        }
+        return;
+    }
 
     snprintf(feature, sizeof(feature), "boot ROM function '%c%c'",
              code & 0xff, (code >> 8) & 0xff);
-    snprintf(detail, sizeof(detail), "%s%s",
+    snprintf(detail, sizeof(detail), "%s%s%s",
              name ? "SDK name: " : "",
-             name ? name : "unknown lookup code");
+             name ? name : "unknown lookup code",
+             name ? "" : "");
     rp2040_log_nyi("bootrom", feature, detail);
 }
 
 static uint64_t rp2040_synthetic_rom_dbg_read(void *opaque, hwaddr addr,
                                               unsigned size)
 {
+    RP2040State *s = opaque;
+    hwaddr offset = addr & 0xfff;
+
+    if (offset >= RP2040_SYNTHETIC_ROM_DBG_ARG0 &&
+        offset <= RP2040_SYNTHETIC_ROM_DBG_ARG3 &&
+        QEMU_IS_ALIGNED(offset, sizeof(uint32_t))) {
+        return s->synthetic_rom_dbg_arg[(offset -
+                                         RP2040_SYNTHETIC_ROM_DBG_ARG0) /
+                                        sizeof(uint32_t)];
+    }
+    if (offset >= RP2040_SYNTHETIC_ROM_DBG_RESULT0 &&
+        offset <= RP2040_SYNTHETIC_ROM_DBG_RESULT3 &&
+        QEMU_IS_ALIGNED(offset, sizeof(uint32_t))) {
+        return s->synthetic_rom_dbg_result[(offset -
+                                            RP2040_SYNTHETIC_ROM_DBG_RESULT0) /
+                                           sizeof(uint32_t)];
+    }
+    if (offset >= RP2040_SYNTHETIC_ROM_DBG_FLASH_COUNT0 &&
+        offset < RP2040_SYNTHETIC_ROM_DBG_FLASH_COUNT0 +
+                 sizeof(s->synthetic_rom_flash_helper_count) &&
+        QEMU_IS_ALIGNED(offset, sizeof(uint32_t))) {
+        return s->synthetic_rom_flash_helper_count[
+            (offset - RP2040_SYNTHETIC_ROM_DBG_FLASH_COUNT0) /
+            sizeof(uint32_t)];
+    }
+
     rp2040_log_nyi("bootrom", "synthetic diagnostic register read",
-                   "write-only QEMU diagnostic channel");
+                   "unsupported register");
     return 0;
 }
 
