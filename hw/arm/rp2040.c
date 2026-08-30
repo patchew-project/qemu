@@ -142,7 +142,6 @@ static const struct {
     hwaddr base;
     hwaddr size;
 } rp2040_unimplemented[] = {
-    { "rp2040.busctrl",  0x40030000, 0x4000 },
     { "rp2040.spi0",     0x4003c000, 0x4000 },
     { "rp2040.spi1",     0x40040000, 0x4000 },
     { "rp2040.i2c0",     0x40044000, 0x4000 },
@@ -368,6 +367,8 @@ static void rp2040_soc_init(Object *obj)
     }
 
     object_initialize_child(obj, "xip", &s->xip, TYPE_RP2040_XIP);
+    object_initialize_child(obj, "busctrl", &s->busctrl,
+                            TYPE_RP2040_BUSCTRL);
 
     object_initialize_child(obj, "clocks", &s->clocks, TYPE_RP2040_CLOCKS);
     object_initialize_child(obj, "dma", &s->dma, TYPE_RP2040_DMA);
@@ -530,6 +531,11 @@ static void rp2040_soc_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(),
                                 RP2040_XIP_NOCACHE_NOALLOC_BASE,
                                 &s->xip.xip_nocache_noalloc);
+
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->busctrl), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->busctrl), 0, RP2040_BUSCTRL_BASE);
 
     object_property_set_link(OBJECT(&s->dma), "memory",
                              OBJECT(s->board_memory), &err);

@@ -101,6 +101,9 @@ config FSL_IMX8MP_ANALOG
 config FSL_IMX8MP_CCM
     bool
 
+config RP2040_BUSCTRL
+    bool
+
 config RP2040_CLOCKS
     bool
 
