@@ -24,6 +24,8 @@
 #define RP2040_UART0_IRQ  20
 #define RP2040_UART1_BASE 0x40038000
 #define RP2040_UART1_IRQ  21
+#define RP2040_DMA_IRQ_0  11
+#define RP2040_DMA_IRQ_1  12
 #define RP2040_IO_IRQ_BANK0 13
 #define RP2040_SIO_IRQ_PROC0 15
 #define RP2040_SIO_IRQ_PROC1 16
@@ -148,7 +150,6 @@ static const struct {
     { "rp2040.adc",      0x4004c000, 0x4000 },
     { "rp2040.pwm",      0x40050000, 0x4000 },
     { "rp2040.rtc",      0x4005c000, 0x4000 },
-    { "rp2040.dma",      0x50000000, 0x1000 },
     { "rp2040.usbctrl_dpram", 0x50100000, 0x10000 },
     { "rp2040.usbctrl_regs",  0x50110000, 0x10000 },
     { "rp2040.pio0",     0x50200000, 0x10000 },
@@ -369,6 +370,7 @@ static void rp2040_soc_init(Object *obj)
     object_initialize_child(obj, "xip", &s->xip, TYPE_RP2040_XIP);
 
     object_initialize_child(obj, "clocks", &s->clocks, TYPE_RP2040_CLOCKS);
+    object_initialize_child(obj, "dma", &s->dma, TYPE_RP2040_DMA);
     object_initialize_child(obj, "iobank0", &s->iobank0,
                             TYPE_RP2040_IOBANK0);
     object_initialize_child(obj, "ioqspi", &s->ioqspi,
@@ -528,6 +530,29 @@ static void rp2040_soc_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(),
                                 RP2040_XIP_NOCACHE_NOALLOC_BASE,
                                 &s->xip.xip_nocache_noalloc);
+
+    object_property_set_link(OBJECT(&s->dma), "memory",
+                             OBJECT(s->board_memory), &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->dma), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dma), 0, RP2040_DMA_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->dma), 0,
+                       s->irq[RP2040_DMA_IRQ_0]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->dma), 1,
+                       s->irq[RP2040_DMA_IRQ_1]);
+    qdev_connect_gpio_out_named(DEVICE(&s->xip), "dreq-rx", 0,
+                                qdev_get_gpio_in_named(DEVICE(&s->dma),
+                                                       "dreq",
+                                                       RP2040_DREQ_XIP_SSIRX));
+    qdev_connect_gpio_out_named(DEVICE(&s->xip), "dreq-stream", 0,
+                                qdev_get_gpio_in_named(DEVICE(&s->dma),
+                                                       "dreq",
+                                                       RP2040_DREQ_XIP_STREAM));
 
     for (i = 0; i < ARRAY_SIZE(rp2040_unimplemented); i++) {
         create_unimplemented_device(rp2040_unimplemented[i].name,
@@ -702,6 +727,16 @@ static void rp2040_soc_realize(DeviceState *dev, Error **errp)
                         uart_base[i] + 0x1000);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->uart[i]), 0,
                            s->irq[uart_irq[i]]);
+        qdev_connect_gpio_out_named(
+            DEVICE(&s->uart[i]), "dreq-tx", 0,
+            qdev_get_gpio_in_named(DEVICE(&s->dma), "dreq",
+                                   i ? RP2040_DREQ_UART1_TX :
+                                       RP2040_DREQ_UART0_TX));
+        qdev_connect_gpio_out_named(
+            DEVICE(&s->uart[i]), "dreq-rx", 0,
+            qdev_get_gpio_in_named(DEVICE(&s->dma), "dreq",
+                                   i ? RP2040_DREQ_UART1_RX :
+                                       RP2040_DREQ_UART0_RX));
     }
     rp2040_update_uart_pins(s);
 }

@@ -33,3 +33,6 @@ config XLNX_CSU_DMA
 
 config K230_GSDMA
     bool
+
+config RP2040_DMA
+    bool

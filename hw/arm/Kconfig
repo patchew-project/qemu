@@ -379,6 +379,7 @@ config RP2040
     select ARM_V7M
     select PL011
     select RP2040_CLOCKS
+    select RP2040_DMA
     select RP2040_IOBANK0
     select RP2040_IOQSPI
     select RP2040_NYI
