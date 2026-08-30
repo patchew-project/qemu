@@ -24,11 +24,12 @@ RP2040_TESTS=rp2040-boot rp2040-uart rp2040-mpu \
 	rp2040-sio-fifo rp2040-sio-divider rp2040-psm-proc1 \
 	rp2040-core1-launch rp2040-timer
 
-$(RP2040_TESTS): %: %.S rp2040-minimal.ld
+$(RP2040_TESTS): %: %.S rp2040-boot2-w25q080.S rp2040.ld
 	$(CC) -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft \
 		-Wl,--build-id=none -x assembler-with-cpp \
-		$< -o $@ -nostdlib -static \
-		-T $(ARM_SRC)/rp2040-minimal.ld
+		$(ARM_SRC)/rp2040-boot2-w25q080.S $< \
+		-o $@ -nostdlib -static \
+		-T $(ARM_SRC)/rp2040.ld
 
 run-rp2040-boot: QEMU_OPTS=-M raspi-pico \
 	-semihosting-config enable=on,target=native -kernel

@@ -9,6 +9,9 @@ config SIFIVE_SPI
 config SSI
     bool
 
+config RP2040_XIP
+    bool
+
 config XILINX_SPI
     bool
     select SSI

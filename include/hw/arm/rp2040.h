@@ -29,6 +29,7 @@
 #include "hw/misc/rp2040_vreg.h"
 #include "hw/misc/rp2040_watchdog.h"
 #include "hw/misc/rp2040_xosc.h"
+#include "hw/ssi/rp2040_xip.h"
 #include "qom/object.h"
 
 #define TYPE_RP2040 "rp2040"
@@ -37,6 +38,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(RP2040State, RP2040)
 #define RP2040_ROM_BASE       0x00000000
 #define RP2040_ROM_SIZE       (16 * KiB)
 #define RP2040_XIP_BASE       0x10000000
+#define RP2040_XIP_NOALLOC_BASE 0x11000000
+#define RP2040_XIP_NOCACHE_BASE 0x12000000
+#define RP2040_XIP_NOCACHE_NOALLOC_BASE 0x13000000
 #define RP2040_SRAM_BASE      0x20000000
 #define RP2040_SRAM_BANK_SIZE (64 * KiB)
 #define RP2040_SRAM4_BASE     0x20040000
@@ -69,6 +73,7 @@ struct RP2040State {
     RP2040VregState vreg;
     RP2040WatchdogState watchdog;
     RP2040XoscState xosc;
+    RP2040XipState xip;
 
     MemoryRegion *board_memory;
     MemoryRegion cpu_memory[RP2040_NUM_CORES];

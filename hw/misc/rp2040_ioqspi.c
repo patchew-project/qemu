@@ -5,8 +5,10 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/misc/rp2040_nyi.h"
 #include "hw/misc/rp2040_ioqspi.h"
+#include "hw/ssi/rp2040_xip.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -24,6 +26,10 @@
 
 #define IOQSPI_CTRL_RESET       0x1f
 #define IOQSPI_CTRL_RW_MASK     0x33333f
+#define IOQSPI_CTRL_OUTOVER_MASK 0x300
+#define IOQSPI_CTRL_OUTOVER_LOW  0x200
+#define IOQSPI_CTRL_OUTOVER_HIGH 0x300
+#define IOQSPI_SS_INDEX          1
 #define IOQSPI_INTR_EDGE_MASK   0x00cccccc
 #define IOQSPI_IRQ_MASK         0x00ffffff
 
@@ -66,6 +72,22 @@ static uint32_t rp2040_ioqspi_ints(uint32_t intr, uint32_t inte,
                                    uint32_t intf)
 {
     return (intr & inte) | intf;
+}
+
+static void rp2040_ioqspi_update_ss(RP2040IoQspiState *s)
+{
+    uint32_t outover;
+
+    if (!s->xip) {
+        return;
+    }
+
+    outover = s->ctrl[IOQSPI_SS_INDEX] & IOQSPI_CTRL_OUTOVER_MASK;
+    if (outover == IOQSPI_CTRL_OUTOVER_LOW) {
+        rp2040_xip_qspi_cs(s->xip, false);
+    } else if (outover == IOQSPI_CTRL_OUTOVER_HIGH) {
+        rp2040_xip_qspi_cs(s->xip, true);
+    }
 }
 
 static uint64_t rp2040_ioqspi_read(void *opaque, hwaddr addr, unsigned size)
@@ -139,6 +161,9 @@ static void rp2040_ioqspi_write(void *opaque, hwaddr addr,
         s->ctrl[index] =
             rp2040_ioqspi_apply_alias(s->ctrl[index], value, alias) &
             IOQSPI_CTRL_RW_MASK;
+        if (index == IOQSPI_SS_INDEX) {
+            rp2040_ioqspi_update_ss(s);
+        }
     } else {
         switch (offset) {
         case IOQSPI_INTR:
@@ -186,6 +211,11 @@ static void rp2040_ioqspi_write(void *opaque, hwaddr addr,
         }
     }
 }
+
+static const Property rp2040_ioqspi_properties[] = {
+    DEFINE_PROP_LINK("xip", RP2040IoQspiState, xip, TYPE_RP2040_XIP,
+                     RP2040XipState *),
+};
 
 static const MemoryRegionOps rp2040_ioqspi_ops = {
     .read = rp2040_ioqspi_read,
@@ -245,6 +275,7 @@ static void rp2040_ioqspi_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_legacy_reset(dc, rp2040_ioqspi_reset);
+    device_class_set_props(dc, rp2040_ioqspi_properties);
     dc->vmsd = &rp2040_ioqspi_vmstate;
 }
 

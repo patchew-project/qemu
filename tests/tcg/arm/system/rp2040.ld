@@ -1,5 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-
 ENTRY(reset_handler)
 
 MEMORY
@@ -10,7 +8,14 @@ MEMORY
 
 SECTIONS
 {
-    .vectors ORIGIN(FLASH) :
+    .boot2 ORIGIN(FLASH) :
+    {
+        KEEP(*(.boot2))
+    } > FLASH
+
+    ASSERT(SIZEOF(.boot2) == 256, "RP2040 boot2 must be exactly 256 bytes")
+
+    .vectors ORIGIN(FLASH) + 0x100 :
     {
         KEEP(*(.vectors))
     } > FLASH
