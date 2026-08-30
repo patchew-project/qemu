@@ -21,6 +21,7 @@
 #include "hw/misc/rp2040_psm.h"
 #include "hw/misc/rp2040_resets.h"
 #include "hw/misc/rp2040_rosc.h"
+#include "hw/misc/rp2040_sio.h"
 #include "hw/misc/rp2040_syscfg.h"
 #include "hw/misc/rp2040_sysinfo.h"
 #include "hw/misc/rp2040_tbman.h"
@@ -41,12 +42,13 @@ OBJECT_DECLARE_SIMPLE_TYPE(RP2040State, RP2040)
 #define RP2040_SRAM5_BASE     0x20041000
 #define RP2040_SRAM_HI_SIZE   (4 * KiB)
 
+#define RP2040_NUM_CORES      2
 #define RP2040_NUM_IRQS       32
 
 struct RP2040State {
     SysBusDevice parent_obj;
 
-    ARMv7MState armv7m;
+    ARMv7MState armv7m[RP2040_NUM_CORES];
     PL011State uart[2];
     RP2040ClocksState clocks;
     RP2040IoBank0State iobank0;
@@ -60,12 +62,14 @@ struct RP2040State {
     RP2040SysCfgState syscfg;
     RP2040SysInfoState sysinfo;
     RP2040RoscState rosc;
+    RP2040SioState sio;
     RP2040TbmanState tbman;
     RP2040VregState vreg;
     RP2040WatchdogState watchdog;
     RP2040XoscState xosc;
 
     MemoryRegion *board_memory;
+    MemoryRegion cpu_memory[RP2040_NUM_CORES];
     MemoryRegion rom;
     MemoryRegion rom_poweroff;
     MemoryRegion sram[6];
@@ -73,9 +77,9 @@ struct RP2040State {
     char *bootrom_file;
 
     qemu_irq *irq;
-    qemu_irq cpu_irq[RP2040_NUM_IRQS];
-    qemu_irq nmi_irq;
-    bool irq_level[RP2040_NUM_IRQS];
+    qemu_irq cpu_irq[RP2040_NUM_CORES][RP2040_NUM_IRQS];
+    qemu_irq nmi_irq[RP2040_NUM_CORES];
+    bool irq_level[RP2040_NUM_CORES][RP2040_NUM_IRQS];
     bool mempowerdown_ready;
     bool strict_uart_pins;
     bool uart0_tx_pin_enabled;

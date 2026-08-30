@@ -81,6 +81,7 @@ static void raspi_pico_init(MachineState *machine)
                          s->rosc_random_seed_value);
     qdev_prop_set_bit(DEVICE(&s->soc.rosc), "random-seed-set",
                       s->rosc_random_seed_set);
+    qdev_prop_set_uint32(DEVICE(&s->soc.sio), "gpio-hi-in", 1u << 1);
     if (machine->firmware) {
         qdev_prop_set_string(DEVICE(&s->soc), "bootrom-file",
                              machine->firmware);
@@ -94,7 +95,7 @@ static void raspi_pico_init(MachineState *machine)
 
     sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
 
-    armv7m_load_kernel(s->soc.armv7m.cpu, machine->kernel_filename,
+    armv7m_load_kernel(s->soc.armv7m[0].cpu, machine->kernel_filename,
                        RP2040_XIP_BASE, PICO_FLASH_SIZE);
 }
 
@@ -133,9 +134,9 @@ static void raspi_pico_machine_class_init(ObjectClass *oc, const void *data)
 
     mc->desc = "Raspberry Pi Pico (Cortex-M0+)";
     mc->init = raspi_pico_init;
-    mc->default_cpus = 1;
-    mc->min_cpus = 1;
-    mc->max_cpus = 1;
+    mc->default_cpus = RP2040_NUM_CORES;
+    mc->min_cpus = RP2040_NUM_CORES;
+    mc->max_cpus = RP2040_NUM_CORES;
     mc->default_ram_size = 0;
     mc->no_parallel = 1;
     mc->no_floppy = 1;

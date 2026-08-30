@@ -128,6 +128,9 @@ config RP2040_RESETS
 config RP2040_ROSC
     bool
 
+config RP2040_SIO
+    bool
+
 config RP2040_SYSCFG
     bool
 
