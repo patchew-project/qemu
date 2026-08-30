@@ -48,6 +48,10 @@ OBJECT_DECLARE_SIMPLE_TYPE(RP2040State, RP2040)
 #define RP2040_SRAM4_BASE     0x20040000
 #define RP2040_SRAM5_BASE     0x20041000
 #define RP2040_SRAM_HI_SIZE   (4 * KiB)
+#define RP2040_USBCTRL_DPRAM_BASE 0x50100000
+#define RP2040_USBCTRL_DPRAM_SIZE (4 * KiB)
+#define RP2040_USBCTRL_REGS_BASE  0x50110000
+#define RP2040_USBCTRL_REGS_SIZE  0x4000
 
 #define RP2040_NUM_CORES      2
 #define RP2040_NUM_IRQS       32
@@ -85,6 +89,10 @@ struct RP2040State {
     MemoryRegion rom_poweroff;
     MemoryRegion sram[6];
     MemoryRegion sram_poweroff[6];
+    MemoryRegion usbctrl_dpram;
+    MemoryRegion usbctrl_dpram_poweroff;
+    MemoryRegion usbctrl_regs;
+    uint32_t usbctrl_reg[0x100 / sizeof(uint32_t)];
     char *bootrom_file;
 
     qemu_irq *irq;

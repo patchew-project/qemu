@@ -14,6 +14,7 @@
 #include "hw/core/qdev-clock.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/irq.h"
+#include "hw/misc/rp2040_nyi.h"
 #include "hw/misc/unimp.h"
 #include "qemu/datadir.h"
 #include "system/address-spaces.h"
@@ -29,6 +30,21 @@
 #define RP2040_IO_IRQ_BANK0 13
 #define RP2040_SIO_IRQ_PROC0 15
 #define RP2040_SIO_IRQ_PROC1 16
+
+#define USBCTRL_SIE_STATUS      0x50
+#define USBCTRL_BUFF_CPU_HANDLE 0x5c
+#define USBCTRL_EP_ABORT_DONE   0x64
+#define USBCTRL_INTR            0x8c
+#define USBCTRL_INTE            0x90
+#define USBCTRL_INTF            0x94
+#define USBCTRL_INTS            0x98
+
+#define USBCTRL_SIE_STATUS_VBUS_DETECTED BIT(11)
+
+#define ATOMIC_ALIAS_MASK 0x3000
+#define ATOMIC_XOR        0x1000
+#define ATOMIC_SET        0x2000
+#define ATOMIC_CLR        0x3000
 #define RP2040_PROC1          1
 
 /*
@@ -149,8 +165,6 @@ static const struct {
     { "rp2040.adc",      0x4004c000, 0x4000 },
     { "rp2040.pwm",      0x40050000, 0x4000 },
     { "rp2040.rtc",      0x4005c000, 0x4000 },
-    { "rp2040.usbctrl_dpram", 0x50100000, 0x10000 },
-    { "rp2040.usbctrl_regs",  0x50110000, 0x10000 },
     { "rp2040.pio0",     0x50200000, 0x10000 },
     { "rp2040.pio1",     0x50300000, 0x10000 },
 };
@@ -180,6 +194,21 @@ static const MemoryRegionOps rp2040_powered_off_ops = {
     },
 };
 
+static uint32_t rp2040_apply_atomic_alias(uint32_t old, uint32_t value,
+                                          hwaddr alias)
+{
+    switch (alias) {
+    case ATOMIC_XOR:
+        return old ^ value;
+    case ATOMIC_SET:
+        return old | value;
+    case ATOMIC_CLR:
+        return old & ~value;
+    default:
+        return value;
+    }
+}
+
 static void rp2040_update_mempowerdown(RP2040State *s)
 {
     uint32_t mempowerdown;
@@ -194,8 +223,77 @@ static void rp2040_update_mempowerdown(RP2040State *s)
         memory_region_set_enabled(&s->sram_poweroff[i],
                                   mempowerdown & BIT(i));
     }
+    memory_region_set_enabled(&s->usbctrl_dpram_poweroff,
+                              mempowerdown & BIT(6));
     memory_region_set_enabled(&s->rom_poweroff, mempowerdown & BIT(7));
 }
+
+static uint64_t rp2040_usbctrl_regs_read(void *opaque, hwaddr addr,
+                                         unsigned size)
+{
+    RP2040State *s = opaque;
+    hwaddr offset = addr & 0xfff;
+    uint64_t value;
+
+    switch (offset) {
+    case USBCTRL_SIE_STATUS:
+        value = s->usbctrl_reg[offset / sizeof(uint32_t)] |
+                USBCTRL_SIE_STATUS_VBUS_DETECTED;
+        break;
+    case USBCTRL_BUFF_CPU_HANDLE:
+    case USBCTRL_EP_ABORT_DONE:
+    case USBCTRL_INTR:
+        value = s->usbctrl_reg[offset / sizeof(uint32_t)];
+        break;
+    case USBCTRL_INTS:
+        value = (s->usbctrl_reg[USBCTRL_INTR / sizeof(uint32_t)] |
+                 s->usbctrl_reg[USBCTRL_INTF / sizeof(uint32_t)]) &
+                s->usbctrl_reg[USBCTRL_INTE / sizeof(uint32_t)];
+        break;
+    default:
+        if (offset < sizeof(s->usbctrl_reg)) {
+            value = s->usbctrl_reg[offset / sizeof(uint32_t)];
+        } else {
+            value = 0;
+            rp2040_log_unimplemented_read("usbctrl_regs", size,
+                                          RP2040_USBCTRL_REGS_BASE + addr,
+                                          offset, value);
+        }
+        break;
+    }
+
+    return value;
+}
+
+static void rp2040_usbctrl_regs_write(void *opaque, hwaddr addr,
+                                      uint64_t value64, unsigned size)
+{
+    RP2040State *s = opaque;
+    hwaddr alias = addr & ATOMIC_ALIAS_MASK;
+    hwaddr offset = addr & 0xfff;
+    uint32_t value = value64;
+    uint32_t old;
+
+    if (offset < sizeof(s->usbctrl_reg)) {
+        old = s->usbctrl_reg[offset / sizeof(uint32_t)];
+        s->usbctrl_reg[offset / sizeof(uint32_t)] =
+            rp2040_apply_atomic_alias(old, value, alias);
+    } else {
+        rp2040_log_unimplemented_write("usbctrl_regs", size,
+                                       RP2040_USBCTRL_REGS_BASE + addr,
+                                       offset, value64);
+    }
+}
+
+static const MemoryRegionOps rp2040_usbctrl_regs_ops = {
+    .read = rp2040_usbctrl_regs_read,
+    .write = rp2040_usbctrl_regs_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
 
 static void rp2040_update_nmi(RP2040State *s)
 {
@@ -474,6 +572,29 @@ static bool rp2040_init_memory(RP2040State *s, Error **errp)
     memory_region_add_subregion_overlap(s->board_memory, RP2040_SRAM5_BASE,
                                         &s->sram_poweroff[5], 1);
     memory_region_set_enabled(&s->sram_poweroff[5], false);
+
+    if (!memory_region_init_ram(&s->usbctrl_dpram, OBJECT(s),
+                                "rp2040.usbctrl_dpram",
+                                RP2040_USBCTRL_DPRAM_SIZE, errp)) {
+        return false;
+    }
+    memory_region_add_subregion(s->board_memory, RP2040_USBCTRL_DPRAM_BASE,
+                                &s->usbctrl_dpram);
+    memory_region_init_io(&s->usbctrl_dpram_poweroff, OBJECT(s),
+                          &rp2040_powered_off_ops, s,
+                          "rp2040.usbctrl_dpram.poweroff",
+                          RP2040_USBCTRL_DPRAM_SIZE);
+    memory_region_add_subregion_overlap(s->board_memory,
+                                        RP2040_USBCTRL_DPRAM_BASE,
+                                        &s->usbctrl_dpram_poweroff, 1);
+    memory_region_set_enabled(&s->usbctrl_dpram_poweroff, false);
+
+    memory_region_init_io(&s->usbctrl_regs, OBJECT(s),
+                          &rp2040_usbctrl_regs_ops, s,
+                          "rp2040.usbctrl_regs",
+                          RP2040_USBCTRL_REGS_SIZE);
+    memory_region_add_subregion(s->board_memory, RP2040_USBCTRL_REGS_BASE,
+                                &s->usbctrl_regs);
 
     s->mempowerdown_ready = true;
 
