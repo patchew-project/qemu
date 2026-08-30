@@ -71,5 +71,12 @@ EXTRA_RUNS += run-test-misa-w
 run-test-misa-w: test-misa-w
 	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)x-misa-w=true$(comma)c=true$(comma)v=true $(QEMU_OPTS)$<)
 
+# Xsfvqmaccdod/Xsfvqmaccqoq: the SiFive int8 matmul instructions are
+# reserved unless VLEN >= 256, so selects vlen=256 along with both extensions.
+EXTRA_RUNS += run-test-xsfvqmacc
+XSFVQMACC_CPU = rv64$(comma)v=true$(comma)vlen=256$(comma)xsfvqmaccdod=true$(comma)xsfvqmaccqoq=true
+run-test-xsfvqmacc: test-xsfvqmacc
+	$(call run-test, $<, $(QEMU) -cpu $(XSFVQMACC_CPU) $(QEMU_OPTS)$<)
+
 # We don't currently support the multiarch system tests
 undefine MULTIARCH_TESTS
