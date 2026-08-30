@@ -110,6 +110,27 @@ run-rp2040-dma-uart0 run-rp2040-dma-uart1: run-%: %
 		  $(QEMU_OPTS) $<)
 	$(call diff-out,$<,$(ARM_SRC)/$<.ref)
 
+rp2040-bootrom-helpers: rp2040-bootrom-helpers.S \
+		rp2040-boot2-w25q080.S rp2040.ld
+	$(CC) -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft \
+		-Wl,--build-id=none -x assembler-with-cpp \
+		$(ARM_SRC)/rp2040-boot2-w25q080.S $< \
+		-o $@ -nostdlib -static \
+		-T $(ARM_SRC)/rp2040.ld
+
+run-rp2040-bootrom-helpers: QEMU_OPTS=\
+	-M raspi-pico,strict-uart-pins=off \
+	-serial chardev:output \
+	-semihosting-config enable=on,target=native -kernel
+run-rp2040-bootrom-helpers: rp2040-bootrom-helpers
+	$(call run-test, $<, \
+	  $(QEMU) -monitor none -display none \
+		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
+		  $(QEMU_OPTS) $<)
+	$(call diff-out,$<,$(ARM_SRC)/rp2040-bootrom-helpers.ref)
+
+RP2040_TESTS+=rp2040-bootrom-helpers
+
 ARM_TESTS+=$(RP2040_TESTS) $(RP2040_FLASH_TESTS) $(RP2040_DMA_TESTS)
 
 # These objects provide the basic boot code and helper functions for all tests

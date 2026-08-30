@@ -52,6 +52,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(RP2040State, RP2040)
 #define RP2040_USBCTRL_DPRAM_SIZE (4 * KiB)
 #define RP2040_USBCTRL_REGS_BASE  0x50110000
 #define RP2040_USBCTRL_REGS_SIZE  0x4000
+#define RP2040_SYNTHETIC_ROM_DBG_BASE 0x5fff0000
+#define RP2040_SYNTHETIC_ROM_DBG_SIZE 0x1000
 
 #define RP2040_NUM_CORES      2
 #define RP2040_NUM_IRQS       32
@@ -92,6 +94,7 @@ struct RP2040State {
     MemoryRegion usbctrl_dpram;
     MemoryRegion usbctrl_dpram_poweroff;
     MemoryRegion usbctrl_regs;
+    MemoryRegion synthetic_rom_dbg;
     uint32_t usbctrl_reg[0x100 / sizeof(uint32_t)];
     char *bootrom_file;
 
