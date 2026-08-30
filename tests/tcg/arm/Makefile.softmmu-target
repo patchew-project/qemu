@@ -22,7 +22,7 @@ ARM_TESTS+=test-armv6m-undef
 
 RP2040_TESTS=rp2040-boot rp2040-uart rp2040-mpu \
 	rp2040-sio-fifo rp2040-sio-divider rp2040-psm-proc1 \
-	rp2040-core1-launch
+	rp2040-core1-launch rp2040-timer
 
 $(RP2040_TESTS): %: %.S rp2040-minimal.ld
 	$(CC) -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft \
@@ -35,14 +35,15 @@ run-rp2040-boot: QEMU_OPTS=-M raspi-pico \
 
 run-rp2040-uart run-rp2040-mpu \
 run-rp2040-sio-fifo run-rp2040-sio-divider \
-run-rp2040-psm-proc1 run-rp2040-core1-launch: \
+run-rp2040-psm-proc1 run-rp2040-core1-launch run-rp2040-timer: \
 	QEMU_OPTS=-M raspi-pico,strict-uart-pins=off \
 	-serial chardev:output \
 	-semihosting-config enable=on,target=native -kernel
 
 run-rp2040-uart run-rp2040-mpu \
 run-rp2040-sio-fifo run-rp2040-sio-divider \
-run-rp2040-psm-proc1 run-rp2040-core1-launch: run-rp2040-%: rp2040-%
+run-rp2040-psm-proc1 run-rp2040-core1-launch \
+run-rp2040-timer: run-rp2040-%: rp2040-%
 	$(call run-test, $<, \
 	  $(QEMU) -monitor none -display none \
 		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
