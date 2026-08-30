@@ -28,8 +28,10 @@ RP2040_FLASH_TESTS=rp2040-flash-commands rp2040-flash-ioqspi \
 	rp2040-flash-busy-hardfault rp2040-flash-busy-lockout \
 	rp2040-core0-xip-fault rp2040-core1-xip-fault
 
+RP2040_DMA_TESTS=rp2040-dma-memory rp2040-dma-uart0 rp2040-dma-uart1
+
 RP2040_GUESTS=$(RP2040_TESTS) $(RP2040_FLASH_TESTS) \
-	rp2040-flash-persist-reader
+	rp2040-dma-memory rp2040-flash-persist-reader
 
 $(RP2040_GUESTS): %: %.S rp2040-boot2-w25q080.S rp2040.ld
 	$(CC) -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft \
@@ -46,7 +48,8 @@ run-rp2040-sio-fifo run-rp2040-sio-divider \
 run-rp2040-psm-proc1 run-rp2040-core1-launch run-rp2040-timer \
 run-rp2040-flash-commands run-rp2040-flash-ioqspi \
 run-rp2040-flash-busy-hardfault run-rp2040-flash-busy-lockout \
-run-rp2040-core0-xip-fault run-rp2040-core1-xip-fault: \
+run-rp2040-core0-xip-fault run-rp2040-core1-xip-fault \
+run-rp2040-dma-memory: \
 	QEMU_OPTS=-M raspi-pico,strict-uart-pins=off \
 	-serial chardev:output \
 	-semihosting-config enable=on,target=native -kernel
@@ -57,7 +60,8 @@ run-rp2040-psm-proc1 run-rp2040-core1-launch \
 run-rp2040-timer run-rp2040-flash-ioqspi \
 run-rp2040-flash-busy-hardfault run-rp2040-flash-busy-lockout \
 run-rp2040-core0-xip-fault \
-run-rp2040-core1-xip-fault: run-rp2040-%: rp2040-%
+run-rp2040-core1-xip-fault \
+run-rp2040-dma-memory: run-rp2040-%: rp2040-%
 	$(call run-test, $<, \
 	  $(QEMU) -monitor none -display none \
 		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
@@ -84,7 +88,29 @@ run-rp2040-flash-commands: rp2040-flash-commands \
 	$(call diff-out,$<.persist,$(ARM_SRC)/rp2040-flash-persist-reader.ref)
 	rm -f $<.flash $<.persist.out
 
-ARM_TESTS+=$(RP2040_TESTS) $(RP2040_FLASH_TESTS)
+rp2040-dma-uart0 rp2040-dma-uart1: rp2040-dma-uart%: \
+		rp2040-dma-uart.S rp2040-boot2-w25q080.S rp2040.ld
+	$(CC) -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft \
+		-DUART_INDEX=$* -Wl,--build-id=none -x assembler-with-cpp \
+		$(ARM_SRC)/rp2040-boot2-w25q080.S $< \
+		-o $@ -nostdlib -static \
+		-T $(ARM_SRC)/rp2040.ld
+
+run-rp2040-dma-uart0: QEMU_OPTS=-M raspi-pico,strict-uart-pins=off \
+	-serial chardev:output \
+	-semihosting-config enable=on,target=native -kernel
+run-rp2040-dma-uart1: QEMU_OPTS=-M raspi-pico,strict-uart-pins=off \
+	-serial null -serial chardev:output \
+	-semihosting-config enable=on,target=native -kernel
+
+run-rp2040-dma-uart0 run-rp2040-dma-uart1: run-%: %
+	$(call run-test, $<, \
+	  $(QEMU) -monitor none -display none \
+		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
+		  $(QEMU_OPTS) $<)
+	$(call diff-out,$<,$(ARM_SRC)/$<.ref)
+
+ARM_TESTS+=$(RP2040_TESTS) $(RP2040_FLASH_TESTS) $(RP2040_DMA_TESTS)
 
 # These objects provide the basic boot code and helper functions for all tests
 CRT_OBJS=boot.o
