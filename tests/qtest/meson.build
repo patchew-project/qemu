@@ -265,6 +265,7 @@ qtests_arm = \
                                                        'rp2040-rosc-test',
                                                        'rp2040-sio-test',
                                                        'rp2040-tbman-test',
+                                                       'rp2040-timer-test',
                                                        'rp2040-uart-test',
                                                        'rp2040-vreg-test',
                                                        'rp2040-watchdog-test'] : []) + \

@@ -140,6 +140,9 @@ config RP2040_SYSINFO
 config RP2040_TBMAN
     bool
 
+config RP2040_TIMER
+    bool
+
 config RP2040_VREG
     bool
 

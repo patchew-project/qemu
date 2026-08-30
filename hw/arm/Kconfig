@@ -391,6 +391,7 @@ config RP2040
     select RP2040_SYSCFG
     select RP2040_SYSINFO
     select RP2040_TBMAN
+    select RP2040_TIMER
     select RP2040_VREG
     select RP2040_WATCHDOG
     select RP2040_XOSC
