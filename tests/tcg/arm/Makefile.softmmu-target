@@ -24,7 +24,14 @@ RP2040_TESTS=rp2040-boot rp2040-uart rp2040-mpu \
 	rp2040-sio-fifo rp2040-sio-divider rp2040-psm-proc1 \
 	rp2040-core1-launch rp2040-timer
 
-$(RP2040_TESTS): %: %.S rp2040-boot2-w25q080.S rp2040.ld
+RP2040_FLASH_TESTS=rp2040-flash-commands rp2040-flash-ioqspi \
+	rp2040-flash-busy-hardfault rp2040-flash-busy-lockout \
+	rp2040-core0-xip-fault rp2040-core1-xip-fault
+
+RP2040_GUESTS=$(RP2040_TESTS) $(RP2040_FLASH_TESTS) \
+	rp2040-flash-persist-reader
+
+$(RP2040_GUESTS): %: %.S rp2040-boot2-w25q080.S rp2040.ld
 	$(CC) -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft \
 		-Wl,--build-id=none -x assembler-with-cpp \
 		$(ARM_SRC)/rp2040-boot2-w25q080.S $< \
@@ -36,7 +43,10 @@ run-rp2040-boot: QEMU_OPTS=-M raspi-pico \
 
 run-rp2040-uart run-rp2040-mpu \
 run-rp2040-sio-fifo run-rp2040-sio-divider \
-run-rp2040-psm-proc1 run-rp2040-core1-launch run-rp2040-timer: \
+run-rp2040-psm-proc1 run-rp2040-core1-launch run-rp2040-timer \
+run-rp2040-flash-commands run-rp2040-flash-ioqspi \
+run-rp2040-flash-busy-hardfault run-rp2040-flash-busy-lockout \
+run-rp2040-core0-xip-fault run-rp2040-core1-xip-fault: \
 	QEMU_OPTS=-M raspi-pico,strict-uart-pins=off \
 	-serial chardev:output \
 	-semihosting-config enable=on,target=native -kernel
@@ -44,14 +54,37 @@ run-rp2040-psm-proc1 run-rp2040-core1-launch run-rp2040-timer: \
 run-rp2040-uart run-rp2040-mpu \
 run-rp2040-sio-fifo run-rp2040-sio-divider \
 run-rp2040-psm-proc1 run-rp2040-core1-launch \
-run-rp2040-timer: run-rp2040-%: rp2040-%
+run-rp2040-timer run-rp2040-flash-ioqspi \
+run-rp2040-flash-busy-hardfault run-rp2040-flash-busy-lockout \
+run-rp2040-core0-xip-fault \
+run-rp2040-core1-xip-fault: run-rp2040-%: rp2040-%
 	$(call run-test, $<, \
 	  $(QEMU) -monitor none -display none \
 		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
 		  $(QEMU_OPTS) $<)
 	$(call diff-out,$<,$(ARM_SRC)/$<.ref)
+run-rp2040-flash-commands: rp2040-flash-commands \
+		rp2040-flash-persist-reader
+	$(call run-test, $<, \
+	  $(QEMU) -monitor none -display none \
+		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
+		  $(QEMU_OPTS) $<)
+	$(call diff-out,$<,$(ARM_SRC)/rp2040-flash-commands.ref)
+	$(PYTHON) -c "open('$<.flash', 'wb').write(b'\xff' * 512)"
+	$(QEMU) -monitor none -display none \
+		-M raspi-pico$(COMMA)strict-uart-pins=off$(COMMA)flash-file=$<.flash \
+		-serial null -semihosting-config enable=on$(COMMA)target=native \
+		-kernel $<
+	$(QEMU) -monitor none -display none \
+		-chardev file$(COMMA)path=$<.persist.out$(COMMA)id=output \
+		-M raspi-pico$(COMMA)strict-uart-pins=off$(COMMA)flash-file=$<.flash \
+		-serial chardev:output \
+		-semihosting-config enable=on$(COMMA)target=native \
+		-kernel rp2040-flash-persist-reader
+	$(call diff-out,$<.persist,$(ARM_SRC)/rp2040-flash-persist-reader.ref)
+	rm -f $<.flash $<.persist.out
 
-ARM_TESTS+=$(RP2040_TESTS)
+ARM_TESTS+=$(RP2040_TESTS) $(RP2040_FLASH_TESTS)
 
 # These objects provide the basic boot code and helper functions for all tests
 CRT_OBJS=boot.o
