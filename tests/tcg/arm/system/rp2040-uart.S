@@ -11,6 +11,8 @@
 
 #define SRAM_END 0x20042000
 #define UART0_DR 0x40034000
+#define GPIO0_CTRL 0x40014004
+#define GPIO_FUNC_UART 2
 #define SYS_EXIT 0x18
 #define ADP_STOPPED_APPLICATION_EXIT 0x20026
 
@@ -25,6 +27,9 @@ vector_table:
 .thumb_func
 .global reset_handler
 reset_handler:
+    ldr r0, =GPIO0_CTRL
+    movs r1, GPIO_FUNC_UART
+    str r1, [r0]
     ldr r0, =UART0_DR
     ldr r1, =message
 

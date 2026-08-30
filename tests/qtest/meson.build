@@ -263,6 +263,7 @@ qtests_arm = \
                                                        'rp2040-resets-test',
                                                        'rp2040-rosc-test',
                                                        'rp2040-tbman-test',
+                                                       'rp2040-uart-test',
                                                        'rp2040-vreg-test',
                                                        'rp2040-watchdog-test'] : []) + \
   (config_all_devices.has_key('CONFIG_STM32L4X5_SOC') ? qtests_stm32l4x5 : []) + \

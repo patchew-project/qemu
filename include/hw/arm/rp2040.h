@@ -77,6 +77,11 @@ struct RP2040State {
     qemu_irq nmi_irq;
     bool irq_level[RP2040_NUM_IRQS];
     bool mempowerdown_ready;
+    bool strict_uart_pins;
+    bool uart0_tx_pin_enabled;
+    bool uart0_rx_pin_enabled;
+    bool uart1_tx_pin_enabled;
+    bool uart1_rx_pin_enabled;
 
     Clock *sysclk;
 };

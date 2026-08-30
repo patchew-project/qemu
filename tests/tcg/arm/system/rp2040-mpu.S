@@ -13,6 +13,8 @@
 #define TEST_ADDRESS 0x20001000
 #define TEST_VALUE 0x12345678
 #define UART0_DR 0x40034000
+#define GPIO0_CTRL 0x40014004
+#define GPIO_FUNC_UART 2
 #define MPU_TYPE 0xe000ed90
 #define MPU_CTRL 0xe000ed94
 #define MPU_RNR 0xe000ed98
@@ -39,6 +41,9 @@ vector_table:
 .thumb_func
 .global reset_handler
 reset_handler:
+    ldr r0, =GPIO0_CTRL
+    movs r1, GPIO_FUNC_UART
+    str r1, [r0]
     ldr r0, =start_message
     bl puts
 

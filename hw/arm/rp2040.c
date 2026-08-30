@@ -50,8 +50,6 @@ static const struct {
     hwaddr size;
 } rp2040_unimplemented[] = {
     { "rp2040.busctrl",  0x40030000, 0x4000 },
-    { "rp2040.uart0_aliases", 0x40035000, 0x3000 },
-    { "rp2040.uart1_aliases", 0x40039000, 0x3000 },
     { "rp2040.spi0",     0x4003c000, 0x4000 },
     { "rp2040.spi1",     0x40040000, 0x4000 },
     { "rp2040.i2c0",     0x40044000, 0x4000 },
@@ -142,10 +140,53 @@ static void rp2040_set_irq(void *opaque, int irq, int level)
     rp2040_update_nmi(s);
 }
 
+static void rp2040_update_uart_pins(RP2040State *s)
+{
+    pl011_set_tx_connected(&s->uart[0],
+                           !s->strict_uart_pins ||
+                           s->uart0_tx_pin_enabled);
+    pl011_set_rx_connected(&s->uart[0],
+                           !s->strict_uart_pins ||
+                           s->uart0_rx_pin_enabled);
+    pl011_set_tx_connected(&s->uart[1],
+                           !s->strict_uart_pins ||
+                           s->uart1_tx_pin_enabled);
+    pl011_set_rx_connected(&s->uart[1],
+                           !s->strict_uart_pins ||
+                           s->uart1_rx_pin_enabled);
+}
+
+static void rp2040_set_uart_pin(void *opaque, int pin, int level)
+{
+    RP2040State *s = opaque;
+
+    switch (pin) {
+    case 0:
+        s->uart0_tx_pin_enabled = level;
+        break;
+    case 1:
+        s->uart0_rx_pin_enabled = level;
+        break;
+    case 2:
+        s->uart1_tx_pin_enabled = level;
+        break;
+    case 3:
+        s->uart1_rx_pin_enabled = level;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    rp2040_update_uart_pins(s);
+}
+
 static void rp2040_soc_init(Object *obj)
 {
     RP2040State *s = RP2040(obj);
     int i;
+
+    qdev_init_gpio_in_named(DEVICE(obj), rp2040_set_uart_pin,
+                            "uart-pin", 4);
 
     object_initialize_child(obj, "proc0", &s->armv7m, TYPE_ARMV7M);
     qdev_prop_set_string(DEVICE(&s->armv7m), "cpu-type",
@@ -376,6 +417,14 @@ static void rp2040_soc_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->iobank0), 0, RP2040_IOBANK0_BASE);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->iobank0), 0,
                        s->irq[RP2040_IO_IRQ_BANK0]);
+    qdev_connect_gpio_out_named(DEVICE(&s->iobank0), "uart0-pin", 0,
+                                qdev_get_gpio_in_named(dev, "uart-pin", 0));
+    qdev_connect_gpio_out_named(DEVICE(&s->iobank0), "uart0-pin", 1,
+                                qdev_get_gpio_in_named(dev, "uart-pin", 1));
+    qdev_connect_gpio_out_named(DEVICE(&s->iobank0), "uart1-pin", 0,
+                                qdev_get_gpio_in_named(dev, "uart-pin", 2));
+    qdev_connect_gpio_out_named(DEVICE(&s->iobank0), "uart1-pin", 1,
+                                qdev_get_gpio_in_named(dev, "uart-pin", 3));
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->ioqspi), errp)) {
         return;
@@ -430,15 +479,19 @@ static void rp2040_soc_realize(DeviceState *dev, Error **errp)
             return;
         }
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->uart[i]), 0, uart_base[i]);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->uart[i]), 1,
+                        uart_base[i] + 0x1000);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->uart[i]), 0,
                            s->irq[uart_irq[i]]);
     }
+    rp2040_update_uart_pins(s);
 }
 
 static const Property rp2040_soc_properties[] = {
     DEFINE_PROP_LINK("memory", RP2040State, board_memory, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_STRING("bootrom-file", RP2040State, bootrom_file),
+    DEFINE_PROP_BOOL("strict-uart-pins", RP2040State, strict_uart_pins, true),
 };
 
 static void rp2040_soc_class_init(ObjectClass *klass, const void *data)

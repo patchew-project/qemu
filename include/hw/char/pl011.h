@@ -32,6 +32,7 @@ struct PL011State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
+    MemoryRegion atomic_alias_iomem;
     uint32_t flags;
     uint32_t lcr;
     uint32_t rsr;
@@ -53,7 +54,10 @@ struct PL011State {
     qemu_irq dreq_rx;
     Clock *clk;
     bool migrate_clk;
+    bool tx_connected;
+    bool rx_connected;
     bool logged_disabled_uart;
+    bool logged_disconnected_tx;
     const unsigned char *id;
     /*
      * Since some users embed this struct directly, we must
@@ -63,5 +67,7 @@ struct PL011State {
 };
 
 DeviceState *pl011_create(hwaddr addr, qemu_irq irq, Chardev *chr);
+void pl011_set_tx_connected(PL011State *s, bool connected);
+void pl011_set_rx_connected(PL011State *s, bool connected);
 
 #endif
