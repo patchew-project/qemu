@@ -31,12 +31,72 @@
 #define XIP_STAT_FIFO_EMPTY BIT(1)
 #define XIP_STAT_FLUSH_READY BIT(0)
 
+#define UF2_BLOCK_SIZE          512
+#define UF2_PAYLOAD_OFFSET      32
+#define UF2_PAYLOAD_SIZE        256
+#define UF2_MAGIC_START0        0x0a324655
+#define UF2_MAGIC_START1        0x9e5d5157
+#define UF2_MAGIC_END           0x0ab16f30
+#define UF2_FLAG_FAMILY_ID      0x00002000
+#define UF2_RP2040_FAMILY_ID    0xe48bff56
+
 static QTestState *rp2040_start(const char *machine_args)
 {
     if (machine_args) {
         return qtest_initf("-machine raspi-pico,%s", machine_args);
     }
     return qtest_init("-machine raspi-pico");
+}
+
+static void build_uf2_block(uint8_t *block, uint32_t target, uint32_t index,
+                            const uint8_t *payload)
+{
+    memset(block, 0, UF2_BLOCK_SIZE);
+    stl_le_p(block, UF2_MAGIC_START0);
+    stl_le_p(block + 4, UF2_MAGIC_START1);
+    stl_le_p(block + 8, UF2_FLAG_FAMILY_ID);
+    stl_le_p(block + 12, target);
+    stl_le_p(block + 16, UF2_PAYLOAD_SIZE);
+    stl_le_p(block + 20, index);
+    stl_le_p(block + 24, 2);
+    stl_le_p(block + 28, UF2_RP2040_FAMILY_ID);
+    memcpy(block + UF2_PAYLOAD_OFFSET, payload, UF2_PAYLOAD_SIZE);
+    stl_le_p(block + UF2_BLOCK_SIZE - 4, UF2_MAGIC_END);
+}
+
+static void test_uf2_kernel_load(void)
+{
+    g_autoptr(GError) error = NULL;
+    g_autofree char *path = NULL;
+    uint8_t uf2[2 * UF2_BLOCK_SIZE];
+    uint8_t boot2[UF2_PAYLOAD_SIZE];
+    uint8_t payload[UF2_PAYLOAD_SIZE];
+    uint8_t actual[UF2_PAYLOAD_SIZE];
+    QTestState *qts;
+    int fd;
+    size_t i;
+
+    memset(boot2, 0x5a, sizeof(boot2));
+    for (i = 0; i < ARRAY_SIZE(payload); i++) {
+        payload[i] = i ^ 0xa5;
+    }
+    build_uf2_block(uf2, XIP_BASE, 0, boot2);
+    build_uf2_block(uf2 + UF2_BLOCK_SIZE, XIP_BASE + 0x2000, 1, payload);
+
+    fd = g_file_open_tmp("qemu-rp2040-uf2-XXXXXX", &path, &error);
+    g_assert_no_error(error);
+    g_assert_cmpint(fd, >=, 0);
+    close(fd);
+    g_assert_true(g_file_set_contents(path, (const char *)uf2, sizeof(uf2),
+                                      &error));
+    g_assert_no_error(error);
+
+    qts = qtest_initf("-machine raspi-pico -kernel %s", path);
+    qtest_memread(qts, XIP_BASE + 0x2000, actual, sizeof(actual));
+    g_assert_cmpmem(actual, sizeof(actual), payload, sizeof(payload));
+    qtest_quit(qts);
+
+    unlink(path);
 }
 
 static void read_flash_uid(QTestState *qts, uint8_t *uid)
@@ -280,6 +340,7 @@ int main(int argc, char **argv)
                    test_flash_uid_default);
     qtest_add_func("/rp2040-xip/flash-uid-machine-option",
                    test_flash_uid_machine_option);
+    qtest_add_func("/rp2040-xip/uf2-kernel-load", test_uf2_kernel_load);
     qtest_add_func("/rp2040-xip/flash-program-erase",
                    test_flash_program_erase);
     qtest_add_func("/rp2040-xip/flash-persistence",

@@ -90,6 +90,17 @@
 #define FLASH_PAGE_SIZE  256
 #define FLASH_SECTOR_SIZE 4096
 
+#define UF2_MAGIC_START0 0x0a324655
+#define UF2_MAGIC_START1 0x9e5d5157
+#define UF2_MAGIC_END    0x0ab16f30
+#define UF2_BLOCK_SIZE   512
+#define UF2_HEADER_SIZE  32
+#define UF2_MAX_PAYLOAD  476
+
+#define UF2_FLAG_NOT_MAIN_FLASH       BIT(0)
+#define UF2_FLAG_FAMILY_ID_PRESENT    BIT(13)
+#define UF2_RP2040_FAMILY_ID          0xe48bff56
+
 #define ATOMIC_ALIAS_MASK 0x3000
 #define ATOMIC_XOR        0x1000
 #define ATOMIC_SET        0x2000
@@ -1121,6 +1132,92 @@ static bool rp2040_xip_load_elf(RP2040XipState *s, const char *filename,
     return true;
 }
 
+static bool rp2040_xip_load_uf2(RP2040XipState *s, const char *filename,
+                                Error **errp)
+{
+    g_autofree gchar *contents = NULL;
+    gsize len;
+    unsigned blocks;
+    unsigned i;
+    bool copied = false;
+
+    if (!g_file_get_contents(filename, &contents, &len, NULL)) {
+        error_setg(errp, "could not load flash image '%s'", filename);
+        return true;
+    }
+
+    if (len < UF2_BLOCK_SIZE ||
+        ldl_le_p(contents) != UF2_MAGIC_START0 ||
+        ldl_le_p(contents + 4) != UF2_MAGIC_START1) {
+        return false;
+    }
+
+    if (len % UF2_BLOCK_SIZE != 0) {
+        error_setg(errp, "invalid UF2 image '%s': size is not a multiple "
+                   "of %u bytes", filename, UF2_BLOCK_SIZE);
+        return true;
+    }
+
+    blocks = len / UF2_BLOCK_SIZE;
+    for (i = 0; i < blocks; i++) {
+        const uint8_t *block = (uint8_t *)contents + i * UF2_BLOCK_SIZE;
+        uint32_t flags;
+        uint32_t target;
+        uint32_t payload_size;
+        uint32_t family_id;
+        uint32_t offset;
+
+        if (ldl_le_p(block) != UF2_MAGIC_START0 ||
+            ldl_le_p(block + 4) != UF2_MAGIC_START1 ||
+            ldl_le_p(block + UF2_BLOCK_SIZE - 4) != UF2_MAGIC_END) {
+            error_setg(errp, "invalid UF2 image '%s': bad magic in block %u",
+                       filename, i);
+            return true;
+        }
+
+        flags = ldl_le_p(block + 8);
+        if (flags & UF2_FLAG_NOT_MAIN_FLASH) {
+            continue;
+        }
+
+        if (!(flags & UF2_FLAG_FAMILY_ID_PRESENT)) {
+            error_setg(errp, "invalid RP2040 UF2 image '%s': block %u has "
+                       "no family ID", filename, i);
+            return true;
+        }
+
+        family_id = ldl_le_p(block + 28);
+        if (family_id != UF2_RP2040_FAMILY_ID) {
+            error_setg(errp, "unsupported UF2 family ID 0x%08" PRIx32
+                       " in '%s'", family_id, filename);
+            return true;
+        }
+
+        target = ldl_le_p(block + 12);
+        payload_size = ldl_le_p(block + 16);
+        if (payload_size > UF2_MAX_PAYLOAD ||
+            target < RP2040_XIP_FLASH_BASE ||
+            target - RP2040_XIP_FLASH_BASE > s->flash_size ||
+            payload_size > s->flash_size -
+                           (target - RP2040_XIP_FLASH_BASE)) {
+            error_setg(errp, "UF2 block %u in '%s' is outside XIP flash",
+                       i, filename);
+            return true;
+        }
+
+        offset = target - RP2040_XIP_FLASH_BASE;
+        memcpy(s->storage + offset, block + UF2_HEADER_SIZE, payload_size);
+        copied = true;
+    }
+
+    if (!copied) {
+        error_setg(errp, "UF2 image '%s' contains no RP2040 flash payload",
+                   filename);
+    }
+
+    return true;
+}
+
 void rp2040_xip_load_image(RP2040XipState *s, const char *filename,
                            Error **errp)
 {
@@ -1132,6 +1229,18 @@ void rp2040_xip_load_image(RP2040XipState *s, const char *filename,
     }
 
     if (rp2040_xip_load_elf(s, filename, &local_err)) {
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+        if (!rp2040_xip_fixup_boot2(s, filename, errp)) {
+            return;
+        }
+        rp2040_xip_writeback(s, errp);
+        return;
+    }
+
+    if (rp2040_xip_load_uf2(s, filename, &local_err)) {
         if (local_err) {
             error_propagate(errp, local_err);
             return;
