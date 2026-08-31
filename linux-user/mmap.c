@@ -1305,8 +1305,14 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
      * success, which is broken but some userspace programs fail to work
      * otherwise. Completely implementing such emulation is quite complicated
      * though.
+     *
+     * When some (or all) of the pages in the range are not mapped, madvise
+     * should fail with -ENOMEM. If another error occurs, its value is
+     * returned instead.
      */
     mmap_lock();
+    ret = page_check_range(start, len, PAGE_VALID) ? 0 : -TARGET_ENOMEM;
+
     switch (advice) {
     case MADV_NORMAL:
     case MADV_RANDOM:
@@ -1316,7 +1322,6 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
     case MADV_FREE:
     case MADV_COLD:
     case MADV_PAGEOUT:
-        ret = 0; /* OK */
         break;
     case MADV_REMOVE:
         ret = -EOPNOTSUPP;
