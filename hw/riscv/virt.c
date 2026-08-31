@@ -1259,6 +1259,15 @@ static void virt_machine_done(Notifier *notifier, void *data)
     }
 
     /*
+     * Advertise the pxb/pxb-cxl expander root buses to firmware so that
+     * it enumerates behind them and assigns bus numbers and windows.  For
+     * the CXL host bridges, build_crs() then builds the ACPI0016 _CRS
+     * from the resulting state when the guest reads the ACPI tables.
+     * This is a no-op without any expander root bus.
+     */
+    pci_bus_add_fw_cfg_extra_pci_roots(s->fw_cfg, s->pci_bus, &error_abort);
+
+    /*
      * An user provided dtb must include everything, including
      * dynamic sysbus devices. Our FDT needs to be finalized.
      */
