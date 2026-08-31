@@ -59,6 +59,8 @@ typedef struct K230MachineState {
     /*< public >*/
     K230SoCState soc;
     Notifier machine_done;
+
+    char *spi_flash_model;
 } K230MachineState;
 
 enum {

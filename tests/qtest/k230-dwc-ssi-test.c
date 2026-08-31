@@ -80,6 +80,7 @@
 #define K230_SSI_XIP_MODE_BITS          0x0fc
 
 #define K230_SSI_FIFO_DEPTH             256
+#define K230_SSI_FLASH_SIZE              MiB
 
 typedef struct K230SsiInstance {
     uint64_t base;
@@ -593,7 +594,87 @@ static void test_icr_total_clear(void)
     qtest_quit(qts);
 }
 
+static void test_flash_jedec_id(void)
+{
+    QTestState *qts = qtest_init("-machine k230,spi-flash=m25p80");
+    uint32_t id;
 
+    k230_ssi_configure(qts, K230_SPI0_BASE, K230_SSI_TMOD_TR, 8, 0);
+    k230_ssi_enable_cs(qts, K230_SPI0_BASE, BIT(0));
+
+    /* JEDEC RDID (0x9f): m25p80 reports 0x20 0x20 0x14. */
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x9f);
+    (void)k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    id = k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    g_assert_cmphex(id & 0xff, ==, 0x20);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    id = k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    g_assert_cmphex(id & 0xff, ==, 0x20);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    id = k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    g_assert_cmphex(id & 0xff, ==, 0x14);
+
+    qtest_quit(qts);
+}
+
+static void test_flash_fixed_read(void)
+{
+    QTestState *qts = qtest_init("-machine k230,spi-flash=m25p80");
+    g_autofree uint8_t *image = g_malloc(K230_SSI_FLASH_SIZE);
+    g_autofree char *flash_path = NULL;
+    uint32_t byte;
+    int fd;
+
+    k230_ssi_configure(qts, K230_SPI0_BASE, K230_SSI_TMOD_TR, 8, 0);
+    k230_ssi_enable_cs(qts, K230_SPI0_BASE, BIT(0));
+
+    /* Standard 1-1-1 READ (0x03) at address 0x000000. */
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x03);
+    (void)k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    (void)k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    (void)k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    (void)k230_ssi_read_frame(qts, K230_SPI0_BASE);
+
+    /* Without a backend the flash is erased and reads back 0xff. */
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    byte = k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    g_assert_cmphex(byte & 0xff, ==, 0xff);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    byte = k230_ssi_read_frame(qts, K230_SPI0_BASE);
+    g_assert_cmphex(byte & 0xff, ==, 0xff);
+
+    qtest_quit(qts);
+
+    memset(image, 0xff, K230_SSI_FLASH_SIZE);
+    image[0x123] = 0x5a;
+    image[0x124] = 0xc3;
+    fd = g_file_open_tmp("qtest-k230-ssi-XXXXXX", &flash_path, NULL);
+    g_assert_cmpint(fd, >=, 0);
+    close(fd);
+    g_assert_true(g_file_set_contents(flash_path, (char *)image,
+                                      K230_SSI_FLASH_SIZE, NULL));
+
+    qts = qtest_initf("-machine k230,spi-flash=m25p80 "
+                      "-drive file=%s,format=raw,if=mtd", flash_path);
+    k230_ssi_configure(qts, K230_SPI0_BASE, K230_SSI_TMOD_EEPROM_READ,
+                       8, 1);
+    k230_ssi_writel(qts, K230_SPI0_BASE, K230_SSI_SSIENR, 1);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x03);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x00);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x01);
+    k230_ssi_write_frame(qts, K230_SPI0_BASE, 0x23);
+    k230_ssi_writel(qts, K230_SPI0_BASE, K230_SSI_SER, BIT(0));
+    k230_ssi_wait_mask(qts, K230_SPI0_BASE, K230_SSI_RXFLR,
+                       UINT32_MAX, 2);
+    g_assert_cmphex(k230_ssi_read_frame(qts, K230_SPI0_BASE), ==, 0x5a);
+    g_assert_cmphex(k230_ssi_read_frame(qts, K230_SPI0_BASE), ==, 0xc3);
+    qtest_quit(qts);
+    g_assert_cmpint(g_unlink(flash_path), ==, 0);
+}
 
 static void test_unsupported_registers(void)
 {
@@ -633,5 +714,7 @@ int main(int argc, char **argv)
     qtest_add_func("/k230-dwc-ssi/icr-total-clear", test_icr_total_clear);
     qtest_add_func("/k230-dwc-ssi/unsupported-registers",
                    test_unsupported_registers);
+    qtest_add_func("/k230-dwc-ssi/flash-jedec-id", test_flash_jedec_id);
+    qtest_add_func("/k230-dwc-ssi/flash-fixed-read", test_flash_fixed_read);
     return g_test_run();
 }

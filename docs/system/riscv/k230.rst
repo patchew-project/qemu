@@ -24,6 +24,7 @@ The ``k230`` machine supports the following devices:
 * System Direct Memory Access (SDMA)
 * GZIP Decompress Engine (Decomp_gzip)
 * 3 DWC SSI controllers (Standard SPI mode)
+* Optional SPI NOR flash on spi0 CS0
 
 Boot options
 ------------
