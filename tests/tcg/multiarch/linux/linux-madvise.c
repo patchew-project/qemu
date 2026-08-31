@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -63,10 +64,52 @@ static void test_file(void)
     assert(ret == 0);
 }
 
+static void test_mapped_and_unmapped(void)
+{
+    int pagesize = getpagesize();
+    void *page;
+    int ret;
+
+    page = mmap(NULL, pagesize, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    assert(page != MAP_FAILED);
+
+    ret = madvise(page, pagesize, MADV_NORMAL);
+    assert(ret == 0);
+
+    ret = munmap(page, pagesize);
+    assert(ret == 0);
+
+    ret = madvise(page, pagesize, MADV_NORMAL);
+    assert(ret == -1);
+    assert(errno == ENOMEM);
+}
+
+static void test_partially_unmapped_enomem(void)
+{
+    int pagesize = getpagesize();
+    void *page;
+    int ret;
+
+    page = mmap(NULL, 3 * pagesize, PROT_READ,
+                MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    assert(page != MAP_FAILED);
+    ret = munmap((char *)page + pagesize, pagesize);
+    assert(ret == 0);
+
+    ret = madvise(page, 3 * pagesize, MADV_NORMAL);
+    assert(ret == -1);
+    assert(errno == ENOMEM);
+
+    ret = munmap(page, 3 * pagesize);
+    assert(ret == 0);
+}
+
 int main(void)
 {
     test_anonymous();
     test_file();
+    test_mapped_and_unmapped();
+    test_partially_unmapped_enomem();
 
     return EXIT_SUCCESS;
 }
