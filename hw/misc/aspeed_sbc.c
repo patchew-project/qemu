@@ -60,6 +60,9 @@
 #define MODE_REGISTER_A             (0x3000)
 #define MODE_REGISTER_B             (0x5000)
 
+/* OTP Address */
+#define OTP_CFG0                (0x800)
+
 static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedSBCState *s = ASPEED_SBC(opaque);
@@ -261,17 +264,44 @@ static const MemoryRegionOps aspeed_sbc_ops = {
     },
 };
 
+static bool aspeed_get_abr_state(AspeedSBCState *s)
+{
+    uint32_t value;
+    int i;
+    bool enable = false;
+    int config_offset;
+
+    /*
+     * ABR is a strap setting, and each strap setting consists of six
+     * sub-values. Read all sub-values to retrieve the latest setting.
+     */
+    for (i = 17; i < 28; i += 2) {
+        config_offset = OTP_CFG0;
+        config_offset |= (i / 8) * 0x200;
+        config_offset |= (i % 8) * 0x2;
+
+        aspeed_sbc_otp_read(s, config_offset);
+        value = s->regs[R_CAMP1];
+        enable ^= (value >> 11) & 0x1;
+    }
+
+    return enable;
+}
+
 static void aspeed_sbc_reset_hold(Object *obj, ResetType type)
 {
     AspeedSBCState *s = ASPEED_SBC(obj);
+    bool abr;
 
     memset(s->regs, 0, sizeof(s->regs));
+
+    abr = aspeed_get_abr_state(s);
 
     /* Set secure boot enabled with RSA4096_SHA256 and enable eMMC ABR */
     s->regs[R_STATUS] = OTP_IDLE | OTP_MEM_IDLE;
 
-    if (s->emmc_abr) {
-        s->regs[R_STATUS] &= ABR_EN;
+    if (abr) {
+        s->regs[R_STATUS] |= ABR_EN;
     }
 
     if (s->signing_settings) {
@@ -323,7 +353,6 @@ static const VMStateDescription vmstate_aspeed_sbc = {
 };
 
 static const Property aspeed_sbc_properties[] = {
-    DEFINE_PROP_BOOL("emmc-abr", AspeedSBCState, emmc_abr, 0),
     DEFINE_PROP_UINT32("signing-settings", AspeedSBCState, signing_settings, 0),
 };
 
