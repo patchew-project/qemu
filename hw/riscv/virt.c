@@ -54,6 +54,8 @@
 #include "hw/pci/pci.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/display/ramfb.h"
+#include "hw/cxl/cxl.h"
+#include "hw/cxl/cxl_host.h"
 #include "hw/acpi/aml-build.h"
 #include "qapi/qapi-visit-common.h"
 #include "hw/virtio/virtio-iommu.h"
@@ -1113,7 +1115,31 @@ static inline DeviceState *gpex_pcie_init(MemoryRegion *sys_mem,
     }
 
     GPEX_HOST(dev)->gpex_cfg.bus = PCI_HOST_BRIDGE(dev)->bus;
+    s->pci_bus = PCI_HOST_BRIDGE(dev)->bus;
     return dev;
+}
+
+static void cxl_host_state_init(RISCVVirtState *s)
+{
+    MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *mr = &s->cxl_devices_state.host_mr;
+    hwaddr base;
+
+    if (!s->cxl_devices_state.is_enabled) {
+        return;
+    }
+
+    base = virt_high_pcie_memmap.base + virt_high_pcie_memmap.size;
+    base = ROUND_UP(base, 64 * KiB);
+
+    memory_region_init(mr, OBJECT(s), "cxl_host_reg", 64 * KiB * 16);
+    memory_region_add_subregion(sysmem, base, mr);
+
+    /* Map the Fixed Memory Windows above the CXL host register region. */
+    base += memory_region_size(mr);
+    base = ROUND_UP(base, 256 * MiB);
+    cxl_fmws_set_memmap(base, UINT64_MAX);
+    cxl_fmws_update_mmio();
 }
 
 static FWCfgState *create_fw_cfg(const MachineState *ms, hwaddr base)
@@ -1224,6 +1250,13 @@ static void virt_machine_done(Notifier *notifier, void *data)
     uint64_t kernel_entry = 0;
     BlockBackend *pflash_blk0;
     RISCVBootInfo boot_info;
+
+    cxl_hook_up_pxb_registers(s->pci_bus, &s->cxl_devices_state,
+                              &error_fatal);
+
+    if (s->cxl_devices_state.is_enabled) {
+        cxl_fmws_link_targets(&error_fatal);
+    }
 
     /*
      * An user provided dtb must include everything, including
@@ -1463,6 +1496,8 @@ static void virt_machine_init(MachineState *machine)
             ROUND_UP(virt_high_pcie_memmap.base, virt_high_pcie_memmap.size);
     }
 
+    cxl_host_state_init(s);
+
     /* register system main memory (actual RAM) */
     memory_region_add_subregion(system_memory, s->memmap[VIRT_DRAM].base,
                                 machine->ram);
@@ -1577,6 +1612,8 @@ static void virt_machine_instance_init(Object *obj)
     s->acpi = ON_OFF_AUTO_AUTO;
     s->iommu_sys = ON_OFF_AUTO_AUTO;
     s->num_sources = VIRT_IRQCHIP_NUM_SOURCES;
+
+    cxl_machine_init(obj, &s->cxl_devices_state);
 }
 
 static char *virt_get_aia_guests(Object *obj, Error **errp)
