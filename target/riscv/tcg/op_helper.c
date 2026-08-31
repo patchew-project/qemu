@@ -610,6 +610,13 @@ void helper_tlb_flush(CPURISCVState *env)
     }
 }
 
+void helper_tlb_flush_page(CPURISCVState *env, target_ulong addr)
+{
+    if (sfence_vma_allowed(env, GETPC())) {
+        tlb_flush_page(env_cpu(env), addr);
+    }
+}
+
 void helper_tlb_flush_all(CPURISCVState *env)
 {
     CPUState *cs = env_cpu(env);
