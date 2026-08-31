@@ -63,6 +63,19 @@
 /* OTP Address */
 #define OTP_CFG0                (0x800)
 
+static bool aspeed_sbc_otp_read(AspeedSBCState *s, uint32_t otp_addr);
+
+static uint32_t aspeed_otp_read_cfg0(AspeedSBCState *s)
+{
+    uint32_t value = 0;
+
+    if (aspeed_sbc_otp_read(s, OTP_CFG0)) {
+        value = s->regs[R_CAMP1];
+    }
+
+    return value;
+}
+
 static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedSBCState *s = ASPEED_SBC(opaque);
@@ -76,7 +89,12 @@ static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
         return 0;
     }
 
-    return s->regs[addr];
+    switch (addr) {
+    case R_QSR:
+        return aspeed_otp_read_cfg0(s);
+    default:
+        return s->regs[addr];
+    }
 }
 
 static bool aspeed_sbc_otp_read(AspeedSBCState *s,
@@ -291,6 +309,7 @@ static bool aspeed_get_abr_state(AspeedSBCState *s)
 static void aspeed_sbc_reset_hold(Object *obj, ResetType type)
 {
     AspeedSBCState *s = ASPEED_SBC(obj);
+    uint32_t value;
     bool abr;
 
     memset(s->regs, 0, sizeof(s->regs));
@@ -304,11 +323,11 @@ static void aspeed_sbc_reset_hold(Object *obj, ResetType type)
         s->regs[R_STATUS] |= ABR_EN;
     }
 
-    if (s->signing_settings) {
-        s->regs[R_STATUS] &= SECURE_BOOT_EN;
-    }
+    value = aspeed_otp_read_cfg0(s);
 
-    s->regs[R_QSR] = s->signing_settings;
+    if (value & BIT(1)) {
+        s->regs[R_STATUS] |= SECURE_BOOT_EN;
+    }
 }
 
 static void aspeed_sbc_instance_init(Object *obj)
@@ -352,10 +371,6 @@ static const VMStateDescription vmstate_aspeed_sbc = {
     }
 };
 
-static const Property aspeed_sbc_properties[] = {
-    DEFINE_PROP_UINT32("signing-settings", AspeedSBCState, signing_settings, 0),
-};
-
 static void aspeed_sbc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -364,7 +379,6 @@ static void aspeed_sbc_class_init(ObjectClass *klass, const void *data)
     dc->realize = aspeed_sbc_realize;
     rc->phases.hold = aspeed_sbc_reset_hold;
     dc->vmsd = &vmstate_aspeed_sbc;
-    device_class_set_props(dc, aspeed_sbc_properties);
 }
 
 
