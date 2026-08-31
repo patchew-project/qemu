@@ -325,7 +325,6 @@ int qcrypto_x509_check_ecc_curve_p521(uint8_t *cert, size_t size, Error **errp)
 
     curve_id = qcrypto_x509_get_ecc_curve(cert, size, errp);
     if (curve_id == -1) {
-        error_setg(errp, "Failed to get ECC curve");
         return -1;
     }
 
