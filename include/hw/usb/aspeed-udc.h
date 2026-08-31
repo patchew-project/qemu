@@ -42,6 +42,14 @@ typedef struct AspeedUDCEP {
     MemoryRegion mr;
     uint32_t regs[ASPEED_UDC_EP_NR_REGS];
     int index;
+
+    /*
+     * host packet parked until the guest gadget driver queues (IN) or
+     * arms (OUT) data
+     */
+    USBPacket *pkt;
+    /* bytes of the current IN descriptor already served */
+    uint32_t desc_off;
 } AspeedUDCEP;
 
 struct AspeedUDCGadget {
