@@ -103,6 +103,55 @@ static const MemMapEntry memmap[] = {
     [K230_DEV_CLINT] =        { 0xF04000000, 0x00400000 },
 };
 
+typedef struct K230SsiRoute {
+    unsigned int ssi_index;
+    unsigned int irq_base;
+} K230SsiRoute;
+
+/*
+ * SDK numbering follows the address map: spi0 is the SPI-OPI instance,
+ * while spi1 and spi2 are QSPI0 and QSPI1.
+ */
+static const K230SsiRoute k230_ssi_routes[] = {
+    { .ssi_index = 2, .irq_base = K230_SPI0_IRQ_BASE },
+    { .ssi_index = 0, .irq_base = K230_SPI1_IRQ_BASE },
+    { .ssi_index = 1, .irq_base = K230_SPI2_IRQ_BASE },
+};
+
+typedef struct K230DwcSsiProfile {
+    uint32_t num_cs;
+    uint32_t fifo_depth;
+    bool master_mode;
+} K230DwcSsiProfile;
+
+static const K230DwcSsiProfile k230_dwc_ssi_profiles[] = {
+    [0] = { /* QSPI0, SDK spi1 */
+        .num_cs = 5,
+        .fifo_depth = 256,
+        .master_mode = true,
+    },
+    [1] = { /* QSPI1, SDK spi2 */
+        .num_cs = 5,
+        .fifo_depth = 256,
+        .master_mode = true,
+    },
+    [2] = { /* SPI-OPI/FMC, SDK spi0 */
+        .num_cs = 1,
+        .fifo_depth = 256,
+        .master_mode = true,
+    },
+};
+
+static void k230_configure_dwc_ssi(DwcSsiState *ssi,
+                                   const K230DwcSsiProfile *profile)
+{
+    DeviceState *dev = DEVICE(ssi);
+
+    qdev_prop_set_uint32(dev, "num-cs", profile->num_cs);
+    qdev_prop_set_uint32(dev, "fifo-depth", profile->fifo_depth);
+    qdev_prop_set_bit(dev, "master-mode", profile->master_mode);
+}
+
 static void k230_soc_init(Object *obj)
 {
     K230SoCState *s = RISCV_K230_SOC(obj);
@@ -119,6 +168,12 @@ static void k230_soc_init(Object *obj)
     object_initialize_child(obj, "k230-gsdma", &s->gsdma, TYPE_K230_GSDMA);
     object_initialize_child(obj, "k230-decomp-gzip", &s->decomp_gzip,
                             TYPE_K230_DECOMP_GZIP);
+    object_initialize_child(obj, "k230-qspi0", &s->dwc_ssi[0],
+                            TYPE_DWC_SSI);
+    object_initialize_child(obj, "k230-qspi1", &s->dwc_ssi[1],
+                            TYPE_DWC_SSI);
+    object_initialize_child(obj, "k230-spi-opi", &s->dwc_ssi[2],
+                            TYPE_DWC_SSI);
 
     qdev_prop_set_uint32(DEVICE(cpu0), "hartid-base", 0);
     qdev_prop_set_string(DEVICE(cpu0), "cpu-type", TYPE_RISCV_CPU_THEAD_C908);
@@ -158,6 +213,25 @@ static void k230_create_uart(MemoryRegion *sys_mem, DeviceState *plic,
     serial_mm_init(sys_mem, memmap[uart_dev].base, 2,
                    qdev_get_gpio_in(plic, K230_UART0_IRQ + index),
                    399193, serial_hd(index), DEVICE_LITTLE_ENDIAN);
+}
+
+static void k230_connect_ssi_irqs(K230SoCState *s)
+{
+    for (size_t route_idx = 0;
+         route_idx < ARRAY_SIZE(k230_ssi_routes); route_idx++) {
+        const K230SsiRoute *route = &k230_ssi_routes[route_idx];
+        SysBusDevice *ssi;
+
+        g_assert(route->ssi_index < ARRAY_SIZE(s->dwc_ssi));
+        g_assert(route->irq_base + DWC_SSI_IRQ_COUNT <=
+                 K230_PLIC_NUM_SOURCES);
+
+        ssi = SYS_BUS_DEVICE(&s->dwc_ssi[route->ssi_index]);
+        for (unsigned int i = 0; i < DWC_SSI_IRQ_COUNT; i++) {
+            sysbus_connect_irq(ssi, i,
+                qdev_get_gpio_in(DEVICE(s->c908_plic), route->irq_base + i));
+        }
+    }
 }
 
 static void k230_soc_realize(DeviceState *dev, Error **errp)
@@ -217,6 +291,15 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    for (int i = 0; i < ARRAY_SIZE(s->dwc_ssi); i++) {
+        k230_configure_dwc_ssi(&s->dwc_ssi[i], &k230_dwc_ssi_profiles[i]);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->dwc_ssi[i]), errp)) {
+            return;
+        }
+    }
+
+    k230_connect_ssi_irqs(s);
+
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt[0]), 0, memmap[K230_DEV_WDT0].base);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->wdt[0]), 0,
                        qdev_get_gpio_in(DEVICE(s->c908_plic), K230_WDT0_IRQ));
@@ -252,6 +335,13 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
 
     /* Noc stub, the k230 decomp_gzip driver in uboot will access this region */
     create_unimplemented_device("noc-stub", 0x91302000, 0x1000);
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dwc_ssi[0]), 0,
+                    memmap[K230_DEV_QSPI0].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dwc_ssi[1]), 0,
+                    memmap[K230_DEV_QSPI1].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dwc_ssi[2]), 0,
+                    memmap[K230_DEV_SPI].base);
 
     /* unimplemented devices */
     create_unimplemented_device("kpu.l2-cache",
@@ -388,15 +478,6 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
 
     create_unimplemented_device("sd1", memmap[K230_DEV_SD1].base,
                                 memmap[K230_DEV_SD1].size);
-
-    create_unimplemented_device("qspi0", memmap[K230_DEV_QSPI0].base,
-                                memmap[K230_DEV_QSPI0].size);
-
-    create_unimplemented_device("qspi1", memmap[K230_DEV_QSPI1].base,
-                                memmap[K230_DEV_QSPI1].size);
-
-    create_unimplemented_device("spi", memmap[K230_DEV_SPI].base,
-                                memmap[K230_DEV_SPI].size);
 
     create_unimplemented_device("hi_sys_cfg", memmap[K230_DEV_HI_SYS_CFG].base,
                                 memmap[K230_DEV_HI_SYS_CFG].size);

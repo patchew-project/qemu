@@ -1877,6 +1877,7 @@ F: tests/qtest/k230-ddr-test.c
 F: tests/qtest/k230-wdt-test.c
 F: tests/qtest/k230-gsdma-test.c
 F: tests/qtest/k230-decomp-gzip-test.c
+F: tests/qtest/k230-dwc-ssi-test.c
 
 RX Machines
 -----------
