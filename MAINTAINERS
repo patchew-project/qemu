@@ -2408,6 +2408,7 @@ F: docs/devel/ssi.rst
 F: hw/ssi/*
 F: hw/block/m25p80*
 F: include/hw/ssi/ssi.h
+F: include/hw/ssi/dwc_ssi.h
 X: hw/ssi/xilinx_*
 F: tests/qtest/aspeed_smc-test.c
 
