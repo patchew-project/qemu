@@ -36,6 +36,8 @@
 #include "hw/gpio/aspeed_sgpio.h"
 #include "hw/sd/aspeed_sdhci.h"
 #include "hw/usb/hcd-ehci.h"
+#include "hw/usb/aspeed-udc.h"
+#include "hw/core/or-irq.h"
 #include "qom/object.h"
 #include "hw/misc/aspeed_lpc.h"
 #include "hw/misc/unimp.h"
@@ -138,6 +140,8 @@ struct Aspeed2600SoCState {
 
     A15MPPrivState a7mpcore;
     ARMCPU cpu[ASPEED_CPUS_NUM]; /* XXX belong to a7mpcore */
+    AspeedUDCState udc;
+    OrIRQState ehci2_udc_orgate;
 };
 
 #define TYPE_ASPEED2600_SOC "aspeed2600-soc"
