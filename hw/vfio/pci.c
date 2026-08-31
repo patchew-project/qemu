@@ -3244,21 +3244,36 @@ void vfio_pci_put_device(VFIOPCIDevice *vdev)
 static void vfio_err_notifier_handler(void *opaque)
 {
     VFIOPCIDevice *vdev = opaque;
+    Error *err = NULL;
 
     if (!event_notifier_test_and_clear(&vdev->err_notifier)) {
         return;
     }
 
     /*
-     * TBD. Retrieve the error details and decide what action
-     * needs to be taken. One of the actions could be to pass
-     * the error to the guest and have the guest driver recover
-     * from the error. This requires that PCIe capabilities be
-     * exposed to the guest. For now, we just terminate the
+     * We can retrieve the error details and decide what action
+     * needs to be taken in err_handler(). One of the actions could
+     * be to pass the error to the guest and have the guest driver
+     * recover from the error. This requires that PCIe capabilities be
+     * exposed to the guest.
+     *
+     * If err_handler() is not implemented/fails, we just terminate the
      * guest to contain the error.
      */
 
-    error_report("%s(%s) Unrecoverable error detected. Please collect any data possible and then kill the guest", __func__, vdev->vbasedev.name);
+    if (vdev->err_handler && vdev->err_handler(vdev, &err)) {
+        return;
+    }
+
+    if (err) {
+        error_prepend(&err, "Unrecoverable PCIe error detected for device %s",
+                      vdev->vbasedev.name);
+        error_report_err(err);
+    } else {
+        error_printf("Unrecoverable PCIe error detected for device %s",
+                     vdev->vbasedev.name);
+    }
+    error_printf("Please collect any data possible and then kill the guest");
 
     vm_stop(RUN_STATE_INTERNAL_ERROR);
 }

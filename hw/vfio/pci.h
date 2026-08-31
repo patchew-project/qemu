@@ -146,6 +146,7 @@ struct VFIOPCIDevice {
     EventNotifier err_notifier;
     EventNotifier req_notifier;
     int (*resetfn)(struct VFIOPCIDevice *);
+    bool (*err_handler)(struct VFIOPCIDevice *, Error **);
     uint32_t vendor_id;
     uint32_t device_id;
     uint32_t sub_vendor_id;
