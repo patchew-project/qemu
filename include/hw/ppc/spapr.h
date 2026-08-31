@@ -274,6 +274,9 @@ struct SpaprMachineState {
     bool fadump_registered;
     bool fadump_dump_active;
     FadumpMemStruct registered_fdm;
+
+    /* ibm,errinjct session token (0 = no session open) */
+    uint32_t errinjct_token;
 };
 
 #define H_SUCCESS         0
