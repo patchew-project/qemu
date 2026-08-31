@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
@@ -170,6 +171,15 @@ static bool s390_pci_err_handler(VFIOPCIDevice *vfio_pci, Error **errp)
     }
 
     return success;
+}
+
+void s390_pci_reset(S390PCIBusDevice *pbdev)
+{
+    VFIOPCIDevice *vfio_pci = VFIO_PCI_DEVICE(pbdev->pdev);
+    if (ioctl(vfio_pci->vbasedev.fd, VFIO_DEVICE_RESET)) {
+        error_report("Failed to reset PCI device %s : %s ",
+                      vfio_pci->vbasedev.name, strerror(errno));
+    }
 }
 
 static void s390_pci_read_base(S390PCIBusDevice *pbdev,
