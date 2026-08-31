@@ -34,9 +34,9 @@ ppc_ss.add(when: ['CONFIG_PSERIES', 'CONFIG_TCG'], if_true: files(
 ))
 ppc_ss.add(when: 'CONFIG_SPAPR_RNG', if_true: files('spapr_rng.c'))
 if host_os == 'linux'
-  ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
-    'spapr_pci_vfio.c',
-  ))
+  ppc_ss.add(when: ['CONFIG_PSERIES', 'CONFIG_VFIO_PCI'],
+             if_true: files('spapr_eeh.c'),
+             if_false: files('spapr_pci_vfio.c'))
 endif
 
 # IBM PowerNV
