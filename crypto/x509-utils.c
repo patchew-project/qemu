@@ -319,6 +319,9 @@ int qcrypto_x509_check_ecc_curve_p521(uint8_t *cert, size_t size, Error **errp)
     int curve_id;
 
     algo = qcrypto_x509_get_pk_algorithm(cert, size, errp);
+    if (algo < 0) {
+        return -1;
+    }
     if (algo != GNUTLS_PK_ECDSA) {
         return 0;
     }
