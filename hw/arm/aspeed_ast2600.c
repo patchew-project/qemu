@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/misc/unimp.h"
 #include "hw/arm/aspeed_soc.h"
@@ -24,6 +25,7 @@
 static const hwaddr aspeed_soc_ast2600_memmap[] = {
     [ASPEED_DEV_SPI_BOOT]  = 0x00000000,
     [ASPEED_DEV_SRAM0]     = 0x10000000,
+    [ASPEED_DEV_SRAM1]     = 0x1E710000, /* ACRY SRAM */
     [ASPEED_DEV_DPMCU]     = 0x18000000,
     /* 0x16000000     0x17FFFFFF : AHB BUS do LPC Bus bridge */
     [ASPEED_DEV_IOMEM]     = 0x1E600000,
@@ -361,6 +363,7 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     AspeedSoCState *s = ASPEED_SOC(dev);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     qemu_irq irq;
+    g_autofree char *sram1_name = NULL;
     g_autofree char *sram_name = NULL;
     int uart;
 
@@ -443,6 +446,19 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     }
     memory_region_add_subregion(s->memory,
                                 sc->memmap[ASPEED_DEV_SRAM0], &s->sram[0]);
+
+    /* ACRY SRAM */
+    sram1_name = g_strdup_printf("aspeed.acry.sram.%d",
+                                 CPU(&a->cpu[0])->cpu_index);
+    if (!memory_region_init_ram(&s->sram[1], OBJECT(s), sram1_name,
+                                sc->sram_size[1], errp)) {
+        return;
+    }
+    memory_region_init(&s->sram_container[1], OBJECT(s),
+                       "aspeed.acry.sram-container", sc->sram_size[1]);
+    memory_region_add_subregion(&s->sram_container[1], 0, &s->sram[1]);
+    memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_SRAM1],
+                                &s->sram_container[1]);
 
     /* DPMCU */
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->dpmcu),
@@ -765,6 +781,7 @@ static void aspeed_soc_ast2600_class_init(ObjectClass *oc, const void *data)
     sc->valid_cpu_types = valid_cpu_types;
     sc->silicon_rev  = AST2600_A3_SILICON_REV;
     sc->sram_size[0] = 0x16400;
+    sc->sram_size[1] = 64 * KiB; /* ACRY SRAM */
     sc->spis_num     = 2;
     sc->ehcis_num    = 2;
     sc->wdts_num     = 4;
