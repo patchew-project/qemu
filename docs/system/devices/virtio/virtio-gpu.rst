@@ -185,8 +185,9 @@ rendering and `Wayland display passthrough`_.  With the gfxstream rendering
 mode, GLES and Vulkan calls are forwarded to the host with minimal
 modification.
 
-The crosvm book provides directions on how to build a `gfxstream-enabled
-rutabaga`_ and launch a `guest Wayland proxy`_.
+rutabaga_gfx's documentation provides directions on how to build a
+`gfxstream-enabled rutabaga`_. The crosvm book provides directions on
+how to launch a `guest Wayland proxy`_.
 
 This device does require host blob support (``hostmem`` field below). The
 ``hostmem`` field specifies the size of virtio-gpu host memory window.
@@ -214,7 +215,7 @@ Surfaceless is the default if ``wsi`` is not specified.
 
 .. _gfxstream: https://android.googlesource.com/platform/hardware/google/gfxstream/
 .. _Wayland display passthrough: https://www.youtube.com/watch?v=OZJiHMtIQ2M
-.. _gfxstream-enabled rutabaga: https://crosvm.dev/book/appendix/rutabaga_gfx.html
+.. _gfxstream-enabled rutabaga: https://github.com/magma-gpu/rutabaga_gfx#rutabaga-c-api
 .. _guest Wayland proxy: https://crosvm.dev/book/devices/wayland.html
 
 .. list-table:: Linux Host Requirements
