@@ -4,6 +4,7 @@ stub_ss.add(files(
   'nitro-stub.c',
   'mshv-stub.c',
   'nvmm-stub.c',
+  'tcg-stub.c',
   'whpx-stub.c',
   'xen-stub.c',
 ))

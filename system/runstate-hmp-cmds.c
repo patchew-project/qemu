@@ -22,6 +22,7 @@
 #include "qapi/qapi-commands-run-state.h"
 #include "qobject/qdict.h"
 #include "qemu/accel.h"
+#include "system/tcg.h"
 
 void hmp_info_status(Monitor *mon, const QDict *qdict)
 {
@@ -64,6 +65,9 @@ void hmp_one_insn_per_tb(Monitor *mon, const QDict *qdict)
     /* If the property exists then setting it can never fail */
     object_property_set_bool(OBJECT(accel), "one-insn-per-tb",
                              newval, &error_abort);
+
+    /* one-insn-per-tb feeds into the per-CPU cflags. */
+    tcg_update_all_cflags();
 }
 
 void hmp_watchdog_action(Monitor *mon, const QDict *qdict)
