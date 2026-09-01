@@ -3844,8 +3844,7 @@ S: Maintained
 F: scripts/simpletrace.py
 
 TPM
-M: Stefan Berger <stefanb@linux.ibm.com>
-S: Maintained
+S: Orphan
 F: system/tpm*
 F: hw/tpm/*
 F: include/hw/acpi/tpm.h
@@ -3854,7 +3853,6 @@ F: qapi/tpm.json
 F: backends/tpm/
 F: tests/qtest/*tpm*
 F: docs/specs/tpm.rst
-T: git https://github.com/stefanberger/qemu-tpm.git tpm-next
 
 SPDM, PCIe DOE
 M: Alistair Francis <alistair.francis@wdc.com>
