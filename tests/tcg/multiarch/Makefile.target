@@ -143,6 +143,15 @@ run-gdbstub-follow-fork-mode-parent: follow-fork-mode
 		--bin $< --test $(MULTIARCH_SRC)/gdbstub/follow-fork-mode-parent.py, \
 	following parents on fork)
 
+# The chaining this exercises is only enabled when no gdbstub was requested,
+# so what is under test here is that requesting one turns it back off.
+run-gdbstub-xpage-bp: test-xpage-chain
+	$(call run-test, $@, $(GDB_SCRIPT) \
+		--gdb $(GDB) \
+		--qemu $(QEMU) --qargs "$(QEMU_OPTS)" \
+		--bin "$< -b" --test $(MULTIARCH_SRC)/gdbstub/xpage-bp.py, \
+	breakpoint behind an established cross-page chain)
+
 run-gdbstub-late-attach: late-attach
 	$(call run-test, $@, env LATE_ATTACH_PY=1 $(GDB_SCRIPT) \
 		--gdb $(GDB) \
@@ -159,7 +168,8 @@ EXTRA_RUNS += run-gdbstub-sha1 run-gdbstub-qxfer-auxv-read \
 	      run-gdbstub-registers run-gdbstub-prot-none \
 	      run-gdbstub-catch-syscalls run-gdbstub-follow-fork-mode-child \
 	      run-gdbstub-follow-fork-mode-parent \
-	      run-gdbstub-qxfer-siginfo-read run-gdbstub-late-attach
+	      run-gdbstub-qxfer-siginfo-read run-gdbstub-late-attach \
+	      run-gdbstub-xpage-bp
 
 # ARM Compatible Semi Hosting Tests
 #
