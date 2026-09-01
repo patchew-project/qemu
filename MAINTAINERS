@@ -1770,11 +1770,13 @@ M: Aditya Gupta <adityag@linux.ibm.com>
 R: Sourabh Jain <sourabhjain@linux.ibm.com>
 R: Hari Bathini <hbathini@linux.ibm.com>
 R: Shivang Upadhyay <shivangu@linux.ibm.com>
+R: Narayana Murty N <nnmlinux@linux.ibm.com>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc/spapr_events.c
 F: hw/ppc/spapr_fadump.c
 F: hw/ppc/spapr_pci_vfio.c
+F: hw/ppc/spapr_eeh.c
 F: hw/ppc/spapr_rtas.c
 F: hw/ppc/pnv_mpipl.c
 F: include/hw/ppc/spapr_fadump.h
