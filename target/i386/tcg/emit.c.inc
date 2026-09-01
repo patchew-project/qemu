@@ -1919,7 +1919,15 @@ static void gen_CRC32(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_CVTPI2Px(DisasContext *s, X86DecodedInsn *decode)
 {
-    gen_helper_enter_mmx(tcg_env);
+    /*
+     * The x87->MMX transition only happens when the source is an MMX
+     * register, not for the memory-operand form. Confirmed on real
+     * hardware, contradicting the SDM's CVTPI2PS text. See
+     * https://bugs.kde.org/show_bug.cgi?id=357059.
+     */
+    if (!decode->op[2].has_ea) {
+        gen_helper_enter_mmx(tcg_env);
+    }
     if (s->prefix & PREFIX_DATA) {
         gen_helper_cvtpi2pd(tcg_env, OP_PTR0, OP_PTR2);
     } else {
