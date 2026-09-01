@@ -22,6 +22,7 @@
 #include "exec/cpu-common.h"
 #include "hw/core/cpu.h"
 #include "qemu/lockable.h"
+#include "system/tcg.h"
 #include "trace/trace-root.h"
 
 QemuMutex qemu_cpu_list_lock;
@@ -429,6 +430,9 @@ int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
         *breakpoint = bp;
     }
 
+    /* The first breakpoint takes the CPU off the inline dispatch path. */
+    tcg_update_cflags(cpu);
+
     trace_breakpoint_insert(cpu->cpu_index, pc, flags);
     return 0;
 }
@@ -455,6 +459,9 @@ int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, int flags)
 void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *bp)
 {
     QTAILQ_REMOVE(&cpu->breakpoints, bp, entry);
+
+    /* The last breakpoint puts the CPU back on it. */
+    tcg_update_cflags(cpu);
 
     trace_breakpoint_remove(cpu->cpu_index, bp->pc, bp->flags);
     g_free(bp);
