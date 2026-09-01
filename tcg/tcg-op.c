@@ -28,6 +28,8 @@
 #include "tcg/tcg-op-common.h"
 #include "exec/translation-block.h"
 #include "exec/plugin-gen.h"
+#include "hw/core/cpu.h"
+#include "../accel/tcg/tb-hash.h"
 #include "tcg-internal.h"
 #include "tcg-has.h"
 
@@ -2735,6 +2737,102 @@ void tcg_gen_lookup_and_goto_ptr(void)
     gen_lookup_tb_ptr_and_goto();
 }
 
+static void gen_jmp_cache_hash(TCGv_i64 h, TCGv_i64 pc)
+{
+#ifdef CONFIG_SOFTMMU
+    /*
+     * tb_jmp_cache_hash_func(), softmmu form.  TARGET_PAGE_BITS is a load
+     * from target_page in this translation unit, but it is decided long
+     * before any translation happens, so it is a constant here.
+     */
+    int shift = TARGET_PAGE_BITS - TB_JMP_PAGE_BITS;
+    TCGv_i64 tmp = tcg_temp_ebb_new_i64();
+
+    tcg_gen_shri_i64(tmp, pc, shift);
+    tcg_gen_xor_i64(tmp, tmp, pc);
+    tcg_gen_shri_i64(h, tmp, shift);
+    tcg_gen_andi_i64(h, h, TB_JMP_PAGE_MASK);
+    tcg_gen_andi_i64(tmp, tmp, TB_JMP_ADDR_MASK);
+    tcg_gen_or_i64(h, h, tmp);
+    tcg_temp_free_i64(tmp);
+#else
+    /* tb_jmp_cache_hash_func(), user-only form. */
+    tcg_gen_shri_i64(h, pc, TB_JMP_CACHE_BITS);
+    tcg_gen_xor_i64(h, h, pc);
+    tcg_gen_andi_i64(h, h, TB_JMP_CACHE_SIZE - 1);
+#endif
+}
+
+static void gen_jmp_cache_probe(TCGv_i64 pc, const TranslationBlock *tb)
+{
+    TCGv_ptr jc, ent, tbp, ptr;
+    TCGv_i64 h, tmp;
+    TCGLabel *slow;
+    uint64_t fpair;
+
+    QEMU_BUILD_BUG_ON(sizeof(((CPUJumpCache *)0)->array[0]) != 16);
+    QEMU_BUILD_BUG_ON(offsetof(CPUJumpCache, array[0].pc) % 8 != 0);
+    /* One 64-bit load has to cover both, so they must be adjacent... */
+    QEMU_BUILD_BUG_ON(offsetof(TranslationBlock, cflags) !=
+                      offsetof(TranslationBlock, flags) + 4);
+    /* ...and aligned, which nothing else currently relies on. */
+    QEMU_BUILD_BUG_ON(offsetof(TranslationBlock, flags) % 8 != 0);
+
+    jc = tcg_temp_ebb_new_ptr();
+    ent = tcg_temp_ebb_new_ptr();
+    tbp = tcg_temp_ebb_new_ptr();
+    ptr = tcg_temp_ebb_new_ptr();
+    h = tcg_temp_ebb_new_i64();
+    tmp = tcg_temp_ebb_new_i64();
+    slow = gen_new_label();
+
+    /* ent = &jc->array[tb_jmp_cache_hash_func(pc)] */
+    gen_jmp_cache_hash(h, pc);
+    tcg_gen_shli_i64(h, h, 4);
+
+    tcg_gen_ld_ptr(jc, tcg_env,
+                   offsetof(CPUState, tb_jmp_cache) - sizeof(CPUState));
+    tcg_gen_trunc_i64_ptr(ent, h);
+    tcg_gen_add_ptr(ent, jc, ent);
+
+    /*
+     * The pc first: on a hash miss it is the field most likely to differ,
+     * and an entry whose tb is NULL has a zero pc that only pc 0 matches.
+     */
+    tcg_gen_ld_i64(tmp, ent, offsetof(CPUJumpCache, array[0].pc));
+    tcg_gen_brcond_i64(TCG_COND_NE, tmp, pc, slow);
+
+    tcg_gen_ld_ptr(tbp, ent, offsetof(CPUJumpCache, array[0].tb));
+    tcg_gen_brcondi_ptr(TCG_COND_EQ, tbp, 0, slow);
+
+    /*
+     * flags and cflags are adjacent uint32_t, so one aligned 64-bit load
+     * and compare covers both.
+     */
+    fpair = (HOST_BIG_ENDIAN
+             ? deposit64(tb->cflags, 32, 32, tb->flags)
+             : deposit64(tb->flags, 32, 32, tb->cflags));
+    tcg_gen_ld_i64(tmp, tbp, offsetof(TranslationBlock, flags));
+    tcg_gen_brcondi_i64(TCG_COND_NE, tmp, fpair, slow);
+
+    /*
+     * cs_base is a second word of target-specific flags despite the name,
+     * and the pc alone does not imply it on a target that uses it.
+     */
+    tcg_gen_ld_i64(tmp, tbp, offsetof(TranslationBlock, cs_base));
+    tcg_gen_brcondi_i64(TCG_COND_NE, tmp, tb->cs_base, slow);
+
+    tcg_gen_ld_ptr(ptr, tbp, offsetof(TranslationBlock, tc.ptr));
+    tcg_gen_op1i(INDEX_op_goto_ptr, TCG_TYPE_PTR, tcgv_ptr_arg(ptr));
+
+    /*
+     * Emit a second goto_ptr rather than branching to a shared one: a temp
+     * live across the label would be spilled and reloaded on every dispatch.
+     */
+    gen_set_label(slow);
+    gen_lookup_tb_ptr_and_goto();
+}
+
 /*
  * The common half of tcg_gen_goto_jc_i32() and tcg_gen_goto_jc_i64().  @pc
  * is widened to i64 because the jump cache is keyed on a vaddr; for a
@@ -2761,7 +2859,17 @@ static void gen_goto_jc(TCGv_i64 pc)
                              tcg_constant_i64(tb->cs_base));
 #endif
 
-    gen_lookup_tb_ptr_and_goto();
+    /*
+     * A breakpoint is the one thing the probe cannot check for itself, so
+     * while one is set the flag is set too and every dispatch takes the
+     * helper, which does check.  See tcg_update_cflags().
+     */
+    if (tb->cflags & CF_NO_GOTO_JC) {
+        gen_lookup_tb_ptr_and_goto();
+        return;
+    }
+
+    gen_jmp_cache_probe(pc, tb);
 }
 
 void tcg_gen_goto_jc_i64(TCGv_i64 pc)

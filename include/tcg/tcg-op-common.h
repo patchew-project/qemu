@@ -91,7 +91,8 @@ void tcg_gen_lookup_and_goto_ptr(void);
  * @pc: temp holding the destination guest PC
  *
  * As tcg_gen_lookup_and_goto_ptr(), but the caller states where the
- * dispatch is going, which allows the lookup to be done inline.
+ * dispatch is going, so the TB jump cache is probed inline and only a miss
+ * reaches helper_lookup_tb_ptr().
  *
  * The contract is that when this runs, the CPU state must already be
  * exactly the destination's: @pc must hold what get_tb_cpu_state() would
