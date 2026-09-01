@@ -116,6 +116,8 @@
 
 #define PHANDLE_INTC            0x00001111
 
+#define ERRINJCT_BLOB_MAX       512
+
 /* These two functions implement the VCPU id numbering: one to compute them
  * all and one to identify thread 0 of a VCORE. Any change to the first one
  * is likely to have an impact on the second one, so let's keep them close.
@@ -1080,6 +1082,65 @@ static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
      * that rtas call return will always occur. Set this property.
      */
     _FDT(fdt_setprop(fdt, rtas, "ibm,extended-os-term", NULL, 0));
+
+    /*
+     * Advertise supported ibm,errinjct token types to the guest via the
+     * "ibm,errinjct-tokens" RTAS FDT property.  The blob is built locally
+     * from the QEMU-side token table; no /proc/device-tree probing is done.
+     * Each entry is: NUL-terminated name string || big-endian uint32 type.
+     */
+    {
+        static const struct {
+            const char *name;
+            uint32_t type;
+        } tok_table[] = {
+            { "recovered-special-event",
+              RTAS_ERR_TYPE_RECOVERED_SPECIAL_EVENT },
+            { "corrupted-page",     RTAS_ERR_TYPE_CORRUPTED_PAGE          },
+            { "ioa-bus-error",      RTAS_ERR_TYPE_IOA_BUS_ERROR           },
+            { "corrupted-dcache-start",
+              RTAS_ERR_TYPE_CORRUPTED_DCACHE_START  },
+            { "corrupted-dcache-end",
+              RTAS_ERR_TYPE_CORRUPTED_DCACHE_END    },
+            { "corrupted-icache-start",
+              RTAS_ERR_TYPE_CORRUPTED_ICACHE_START  },
+            { "corrupted-icache-end",
+              RTAS_ERR_TYPE_CORRUPTED_ICACHE_END    },
+            { "corrupted-tlb-start",
+              RTAS_ERR_TYPE_CORRUPTED_TLB_START     },
+            { "corrupted-tlb-end",  RTAS_ERR_TYPE_CORRUPTED_TLB_END       },
+            { "ioa-bus-error-64",   RTAS_ERR_TYPE_IOA_BUS_ERROR_64        },
+        };
+        g_autofree char *errinject_tokens = NULL;
+        uint8_t blob[ERRINJCT_BLOB_MAX];
+        size_t blen = 0;
+        bool ok = true;
+
+        for (int i = 0; i < G_N_ELEMENTS(tok_table) && ok; i++) {
+            size_t slen = strlen(tok_table[i].name) + 1;
+            uint32_t be_type;
+
+            if (blen + slen + sizeof(be_type) > ERRINJCT_BLOB_MAX) {
+                ok = false;
+                break;
+            }
+            memcpy(blob + blen, tok_table[i].name, slen);
+            blen += slen;
+            be_type = cpu_to_be32(tok_table[i].type);
+            memcpy(blob + blen, &be_type, sizeof(be_type));
+            blen += sizeof(be_type);
+        }
+
+        if (ok) {
+            errinject_tokens = g_memdup2(blob, blen);
+            _FDT(fdt_setprop(fdt, rtas, "ibm,errinjct-tokens",
+                             errinject_tokens, blen));
+            _FDT(fdt_setprop_string(fdt, rtas, "ibm,open-errinjct",
+                                    "ibm,open-errinjct"));
+            _FDT(fdt_setprop_string(fdt, rtas, "ibm,close-errinjct",
+                                    "ibm,close-errinjct"));
+        }
+    }
 
     _FDT(fdt_setprop(fdt, rtas, "ibm,lrdr-capacity",
                      lrdr_capacity, sizeof(lrdr_capacity)));
