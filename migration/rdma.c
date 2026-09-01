@@ -66,6 +66,14 @@ static inline uint64_t rdma_merge_max(void)
 #define RDMA_CONTROL_MAX_BUFFER (512 * 1024)
 #define RDMA_CONTROL_MAX_COMMANDS_PER_MESSAGE 4096
 
+/*
+ * Requested max_inline_data for the QP: enough for a control header
+ * plus the largest fixed-size control payload, so small control
+ * messages can be sent inline instead of via a separate HCA-side
+ * memory read.
+ */
+#define RDMA_CONTROL_MAX_INLINE_DATA 512
+
 #define RDMA_CONTROL_VERSION_CURRENT 1
 /*
  * Capabilities for negotiation.
@@ -329,6 +337,7 @@ typedef struct RDMAContext {
     struct ibv_context          *verbs;
     struct rdma_event_channel   *channel;
     struct ibv_qp *qp;                      /* queue pair */
+    uint32_t max_inline_data;               /* max size for inline sends */
     struct ibv_comp_channel *recv_comp_channel;  /* recv completion channel */
     struct ibv_comp_channel *send_comp_channel;  /* send completion channel */
     struct ibv_pd *pd;                      /* protection domain */
@@ -936,6 +945,14 @@ static int qemu_rdma_alloc_qp(RDMAContext *rdma)
     attr.cap.max_recv_wr = 3;
     attr.cap.max_send_sge = 1;
     attr.cap.max_recv_sge = 1;
+    /*
+     * Ask for enough inline data to cover a control header plus the
+     * largest fixed-size control payload (RDMARegister/RDMACompress),
+     * so those sends can skip a local memory read on the HCA.  The
+     * provider may grant less (or none); qemu_rdma_post_send_control()
+     * checks the actual granted size before using IBV_SEND_INLINE.
+     */
+    attr.cap.max_inline_data = RDMA_CONTROL_MAX_INLINE_DATA;
     attr.send_cq = rdma->send_cq;
     attr.recv_cq = rdma->recv_cq;
     attr.qp_type = IBV_QPT_RC;
@@ -945,6 +962,7 @@ static int qemu_rdma_alloc_qp(RDMAContext *rdma)
     }
 
     rdma->qp = rdma->cm_id->qp;
+    rdma->max_inline_data = attr.cap.max_inline_data;
     return 0;
 }
 
@@ -1446,6 +1464,10 @@ static int qemu_rdma_post_send_control(RDMAContext *rdma, uint8_t *buf,
                                    .sg_list = &sge,
                                    .num_sge = 1,
                                 };
+
+    if (sge.length <= rdma->max_inline_data) {
+        send_wr.send_flags |= IBV_SEND_INLINE;
+    }
 
     trace_rdma_post_send_control(control_desc(head->type));
 
