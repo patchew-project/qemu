@@ -2715,18 +2715,65 @@ void tcg_gen_goto_tb(unsigned idx)
     tcg_gen_op1i(INDEX_op_goto_tb, 0, idx);
 }
 
+static void gen_lookup_tb_ptr_and_goto(void)
+{
+    TCGv_ptr ptr = tcg_temp_ebb_new_ptr();
+
+    gen_helper_lookup_tb_ptr(ptr, tcg_env);
+    tcg_gen_op1i(INDEX_op_goto_ptr, TCG_TYPE_PTR, tcgv_ptr_arg(ptr));
+    tcg_temp_free_ptr(ptr);
+}
+
 void tcg_gen_lookup_and_goto_ptr(void)
 {
-    TCGv_ptr ptr;
-
     if (tcg_ctx->gen_tb->cflags & CF_NO_GOTO_PTR) {
         tcg_gen_exit_tb(NULL, 0);
         return;
     }
 
     plugin_gen_disable_mem_helpers();
-    ptr = tcg_temp_ebb_new_ptr();
-    gen_helper_lookup_tb_ptr(ptr, tcg_env);
-    tcg_gen_op1i(INDEX_op_goto_ptr, TCG_TYPE_PTR, tcgv_ptr_arg(ptr));
-    tcg_temp_free_ptr(ptr);
+    gen_lookup_tb_ptr_and_goto();
+}
+
+/*
+ * The common half of tcg_gen_goto_jc_i32() and tcg_gen_goto_jc_i64().  @pc
+ * is widened to i64 because the jump cache is keyed on a vaddr; for a
+ * 32-bit guest PC that is its zero extension.
+ */
+static void gen_goto_jc(TCGv_i64 pc)
+{
+    const TranslationBlock *tb = tcg_ctx->gen_tb;
+
+    if (tb->cflags & CF_NO_GOTO_PTR) {
+        tcg_gen_exit_tb(NULL, 0);
+        return;
+    }
+
+    plugin_gen_disable_mem_helpers();
+
+#ifdef CONFIG_DEBUG_TCG
+    /*
+     * The caller has asserted that env already describes the destination.
+     * Check it, rather than leaving a target that gets it wrong to be
+     * debugged as a block that runs with someone else's flags.
+     */
+    gen_helper_goto_jc_check(tcg_env, pc, tcg_constant_i64(tb->flags),
+                             tcg_constant_i64(tb->cs_base));
+#endif
+
+    gen_lookup_tb_ptr_and_goto();
+}
+
+void tcg_gen_goto_jc_i64(TCGv_i64 pc)
+{
+    gen_goto_jc(pc);
+}
+
+void tcg_gen_goto_jc_i32(TCGv_i32 pc)
+{
+    TCGv_i64 pc64 = tcg_temp_ebb_new_i64();
+
+    tcg_gen_extu_i32_i64(pc64, pc);
+    gen_goto_jc(pc64);
+    tcg_temp_free_i64(pc64);
 }

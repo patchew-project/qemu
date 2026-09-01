@@ -38,6 +38,7 @@ typedef TCGv_i32 TCGv;
 #define tcgv_tl_temp tcgv_i32_temp
 #define tcg_gen_qemu_ld_tl tcg_gen_qemu_ld_i32
 #define tcg_gen_qemu_st_tl tcg_gen_qemu_st_i32
+#define tcg_gen_goto_jc_tl tcg_gen_goto_jc_i32
 #elif TARGET_LONG_BITS == 64
 typedef TCGv_i64 TCGv;
 #define tcg_temp_new() tcg_temp_new_i64()
@@ -45,6 +46,7 @@ typedef TCGv_i64 TCGv;
 #define tcgv_tl_temp tcgv_i64_temp
 #define tcg_gen_qemu_ld_tl tcg_gen_qemu_ld_i64
 #define tcg_gen_qemu_st_tl tcg_gen_qemu_st_i64
+#define tcg_gen_goto_jc_tl tcg_gen_goto_jc_i64
 #else
 #error Unhandled TARGET_LONG_BITS value
 #endif

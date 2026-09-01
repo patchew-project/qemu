@@ -1162,7 +1162,7 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
         tcg_gen_goto_tb(0);
         tcg_gen_exit_tb(s->base.tb, 0);
     } else {
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_goto_jc_i64(psw_addr);
     }
 
     gen_set_label(lab);
@@ -6477,7 +6477,7 @@ static void s390x_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         if (dc->exit_to_mainloop) {
             tcg_gen_exit_tb(NULL, 0);
         } else {
-            tcg_gen_lookup_and_goto_ptr();
+            tcg_gen_goto_jc_i64(psw_addr);
         }
         break;
     default:

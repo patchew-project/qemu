@@ -407,6 +407,33 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
     return tb->tc.ptr;
 }
 
+#ifdef CONFIG_DEBUG_TCG
+/**
+ * helper_goto_jc_check: check the contract of tcg_gen_goto_jc_*()
+ * @env: current cpu state
+ * @pc: the destination pc the caller passed at translation time
+ * @flags: the flags the dispatching block was translated with
+ * @cs_base: the cs_base the dispatching block was translated with
+ *
+ * A goto_jc looks the destination up on the caller's @pc with the flags and
+ * cs_base of the block doing the dispatching, so all three have to be what
+ * get_tb_cpu_state() reports by the time the dispatch runs.  That is a
+ * property of the translator, not of the generated code, so check it here
+ * rather than leaving a target that gets it wrong to be debugged as a block
+ * running with someone else's flags.
+ */
+void HELPER(goto_jc_check)(CPUArchState *env, uint64_t pc, uint64_t flags,
+                           uint64_t cs_base)
+{
+    CPUState *cpu = env_cpu(env);
+    TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
+
+    assert(s.pc == pc);
+    assert(s.flags == flags);
+    assert(s.cs_base == cs_base);
+}
+#endif
+
 /* Return the current PC from CPU, which may be cached in TB. */
 static vaddr log_pc(CPUState *cpu, const TranslationBlock *tb)
 {

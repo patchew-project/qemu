@@ -85,6 +85,26 @@ void tcg_gen_goto_tb(unsigned idx);
  */
 void tcg_gen_lookup_and_goto_ptr(void);
 
+/**
+ * tcg_gen_goto_jc_i32() - dispatch to the destination TB via the jump cache
+ * tcg_gen_goto_jc_i64() - dispatch to the destination TB via the jump cache
+ * @pc: temp holding the destination guest PC
+ *
+ * As tcg_gen_lookup_and_goto_ptr(), but the caller states where the
+ * dispatch is going, which allows the lookup to be done inline.
+ *
+ * The contract is that when this runs, the CPU state must already be
+ * exactly the destination's: @pc must hold what get_tb_cpu_state() would
+ * report as the destination pc, and the flags and cs_base it would report
+ * must be the ones the block being generated was translated with.  A
+ * translator that has not finished updating the state, or whose pc is
+ * derived rather than being the lookup key -- avr's word address, i386's
+ * eip before segmentation -- must use tcg_gen_lookup_and_goto_ptr()
+ * instead.  --enable-debug-tcg checks the contract at runtime.
+ */
+void tcg_gen_goto_jc_i32(TCGv_i32 pc);
+void tcg_gen_goto_jc_i64(TCGv_i64 pc);
+
 void tcg_gen_plugin_cb(unsigned from);
 void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo);
 

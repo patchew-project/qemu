@@ -4374,7 +4374,7 @@ static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_idx,
         tcg_gen_exit_tb(ctx->base.tb, tb_slot_idx);
     } else {
         gen_save_pc(dest);
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_goto_jc_tl(cpu_PC);
     }
 }
 
@@ -11014,7 +11014,7 @@ static void gen_branch(DisasContext *ctx, int insn_bytes)
             } else {
                 tcg_gen_mov_tl(cpu_PC, btarget);
             }
-            tcg_gen_lookup_and_goto_ptr();
+            tcg_gen_goto_jc_tl(cpu_PC);
             break;
         default:
             LOG_DISAS("unknown branch 0x%x\n", proc_hflags);
@@ -15244,7 +15244,7 @@ static void mips_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     switch (ctx->base.is_jmp) {
     case DISAS_STOP:
         gen_save_pc(ctx->base.pc_next);
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_goto_jc_tl(cpu_PC);
         break;
     case DISAS_NEXT:
     case DISAS_TOO_MANY:
