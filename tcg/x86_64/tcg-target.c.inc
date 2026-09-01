@@ -1892,6 +1892,18 @@ static HostAddress x86_guest_base = {
     .index = -1
 };
 
+/*
+ * Whether the displacement of a guest access can be folded into the host
+ * addressing mode rather than materialized by a separate lea.  The generic
+ * pass has already established that the access has no slow path, so all
+ * that is left is guest_base, which shares the disp32 field.
+ */
+static bool tcg_target_ldst_disp_ok(TCGContext *s, MemOp opc, int32_t disp)
+{
+    int64_t ofs = (int64_t)x86_guest_base.ofs + disp;
+    return ofs == (int32_t)ofs;
+}
+
 #if defined(__linux__)
 # include <asm/prctl.h>
 # include <sys/prctl.h>
@@ -1917,6 +1929,7 @@ static inline int setup_guest_base_seg(void)
 #endif
 #else
 # define x86_guest_base (*(HostAddress *)({ qemu_build_not_reached(); NULL; }))
+# define tcg_target_ldst_disp_ok(s, opc, disp)  false
 #endif /* CONFIG_USER_ONLY */
 #ifndef setup_guest_base_seg
 # define setup_guest_base_seg()  0
@@ -2183,9 +2196,23 @@ static void tgen_qemu_ld(TCGContext *s, TCGType type, TCGReg data,
     }
 }
 
+static void tgen_qemu_ld_disp(TCGContext *s, TCGType type, TCGReg data,
+                              TCGReg addr, MemOpIdx oi, int32_t disp)
+{
+    TCGLabelQemuLdst *ldst;
+    HostAddress h;
+
+    ldst = prepare_host_addr(s, &h, addr, oi, true);
+    /* tcg_target_ldst_disp_ok() has ruled out every slow path. */
+    tcg_debug_assert(ldst == NULL);
+    h.ofs += disp;
+    tcg_out_qemu_ld_direct(s, data, -1, h, type, get_memop(oi));
+}
+
 static const TCGOutOpQemuLdSt outop_qemu_ld = {
     .base.static_constraint = C_O1_I1(r, L),
     .out = tgen_qemu_ld,
+    .out_disp = tgen_qemu_ld_disp,
 };
 
 static void tgen_qemu_ld2(TCGContext *s, TCGType type, TCGReg datalo,
@@ -2321,9 +2348,23 @@ static void tgen_qemu_st(TCGContext *s, TCGType type, TCGReg data,
     }
 }
 
+static void tgen_qemu_st_disp(TCGContext *s, TCGType type, TCGReg data,
+                              TCGReg addr, MemOpIdx oi, int32_t disp)
+{
+    TCGLabelQemuLdst *ldst;
+    HostAddress h;
+
+    ldst = prepare_host_addr(s, &h, addr, oi, false);
+    /* tcg_target_ldst_disp_ok() has ruled out every slow path. */
+    tcg_debug_assert(ldst == NULL);
+    h.ofs += disp;
+    tcg_out_qemu_st_direct(s, data, -1, h, get_memop(oi));
+}
+
 static const TCGOutOpQemuLdSt outop_qemu_st = {
     .base.static_constraint = C_O0_I2(L, L),
     .out = tgen_qemu_st,
+    .out_disp = tgen_qemu_st_disp,
 };
 
 static void tgen_qemu_st2(TCGContext *s, TCGType type, TCGReg datalo,
