@@ -519,6 +519,15 @@ struct CPUState {
     MemoryRegion *memory;
 
     struct CPUJumpCache *tb_jmp_cache;
+    /*
+     * @tb_jmp_cache_probe: the base the inline jump cache probe reads.
+     *
+     * Normally @tb_jmp_cache.  Pointed at a shared read-only page of zeroes
+     * while an exit is pending, so that every inline dispatch misses and
+     * falls back to helper_lookup_tb_ptr(), which returns to the main loop.
+     * Only generated code and the accessors in cpu-exec.c may touch it.
+     */
+    struct CPUJumpCache *tb_jmp_cache_probe;
 
     GArray *gdb_regs;
     int gdb_num_regs;

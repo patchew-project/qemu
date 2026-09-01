@@ -2713,6 +2713,13 @@ void tcg_gen_goto_tb(unsigned idx)
     tcg_debug_assert((tcg_ctx->goto_tb_issue_mask & (1 << idx)) == 0);
     tcg_ctx->goto_tb_issue_mask |= 1 << idx;
 #endif
+    /*
+     * A goto_tb chains straight into the destination, with nothing in between
+     * that looks at icount_decr, so this TB has to poll on entry.  See
+     * defer_exit_check().
+     */
+    tcg_ctx->exit_check_needed = true;
+
     plugin_gen_disable_mem_helpers();
     tcg_gen_op1i(INDEX_op_goto_tb, 0, idx);
 }
@@ -2790,8 +2797,13 @@ static void gen_jmp_cache_probe(TCGv_i64 pc, const TranslationBlock *tb)
     gen_jmp_cache_hash(h, pc);
     tcg_gen_shli_i64(h, h, 4);
 
+    /*
+     * Not cpu->tb_jmp_cache: the probe reads its own base so that the main
+     * loop can poison it, which is how a pending exit forces every dispatch
+     * back into the helper.  See tcg_cpu_sync_jmp_cache().
+     */
     tcg_gen_ld_ptr(jc, tcg_env,
-                   offsetof(CPUState, tb_jmp_cache) - sizeof(CPUState));
+                   offsetof(CPUState, tb_jmp_cache_probe) - sizeof(CPUState));
     tcg_gen_trunc_i64_ptr(ent, h);
     tcg_gen_add_ptr(ent, jc, ent);
 
@@ -2848,6 +2860,13 @@ static void gen_goto_jc(TCGv_i64 pc)
     }
 
     plugin_gen_disable_mem_helpers();
+
+    /*
+     * Neither path below needs an icount_decr poll.  The helper returns to
+     * the main loop while an exit is pending, and a pending exit poisons
+     * tb_jmp_cache_probe, so the inline probe finds a NULL tb and falls into
+     * that same helper.
+     */
 
 #ifdef CONFIG_DEBUG_TCG
     /*

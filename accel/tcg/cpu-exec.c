@@ -19,6 +19,9 @@
 
 #include "qemu/osdep.h"
 #include "qemu/qemu-print.h"
+#include "qemu/error-report.h"
+#include "qemu/memalign.h"
+#include "qemu/mprotect.h"
 #include "qapi/error.h"
 #include "qapi/type-helpers.h"
 #include "hw/core/cpu.h"
@@ -387,6 +390,16 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
      * The next TB, if we chain to it, will clear the flag again.
      */
     cpu->neg.can_do_io = true;
+
+    /*
+     * A block that dispatches indirectly does not emit the icount_decr poll,
+     * so this is where a pending exit is noticed for that path: either the
+     * probe was poisoned and every dispatch arrives here, or the target uses
+     * the out-of-line lookup and always did.
+     */
+    if (unlikely(cpu_loop_exit_requested(cpu))) {
+        return tcg_code_gen_epilogue;
+    }
 
     TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
     s.cflags = curr_cflags(cpu);
@@ -779,6 +792,70 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
     return false;
 }
 
+/*
+ * The inline jump cache probe reads cpu->tb_jmp_cache_probe and takes the
+ * slow path when the entry it finds has a NULL tb.  Pointing the probe at a
+ * region that is all zeroes therefore forces every indirect dispatch into
+ * helper_lookup_tb_ptr(), which returns the epilogue while an exit is
+ * pending.  The real jump cache is untouched, so no contents are lost and
+ * recovery is a single store.
+ *
+ * Only ever read from, and only one entry per dispatch, so one shared
+ * zero-filled cache is enough for every CPU.  Mapped read-only, since
+ * nothing may write to it and a stray store into a shared page every vCPU
+ * dispatches through is worth trapping rather than debugging.
+ */
+static CPUJumpCache *tb_jmp_cache_poison;
+
+static void tb_jmp_cache_poison_init(void)
+{
+    size_t align = qemu_real_host_page_size();
+    size_t size = ROUND_UP(sizeof(CPUJumpCache), align);
+    void *p = qemu_memalign(align, size);
+
+    memset(p, 0, size);
+    if (qemu_mprotect_ro(p, size) < 0) {
+        /* Only the enforcement is lost; the zeroes are what matter. */
+        warn_report("could not write-protect the jump cache poison");
+    }
+    tb_jmp_cache_poison = p;
+}
+
+/*
+ * Poison @cpu's probe, from any thread.  A plain store is enough: the value
+ * only ever costs a slow path that is correct on its own, and the generated
+ * code re-reads the base on every dispatch.
+ */
+void tcg_cpu_poison_jmp_cache(CPUState *cpu)
+{
+    qatomic_set(&cpu->tb_jmp_cache_probe, tb_jmp_cache_poison);
+}
+
+/*
+ * Called from @cpu's own main loop, which is the only context that can
+ * establish that no reason to be poisoned is left.
+ */
+void tcg_cpu_sync_jmp_cache(CPUState *cpu)
+{
+    if (qatomic_read(&cpu->tb_jmp_cache_probe) == cpu->tb_jmp_cache) {
+        return;
+    }
+
+    qatomic_set(&cpu->tb_jmp_cache_probe, cpu->tb_jmp_cache);
+
+    /*
+     * Another thread may have set icount_decr.u16.high after the caller
+     * decided no exit was pending, and its poison may have landed before
+     * the store above.  Order that store against the re-read, so the race
+     * is lost in the safe direction: an exit that is still pending here
+     * poisons again, and the dispatch after it returns to the main loop.
+     */
+    smp_mb();
+    if (unlikely(cpu_loop_exit_requested(cpu))) {
+        tcg_cpu_poison_jmp_cache(cpu);
+    }
+}
+
 void tcg_kick_vcpu_thread(CPUState *cpu)
 {
     /*
@@ -791,6 +868,9 @@ void tcg_kick_vcpu_thread(CPUState *cpu)
 
     /* Ensure cpu_exec will see the exit request after TCG has exited.  */
     qatomic_store_release(&cpu->neg.icount_decr.u16.high, -1);
+
+    /* Blocks that only dispatch indirectly do not poll; stop them chaining. */
+    tcg_cpu_poison_jmp_cache(cpu);
 }
 
 static inline bool icount_exit_request(CPUState *cpu)
@@ -991,6 +1071,13 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
                 break;
             }
 
+            /*
+             * cpu_handle_interrupt() has just cleared everything that would
+             * make a dispatch have to come back here, so this is where the
+             * probe is allowed to return after a poison.
+             */
+            tcg_cpu_sync_jmp_cache(cpu);
+
             tb = tb_lookup(cpu, s);
             if (tb == NULL) {
                 CPUJumpCache *jc;
@@ -1092,6 +1179,7 @@ bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
         assert(tcg_ops->get_tb_cpu_state);
         assert(tcg_ops->mmu_index);
         tcg_ops->initialize();
+        tb_jmp_cache_poison_init();
         tcg_target_initialized = true;
     }
 
@@ -1099,6 +1187,7 @@ bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
     tcg_update_cflags(cpu);
 
     cpu->tb_jmp_cache = g_new0(CPUJumpCache, 1);
+    qatomic_set(&cpu->tb_jmp_cache_probe, cpu->tb_jmp_cache);
     tlb_init(cpu);
 #ifndef CONFIG_USER_ONLY
     tcg_iommu_init_notifier_list(cpu);
@@ -1116,5 +1205,7 @@ void tcg_exec_unrealizefn(CPUState *cpu)
 #endif /* !CONFIG_USER_ONLY */
 
     tlb_destroy(cpu);
+    /* Not NULL: nothing then has to special-case an unrealized CPU. */
+    tcg_cpu_poison_jmp_cache(cpu);
     g_free_rcu(cpu->tb_jmp_cache, rcu);
 }

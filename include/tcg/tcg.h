@@ -389,6 +389,8 @@ struct TCGContext {
     struct TCGLabelPoolData *pool_labels;
 
     TCGLabel *exitreq_label;
+    /* Set by goto_tb emission: this TB chains without reaching a check. */
+    bool exit_check_needed;
 
 #ifdef CONFIG_PLUGIN
     /*

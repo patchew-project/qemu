@@ -38,6 +38,7 @@
 #include "exec/cputlb.h"
 #include "exec/hwaddr.h"
 #include "exec/tb-flush.h"
+#include "internal-common.h"
 #include "exec/translation-block.h"
 #include "exec/watchpoint.h"
 #include "gdbstub/enums.h"
@@ -106,6 +107,7 @@ void tcg_handle_interrupt(CPUState *cpu, int mask)
         qemu_cpu_kick(cpu);
     } else {
         qatomic_set(&cpu->neg.icount_decr.u16.high, -1);
+        tcg_cpu_poison_jmp_cache(cpu);
     }
 }
 

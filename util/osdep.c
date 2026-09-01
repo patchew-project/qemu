@@ -99,6 +99,15 @@ int qemu_mprotect_rw(void *addr, size_t size)
 #endif
 }
 
+int qemu_mprotect_ro(void *addr, size_t size)
+{
+#ifdef _WIN32
+    return qemu_mprotect__osdep(addr, size, PAGE_READONLY);
+#else
+    return qemu_mprotect__osdep(addr, size, PROT_READ);
+#endif
+}
+
 int qemu_mprotect_rwx(void *addr, size_t size)
 {
 #ifdef _WIN32

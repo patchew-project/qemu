@@ -144,6 +144,15 @@ void page_table_config_init(void);
 G_NORETURN void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
 #endif /* CONFIG_USER_ONLY */
 
+/*
+ * Force @cpu's generated code back into helper_lookup_tb_ptr(), which
+ * re-checks everything the inline jump cache probe cannot.  Safe to call
+ * from any thread.  tcg_cpu_sync_jmp_cache() undoes it, and is for the
+ * owning CPU's main loop only.
+ */
+void tcg_cpu_poison_jmp_cache(CPUState *cpu);
+void tcg_cpu_sync_jmp_cache(CPUState *cpu);
+
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
 void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr);
 
