@@ -1366,7 +1366,7 @@ static void musicpal_machine_init(MachineClass *mc)
 
 DEFINE_MACHINE_EXTENDED("musicpal", MACHINE, MusicPalMachineState,
                         musicpal_machine_init, false,
-                        arm_machine_interfaces)
+                        NULL)
 
 static void mv88w8618_wlan_class_init(ObjectClass *klass, const void *data)
 {
