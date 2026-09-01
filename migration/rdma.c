@@ -943,7 +943,13 @@ static int qemu_rdma_alloc_qp(RDMAContext *rdma)
 
     attr.cap.max_send_wr = RDMA_SIGNALED_SEND_MAX;
     attr.cap.max_recv_wr = 3;
-    attr.cap.max_send_sge = 1;
+    /*
+     * RDMA WRITEs only ever use 1 SGE. Control sends use up to 2 when
+     * inlined (see qemu_rdma_post_send_control()): one for the header,
+     * one for the caller's payload, both pointing at unregistered
+     * memory that only inline sends can reference directly.
+     */
+    attr.cap.max_send_sge = 2;
     attr.cap.max_recv_sge = 1;
     /*
      * Ask for enough inline data to cover a control header plus the
@@ -1452,39 +1458,55 @@ static int qemu_rdma_post_send_control(RDMAContext *rdma, uint8_t *buf,
     int ret;
     RDMAWorkRequestData *wr = &rdma->wr_data[RDMA_WRID_CONTROL];
     struct ibv_send_wr *bad_wr;
-    struct ibv_sge sge = {
-                           .addr = (uintptr_t)(wr->control),
-                           .length = head->len + sizeof(RDMAControlHeader),
-                           .lkey = wr->control_mr->lkey,
-                         };
+    RDMAControlHeader net_head = *head;
+    uint32_t total_len = head->len + sizeof(RDMAControlHeader);
+    struct ibv_sge sge[2];
     struct ibv_send_wr send_wr = {
                                    .wr_id = RDMA_WRID_SEND_CONTROL,
                                    .opcode = IBV_WR_SEND,
                                    .send_flags = IBV_SEND_SIGNALED,
-                                   .sg_list = &sge,
+                                   .sg_list = sge,
                                    .num_sge = 1,
                                 };
 
-    if (sge.length <= rdma->max_inline_data) {
-        send_wr.send_flags |= IBV_SEND_INLINE;
-    }
-
     trace_rdma_post_send_control(control_desc(head->type));
 
-    /*
-     * We don't actually need to do a memcpy() in here if we used
-     * the "sge" properly, but since we're only sending control messages
-     * (not RAM in a performance-critical path), then its OK for now.
-     *
-     * The copy makes the RDMAControlHeader simpler to manipulate
-     * for the time being.
-     */
     assert(head->len <= RDMA_CONTROL_MAX_BUFFER - sizeof(*head));
-    memcpy(wr->control, head, sizeof(RDMAControlHeader));
-    control_to_network((void *) wr->control);
+    control_to_network(&net_head);
 
-    if (buf) {
-        memcpy(wr->control + sizeof(RDMAControlHeader), buf, head->len);
+    if (total_len <= rdma->max_inline_data) {
+        /*
+         * Inline data is copied out of these SGEs by the HCA itself at
+         * post_send() time, so no registration (and no local copy into
+         * the pre-registered "control" buffer below) is needed -- point
+         * straight at the header on our stack and the caller's payload.
+         */
+        sge[0].addr = (uintptr_t)&net_head;
+        sge[0].length = sizeof(net_head);
+        sge[0].lkey = 0;
+
+        if (buf && head->len) {
+            sge[1].addr = (uintptr_t)buf;
+            sge[1].length = head->len;
+            sge[1].lkey = 0;
+            send_wr.num_sge = 2;
+        }
+
+        send_wr.send_flags |= IBV_SEND_INLINE;
+    } else {
+        /*
+         * Too big to inline: the HCA will DMA-read this directly, which
+         * requires a registered region, so fall back to copying into
+         * the pre-registered "control" buffer.
+         */
+        sge[0].addr = (uintptr_t)(wr->control);
+        sge[0].length = total_len;
+        sge[0].lkey = wr->control_mr->lkey;
+
+        memcpy(wr->control, &net_head, sizeof(net_head));
+        if (buf) {
+            memcpy(wr->control + sizeof(RDMAControlHeader), buf, head->len);
+        }
     }
 
 
