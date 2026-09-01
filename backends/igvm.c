@@ -868,6 +868,10 @@ static int qigvm_initialization_guest_policy(QIgvm *ctx,
 
     if (guest->compatibility_mask & ctx->compatibility_mask) {
         ctx->sev_policy = guest->policy;
+        if (ctx->cgsc) {
+            return ctx->cgsc->set_guest_policy(GUEST_POLICY_SEV,
+                                               guest->policy, errp);
+        }
     }
     return 0;
 }
