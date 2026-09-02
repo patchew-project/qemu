@@ -58,6 +58,8 @@ typedef struct IgbMigBlob {
     IgbMigRegPair ra[IGB_VF_MAX_RA_REGS];
     uint32_t num_tx_ctx;
     IgbMigTxCtx tx_ctx[2];
+    uint32_t vfre;
+    uint32_t vfte;
 } IgbMigBlob;
 
 #define IGB_MIG_BLOB_SIZE            sizeof(IgbMigBlob)
@@ -210,6 +212,7 @@ static void igb_core_vf_save_tx_ctx(IGBCore *core, int queue,
 static int igb_core_vf_save_state(IgbVfState *s, void *buf, size_t buf_size)
 {
     int size = IGB_MIG_BLOB_SIZE;
+    IgbVfMigState *ms = &s->mig;
     IGBCore *core = igbvf_get_core(s);
     IgbMigBlob *blob = buf;
     uint32_t offsets[IGB_VF_MAX_FIXED_REGS];
@@ -248,7 +251,12 @@ static int igb_core_vf_save_state(IgbVfState *s, void *buf, size_t buf_size)
     igb_core_vf_save_tx_ctx(core, q0, &blob->tx_ctx[0]);
     igb_core_vf_save_tx_ctx(core, q1, &blob->tx_ctx[1]);
 
-    trace_igbvf_mig_save_state(s->vfn, size);
+    blob->vfre = cpu_to_le32(ms->mig_saved_vfre);
+    blob->vfte = cpu_to_le32(ms->mig_saved_vfte);
+
+    trace_igbvf_mig_save_state(s->vfn, size, ms->mig_saved_vfre,
+                               ms->mig_saved_vfte,
+                               core->mac[VFRE]);
     return size;
 }
 
@@ -291,6 +299,7 @@ static uint32_t igb_vf_relocate_offset(uint32_t offset,
 
 static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
 {
+    IgbVfMigState *ms = &s->mig;
     IGBCore *core = igbvf_get_core(s);
     uint32_t src_offsets[IGB_VF_MAX_FIXED_REGS];
     uint32_t dst_offsets[IGB_VF_MAX_FIXED_REGS];
@@ -379,7 +388,12 @@ static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
     igb_core_vf_load_tx_ctx(core, q0, &blob->tx_ctx[0]);
     igb_core_vf_load_tx_ctx(core, q1, &blob->tx_ctx[1]);
 
-    trace_igbvf_mig_load_state(s->vfn, (uint32_t)size);
+    ms->mig_saved_vfre = !!le32_to_cpu(blob->vfre);
+    ms->mig_saved_vfte = !!le32_to_cpu(blob->vfte);
+
+    trace_igbvf_mig_load_state(s->vfn, (uint32_t)size,
+                               ms->mig_saved_vfre,
+                               ms->mig_saved_vfte);
     return 0;
 }
 
@@ -387,6 +401,12 @@ static int igbvf_mig_load(IgbVfState *s, const void *buf, size_t size)
 {
     int ret;
     IGBCore *core = igbvf_get_core(s);
+
+    /*
+     * Pre-load: Clear the VFLRE bit before restoring state so the PF
+     * watchdog does not overwrite what we are about to load.
+     */
+    core->mac[VFLRE] &= ~BIT(s->vfn);
 
     ret = igb_core_vf_load_state(s, buf, size);
     if (ret < 0) {
@@ -759,6 +779,45 @@ static uint8_t igbvf_mig_cmd_load(IgbVfState *s)
     return 0;
 }
 
+/* Quiesce a VF by disabling its RX and TX at the PF level. */
+static void igb_core_vf_quiesce(IgbVfState *s)
+{
+    IgbVfMigState *ms = &s->mig;
+    IGBCore *core = igbvf_get_core(s);
+
+    ms->mig_saved_vfre = !!(core->mac[VFRE] & BIT(s->vfn));
+    ms->mig_saved_vfte = !!(core->mac[VFTE] & BIT(s->vfn));
+
+    core->mac[VFRE] &= ~BIT(s->vfn);
+    core->mac[VFTE] &= ~BIT(s->vfn);
+    trace_igbvf_mig_quiesce(s->vfn, core->mac[VFRE], core->mac[VFTE]);
+}
+
+static void igb_core_vf_unquiesce(IgbVfState *s)
+{
+    IgbVfMigState *ms = &s->mig;
+    IGBCore *core = igbvf_get_core(s);
+    bool re = ms->mig_saved_vfre;
+    bool te = ms->mig_saved_vfte;
+
+    if (re) {
+        core->mac[VFRE] |= BIT(s->vfn);
+    } else {
+        core->mac[VFRE] &= ~BIT(s->vfn);
+    }
+    if (te) {
+        core->mac[VFTE] |= BIT(s->vfn);
+    } else {
+        core->mac[VFTE] &= ~BIT(s->vfn);
+    }
+
+    trace_igbvf_mig_unquiesce(s->vfn, core->mac[VFRE], core->mac[VFTE]);
+
+    if (re) {
+        igb_start_recv(core);
+    }
+}
+
 static uint8_t igbvf_mig_set_state(IgbVfState *s, uint32_t new_state)
 {
     IgbVfMigState *ms = &s->mig;
@@ -779,6 +838,11 @@ static uint8_t igbvf_mig_set_state(IgbVfState *s, uint32_t new_state)
             old == IGB_MIG_STATE_ERROR) {
             igb_core_vf_dirty_disable(s);
         }
+        if (old == IGB_MIG_STATE_RUNNING ||
+            old == IGB_MIG_STATE_PRE_COPY ||
+            old == IGB_MIG_STATE_ERROR) {
+            igb_core_vf_quiesce(s);
+        }
         /* Restore DATA_SIZE to max, same as at reset */
         igbvf_mig_update_data_size(s, igb_core_vf_max_data_size(s));
         break;
@@ -791,12 +855,18 @@ static uint8_t igbvf_mig_set_state(IgbVfState *s, uint32_t new_state)
         if (old == IGB_MIG_STATE_PRE_COPY) {
             igb_core_vf_dirty_disable(s);
         }
+        if (old == IGB_MIG_STATE_STOP) {
+            igb_core_vf_unquiesce(s);
+        }
         break;
 
     case IGB_MIG_STATE_STOP_COPY:
         if (old != IGB_MIG_STATE_STOP &&
             old != IGB_MIG_STATE_PRE_COPY) {
             return IGB_MIG_ERR_BAD_STATE;
+        }
+        if (old == IGB_MIG_STATE_PRE_COPY) {
+            igb_core_vf_quiesce(s);
         }
         ret = igb_core_vf_save_state(s, ms->mig_data, sizeof(ms->mig_data));
         if (ret < 0) {
@@ -838,6 +908,16 @@ static void igbvf_mig_update_status(IgbVfState *s, uint8_t err)
 
     if (err) {
         status = IGB_MIG_STATE_ERROR | IGB_MIG_STATUS_ERR(err);
+    }
+
+    /*
+     * QUIESCED tells the driver it is safe to read device state.
+     * In STOP and STOP_COPY, igb_core_vf_quiesce() has already
+     * cleared VFRE/VFTE so no further VF DMA can occur.
+     */
+    if (ms->mig_state == IGB_MIG_STATE_STOP ||
+        ms->mig_state == IGB_MIG_STATE_STOP_COPY) {
+        status |= IGB_MIG_STATUS_QUIESCED;
     }
 
     pci_set_long(dev->config + IGB_MIG_DVSEC_OFFSET + IGB_MIG_STATUS, status);
@@ -977,6 +1057,8 @@ void igbvf_mig_state_reset(IgbVfState *s)
     ms->mig_data_buf_addr = 0;
     igbvf_mig_update_data_size(s, igb_core_vf_max_data_size(s));
     memset(ms->mig_data, 0, sizeof(ms->mig_data));
+    ms->mig_saved_vfre = true;
+    ms->mig_saved_vfte = true;
 
     pci_set_long(PCI_DEVICE(s)->config +
                  IGB_MIG_DVSEC_OFFSET + IGB_MIG_BUF_ADDR_LO, 0);

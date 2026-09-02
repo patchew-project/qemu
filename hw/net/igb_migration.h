@@ -24,7 +24,8 @@
  *   +0x0C  CAPS                       (RO: F_STATE[0], F_DIRTY[1],
  *                                      max_ranges[11:8], pgsize[16:12])
  *   +0x10  CTRL                       (WO: doorbell command)
- *   +0x14  STATUS                     (RO: state[7:0], error_code[15:8])
+ *   +0x14  STATUS                     (RO: state[7:0], error_code[15:8],
+ *                                      QUIESCED[16])
  *   +0x18  BUF_ADDR_LO                (RW: shared buffer GPA low)
  *   +0x1C  BUF_ADDR_HI                (RW: shared buffer GPA high)
  *   +0x20  DATA_SIZE                  (RO: max state blob size in bytes)
@@ -69,6 +70,7 @@
 #define IGB_MIG_STATUS_ERROR_CODE_SHIFT 8
 #define IGB_MIG_STATUS_ERR(code) \
     ((uint32_t)(code) << IGB_MIG_STATUS_ERROR_CODE_SHIFT)
+#define IGB_MIG_STATUS_QUIESCED         (1u << 16)
 
 /* Device states (based on VFIO migration v2) */
 #define IGB_MIG_STATE_ERROR             0
@@ -114,6 +116,8 @@ typedef struct IgbVfMigState {
     uint32_t mig_data[IGB_VF_STATE_MAX_SIZE / sizeof(uint32_t)];
     uint32_t mig_data_size;
     uint64_t mig_data_buf_addr;
+    bool mig_saved_vfre;
+    bool mig_saved_vfte;
 } IgbVfMigState;
 
 /*
