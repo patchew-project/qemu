@@ -105,6 +105,8 @@ void sparc_cpu_do_interrupt(CPUState *cs)
     CPUSPARCState *env = cpu_env(cs);
     int cwp, intno = cs->exception_index;
 
+    BQL_LOCK_GUARD();
+
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
         static int count;
         const char *name;

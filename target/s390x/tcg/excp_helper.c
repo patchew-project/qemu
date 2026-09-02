@@ -28,6 +28,7 @@
 #include "s390x-internal.h"
 #include "tcg_s390x.h"
 #ifndef CONFIG_USER_ONLY
+#include "qemu/main-loop.h"
 #include "qemu/timer.h"
 #include "system/address-spaces.h"
 #include "system/memory.h"
@@ -502,6 +503,8 @@ void s390_cpu_do_interrupt(CPUState *cs)
     CPUS390XState *env = &cpu->env;
     bool stopped = false;
     uint64_t last_pc = cpu->env.psw.addr;
+
+    BQL_LOCK_GUARD();
 
     qemu_log_mask(CPU_LOG_INT, "%s: %d at psw=%" PRIx64 ":%" PRIx64 "\n",
                   __func__, cs->exception_index, env->psw.mask, env->psw.addr);

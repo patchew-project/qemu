@@ -2214,6 +2214,8 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     bool ignore_stackfaults;
     uint64_t last_pc = env->regs[15];
 
+    BQL_LOCK_GUARD();
+
     arm_log_exception(cs);
 
     /*

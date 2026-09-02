@@ -1761,6 +1761,8 @@ void ppc_cpu_do_interrupt(CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
 
+    BQL_LOCK_GUARD();
+
     powerpc_excp(cpu, cs->exception_index);
 }
 

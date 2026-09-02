@@ -249,7 +249,7 @@ static const TCGCPUOps avr_tcg_ops = {
     .cpu_exec_halt = avr_cpu_has_work,
     .cpu_exec_reset = cpu_reset,
     .tlb_fill = avr_cpu_tlb_fill,
-    .do_interrupt_locked = avr_cpu_do_interrupt,
+    .do_interrupt = avr_cpu_do_interrupt,
     /*
      * TODO: code and data wrapping are different, but for the most part
      * AVR only references bytes or aligned code fetches.  But we use

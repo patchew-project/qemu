@@ -115,6 +115,8 @@ void x86_cpu_do_interrupt(CPUState *cs)
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
 
+    BQL_LOCK_GUARD();
+
     if (cs->exception_index == EXCP_VMEXIT) {
         assert(env->old_exception == -1);
         do_vmexit(env);

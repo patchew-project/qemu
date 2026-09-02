@@ -18,6 +18,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
+#include "qemu/main-loop.h"
 #include "cpu.h"
 #include "exec/log.h"
 #include "accel/tcg/cpu-ldst.h"
@@ -46,6 +47,8 @@ void rx_cpu_do_interrupt(CPUState *cs)
     CPURXState *env = cpu_env(cs);
     uint32_t save_psw;
     uint64_t last_pc = env->pc;
+
+    BQL_LOCK_GUARD();
 
     env->in_sleep = 0;
 

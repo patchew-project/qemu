@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "cpu.h"
 #include "accel/tcg/cpu-ops.h"
 #include "accel/tcg/cpu-loop.h"
@@ -88,6 +89,8 @@ void avr_cpu_do_interrupt(CPUState *cs)
     } else if (env->intsrc != 0) {
         vector = ctz64(env->intsrc) + 1;
     }
+
+    BQL_LOCK_GUARD();
 
     if (avr_feature(env, AVR_FEATURE_3_BYTE_PC)) {
         do_stb(env, env->sp--, ret, 0);

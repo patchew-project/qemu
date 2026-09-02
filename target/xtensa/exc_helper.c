@@ -208,6 +208,8 @@ void xtensa_cpu_do_interrupt(CPUState *cs)
 {
     CPUXtensaState *env = cpu_env(cs);
 
+    BQL_LOCK_GUARD();
+
     if (cs->exception_index == EXC_IRQ) {
         uint64_t last_pc = env->pc;
 

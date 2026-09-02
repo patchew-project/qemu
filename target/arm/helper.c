@@ -9714,6 +9714,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
     uint64_t last_pc = cs->cc->get_pc(cs);
 
     assert(!arm_feature(env, ARM_FEATURE_M));
+    BQL_LOCK_GUARD();
 
     arm_log_exception(cs);
     qemu_log_mask(CPU_LOG_INT, "...from EL%d to EL%d\n", arm_current_el(env),
