@@ -270,7 +270,7 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
  found:
     cs->exception_index = excp_idx;
     env->exception.target_el = target_el;
-    cs->cc->tcg_ops->do_interrupt(cs);
+    arm_cpu_do_interrupt(cs);
     return true;
 }
 #endif /* CONFIG_TCG */
