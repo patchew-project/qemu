@@ -438,6 +438,7 @@ void igb_core_dirty_track_dma(IGBCore *core, int vfn,
                               dma_addr_t addr, dma_addr_t len)
 {
     IGBVfDirtyState *ds = &core->vf_dirty[vfn];
+    IgbVfMigStats *stats = &core->vf_mig_stats[vfn];
     bool matched = false;
     uint32_t i;
 
@@ -446,6 +447,9 @@ void igb_core_dirty_track_dma(IGBCore *core, int vfn,
     }
 
     trace_igb_core_dirty_track_dma(vfn, addr, len);
+
+    stats->dma_writes++;
+    stats->dma_bytes += len;
 
     for (i = 0; i < ds->num_ranges; i++) {
         IGBVfDirtyRange *r = &ds->ranges[i];
@@ -466,7 +470,10 @@ void igb_core_dirty_track_dma(IGBCore *core, int vfn,
 
         for (page = start_page; page <= end_page; page++) {
             if (page < r->nbits) {
-                set_bit(page, r->bitmap);
+                if (!test_and_set_bit(page, r->bitmap)) {
+                    stats->dirty_pages_set++;
+                    stats->dirty_page_count++;
+                }
             }
         }
     }
@@ -492,6 +499,15 @@ static uint32_t igb_core_vf_dirty_enable(IgbVfState *s, uint64_t pgsize,
                                  IGB_MIG_DVSEC_OFFSET + IGB_MIG_CAPS);
     IGBVfDirtyState *ds = igb_core_vf_dirty_state(s);
     IGBVfDirtyRange *r;
+
+    /*
+     * Reset stats on first enable so the driver can read them after
+     * disable
+     */
+    if (ds->num_ranges == 0) {
+        memset(&igbvf_get_core(s)->vf_mig_stats[s->vfn], 0,
+               sizeof(IgbVfMigStats));
+    }
 
     if (ds->num_ranges >= IGB_MIG_CAPS_MAX_RANGES) {
         return IGB_MIG_ERR_TOO_MANY_RANGES;
@@ -635,12 +651,14 @@ static IGBVfDirtyRange *igb_core_vf_dirty_range_valid(IGBVfDirtyState *ds,
 static uint8_t igbvf_mig_cmd_dirty_query(IgbVfState *s)
 {
     IgbVfMigState *ms = &s->mig;
+    IgbVfMigStats *stats = &igbvf_get_core(s)->vf_mig_stats[s->vfn];
     IGBVfDirtyState *ds = &igbvf_get_core(s)->vf_dirty[s->vfn];
     uint64_t buf_addr = ms->mig_data_buf_addr;
     uint64_t range_iova = 0, range_size = 0;
     IGBVfDirtyRange *range;
     uint32_t bmp_bytes, dirty_pages;
     uint32_t val32;
+    uint64_t val64;
     size_t out_size;
     g_autofree void *bitmap = NULL;
 
@@ -686,6 +704,10 @@ static uint8_t igbvf_mig_cmd_dirty_query(IgbVfState *s)
 
     dirty_pages = bitmap_count_one(bitmap, range_size / range->page_size);
 
+    stats->dirty_pages_cleared += dirty_pages;
+    stats->dirty_page_count -= MIN(stats->dirty_page_count, dirty_pages);
+    stats->dirty_query_count++;
+
     val32 = cpu_to_le32(out_size);
     address_space_write(&address_space_memory,
                         buf_addr + offsetof(struct igb_mig_dirty_query,
@@ -696,8 +718,13 @@ static uint8_t igbvf_mig_cmd_dirty_query(IgbVfState *s)
                         buf_addr + offsetof(struct igb_mig_dirty_query,
                                             dirty_page_count),
                         MEMTXATTRS_UNSPECIFIED, &val32, sizeof(val32));
-
-    trace_igbvf_mig_dirty_query(s->vfn, (uint64_t)out_size, dirty_pages);
+    val64 = cpu_to_le64(stats->dma_writes);
+    address_space_write(&address_space_memory,
+                        buf_addr + offsetof(struct igb_mig_dirty_query,
+                                            dma_writes),
+                        MEMTXATTRS_UNSPECIFIED, &val64, sizeof(val64));
+    trace_igbvf_mig_dirty_query(s->vfn, (uint64_t)out_size, dirty_pages,
+                                stats->dma_writes);
     return 0;
 }
 
@@ -898,6 +925,32 @@ static uint8_t igbvf_mig_set_state(IgbVfState *s, uint32_t new_state)
     return 0;
 }
 
+static uint8_t igbvf_mig_cmd_get_stats(IgbVfState *s)
+{
+    IgbVfMigState *ms = &s->mig;
+    IgbVfMigStats *stats = &igbvf_get_core(s)->vf_mig_stats[s->vfn];
+    struct igb_mig_stats_resp resp;
+    MemTxResult r;
+
+    if (!ms->mig_data_buf_addr) {
+        return IGB_MIG_ERR_NO_BUFFER;
+    }
+
+    resp.dma_writes = cpu_to_le64(stats->dma_writes);
+    resp.dma_bytes = cpu_to_le64(stats->dma_bytes);
+    resp.dirty_pages_set = cpu_to_le32(stats->dirty_pages_set);
+    resp.dirty_pages_cleared = cpu_to_le32(stats->dirty_pages_cleared);
+    resp.dirty_page_count = cpu_to_le32(stats->dirty_page_count);
+    resp.dirty_query_count = cpu_to_le32(stats->dirty_query_count);
+
+    r = address_space_write(&address_space_memory, ms->mig_data_buf_addr,
+                            MEMTXATTRS_UNSPECIFIED, &resp, sizeof(resp));
+    if (r != MEMTX_OK) {
+        return IGB_MIG_ERR_DMA_FAILED;
+    }
+    return 0;
+}
+
 static void igbvf_mig_update_status(IgbVfState *s, uint8_t err)
 {
     IgbVfMigState *ms = &s->mig;
@@ -953,6 +1006,10 @@ static void igbvf_mig_cmd_ctrl(IgbVfState *s, uint32_t val)
 
     case IGB_MIG_CMD_DIRTY_QUERY:
         err = igbvf_mig_cmd_dirty_query(s);
+        break;
+
+    case IGB_MIG_CMD_GET_STATS:
+        err = igbvf_mig_cmd_get_stats(s);
         break;
 
     default:
@@ -1059,6 +1116,8 @@ void igbvf_mig_state_reset(IgbVfState *s)
     memset(ms->mig_data, 0, sizeof(ms->mig_data));
     ms->mig_saved_vfre = true;
     ms->mig_saved_vfte = true;
+    memset(&igbvf_get_core(s)->vf_mig_stats[s->vfn], 0,
+           sizeof(IgbVfMigStats));
 
     pci_set_long(PCI_DEVICE(s)->config +
                  IGB_MIG_DVSEC_OFFSET + IGB_MIG_BUF_ADDR_LO, 0);
