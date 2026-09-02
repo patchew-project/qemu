@@ -73,6 +73,8 @@
 #define IGB_MIG_ERR_NO_BUFFER           3
 #define IGB_MIG_ERR_DMA_FAILED          4
 #define IGB_MIG_ERR_BAD_SIZE            5
+#define IGB_MIG_ERR_BAD_MAGIC           6
+#define IGB_MIG_ERR_BAD_VERSION         7
 
 /* Shared buffer constants */
 #define IGB_VF_STATE_MAX_SIZE           4096
