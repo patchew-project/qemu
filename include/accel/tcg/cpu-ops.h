@@ -184,18 +184,6 @@ struct TCGCPUOps {
     void (*do_interrupt)(CPUState *cpu);
 
     /**
-     * @do_interrupt_locked: Deliver a pending exception/interrupt to the CPU
-     * @cpu: cpu context
-     *
-     * Called when cs->exception_index contains an exception code to deliver.
-     * Updates CPU architectural state (usually before executing a guest
-     * exception handler).
-     *
-     * Called from cpu_handle_exception() with BQL held.
-     */
-    void (*do_interrupt_locked)(CPUState *cpu);
-
-    /**
      * @cpu_exec_interrupt: Callback for processing target-specific interrupts
      * @cpu: cpu context
      * @interrupt_request: Bitmask of pending interrupts
