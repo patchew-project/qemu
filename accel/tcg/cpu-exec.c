@@ -726,7 +726,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *excp)
         const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
 
         bql_lock();
-        tcg_ops->do_interrupt(cpu);
+        tcg_ops->do_interrupt_locked(cpu);
         bql_unlock();
         cpu->exception_index = -1;
 
@@ -1062,7 +1062,7 @@ bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
         assert(tcg_ops->cpu_exec_halt);
         assert(tcg_ops->cpu_exec_interrupt);
         assert(tcg_ops->cpu_exec_reset);
-        assert(tcg_ops->do_interrupt);
+        assert(tcg_ops->do_interrupt_locked);
         assert(tcg_ops->pointer_wrap);
 #endif /* !CONFIG_USER_ONLY */
         assert(tcg_ops->translate_code);

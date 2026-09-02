@@ -170,7 +170,7 @@ struct TCGCPUOps {
     vaddr (*untagged_addr)(CPUState *cs, vaddr addr);
 #else
     /**
-     * @do_interrupt: Deliver a pending exception/interrupt to the CPU
+     * @do_interrupt_locked: Deliver a pending exception/interrupt to the CPU
      * @cpu: cpu context
      *
      * Called when cs->exception_index contains an exception code to deliver.
@@ -179,7 +179,7 @@ struct TCGCPUOps {
      *
      * Called from cpu_handle_exception() with BQL held.
      */
-    void (*do_interrupt)(CPUState *cpu);
+    void (*do_interrupt_locked)(CPUState *cpu);
 
     /**
      * @cpu_exec_interrupt: Callback for processing target-specific interrupts
