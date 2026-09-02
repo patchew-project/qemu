@@ -18,6 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
+#include "qemu/main-loop.h"
 #include "qemu/plugin.h"
 
 #include "cpu.h"
@@ -1044,6 +1045,8 @@ void mips_cpu_do_interrupt(CPUState *cs)
     target_ulong offset;
     int cause = -1;
     uint64_t last_pc = env->active_tc.PC;
+
+    BQL_LOCK_GUARD();
 
     if (qemu_loglevel_mask(CPU_LOG_INT)
         && cs->exception_index != EXCP_EXT_INTERRUPT) {

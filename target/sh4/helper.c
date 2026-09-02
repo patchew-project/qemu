@@ -28,6 +28,7 @@
 #include "qemu/plugin.h"
 
 #if !defined(CONFIG_USER_ONLY)
+#include "qemu/main-loop.h"
 #include "hw/sh4/sh_intc.h"
 #include "system/runstate.h"
 #endif
@@ -63,6 +64,8 @@ void superh_cpu_do_interrupt(CPUState *cs)
     int do_irq = cpu_test_interrupt(cs, CPU_INTERRUPT_HARD);
     int do_exp, irq_vector = cs->exception_index;
     uint64_t last_pc = env->pc;
+
+    BQL_LOCK_GUARD();
 
     /* prioritize exceptions over interrupts */
 

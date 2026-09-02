@@ -26,6 +26,7 @@
 #include "fpu/softfloat-types.h"
 #include "fpu/softfloat-helpers.h"
 #include "exec/helper-proto.h"
+#include "qemu/main-loop.h"
 #include "qemu/qemu-print.h"
 #include "system/memory.h"
 #include "accel/tcg/cpu-loop.h"
@@ -340,6 +341,8 @@ void alpha_cpu_do_interrupt(CPUState *cs)
     CPUAlphaState *env = cpu_env(cs);
     int i = cs->exception_index;
     uint64_t last_pc = env->pc;
+
+    BQL_LOCK_GUARD();
 
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
         static int count;
