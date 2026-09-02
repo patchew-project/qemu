@@ -384,11 +384,18 @@ static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
 static int igbvf_mig_load(IgbVfState *s, const void *buf, size_t size)
 {
     int ret;
+    IGBCore *core = igbvf_get_core(s);
 
     ret = igb_core_vf_load_state(s, buf, size);
     if (ret < 0) {
         return ret;
     }
+
+    /*
+     * Post-load: sync VF interrupt and routing state to PF aggregates
+     */
+    igb_core_vf_propagate_irqs(core, s->vfn);
+    igb_core_vf_propagate_ivar(core, s->vfn);
 
     return 0;
 }
