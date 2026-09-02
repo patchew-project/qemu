@@ -261,9 +261,6 @@ ObjectClass *s390_cpu_class_by_name(const char *name);
 
 
 /* excp_helper.c */
-void s390_cpu_do_interrupt(CPUState *cpu);
-bool s390_cpu_exec_interrupt(CPUState *cpu, int int_req);
-
 #ifdef CONFIG_USER_ONLY
 void s390_cpu_record_sigsegv(CPUState *cs, vaddr address,
                              MMUAccessType access_type,
@@ -271,6 +268,8 @@ void s390_cpu_record_sigsegv(CPUState *cs, vaddr address,
 void s390_cpu_record_sigbus(CPUState *cs, vaddr address,
                             MMUAccessType access_type, uintptr_t retaddr);
 #else
+void s390_cpu_do_interrupt(CPUState *cpu);
+bool s390_cpu_exec_interrupt(CPUState *cpu, int int_req);
 bool s390_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                        MMUAccessType access_type, int mmu_idx,
                        bool probe, uintptr_t retaddr);

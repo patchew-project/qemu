@@ -101,11 +101,6 @@ void do_unaligned_access(CPUState *cs, uintptr_t retaddr)
 
 #if defined(CONFIG_USER_ONLY)
 
-void s390_cpu_do_interrupt(CPUState *cs)
-{
-    cs->exception_index = -1;
-}
-
 void s390_cpu_record_sigsegv(CPUState *cs, vaddr address,
                              MMUAccessType access_type,
                              bool maperr, uintptr_t retaddr)
