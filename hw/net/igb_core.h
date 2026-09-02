@@ -40,6 +40,8 @@
 #ifndef HW_NET_IGB_CORE_H
 #define HW_NET_IGB_CORE_H
 
+#include "igb_migration.h"
+
 #define E1000E_MAC_SIZE         (0x8000)
 #define IGB_EEPROM_SIZE         (1024)
 
@@ -99,6 +101,8 @@ struct IGBCore {
     void (*owner_start_recv)(PCIDevice *d);
 
     int64_t timadj;
+
+    IGBVfDirtyState vf_dirty[IGB_MAX_VF_FUNCTIONS];
 };
 
 void
