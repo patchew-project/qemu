@@ -171,8 +171,21 @@ struct TCGCPUOps {
 #else
     /** @do_interrupt: Callback for interrupt handling.  */
     void (*do_interrupt)(CPUState *cpu);
-    /** @cpu_exec_interrupt: Callback for processing interrupts in cpu_exec */
+
+    /**
+     * @cpu_exec_interrupt: Callback for processing target-specific interrupts
+     * @cpu: cpu context
+     * @interrupt_request: Bitmask of pending interrupts
+     *
+     * Called from cpu_handle_interrupt() with the BQL held. Process the
+     * pending interrupt according to the target specific @interrupt_request
+     * masking rules.
+     *
+     * Returns: %true if an interrupt was processed and the next TB should
+     * be restarted, %false to continue normal execution.
+     */
     bool (*cpu_exec_interrupt)(CPUState *cpu, int interrupt_request);
+
     /** @cpu_exec_reset: Callback for reset in cpu_exec.  */
     void (*cpu_exec_reset)(CPUState *cpu);
     /**
