@@ -32,6 +32,7 @@ static const hwaddr aspeed_soc_ast2600_memmap[] = {
     [ASPEED_DEV_SPI1]      = 0x1E630000,
     [ASPEED_DEV_SPI2]      = 0x1E631000,
     [ASPEED_DEV_EHCI1]     = 0x1E6A1000,
+    [ASPEED_DEV_UDC]       = 0x1E6A2000,
     [ASPEED_DEV_EHCI2]     = 0x1E6A3000,
     [ASPEED_DEV_MII1]      = 0x1E650000,
     [ASPEED_DEV_MII2]      = 0x1E650008,
@@ -213,6 +214,10 @@ static void aspeed_soc_ast2600_init(Object *obj)
         object_initialize_child(obj, "ehci[*]", &s->ehci[i],
                                 TYPE_PLATFORM_EHCI);
     }
+
+    object_initialize_child(obj, "udc", &a->udc, TYPE_ASPEED_UDC);
+    object_initialize_child(obj, "ehci2-udc-orgate", &a->ehci2_udc_orgate,
+                            TYPE_OR_IRQ);
 
     snprintf(typename, sizeof(typename), "aspeed.sdmc-%s", socname);
     object_initialize_child(obj, "sdmc", &s->sdmc, typename);
@@ -561,6 +566,16 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
                            aspeed_soc_ast2600_get_irq(s, ASPEED_DEV_SPI1 + i));
     }
 
+    /*
+     * EHCI2 and the UDC share one SoC interrupt line, so OR their outputs
+     * together and drive that GIC input from the OR gate.
+     */
+    object_property_set_int(OBJECT(&a->ehci2_udc_orgate), "num-lines", 2,
+                            &error_abort);
+    qdev_realize(DEVICE(&a->ehci2_udc_orgate), NULL, &error_abort);
+    qdev_connect_gpio_out(DEVICE(&a->ehci2_udc_orgate), 0,
+                          aspeed_soc_ast2600_get_irq(s, ASPEED_DEV_EHCI2));
+
     /* EHCI */
     for (i = 0; i < sc->ehcis_num; i++) {
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->ehci[i]), errp)) {
@@ -568,10 +583,26 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
         }
         aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&s->ehci[i]), 0,
                         sc->memmap[ASPEED_DEV_EHCI1 + i]);
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->ehci[i]), 0,
-                           aspeed_soc_ast2600_get_irq(s,
-                                                      ASPEED_DEV_EHCI1 + i));
     }
+    /*
+     * EHCI1 has its own IRQ; EHCI2 shares the UDC's IRQ, so route it through
+     * the OR gate.
+     */
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->ehci[0]), 0,
+                       aspeed_soc_ast2600_get_irq(s, ASPEED_DEV_EHCI1));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->ehci[1]), 0,
+                       qdev_get_gpio_in(DEVICE(&a->ehci2_udc_orgate), 0));
+
+    /* UDC - USB 2.0 Device Controller */
+    object_property_set_link(OBJECT(&a->udc), "dram", OBJECT(s->dram_mr),
+                             &error_abort);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&a->udc), errp)) {
+        return;
+    }
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&a->udc), 0,
+                    sc->memmap[ASPEED_DEV_UDC]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&a->udc), 0,
+                       qdev_get_gpio_in(DEVICE(&a->ehci2_udc_orgate), 1));
 
     /* SDMC - SDRAM Memory Controller */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->sdmc), errp)) {
