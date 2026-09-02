@@ -2810,6 +2810,7 @@ igb VF migration
 M: Cédric Le Goater <clg@redhat.com>
 S: Maintained
 F: hw/net/igb_migration.*
+F: docs/system/devices/igb-migration.rst
 
 eepro100
 M: Stefan Weil <sw@weilnetz.de>
