@@ -717,8 +717,8 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
      * handled outside the cpu execution loop.
      */
     const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
-    if (tcg_ops->fake_user_interrupt) {
-        tcg_ops->fake_user_interrupt(cpu);
+    if (tcg_ops->fake_user_exception) {
+        tcg_ops->fake_user_exception(cpu);
     }
     *ret = cpu->exception_index;
     cpu->exception_index = -1;
