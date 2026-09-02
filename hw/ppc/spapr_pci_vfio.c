@@ -25,6 +25,7 @@
 #include "hw/pci/msix.h"
 #include "hw/pci/pci_device.h"
 #include "hw/vfio/vfio-container-legacy.h"
+#include "hw/vfio/pci.h"
 #include "qemu/error-report.h"
 #include CONFIG_DEVICES /* CONFIG_VFIO_PCI */
 
@@ -233,47 +234,56 @@ int spapr_phb_vfio_eeh_get_state(SpaprPhbState *sphb, int *state)
     return RTAS_OUT_SUCCESS;
 }
 
-static void spapr_phb_vfio_eeh_clear_dev_msix(PCIBus *bus,
-                                              PCIDevice *pdev,
-                                              void *opaque)
+/*
+ * Prepare a single VFIO PCI device for an EEH PE hot or fundamental reset.
+ *
+ * On pSeries the MSI-X table shadow is populated by ibm,change-msi via
+ * spapr_msi_setmsg() -> msix_set_message().  EEH recovery does not
+ * necessarily re-issue ibm,change-msi; the guest restores MSI-X Enable
+ * directly, causing QEMU to dispatch through vfio_msix_enable() ->
+ * vfio_msix_vector_do_use(), which re-arms the KVM irqfd routes from the
+ * existing shadow entries.
+ *
+ * Therefore, msix_reset() must NOT be called here.  Calling it would wipe
+ * those shadow entries and prevent interrupt delivery after EEH recovery.
+ *
+ * Instead, clear MSI-X Enable using the cached pdev->config shadow (avoiding
+ * a read from potentially frozen device config space) and write through
+ * pci_host_config_write_common() so that the VFIO config-write handler calls
+ * vfio_msix_disable(), cleanly releasing vectors and KVM irqfd routes while
+ * leaving the shadow intact.
+ */
+static void spapr_phb_vfio_eeh_prepare_dev(PCIBus *bus,
+                                           PCIDevice *pdev,
+                                           void *opaque)
 {
-    /* Check if the device is VFIO PCI device */
-    if (!object_dynamic_cast(OBJECT(pdev), "vfio-pci")) {
+    uint16_t flags;
+
+    if (!object_dynamic_cast(OBJECT(pdev), TYPE_VFIO_PCI_DEVICE)) {
         return;
     }
 
-    /*
-     * The MSIx table will be cleaned out by reset. We need
-     * disable it so that it can be reenabled properly. Also,
-     * the cached MSIx table should be cleared as it's not
-     * reflecting the contents in hardware.
-     */
     if (msix_enabled(pdev)) {
-        uint16_t flags;
-
-        flags = pci_host_config_read_common(pdev,
-                                            pdev->msix_cap + PCI_MSIX_FLAGS,
-                                            pci_config_size(pdev), 2);
+        flags = pci_get_word(pdev->config + pdev->msix_cap + PCI_MSIX_FLAGS);
         flags &= ~PCI_MSIX_FLAGS_ENABLE;
         pci_host_config_write_common(pdev,
                                      pdev->msix_cap + PCI_MSIX_FLAGS,
                                      pci_config_size(pdev), flags, 2);
     }
-
-    msix_reset(pdev);
 }
 
-static void spapr_phb_vfio_eeh_clear_bus_msix(PCIBus *bus, void *opaque)
+static void spapr_phb_vfio_eeh_prepare_bus(PCIBus *bus, void *opaque)
 {
-       pci_for_each_device_under_bus(bus, spapr_phb_vfio_eeh_clear_dev_msix,
-                                     NULL);
+    pci_for_each_device_under_bus(bus,
+                                  spapr_phb_vfio_eeh_prepare_dev,
+                                  NULL);
 }
 
 static void spapr_phb_vfio_eeh_pre_reset(SpaprPhbState *sphb)
 {
-       PCIHostState *phb = PCI_HOST_BRIDGE(sphb);
+    PCIHostState *phb = PCI_HOST_BRIDGE(sphb);
 
-       pci_for_each_bus(phb->bus, spapr_phb_vfio_eeh_clear_bus_msix, NULL);
+    pci_for_each_bus(phb->bus, spapr_phb_vfio_eeh_prepare_bus, NULL);
 }
 
 int spapr_phb_vfio_eeh_reset(SpaprPhbState *sphb, int option)
