@@ -199,8 +199,8 @@ int qigvm_directive_madt(QIgvm *ctx, const uint8_t *header_data, Error **errp)
 
     GArray *madt = acpi_build_madt_standalone(ctx->machine_state);
 
-    if (madt->len <= param_entry->size) {
-        memcpy(param_entry->data, madt->data, madt->len);
+    if (madt->len <= param_entry->size - param->byte_offset) {
+        memcpy(param_entry->data + param->byte_offset, madt->data, madt->len);
     } else {
         error_setg(
             errp,
