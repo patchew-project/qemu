@@ -38,26 +38,20 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/range.h"
 #include "hw/core/hw-error.h"
 #include "hw/net/mii.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pcie.h"
+#include "hw/pci/pcie_sriov.h"
 #include "hw/pci/msix.h"
 #include "net/eth.h"
 #include "net/net.h"
 #include "igb_common.h"
 #include "igb_core.h"
+#include "igb_migration.h"
 #include "trace.h"
 #include "qapi/error.h"
-
-OBJECT_DECLARE_SIMPLE_TYPE(IgbVfState, IGBVF)
-
-struct IgbVfState {
-    PCIDevice parent_obj;
-
-    MemoryRegion mmio;
-    MemoryRegion msix;
-};
 
 static hwaddr vf_to_pf_addr(hwaddr addr, uint16_t vfn, bool write)
 {
@@ -199,10 +193,35 @@ static hwaddr vf_to_pf_addr(hwaddr addr, uint16_t vfn, bool write)
     return HWADDR_MAX;
 }
 
+static bool igbvf_addr_in_dvsec(uint32_t addr, int len)
+{
+    return ranges_overlap(addr, len,
+                          IGB_MIG_DVSEC_OFFSET, IGB_MIG_DVSEC_SIZE);
+}
+
+static uint32_t igbvf_read_config(PCIDevice *dev, uint32_t addr, int size)
+{
+    IgbVfState *s = IGBVF(dev);
+
+    if (s->migration_enabled && igbvf_addr_in_dvsec(addr, size)) {
+        return igbvf_mig_config_read(s, addr, size);
+    }
+
+    return pci_default_read_config(dev, addr, size);
+}
+
 static void igbvf_write_config(PCIDevice *dev, uint32_t addr, uint32_t val,
     int len)
 {
+    IgbVfState *s = IGBVF(dev);
+
     trace_igbvf_write_config(addr, val, len);
+
+    if (s->migration_enabled && igbvf_addr_in_dvsec(addr, len)) {
+        igbvf_mig_config_write(s, addr, val, len);
+        return;
+    }
+
     pci_default_write_config(dev, addr, val, len);
     if (object_property_get_bool(OBJECT(pcie_sriov_get_pf(dev)),
                                  "x-pcie-flr-init", &error_abort)) {
@@ -282,13 +301,27 @@ static void igbvf_pci_realize(PCIDevice *dev, Error **errp)
     }
 
     pcie_ari_init(dev, 0x150);
+
+    if (object_property_get_bool(OBJECT(pcie_sriov_get_pf(dev)),
+                                 "x-vf-migration", &error_abort)) {
+        s->vfn = pcie_sriov_vf_number(dev);
+        s->migration_enabled = true;
+        if (!igbvf_add_migration_dvsec(dev, errp)) {
+            return;
+        }
+    }
 }
 
 static void igbvf_qdev_reset_hold(Object *obj, ResetType type)
 {
     PCIDevice *vf = PCI_DEVICE(obj);
+    IgbVfState *s = IGBVF(vf);
 
     igb_vf_reset(pcie_sriov_get_pf(vf), pcie_sriov_vf_number(vf));
+
+    if (s->migration_enabled) {
+        igbvf_mig_state_reset(s);
+    }
 }
 
 static void igbvf_pci_uninit(PCIDevice *dev)
@@ -309,6 +342,7 @@ static void igbvf_class_init(ObjectClass *class, const void *data)
 
     c->realize = igbvf_pci_realize;
     c->exit = igbvf_pci_uninit;
+    c->config_read = igbvf_read_config;
     c->vendor_id = PCI_VENDOR_ID_INTEL;
     c->device_id = E1000_DEV_ID_82576_VF;
     c->revision = 1;

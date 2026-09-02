@@ -2806,6 +2806,11 @@ F: tests/functional/x86_64/test_netdev_ethtool.py
 F: tests/qtest/igb-test.c
 F: tests/qtest/libqos/igb.c
 
+igb VF migration
+M: Cédric Le Goater <clg@redhat.com>
+S: Maintained
+F: hw/net/igb_migration.*
+
 eepro100
 M: Stefan Weil <sw@weilnetz.de>
 S: Maintained
