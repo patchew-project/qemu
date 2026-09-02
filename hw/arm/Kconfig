@@ -536,6 +536,7 @@ config ASPEED_SOC
     imply GENERIC_LOADER
     imply PCI_DEVICES
     imply E1000E_PCI_EXPRESS
+    select ASPEED_UDC
     select DS1338
     select FTGMAC100
     select I2C
