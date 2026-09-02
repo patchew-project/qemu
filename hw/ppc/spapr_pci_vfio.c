@@ -252,23 +252,47 @@ int spapr_phb_vfio_eeh_get_state(SpaprPhbState *sphb, int *state)
  * pci_host_config_write_common() so that the VFIO config-write handler calls
  * vfio_msix_disable(), cleanly releasing vectors and KVM irqfd routes while
  * leaving the shadow intact.
+ *
+ * After disabling interrupts, disable BAR mmap windows so that the host
+ * kernel PE reset ioctl does not race with QEMU direct-mapped guest accesses.
+ * The timer that would ordinarily re-enable mmaps after an INTx quiet period
+ * is cancelled here; mmaps are restored after VFIO_EEH_PE_CONFIGURE succeeds
+ * in spapr_phb_vfio_eeh_configure().
  */
 static void spapr_phb_vfio_eeh_prepare_dev(PCIBus *bus,
                                            PCIDevice *pdev,
                                            void *opaque)
 {
+    VFIOPCIDevice *vdev;
     uint16_t flags;
+    int i;
 
     if (!object_dynamic_cast(OBJECT(pdev), TYPE_VFIO_PCI_DEVICE)) {
         return;
     }
 
+    vdev = VFIO_PCI_DEVICE(pdev);
+
+    /* Step 1: disable MSI-X without wiping the shadow table (see above). */
     if (msix_enabled(pdev)) {
         flags = pci_get_word(pdev->config + pdev->msix_cap + PCI_MSIX_FLAGS);
         flags &= ~PCI_MSIX_FLAGS_ENABLE;
         pci_host_config_write_common(pdev,
                                      pdev->msix_cap + PCI_MSIX_FLAGS,
                                      pci_config_size(pdev), flags, 2);
+    }
+
+    /*
+     * Step 2: cancel any pending INTx mmap re-enable timer.  The timer is
+     * only allocated when PCI_INTERRUPT_PIN is non-zero, so guard the call.
+     */
+    if (vdev->intx.mmap_timer) {
+        timer_del(vdev->intx.mmap_timer);
+    }
+
+    /* Step 3: disable BAR mmaps last, after interrupt teardown. */
+    for (i = 0; i < PCI_ROM_SLOT; i++) {
+        vfio_region_mmaps_set_enabled(&vdev->bars[i].region, false);
     }
 }
 
@@ -286,6 +310,43 @@ static void spapr_phb_vfio_eeh_pre_reset(SpaprPhbState *sphb)
     pci_for_each_bus(phb->bus, spapr_phb_vfio_eeh_prepare_bus, NULL);
 }
 
+/*
+ * Re-enable BAR mmap windows for a single VFIO PCI device after a successful
+ * EEH PE configure.  Called only on the configure success path; on failure the
+ * mmaps remain disabled until the next hot/fundamental reset attempt.
+ */
+static void spapr_phb_vfio_eeh_post_configure_dev(PCIBus *bus,
+                                                   PCIDevice *pdev,
+                                                   void *opaque)
+{
+    VFIOPCIDevice *vdev;
+    int i;
+
+    if (!object_dynamic_cast(OBJECT(pdev), TYPE_VFIO_PCI_DEVICE)) {
+        return;
+    }
+
+    vdev = VFIO_PCI_DEVICE(pdev);
+
+    for (i = 0; i < PCI_ROM_SLOT; i++) {
+        vfio_region_mmaps_set_enabled(&vdev->bars[i].region, true);
+    }
+}
+
+static void spapr_phb_vfio_eeh_post_configure_bus(PCIBus *bus, void *opaque)
+{
+    pci_for_each_device_under_bus(bus,
+                                  spapr_phb_vfio_eeh_post_configure_dev,
+                                  NULL);
+}
+
+static void spapr_phb_vfio_eeh_post_configure(SpaprPhbState *sphb)
+{
+    PCIHostState *phb = PCI_HOST_BRIDGE(sphb);
+
+    pci_for_each_bus(phb->bus, spapr_phb_vfio_eeh_post_configure_bus, NULL);
+}
+
 int spapr_phb_vfio_eeh_reset(SpaprPhbState *sphb, int option)
 {
     uint32_t op;
@@ -293,6 +354,11 @@ int spapr_phb_vfio_eeh_reset(SpaprPhbState *sphb, int option)
 
     switch (option) {
     case RTAS_SLOT_RESET_DEACTIVATE:
+        /*
+         * Deactivate does not perform a full PE reset; BAR mmaps were already
+         * disabled by the preceding HOT or FUNDAMENTAL reset call and must not
+         * be re-enabled here.
+         */
         op = VFIO_EEH_PE_RESET_DEACTIVATE;
         break;
     case RTAS_SLOT_RESET_HOT:
@@ -323,6 +389,8 @@ int spapr_phb_vfio_eeh_configure(SpaprPhbState *sphb)
     if (ret < 0) {
         return RTAS_OUT_PARAM_ERROR;
     }
+
+    spapr_phb_vfio_eeh_post_configure(sphb);
 
     return RTAS_OUT_SUCCESS;
 }
