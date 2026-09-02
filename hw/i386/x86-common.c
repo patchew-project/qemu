@@ -38,6 +38,7 @@
 
 #include "hw/core/irq.h"
 #include "hw/core/loader.h"
+#include "e820_memory_layout.h"
 #include "multiboot.h"
 #include "elf.h"
 #include "standard-headers/asm-x86/bootparam.h"
@@ -744,6 +745,13 @@ void x86_load_linux(X86MachineState *x86ms,
 
                 initrd_addr = (initrd_max - initrd_size) & ~4095;
 
+                /*
+                 * Keep firmware (e.g. SeaBIOS) from allocating over the
+                 * initrd at the top of RAM.
+                 */
+                e820_add_entry(initrd_addr, QEMU_ALIGN_UP(initrd_size, 4096),
+                               E820_RESERVED);
+
                 fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, initrd_addr);
                 fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
                 fw_cfg_add_bytes(fw_cfg, FW_CFG_INITRD_DATA, initrd_data,
@@ -888,6 +896,13 @@ void x86_load_linux(X86MachineState *x86ms,
         }
 
         initrd_addr = (initrd_max - initrd_size) & ~4095;
+
+        /*
+         * Keep firmware (e.g. SeaBIOS) from allocating over the initrd
+         * at the top of RAM.
+         */
+        e820_add_entry(initrd_addr, QEMU_ALIGN_UP(initrd_size, 4096),
+                       E820_RESERVED);
 
         fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, initrd_addr);
         fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
