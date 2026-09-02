@@ -35,11 +35,13 @@
  * x86_cpu_do_interrupt:
  * @cpu: vCPU the interrupt is to be handled by.
  */
-void x86_cpu_do_interrupt(CPUState *cpu);
 #ifndef CONFIG_USER_ONLY
+void x86_cpu_do_interrupt(CPUState *cpu);
 bool x86_cpu_exec_halt(CPUState *cpu);
 bool x86_need_replay_interrupt(int interrupt_request);
 bool x86_cpu_exec_interrupt(CPUState *cpu, int int_req);
+#else
+void x86_cpu_fake_user_exception(CPUState *cs);
 #endif
 
 void breakpoint_handler(CPUState *cs);

@@ -42,7 +42,7 @@ void helper_syscall(CPUX86State *env, int next_eip_addend)
  * instruction. It is only relevant if is_int is TRUE or if intno
  * is EXCP_SYSCALL.
  */
-static void do_interrupt_user(CPUX86State *env, int intno, int is_int,
+static void do_exception_user(CPUX86State *env, int intno, int is_int,
                               int error_code, target_ulong next_eip)
 {
     if (is_int) {
@@ -76,7 +76,7 @@ static void do_interrupt_user(CPUX86State *env, int intno, int is_int,
     }
 }
 
-void x86_cpu_do_interrupt(CPUState *cs)
+void x86_cpu_fake_user_exception(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
@@ -84,7 +84,7 @@ void x86_cpu_do_interrupt(CPUState *cs)
     /* if user mode only, we simulate a fake exception
        which will be handled outside the cpu execution
        loop */
-    do_interrupt_user(env, cs->exception_index,
+    do_exception_user(env, cs->exception_index,
                       env->exception_is_int,
                       env->error_code,
                       env->exception_next_eip);

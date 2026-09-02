@@ -173,7 +173,7 @@ const TCGCPUOps x86_tcg_ops = {
     .cpu_exec_enter = x86_cpu_exec_enter,
     .cpu_exec_exit = x86_cpu_exec_exit,
 #ifdef CONFIG_USER_ONLY
-    .fake_user_interrupt = x86_cpu_do_interrupt,
+    .fake_user_exception = x86_cpu_fake_user_exception,
     .record_sigsegv = x86_cpu_record_sigsegv,
     .record_sigbus = x86_cpu_record_sigbus,
 #else

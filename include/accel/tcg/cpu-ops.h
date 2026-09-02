@@ -106,12 +106,12 @@ struct TCGCPUOps {
 
 #ifdef CONFIG_USER_ONLY
     /**
-     * @fake_user_interrupt: Callback for 'fake exception' handling.
+     * @fake_user_exception: Callback for 'fake exception' handling.
      *
      * Simulate 'fake exception' which will be handled outside the
      * cpu execution loop (hack for x86 user mode).
      */
-    void (*fake_user_interrupt)(CPUState *cpu);
+    void (*fake_user_exception)(CPUState *cpu);
 
     /**
      * record_sigsegv:
