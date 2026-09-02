@@ -81,4 +81,8 @@ QIgvmParameterData*
 qigvm_find_param_entry(QIgvm *igvm, uint32_t parameter_area_index,
                        Error **errp);
 
+bool qigvm_param_offset_valid(const QIgvmParameterData *param_entry,
+                              const IGVM_VHS_PARAMETER *param,
+                              Error **errp);
+
 #endif

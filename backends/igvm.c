@@ -101,6 +101,22 @@ qigvm_find_param_entry(QIgvm *igvm, uint32_t parameter_area_index,
     return NULL;
 }
 
+/*
+ * Check that byte_offset falls within the parameter area
+ */
+bool qigvm_param_offset_valid(const QIgvmParameterData *param_entry,
+                              const IGVM_VHS_PARAMETER *param,
+                              Error **errp)
+{
+    if (param->byte_offset > param_entry->size) {
+        error_setg(errp,
+                   "IGVM: byte_offset 0x%x exceeds parameter area size 0x%x",
+                   param->byte_offset, param_entry->size);
+        return false;
+    }
+    return true;
+}
+
 static int qigvm_directive_page_data(QIgvm *ctx, const uint8_t *header_data,
                                      Error **errp);
 static int qigvm_directive_vp_context(QIgvm *ctx, const uint8_t *header_data,
@@ -632,6 +648,10 @@ static int qigvm_directive_memory_map(QIgvm *ctx, const uint8_t *header_data,
         return -1;
     }
 
+    if (!qigvm_param_offset_valid(param_entry, param, errp)) {
+        return -1;
+    }
+
     max_entry_count = (param_entry->size - param->byte_offset) /
                       sizeof(IGVM_VHS_MEMORY_MAP_ENTRY);
     mm_entry = (IGVM_VHS_MEMORY_MAP_ENTRY *)(param_entry->data +
@@ -694,6 +714,17 @@ static int qigvm_directive_vp_count(QIgvm *ctx, const uint8_t *header_data,
         return -1;
     }
 
+    if (!qigvm_param_offset_valid(param_entry, param, errp)) {
+        return -1;
+    }
+
+    if (sizeof(*vp_count) > param_entry->size - param->byte_offset) {
+        error_setg(errp,
+                   "IGVM: vp-count parameter exceeds parameter area "
+                   "defined in IGVM file");
+        return -1;
+    }
+
     vp_count = (uint32_t *)(param_entry->data + param->byte_offset);
     *vp_count = 0;
     CPU_FOREACH(cpu)
@@ -715,6 +746,17 @@ static int qigvm_directive_environment_info(QIgvm *ctx,
     param_entry = qigvm_find_param_entry(ctx,
                                          param->parameter_area_index, errp);
     if (param_entry == NULL) {
+        return -1;
+    }
+
+    if (!qigvm_param_offset_valid(param_entry, param, errp)) {
+        return -1;
+    }
+
+    if (sizeof(*environmental_state) > param_entry->size - param->byte_offset) {
+        error_setg(errp,
+                   "IGVM: environment-info parameter exceeds parameter area "
+                   "defined in IGVM file");
         return -1;
     }
 
@@ -822,6 +864,10 @@ static int qigvm_directive_device_tree(QIgvm *ctx, const uint8_t *header_data,
     param_entry = qigvm_find_param_entry(ctx,
                                          param->parameter_area_index, errp);
     if (param_entry == NULL) {
+        return -1;
+    }
+
+    if (!qigvm_param_offset_valid(param_entry, param, errp)) {
         return -1;
     }
 

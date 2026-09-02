@@ -197,6 +197,10 @@ int qigvm_directive_madt(QIgvm *ctx, const uint8_t *header_data, Error **errp)
         return -1;
     }
 
+    if (!qigvm_param_offset_valid(param_entry, param, errp)) {
+        return -1;
+    }
+
     GArray *madt = acpi_build_madt_standalone(ctx->machine_state);
 
     if (madt->len <= param_entry->size - param->byte_offset) {
