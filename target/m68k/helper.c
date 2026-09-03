@@ -281,8 +281,10 @@ void HELPER(m68k_movec_to)(CPUM68KState *env, uint32_t reg, uint32_t val)
             return;
         }
         break;
-    /* Unimplemented Registers */
+    /* Dummy implementation for CAAR */
     case M68K_CR_CAAR:
+        return;
+    /* Unimplemented Registers */
     case M68K_CR_PCR:
     case M68K_CR_BUSCR:
         cpu_abort(env_cpu(env),
@@ -385,8 +387,10 @@ uint32_t HELPER(m68k_movec_from)(CPUM68KState *env, uint32_t reg)
             return env->mmu.ttr[M68K_DTTR1];
         }
         break;
-    /* Unimplemented Registers */
+    /* Dummy implementation for CAAR */
     case M68K_CR_CAAR:
+        return 0;
+    /* Unimplemented Registers */
     case M68K_CR_PCR:
     case M68K_CR_BUSCR:
         cpu_abort(env_cpu(env), "Unimplemented control register read 0x%x\n",
