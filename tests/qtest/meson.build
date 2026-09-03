@@ -265,6 +265,7 @@ qtests_arm = \
   (config_all_devices.has_key('CONFIG_STM32L4X5_SOC') and
    config_all_devices.has_key('CONFIG_DM163')? ['dm163-test'] : []) + \
   ['arm-cpu-features',
+   'arm-gicv2-test',
    'boot-serial-test']
 
 # TODO: once aarch64 TCG is fixed on ARM 32 bit host, make bios-tables-test unconditional
@@ -284,6 +285,7 @@ qtests_aarch64 = \
    ['iommu-smmuv3-test'] : []) + \
   qtests_cxl +                                                                                  \
   ['arm-cpu-features',
+   'arm-gicv2-test',
    'numa-test',
    'boot-serial-test',
    'migration-test']
