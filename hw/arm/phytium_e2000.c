@@ -31,6 +31,7 @@
 #include "hw/misc/phytium_e2000_ddr.h"
 #include "hw/misc/phytium_e2000_mhu.h"
 #include "hw/misc/phytium_e2000_pbr.h"
+#include "hw/misc/phytium_e2000_rng.h"
 #include "hw/misc/unimp.h"
 #include "hw/net/cadence_gem.h"
 #include "hw/pci/pci.h"
@@ -97,6 +98,7 @@ enum {
     PHYTIUM_E2000_GEM1,
     PHYTIUM_E2000_GEM2,
     PHYTIUM_E2000_GEM3,
+    PHYTIUM_E2000_RNG_REGS,
     PHYTIUM_E2000_PLATFORM_CTRL,
     PHYTIUM_E2000_SECURITY_CTRL,
     PHYTIUM_E2000_CHIP_CTRL,
@@ -164,6 +166,7 @@ static const MemMapEntry phytium_e2000_memmap[] = {
     [PHYTIUM_E2000_GEM1] =           { 0x3200e000, 0x00002000 },
     [PHYTIUM_E2000_GEM2] =           { 0x32010000, 0x00002000 },
     [PHYTIUM_E2000_GEM3] =           { 0x32012000, 0x00002000 },
+    [PHYTIUM_E2000_RNG_REGS] =       { 0x32a36000, 0x00001000 },
     [PHYTIUM_E2000_PLATFORM_CTRL] =  { 0x32e40000, 0x00010000 },
     [PHYTIUM_E2000_SECURITY_CTRL] =  { 0x32f00000, 0x00001000 },
     [PHYTIUM_E2000_CHIP_CTRL] =      { 0x33000000, 0x00010000 },
@@ -630,6 +633,17 @@ static void phytium_e2000_create_ddr_status(PhytiumE2000State *s)
     sysbus_mmio_map_overlap(sbd, 0, PHYTIUM_E2000_DDR_STATUS_BASE, 2);
 }
 
+static void phytium_e2000_create_rng(PhytiumE2000State *s)
+{
+    DeviceState *dev = qdev_new(TYPE_PHYTIUM_E2000_RNG);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    object_property_add_child(OBJECT(s), "rng", OBJECT(dev));
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_mmio_map_overlap(sbd, 0,
+        phytium_e2000_memmap[PHYTIUM_E2000_RNG_REGS].base, 2);
+}
+
 static void phytium_e2000_create_scp_sram(PhytiumE2000State *s)
 {
     /*
@@ -842,6 +856,7 @@ static void phytium_e2000_init(MachineState *ms)
 
     phytium_e2000_create_scp_sram(s);
     phytium_e2000_create_mhu(s);
+    phytium_e2000_create_rng(s);
     phytium_e2000_create_ddr_status(s);
 
     for (i = 0; i < PHYTIUM_E2000_NUM_MCIS; i++) {
