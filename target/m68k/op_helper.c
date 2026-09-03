@@ -522,14 +522,12 @@ bool m68k_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     CPUM68KState *env = cpu_env(cs);
 
-    if (interrupt_request & CPU_INTERRUPT_HARD
-        && ((env->sr & SR_I) >> SR_I_SHIFT) < env->pending_level) {
-        /*
-         * Real hardware gets the interrupt vector via an IACK cycle
-         * at this point.  Current emulated hardware doesn't rely on
-         * this, so we provide/save the vector when the interrupt is
-         * first signalled.
-         */
+    if (env->nmi_pending) {
+        env->nmi_pending = false;
+        cs->exception_index = env->pending_vector;
+        do_interrupt_m68k_hardirq(env);
+        return true;
+    } else if (((env->sr & SR_I) >> SR_I_SHIFT) < env->pending_level) {
         cs->exception_index = env->pending_vector;
         do_interrupt_m68k_hardirq(env);
         return true;
