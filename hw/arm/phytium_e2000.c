@@ -74,6 +74,8 @@ enum {
     PHYTIUM_E2000_UART4,
     PHYTIUM_E2000_UART5,
     PHYTIUM_E2000_UART6,
+    PHYTIUM_E2000_CLK_CTRL,
+    PHYTIUM_E2000_SYSTEM_CTRL,
     PHYTIUM_E2000_GIC_DIST,
     PHYTIUM_E2000_GIC_ITS,
     PHYTIUM_E2000_GIC_REDIST,
@@ -85,6 +87,9 @@ enum {
     PHYTIUM_E2000_GEM1,
     PHYTIUM_E2000_GEM2,
     PHYTIUM_E2000_GEM3,
+    PHYTIUM_E2000_PLATFORM_CTRL,
+    PHYTIUM_E2000_SECURITY_CTRL,
+    PHYTIUM_E2000_CHIP_CTRL,
     PHYTIUM_E2000_BOOT_IACC,
     PHYTIUM_E2000_PCIE_ECAM,
     PHYTIUM_E2000_PCIE_PIO,
@@ -126,6 +131,8 @@ static const MemMapEntry phytium_e2000_memmap[] = {
     [PHYTIUM_E2000_UART4] =          { 0x28014000, 0x00001000 },
     [PHYTIUM_E2000_UART5] =          { 0x2802a000, 0x00001000 },
     [PHYTIUM_E2000_UART6] =          { 0x28032000, 0x00001000 },
+    [PHYTIUM_E2000_CLK_CTRL] =       { 0x28100000, 0x00001000 },
+    [PHYTIUM_E2000_SYSTEM_CTRL] =    { 0x30000000, 0x00001000 },
     [PHYTIUM_E2000_GIC_DIST] =       { 0x30800000, 0x00020000 },
     [PHYTIUM_E2000_GIC_ITS] =        { 0x30820000, 0x00020000 },
     [PHYTIUM_E2000_GIC_REDIST] =     { 0x30880000, 0x00080000 },
@@ -137,6 +144,9 @@ static const MemMapEntry phytium_e2000_memmap[] = {
     [PHYTIUM_E2000_GEM1] =           { 0x3200e000, 0x00002000 },
     [PHYTIUM_E2000_GEM2] =           { 0x32010000, 0x00002000 },
     [PHYTIUM_E2000_GEM3] =           { 0x32012000, 0x00002000 },
+    [PHYTIUM_E2000_PLATFORM_CTRL] =  { 0x32e40000, 0x00010000 },
+    [PHYTIUM_E2000_SECURITY_CTRL] =  { 0x32f00000, 0x00001000 },
+    [PHYTIUM_E2000_CHIP_CTRL] =      { 0x33000000, 0x00010000 },
     [PHYTIUM_E2000_BOOT_IACC] =      { 0x38000000, 0x08000000 },
     [PHYTIUM_E2000_PCIE_ECAM] =      { 0x40000000, 0x10000000 },
     [PHYTIUM_E2000_PCIE_PIO] =       { 0x50000000, 0x00f00000 },
@@ -591,6 +601,19 @@ static void phytium_e2000_create_unimplemented(void)
         phytium_e2000_memmap[PHYTIUM_E2000_LOW_PERIPH].base,
         phytium_e2000_memmap[PHYTIUM_E2000_LOW_PERIPH].size);
     /*
+     * PBF writes clock and reset controls as part of physical SoC bring-up.
+     * QEMU derives virtual clocks and reset state elsewhere, so retaining
+     * placeholder visibility is sufficient for these write-only setup paths.
+     */
+    create_unimplemented_device(
+        "phytium-e2000.clock-control",
+        phytium_e2000_memmap[PHYTIUM_E2000_CLK_CTRL].base,
+        phytium_e2000_memmap[PHYTIUM_E2000_CLK_CTRL].size);
+    create_unimplemented_device(
+        "phytium-e2000.system-control",
+        phytium_e2000_memmap[PHYTIUM_E2000_SYSTEM_CTRL].base,
+        phytium_e2000_memmap[PHYTIUM_E2000_SYSTEM_CTRL].size);
+    /*
      * PBF programs SoC-specific PCIe PHY and port controls before U-Boot
      * enumerates ECAM. Their values do not affect the generic host bridge, so
      * keep this control aperture visible without inventing register behavior.
@@ -607,6 +630,18 @@ static void phytium_e2000_create_unimplemented(void)
         "phytium-e2000.board-control",
         phytium_e2000_memmap[PHYTIUM_E2000_BOARD_CTRL].base,
         phytium_e2000_memmap[PHYTIUM_E2000_BOARD_CTRL].size);
+    create_unimplemented_device(
+        "phytium-e2000.platform-control",
+        phytium_e2000_memmap[PHYTIUM_E2000_PLATFORM_CTRL].base,
+        phytium_e2000_memmap[PHYTIUM_E2000_PLATFORM_CTRL].size);
+    create_unimplemented_device(
+        "phytium-e2000.security-control",
+        phytium_e2000_memmap[PHYTIUM_E2000_SECURITY_CTRL].base,
+        phytium_e2000_memmap[PHYTIUM_E2000_SECURITY_CTRL].size);
+    create_unimplemented_device(
+        "phytium-e2000.chip-control",
+        phytium_e2000_memmap[PHYTIUM_E2000_CHIP_CTRL].base,
+        phytium_e2000_memmap[PHYTIUM_E2000_CHIP_CTRL].size);
 }
 
 static void phytium_e2000_create_ram(PhytiumE2000State *s)
