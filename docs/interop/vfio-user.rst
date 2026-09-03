@@ -1712,9 +1712,10 @@ structured as follows:
 | VFIO_DEVICE_STATE_PRE_COPY_P2P | 7     | (not used in vfio-user)                                             |
 +--------------------------------+-------+---------------------------------------------------------------------+
 
-* *data_fd* is unused in vfio-user, as the ``VFIO_USER_MIG_DATA_READ`` and
-  ``VFIO_USER_MIG_DATA_WRITE`` messages are used instead for migration data
-  transport.
+* *data_fd* must be set to -1 in both the request and the response. It
+  is unused in vfio-user, as the ``VFIO_USER_MIG_DATA_READ`` and
+  ``VFIO_USER_MIG_DATA_WRITE`` messages are used instead for migration
+  data transport.
 
 Direct State Transitions
 """"""""""""""""""""""""
@@ -1845,6 +1846,11 @@ the end at offset 24.
 The bitmap is an array of u64s that holds the output bitmap, with 1 bit
 reporting a *page_size* unit of IOVA. The bits outside of the requested range
 must be zero.
+
+If the server cannot translate the requested IOVA range (e.g. because it
+is unmapped, or accessed via message-based DMA), the server must return
+an empty (zeroed) bitmap rather than returning an error. The client
+natively tracks dirty pages for message-based DMA operations.
 
 The mapping of IOVA to bits is given by:
 ``bitmap[(addr - iova)/page_size] & (1ULL << (addr % 64))``
