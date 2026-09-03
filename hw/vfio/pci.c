@@ -2996,7 +2996,7 @@ static const VMStateDescription vmstate_vfio_pci_config = {
     }
 };
 
-static int vfio_pci_save_config(VFIODevice *vbasedev, QEMUFile *f, Error **errp)
+int vfio_pci_save_config(VFIODevice *vbasedev, QEMUFile *f, Error **errp)
 {
     VFIOPCIDevice *vdev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
 
@@ -3004,7 +3004,7 @@ static int vfio_pci_save_config(VFIODevice *vbasedev, QEMUFile *f, Error **errp)
                               errp);
 }
 
-static int vfio_pci_load_config(VFIODevice *vbasedev, QEMUFile *f)
+int vfio_pci_load_config(VFIODevice *vbasedev, QEMUFile *f)
 {
     VFIOPCIDevice *vdev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
     PCIDevice *pdev = PCI_DEVICE(vdev);
@@ -3570,6 +3570,20 @@ bool vfio_pci_interrupt_setup(VFIOPCIDevice *vdev, Error **errp)
     return true;
 }
 
+void vfio_pci_interrupt_teardown(VFIOPCIDevice *vdev)
+{
+    pci_device_set_intx_routing_notifier(PCI_DEVICE(vdev), NULL);
+    if (vdev->irqchip_change_notifier.notify) {
+        kvm_irqchip_remove_change_notifier(&vdev->irqchip_change_notifier);
+        vdev->irqchip_change_notifier.notify = NULL;
+    }
+    vfio_disable_interrupts(vdev);
+    if (vdev->intx.mmap_timer) {
+        timer_free(vdev->intx.mmap_timer);
+        vdev->intx.mmap_timer = NULL;
+    }
+}
+
 static void vfio_pci_realize(PCIDevice *pdev, Error **errp)
 {
     ERRP_GUARD();
@@ -3745,14 +3759,7 @@ static void vfio_exitfn(PCIDevice *pdev)
     vfio_display_exit(vdev);
     vfio_unregister_req_notifier(vdev);
     vfio_unregister_err_notifier(vdev);
-    pci_device_set_intx_routing_notifier(pdev, NULL);
-    if (vdev->irqchip_change_notifier.notify) {
-        kvm_irqchip_remove_change_notifier(&vdev->irqchip_change_notifier);
-    }
-    vfio_disable_interrupts(vdev);
-    if (vdev->intx.mmap_timer) {
-        timer_free(vdev->intx.mmap_timer);
-    }
+    vfio_pci_interrupt_teardown(vdev);
     vfio_pci_teardown_msi(vdev);
     vfio_pci_disable_rp_atomics(vdev);
     vfio_pci_bars_exit(vdev);

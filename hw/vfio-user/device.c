@@ -197,6 +197,17 @@ vfio_user_device_io_device_feature(VFIODevice *vbasedev,
 
     memcpy(feature, &msgp->argsz, feature->argsz);
 
+    /*
+     * Pre-copy is not supported over vfio-user yet. Strip the PRE_COPY bit
+     * from the advertised migration flags so the generic migration code never
+     * enters the pre-copy path, forcing a plain stop-and-copy migration.
+     */
+    if (feat == VFIO_DEVICE_FEATURE_MIGRATION) {
+        struct vfio_device_feature_migration *mig =
+            (struct vfio_device_feature_migration *)feature->data;
+        mig->flags &= ~VFIO_MIGRATION_PRE_COPY;
+    }
+
     trace_vfio_user_device_io_device_feature(msgp->argsz, msgp->flags);
 
     return 0;

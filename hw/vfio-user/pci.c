@@ -13,6 +13,7 @@
 
 #include "hw/core/qdev-properties.h"
 #include "hw/vfio/pci.h"
+#include "hw/vfio/vfio-migration-internal.h"
 #include "hw/vfio-user/device.h"
 #include "hw/vfio-user/proxy.h"
 
@@ -239,9 +240,8 @@ static VFIODeviceOps vfio_user_pci_ops = {
     .vfio_compute_needs_reset = vfio_user_compute_needs_reset,
     .vfio_eoi = vfio_pci_intx_eoi,
     .vfio_get_object = vfio_user_pci_get_object,
-    /* No live migration support yet. */
-    .vfio_save_config = NULL,
-    .vfio_load_config = NULL,
+    .vfio_save_config = vfio_pci_save_config,
+    .vfio_load_config = vfio_pci_load_config,
 };
 
 static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
@@ -343,6 +343,11 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
         goto out_teardown;
     }
 
+    if (!vfio_migration_realize(vbasedev, errp)) {
+        vfio_pci_interrupt_teardown(vdev);
+        goto out_teardown;
+    }
+
     vfio_pci_register_err_notifier(vdev);
     vfio_pci_register_req_notifier(vdev);
 
@@ -426,6 +431,8 @@ static const Property vfio_user_pci_properties[] = {
     DEFINE_PROP_BOOL("x-send-queued", VFIOUserPCIDevice, send_queued, false),
     DEFINE_PROP_UINT32("x-msg-timeout", VFIOUserPCIDevice, wait_time, 5000),
     DEFINE_PROP_BOOL("x-no-posted-writes", VFIOUserPCIDevice, no_post, false),
+    DEFINE_PROP_ON_OFF_AUTO("enable-migration", VFIOPCIDevice,
+                            vbasedev.enable_migration, ON_OFF_AUTO_AUTO),
 };
 
 static void vfio_user_pci_set_socket(Object *obj, Visitor *v, const char *name,
