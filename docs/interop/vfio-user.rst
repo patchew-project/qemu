@@ -387,6 +387,7 @@ Name                                    Command    Request Direction
 ``VFIO_USER_DEVICE_FEATURE``            16         client -> server
 ``VFIO_USER_MIG_DATA_READ``             17         client -> server
 ``VFIO_USER_MIG_DATA_WRITE``            18         client -> server
+``VFIO_USER_GET_PRECOPY_INFO``          19         client -> server
 ======================================  =========  =================
 
 Header
@@ -1588,26 +1589,22 @@ The request payload for this message is a structure of the following format.
 +-------+--------+--------------------------------+
 
 * *argsz* is the maximum size of the reply payload.
-
 * *flags* defines the action to be performed by the server and upon which
   feature:
 
   * The feature index consists of the least significant 16 bits of the flags
     field, and can be accessed using the ``VFIO_DEVICE_FEATURE_MASK`` bit mask.
-
   * ``VFIO_DEVICE_FEATURE_GET`` instructs the server to get the data for the
     given feature.
-
   * ``VFIO_DEVICE_FEATURE_SET`` instructs the server to set the feature data to
-    that given in the ``data`` field of the payload.
-
+    that given in the data field of the payload.
   * ``VFIO_DEVICE_FEATURE_PROBE`` instructs the server to probe for feature
     support. If ``VFIO_DEVICE_FEATURE_GET`` and/or ``VFIO_DEVICE_FEATURE_SET``
     are also set, the probe will only return success if all of the indicated
     methods are supported.
 
-  ``VFIO_DEVICE_FEATURE_GET`` and ``VFIO_DEVICE_FEATURE_SET`` are mutually
-  exclusive, except for use with ``VFIO_DEVICE_FEATURE_PROBE``.
+``VFIO_DEVICE_FEATURE_GET`` and ``VFIO_DEVICE_FEATURE_SET`` are mutually
+exclusive, except for use with ``VFIO_DEVICE_FEATURE_PROBE``.
 
 * *data* is specific to the particular feature. It is not used for probing.
 
@@ -1729,25 +1726,19 @@ server, a subset of those defined in ``<linux/vfio.h>``
 
 * ``RUNNING -> STOP``, ``STOP_COPY -> STOP``: Stop the operation of the device.
   The ``STOP_COPY`` arc terminates the data transfer session.
-
 * ``RESUMING -> STOP``: Terminate the data transfer session. Complete processing
   of the migration data. Stop the operation of the device. If the delivered data
   is found to be incomplete, inconsistent, or otherwise invalid, fail the
   ``SET`` command and optionally transition to the ``ERROR`` state.
-
 * ``PRE_COPY -> RUNNING``: Terminate the data transfer session. The device is
   now fully operational.
-
 * ``STOP -> RUNNING``: Start the operation of the device.
-
 * ``RUNNING -> PRE_COPY``, ``STOP -> STOP_COPY``: Begin the process of saving
   the device state. The device operation is unchanged, but data transfer begins.
   ``PRE_COPY`` and ``STOP_COPY`` are referred to as the "saving group" of
   states.
-
 * ``PRE_COPY -> STOP_COPY``: Continue to transfer migration data, but stop
   device operation.
-
 * ``STOP -> RESUMING``: Start the process of restoring the device state. The
   internal device state may be changed to prepare the device to receive the
   migration data.
@@ -1771,7 +1762,6 @@ above FSM arcs. As there are multiple paths, the path should be selected based
 on the following rules:
 
 * Select the shortest path.
-
 * The path cannot have saving group states as interior arcs, only start/end
   states.
 
@@ -1803,10 +1793,8 @@ The data field of the ``SET`` request is structured as follows:
   If the device cannot do the hinted page size then it's the driver's choice
   which page size to pick based on its support. On output the device will return
   the page size it selected.
-
 * *num_ranges* is the number of IOVA ranges to monitor. A value of zero
   indicates that all writes should be logged.
-
 * *ranges* is an array of ``vfio_user_device_feature_dma_logging_range``
   entries:
 
@@ -1818,8 +1806,8 @@ The data field of the ``SET`` request is structured as follows:
 | length | 8      | 8    |
 +--------+--------+------+
 
-  * *iova* is the base IO virtual address
-  * *length* is the length of the range to log
+* *iova* is the base IO virtual address
+* *length* is the length of the range to log
 
 Upon success, the response data field will be the same as the request, unless
 the page size was changed, in which case this will be reflected in the response.
@@ -1844,14 +1832,12 @@ The data field of the request is structured as follows:
 +-----------+--------+------+
 
 * *iova* is the base IO virtual address
-
 * *length* is the length of the range
-
 * *page_size* is the unit of granularity of the bitmap, and must be a power of
   two. It doesn't have to match the value given to
   ``VFIO_DEVICE_FEATURE_DMA_LOGGING_START`` because the driver will format its
   internal logging to match the reporting page size possibly by replicating bits
-  if the internal page size is lower than requested
+  if the internal page size is lower than requested.
 
 The data field of the response is identical, except with the bitmap added on
 the end at offset 24.
@@ -1861,21 +1847,16 @@ reporting a *page_size* unit of IOVA. The bits outside of the requested range
 must be zero.
 
 The mapping of IOVA to bits is given by:
-
 ``bitmap[(addr - iova)/page_size] & (1ULL << (addr % 64))``
 
 ``VFIO_USER_MIG_DATA_READ``
 ---------------------------
 
-This command is used to read data from the source migration server while it is
-in a saving group state (``PRE_COPY`` or ``STOP_COPY``).
+This command is used to read data from the device while it is in a
+saving-related migration state.
 
-This command, and ``VFIO_USER_MIG_DATA_WRITE``, are used in place of the
-``data_fd`` file descriptor in ``<linux/vfio.h>``
-(``struct vfio_device_feature_mig_state``) to enable all data transport to use
-the single already-established UNIX socket. Hence, the migration data is
-treated like a stream, so the client must continue reading until no more
-migration data remains.
+This command is analogous to reading from the ``VFIO_MIG_GET_PRECOPY_INFO``
+data_fd.
 
 Request
 ^^^^^^^
@@ -1890,9 +1871,8 @@ The request payload for this message is a structure of the following format.
 | size  | 4      | 4    |
 +-------+--------+------+
 
-* *argsz* is the maximum size of the reply payload.
-
-* *size* is the size of the migration data to read.
+* *argsz* is the size of the above structure.
+* *size* is the amount of data to read.
 
 Reply
 ^^^^^
@@ -1909,21 +1889,18 @@ The reply payload for this message is a structure of the following format.
 | data  | 8      | variable |
 +-------+--------+----------+
 
-* *argsz* is the size of the above structure, including the size of the data.
-
-* *size* indicates the size of returned migration data. If this is less than the
-  requested size, there is no more migration data to read.
-
-* *data* contains the migration data.
+* *argsz* is the size of the above structure.
+* *size* is the amount of data read.
+* *data* is the data read.
 
 ``VFIO_USER_MIG_DATA_WRITE``
 ----------------------------
 
-This command is used to write data to the destination migration server while it
-is in the ``RESUMING`` state.
+This command is used to write data to the device while it is in a
+resuming-related migration state.
 
-As above, this replaces the ``data_fd`` file descriptor for transport of
-migration data, and as such, the migration data is treated like a stream.
+This command is analogous to writing to the ``VFIO_MIG_GET_PRECOPY_INFO``
+data_fd.
 
 Request
 ^^^^^^^
@@ -1940,16 +1917,65 @@ The request payload for this message is a structure of the following format.
 | data  | 8      | variable |
 +-------+--------+----------+
 
-* *argsz* is the maximum size of the reply payload.
-
-* *size* is the size of the migration data to be written.
-
-* *data* contains the migration data.
+* *argsz* is the size of the above structure.
+* *size* is the amount of data to write.
+* *data* is the data to write.
 
 Reply
 ^^^^^
 
-There is no reply payload for this message.
+The reply payload for this message is a structure of the following format.
+
++-------+--------+----------+
+| Name  | Offset | Size     |
++=======+========+==========+
+| argsz | 0      | 4        |
++-------+--------+----------+
+| size  | 4      | 4        |
++-------+--------+----------+
+
+* *argsz* is the size of the above structure.
+* *size* is the amount of data written.
+
+``VFIO_USER_GET_PRECOPY_INFO``
+------------------------------
+
+This command is used to query the migration data transfer progress during the
+``PRE_COPY`` state.
+
+This command is analogous to the ``VFIO_MIG_GET_PRECOPY_INFO`` ioctl.
+
+Request
+^^^^^^^
+
+The request payload for this message is a structure of the following format.
+
++---------------+--------+------+
+| Name          | Offset | Size |
++===============+========+======+
+| argsz         | 0      | 4    |
++---------------+--------+------+
+| flags         | 4      | 4    |
++---------------+--------+------+
+| initial_bytes | 8      | 8    |
++---------------+--------+------+
+| dirty_bytes   | 16     | 8    |
++---------------+--------+------+
+
+* *argsz* is the size of the above structure.
+* *flags* is unused.
+* *initial_bytes* is unused in the request.
+* *dirty_bytes* is unused in the request.
+
+Reply
+^^^^^
+
+The reply payload has the exact same structure as the request payload.
+
+* *argsz* is the size of the above structure.
+* *flags* is unused.
+* *initial_bytes* contains the amount of initial data available for transfer.
+* *dirty_bytes* contains the amount of dirty data available for transfer.
 
 Appendices
 ==========
