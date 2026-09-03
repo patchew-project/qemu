@@ -40,6 +40,7 @@
 #include "hw/sd/phytium_e2000_mci.h"
 #include "hw/sd/sd.h"
 #include "hw/ssi/phytium_qspi.h"
+#include "hw/ssi/ssi.h"
 #include "hw/usb/xhci.h"
 #include "net/net.h"
 #include "qobject/qlist.h"
@@ -118,6 +119,7 @@ struct PhytiumE2000State {
     struct arm_boot_info bootinfo;
     DeviceState *gic;
     DeviceState *qspi;
+    DeviceState *qspi_flash;
     PhytiumE2000PBRState *pbr;
     PhytiumE2000MciState *mci[PHYTIUM_E2000_NUM_MCIS];
     CadenceGEMState *gem[PHYTIUM_E2000_NUM_GEMS];
@@ -133,6 +135,7 @@ struct PhytiumE2000MachineClass {
     const char *machine_name;
     const char *direct_boot_dtb;
     const char *pbr_boot_mode;
+    const char *qspi_flash_model;
 };
 
 /*
@@ -577,6 +580,25 @@ static void phytium_e2000_create_qspi(PhytiumE2000State *s)
         phytium_e2000_memmap[PHYTIUM_E2000_QSPI_DIRECT].base, 2);
 }
 
+static void phytium_e2000_attach_qspi_flash(PhytiumE2000State *s,
+                                            const char *model)
+{
+    DeviceState *flash = qdev_new(model);
+    DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
+    qemu_irq flash_cs;
+
+    if (dinfo) {
+        qdev_prop_set_drive_err(flash, "drive", blk_by_legacy_dinfo(dinfo),
+                                &error_fatal);
+    }
+
+    s->qspi_flash = flash;
+    qdev_realize_and_unref(flash, qdev_get_child_bus(s->qspi, "spi"),
+                           &error_fatal);
+    flash_cs = qdev_get_gpio_in_named(flash, SSI_GPIO_CS, 0);
+    qdev_connect_gpio_out_named(s->qspi, "cs", 0, flash_cs);
+}
+
 static bool phytium_e2000_create_pbr(PhytiumE2000State *s)
 {
     MachineState *ms = MACHINE(s);
@@ -588,10 +610,13 @@ static bool phytium_e2000_create_pbr(PhytiumE2000State *s)
     uint64_t cpu_mpidrs[PHYTIUM_E2000_NUM_CPUS];
     int i;
 
-    if (!ms->kernel_filename &&
-        !strcmp(pemc->pbr_boot_mode,
-                PHYTIUM_E2000_PBR_BOOT_MODE_SD0)) {
-        boot_blk = phytium_e2000_sd_blk(0);
+    if (!ms->kernel_filename) {
+        if (!strcmp(pemc->pbr_boot_mode,
+                    PHYTIUM_E2000_PBR_BOOT_MODE_QSPI)) {
+            boot_blk = m25p80_get_blk(s->qspi_flash);
+        } else {
+            boot_blk = phytium_e2000_sd_blk(0);
+        }
     }
 
     for (i = 0; i < ms->smp.cpus; i++) {
@@ -913,6 +938,9 @@ static void phytium_e2000_init(MachineState *ms)
     phytium_e2000_create_unimplemented();
 
     phytium_e2000_create_qspi(s);
+    if (pemc->qspi_flash_model) {
+        phytium_e2000_attach_qspi_flash(s, pemc->qspi_flash_model);
+    }
     firmware_loaded = phytium_e2000_create_pbr(s);
 
     phytium_e2000_create_cpus(s, firmware_loaded);
@@ -1024,6 +1052,7 @@ static void phytium_e2000_come_class_init(ObjectClass *oc, const void *data)
     pemc->machine_name = "phytium-e2000-come";
     pemc->direct_boot_dtb = "e2000q-come-board.dtb";
     pemc->pbr_boot_mode = PHYTIUM_E2000_PBR_BOOT_MODE_QSPI;
+    pemc->qspi_flash_model = "gd25q128";
 }
 
 static const TypeInfo phytium_e2000_base_info = {
