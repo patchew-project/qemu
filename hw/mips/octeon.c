@@ -94,6 +94,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(OcteonCsrBankState, OCTEON_CSR_BANK)
 #define OCTEON_CIU_FUSE             0x728
 #define OCTEON_CIU_SUM_IPI          0x0000000100000000ULL
 #define OCTEON_CIU_SUM_UART         0x0000000800000000ULL
+#define OCTEON_CIU_SUM_PCI          0x0000001000000000ULL
 #define OCTEON_CIU_ENABLE0          0x88006f1800000000ULL
 #define OCTEON_CIU_IPI_SUM_BASE     0x008
 #define OCTEON_CIU_IPI_SUM_STRIDE   0x10
@@ -137,6 +138,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(OcteonCsrBankState, OCTEON_CSR_BANK)
 #define OCTEON_CIU3_SRC_RAW         0x00000002U
 #define OCTEON_CIU3_NINTSN          (1U << 20)
 #define OCTEON_CIU3_ISC_SIZE        (OCTEON_CIU3_NINTSN * 8)
+#define OCTEON_CIU3_PEM_INTSN_INTA(port) (((0xc0 + (port)) << 12) + 60)
 #define OCTEON_CIU3_MBOX_INTSN(cpu) ((cpu) + 0x4000U)
 #define OCTEON_CIU3_UART0_INTSN     0x8000
 #define OCTEON_CSR_BASE             0x1180000000000ULL
@@ -304,6 +306,18 @@ OBJECT_DECLARE_SIMPLE_TYPE(OcteonCsrBankState, OCTEON_CSR_BANK)
 #define OCTEON_CVMSEG_SIZE          0x4000
 #define OCTEON_CVMSEG_TOTAL_SIZE    (OCTEON_MAX_CPUS * OCTEON_CVMSEG_SIZE)
 
+#define OCTEON_GSERX_CFG0           0x90000080
+#define OCTEON_GSERX_QLM_STAT0      0x900000a0
+#define OCTEON_RST_CTLX0            0x6001640
+#define OCTEON_RST_SOFT_PRSTX0      0x60016c0
+#define OCTEON_PEMX_CFG_RD0         0xc0000030
+#define OCTEON_PEMX_CFG_WR0         0xc0000028
+#define OCTEON_PEMX_BIST_STATUS0    0xc0000440
+#define OCTEON_PEMX_ON0             0xc0000420
+#define OCTEON_PEMX_STRAP0          0xc0000408
+
+#define OCTEON_RST_CTL_HOST_MODE    (1ULL << 6)
+#define OCTEON_RST_CTL_RST_DONE     (1ULL << 8)
 #define OCTEON_FLASH_BASE           0x1f400000ULL
 #define OCTEON_FLASH_RESET_BASE     0x1fc00000ULL
 #define OCTEON_FLASH_RESET_SIZE     (4 * MiB)
@@ -385,6 +399,7 @@ struct OcteonIntcState {
     uint64_t ciu_gpio_tx;
     uint64_t ciu_gpio_bit_cfg[OCTEON_CIU_GPIO_COUNT];
     bool uart_pending;
+    bool pci_pending;
     uint64_t ciu3_pp_rst;
     uint32_t ciu3_src_state[OCTEON_CIU3_SRC_COUNT];
     uint64_t ciu3_src_ctl[OCTEON_CIU3_SRC_COUNT];
@@ -517,7 +532,8 @@ bool octeon_csr_lookup(OcteonState *s, uint64_t reg, uint64_t *value)
     if (octeon_mio_emm_decode(reg, &ereg)) {
         return octeon_reg_lookup(s->emm->regs, ereg, value);
     }
-    if (reg == OCTEON_RST_SOFT_RST) {
+    if (reg == OCTEON_RST_CTLX0 || reg == OCTEON_RST_SOFT_PRSTX0 ||
+        reg == OCTEON_RST_SOFT_RST) {
         return octeon_reg_lookup(s->rst->regs, reg, value);
     }
     return octeon_reg_lookup(s->csr_bank->values, reg, value);
@@ -531,7 +547,8 @@ static void octeon_csr_store(OcteonState *s, uint64_t reg, uint64_t value)
         octeon_reg_store(s->emm->regs, ereg, value);
         return;
     }
-    if (reg == OCTEON_RST_SOFT_RST) {
+    if (reg == OCTEON_RST_CTLX0 || reg == OCTEON_RST_SOFT_PRSTX0 ||
+        reg == OCTEON_RST_SOFT_RST) {
         octeon_reg_store(s->rst->regs, reg, value);
         return;
     }
@@ -1031,6 +1048,10 @@ static void octeon_lmc_write(OcteonLmcState *lmc, hwaddr reg,
 static bool octeon_ciu3_source_from_intsn(uint32_t intsn,
                                           unsigned int *source)
 {
+    if (intsn == OCTEON_CIU3_PEM_INTSN_INTA(0)) {
+        *source = OCTEON_CIU3_SRC_PCI_INTA;
+        return true;
+    }
     if (intsn == OCTEON_CIU3_UART0_INTSN) {
         *source = OCTEON_CIU3_SRC_UART0;
         return true;
@@ -1057,6 +1078,8 @@ static bool octeon_ciu3_source_from_intsn(uint32_t intsn,
 static uint32_t octeon_ciu3_source_intsn(unsigned int source)
 {
     switch (source) {
+    case OCTEON_CIU3_SRC_PCI_INTA:
+        return OCTEON_CIU3_PEM_INTSN_INTA(0);
     case OCTEON_CIU3_SRC_UART0:
         return OCTEON_CIU3_UART0_INTSN;
     case OCTEON_CIU3_SRC_USB0:
@@ -1076,6 +1099,7 @@ static uint32_t octeon_ciu3_source_intsn(unsigned int source)
 static bool octeon_ciu3_source_is_level(unsigned int source)
 {
     switch (source) {
+    case OCTEON_CIU3_SRC_PCI_INTA:
     case OCTEON_CIU3_SRC_UART0:
     case OCTEON_CIU3_SRC_USB0:
     case OCTEON_CIU3_SRC_USB1:
@@ -1394,6 +1418,9 @@ static uint64_t octeon_ciu_read(void *opaque, hwaddr addr, unsigned size)
     if (reg == 0) {
         if (qatomic_read(&s->intc->uart_pending)) {
             value |= OCTEON_CIU_SUM_UART;
+        }
+        if (qatomic_read(&s->intc->pci_pending)) {
+            value |= OCTEON_CIU_SUM_PCI;
         }
         octeon_intc_request_cpu_update(s, 0);
         return octeon_read64(value, addr, size);
@@ -1883,6 +1910,29 @@ static uint64_t octeon_csr_read(void *opaque, hwaddr addr, unsigned size)
         return octeon_read64(value, addr, size);
     case OCTEON_RST_PP_POWER:
         return octeon_read64(s->rst->rst_pp_power, addr, size);
+    case OCTEON_GSERX_CFG0:
+        return octeon_read64(1, addr, size);
+    case OCTEON_GSERX_QLM_STAT0:
+        return octeon_read64(3, addr, size);
+    case OCTEON_RST_CTLX0:
+        if (!octeon_csr_lookup(s, reg, &value)) {
+            value = OCTEON_RST_CTL_HOST_MODE | OCTEON_RST_CTL_RST_DONE;
+        }
+        return octeon_read64(value, addr, size);
+    case OCTEON_RST_SOFT_PRSTX0:
+        if (!octeon_csr_lookup(s, reg, &value)) {
+            value = 1;
+        }
+        return octeon_read64(value, addr, size);
+    case OCTEON_PEMX_CFG_RD0:
+    case OCTEON_PEMX_CFG_WR0:
+        return octeon_pci_pem_read(s, reg, addr, size);
+    case OCTEON_PEMX_BIST_STATUS0:
+        return 0;
+    case OCTEON_PEMX_ON0:
+        return octeon_read64(3, addr, size);
+    case OCTEON_PEMX_STRAP0:
+        return octeon_read64(3, addr, size);
     default:
         break;
     }
@@ -1960,6 +2010,11 @@ static void octeon_csr_write(void *opaque, hwaddr addr,
 
     if (reg == OCTEON_RST_PP_POWER) {
         octeon_rst_pp_power_write(s, addr, value, size);
+        return;
+    }
+
+    if (reg == OCTEON_PEMX_CFG_RD0 || reg == OCTEON_PEMX_CFG_WR0) {
+        octeon_pci_pem_write(s, reg, addr, value, size);
         return;
     }
 
@@ -2173,6 +2228,13 @@ void octeon_irq_set(void *opaque, int irq, int level)
             return;
         }
         qatomic_set(&s->intc->uart_pending, level);
+        break;
+    case OCTEON_IRQ_PCI:
+        src = OCTEON_CIU3_SRC_PCI_INTA;
+        if (!octeon_ciu3_set_level(s, src, level)) {
+            return;
+        }
+        qatomic_set(&s->intc->pci_pending, level);
         break;
     case OCTEON_IRQ_USB0:
         src = OCTEON_CIU3_SRC_USB0;
@@ -2550,6 +2612,7 @@ static void octeon_intc_reset_hold(Object *obj, ResetType type)
     qatomic_set(&intc->ciu_gpio_tx, 0);
     memset(intc->ciu_gpio_bit_cfg, 0, sizeof(intc->ciu_gpio_bit_cfg));
     qatomic_set(&intc->uart_pending, false);
+    qatomic_set(&intc->pci_pending, false);
     qatomic_set(&intc->ciu3_pp_rst, octeon_secondary_cpu_mask(s));
     memset(intc->ciu3_src_state, 0, sizeof(intc->ciu3_src_state));
     memset(intc->ciu3_src_ctl, 0, sizeof(intc->ciu3_src_ctl));
@@ -2822,6 +2885,7 @@ static void mips_octeon_init(MachineState *machine)
                                 &s->pow);
 
     octeon_init_usb(s);
+    octeon_init_pci(s);
     octeon_realize_peripherals(s);
 }
 
@@ -2877,6 +2941,7 @@ static void octeon_machine_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = OCTEON_DEFAULT_RAM_SIZE;
     mc->default_ram_id = "octeon.ram";
     mc->max_cpus = OCTEON_MAX_CPUS;
+    mc->pci_allow_0_address = true;
 }
 
 static const TypeInfo octeon_machine_types[] = {
