@@ -21,6 +21,14 @@
 #include "exec/page-protection.h"
 #include "../internal.h"
 
+/*
+ * QEMU-only backing for per-core CVMSEG. Keep it outside guest DRAM;
+ * the guest sees the virtual CVMSEG window, not this physical address.
+ */
+#define OCTEON_CVMSEG_BASE 0x10000000000ULL
+#define OCTEON_CVMSEG_SIZE 0x4000ULL
+#define OCTEON_CVMSEG_MASK 0x3fffULL
+
 static int is_seg_am_mapped(unsigned int am, bool eu, int mmu_idx)
 {
     /*
@@ -127,6 +135,20 @@ int get_physical_address(CPUMIPSState *env, hwaddr *physical,
 #endif
     int ret = TLBRET_MATCH;
     target_ulong address = real_address;
+
+#if defined(TARGET_MIPS64)
+    if ((env->insn_flags & INSN_OCTEON) && (env->CP0_CvmMemCtl & 0x100) &&
+        address >= 0xffffffffffff8000ULL &&
+        address <= 0xffffffffffffbfffULL) {
+        MIPSCPU *cpu = env_archcpu(env);
+
+        *physical = OCTEON_CVMSEG_BASE +
+                    CPU(cpu)->cpu_index * OCTEON_CVMSEG_SIZE +
+                    (address & OCTEON_CVMSEG_MASK);
+        *prot = PAGE_READ | PAGE_WRITE;
+        return TLBRET_MATCH;
+    }
+#endif
 
     if (address <= USEG_LIMIT) {
         /* useg */
