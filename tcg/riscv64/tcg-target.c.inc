@@ -641,14 +641,31 @@ static bool reloc_jimm20(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
     return false;
 }
 
-static bool reloc_call(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
+static bool split_auipc_offset(tcg_insn_unit *src_rw,
+                               const tcg_insn_unit *target,
+                               intptr_t *hi, intptr_t *lo)
 {
     const tcg_insn_unit *src_rx = tcg_splitwx_to_rx(src_rw);
     intptr_t offset = (intptr_t)target - (intptr_t)src_rx;
-    int32_t lo = sextreg(offset, 0, 12);
-    int32_t hi = offset - lo;
+    intptr_t low = sextreg(offset, 0, 12);
+    intptr_t high = offset - low;
 
-    if (offset == hi + lo) {
+    /* AUIPC sign-extends its 20-bit immediate after shifting by 12. */
+    if (high != sextreg(high, 0, 32)) {
+        return false;
+    }
+
+    *hi = high;
+    *lo = low;
+
+    return true;
+}
+
+static bool reloc_call(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
+{
+    intptr_t hi, lo;
+
+    if (split_auipc_offset(src_rw, target, &hi, &lo)) {
         src_rw[0] |= encode_uimm20(hi);
         src_rw[1] |= encode_imm12(lo);
         return true;
