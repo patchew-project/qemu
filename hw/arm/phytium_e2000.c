@@ -13,6 +13,7 @@
 #include "qemu/error-report.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
+#include "exec/cpu-common.h"
 #include "system/address-spaces.h"
 #include "system/kvm.h"
 #include "system/system.h"
@@ -20,6 +21,7 @@
 #include "hw/arm/boot.h"
 #include "hw/arm/bsa.h"
 #include "hw/arm/machines-qom.h"
+#include "hw/block/flash.h"
 #include "hw/char/pl011.h"
 #include "hw/core/boards.h"
 #include "hw/core/qdev-properties.h"
@@ -27,6 +29,7 @@
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "hw/misc/phytium_e2000_ddr.h"
 #include "hw/misc/phytium_e2000_mhu.h"
+#include "hw/misc/phytium_e2000_pbr.h"
 #include "hw/misc/unimp.h"
 #include "hw/net/cadence_gem.h"
 #include "hw/pci/pci.h"
@@ -96,8 +99,10 @@ struct PhytiumE2000State {
     struct arm_boot_info bootinfo;
     DeviceState *gic;
     DeviceState *qspi;
+    PhytiumE2000PBRState *pbr;
     PhytiumE2000MciState *mci[PHYTIUM_E2000_NUM_MCIS];
     CadenceGEMState *gem[PHYTIUM_E2000_NUM_GEMS];
+    CPUState *cpu[PHYTIUM_E2000_NUM_CPUS];
     MemoryRegion scp_sram;
     MemoryRegion ram_low;
     MemoryRegion ram_high;
@@ -207,6 +212,17 @@ phytium_e2000_cpu_config[PHYTIUM_E2000_NUM_CPUS] = {
         .core_id = 1,
     },
 };
+
+static uint64_t phytium_e2000_cpu_mp_affinity(unsigned int cpu)
+{
+    /*
+     * E2000Q exposes one core in each of the first two clusters and two cores
+     * in the third cluster. Firmware stores these MPIDRs in its parameter
+     * tables, so a linear CPU index is not a valid affinity value.
+     */
+    g_assert(cpu < ARRAY_SIZE(phytium_e2000_cpu_config));
+    return phytium_e2000_cpu_config[cpu].mp_affinity;
+}
 
 static void phytium_e2000_create_its(PhytiumE2000State *s)
 {
@@ -410,6 +426,15 @@ static void phytium_e2000_create_pcie(PhytiumE2000State *s)
     }
 }
 
+static void phytium_e2000_reject_legacy_firmware(MachineState *ms)
+{
+    if (ms->firmware || drive_get(IF_PFLASH, 0, 0)) {
+        error_report("phytium-pi: -bios and pflash firmware are not "
+                     "supported; use an if=sd,index=0 image");
+        exit(1);
+    }
+}
+
 static BlockBackend *phytium_e2000_sd_blk(int index)
 {
     DriveInfo *dinfo = drive_get(IF_SD, 0, index);
@@ -469,6 +494,47 @@ static void phytium_e2000_create_qspi(PhytiumE2000State *s)
         phytium_e2000_memmap[PHYTIUM_E2000_QSPI_REGS].base, 2);
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(controller), 1,
         phytium_e2000_memmap[PHYTIUM_E2000_QSPI_DIRECT].base, 2);
+}
+
+static bool phytium_e2000_create_pbr(PhytiumE2000State *s)
+{
+    MachineState *ms = MACHINE(s);
+    DeviceState *dev = qdev_new(TYPE_PHYTIUM_E2000_PBR);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    BlockBackend *boot_blk = NULL;
+    uint64_t cpu_mpidrs[PHYTIUM_E2000_NUM_CPUS];
+    int i;
+
+    if (!ms->kernel_filename) {
+        boot_blk = phytium_e2000_sd_blk(0);
+    }
+
+    for (i = 0; i < ms->smp.cpus; i++) {
+        cpu_mpidrs[i] = phytium_e2000_cpu_mp_affinity(i);
+    }
+
+    qdev_prop_set_string(dev, "boot-mode",
+                         PHYTIUM_E2000_PBR_BOOT_MODE_SD0);
+    phytium_e2000_pbr_configure(PHYTIUM_E2000_PBR(dev), boot_blk,
+                                phytium_e2000_memmap[
+                                    PHYTIUM_E2000_RAM].base,
+                                ms->ram_size, cpu_mpidrs, ms->smp.cpus);
+
+    /*
+     * PBR owns the status snapshot and both boot memories. The status block
+     * overlaps the broad board-control placeholder and therefore needs the
+     * higher mapping priority used by the previous status-only device.
+     */
+    object_property_add_child(OBJECT(s), "pbr", OBJECT(dev));
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_mmio_map_overlap(sbd, 0, PHYTIUM_E2000_PBR_STATUS_BASE, 2);
+    sysbus_mmio_map(sbd, 1,
+                    phytium_e2000_memmap[PHYTIUM_E2000_BOOT_SRAM].base);
+    sysbus_mmio_map(sbd, 2,
+                    phytium_e2000_memmap[PHYTIUM_E2000_BOOT_IACC].base);
+    s->pbr = PHYTIUM_E2000_PBR(dev);
+
+    return phytium_e2000_pbr_firmware_loaded(s->pbr);
 }
 
 static void phytium_e2000_create_ddr_status(PhytiumE2000State *s)
@@ -570,7 +636,8 @@ static void phytium_e2000_create_ram(PhytiumE2000State *s)
         phytium_e2000_memmap[PHYTIUM_E2000_RAM_HIGH].base, &s->ram_high);
 }
 
-static void phytium_e2000_create_cpus(PhytiumE2000State *s)
+static void phytium_e2000_create_cpus(PhytiumE2000State *s,
+                                      bool firmware_loaded)
 {
     MachineState *ms = MACHINE(s);
     const CPUArchIdList *possible_cpus;
@@ -587,18 +654,30 @@ static void phytium_e2000_create_cpus(PhytiumE2000State *s)
                                 &error_abort);
         object_property_set_int(cpuobj, "cntfrq", PHYTIUM_E2000_GTIMER_HZ,
                                 &error_abort);
-        if (object_property_find(cpuobj, "has_el3")) {
+        if (!firmware_loaded && object_property_find(cpuobj, "has_el3")) {
             /*
              * The generic-loader U-Boot path starts after the EL3 firmware
              * stages that normally provide the Phytium SMC services.
              */
             object_property_set_bool(cpuobj, "has_el3", false, &error_abort);
         }
+        /*
+         * PBR releases only the primary MPIDR named in the firmware parameter
+         * header. Secondary CPUs remain powered off for later firmware or
+         * PSCI bring-up.
+         */
+        if (firmware_loaded &&
+            i != phytium_e2000_pbr_primary_cpu(s->pbr)) {
+            object_property_set_bool(cpuobj, "start-powered-off", true,
+                                     &error_abort);
+        }
         object_property_set_link(cpuobj, "memory", OBJECT(get_system_memory()),
                                  &error_abort);
         cs = CPU(cpuobj);
         cs->cpu_index = i;
         qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
+        s->cpu[i] = cs;
+        phytium_e2000_pbr_connect_cpu(s->pbr, i, cs);
         object_unref(cpuobj);
     }
 }
@@ -606,6 +685,7 @@ static void phytium_e2000_create_cpus(PhytiumE2000State *s)
 static void phytium_pi_init(MachineState *ms)
 {
     PhytiumE2000State *s = PHYTIUM_PI(ms);
+    bool firmware_loaded;
     int i;
 
     if (kvm_enabled()) {
@@ -626,12 +706,15 @@ static void phytium_pi_init(MachineState *ms)
         exit(1);
     }
 
+    phytium_e2000_reject_legacy_firmware(ms);
+
     phytium_e2000_create_ram(s);
     phytium_e2000_create_unimplemented();
 
     phytium_e2000_create_qspi(s);
+    firmware_loaded = phytium_e2000_create_pbr(s);
 
-    phytium_e2000_create_cpus(s);
+    phytium_e2000_create_cpus(s, firmware_loaded);
     phytium_e2000_create_gic(s);
 
     phytium_e2000_create_scp_sram(s);
@@ -654,7 +737,7 @@ static void phytium_pi_init(MachineState *ms)
     s->bootinfo.board_id = -1;
     s->bootinfo.loader_start = phytium_e2000_memmap[PHYTIUM_E2000_RAM].base;
     s->bootinfo.psci_conduit = QEMU_PSCI_CONDUIT_SMC;
-    s->bootinfo.firmware_loaded = false;
+    s->bootinfo.firmware_loaded = firmware_loaded;
     arm_load_kernel(ARM_CPU(first_cpu), ms, &s->bootinfo);
 }
 
@@ -701,7 +784,11 @@ static void phytium_pi_class_init(ObjectClass *oc, const void *data)
     mc->valid_cpu_types = valid_cpu_types;
     mc->max_cpus = PHYTIUM_E2000_NUM_CPUS;
     mc->default_cpus = PHYTIUM_E2000_NUM_CPUS;
-    mc->default_ram_size = 1 * GiB;
+    /*
+     * PBF/BL1 relocates to 0xf8c40000, which is outside a 1 GiB RAM window
+     * starting at 0x80000000. Two GiB is the minimum useful firmware default.
+     */
+    mc->default_ram_size = 2 * GiB;
     mc->default_ram_id = "phytium-e2000.ram";
     mc->minimum_page_bits = 12;
     mc->block_default_type = IF_SD;
