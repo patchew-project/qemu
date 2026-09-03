@@ -26,6 +26,7 @@
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "hw/misc/phytium_e2000_ddr.h"
+#include "hw/misc/phytium_e2000_mhu.h"
 #include "hw/misc/unimp.h"
 #include "hw/net/cadence_gem.h"
 #include "hw/pci/pci.h"
@@ -49,6 +50,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(PhytiumE2000State, PHYTIUM_PI)
 #define PHYTIUM_E2000_NUM_UARTS       7
 #define PHYTIUM_E2000_NUM_GEMS        4
 
+#define PHYTIUM_E2000_MHU_BASE        0x32a00000
+#define PHYTIUM_E2000_SCP_SRAM_BASE   0x32a10000
+#define PHYTIUM_E2000_SCP_SRAM_SIZE   0x2000
 #define PHYTIUM_E2000_DDR_STATUS_BASE 0x32b33000
 
 #define PHYTIUM_E2000_GTIMER_HZ       50000000
@@ -90,6 +94,7 @@ struct PhytiumE2000State {
     DeviceState *gic;
     PhytiumE2000MciState *mci[PHYTIUM_E2000_NUM_MCIS];
     CadenceGEMState *gem[PHYTIUM_E2000_NUM_GEMS];
+    MemoryRegion scp_sram;
     MemoryRegion ram_low;
     MemoryRegion ram_high;
 };
@@ -463,6 +468,33 @@ static void phytium_e2000_create_ddr_status(PhytiumE2000State *s)
     sysbus_mmio_map_overlap(sbd, 0, PHYTIUM_E2000_DDR_STATUS_BASE, 2);
 }
 
+static void phytium_e2000_create_scp_sram(PhytiumE2000State *s)
+{
+    /*
+     * PBF exchanges SCMI messages and platform parameters through this SCP
+     * SRAM window. Map writable RAM over the board-control placeholder before
+     * the MHU doorbell starts completing requests in it.
+     */
+    memory_region_init_ram(&s->scp_sram, NULL, "phytium-e2000.scp-sram",
+        PHYTIUM_E2000_SCP_SRAM_SIZE, &error_fatal);
+    memory_region_add_subregion_overlap(get_system_memory(),
+        PHYTIUM_E2000_SCP_SRAM_BASE, &s->scp_sram, 1);
+}
+
+static void phytium_e2000_create_mhu(PhytiumE2000State *s)
+{
+    DeviceState *dev = qdev_new(TYPE_PHYTIUM_E2000_MHU);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    /*
+     * MHU is the notification side of the SCMI transport. The message body
+     * remains in SCP SRAM, so this device only owns the doorbell aperture.
+     */
+    object_property_add_child(OBJECT(s), "mhu", OBJECT(dev));
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_mmio_map_overlap(sbd, 0, PHYTIUM_E2000_MHU_BASE, 2);
+}
+
 static void phytium_e2000_create_unimplemented(void)
 {
     /*
@@ -582,6 +614,8 @@ static void phytium_pi_init(MachineState *ms)
     phytium_e2000_create_cpus(s);
     phytium_e2000_create_gic(s);
 
+    phytium_e2000_create_scp_sram(s);
+    phytium_e2000_create_mhu(s);
     phytium_e2000_create_ddr_status(s);
 
     for (i = 0; i < PHYTIUM_E2000_NUM_MCIS; i++) {
