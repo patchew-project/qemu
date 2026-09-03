@@ -38,6 +38,7 @@
 #include "hw/sd/phytium_e2000_mci.h"
 #include "hw/sd/sd.h"
 #include "hw/ssi/phytium_qspi.h"
+#include "hw/usb/xhci.h"
 #include "net/net.h"
 #include "qobject/qlist.h"
 #include "qom/object.h"
@@ -57,6 +58,7 @@ OBJECT_DECLARE_TYPE(PhytiumE2000State, PhytiumE2000MachineClass,
 
 #define PHYTIUM_E2000_NUM_MCIS        2
 #define PHYTIUM_E2000_NUM_UARTS       7
+#define PHYTIUM_E2000_NUM_XHCIS       2
 #define PHYTIUM_E2000_NUM_GEMS        4
 
 #define PHYTIUM_E2000_MHU_BASE        0x32a00000
@@ -89,6 +91,8 @@ enum {
     PHYTIUM_E2000_PCIE_CTRL,
     PHYTIUM_E2000_PCIE_PHY_CTRL,
     PHYTIUM_E2000_BOARD_CTRL,
+    PHYTIUM_E2000_XHCI0,
+    PHYTIUM_E2000_XHCI1,
     PHYTIUM_E2000_GEM0,
     PHYTIUM_E2000_GEM1,
     PHYTIUM_E2000_GEM2,
@@ -154,6 +158,8 @@ static const MemMapEntry phytium_e2000_memmap[] = {
     [PHYTIUM_E2000_PCIE_CTRL] =      { 0x31000000, 0x00200000 },
     [PHYTIUM_E2000_PCIE_PHY_CTRL] =  { 0x31500000, 0x00001000 },
     [PHYTIUM_E2000_BOARD_CTRL] =     { 0x31800000, 0x01400000 },
+    [PHYTIUM_E2000_XHCI0] =          { 0x31a08000, 0x00018000 },
+    [PHYTIUM_E2000_XHCI1] =          { 0x31a28000, 0x00018000 },
     [PHYTIUM_E2000_GEM0] =           { 0x3200c000, 0x00002000 },
     [PHYTIUM_E2000_GEM1] =           { 0x3200e000, 0x00002000 },
     [PHYTIUM_E2000_GEM2] =           { 0x32010000, 0x00002000 },
@@ -186,6 +192,11 @@ static const int phytium_e2000_uart_irqmap[] = {
 };
 
 static const int phytium_e2000_i2c_irq = 106;
+
+static const int phytium_e2000_xhci_irqmap[] = {
+    [0] = 16,
+    [1] = 17,
+};
 
 static const uint8_t phytium_e2000_gem_num_queues[] = { 8, 4, 4, 4 };
 
@@ -381,6 +392,26 @@ static void phytium_e2000_create_gem(PhytiumE2000State *s, int index)
         sysbus_connect_irq(sbd, i,
             qdev_get_gpio_in(s->gic, phytium_e2000_gem_irqmap[index][i]));
     }
+}
+
+static void phytium_e2000_create_xhci(PhytiumE2000State *s, int index)
+{
+    int map_idx = PHYTIUM_E2000_XHCI0 + index;
+    DeviceState *dev = qdev_new(TYPE_XHCI_SYSBUS);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    g_autofree char *name = g_strdup_printf("xhci%d", index);
+
+    object_property_add_child(OBJECT(s), name, OBJECT(dev));
+    qdev_prop_set_uint32(dev, "intrs", 1);
+    qdev_prop_set_uint32(dev, "slots", XHCI_MAXSLOTS);
+    qdev_prop_set_uint32(dev, "p2", 1);
+    qdev_prop_set_uint32(dev, "p3", 1);
+    qdev_prop_set_bit(dev, "streams", false);
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_mmio_map_overlap(
+        sbd, 0, phytium_e2000_memmap[map_idx].base, 2);
+    sysbus_connect_irq(sbd, 0,
+        qdev_get_gpio_in(s->gic, phytium_e2000_xhci_irqmap[index]));
 }
 
 /* The vendor DT maps root-bus INTx solely by pin */
@@ -820,6 +851,9 @@ static void phytium_e2000_init(MachineState *ms)
         phytium_e2000_create_uart(s, i);
     }
     phytium_e2000_create_i2c(s);
+    for (i = 0; i < PHYTIUM_E2000_NUM_XHCIS; i++) {
+        phytium_e2000_create_xhci(s, i);
+    }
     for (i = 0; i < PHYTIUM_E2000_NUM_GEMS; i++) {
         phytium_e2000_create_gem(s, i);
     }
