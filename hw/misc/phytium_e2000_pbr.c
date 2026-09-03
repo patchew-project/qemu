@@ -55,9 +55,38 @@ REG32(ETH_TRAINING_STATUS, 0x60)
 #define PHYTIUM_E2000_BL1_SIZE                      0x00090000
 #define PHYTIUM_E2000_PBR_BL1_RUNTIME_BASE          0xf8c40000
 
+/*
+ * This is not a published PBF structure.  It is the smallest instruction and
+ * literal window that identifies the secondary-CPU handoff in each inspected
+ * BL1 image.  Keep the offsets named so the checks below document which parts
+ * of the recovered sequence are treated as its compatibility contract.
+ *
+ *   +0x00  BL  <select/check primary CPU>
+ *   +0x04  CBZ W0, <primary path>
+ *   +0x10  MRS X0, MPIDR_EL1
+ *   +0x48  literal: PHYTIUM_E2000_PBR_ROOT
+ *   +0x50  literal: address of the runtime secondary-vector slot
+ *
+ * Instructions between these anchors may change between compiler builds and
+ * are deliberately not matched.
+ */
+#define PHYTIUM_E2000_BL1_HANDOFF_SIZE              0x58
+#define PHYTIUM_E2000_BL1_HANDOFF_BL_OFFSET         0x00
+#define PHYTIUM_E2000_BL1_HANDOFF_CBZ_OFFSET        0x04
+#define PHYTIUM_E2000_BL1_HANDOFF_MPIDR_OFFSET      0x10
+#define PHYTIUM_E2000_BL1_HANDOFF_ROOT_OFFSET       0x48
+#define PHYTIUM_E2000_BL1_HANDOFF_SLOT_OFFSET       0x50
+
+/* AArch64 BL has a six-bit opcode and a build-dependent imm26 displacement */
+#define PHYTIUM_E2000_BL1_HANDOFF_BRANCH_MASK       0xfc000000
+#define PHYTIUM_E2000_BL1_HANDOFF_BRANCH            0x94000000
+
+/* Match CBZ W0 while ignoring its build-dependent imm19 displacement */
+#define PHYTIUM_E2000_BL1_HANDOFF_CBZ_W0_MASK       0xff00001f
+#define PHYTIUM_E2000_BL1_HANDOFF_CBZ_W0            0x34000000
+#define PHYTIUM_E2000_BL1_SECONDARY_ENTRY_MPIDR     0xd53800a0
+
 #define PHYTIUM_E2000_PBR_ROOT_OFFSET 0x00000f00
-#define PHYTIUM_E2000_PBR_ROOT        \
-    (PHYTIUM_E2000_PBR_BOOT_SRAM_BASE + 0x1000)
 #define PHYTIUM_E2000_PBR_PARAM_NODE  \
     (PHYTIUM_E2000_PBR_BOOT_SRAM_BASE + 0x10a0)
 #define PHYTIUM_E2000_PBR_PARAM_SLOT  \
@@ -249,6 +278,8 @@ struct PhytiumE2000PBRState {
     unsigned int num_cpus;
     bool firmware_loaded;
     int32_t primary_cpu;
+    /* Physical address of the vector slot recovered from the BL1 handoff */
+    hwaddr secondary_vector_slot;
     uint32_t parameter_sizes[PHYTIUM_E2000_PBF_PARAM_COUNT];
     PhytiumE2000TfaIoHandoff tfa_io;
     uint8_t *iacc_image;
@@ -752,6 +783,89 @@ static bool phytium_e2000_pbr_tfa_io_handoff_valid(
     return true;
 }
 
+static bool phytium_e2000_pbr_secondary_handoff(const uint8_t *bl1,
+                                                hwaddr *vector_slot,
+                                                Error **errp)
+{
+    /* Zero is also the invalid-slot value, so it can represent no match */
+    hwaddr match = 0;
+    size_t offset;
+
+    /*
+     * The 2 GiB and 4 GiB Phytium Pi SDK images and the COMe SDK image all
+     * expose the same BL1 secondary reset ABI. It checks whether this CPU is
+     * the PBF-selected primary, matches the requested MPIDR through the PBR
+     * CPU-control block, and branches through a runtime entry pointer.
+     *
+     * Compiler placement and branch displacements are not part of that ABI.
+     * Scan BL1 for its invariant instruction and PBR-root anchors, ignoring
+     * the immediate fields of BL and CBZ, then obtain the vector-slot address
+     * from the adjacent literal. This permits another compatible PBF build to
+     * move the trampoline or its published entry slot without adding a QEMU
+     * constant. The interface specifications do not publish this sequence,
+     * so reject missing, ambiguous, or malformed matches.
+     */
+    /* AArch64 instructions are four-byte aligned throughout the BL1 image */
+    for (offset = 0; offset <= PHYTIUM_E2000_BL1_SIZE -
+                                   PHYTIUM_E2000_BL1_HANDOFF_SIZE;
+         offset += 4) {
+        const uint8_t *candidate = bl1 + offset;
+        hwaddr slot;
+
+        /*
+         * BL and CBZ establish the control-flow shape but their relative
+         * targets move with the code.  The exact MRS instruction establishes
+         * that the path is selecting a physical CPU.  Finally, the PBR root
+         * literal ties the otherwise generic instruction sequence to this
+         * firmware handoff rather than to an unrelated BL1 routine.
+         */
+        if ((ldl_le_p(candidate +
+                      PHYTIUM_E2000_BL1_HANDOFF_BL_OFFSET) &
+             PHYTIUM_E2000_BL1_HANDOFF_BRANCH_MASK) !=
+                PHYTIUM_E2000_BL1_HANDOFF_BRANCH ||
+            (ldl_le_p(candidate +
+                      PHYTIUM_E2000_BL1_HANDOFF_CBZ_OFFSET) &
+             PHYTIUM_E2000_BL1_HANDOFF_CBZ_W0_MASK) !=
+                PHYTIUM_E2000_BL1_HANDOFF_CBZ_W0 ||
+            ldl_le_p(candidate +
+                     PHYTIUM_E2000_BL1_HANDOFF_MPIDR_OFFSET) !=
+                PHYTIUM_E2000_BL1_SECONDARY_ENTRY_MPIDR ||
+            ldq_le_p(candidate +
+                     PHYTIUM_E2000_BL1_HANDOFF_ROOT_OFFSET) !=
+                PHYTIUM_E2000_PBR_ROOT) {
+            continue;
+        }
+
+        /*
+         * The literal contains the slot address, not the secondary entry.
+         * BL1 publishes the resident entry into that slot later at runtime.
+         */
+        slot = ldq_le_p(candidate +
+                        PHYTIUM_E2000_BL1_HANDOFF_SLOT_OFFSET);
+        if (!slot || !QEMU_IS_ALIGNED(slot, sizeof(uint64_t))) {
+            error_setg(errp, "PBR firmware BL1 secondary vector slot is "
+                       "invalid");
+            return false;
+        }
+        /* Multiple candidates would make the inferred ABI unsafe to use */
+        if (match) {
+            error_setg(errp, "PBR firmware BL1 secondary reset ABI is "
+                       "ambiguous");
+            return false;
+        }
+        match = slot;
+    }
+
+    if (!match) {
+        error_setg(errp, "PBR firmware BL1 secondary reset ABI is not "
+                   "recognized");
+        return false;
+    }
+
+    *vector_slot = match;
+    return true;
+}
+
 static bool phytium_e2000_pbr_parse_firmware(PhytiumE2000PBRState *s,
                                              const uint8_t *data,
                                              size_t size, Error **errp)
@@ -764,6 +878,18 @@ static bool phytium_e2000_pbr_parse_firmware(PhytiumE2000PBRState *s,
     if (size < PHYTIUM_E2000_BL1_FLASH_OFFSET +
                PHYTIUM_E2000_BL1_SIZE) {
         error_setg(errp, "image is too small for the PBF handoff data");
+        return false;
+    }
+
+    /*
+     * Discover the handoff while the complete FIP image is available.  Only
+     * its validated slot address is retained; the runtime entry is
+     * intentionally not cached because firmware does not publish it until
+     * after BL1 starts.
+     */
+    if (!phytium_e2000_pbr_secondary_handoff(
+            data + PHYTIUM_E2000_BL1_FLASH_OFFSET,
+            &s->secondary_vector_slot, errp)) {
         return false;
     }
 
@@ -803,8 +929,7 @@ static bool phytium_e2000_pbr_parse_firmware(PhytiumE2000PBRState *s,
         return false;
     }
 
-    bl1_end = PHYTIUM_E2000_PBR_BL1_RUNTIME_BASE +
-              PHYTIUM_E2000_BL1_SIZE;
+    bl1_end = PHYTIUM_E2000_PBR_BL1_RUNTIME_BASE + PHYTIUM_E2000_BL1_SIZE;
     if (s->ram_size < bl1_end - s->ram_base) {
         error_setg(errp, "PBR firmware requires RAM to cover PBF runtime "
                    "address 0x%" HWADDR_PRIx "; use -m 2G",
@@ -927,6 +1052,19 @@ static void phytium_e2000_pbr_seed_shared(PhytiumE2000PBRState *s)
      */
     stq_le_p(sram + PHYTIUM_E2000_PBR_ROOT_OFFSET,
              PHYTIUM_E2000_PBR_ROOT);
+    /*
+     * This PBR-owned CPU-control block remains private to the BL1 reset
+     * trampoline after PBF relocates the EL3 object graph. The SCP copies a
+     * POWER_STATE_SET target to +0x08 before releasing a secondary. The
+     * leading 0xffaabbcc value is the reset-state sentinel polled by BL1.
+     * These pointer and sentinel values are present in all three inspected
+     * firmware families and independently in the earlier external Phytium Pi
+     * model.
+     */
+    stq_le_p(sram + (PHYTIUM_E2000_PBR_ROOT - sram_base),
+             PHYTIUM_E2000_PBR_CPU_CONTROL);
+    stq_le_p(sram + (PHYTIUM_E2000_PBR_CPU_CONTROL - sram_base),
+             PHYTIUM_E2000_PBR_CPU_CONTROL_MAGIC);
     stq_le_p(sram + (PHYTIUM_E2000_PBR_ROOT - sram_base) + 0x10,
              PHYTIUM_E2000_PBR_PARAM_NODE);
     stq_le_p(sram + (PHYTIUM_E2000_PBR_PARAM_NODE - sram_base) + 0x18,
@@ -1093,6 +1231,13 @@ int phytium_e2000_pbr_primary_cpu(PhytiumE2000PBRState *s)
 {
     g_assert(s->firmware_loaded);
     return s->primary_cpu;
+}
+
+hwaddr phytium_e2000_pbr_secondary_vector_slot(PhytiumE2000PBRState *s)
+{
+    g_assert(s->firmware_loaded);
+    g_assert(s->secondary_vector_slot);
+    return s->secondary_vector_slot;
 }
 
 void phytium_e2000_pbr_connect_cpu(PhytiumE2000PBRState *s,

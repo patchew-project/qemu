@@ -579,12 +579,30 @@ static void phytium_e2000_create_mhu(PhytiumE2000State *s)
 {
     DeviceState *dev = qdev_new(TYPE_PHYTIUM_E2000_MHU);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    int i;
 
     /*
      * MHU is the notification side of the SCMI transport. The message body
      * remains in SCP SRAM, so this device only owns the doorbell aperture.
      */
     object_property_add_child(OBJECT(s), "mhu", OBJECT(dev));
+    if (phytium_e2000_pbr_firmware_loaded(s->pbr)) {
+        /*
+         * PBR validates the firmware-specific BL1 handoff and owns all FIP
+         * interpretation.  Pass only the resulting slot address to MHU; the
+         * transport must not parse firmware or assume a PBF build layout.
+         * Direct Linux boot has no firmware SCMI CPU_ON path and therefore
+         * intentionally leaves the slot unset.
+         */
+        phytium_e2000_mhu_set_secondary_vector_slot(
+            PHYTIUM_E2000_MHU(dev),
+            phytium_e2000_pbr_secondary_vector_slot(s->pbr));
+    }
+    for (i = 0; i < MACHINE(s)->smp.cpus; i++) {
+        phytium_e2000_mhu_connect_cpu(PHYTIUM_E2000_MHU(dev), i,
+                                      phytium_e2000_cpu_mp_affinity(i),
+                                      s->cpu[i]);
+    }
     sysbus_realize_and_unref(sbd, &error_fatal);
     sysbus_mmio_map_overlap(sbd, 0, PHYTIUM_E2000_MHU_BASE, 2);
 }
