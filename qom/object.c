@@ -15,6 +15,7 @@
 #include "qom/compat-properties.h"
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
+#include "qemu/target-info-impl.h"
 #include "qemu/cutils.h"
 #include "qemu/memalign.h"
 #include "qapi/visitor.h"
@@ -82,6 +83,18 @@ static Type type_interface;
 static GHashTable *type_table;
 
 static bool enumerating_types;
+
+static const TargetInfo *target_info_ptr;
+
+const TargetInfo *target_info(void)
+{
+    return target_info_ptr;
+}
+
+void target_info_select(const TargetInfo *ti)
+{
+    target_info_ptr = ti;
+}
 
 static void type_table_add(TypeImpl *ti)
 {

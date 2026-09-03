@@ -117,6 +117,24 @@ typedef void (ObjectUnparent)(Object *obj);
  */
 typedef void (ObjectFree)(void *obj);
 
+typedef struct TargetInfo TargetInfo;
+
+/**
+ * target_info:
+ *
+ * Returns: The current TargetInfo, or NULL before target_info_select().
+ */
+const TargetInfo *target_info(void);
+
+/**
+ * target_info_select:
+ * @ti: TargetInfo to select
+ *
+ * Sets the TargetInfo returned by target_info(). Must be called only
+ * once. @ti must not be NULL.
+ */
+void target_info_select(const TargetInfo *ti);
+
 #define OBJECT_CLASS_CAST_CACHE 4
 
 /**

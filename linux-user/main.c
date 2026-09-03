@@ -700,6 +700,7 @@ int main(int argc, char **argv, char **envp)
     error_init(argv[0]);
     module_call_init(MODULE_INIT_TRACE);
     qemu_init_cpu_list();
+    module_call_init(MODULE_INIT_TARGET_INFO);
     module_call_init(MODULE_INIT_QOM);
 
     envlist = envlist_create();
