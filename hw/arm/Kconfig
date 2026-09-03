@@ -136,6 +136,7 @@ config PHYTIUM_E2000
     select PCI_EXPRESS
     select PCI_EXPRESS_GENERIC_BRIDGE
     select PL011
+    select SD
     select UNIMP
 
 config REALVIEW

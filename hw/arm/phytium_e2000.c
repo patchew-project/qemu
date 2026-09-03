@@ -28,6 +28,8 @@
 #include "hw/misc/unimp.h"
 #include "hw/pci/pci.h"
 #include "hw/pci-host/gpex.h"
+#include "hw/sd/phytium_e2000_mci.h"
+#include "hw/sd/sd.h"
 #include "qobject/qlist.h"
 #include "qom/object.h"
 #include "target/arm/cpu.h"
@@ -40,12 +42,15 @@ OBJECT_DECLARE_SIMPLE_TYPE(PhytiumE2000State, PHYTIUM_PI)
 #define PHYTIUM_E2000_NUM_CPUS        4
 #define PHYTIUM_E2000_NUM_IRQS        256
 
+#define PHYTIUM_E2000_NUM_MCIS        2
 #define PHYTIUM_E2000_NUM_UARTS       7
 
 #define PHYTIUM_E2000_GTIMER_HZ       50000000
 
 enum {
     PHYTIUM_E2000_LOW_PERIPH,
+    PHYTIUM_E2000_MCI0,
+    PHYTIUM_E2000_MCI1,
     PHYTIUM_E2000_UART0,
     PHYTIUM_E2000_UART1,
     PHYTIUM_E2000_UART2,
@@ -73,6 +78,7 @@ struct PhytiumE2000State {
     MachineState parent;
     struct arm_boot_info bootinfo;
     DeviceState *gic;
+    PhytiumE2000MciState *mci[PHYTIUM_E2000_NUM_MCIS];
     MemoryRegion ram_low;
     MemoryRegion ram_high;
 };
@@ -84,6 +90,8 @@ struct PhytiumE2000State {
  */
 static const MemMapEntry phytium_e2000_memmap[] = {
     [PHYTIUM_E2000_LOW_PERIPH] =     { 0x28000000, 0x00100000 },
+    [PHYTIUM_E2000_MCI0] =           { 0x28000000, 0x00001000 },
+    [PHYTIUM_E2000_MCI1] =           { 0x28001000, 0x00001000 },
     [PHYTIUM_E2000_UART0] =          { 0x2800c000, 0x00001000 },
     [PHYTIUM_E2000_UART1] =          { 0x2800d000, 0x00001000 },
     [PHYTIUM_E2000_UART2] =          { 0x2800e000, 0x00001000 },
@@ -105,6 +113,11 @@ static const MemMapEntry phytium_e2000_memmap[] = {
     [PHYTIUM_E2000_RAM] =            { 0x80000000, 0x80000000 },
     [PHYTIUM_E2000_PCIE_MMIO_HIGH] = { 0x1000000000ULL, 0x1000000000ULL },
     [PHYTIUM_E2000_RAM_HIGH] =       { 0x2000000000ULL, 0x180000000ULL },
+};
+
+static const int phytium_e2000_mci_irqmap[] = {
+    [0] = 72,
+    [1] = 73,
 };
 
 static const int phytium_e2000_uart_irqmap[] = {
@@ -324,6 +337,55 @@ static void phytium_e2000_create_pcie(PhytiumE2000State *s)
     }
 }
 
+static BlockBackend *phytium_e2000_sd_blk(int index)
+{
+    DriveInfo *dinfo = drive_get(IF_SD, 0, index);
+
+    return dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
+}
+
+static void phytium_e2000_attach_sd_card(DwMciState *mci, int index)
+{
+    BlockBackend *blk = phytium_e2000_sd_blk(index);
+    BusState *bus = BUS(dw_mci_get_bus(mci));
+    DeviceState *card;
+
+    /*
+     * Always instantiate the socket-level card object. A missing backend then
+     * behaves as an empty slot, while if=sd,index=N gives firmware a real SD
+     * card on the matching physical MCI controller.
+     */
+    card = qdev_new(TYPE_SD_CARD);
+    qdev_prop_set_drive_err(card, "drive", blk, &error_fatal);
+    qdev_realize_and_unref(card, bus, &error_fatal);
+}
+
+static void phytium_e2000_create_mci(PhytiumE2000State *s, int index)
+{
+    PhytiumE2000MciState *mci =
+        PHYTIUM_E2000_MCI(qdev_new(TYPE_PHYTIUM_E2000_MCI));
+    DeviceState *dev = DEVICE(mci);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    MemoryRegion *iomem;
+    int map_idx = PHYTIUM_E2000_MCI0 + index;
+    g_autofree char *name = g_strdup_printf("mci%d", index);
+
+    /*
+     * MCI0 and MCI1 occupy the first two pages of the broad low-peripheral
+     * placeholder. Use a higher overlap priority so real command and data
+     * accesses reach the controller model.
+     */
+    s->mci[index] = mci;
+    object_property_add_child(OBJECT(s), name, OBJECT(mci));
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    iomem = sysbus_mmio_get_region(sbd, 0);
+    memory_region_add_subregion_overlap(
+        get_system_memory(), phytium_e2000_memmap[map_idx].base, iomem, 1);
+    sysbus_connect_irq(sbd, 0,
+        qdev_get_gpio_in(s->gic, phytium_e2000_mci_irqmap[index]));
+    phytium_e2000_attach_sd_card(DW_MCI(mci), index);
+}
+
 static void phytium_e2000_create_unimplemented(void)
 {
     /*
@@ -443,6 +505,9 @@ static void phytium_pi_init(MachineState *ms)
     phytium_e2000_create_cpus(s);
     phytium_e2000_create_gic(s);
 
+    for (i = 0; i < PHYTIUM_E2000_NUM_MCIS; i++) {
+        phytium_e2000_create_mci(s, i);
+    }
     for (i = 0; i < PHYTIUM_E2000_NUM_UARTS; i++) {
         phytium_e2000_create_uart(s, i);
     }
