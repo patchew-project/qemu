@@ -3785,7 +3785,7 @@ static void vfio_pci_reset(DeviceState *dev)
 
     if (vdev->vbasedev.reset_works &&
         (vdev->has_flr || !vdev->has_pm_reset) &&
-        !ioctl(vdev->vbasedev.fd, VFIO_DEVICE_RESET)) {
+        !vdev->vbasedev.io_ops->device_reset(&vdev->vbasedev)) {
         trace_vfio_pci_reset_flr(vdev->vbasedev.name);
         goto post_reset;
     }
@@ -3797,7 +3797,7 @@ static void vfio_pci_reset(DeviceState *dev)
 
     /* If nothing else works and the device supports PM reset, use it */
     if (vdev->vbasedev.reset_works && vdev->has_pm_reset &&
-        !ioctl(vdev->vbasedev.fd, VFIO_DEVICE_RESET)) {
+        !vdev->vbasedev.io_ops->device_reset(&vdev->vbasedev)) {
         trace_vfio_pci_reset_pm(vdev->vbasedev.name);
         goto post_reset;
     }

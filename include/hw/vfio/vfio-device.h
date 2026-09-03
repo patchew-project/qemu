@@ -192,6 +192,17 @@ struct VFIODeviceIOOps {
     uint64_t capabilities;
 
     /**
+     * @device_reset
+     *
+     * Perform a device reset.
+     *
+     * @vdev: #VFIODevice to use
+     *
+     * Returns 0 on success or -errno.
+     */
+    int (*device_reset)(VFIODevice *vdev);
+
+    /**
      * @device_feature
      *
      * Fill in feature info for the given device.
