@@ -26,6 +26,8 @@
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "hw/misc/unimp.h"
+#include "hw/pci/pci.h"
+#include "hw/pci-host/gpex.h"
 #include "qobject/qlist.h"
 #include "qom/object.h"
 #include "target/arm/cpu.h"
@@ -55,9 +57,15 @@ enum {
     PHYTIUM_E2000_GIC_ITS,
     PHYTIUM_E2000_GIC_REDIST,
     PHYTIUM_E2000_BOOT_SRAM,
+    PHYTIUM_E2000_PCIE_CTRL,
+    PHYTIUM_E2000_PCIE_PHY_CTRL,
     PHYTIUM_E2000_BOARD_CTRL,
     PHYTIUM_E2000_BOOT_IACC,
+    PHYTIUM_E2000_PCIE_ECAM,
+    PHYTIUM_E2000_PCIE_PIO,
+    PHYTIUM_E2000_PCIE_MMIO,
     PHYTIUM_E2000_RAM,
+    PHYTIUM_E2000_PCIE_MMIO_HIGH,
     PHYTIUM_E2000_RAM_HIGH,
 };
 
@@ -87,9 +95,15 @@ static const MemMapEntry phytium_e2000_memmap[] = {
     [PHYTIUM_E2000_GIC_ITS] =        { 0x30820000, 0x00020000 },
     [PHYTIUM_E2000_GIC_REDIST] =     { 0x30880000, 0x00080000 },
     [PHYTIUM_E2000_BOOT_SRAM] =      { 0x30c00000, 0x00100000 },
+    [PHYTIUM_E2000_PCIE_CTRL] =      { 0x31000000, 0x00200000 },
+    [PHYTIUM_E2000_PCIE_PHY_CTRL] =  { 0x31500000, 0x00001000 },
     [PHYTIUM_E2000_BOARD_CTRL] =     { 0x31800000, 0x01400000 },
     [PHYTIUM_E2000_BOOT_IACC] =      { 0x38000000, 0x08000000 },
+    [PHYTIUM_E2000_PCIE_ECAM] =      { 0x40000000, 0x10000000 },
+    [PHYTIUM_E2000_PCIE_PIO] =       { 0x50000000, 0x00f00000 },
+    [PHYTIUM_E2000_PCIE_MMIO] =      { 0x58000000, 0x28000000 },
     [PHYTIUM_E2000_RAM] =            { 0x80000000, 0x80000000 },
+    [PHYTIUM_E2000_PCIE_MMIO_HIGH] = { 0x1000000000ULL, 0x1000000000ULL },
     [PHYTIUM_E2000_RAM_HIGH] =       { 0x2000000000ULL, 0x180000000ULL },
 };
 
@@ -101,6 +115,13 @@ static const int phytium_e2000_uart_irqmap[] = {
     [4] = 92,
     [5] = 103,
     [6] = 107,
+};
+
+static const int phytium_e2000_pcie_irqmap[PCI_NUM_PINS] = {
+    [0] = 4,
+    [1] = 5,
+    [2] = 6,
+    [3] = 7,
 };
 
 typedef struct PhytiumE2000CPUConfig {
@@ -221,6 +242,88 @@ static void phytium_e2000_create_uart(PhytiumE2000State *s, int index)
         qdev_get_gpio_in(s->gic, phytium_e2000_uart_irqmap[index]));
 }
 
+/* The vendor DT maps root-bus INTx solely by pin */
+static int phytium_e2000_pcie_map_irq(PCIDevice *pdev, int pin)
+{
+    return pin;
+}
+
+static void phytium_e2000_create_pcie(PhytiumE2000State *s)
+{
+    DeviceState *dev = qdev_new(TYPE_GPEX_HOST);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    MemoryRegion *ecam_alias;
+    MemoryRegion *ecam_reg;
+    MemoryRegion *mmio_alias;
+    MemoryRegion *mmio_high_alias;
+    MemoryRegion *mmio_reg;
+    int i;
+
+    /*
+     * GPEX owns generic ECAM, PIO, and MMIO containers. The aliases below
+     * place those containers at the E2000 physical windows that U-Boot scans
+     * and that the SDK device tree publishes to Linux.
+     *
+     * The MMIO container is indexed by PCI bus address, so each alias uses
+     * the physical window base as its source offset to preserve a 1:1 mapping
+     * between CPU and PCI addresses.
+     */
+    qdev_prop_set_uint64(dev, PCI_HOST_ECAM_BASE,
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_ECAM].base);
+    qdev_prop_set_uint64(dev, PCI_HOST_ECAM_SIZE,
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_ECAM].size);
+    qdev_prop_set_uint64(dev, PCI_HOST_PIO_BASE,
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_PIO].base);
+    qdev_prop_set_uint64(dev, PCI_HOST_PIO_SIZE,
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_PIO].size);
+    qdev_prop_set_uint64(dev, PCI_HOST_BELOW_4G_MMIO_BASE,
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_MMIO].base);
+    qdev_prop_set_uint64(dev, PCI_HOST_BELOW_4G_MMIO_SIZE,
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_MMIO].size);
+    qdev_prop_set_uint64(dev, PCI_HOST_ABOVE_4G_MMIO_BASE,
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_MMIO_HIGH].base);
+    qdev_prop_set_uint64(dev, PCI_HOST_ABOVE_4G_MMIO_SIZE,
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_MMIO_HIGH].size);
+
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    pci_bus_map_irqs(PCI_HOST_BRIDGE(dev)->bus,
+                     phytium_e2000_pcie_map_irq);
+
+    ecam_alias = g_new0(MemoryRegion, 1);
+    ecam_reg = sysbus_mmio_get_region(sbd, 0);
+    memory_region_init_alias(ecam_alias, OBJECT(dev), "phytium-pcie-ecam",
+        ecam_reg, 0, phytium_e2000_memmap[PHYTIUM_E2000_PCIE_ECAM].size);
+    memory_region_add_subregion(get_system_memory(),
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_ECAM].base, ecam_alias);
+
+    mmio_alias = g_new0(MemoryRegion, 1);
+    mmio_reg = sysbus_mmio_get_region(sbd, 1);
+    memory_region_init_alias(mmio_alias, OBJECT(dev), "phytium-pcie-mmio",
+        mmio_reg,
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_MMIO].base,
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_MMIO].size);
+    memory_region_add_subregion(get_system_memory(),
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_MMIO].base,
+        mmio_alias);
+
+    mmio_high_alias = g_new0(MemoryRegion, 1);
+    memory_region_init_alias(mmio_high_alias, OBJECT(dev),
+        "phytium-pcie-mmio-high", mmio_reg,
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_MMIO_HIGH].base,
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_MMIO_HIGH].size);
+    memory_region_add_subregion(get_system_memory(),
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_MMIO_HIGH].base,
+        mmio_high_alias);
+
+    sysbus_mmio_map(sbd, 2, phytium_e2000_memmap[PHYTIUM_E2000_PCIE_PIO].base);
+
+    for (i = 0; i < PCI_NUM_PINS; i++) {
+        sysbus_connect_irq(sbd, i,
+            qdev_get_gpio_in(s->gic, phytium_e2000_pcie_irqmap[i]));
+        gpex_set_irq_num(GPEX_HOST(dev), i, phytium_e2000_pcie_irqmap[i]);
+    }
+}
+
 static void phytium_e2000_create_unimplemented(void)
 {
     /*
@@ -232,6 +335,19 @@ static void phytium_e2000_create_unimplemented(void)
         "phytium-e2000.low-peripheral",
         phytium_e2000_memmap[PHYTIUM_E2000_LOW_PERIPH].base,
         phytium_e2000_memmap[PHYTIUM_E2000_LOW_PERIPH].size);
+    /*
+     * PBF programs SoC-specific PCIe PHY and port controls before U-Boot
+     * enumerates ECAM. Their values do not affect the generic host bridge, so
+     * keep this control aperture visible without inventing register behavior.
+     */
+    create_unimplemented_device(
+        "phytium-e2000.pcie-control",
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_CTRL].base,
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_CTRL].size);
+    create_unimplemented_device(
+        "phytium-e2000.pcie-phy-control",
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_PHY_CTRL].base,
+        phytium_e2000_memmap[PHYTIUM_E2000_PCIE_PHY_CTRL].size);
     create_unimplemented_device(
         "phytium-e2000.board-control",
         phytium_e2000_memmap[PHYTIUM_E2000_BOARD_CTRL].base,
@@ -330,6 +446,8 @@ static void phytium_pi_init(MachineState *ms)
     for (i = 0; i < PHYTIUM_E2000_NUM_UARTS; i++) {
         phytium_e2000_create_uart(s, i);
     }
+
+    phytium_e2000_create_pcie(s);
 
     s->bootinfo.ram_size = ms->ram_size;
     s->bootinfo.board_id = -1;
