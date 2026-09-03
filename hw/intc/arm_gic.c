@@ -568,6 +568,17 @@ static void gic_drop_prio(GICState *s, int cpu, int group)
     s->running_priority[cpu] = gic_get_prio_from_apr_bits(s, cpu);
 }
 
+static inline int gic_get_sgi_source(GICState *s, int irq, int cpu)
+{
+    if (gic_is_vcpu(cpu)) {
+        uint32_t *lr_entry = gic_get_lr_entry(s, irq, cpu);
+        return GICH_LR_HW(*lr_entry) ? 0 : GICH_LR_CPUID(*lr_entry);
+    } else {
+        assert(s->sgi_pending[irq][cpu] != 0);
+        return ctz32(s->sgi_pending[irq][cpu]) & 0x7;
+    }
+}
+
 static inline uint32_t gic_clear_pending_sgi(GICState *s, int irq, int cpu)
 {
     int src;
@@ -1648,8 +1659,16 @@ static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
         *data = gic_get_running_priority(s, cpu, attrs);
         break;
     case 0x18: /* Highest Pending Interrupt */
-        *data = gic_get_current_pending_irq(s, cpu, attrs);
+    {
+        uint16_t p = gic_get_current_pending_irq(s, cpu, attrs);
+
+        if (p < GIC_NR_SGIS && s->revision != REV_11MPCORE) {
+            *data = p | (gic_get_sgi_source(s, p, cpu) << 10);
+        } else {
+            *data = p;
+        }
         break;
+    }
     case 0x1c: /* Aliased Binary Point */
         /* GIC v2, no security: ABPR
          * GIC v1, no security: not implemented (RAZ/WI)
