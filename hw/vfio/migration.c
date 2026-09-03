@@ -168,33 +168,30 @@ int vfio_migration_set_state(VFIODevice *vbasedev,
     feature->flags =
         VFIO_DEVICE_FEATURE_SET | VFIO_DEVICE_FEATURE_MIG_DEVICE_STATE;
     mig_state->device_state = new_state;
-    if (ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature)) {
+    ret = vbasedev->io_ops->device_feature(vbasedev, feature);
+    if (ret) {
         /* Try to set the device in some good state */
-        ret = -errno;
-
         if (recover_state == VFIO_DEVICE_STATE_ERROR) {
-            error_setg_errno(errp, errno,
+            error_setg_errno(errp, -ret,
                              "%s Recover state is ERROR. Resetting device",
                              error_prefix);
-
             goto reset_device;
         }
 
-        error_setg_errno(errp, errno,
+        error_setg_errno(errp, -ret,
                          "%s Setting device in recover state %s",
                          error_prefix, mig_state_to_str(recover_state));
 
         mig_state->device_state = recover_state;
-        if (ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature)) {
-            ret = -errno;
+        int recover_ret = vbasedev->io_ops->device_feature(vbasedev, feature);
+        if (recover_ret) {
             /*
              * If setting the device in recover state fails, report
              * the error here and propagate the first error.
              */
             error_report(
                 "%s: Failed setting device in recover state, err: %s. Resetting device",
-                         vbasedev->name, strerror(errno));
-
+                         vbasedev->name, strerror(-recover_ret));
             goto reset_device;
         }
 
@@ -347,13 +344,13 @@ static int vfio_query_stop_copy_size(VFIODevice *vbasedev)
     feature->flags =
         VFIO_DEVICE_FEATURE_GET | VFIO_DEVICE_FEATURE_MIG_DATA_SIZE;
 
-    if (ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature)) {
+    ret = vbasedev->io_ops->device_feature(vbasedev, feature);
+    if (ret) {
         /*
          * If getting pending migration size fails, VFIO_MIG_STOP_COPY_SIZE
          * is reported so downtime limit won't be violated.
          */
         migration->stopcopy_size = VFIO_MIG_STOP_COPY_SIZE;
-        ret = -errno;
         warn_report_once("VFIO device %s ioctl(VFIO_DEVICE_FEATURE) on "
                          "VFIO_DEVICE_FEATURE_MIG_DATA_SIZE failed (%d)",
                          vbasedev->name, ret);
@@ -1094,11 +1091,13 @@ static int vfio_migration_query_flags(VFIODevice *vbasedev, uint64_t *mig_flags)
     struct vfio_device_feature *feature = (struct vfio_device_feature *)buf;
     struct vfio_device_feature_migration *mig =
         (struct vfio_device_feature_migration *)feature->data;
+    int ret;
 
     feature->argsz = sizeof(buf);
     feature->flags = VFIO_DEVICE_FEATURE_GET | VFIO_DEVICE_FEATURE_MIGRATION;
-    if (ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature)) {
-        return -errno;
+    ret = vbasedev->io_ops->device_feature(vbasedev, feature);
+    if (ret) {
+        return ret;
     }
 
     *mig_flags = mig->flags;
@@ -1137,7 +1136,7 @@ static bool vfio_dma_logging_supported(VFIODevice *vbasedev)
     feature->flags = VFIO_DEVICE_FEATURE_PROBE |
                      VFIO_DEVICE_FEATURE_DMA_LOGGING_START;
 
-    return !ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature);
+    return !vbasedev->io_ops->device_feature(vbasedev, feature);
 }
 
 static bool vfio_migration_init(VFIODevice *vbasedev, Error **errp)
