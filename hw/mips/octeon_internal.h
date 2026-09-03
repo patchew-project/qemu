@@ -16,6 +16,7 @@
 #define OCTEON_MAX_CPUS             16
 typedef struct OcteonState OcteonState;
 typedef struct OcteonRstState OcteonRstState;
+typedef struct OcteonIntcState OcteonIntcState;
 
 typedef struct OcteonCPUState {
     OcteonState *board;
@@ -41,6 +42,11 @@ struct OcteonState {
     MemoryRegion boot_flash_alias;
     MemoryRegion cvmseg;
     OcteonRstState *rst;
+    OcteonIntcState *intc;
 };
+
+uint64_t octeon_read64(uint64_t value, hwaddr addr, unsigned size);
+uint64_t octeon_write64(uint64_t old, hwaddr addr,
+                        uint64_t value, unsigned size);
 
 #endif
