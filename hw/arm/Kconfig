@@ -133,6 +133,7 @@ config PHYTIUM_E2000
     imply PCI_DEVICES
     select AHCI_SYSBUS
     select ARM_GIC
+    select ARM_SMMUV3
     select CADENCE
     select DESIGNWARE_I2C
     select DW_MCI

@@ -22,6 +22,7 @@
 #include "hw/arm/boot.h"
 #include "hw/arm/bsa.h"
 #include "hw/arm/machines-qom.h"
+#include "hw/arm/smmuv3.h"
 #include "hw/block/flash.h"
 #include "hw/char/pl011.h"
 #include "hw/core/boards.h"
@@ -69,6 +70,7 @@ OBJECT_DECLARE_TYPE(PhytiumE2000State, PhytiumE2000MachineClass,
 #define PHYTIUM_E2000_NUM_SATA_PORTS  1
 #define PHYTIUM_E2000_SATA_BOOT_AHCI  1
 #define PHYTIUM_E2000_NUM_GEMS        4
+#define PHYTIUM_E2000_NUM_SMMU_IRQS   4
 
 #define PHYTIUM_E2000_MHU_BASE        0x32a00000
 #define PHYTIUM_E2000_SCP_SRAM_BASE   0x32a10000
@@ -211,6 +213,14 @@ static const int phytium_e2000_uart_irqmap[] = {
 };
 
 static const int phytium_e2000_i2c_irq = 106;
+
+/* Keep the architectural SMMUv3 output order aligned with the vendor DT */
+static const int phytium_e2000_smmu_irqmap[] = {
+    [SMMU_IRQ_EVTQ] = 240,
+    [SMMU_IRQ_PRIQ] = 239,
+    [SMMU_IRQ_CMD_SYNC] = 236,
+    [SMMU_IRQ_GERROR] = 242,
+};
 
 static const int phytium_e2000_xhci_irqmap[] = {
     [0] = 16,
@@ -472,7 +482,7 @@ static int phytium_e2000_pcie_map_irq(PCIDevice *pdev, int pin)
     return pin;
 }
 
-static void phytium_e2000_create_pcie(PhytiumE2000State *s)
+static PCIBus *phytium_e2000_create_pcie(PhytiumE2000State *s)
 {
     DeviceState *dev = qdev_new(TYPE_GPEX_HOST);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
@@ -545,6 +555,29 @@ static void phytium_e2000_create_pcie(PhytiumE2000State *s)
         sysbus_connect_irq(sbd, i,
             qdev_get_gpio_in(s->gic, phytium_e2000_pcie_irqmap[i]));
         gpex_set_irq_num(GPEX_HOST(dev), i, phytium_e2000_pcie_irqmap[i]);
+    }
+
+    return PCI_HOST_BRIDGE(dev)->bus;
+}
+
+static void phytium_e2000_create_smmu(PhytiumE2000State *s, PCIBus *bus)
+{
+    DeviceState *dev = qdev_new(TYPE_ARM_SMMUV3);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    int i;
+
+    object_property_add_child(OBJECT(s), "smmu", OBJECT(dev));
+    object_property_set_link(OBJECT(dev), "primary-bus", OBJECT(bus),
+                             &error_abort);
+    object_property_set_link(OBJECT(dev), "memory",
+                             OBJECT(get_system_memory()), &error_abort);
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_mmio_map_overlap(sbd, 0,
+        phytium_e2000_memmap[PHYTIUM_E2000_SYSTEM_CTRL].base, 2);
+
+    for (i = 0; i < PHYTIUM_E2000_NUM_SMMU_IRQS; i++) {
+        sysbus_connect_irq(sbd, i,
+            qdev_get_gpio_in(s->gic, phytium_e2000_smmu_irqmap[i]));
     }
 }
 
@@ -951,6 +984,7 @@ static void phytium_e2000_init(MachineState *ms)
     PhytiumE2000MachineClass *pemc =
         PHYTIUM_E2000_MACHINE_GET_CLASS(ms);
     bool firmware_loaded;
+    PCIBus *pcie_bus;
     int i;
 
     if (kvm_enabled()) {
@@ -1020,7 +1054,8 @@ static void phytium_e2000_init(MachineState *ms)
         phytium_e2000_create_gem(s, i);
     }
 
-    phytium_e2000_create_pcie(s);
+    pcie_bus = phytium_e2000_create_pcie(s);
+    phytium_e2000_create_smmu(s, pcie_bus);
 
     s->bootinfo.ram_size = ms->ram_size;
     s->bootinfo.board_id = -1;
