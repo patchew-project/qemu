@@ -336,6 +336,85 @@ static void aarch64_a72_initfn(Object *obj)
     define_cortex_a72_a57_a53_cp_reginfo(cpu);
 }
 
+static const ARMCPRegInfo phytium_e2000_cp_reginfo[] = {
+    /*
+     * The E2000 EL3 firmware touches implementation-defined CPU registers
+     * during the PBF/BL1 cache and core setup. QEMU does not model these
+     * controls, so expose conservative RAZ/WI stubs for the boot firmware.
+     *
+     * PBF reads these identification and cluster controls after writing
+     * them. Returning zero preserves the reset state without claiming that
+     * QEMU implements the associated cache or coherency controls.
+     */
+    { .name = "E2000_CPUID_CTL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 1, .crn = 15, .crm = 1, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_NO_RAW,
+      .resetvalue = 0 },
+    { .name = "E2000_CLUSTER_CTL", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 1, .crn = 11, .crm = 8, .opc2 = 6,
+      .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_NO_RAW,
+      .resetvalue = 0 },
+    /*
+     * The remaining controls are only programmed as part of firmware setup.
+     * Accept the writes without retaining state because no modeled CPU
+     * behavior depends on their values.
+     */
+    { .name = "E2000_EL1_CTL", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 2, .crn = 15, .crm = 15, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_NOP | ARM_CP_NO_RAW },
+    { .name = "E2000_EL2_CTL", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 15, .opc2 = 0,
+      .access = PL2_RW, .type = ARM_CP_NOP | ARM_CP_NO_RAW },
+    { .name = "E2000_EL2_CTL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 4,
+      .access = PL2_RW, .type = ARM_CP_NOP | ARM_CP_NO_RAW },
+    { .name = "E2000_EL3_CTL", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 15, .crm = 15, .opc2 = 0,
+      .access = PL3_RW, .type = ARM_CP_NOP | ARM_CP_NO_RAW },
+};
+
+/*
+ * Use the Cortex-A72 execution model as the common E2000 TCG base, then
+ * replace the architected identity fields that differ between the two
+ * physical core types.
+ */
+static void aarch64_phytium_e2000_base_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    aarch64_a72_initfn(obj);
+    define_arm_cp_regs(cpu, phytium_e2000_cp_reginfo);
+}
+
+static void aarch64_phytium_ftc310_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    ARMISARegisters *isar = &cpu->isar;
+
+    aarch64_phytium_e2000_base_initfn(obj);
+
+    /* FTC310 cores identify with the FTC303 part number */
+    cpu->dtb_compatible = "phytium,ftc310";
+    cpu->midr = 0x700f3034;
+    SET_IDREG(isar, ID_AA64ISAR0, 0x00011100012120);
+    cpu->isar.mvfr0 = 0x10110222;
+    cpu->ctr = FIELD_DP64(cpu->ctr, CTR_EL0, L1IP, 2); /* VIPT */
+}
+
+static void aarch64_phytium_ftc664_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    ARMISARegisters *isar = &cpu->isar;
+
+    aarch64_phytium_e2000_base_initfn(obj);
+
+    cpu->dtb_compatible = "phytium,ftc664";
+    cpu->midr = 0x701f6643;
+    SET_IDREG(isar, ID_AA64ISAR0, 0x00000100012120);
+    cpu->isar.mvfr0 = 0x10111222;
+    cpu->ctr = FIELD_DP64(cpu->ctr, CTR_EL0, L1IP, 3); /* PIPT */
+}
+
 static void aarch64_a76_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1533,6 +1612,8 @@ static const ARMCPUInfo aarch64_cpus[] = {
     { .name = "cortex-a55",         .initfn = aarch64_a55_initfn },
     { .name = "cortex-a72",         .initfn = aarch64_a72_initfn },
     { .name = "cortex-a76",         .initfn = aarch64_a76_initfn },
+    { .name = "phytium-ftc310",     .initfn = aarch64_phytium_ftc310_initfn },
+    { .name = "phytium-ftc664",     .initfn = aarch64_phytium_ftc664_initfn },
     /*
      * The Cortex-A78AE differs slightly from the plain Cortex-A78. We don't
      * currently model the latter.
