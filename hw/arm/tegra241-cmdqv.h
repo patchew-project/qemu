@@ -49,7 +49,8 @@ typedef struct Tegra241CMDQV {
     IOMMUFDVeventq *veventq;
     IOMMUFDHWqueue *vcmdq[TEGRA241_CMDQV_MAX_CMDQ];
     void *vintf_page0;
-    MemoryRegion *mr_vintf_page0;
+    MemoryRegion mr_vintf_page0;
+    bool mr_vintf_page0_initialized;
 
     /* CMDQ-V Config page register cache */
     uint32_t config;
