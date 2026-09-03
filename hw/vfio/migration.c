@@ -247,10 +247,9 @@ vfio_migration_set_state_or_reset(VFIODevice *vbasedev,
 static int vfio_load_buffer(QEMUFile *f, VFIODevice *vbasedev,
                             uint64_t data_size)
 {
-    VFIOMigration *migration = vbasedev->migration;
     int ret;
 
-    ret = qemu_file_get_to_fd(f, migration->data_fd, data_size);
+    ret = vbasedev->io_ops->mig_data_write_from_file(vbasedev, f, data_size);
     trace_vfio_load_state_device_data(vbasedev->name, data_size, ret);
 
     return ret;
@@ -369,20 +368,20 @@ static int vfio_query_stop_copy_size(VFIODevice *vbasedev)
     return ret;
 }
 
-static int vfio_query_precopy_size(VFIOMigration *migration)
+static int vfio_query_precopy_size(VFIODevice *vbasedev)
 {
-    VFIODevice *vbasedev = migration->vbasedev;
+    VFIOMigration *migration = vbasedev->migration;
     struct vfio_precopy_info precopy = {
         .argsz = sizeof(precopy),
     };
     bool reinit = false;
     int ret = 0;
 
-    if (ioctl(migration->data_fd, VFIO_MIG_GET_PRECOPY_INFO, &precopy)) {
+    ret = vbasedev->io_ops->get_precopy_info(vbasedev, &precopy);
+    if (ret) {
         migration->precopy_init_size = 0;
         migration->precopy_dirty_size = 0;
-        ret = -errno;
-        warn_report_once("VFIO device %s ioctl(VFIO_MIG_GET_PRECOPY_INFO) "
+        warn_report_once("VFIO device %s get_precopy_info "
                          "failed (%d)", vbasedev->name, ret);
     } else {
         bool overflow;
@@ -425,18 +424,20 @@ static int vfio_query_precopy_size(VFIOMigration *migration)
 }
 
 /* Returns the size of saved data on success and -errno on error */
-static ssize_t vfio_save_block(QEMUFile *f, VFIOMigration *migration)
+static ssize_t vfio_save_block(QEMUFile *f, VFIODevice *vbasedev)
 {
+    VFIOMigration *migration = vbasedev->migration;
     ssize_t data_size;
 
-    data_size = read(migration->data_fd, migration->data_buffer,
-                     migration->data_buffer_size);
+    data_size = vbasedev->io_ops->mig_data_read(vbasedev,
+                                                migration->data_buffer,
+                                                migration->data_buffer_size);
     if (data_size < 0) {
         /*
          * Pre-copy emptied all the device state for now. For more information,
          * please refer to the Linux kernel VFIO uAPI.
          */
-        if (errno == ENOMSG) {
+        if (data_size == -ENOMSG) {
             if (!migration->event_precopy_empty_hit) {
                 trace_vfio_save_block_precopy_empty_hit(migration->vbasedev->name);
                 migration->event_precopy_empty_hit = true;
@@ -444,7 +445,7 @@ static ssize_t vfio_save_block(QEMUFile *f, VFIOMigration *migration)
             return 0;
         }
 
-        return -errno;
+        return data_size;
     }
     if (data_size == 0) {
         return 0;
@@ -599,7 +600,7 @@ static int vfio_save_setup(QEMUFile *f, void *opaque, Error **errp)
                 return ret;
             }
 
-            vfio_query_precopy_size(migration);
+            vfio_query_precopy_size(vbasedev);
             if (migrate_switchover_ack() && !migrate_switchover_ack_legacy()) {
                 migration->request_switchover_ack = true;
             }
@@ -662,12 +663,10 @@ static void vfio_save_cleanup(void *opaque)
 
 static void vfio_state_pending_sync(VFIODevice *vbasedev)
 {
-    VFIOMigration *migration = vbasedev->migration;
-
     vfio_query_stop_copy_size(vbasedev);
 
     if (vfio_device_state_is_precopy(vbasedev)) {
-        vfio_query_precopy_size(migration);
+        vfio_query_precopy_size(vbasedev);
     }
 }
 
@@ -738,7 +737,7 @@ static int vfio_save_iterate(QEMUFile *f, void *opaque)
         migration->event_save_iterate_started = true;
     }
 
-    data_size = vfio_save_block(f, migration);
+    data_size = vfio_save_block(f, vbasedev);
     if (data_size < 0) {
         return data_size;
     }
@@ -778,7 +777,7 @@ static int vfio_save_complete_precopy(QEMUFile *f, void *opaque)
     }
 
     do {
-        data_size = vfio_save_block(f, vbasedev->migration);
+        data_size = vfio_save_block(f, vbasedev);
         if (data_size < 0) {
             return data_size;
         }
@@ -975,7 +974,7 @@ static void vfio_final_precopy_reinit_check(VFIODevice *vbasedev)
         return;
     }
 
-    ret = vfio_query_precopy_size(migration);
+    ret = vfio_query_precopy_size(vbasedev);
     if (ret) {
         error_report("%s: Final precopy reinit check failed (err: %d)",
                      vbasedev->name, ret);
