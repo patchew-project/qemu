@@ -3404,7 +3404,7 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
 
  the_end:
     bdrv_drain_all_end();
-
+    migration_cleanup_json_writer(migrate_get_current());
     vm_resume(saved_state);
     return ret == 0;
 }
