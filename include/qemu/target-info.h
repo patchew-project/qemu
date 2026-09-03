@@ -9,6 +9,8 @@
 #ifndef QEMU_TARGET_INFO_H
 #define QEMU_TARGET_INFO_H
 
+typedef struct TargetInfo TargetInfo;
+
 /**
  * target_name:
  *
@@ -57,6 +59,14 @@ bool target_base_arm(void);
 bool target_arm(void);
 
 /**
+ * target_is_aarch64:
+ * @ti: TargetInfo to inspect
+ *
+ * Returns whether @ti is Aarch64.
+ */
+bool target_is_aarch64(const TargetInfo *ti);
+
+/**
  * target_aarch64:
  *
  * Returns whether the target architecture is Aarch64.
@@ -90,6 +100,14 @@ bool target_ppc64(void);
  * Returns whether the target architecture is S390x.
  */
 bool target_s390x(void);
+
+/**
+ * target_is_riscv64:
+ * @ti: TargetInfo to inspect
+ *
+ * Returns whether @ti is riscv64.
+ */
+bool target_is_riscv64(const TargetInfo *ti);
 
 /**
  * target_riscv64:
