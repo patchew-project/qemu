@@ -74,6 +74,66 @@ void vfio_user_device_reset(VFIOUserProxy *proxy)
     }
 }
 
+/*
+ * Fetches a dirty page bitmap from the server for the specified DMA logging
+ * range. Over vfio-user, the bitmap is appended directly to the wire message
+ * instead of being passed by pointer.
+ */
+static int vfio_user_dma_logging_report(VFIODevice *vbasedev,
+                                        struct vfio_device_feature *feature)
+{
+    VFIOUserProxy *proxy = vbasedev->proxy;
+    struct vfio_device_feature_dma_logging_report *report =
+        (struct vfio_device_feature_dma_logging_report *)feature->data;
+    uint32_t report_hdr_size =
+        offsetof(struct vfio_device_feature_dma_logging_report, bitmap);
+    void *bitmap = (void *)(uintptr_t)report->bitmap;
+    uint64_t nr_pages, bitmap_size;
+    uint32_t wire_argsz, msg_size;
+    g_autofree VFIOUserDeviceFeature *msgp = NULL;
+    Error *local_err = NULL;
+
+    if (report->page_size == 0) {
+        return -EINVAL;
+    }
+
+    nr_pages = DIV_ROUND_UP(report->length, report->page_size);
+    bitmap_size = ROUND_UP(nr_pages, 64) / 8;
+
+    wire_argsz = sizeof(struct vfio_device_feature) + report_hdr_size +
+                 bitmap_size;
+    msg_size = sizeof(VFIOUserHdr) + wire_argsz;
+
+    if (msg_size > proxy->max_xfer_size) {
+        error_report("%s: DMA logging report size exceeds max_xfer_size",
+                     vbasedev->name);
+        return -EINVAL;
+    }
+
+    msgp = g_malloc0(msg_size);
+    vfio_user_request_msg(&msgp->hdr, VFIO_USER_DEVICE_FEATURE, msg_size, 0);
+    msgp->argsz = wire_argsz;
+    msgp->flags = feature->flags;
+    memcpy(msgp->data, report, report_hdr_size);
+
+    if (!vfio_user_send_wait(proxy, &msgp->hdr, NULL, msg_size, &local_err)) {
+        error_prepend(&local_err, "%s: ", __func__);
+        error_report_err(local_err);
+        return -EFAULT;
+    }
+
+    if (msgp->hdr.flags & VFIO_USER_ERROR) {
+        error_report("%s: server returned error %d", __func__,
+                     msgp->hdr.error_reply);
+        return -msgp->hdr.error_reply;
+    }
+
+    memcpy(bitmap, msgp->data + report_hdr_size, bitmap_size);
+
+    trace_vfio_user_dma_logging_report(feature->flags, bitmap_size);
+    return 0;
+}
+
 static int
 vfio_user_device_io_device_feature(VFIODevice *vbasedev,
                                    struct vfio_device_feature *feature)
@@ -81,12 +141,29 @@ vfio_user_device_io_device_feature(VFIODevice *vbasedev,
     g_autofree VFIOUserDeviceFeature *msgp = NULL;
     VFIOUserProxy *proxy = vbasedev->proxy;
     Error *local_err = NULL;
+    uint16_t feat = feature->flags & VFIO_DEVICE_FEATURE_MASK;
     int size;
+
+    /*
+     * DMA (dirty-page) logging report needs bespoke handling. The kernel
+     * struct vfio_device_feature_dma_logging_report carries the dirty bitmap
+     * by pointer, but over vfio-user the bitmap travels inline after the
+     * report header. Translate to the wire layout, size argsz to include the
+     * bitmap, send, and copy the returned bitmap back into the caller buffer.
+     *
+     * START/STOP (and the PROBE) fall through to the generic path below: the
+     * server only reads page_size (same offset in both layouts) and ignores
+     * the ranges.
+     */
+    if (feat == VFIO_DEVICE_FEATURE_DMA_LOGGING_REPORT) {
+        return vfio_user_dma_logging_report(vbasedev, feature);
+    }
 
     if (__builtin_add_overflow(feature->argsz, sizeof(VFIOUserHdr), &size)) {
         error_printf("vfio_user_device_io_device_feature argsz too large\n");
         return -E2BIG;
     }
+
     if (size > proxy->max_xfer_size) {
         error_printf("vfio_user_device_io_device_feature argsz too large\n");
         return -E2BIG;
