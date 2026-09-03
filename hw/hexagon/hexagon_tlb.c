@@ -326,6 +326,16 @@ bool hexagon_tlb_find_match(HexagonTLBState *tlb, uint32_t asid,
     for (uint32_t i = 0; i < tlb->num_entries; i++) {
         if (hex_tlb_entry_match(tlb->entries[i], asid, VA, access_type,
                                 PA, prot, size, excp, cause_code, mmu_idx)) {
+            if (*excp == 0) {
+                for (i++; i < tlb->num_entries; i++) {
+                    if (hex_tlb_entry_match_noperm(tlb->entries[i], asid,
+                                                   VA)) {
+                        *excp = HEX_EVENT_IMPRECISE;
+                        *cause_code = HEX_CAUSE_IMPRECISE_MULTI_TLB_MATCH;
+                        break;
+                    }
+                }
+            }
             return true;
         }
     }
