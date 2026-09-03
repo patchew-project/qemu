@@ -2411,8 +2411,10 @@ M: Philippe Mathieu-Daudé <philmd@mailo.com>
 M: Bin Meng <bmeng.cn@gmail.com>
 L: qemu-block@nongnu.org
 S: Odd Fixes
+F: include/hw/sd/dw_mci.h
 F: include/hw/sd/sd*
 F: hw/sd/core.c
+F: hw/sd/dw_mci.c
 F: hw/sd/sd*
 F: hw/sd/ssi-sd.c
 F: tests/qtest/fuzz-sdcard-test.c
