@@ -27,6 +27,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/intc/arm_gicv3_its_common.h"
+#include "hw/i2c/designware_i2c.h"
 #include "hw/misc/phytium_e2000_ddr.h"
 #include "hw/misc/phytium_e2000_mhu.h"
 #include "hw/misc/phytium_e2000_pbr.h"
@@ -78,6 +79,7 @@ enum {
     PHYTIUM_E2000_UART4,
     PHYTIUM_E2000_UART5,
     PHYTIUM_E2000_UART6,
+    PHYTIUM_E2000_I2C,
     PHYTIUM_E2000_CLK_CTRL,
     PHYTIUM_E2000_SYSTEM_CTRL,
     PHYTIUM_E2000_GIC_DIST,
@@ -141,6 +143,7 @@ static const MemMapEntry phytium_e2000_memmap[] = {
     [PHYTIUM_E2000_UART3] =          { 0x2800f000, 0x00001000 },
     [PHYTIUM_E2000_UART4] =          { 0x28014000, 0x00001000 },
     [PHYTIUM_E2000_UART5] =          { 0x2802a000, 0x00001000 },
+    [PHYTIUM_E2000_I2C] =            { 0x28030000, 0x00001000 },
     [PHYTIUM_E2000_UART6] =          { 0x28032000, 0x00001000 },
     [PHYTIUM_E2000_CLK_CTRL] =       { 0x28100000, 0x00001000 },
     [PHYTIUM_E2000_SYSTEM_CTRL] =    { 0x30000000, 0x00001000 },
@@ -181,6 +184,8 @@ static const int phytium_e2000_uart_irqmap[] = {
     [5] = 103,
     [6] = 107,
 };
+
+static const int phytium_e2000_i2c_irq = 106;
 
 static const uint8_t phytium_e2000_gem_num_queues[] = { 8, 4, 4, 4 };
 
@@ -326,6 +331,19 @@ static void phytium_e2000_create_uart(PhytiumE2000State *s, int index)
     sysbus_mmio_map(sbd, 0, phytium_e2000_memmap[map_idx].base);
     sysbus_connect_irq(sbd, 0,
         qdev_get_gpio_in(s->gic, phytium_e2000_uart_irqmap[index]));
+}
+
+static void phytium_e2000_create_i2c(PhytiumE2000State *s)
+{
+    DeviceState *dev = qdev_new(TYPE_DESIGNWARE_I2C);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    object_property_add_child(OBJECT(s), "i2c", OBJECT(dev));
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_mmio_map_overlap(sbd, 0,
+        phytium_e2000_memmap[PHYTIUM_E2000_I2C].base, 1);
+    sysbus_connect_irq(sbd, 0,
+        qdev_get_gpio_in(s->gic, phytium_e2000_i2c_irq));
 }
 
 static void phytium_e2000_create_gem(PhytiumE2000State *s, int index)
@@ -801,6 +819,7 @@ static void phytium_e2000_init(MachineState *ms)
     for (i = 0; i < PHYTIUM_E2000_NUM_UARTS; i++) {
         phytium_e2000_create_uart(s, i);
     }
+    phytium_e2000_create_i2c(s);
     for (i = 0; i < PHYTIUM_E2000_NUM_GEMS; i++) {
         phytium_e2000_create_gem(s, i);
     }
