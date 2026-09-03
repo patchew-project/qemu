@@ -53,7 +53,8 @@
 OBJECT_DECLARE_TYPE(PhytiumE2000State, PhytiumE2000MachineClass,
                     PHYTIUM_E2000_MACHINE)
 
-#define TYPE_PHYTIUM_PI MACHINE_TYPE_NAME("phytium-pi")
+#define TYPE_PHYTIUM_PI         MACHINE_TYPE_NAME("phytium-pi")
+#define TYPE_PHYTIUM_E2000_COME MACHINE_TYPE_NAME("phytium-e2000-come")
 
 #define PHYTIUM_E2000_NUM_CPUS        4
 #define PHYTIUM_E2000_NUM_IRQS        256
@@ -1013,6 +1014,18 @@ static void phytium_pi_class_init(ObjectClass *oc, const void *data)
     pemc->pbr_boot_mode = PHYTIUM_E2000_PBR_BOOT_MODE_SD0;
 }
 
+static void phytium_e2000_come_class_init(ObjectClass *oc, const void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    PhytiumE2000MachineClass *pemc =
+        PHYTIUM_E2000_MACHINE_CLASS(oc);
+
+    mc->desc = "Phytium E2000Q COMe Development Board";
+    pemc->machine_name = "phytium-e2000-come";
+    pemc->direct_boot_dtb = "e2000q-come-board.dtb";
+    pemc->pbr_boot_mode = PHYTIUM_E2000_PBR_BOOT_MODE_QSPI;
+}
+
 static const TypeInfo phytium_e2000_base_info = {
     .name = TYPE_PHYTIUM_E2000_MACHINE,
     .parent = TYPE_MACHINE,
@@ -1029,10 +1042,18 @@ static const TypeInfo phytium_pi_info = {
     .interfaces = aarch64_machine_interfaces,
 };
 
+static const TypeInfo phytium_e2000_come_info = {
+    .name = TYPE_PHYTIUM_E2000_COME,
+    .parent = TYPE_PHYTIUM_E2000_MACHINE,
+    .class_init = phytium_e2000_come_class_init,
+    .interfaces = aarch64_machine_interfaces,
+};
+
 static void phytium_e2000_machine_init(void)
 {
     type_register_static(&phytium_e2000_base_info);
     type_register_static(&phytium_pi_info);
+    type_register_static(&phytium_e2000_come_info);
 }
 
 type_init(phytium_e2000_machine_init);
