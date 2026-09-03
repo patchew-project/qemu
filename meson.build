@@ -334,15 +334,15 @@ foreach lang : all_languages
       #  error You need at least XCode Clang v17.0 to compile QEMU
       # endif
       #else
-      # if __clang_major__ < 10
-      #  error You need at least Clang v10.0 to compile QEMU
+      # if __clang_major__ < 17
+      #  error You need at least Clang v17.0 to compile QEMU
       # endif
       #endif''')
     # ok
   elif compiler.get_id() == 'emscripten'
     # ok
   else
-    error('You either need GCC v10.4 or Clang v10.0 (or XCode Clang v17.0) to compile QEMU')
+    error('You either need GCC v10.4 or Clang v17.0 (or XCode Clang v17.0) to compile QEMU')
   endif
 endforeach
 
