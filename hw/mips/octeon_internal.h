@@ -18,6 +18,8 @@
 #define OCTEON_CIU_GPIO_COUNT       32
 #define OCTEON_CIU3_CP0_IRQ_COUNT   4
 #define OCTEON_CIU3_IDT_COUNT       (OCTEON_MAX_CPUS * 4)
+#define OCTEON_PEXP_BASE            0x11f0000000000ULL
+#define OCTEON_PEXP_SIZE            0x40000
 #define OCTEON_MIO_BOOT_REG_CFG_COUNT 8
 #define OCTEON_MIO_BOOT_LOC_SIZE    0x100
 #define OCTEON_MIO_EMM_BUF_SIZE     512
@@ -78,6 +80,7 @@ struct OcteonState {
     MemoryRegion boot_flash;
     MemoryRegion boot_flash_alias;
     MemoryRegion cvmseg;
+    MemoryRegion pexp;
     MemoryRegion dpi;
     MemoryRegion fpa;
     MemoryRegion ipd;
@@ -98,6 +101,8 @@ struct OcteonState {
     MemoryRegion pcie_cfg;
     MemoryRegion pcie_sli_cfg;
     MemoryRegion pcie0_io;
+    MemoryRegion pcie0_mem;
+    AddressSpace pcie0_mem_as;
 
     DeviceState *pci_host;
     PCIBus *pci_bus;
@@ -122,5 +127,8 @@ uint64_t octeon_pci_pem_read(OcteonState *s, hwaddr reg,
                              hwaddr addr, unsigned size);
 void octeon_pci_pem_write(OcteonState *s, hwaddr reg, hwaddr addr,
                           uint64_t value, unsigned size);
+uint64_t octeon_pci_pexp_read(OcteonState *s, hwaddr addr, unsigned size);
+void octeon_pci_pexp_write(OcteonState *s, hwaddr addr,
+                           uint64_t value, unsigned size);
 
 #endif
