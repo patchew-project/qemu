@@ -22,6 +22,7 @@
 #include "cpu-sysregs.h"
 
 #include <mach/mach_time.h>
+#include <dlfcn.h>
 
 #include "system/address-spaces.h"
 #include "system/memory.h"
@@ -39,6 +40,7 @@
 #include "target/arm/trace.h"
 #include "trace.h"
 #include "migration/vmstate.h"
+#include "migration/blocker.h"
 
 #include "gdbstub/enums.h"
 
@@ -1132,6 +1134,60 @@ static void clamp_id_aa64mmfr0_parange_to_ipa_size(ARMISARegisters *isar)
     SET_IDREG(isar, ID_AA64MMFR0, id_aa64mmfr0);
 }
 
+bool hvf_vhe;
+
+static void hvf_set_vhe(Object *obj, Visitor *v,
+                                   const char *name, void *opaque,
+                                   Error **errp)
+{
+    OnOffAuto mode;
+
+    if (!visit_type_OnOffAuto(v, name, &mode, errp)) {
+        return;
+    }
+
+    switch (mode) {
+    case ON_OFF_AUTO_ON:
+        if (__builtin_available(macOS 27.0, *)) {
+            hvf_vhe = true;
+        } else {
+            error_report("VHE emulation not supported on this system.");
+        }
+        break;
+
+    case ON_OFF_AUTO_OFF:
+        hvf_vhe = false;
+        break;
+
+    case ON_OFF_AUTO_AUTO:
+        /* Experimental feature as of macOS 27.0 */
+        hvf_vhe = false;
+        break;
+    default:
+        /*
+         * The value was checked in visit_type_OnOffAuto() above. If
+         * we get here, then something is wrong in QEMU.
+         */
+        abort();
+    }
+}
+
+static bool hvf_get_vhe(void)
+{
+    return hvf_vhe;
+}
+
+void hvf_arch_accel_class_init(ObjectClass *oc)
+{
+    hvf_vhe = false;
+
+    object_class_property_add(oc, "x-vhe", "OnOffAuto",
+        NULL, hvf_set_vhe,
+        NULL, NULL);
+    object_class_property_set_description(oc, "x-vhe",
+        "Configure experimental VHE enablement");
+}
+
 static bool hvf_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
 {
     ARMISARegisters host_isar = {};
@@ -1227,6 +1283,9 @@ static bool hvf_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     if (hvf_nested_virt_enabled()) {
         /* SME is not implemented with nested virt on the Apple side */
         FIELD_DP64_IDREG(&host_isar, ID_AA64PFR1, SME, 0);
+        if (hvf_get_vhe()) {
+            FIELD_DP64_IDREG(&host_isar, ID_AA64MMFR1, VH, 0x1);
+        }
     }
 
     /*
@@ -1355,6 +1414,36 @@ hv_return_t hvf_arch_vm_create(MachineState *ms, uint32_t pa_range)
                 goto cleanup;
             }
         }
+    }
+
+    if (hvf_get_vhe()) {
+        Error *vhe_migration_blocker = NULL;
+        Error* errp;
+
+        void* hvf = dlopen("/System/Library/Frameworks/Hypervisor.framework/Versions/A/Hypervisor", RTLD_LOCAL);
+
+        if (!hvf) {
+            /* Unreachable. */
+            error_report("Failed to dlopen() Hypervisor.framework.");
+            goto cleanup;
+        }
+
+        /* Experimental API: might change before release. */
+        hv_return_t (*_hv_vm_config_set_vhe_enabled)(hv_vm_config_t cfg, bool vhe) = dlsym(hvf, "_hv_vm_config_set_vhe_enabled");
+        if (!_hv_vm_config_set_vhe_enabled) {
+            error_report("_hv_vm_config_set_vhe_enabled API not available.");
+            goto cleanup;
+        }
+        _hv_vm_config_set_vhe_enabled(config, true);
+
+        error_setg(&vhe_migration_blocker,
+        "Live migration disabled because VHE support is experimental");
+        if (migrate_add_blocker(&vhe_migration_blocker, &errp)) {
+            error_report("Failed to add migration blocker.");
+            goto cleanup;
+        }
+
+        dlclose(hvf);
     }
 
     ret = hv_vm_create(config);
