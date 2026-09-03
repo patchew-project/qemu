@@ -156,6 +156,13 @@ typedef struct CPUArchState {
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
+    /* Custom MMU intercept logic, if any (e.g. for Sun-3) */
+    void *custom_mmu_opaque;
+    int (*custom_mmu_get_physical_address)(void *env, hwaddr *physical,
+                                           int *prot, vaddr address,
+                                           int access_type,
+                                           hwaddr *page_size);
+
     /* Fields from here on are preserved across CPU reset. */
     uint64_t features;
 } CPUM68KState;
