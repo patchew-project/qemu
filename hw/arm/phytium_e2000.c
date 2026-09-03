@@ -33,6 +33,7 @@
 #include "hw/pci-host/gpex.h"
 #include "hw/sd/phytium_e2000_mci.h"
 #include "hw/sd/sd.h"
+#include "hw/ssi/phytium_qspi.h"
 #include "net/net.h"
 #include "qobject/qlist.h"
 #include "qom/object.h"
@@ -58,9 +59,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(PhytiumE2000State, PHYTIUM_PI)
 #define PHYTIUM_E2000_GTIMER_HZ       50000000
 
 enum {
+    PHYTIUM_E2000_QSPI_DIRECT,
     PHYTIUM_E2000_LOW_PERIPH,
     PHYTIUM_E2000_MCI0,
     PHYTIUM_E2000_MCI1,
+    PHYTIUM_E2000_QSPI_REGS,
     PHYTIUM_E2000_UART0,
     PHYTIUM_E2000_UART1,
     PHYTIUM_E2000_UART2,
@@ -92,6 +95,7 @@ struct PhytiumE2000State {
     MachineState parent;
     struct arm_boot_info bootinfo;
     DeviceState *gic;
+    DeviceState *qspi;
     PhytiumE2000MciState *mci[PHYTIUM_E2000_NUM_MCIS];
     CadenceGEMState *gem[PHYTIUM_E2000_NUM_GEMS];
     MemoryRegion scp_sram;
@@ -105,9 +109,11 @@ struct PhytiumE2000State {
  * handoff data and IACC is the fixed execution window for system firmware.
  */
 static const MemMapEntry phytium_e2000_memmap[] = {
+    [PHYTIUM_E2000_QSPI_DIRECT] =    { 0x00000000, 0x10000000 },
     [PHYTIUM_E2000_LOW_PERIPH] =     { 0x28000000, 0x00100000 },
     [PHYTIUM_E2000_MCI0] =           { 0x28000000, 0x00001000 },
     [PHYTIUM_E2000_MCI1] =           { 0x28001000, 0x00001000 },
+    [PHYTIUM_E2000_QSPI_REGS] =      { 0x28008000, 0x00001000 },
     [PHYTIUM_E2000_UART0] =          { 0x2800c000, 0x00001000 },
     [PHYTIUM_E2000_UART1] =          { 0x2800d000, 0x00001000 },
     [PHYTIUM_E2000_UART2] =          { 0x2800e000, 0x00001000 },
@@ -453,6 +459,18 @@ static void phytium_e2000_create_mci(PhytiumE2000State *s, int index)
     phytium_e2000_attach_sd_card(DW_MCI(mci), index);
 }
 
+static void phytium_e2000_create_qspi(PhytiumE2000State *s)
+{
+    DeviceState *controller = qdev_new(TYPE_PHYTIUM_E2000_QSPI);
+
+    s->qspi = controller;
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(controller), &error_fatal);
+    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(controller), 0,
+        phytium_e2000_memmap[PHYTIUM_E2000_QSPI_REGS].base, 2);
+    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(controller), 1,
+        phytium_e2000_memmap[PHYTIUM_E2000_QSPI_DIRECT].base, 2);
+}
+
 static void phytium_e2000_create_ddr_status(PhytiumE2000State *s)
 {
     DeviceState *dev = qdev_new(TYPE_PHYTIUM_E2000_DDR);
@@ -610,6 +628,8 @@ static void phytium_pi_init(MachineState *ms)
 
     phytium_e2000_create_ram(s);
     phytium_e2000_create_unimplemented();
+
+    phytium_e2000_create_qspi(s);
 
     phytium_e2000_create_cpus(s);
     phytium_e2000_create_gic(s);
