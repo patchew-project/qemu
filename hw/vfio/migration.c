@@ -142,7 +142,7 @@ int vfio_migration_set_state(VFIODevice *vbasedev,
     struct vfio_device_feature *feature = (struct vfio_device_feature *)buf;
     struct vfio_device_feature_mig_state *mig_state =
         (struct vfio_device_feature_mig_state *)feature->data;
-    int ret;
+    int ret, reset_ret;
     g_autofree char *error_prefix =
         g_strdup_printf("%s: Failed setting device state to %s.",
                         vbasedev->name, mig_state_to_str(new_state));
@@ -219,9 +219,10 @@ int vfio_migration_set_state(VFIODevice *vbasedev,
     return 0;
 
 reset_device:
-    if (ioctl(vbasedev->fd, VFIO_DEVICE_RESET)) {
+    reset_ret = vbasedev->io_ops->device_reset(vbasedev);
+    if (reset_ret) {
         hw_error("%s: Failed resetting device, err: %s", vbasedev->name,
-                 strerror(errno));
+                 strerror(-reset_ret));
     }
 
     vfio_migration_set_device_state(vbasedev, VFIO_DEVICE_STATE_RUNNING);

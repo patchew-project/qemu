@@ -578,8 +578,17 @@ int vfio_device_get_feature(VFIODevice *vbasedev,
 }
 
 /*
- * Traditional ioctl() based io
+ * VFIODeviceIOOps implementation for the kernel VFIO backend.
  */
+
+static int vfio_device_io_device_reset(VFIODevice *vbasedev)
+{
+    int ret;
+
+    ret = ioctl(vbasedev->fd, VFIO_DEVICE_RESET);
+
+    return ret < 0 ? -errno : ret;
+}
 
 static int vfio_device_io_device_feature(VFIODevice *vbasedev,
                                          struct vfio_device_feature *feature)
@@ -659,7 +668,7 @@ static int vfio_device_io_region_write(VFIODevice *vbasedev, uint8_t index,
 
 static VFIODeviceIOOps vfio_device_io_ops_ioctl = {
     .capabilities = VFIO_IO_CAP_DMA_BUF,
-
+    .device_reset = vfio_device_io_device_reset,
     .device_feature = vfio_device_io_device_feature,
     .get_region_info = vfio_device_io_get_region_info,
     .get_irq_info = vfio_device_io_get_irq_info,
