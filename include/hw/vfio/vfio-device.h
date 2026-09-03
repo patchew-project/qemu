@@ -203,6 +203,18 @@ struct VFIODeviceIOOps {
     int (*device_reset)(VFIODevice *vdev);
 
     /**
+     * @get_precopy_info
+     *
+     * Get information about pre-copy migration data transfer progress.
+     *
+     * @vdev: #VFIODevice to use
+     * @info: pointer to struct vfio_precopy_info to fill in
+     *
+     * Returns 0 on success or -errno.
+     */
+    int (*get_precopy_info)(VFIODevice *vdev, struct vfio_precopy_info *info);
+
+    /**
      * @device_feature
      *
      * Fill in feature info for the given device.
@@ -267,6 +279,33 @@ struct VFIODeviceIOOps {
      */
     int (*region_read)(VFIODevice *vdev, uint8_t nr, off_t off, uint32_t size,
                        void *data);
+
+    /**
+     * @mig_data_read
+     *
+     * Read migration data from the device.
+     *
+     * @vdev: #VFIODevice to use
+     * @buf: buffer to read into
+     * @buf_size: maximum number of bytes to read
+     *
+     * Returns the number of bytes read on success or -errno.
+     */
+    ssize_t (*mig_data_read)(VFIODevice *vdev, void *buf, size_t buf_size);
+
+    /**
+     * @mig_data_write_from_file
+     *
+     * Write migration data to the device, reading the data from a QEMUFile.
+     *
+     * @vdev: #VFIODevice to use
+     * @f: source to read the migration data from
+     * @data_size: number of bytes to write
+     *
+     * Returns 0 on success or -errno.
+     */
+    int (*mig_data_write_from_file)(VFIODevice *vdev, QEMUFile *f,
+                                    size_t data_size);
 
     /**
      * @region_write
