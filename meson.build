@@ -327,6 +327,12 @@ endif
 foreach lang : all_languages
   compiler = meson.get_compiler(lang)
   if compiler.get_id() == 'gcc' and compiler.version().version_compare('>=10.4')
+      if not compiler.version().version_compare('>=12.0')
+          warning('GCC < 12.0 does not support -ftrivial-auto-var-init=zero.')
+          warning('This compiler will not satisfy the QEMU security policy ')
+          warning('for assigning CVE which is predicated on zero-initialization ')
+          warning('of  stack variables. Update to GCC 12.0 or use CLang >= 17.0 ')
+      endif
     # ok
   elif compiler.get_id() == 'clang' and compiler.compiles('''
       #ifdef __apple_build_version__
