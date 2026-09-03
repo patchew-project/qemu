@@ -3749,7 +3749,7 @@ void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
 
 static bool failover_unplug_primary(VirtIONet *n, DeviceState *dev)
 {
-    HotplugHandler *hotplug_ctrl;
+    const HotplugHandler *hotplug_ctrl;
     PCIDevice *pci_dev;
     Error *err = NULL;
 
@@ -3772,7 +3772,7 @@ static bool failover_replug_primary(VirtIONet *n, DeviceState *dev,
                                     Error **errp)
 {
     Error *err = NULL;
-    HotplugHandler *hotplug_ctrl;
+    const HotplugHandler *hotplug_ctrl;
     PCIDevice *pdev = PCI_DEVICE(dev);
     BusState *primary_bus;
 
