@@ -20,6 +20,7 @@
 #define OCTEON_CIU3_IDT_COUNT       (OCTEON_MAX_CPUS * 4)
 #define OCTEON_MIO_BOOT_REG_CFG_COUNT 8
 #define OCTEON_MIO_BOOT_LOC_SIZE    0x100
+#define OCTEON_MIO_EMM_BUF_SIZE     512
 #define OCTEON_TWSI_COUNT           2
 #define OCTEON_TWSI_STAT_IDLE       0xf8
 #define OCTEON_SPD_EEPROM_SIZE      139
@@ -38,6 +39,7 @@ typedef enum OcteonCiu3Source {
 
 typedef struct OcteonState OcteonState;
 typedef struct OcteonMioState OcteonMioState;
+typedef struct OcteonEmmState OcteonEmmState;
 typedef struct OcteonRstState OcteonRstState;
 typedef struct OcteonIntcState OcteonIntcState;
 typedef struct OcteonCsrBankState OcteonCsrBankState;
@@ -68,6 +70,7 @@ struct OcteonState {
     MemoryRegion boot_flash_alias;
     MemoryRegion cvmseg;
     OcteonMioState *mio;
+    OcteonEmmState *emm;
     OcteonRstState *rst;
     OcteonIntcState *intc;
     OcteonCsrBankState *csr_bank;
