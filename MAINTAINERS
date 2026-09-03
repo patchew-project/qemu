@@ -1011,6 +1011,20 @@ F: roms/vbootrom
 F: docs/system/arm/nuvoton.rst
 F: tests/functional/arm/test_quanta_gsj.py
 
+Phytium E2000Q machines
+M: Bin Meng <bin.meng@processmission.com>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: docs/system/arm/phytium_e2000.rst
+F: hw/arm/phytium*
+F: hw/misc/phytium*
+F: hw/sd/phytium*
+F: hw/ssi/phytium*
+F: include/hw/misc/phytium*
+F: include/hw/sd/phytium*
+F: include/hw/ssi/phytium*
+F: tests/functional/aarch64/test_phytium_pi.py
+
 Raspberry Pi
 M: Peter Maydell <peter.maydell@linaro.org>
 R: Philippe Mathieu-Daudé <philmd@mailo.com>
