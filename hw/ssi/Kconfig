@@ -9,6 +9,11 @@ config SIFIVE_SPI
 config SSI
     bool
 
+config PHYTIUM_E2000_QSPI
+    bool
+    select REGISTER
+    select SSI
+
 config XILINX_SPI
     bool
     select SSI
