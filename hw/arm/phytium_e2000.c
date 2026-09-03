@@ -26,6 +26,8 @@
 #include "hw/char/pl011.h"
 #include "hw/core/boards.h"
 #include "hw/core/qdev-properties.h"
+#include "hw/ide/ahci-sysbus.h"
+#include "hw/ide/ide-bus.h"
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "hw/i2c/designware_i2c.h"
@@ -63,6 +65,9 @@ OBJECT_DECLARE_TYPE(PhytiumE2000State, PhytiumE2000MachineClass,
 #define PHYTIUM_E2000_NUM_MCIS        2
 #define PHYTIUM_E2000_NUM_UARTS       7
 #define PHYTIUM_E2000_NUM_XHCIS       2
+#define PHYTIUM_E2000_NUM_AHCIS       2
+#define PHYTIUM_E2000_NUM_SATA_PORTS  1
+#define PHYTIUM_E2000_SATA_BOOT_AHCI  1
 #define PHYTIUM_E2000_NUM_GEMS        4
 
 #define PHYTIUM_E2000_MHU_BASE        0x32a00000
@@ -97,10 +102,12 @@ enum {
     PHYTIUM_E2000_BOARD_CTRL,
     PHYTIUM_E2000_XHCI0,
     PHYTIUM_E2000_XHCI1,
+    PHYTIUM_E2000_AHCI0,
     PHYTIUM_E2000_GEM0,
     PHYTIUM_E2000_GEM1,
     PHYTIUM_E2000_GEM2,
     PHYTIUM_E2000_GEM3,
+    PHYTIUM_E2000_AHCI1,
     PHYTIUM_E2000_RNG_REGS,
     PHYTIUM_E2000_PLATFORM_CTRL,
     PHYTIUM_E2000_SECURITY_CTRL,
@@ -136,6 +143,7 @@ struct PhytiumE2000MachineClass {
     const char *direct_boot_dtb;
     const char *pbr_boot_mode;
     const char *qspi_flash_model;
+    bool has_sata_boot;
 };
 
 /*
@@ -168,10 +176,12 @@ static const MemMapEntry phytium_e2000_memmap[] = {
     [PHYTIUM_E2000_BOARD_CTRL] =     { 0x31800000, 0x01400000 },
     [PHYTIUM_E2000_XHCI0] =          { 0x31a08000, 0x00018000 },
     [PHYTIUM_E2000_XHCI1] =          { 0x31a28000, 0x00018000 },
+    [PHYTIUM_E2000_AHCI0] =          { 0x31a40000, 0x00001000 },
     [PHYTIUM_E2000_GEM0] =           { 0x3200c000, 0x00002000 },
     [PHYTIUM_E2000_GEM1] =           { 0x3200e000, 0x00002000 },
     [PHYTIUM_E2000_GEM2] =           { 0x32010000, 0x00002000 },
     [PHYTIUM_E2000_GEM3] =           { 0x32012000, 0x00002000 },
+    [PHYTIUM_E2000_AHCI1] =          { 0x32014000, 0x00001000 },
     [PHYTIUM_E2000_RNG_REGS] =       { 0x32a36000, 0x00001000 },
     [PHYTIUM_E2000_PLATFORM_CTRL] =  { 0x32e40000, 0x00010000 },
     [PHYTIUM_E2000_SECURITY_CTRL] =  { 0x32f00000, 0x00001000 },
@@ -205,6 +215,11 @@ static const int phytium_e2000_i2c_irq = 106;
 static const int phytium_e2000_xhci_irqmap[] = {
     [0] = 16,
     [1] = 17,
+};
+
+static const int phytium_e2000_ahci_irqmap[] = {
+    [0] = 42,
+    [1] = 43,
 };
 
 static const uint8_t phytium_e2000_gem_num_queues[] = { 8, 4, 4, 4 };
@@ -400,6 +415,32 @@ static void phytium_e2000_create_gem(PhytiumE2000State *s, int index)
     for (i = 0; i < phytium_e2000_gem_num_queues[index]; i++) {
         sysbus_connect_irq(sbd, i,
             qdev_get_gpio_in(s->gic, phytium_e2000_gem_irqmap[index][i]));
+    }
+}
+
+static void phytium_e2000_create_ahci(PhytiumE2000State *s, int index,
+                                      bool attach_boot_disk)
+{
+    int map_idx = index ? PHYTIUM_E2000_AHCI1 : PHYTIUM_E2000_AHCI0;
+    DriveInfo *hd[PHYTIUM_E2000_NUM_SATA_PORTS] = {};
+    DeviceState *dev = qdev_new(TYPE_SYSBUS_AHCI);
+    SysbusAHCIState *sysahci;
+
+    /*
+     * The COMe boot disk is wired to the second fixed AHCI controller. U-Boot
+     * probes both controllers and exposes the only attached disk as scsi 0.
+     */
+    qdev_prop_set_uint32(dev, "num-ports", PHYTIUM_E2000_NUM_SATA_PORTS);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
+        phytium_e2000_memmap[map_idx].base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+        qdev_get_gpio_in(s->gic, phytium_e2000_ahci_irqmap[index]));
+
+    if (attach_boot_disk) {
+        sysahci = SYSBUS_AHCI(dev);
+        ide_drive_get(hd, ARRAY_SIZE(hd));
+        ahci_ide_create_devs(&sysahci->ahci, hd);
     }
 }
 
@@ -932,6 +973,12 @@ static void phytium_e2000_init(MachineState *ms)
         exit(1);
     }
 
+    if (!pemc->has_sata_boot && drive_get_by_index(IF_IDE, 0)) {
+        error_report("%s does not expose a SATA boot disk; "
+                     "use if=sd,index=0", pemc->machine_name);
+        exit(1);
+    }
+
     phytium_e2000_reject_legacy_firmware(ms, pemc);
 
     phytium_e2000_create_ram(s);
@@ -960,6 +1007,10 @@ static void phytium_e2000_init(MachineState *ms)
     phytium_e2000_create_i2c(s);
     for (i = 0; i < PHYTIUM_E2000_NUM_XHCIS; i++) {
         phytium_e2000_create_xhci(s, i);
+    }
+    for (i = 0; i < PHYTIUM_E2000_NUM_AHCIS; i++) {
+        phytium_e2000_create_ahci(s, i,
+            pemc->has_sata_boot && i == PHYTIUM_E2000_SATA_BOOT_AHCI);
     }
     for (i = 0; i < PHYTIUM_E2000_NUM_GEMS; i++) {
         phytium_e2000_create_gem(s, i);
@@ -1040,6 +1091,7 @@ static void phytium_pi_class_init(ObjectClass *oc, const void *data)
     pemc->machine_name = "phytium-pi";
     pemc->direct_boot_dtb = "phytiumpi_firefly.dtb";
     pemc->pbr_boot_mode = PHYTIUM_E2000_PBR_BOOT_MODE_SD0;
+    pemc->has_sata_boot = false;
 }
 
 static void phytium_e2000_come_class_init(ObjectClass *oc, const void *data)
@@ -1049,10 +1101,12 @@ static void phytium_e2000_come_class_init(ObjectClass *oc, const void *data)
         PHYTIUM_E2000_MACHINE_CLASS(oc);
 
     mc->desc = "Phytium E2000Q COMe Development Board";
+    mc->block_default_type = IF_IDE;
     pemc->machine_name = "phytium-e2000-come";
     pemc->direct_boot_dtb = "e2000q-come-board.dtb";
     pemc->pbr_boot_mode = PHYTIUM_E2000_PBR_BOOT_MODE_QSPI;
     pemc->qspi_flash_model = "gd25q128";
+    pemc->has_sata_boot = true;
 }
 
 static const TypeInfo phytium_e2000_base_info = {
