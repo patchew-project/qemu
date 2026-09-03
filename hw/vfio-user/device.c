@@ -11,6 +11,7 @@
 #include "qemu/error-report.h"
 #include "qemu/lockable.h"
 #include "qemu/thread.h"
+#include "migration/qemu-file.h"
 
 #include "hw/vfio-user/device.h"
 #include "hw/vfio-user/trace.h"
@@ -592,15 +593,126 @@ static int vfio_user_device_io_region_write(VFIODevice *vbasedev, uint8_t index,
     return ret;
 }
 
+static ssize_t vfio_user_device_io_mig_data_read(VFIODevice *vbasedev,
+                                                 void *buf,
+                                                 size_t buf_size)
+{
+    g_autofree VFIOUserMigData *msgp = NULL;
+    VFIOUserProxy *proxy = vbasedev->proxy;
+    Error *local_err = NULL;
+    /*
+     * We don't need to iterate in chunks here. We clamp the requested
+     * size to the maximum socket payload and return a "short read"
+     * (fewer bytes than buf_size). QEMU's generic migration framework
+     * handles short reads perfectly, and will automatically call this
+     * function again in a loop to fetch the remaining data.
+     */
+    uint32_t max_payload = proxy->max_xfer_size - sizeof(VFIOUserMigData);
+    uint32_t read_size = MIN(buf_size, max_payload);
+    uint32_t msg_size = sizeof(VFIOUserMigData) + read_size;
+
+    /* Clamp the requested size to the maximum socket payload */
+    msgp = g_malloc0(msg_size);
+
+    vfio_user_request_msg(&msgp->hdr, VFIO_USER_MIG_DATA_READ,
+                          sizeof(VFIOUserMigData), 0);
+    msgp->argsz = msg_size - sizeof(VFIOUserHdr);
+    msgp->size = read_size;
+
+    if (!vfio_user_send_wait(proxy, &msgp->hdr, NULL, msg_size, &local_err)) {
+        error_prepend(&local_err, "%s: ", __func__);
+        error_report_err(local_err);
+        return -EFAULT;
+    }
+
+    if (msgp->hdr.flags & VFIO_USER_ERROR) {
+        error_report("%s: server returned error %d", __func__,
+                     msgp->hdr.error_reply);
+        return -msgp->hdr.error_reply;
+    }
+
+    /* Bounds check: Ensure server didn't overflow our buffer */
+    if (msgp->size > buf_size) {
+        error_report("%s: server sent more data than requested", __func__);
+        return -EINVAL;
+    }
+
+    memcpy(buf, msgp->data, msgp->size);
+    trace_vfio_user_mig_data_read(msgp->size);
+
+    return msgp->size;
+}
+
+static int vfio_user_device_io_mig_data_write_from_file(VFIODevice *vbasedev,
+                                                        QEMUFile *f,
+                                                        size_t data_size)
+{
+    VFIOUserProxy *proxy = vbasedev->proxy;
+    uint32_t max_payload = proxy->max_xfer_size - sizeof(VFIOUserMigData);
+    size_t remaining = data_size;
+    g_autofree VFIOUserMigData *msgp =
+        g_malloc0(sizeof(VFIOUserMigData) + max_payload);
+
+    while (remaining > 0) {
+        Error *local_err = NULL;
+        uint32_t chunk_size = MIN(remaining, max_payload);
+        uint32_t msg_size = sizeof(VFIOUserMigData) + chunk_size;
+
+        vfio_user_request_msg(&msgp->hdr, VFIO_USER_MIG_DATA_WRITE,
+                              msg_size, 0);
+        msgp->argsz = msg_size - sizeof(VFIOUserHdr);
+        msgp->size = chunk_size;
+
+        if (qemu_get_buffer(f, msgp->data, chunk_size) != chunk_size) {
+            error_report("%s: failed to read migration data from stream",
+                         __func__);
+            return -EINVAL;
+        }
+
+        if (!vfio_user_send_wait(proxy, &msgp->hdr, NULL, msg_size,
+                                 &local_err)) {
+            error_prepend(&local_err, "%s: ", __func__);
+            error_report_err(local_err);
+            return -EFAULT;
+        }
+
+        if (msgp->hdr.flags & VFIO_USER_ERROR) {
+            error_report("%s: server returned error %d", __func__,
+                         msgp->hdr.error_reply);
+            return -msgp->hdr.error_reply;
+        }
+
+        trace_vfio_user_mig_data_write(msgp->size);
+        remaining -= chunk_size;
+    }
+
+    return 0;
+}
+
+static int vfio_user_device_io_device_reset(VFIODevice *vbasedev)
+{
+    vfio_user_device_reset(vbasedev->proxy);
+    return 0;
+}
+
+static int vfio_user_device_io_get_precopy_info(VFIODevice *vbasedev,
+                                                struct vfio_precopy_info *info)
+{
+    return -ENOTSUP;
+}
+
 /*
  * Socket-based io_ops
  */
 VFIODeviceIOOps vfio_user_device_io_ops_sock = {
     .device_feature = vfio_user_device_io_device_feature,
     .get_region_info = vfio_user_device_io_get_region_info,
-    .get_irq_info = vfio_user_device_io_get_irq_info,
-    .set_irqs = vfio_user_device_io_set_irqs,
     .region_read = vfio_user_device_io_region_read,
     .region_write = vfio_user_device_io_region_write,
-
+    .get_irq_info = vfio_user_device_io_get_irq_info,
+    .set_irqs = vfio_user_device_io_set_irqs,
+    .device_reset = vfio_user_device_io_device_reset,
+    .get_precopy_info = vfio_user_device_io_get_precopy_info,
+    .mig_data_read = vfio_user_device_io_mig_data_read,
+    .mig_data_write_from_file = vfio_user_device_io_mig_data_write_from_file,
 };

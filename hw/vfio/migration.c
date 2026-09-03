@@ -313,8 +313,10 @@ static void vfio_migration_cleanup(VFIODevice *vbasedev)
 {
     VFIOMigration *migration = vbasedev->migration;
 
-    close(migration->data_fd);
-    migration->data_fd = -1;
+    if (migration->data_fd != -1) {
+        close(migration->data_fd);
+        migration->data_fd = -1;
+    }
 }
 
 static bool vfio_migration_check_overflow(VFIODevice *vbasedev, uint64_t size,
