@@ -975,6 +975,32 @@ bool m68k_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     int ret;
     target_ulong page_size;
 
+    if (qemu_access_type == MMU_INST_FETCH) {
+        access_type = ACCESS_CODE;
+    } else {
+        access_type = ACCESS_DATA;
+        if (qemu_access_type == MMU_DATA_STORE) {
+            access_type |= ACCESS_STORE;
+        }
+    }
+
+    /* Decode explicit Function Codes from moves instructions */
+    if (mmu_idx >= MMU_MOVES_FC_BASE) {
+        uint8_t fc = mmu_idx - MMU_MOVES_FC_BASE;
+        access_type |= (fc << 8); /* Pack explicit FC into access type */
+        if (fc != 1 && fc != 2) {
+            access_type |= ACCESS_SUPER;
+        }
+    } else {
+        /* Standard memory accesses map logically to normal M68K FCs */
+        if (mmu_idx == MMU_KERNEL_IDX) {
+            access_type |= ACCESS_SUPER;
+            access_type |= ((qemu_access_type == MMU_INST_FETCH ? 6 : 5) << 8);
+        } else {
+            access_type |= ((qemu_access_type == MMU_INST_FETCH ? 2 : 1) << 8);
+        }
+    }
+
     if ((env->mmu.tcr & M68K_TCR_ENABLED) == 0) {
         /* MMU disabled */
         tlb_set_page(cs, address & TARGET_PAGE_MASK,
