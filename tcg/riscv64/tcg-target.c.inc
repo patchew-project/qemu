@@ -778,6 +778,8 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
         {
             int lmul = type - riscv_lg2_vlenb;
             int nf = 1 << MAX(lmul, 0);
+
+            set_vtype_len(s, type);
             tcg_out_opc_vi(s, OPC_VMVNR_V, ret, arg, nf - 1);
         }
         break;
