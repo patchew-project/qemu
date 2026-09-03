@@ -71,6 +71,7 @@ config MIPS_OCTEON
     bool
     default y
     depends on MIPS64 && TARGET_BIG_ENDIAN
+    select PFLASH_CFI02
 
 config MIPS_CPS
     bool
