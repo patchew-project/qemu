@@ -674,6 +674,21 @@ static bool reloc_call(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
     return false;
 }
 
+static bool tcg_out_auipc_pair(TCGContext *s, const tcg_insn_unit *target,
+                               RISCVInsn opc, TCGReg base,
+                               TCGReg rd, TCGReg rs1)
+{
+    uint32_t hi, lo;
+
+    if (!split_auipc_offset(s->code_ptr, target, &hi, &lo)) {
+        return false;
+    }
+    tcg_out_opc_upper(s, OPC_AUIPC, base, hi);
+    tcg_out_opc_imm(s, opc, rd, rs1, lo);
+
+    return true;
+}
+
 static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
@@ -808,7 +823,8 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
                          tcg_target_long val)
 {
     tcg_target_long lo, hi, tmp;
-    int shift, ret;
+    int shift;
+    bool ret;
 
     if (type == TCG_TYPE_I32) {
         val = (int32_t)val;
@@ -829,12 +845,9 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
         return;
     }
 
-    tmp = tcg_pcrel_diff(s, (void *)val);
-    if (tmp == (int32_t)tmp) {
-        tcg_out_opc_upper(s, OPC_AUIPC, rd, 0);
-        tcg_out_opc_imm(s, OPC_ADDI, rd, rd, 0);
-        ret = reloc_call(s->code_ptr - 2, (const tcg_insn_unit *)val);
-        tcg_debug_assert(ret == true);
+    ret = tcg_out_auipc_pair(s, (const tcg_insn_unit *)val, OPC_ADDI, rd, rd,
+                             rd);
+    if (ret) {
         return;
     }
 
@@ -1588,7 +1601,7 @@ static void tcg_out_call_int(TCGContext *s, const tcg_insn_unit *arg, bool tail)
 {
     TCGReg link = tail ? TCG_REG_ZERO : TCG_REG_RA;
     ptrdiff_t offset = tcg_pcrel_diff(s, arg);
-    int ret;
+    bool ret;
 
     init_setting_vtype(s);
 
@@ -1596,14 +1609,14 @@ static void tcg_out_call_int(TCGContext *s, const tcg_insn_unit *arg, bool tail)
     if (offset == sextreg(offset, 0, 20)) {
         /* short jump: -2097150 to 2097152 */
         tcg_out_opc_jump(s, OPC_JAL, link, offset);
-    } else if (offset == (int32_t)offset) {
-        /* long jump: -2147483646 to 2147483648 */
-        tcg_out_opc_upper(s, OPC_AUIPC, TCG_REG_TMP0, 0);
-        tcg_out_opc_imm(s, OPC_JALR, link, TCG_REG_TMP0, 0);
-        ret = reloc_call(s->code_ptr - 2, arg);
-        tcg_debug_assert(ret == true);
     } else {
-        /* far jump: 64-bit */
+        ret = tcg_out_auipc_pair(s, arg, OPC_JALR, TCG_REG_TMP0, link,
+                                 TCG_REG_TMP0);
+        if (ret) {
+            return;
+        }
+
+        /* Far jump: 64-bit. */
         tcg_target_long imm = sextreg((tcg_target_long)arg, 0, 12);
         tcg_target_long base = (tcg_target_long)arg - imm;
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP0, base);
