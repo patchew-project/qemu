@@ -15,6 +15,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "scsi/constants.h"
 #include "hw/core/irq.h"
 #include "trace.h"
@@ -816,6 +817,14 @@ static void ufs_hce_reset(UfsHc *u)
         memset(u->mcq_op_reg, 0, sizeof(u->mcq_op_reg));
     }
 
+    if (u->held_req) {
+        u->held_req = NULL;
+        u->active_hold_tag = UFS_HOLD_TAG_NONE;
+        u->params.x_hold_tag = UFS_HOLD_TAG_NONE;
+    } else {
+        u->active_hold_tag = u->params.x_hold_tag;
+    }
+
     u->resetting = false;
 
     /* 5. De-assert IRQ */
@@ -873,27 +882,95 @@ static void ufs_process_tmr(UfsHc *u, uint32_t val)
             task_tag = be32_to_cpu(desc.upiu_req.input_param2);
 
             if (tm_func == UFS_QUERY_TASK) {
-                UfsRequest *req = ufs_find_req_by_tag(u, task_tag);
-
-                if (req) {
-                    tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_SUCCEEDED;
-                } else {
-                    tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_COMPL;
-                }
-            } else if (tm_func == UFS_ABORT_TASK) {
-                UfsRequest *req = ufs_find_req_by_tag(u, task_tag);
-
-                if (req) {
-                    ufs_clear_req(req);
-                    req->state = UFS_REQUEST_IDLE;
-                    if (ufs_mcq_req(req)) {
-                        QTAILQ_INSERT_TAIL(&req->sq->req_list, req, entry);
-                        qemu_bh_schedule(req->sq->bh);
+                if (u->held_req && task_tag == u->active_hold_tag) {
+                    if (u->hold_mode == UFS_HOLD_IN_TRANSITION) {
+                        UfsRequest *hreq = u->held_req;
+                        u->held_req = NULL;
+                        u->active_hold_tag = UFS_HOLD_TAG_NONE;
+                        u->params.x_hold_tag = UFS_HOLD_TAG_NONE;
+                        tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_COMPL;
+                        if (hreq) {
+                            uint16_t data_seg_len =
+                                sizeof(hreq->rsp_upiu.sr.sense_data_len);
+                            hreq->rsp_upiu.sr.sense_data_len = 0;
+                            hreq->rsp_upiu.sr.residual_transfer_count = 0;
+                            ufs_build_upiu_header(hreq,
+                                                  UFS_UPIU_TRANSACTION_RESPONSE,
+                                                  0,
+                                                  UFS_COMMAND_RESULT_SUCCESS,
+                                                  0,
+                                                  data_seg_len);
+                            ufs_complete_req(hreq, UFS_REQUEST_SUCCESS);
+                        }
                     } else {
-                        u->reg.utrldbr &= ~(1 << req->slot);
+                        tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_SUCCEEDED;
+                    }
+                } else {
+                    UfsRequest *req = ufs_find_req_by_tag(u, task_tag);
+
+                    if (req) {
+                        tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_SUCCEEDED;
+                    } else {
+                        tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_COMPL;
                     }
                 }
-                tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_COMPL;
+            } else if (tm_func == UFS_ABORT_TASK) {
+                if (u->held_req && task_tag == u->active_hold_tag) {
+                    if (u->hold_mode == UFS_HOLD_ABORT_FAILED) {
+                        tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_FAILED;
+                    } else if (u->hold_mode == UFS_HOLD_TIMEOUT) {
+                        continue;
+                    } else if (u->hold_mode == UFS_HOLD_IN_TRANSITION) {
+                        UfsRequest *hreq = u->held_req;
+                        u->held_req = NULL;
+                        u->active_hold_tag = UFS_HOLD_TAG_NONE;
+                        u->params.x_hold_tag = UFS_HOLD_TAG_NONE;
+                        tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_COMPL;
+                        if (hreq) {
+                            uint16_t data_seg_len =
+                                sizeof(hreq->rsp_upiu.sr.sense_data_len);
+                            hreq->rsp_upiu.sr.sense_data_len = 0;
+                            hreq->rsp_upiu.sr.residual_transfer_count = 0;
+                            ufs_build_upiu_header(hreq,
+                                                  UFS_UPIU_TRANSACTION_RESPONSE,
+                                                  0,
+                                                  UFS_COMMAND_RESULT_SUCCESS,
+                                                  0,
+                                                  data_seg_len);
+                            ufs_complete_req(hreq, UFS_REQUEST_SUCCESS);
+                        }
+                    } else {
+                        /* UFS_HOLD_ABORT_SUCCESS or default */
+                        UfsRequest *hreq = u->held_req;
+                        u->held_req = NULL;
+                        ufs_clear_req(hreq);
+                        hreq->state = UFS_REQUEST_IDLE;
+                        if (ufs_mcq_req(hreq)) {
+                            QTAILQ_INSERT_TAIL(&hreq->sq->req_list,
+                                               hreq, entry);
+                            qemu_bh_schedule(hreq->sq->bh);
+                        } else {
+                            u->reg.utrldbr &= ~(1 << hreq->slot);
+                        }
+                        u->active_hold_tag = UFS_HOLD_TAG_NONE;
+                        u->params.x_hold_tag = UFS_HOLD_TAG_NONE;
+                        tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_COMPL;
+                    }
+                } else {
+                    UfsRequest *req = ufs_find_req_by_tag(u, task_tag);
+
+                    if (req) {
+                        ufs_clear_req(req);
+                        req->state = UFS_REQUEST_IDLE;
+                        if (ufs_mcq_req(req)) {
+                            QTAILQ_INSERT_TAIL(&req->sq->req_list, req, entry);
+                            qemu_bh_schedule(req->sq->bh);
+                        } else {
+                            u->reg.utrldbr &= ~(1 << req->slot);
+                        }
+                    }
+                    tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_COMPL;
+                }
             } else {
                 tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_NOT_SUPPORTED;
             }
@@ -2323,6 +2400,42 @@ static void ufs_exec_req(UfsRequest *req)
         return;
     }
 
+    if (unlikely(req->hc->active_hold_tag != UFS_HOLD_TAG_NONE)) {
+        if (req->hc->active_hold_tag == UFS_HOLD_TAG_ANY) {
+            if (req->req_upiu.header.trans_type ==
+                UFS_UPIU_TRANSACTION_COMMAND) {
+                uint8_t op = req->req_upiu.sc.cdb[0];
+
+                if (op == READ_10 || op == WRITE_10) {
+                    /*
+                     * In 10-byte SCSI read/write commands (SBC-4), bytes 2..5
+                     * encode the 32-bit Logical Block Address (LBA) in
+                     * big-endian.
+                     */
+                    uint32_t lba = ldl_be_p(&req->req_upiu.sc.cdb[2]);
+
+                    /*
+                     * Only intercept target I/O targeting LBA >=
+                     * UFS_HOLD_MIN_LBA. Skips guest boot-time partition table
+                     * and superblock scanning.
+                     */
+                    if (lba >= UFS_HOLD_MIN_LBA) {
+                        req->hc->active_hold_tag =
+                            req->req_upiu.header.task_tag;
+                        req->hc->held_req = req;
+                        trace_ufs_inject_hold_req(req->req_upiu.header.task_tag,
+                                                  lba);
+                        return;
+                    }
+                }
+            }
+        } else if (req->req_upiu.header.task_tag == req->hc->active_hold_tag) {
+            req->hc->held_req = req;
+            trace_ufs_inject_hold_req(req->req_upiu.header.task_tag, 0);
+            return;
+        }
+    }
+
     switch (req->req_upiu.header.trans_type) {
     case UFS_UPIU_TRANSACTION_NOP_OUT:
         req_result = ufs_exec_nop_cmd(req);
@@ -2942,7 +3055,139 @@ static void ufs_init_hc(UfsHc *u)
 
     timer_init_ms(&u->idle_timer, QEMU_CLOCK_VIRTUAL_RT, ufs_idle_timer_cb, u);
     timer_mod(&u->idle_timer, now + UFS_IDLE_TIMER_TICK);
+
+    u->active_hold_tag = u->params.x_hold_tag;
+    u->held_req = NULL;
 }
+
+static void ufs_prop_get_hold_tag(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    uint32_t *ptr = object_field_prop_ptr(obj, prop);
+    UfsParams *params = container_of(ptr, UfsParams, x_hold_tag);
+    UfsHc *u = container_of(params, UfsHc, params);
+
+    visit_type_uint32(v, name, &u->active_hold_tag, errp);
+}
+
+static void ufs_prop_set_hold_tag(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    uint32_t *ptr = object_field_prop_ptr(obj, prop);
+    uint32_t val;
+
+    if (!visit_type_uint32(v, name, &val, errp)) {
+        return;
+    }
+
+    *ptr = val;
+    UfsParams *params = container_of(ptr, UfsParams, x_hold_tag);
+    UfsHc *u = container_of(params, UfsHc, params);
+    u->active_hold_tag = val;
+    trace_ufs_set_hold_tag(val);
+}
+
+static void ufs_prop_set_default_hold_tag(ObjectProperty *op,
+                                          const Property *prop)
+{
+    object_property_set_default_uint(op, prop->defval.u);
+}
+
+const PropertyInfo ufs_prop_hold_tag = {
+    .type = "uint32",
+    .description = "Task tag to hold for fault injection",
+    .get = ufs_prop_get_hold_tag,
+    .set = ufs_prop_set_hold_tag,
+    .set_default_value = ufs_prop_set_default_hold_tag,
+    .realized_set_allowed = true,
+};
+
+static void ufs_prop_get_hold_mode(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    char **ptr = object_field_prop_ptr(obj, prop);
+    UfsParams *params = container_of(ptr, UfsParams, x_hold_mode);
+    UfsHc *u = container_of(params, UfsHc, params);
+    const char *str;
+    char *val;
+
+    switch (u->hold_mode) {
+    case UFS_HOLD_ABORT_FAILED:
+        str = "abort-failed";
+        break;
+    case UFS_HOLD_IN_TRANSITION:
+        str = "in-transition";
+        break;
+    case UFS_HOLD_TIMEOUT:
+        str = "timeout";
+        break;
+    case UFS_HOLD_ABORT_SUCCESS:
+    default:
+        str = "abort-success";
+        break;
+    }
+
+    val = g_strdup(str);
+    visit_type_str(v, name, &val, errp);
+    g_free(val);
+}
+
+static void ufs_prop_set_hold_mode(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    char **ptr = object_field_prop_ptr(obj, prop);
+    char *str;
+    UfsHoldMode mode;
+
+    if (!visit_type_str(v, name, &str, errp)) {
+        return;
+    }
+
+    if (!str || g_strcmp0(str, "abort-success") == 0) {
+        mode = UFS_HOLD_ABORT_SUCCESS;
+    } else if (g_strcmp0(str, "abort-failed") == 0) {
+        mode = UFS_HOLD_ABORT_FAILED;
+    } else if (g_strcmp0(str, "in-transition") == 0) {
+        mode = UFS_HOLD_IN_TRANSITION;
+    } else if (g_strcmp0(str, "timeout") == 0) {
+        mode = UFS_HOLD_TIMEOUT;
+    } else {
+        error_setg(errp, "invalid x-hold-mode: %s", str);
+        g_free(str);
+        return;
+    }
+
+    g_free(*ptr);
+    *ptr = str;
+    UfsParams *params = container_of(ptr, UfsParams, x_hold_mode);
+    UfsHc *u = container_of(params, UfsHc, params);
+    u->hold_mode = mode;
+    trace_ufs_set_hold_mode(str ? str : "abort-success");
+}
+
+static void ufs_prop_release_hold_mode(Object *obj, const char *name,
+                                       void *opaque)
+{
+    Property *prop = opaque;
+    char **ptr = object_field_prop_ptr(obj, prop);
+
+    g_free(*ptr);
+    *ptr = NULL;
+}
+
+const PropertyInfo ufs_prop_hold_mode = {
+    .type = "str",
+    .description = "Fault injection mode: abort-success, abort-failed, "
+                   "in-transition, timeout",
+    .get = ufs_prop_get_hold_mode,
+    .set = ufs_prop_set_hold_mode,
+    .release = ufs_prop_release_hold_mode,
+    .realized_set_allowed = true,
+};
 
 bool ufs_realize(UfsHc *u, DeviceState *dev, AddressSpace *dma_as, Error **errp)
 {
@@ -2950,6 +3195,20 @@ bool ufs_realize(UfsHc *u, DeviceState *dev, AddressSpace *dma_as, Error **errp)
     u->dma_as = dma_as;
 
     if (!ufs_check_constraints(u, errp)) {
+        return false;
+    }
+
+    if (!u->params.x_hold_mode ||
+        g_strcmp0(u->params.x_hold_mode, "abort-success") == 0) {
+        u->hold_mode = UFS_HOLD_ABORT_SUCCESS;
+    } else if (g_strcmp0(u->params.x_hold_mode, "abort-failed") == 0) {
+        u->hold_mode = UFS_HOLD_ABORT_FAILED;
+    } else if (g_strcmp0(u->params.x_hold_mode, "in-transition") == 0) {
+        u->hold_mode = UFS_HOLD_IN_TRANSITION;
+    } else if (g_strcmp0(u->params.x_hold_mode, "timeout") == 0) {
+        u->hold_mode = UFS_HOLD_TIMEOUT;
+    } else {
+        error_setg(errp, "invalid x-hold-mode: %s", u->params.x_hold_mode);
         return false;
     }
 

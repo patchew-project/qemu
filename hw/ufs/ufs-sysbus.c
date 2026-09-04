@@ -45,6 +45,10 @@ static const Property ufs_sysbus_props[] = {
                        0x400),
     DEFINE_PROP_UINT32("wb-min-size", SysbusUfsState, ufs.params.wb_min_size,
                        0x100),
+    DEFINE_PROP_UNSIGNED("x-hold-tag", SysbusUfsState, ufs.params.x_hold_tag,
+                         UFS_HOLD_TAG_NONE, ufs_prop_hold_tag, uint32_t),
+    DEFINE_PROP("x-hold-mode", SysbusUfsState, ufs.params.x_hold_mode,
+                ufs_prop_hold_mode, char *),
 };
 
 static const VMStateDescription ufs_sysbus_vmstate = {

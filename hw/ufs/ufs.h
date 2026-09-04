@@ -12,6 +12,7 @@
 #define HW_UFS_UFS_H
 
 #include "hw/core/qdev.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/scsi/scsi.h"
 #include "block/ufs.h"
 #include "scsi/constants.h"
@@ -88,6 +89,48 @@ typedef struct UfsLu {
     UfsScsiOp scsi_op;
 } UfsLu;
 
+/*
+ * Fault injection modes for x-hold-mode property.
+ * Controls how the held transfer request and subsequent Task Management
+ * Request (TMR) are resolved by the controller:
+ *
+ * UFS_HOLD_ABORT_SUCCESS: TMR ABORT_TASK aborts the held request, clears its
+ *                         state, and returns SUCCESS (COMPL).
+ * UFS_HOLD_ABORT_FAILED:  TMR ABORT_TASK returns TASK_MANAGEMENT_FUNC_FAILED,
+ *                         forcing host driver to escalate to Host Reset.
+ * UFS_HOLD_IN_TRANSITION: TMR QUERY_TASK / ABORT_TASK completes the held
+ *                         request successfully and returns COMPL (simulating
+ *                         a command completing in transition / grace period).
+ * UFS_HOLD_TIMEOUT:       TMR ABORT_TASK does not complete or clear doorbell,
+ *                         triggering hardware-level TMR timeout.
+ */
+typedef enum UfsHoldMode {
+    UFS_HOLD_ABORT_SUCCESS = 0,
+    UFS_HOLD_ABORT_FAILED,
+    UFS_HOLD_IN_TRANSITION,
+    UFS_HOLD_TIMEOUT,
+} UfsHoldMode;
+
+/*
+ * Sentinel values for x-hold-tag property.
+ * Task Tags in UFS are 8-bit (0..255). Values >= 256 are reserved as
+ * sentinel flags to preserve full testability of Tag 0.
+ *
+ * UFS_HOLD_TAG_NONE: Disable fault injection (default).
+ * UFS_HOLD_TAG_ANY:  Automatically intercept the first user-space READ_10
+ *                    or WRITE_10 command targeting LBA >= UFS_HOLD_MIN_LBA.
+ */
+#define UFS_HOLD_TAG_NONE 0xffffffff
+#define UFS_HOLD_TAG_ANY  0xfffffffe
+
+/*
+ * Minimum Logical Block Address (LBA) for automatic fault injection.
+ * Skip early disk blocks (LBA 0..511, e.g. MBR, GPT partition tables, EFI,
+ * and filesystem superblocks) to ensure guest OS boot-time disk discovery
+ * and partition scanning complete cleanly without being held.
+ */
+#define UFS_HOLD_MIN_LBA 512
+
 typedef struct UfsParams {
     char *serial;
     uint8_t nutrs; /* Number of UTP Transfer Request Slots */
@@ -97,6 +140,8 @@ typedef struct UfsParams {
     uint8_t mcq_maxq; /* MCQ Maximum number of Queues */
     uint32_t wb_max_size; /* WB Maximum allocation units */
     uint32_t wb_min_size; /* WB Minimum allocation units */
+    uint32_t x_hold_tag;
+    char *x_hold_mode;
 } UfsParams;
 
 /*
@@ -186,6 +231,11 @@ typedef struct UfsHc {
     uint32_t hid_fragment_count; /* Remaining fragmented 4KB units */
     uint32_t hid_defrag_total; /* Requested units at defrag start */
     uint32_t hid_defrag_remaining; /* Requested units left to move */
+
+    /* Test and fault injection properties */
+    uint32_t active_hold_tag;
+    UfsHoldMode hold_mode;
+    UfsRequest *held_req;
 } UfsHc;
 
 static inline uint32_t ufs_mcq_sq_tail(UfsHc *u, uint32_t qid)
@@ -309,4 +359,8 @@ void ufs_init_wlu(UfsLu *wlu, uint8_t wlun);
 bool ufs_realize(UfsHc *u, DeviceState *dev, AddressSpace *dma_as,
                  Error **errp);
 void ufs_unrealize(UfsHc *u);
+
+extern const PropertyInfo ufs_prop_hold_tag;
+extern const PropertyInfo ufs_prop_hold_mode;
+
 #endif /* HW_UFS_UFS_H */
