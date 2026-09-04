@@ -180,10 +180,18 @@ static void virtio_gpu_gl_device_unrealize(DeviceState *qdev)
     if (gl->renderer_state >= RS_INITED) {
 #if VIRGL_VERSION_MAJOR >= 1
         qemu_bh_delete(gl->cmdq_resume_bh);
+        /*
+         * hostmem memory regions can be finalized after unrealize()
+         * returns (see below); their finalize path schedules
+         * cmdq_resume_bh, so NULL it out to let them detect that the
+         * BH is gone instead of touching a deleted BH.
+         */
+        gl->cmdq_resume_bh = NULL;
 
         if (gl->async_fence_bh) {
             virtio_gpu_virgl_reset_async_fences(g);
             qemu_bh_delete(gl->async_fence_bh);
+            gl->async_fence_bh = NULL;
         }
 #endif
         if (virtio_gpu_stats_enabled(g->parent_obj.conf)) {

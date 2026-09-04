@@ -134,7 +134,9 @@ static void virtio_gpu_virgl_hostmem_region_finalize(Object *obj)
      * context.
      */
     gl = VIRTIO_GPU_GL(vmr->g);
-    qemu_bh_schedule(gl->cmdq_resume_bh);
+    if (gl->cmdq_resume_bh) {
+        qemu_bh_schedule(gl->cmdq_resume_bh);
+    }
 }
 
 static const TypeInfo virtio_gpu_virgl_hostmem_region_info = {
@@ -1294,7 +1296,9 @@ virtio_gpu_virgl_push_async_fence(VirtIOGPU *g, uint32_t ctx_id,
 
     QSLIST_INSERT_HEAD_ATOMIC(&gl->async_fenceq, f, next);
 
-    qemu_bh_schedule(gl->async_fence_bh);
+    if (gl->async_fence_bh) {
+        qemu_bh_schedule(gl->async_fence_bh);
+    }
 }
 
 static void virgl_write_async_fence(void *opaque, uint32_t fence)
