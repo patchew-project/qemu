@@ -1791,6 +1791,7 @@ static void sdhci_bus_class_init(ObjectClass *klass, const void *data)
 #define ESDHC_TUNING_CTRL               0xcc
 #define ESDHC_TUNE_CTRL_STATUS          0x68
 #define ESDHC_WTMK_LVL                  0x44
+#define ESDHC_SYSCTL_RSTA               BIT(24)
 
 /* Undocumented register used by guests working around erratum ERR004536 */
 #define ESDHC_UNDOCUMENTED_REG27        0x6c
@@ -2084,6 +2085,32 @@ usdhc_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
          * infrastructure handle the rest
          */
         sdhci_write(opaque, offset, val | s->trnmod, size);
+        break;
+
+    case SDHC_CLKCON:
+        if (value & ESDHC_SYSCTL_RSTA) {
+            uint16_t norintstsen = s->norintstsen;
+            uint16_t errintstsen = s->errintstsen;
+
+            esdhc_write(opaque, offset, val, size);
+
+            /*
+             * U-Boot programs INT_STATUS_EN in fsl_esdhc_init(), then issues
+             * another RSTA from esdhc_init_common(). It only clears BRR/BWR
+             * after that reset and relies on the remaining enables while
+             * polling INT_STATUS for command, transfer, and error completion.
+             *
+             * The generic SDHCI reset clears both status-enable fields,
+             * leaving U-Boot with no completion status. Preserve them across
+             * this uSDHC-specific RSTA path. Signal enables still follow
+             * generic reset semantics because U-Boot disables interrupt
+             * signaling for polling.
+             */
+            s->norintstsen = norintstsen;
+            s->errintstsen = errintstsen;
+        } else {
+            esdhc_write(opaque, offset, val, size);
+        }
         break;
 
     default:
