@@ -1165,6 +1165,28 @@ static bool smmuv3_accel_vmstate_post_load(void *opaque, int version_id,
         return false;
     }
 
+    if (!s->s_accel->viommu) {
+        return true;
+    }
+
+    /* Normally done by the A_CR0 write handler, which is not replayed. */
+    if (!smmuv3_accel_alloc_veventq(s, errp)) {
+        error_prepend(errp, "Failed to restore the vEVENTQ: ");
+        return false;
+    }
+
+    /* smmuv3/gbpa is listed before this subsection, so it is in place */
+    if (!smmuv3_accel_attach_gbpa_hwpt(s, errp)) {
+        error_prepend(errp, "Failed to restore the GBPA HWPT: ");
+        return false;
+    }
+
+    /* Everything else comes from guest memory, which is already restored. */
+    if (!smmuv3_accel_replay_stes(s, errp)) {
+        error_prepend(errp, "Failed to replay the stream table: ");
+        return false;
+    }
+
     return true;
 }
 
