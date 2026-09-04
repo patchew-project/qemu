@@ -263,6 +263,11 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
         con = s->con;
 
         if (m->width == 0) {
+            if (g->dmabuf[m->scanout_id]) {
+                qemu_console_gl_release_dmabuf(con, g->dmabuf[m->scanout_id]);
+                g_clear_pointer(&g->dmabuf[m->scanout_id], qemu_dmabuf_free);
+                qemu_console_gl_scanout_disable(con);
+            }
             qemu_console_set_surface(con, NULL);
         } else {
             s->ds = qemu_create_displaysurface(m->width, m->height);
@@ -631,6 +636,10 @@ vhost_user_gpu_instance_finalize(Object *obj)
 {
     VhostUserGPU *g = VHOST_USER_GPU(obj);
 
+    for (int i = 0; i < g->parent_obj.conf.max_outputs; i++) {
+        g_clear_pointer(&g->dmabuf[i], qemu_dmabuf_free);
+    }
+
     object_unref(OBJECT(g->vhost));
 }
 
@@ -638,6 +647,15 @@ static void
 vhost_user_gpu_reset(VirtIODevice *vdev)
 {
     VhostUserGPU *g = VHOST_USER_GPU(vdev);
+
+    for (int i = 0; i < g->parent_obj.conf.max_outputs; i++) {
+        if (g->dmabuf[i]) {
+            QemuConsole *con = g->parent_obj.scanout[i].con;
+            qemu_console_gl_release_dmabuf(con, g->dmabuf[i]);
+            g_clear_pointer(&g->dmabuf[i], qemu_dmabuf_free);
+            qemu_console_gl_scanout_disable(con);
+        }
+    }
 
     virtio_gpu_base_reset(VIRTIO_GPU_BASE(vdev));
 
