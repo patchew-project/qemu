@@ -3361,6 +3361,13 @@ out:
     return co.ret;
 }
 
+uint32_t bdrv_zone_index(BlockDriverState *bs, uint64_t offset)
+{
+    IO_CODE();
+
+    return offset >> ctz64(bs->bl.zone_size);
+}
+
 void *qemu_blockalign(BlockDriverState *bs, size_t size)
 {
     IO_CODE();
