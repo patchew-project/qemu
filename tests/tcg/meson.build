@@ -263,8 +263,8 @@ foreach target, plan: tcg_tests
     endif
 
     if not has_cc and has_docker
-      build_test_depends = image_targets[cc_dockerfile]
-      build_test_depend_files = dockerfile
+      build_test_depends += image_targets[cc_dockerfile]
+      build_test_depend_files += dockerfile
       mount = meson.project_source_root()
       mount = mount + ':' + mount
       here = meson.project_build_root()
