@@ -1037,6 +1037,12 @@ static uint64_t smmuv3_accel_get_viommu_flags(void *opaque)
     SMMUState *bs = opaque;
     SMMUv3State *s = ARM_SMMUV3(bs);
 
+    /*
+     * The guest owns Stage 1, so the Stage 2 parent is the only page table
+     * the host can track guest writes through.
+     */
+    flags |= VIOMMU_FLAG_WANT_NESTING_DIRTY_TRACKING;
+
     if (smmuv3_pasid_supported(s)) {
         flags |= VIOMMU_FLAG_PASID_SUPPORTED;
     }
