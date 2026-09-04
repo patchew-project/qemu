@@ -46,7 +46,7 @@ void *qcrypto_hmac_ctx_new(QCryptoHashAlgo alg,
                            const uint8_t *key, size_t nkey,
                            Error **errp)
 {
-    QCryptoHmacGlib *ctx;
+    g_autofree QCryptoHmacGlib *ctx = NULL;
 
     if (!qcrypto_hmac_supports(alg)) {
         error_setg(errp, "Unsupported hmac algorithm %s",
@@ -60,14 +60,10 @@ void *qcrypto_hmac_ctx_new(QCryptoHashAlgo alg,
                             (const uint8_t *)key, nkey);
     if (!ctx->ghmac) {
         error_setg(errp, "Cannot initialize hmac and set key");
-        goto error;
+        return NULL;
     }
 
-    return ctx;
-
-error:
-    g_free(ctx);
-    return NULL;
+    return g_steal_pointer(&ctx);
 }
 
 static void

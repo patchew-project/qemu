@@ -55,7 +55,7 @@ QCryptoBlock *qcrypto_block_open(QCryptoBlockOpenOptions *options,
                                  unsigned int flags,
                                  Error **errp)
 {
-    QCryptoBlock *block = g_new0(QCryptoBlock, 1);
+    g_autofree QCryptoBlock *block = g_new0(QCryptoBlock, 1);
 
     qemu_mutex_init(&block->mutex);
 
@@ -65,7 +65,6 @@ QCryptoBlock *qcrypto_block_open(QCryptoBlockOpenOptions *options,
         !qcrypto_block_drivers[options->format]) {
         error_setg(errp, "Unsupported block driver %s",
                    QCryptoBlockFormat_str(options->format));
-        g_free(block);
         return NULL;
     }
 
@@ -74,11 +73,10 @@ QCryptoBlock *qcrypto_block_open(QCryptoBlockOpenOptions *options,
     if (block->driver->open(block, options, optprefix,
                             readfunc, opaque, flags, errp) < 0)
     {
-        g_free(block);
         return NULL;
     }
 
-    return block;
+    return g_steal_pointer(&block);
 }
 
 
@@ -90,7 +88,7 @@ QCryptoBlock *qcrypto_block_create(QCryptoBlockCreateOptions *options,
                                    unsigned int flags,
                                    Error **errp)
 {
-    QCryptoBlock *block = g_new0(QCryptoBlock, 1);
+    g_autofree QCryptoBlock *block = g_new0(QCryptoBlock, 1);
 
     qemu_mutex_init(&block->mutex);
 
@@ -100,7 +98,6 @@ QCryptoBlock *qcrypto_block_create(QCryptoBlockCreateOptions *options,
         !qcrypto_block_drivers[options->format]) {
         error_setg(errp, "Unsupported block driver %s",
                    QCryptoBlockFormat_str(options->format));
-        g_free(block);
         return NULL;
     }
 
@@ -109,11 +106,10 @@ QCryptoBlock *qcrypto_block_create(QCryptoBlockCreateOptions *options,
 
     if (block->driver->create(block, options, optprefix, initfunc,
                               writefunc, opaque, errp) < 0) {
-        g_free(block);
         return NULL;
     }
 
-    return block;
+    return g_steal_pointer(&block);
 }
 
 
@@ -185,17 +181,16 @@ int qcrypto_block_amend_options(QCryptoBlock *block,
 QCryptoBlockInfo *qcrypto_block_get_info(QCryptoBlock *block,
                                          Error **errp)
 {
-    QCryptoBlockInfo *info = g_new0(QCryptoBlockInfo, 1);
+    g_autofree QCryptoBlockInfo *info = g_new0(QCryptoBlockInfo, 1);
 
     info->format = block->format;
 
     if (block->driver->get_info &&
         block->driver->get_info(block, info, errp) < 0) {
-        g_free(info);
         return NULL;
     }
 
-    return info;
+    return g_steal_pointer(&info);
 }
 
 
