@@ -1068,3 +1068,7 @@ void hvf_arch_remove_all_gdbstub_hw_breakpoints(void)
 void hvf_arch_update_guest_debug(CPUState *cpu)
 {
 }
+
+void hvf_arch_accel_class_init(ObjectClass *oc)
+{
+}
