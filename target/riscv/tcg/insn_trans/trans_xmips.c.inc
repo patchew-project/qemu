@@ -31,6 +31,7 @@
 static bool trans_ccmov(DisasContext *ctx, arg_ccmov *a)
 {
     REQUIRE_XMIPSCMOV(ctx);
+    REQUIRE_64_OR_128BIT(ctx);
 
     TCGv zero, source1, source2, source3;
     zero = tcg_constant_tl(0);
@@ -74,6 +75,7 @@ static bool trans_lwp(DisasContext *ctx, arg_lwp *a)
     MemOp memop = MO_SL | ctx->mo_endianness;
 
     REQUIRE_XMIPSLSP(ctx);
+    REQUIRE_64_OR_128BIT(ctx);
 
     TCGv src = get_gpr(ctx, a->rs1, EXT_NONE);
     TCGv dest0 = dest_gpr(ctx, a->rd);
@@ -119,6 +121,7 @@ static bool trans_swp(DisasContext *ctx, arg_swp *a)
     MemOp memop = MO_SL | ctx->mo_endianness;
 
     REQUIRE_XMIPSLSP(ctx);
+    REQUIRE_64_OR_128BIT(ctx);
 
     TCGv src = get_gpr(ctx, a->rs1, EXT_NONE);
     TCGv data0 = get_gpr(ctx, a->rs2, EXT_NONE);
@@ -138,6 +141,7 @@ static bool trans_swp(DisasContext *ctx, arg_swp *a)
 static bool trans_pref(DisasContext *ctx, arg_pref *a)
 {
     REQUIRE_XMIPSCBOP(ctx);
+    REQUIRE_64_OR_128BIT(ctx);
 
     /* Nop */
     return true;
