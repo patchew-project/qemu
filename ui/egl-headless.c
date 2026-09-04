@@ -126,6 +126,8 @@ static void egl_cursor_dmabuf(DisplayChangeListener *dcl,
 static void egl_release_dmabuf(DisplayChangeListener *dcl,
                                QemuDmaBuf *dmabuf)
 {
+    eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE,
+                   EGL_NO_SURFACE, qemu_egl_rn_ctx);
     egl_dmabuf_release_texture(dmabuf);
 }
 
