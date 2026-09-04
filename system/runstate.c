@@ -979,7 +979,8 @@ static void qemu_system_shutdown_request_safe(ShutdownCause reason)
 {
     shutdown_requested = reason;
     if (reason == SHUTDOWN_CAUSE_HOST_QMP_QUIT ||
-        reason == SHUTDOWN_CAUSE_HOST_SIGNAL) {
+        reason == SHUTDOWN_CAUSE_HOST_SIGNAL ||
+        reason == SHUTDOWN_CAUSE_HOST_UI) {
         force_shutdown = true;
     }
     qemu_notify_event();
