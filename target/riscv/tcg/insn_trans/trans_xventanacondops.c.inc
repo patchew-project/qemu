@@ -18,10 +18,12 @@
 
 static bool trans_vt_maskc(DisasContext *ctx, arg_r *a)
 {
+    REQUIRE_64_OR_128BIT(ctx);
     return gen_logic(ctx, a, gen_czero_eqz);
 }
 
 static bool trans_vt_maskcn(DisasContext *ctx, arg_r *a)
 {
+    REQUIRE_64_OR_128BIT(ctx);
     return gen_logic(ctx, a, gen_czero_nez);
 }
