@@ -192,18 +192,34 @@ static const MemoryRegionOps mchp_pfsoc_io_calib_ddr_ops = {
 
 #define SERVICES_CR                         0x50
 #define SERVICES_CR_REQUEST                 BIT(0)
+#define SERVICES_CR_NOTIFY                  BIT(3)
 #define SERVICES_CR_COMMAND_SHIFT           16
 #define SERVICES_CR_COMMAND_WIDTH           8
 #define SERVICES_CR_COMMAND_MASK            \
         MAKE_64BIT_MASK(SERVICES_CR_COMMAND_SHIFT, SERVICES_CR_COMMAND_WIDTH)
 #define SERVICES_CR_MASK                    \
-        (SERVICES_CR_REQUEST | SERVICES_CR_COMMAND_MASK)
+        (SERVICES_CR_REQUEST | SERVICES_CR_NOTIFY | SERVICES_CR_COMMAND_MASK)
 #define SERVICES_SR                         0x54
 #define SERVICES_SR_STATUS_SHIFT            16
 #define SERVICES_COMMAND_SERIAL_NUMBER      0
 #define SERVICES_STATUS_SUCCESS             0
 #define SERVICES_STATUS_FAILED              1
 #define SERVICES_MAILBOX_RESPONSE_OFFSET    0
+
+static void mchp_pfsoc_ioscb_update_irq(MchpPfSoCIoscbState *s)
+{
+    qemu_set_irq(s->irq, s->irq_pending);
+}
+
+static void mchp_pfsoc_ioscb_clear_irq(void *opaque, int n, int level)
+{
+    MchpPfSoCIoscbState *s = opaque;
+
+    if (level) {
+        s->irq_pending = false;
+        mchp_pfsoc_ioscb_update_irq(s);
+    }
+}
 
 static void services_cr_write(MchpPfSoCIoscbState *s, uint32_t value)
 {
@@ -236,7 +252,15 @@ static void services_cr_write(MchpPfSoCIoscbState *s, uint32_t value)
     }
 
     s->services_sr = status << SERVICES_SR_STATUS_SHIFT;
-    qemu_irq_raise(s->irq);
+    /*
+     * HSS and U-Boot submit polling requests with REQUEST set and NOTIFY
+     * clear, then poll REQUEST/BUSY for completion. Linux sets both bits
+     * and expects completion through PLIC source 96.
+     */
+    if (value & SERVICES_CR_NOTIFY) {
+        s->irq_pending = true;
+        mchp_pfsoc_ioscb_update_irq(s);
+    }
 }
 
 static uint64_t mchp_pfsoc_ctrl_read(void *opaque, hwaddr offset,
@@ -325,13 +349,21 @@ static void mchp_pfsoc_ioscb_reset(DeviceState *dev)
     s->services_cr = 0;
     s->services_sr = 0;
     memset(s->mailbox_data, 0, sizeof(s->mailbox_data));
-    qemu_irq_lower(s->irq);
+    s->irq_pending = false;
+    mchp_pfsoc_ioscb_update_irq(s);
 }
 
 static const Property mchp_pfsoc_ioscb_properties[] = {
     DEFINE_PROP_STRING(IOSCB_PROP_SERIAL_NUMBER,
                        MchpPfSoCIoscbState, serial_number),
 };
+
+static void mchp_pfsoc_ioscb_init(Object *obj)
+{
+    /* Accept service interrupt acknowledgements from SYSREG MESSAGE_INT */
+    qdev_init_gpio_in_named(DEVICE(obj), mchp_pfsoc_ioscb_clear_irq,
+                            MCHP_PFSOC_IOSCB_IRQ_CLEAR, 1);
+}
 
 static void mchp_pfsoc_ioscb_realize(DeviceState *dev, Error **errp)
 {
@@ -456,6 +488,7 @@ static const TypeInfo mchp_pfsoc_ioscb_info = {
     .name          = TYPE_MCHP_PFSOC_IOSCB,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MchpPfSoCIoscbState),
+    .instance_init = mchp_pfsoc_ioscb_init,
     .class_init    = mchp_pfsoc_ioscb_class_init,
 };
 

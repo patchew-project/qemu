@@ -26,6 +26,7 @@
 #include "hw/core/sysbus.h"
 
 #define MCHP_PFSOC_IOSCB_MAILBOX_SIZE 0x1000
+#define MCHP_PFSOC_IOSCB_IRQ_CLEAR "irq-clear"
 
 typedef struct MchpPfSoCIoscbState {
     SysBusDevice parent;
@@ -53,6 +54,7 @@ typedef struct MchpPfSoCIoscbState {
     uint32_t services_sr;
     uint8_t mailbox_data[MCHP_PFSOC_IOSCB_MAILBOX_SIZE];
     char *serial_number;
+    bool irq_pending;
     qemu_irq irq;
 } MchpPfSoCIoscbState;
 

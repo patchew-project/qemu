@@ -77,7 +77,14 @@ static void mchp_pfsoc_sysreg_write(void *opaque, hwaddr offset,
         }
         break;
     case MESSAGE_INT:
-        qemu_irq_lower(s->irq);
+        /*
+         * A MESSAGE_INT write is an acknowledgement event, not a level that
+         * remains asserted. Model it as an active-high pulse. The rising edge
+         * invokes IOSCB's irq-clear input with level 1, which clears
+         * irq_pending and lowers PLIC source 96. The falling edge invokes the
+         * input with level 0 and is ignored.
+         */
+        qemu_irq_pulse(s->irq);
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
