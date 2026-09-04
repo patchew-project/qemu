@@ -3514,7 +3514,6 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: include/qemu/main-loop.h
 F: include/system/runstate.h
-F: include/system/runstate-action.h
 F: util/main-loop.c
 F: util/qemu-timer*.c
 F: system/vl.c

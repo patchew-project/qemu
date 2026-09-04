@@ -37,7 +37,6 @@
 #include "ui/kbd-state.h"
 #include "system/system.h"
 #include "system/runstate.h"
-#include "system/runstate-action.h"
 #include "system/cpu-throttle.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-block.h"

@@ -22,7 +22,6 @@ system_ss.add(files(
   'qdev-monitor.c',
   'qtest.c',
   'rtc.c',
-  'runstate-action.c',
   'runstate.c',
   'watchpoint.c',
 ))
