@@ -1285,6 +1285,7 @@ static bool hvf_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
         FIELD_DP64_IDREG(&host_isar, ID_AA64PFR1, SME, 0);
         if (hvf_get_vhe()) {
             FIELD_DP64_IDREG(&host_isar, ID_AA64MMFR1, VH, 0x1);
+            FIELD_DP64_IDREG(&host_isar, ID_AA64MMFR4, E2H0, 0xf);
         }
         /* Hyper-V doesn't launch if EL3 isn't advertised. */
         FIELD_DP64_IDREG(&host_isar, ID_AA64PFR0, EL3, 0x1);
