@@ -288,6 +288,7 @@ void sdl2_gl_release_dmabuf(DisplayChangeListener *dcl,
 {
     struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
 
+    SDL_GL_MakeCurrent(scon->real_window, scon->winctx);
     egl_dmabuf_release_texture(dmabuf);
     if (scon->guest_fb.dmabuf == dmabuf) {
         scon->guest_fb.dmabuf = NULL;
