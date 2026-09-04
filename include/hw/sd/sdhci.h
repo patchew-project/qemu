@@ -118,6 +118,11 @@ typedef struct SDHCIState SDHCIState;
  * SDHCI clock-control fields
  */
 #define SDHCI_QUIRK_CLOCKS_IN_VENDOR     BIT(1)
+/*
+ * Controller completes contiguous SDMA transfers without the standard
+ * intermediate buffer-boundary stop and address-update handshake
+ */
+#define SDHCI_QUIRK_NO_SDMA_BOUNDARY     BIT(2)
 
 #define TYPE_PCI_SDHCI "sdhci-pci"
 DECLARE_INSTANCE_CHECKER(SDHCIState, PCI_SDHCI,
