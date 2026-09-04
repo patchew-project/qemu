@@ -127,4 +127,16 @@ void aspeed_machine_ast2600_class_emmc_init(ObjectClass *oc);
  */
 void aspeed_connect_serial_hds_to_uarts(AspeedMachineState *bmc);
 
+/*
+ * aspeed_machine_add_label:
+ * @bmc: pointer to the #AspeedMachineState.
+ * @label: the label name for the device.
+ * @target: the device object to register.
+ *
+ * Register a well-known device under /machine/labels/<label> as a
+ * read-only link.  Aborts on duplicate label names.
+ */
+void aspeed_machine_add_label(AspeedMachineState *bmc, const char *label,
+                              Object *target);
+
 #endif

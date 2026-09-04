@@ -126,6 +126,14 @@ void aspeed_connect_serial_hds_to_uarts(AspeedMachineState *bmc)
     }
 }
 
+void aspeed_machine_add_label(AspeedMachineState *bmc, const char *label,
+                              Object *target)
+{
+    Object *labels = object_resolve_path_component(OBJECT(bmc), "labels");
+
+    object_property_add_const_link(labels, label, target);
+}
+
 static void aspeed_machine_init(MachineState *machine)
 {
     AspeedMachineState *bmc = ASPEED_MACHINE(machine);
@@ -135,6 +143,8 @@ static void aspeed_machine_init(MachineState *machine)
     const char *bios_name = NULL;
     DriveInfo *emmc0 = NULL;
     bool boot_emmc;
+
+    object_property_add_new_container(OBJECT(machine), "labels");
 
     bmc->soc = ASPEED_SOC(object_new(amc->soc_name));
     object_property_add_child(OBJECT(machine), "soc", OBJECT(bmc->soc));
