@@ -2,6 +2,7 @@
  * QEMU main system emulation loop
  *
  * Copyright (c) 2003-2020 QEMU contributors
+ * Copyright (c) 2020 Oracle and/or its affiliates.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -58,7 +59,6 @@
 #include "system/replay.h"
 #include "system/reset.h"
 #include "system/runstate.h"
-#include "system/runstate-action.h"
 #include "system/confidential-guest-support.h"
 #include "system/system.h"
 #include "system/tpm.h"
@@ -74,6 +74,10 @@ static RunState current_run_state = RUN_STATE_PRELAUNCH;
 /* We use RUN_STATE__MAX but any invalid value will do */
 static RunState vmstop_requested = RUN_STATE__MAX;
 static QemuMutex vmstop_lock;
+
+static RebootAction reboot_action = REBOOT_ACTION_RESET;
+static ShutdownAction shutdown_action = SHUTDOWN_ACTION_POWEROFF;
+static PanicAction panic_action = PANIC_ACTION_SHUTDOWN;
 
 typedef struct {
     RunState from;
@@ -275,6 +279,34 @@ StatusInfo *qmp_query_status(Error **errp)
     info->status = current_run_state;
 
     return info;
+}
+
+/*
+ * Receives actions to be applied for specific guest events
+ * and sets the internal state as requested.
+ */
+void qmp_set_action(bool has_reboot, RebootAction reboot,
+                    bool has_shutdown, ShutdownAction shutdown,
+                    bool has_panic, PanicAction panic,
+                    bool has_watchdog, WatchdogAction watchdog,
+                    Error **errp)
+{
+    if (has_reboot) {
+        reboot_action = reboot;
+    }
+
+    if (has_panic) {
+        panic_action = panic;
+    }
+
+    if (has_watchdog) {
+        qmp_watchdog_set_action(watchdog, errp);
+    }
+
+    /* Process shutdown last, in case the panic action needs to be altered */
+    if (has_shutdown) {
+        shutdown_action = shutdown;
+    }
 }
 
 bool qemu_vmstop_requested(RunState *r)

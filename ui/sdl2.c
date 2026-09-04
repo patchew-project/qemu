@@ -30,7 +30,6 @@
 #include "ui/input.h"
 #include "ui/sdl2.h"
 #include "system/runstate.h"
-#include "system/runstate-action.h"
 #include "system/system.h"
 #include "qemu/log.h"
 #include "qemu-main.h"

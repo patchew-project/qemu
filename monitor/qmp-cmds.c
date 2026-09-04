@@ -22,7 +22,6 @@
 #include "system/system.h"
 #include "system/kvm.h"
 #include "system/runstate.h"
-#include "system/runstate-action.h"
 #include "system/block-backend.h"
 #include "qapi/error.h"
 #include "qapi/qapi-init-commands.h"
