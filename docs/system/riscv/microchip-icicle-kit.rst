@@ -27,6 +27,7 @@ The ``microchip-icicle-kit`` machine supports the following devices:
 * 1 SDHC storage controller
 
 The machine has a fixed 2 GiB of RAM. Other memory sizes are rejected.
+The machine always exposes all five harts. Other CPU counts are rejected.
 
 Boot options
 ------------
