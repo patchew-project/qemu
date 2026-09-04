@@ -112,7 +112,12 @@ typedef struct SDHCIState SDHCIState;
  * Controller does not provide transfer-complete interrupt when not
  * busy.
  */
-#define SDHCI_QUIRK_NO_BUSY_IRQ    BIT(0)
+#define SDHCI_QUIRK_NO_BUSY_IRQ          BIT(0)
+/*
+ * Controller uses vendor-specific clock gates in place of the standard
+ * SDHCI clock-control fields
+ */
+#define SDHCI_QUIRK_CLOCKS_IN_VENDOR     BIT(1)
 
 #define TYPE_PCI_SDHCI "sdhci-pci"
 DECLARE_INSTANCE_CHECKER(SDHCIState, PCI_SDHCI,

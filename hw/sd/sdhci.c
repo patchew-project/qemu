@@ -1069,9 +1069,11 @@ static void sdhci_data_transfer(void *opaque)
     }
 }
 
+static bool sdhci_clocks_on(SDHCIState *s);
+
 static bool sdhci_can_issue_command(SDHCIState *s)
 {
-    if (!SDHC_CLOCK_IS_ON(s->clkcon) ||
+    if (!sdhci_clocks_on(s) ||
         (((s->prnsts & SDHC_DATA_INHIBIT) || s->stopped_state) &&
         ((s->cmdreg & SDHC_CMD_DATA_PRESENT) ||
         ((s->cmdreg & SDHC_CMD_RESPONSE) == SDHC_CMD_RSP_WITH_BUSY &&
@@ -1779,6 +1781,10 @@ static void sdhci_bus_class_init(ObjectClass *klass, const void *data)
 
 #define ESDHC_VENDOR_SPEC               0xc0
 #define ESDHC_FRC_SDCLK_ON              (1 << 8)
+#define ESDHC_VENDOR_IPGEN              (1 << 11)
+#define ESDHC_VENDOR_HCKEN              (1 << 12)
+#define ESDHC_VENDOR_PEREN              (1 << 13)
+#define ESDHC_VENDOR_CKEN               (1 << 14)
 
 #define ESDHC_DLL_CTRL                  0x60
 
@@ -1794,6 +1800,16 @@ static void sdhci_bus_class_init(ObjectClass *klass, const void *data)
 
 #define ESDHC_PRNSTS_SDSTB              (1 << 3)
 #define ESDHC_PRNSTS_CLOCK_GATE_OFF     BIT(7)
+
+static bool sdhci_clocks_on(SDHCIState *s)
+{
+    uint32_t vendor_clocks = ESDHC_VENDOR_IPGEN | ESDHC_VENDOR_HCKEN |
+                             ESDHC_VENDOR_PEREN | ESDHC_VENDOR_CKEN;
+
+    return SDHC_CLOCK_IS_ON(s->clkcon) ||
+           ((s->quirks & SDHCI_QUIRK_CLOCKS_IN_VENDOR) &&
+            (s->vendor_spec & vendor_clocks) == vendor_clocks);
+}
 
 static uint64_t esdhc_read(void *opaque, hwaddr offset, unsigned size)
 {
@@ -1830,7 +1846,11 @@ static uint64_t esdhc_read(void *opaque, hwaddr offset, unsigned size)
     case SDHC_PRNSTS:
         /* Add SDSTB (SD Clock Stable) bit to PRNSTS */
         ret = sdhci_read(opaque, offset, size) & ~ESDHC_PRNSTS_SDSTB;
-        if (s->clkcon & SDHC_CLOCK_INT_STABLE) {
+        if ((s->clkcon & SDHC_CLOCK_INT_STABLE) ||
+            ((s->quirks & SDHCI_QUIRK_CLOCKS_IN_VENDOR) &&
+             (s->vendor_spec & (ESDHC_VENDOR_IPGEN |
+                                ESDHC_VENDOR_HCKEN)) ==
+             (ESDHC_VENDOR_IPGEN | ESDHC_VENDOR_HCKEN))) {
             ret |= ESDHC_PRNSTS_SDSTB;
         }
         break;
@@ -2089,7 +2109,8 @@ static void imx_usdhc_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
 
     s->io_ops = &usdhc_mmio_ops;
-    s->quirks = SDHCI_QUIRK_NO_BUSY_IRQ;
+    s->quirks = SDHCI_QUIRK_NO_BUSY_IRQ |
+                SDHCI_QUIRK_CLOCKS_IN_VENDOR;
     qdev_prop_set_uint8(dev, "sd-spec-version", 3);
 }
 
