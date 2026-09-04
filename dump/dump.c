@@ -1906,6 +1906,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
                 warn_report("Invalid guest note header");
                 g_free(s->guest_note);
                 s->guest_note = NULL;
+                s->guest_note_size = 0;
             } else {
                 vmcoreinfo_update_phys_base(s);
                 s->note_size += s->guest_note_size;
