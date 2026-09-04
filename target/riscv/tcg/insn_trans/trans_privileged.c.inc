@@ -155,7 +155,11 @@ static bool trans_sfence_vma(DisasContext *ctx, arg_sfence_vma *a)
 {
 #ifndef CONFIG_USER_ONLY
     decode_save_opc(ctx, 0);
-    gen_helper_tlb_flush(tcg_env);
+    if (a->rs1 == 0) {
+        gen_helper_tlb_flush(tcg_env);
+    } else {
+        gen_helper_tlb_flush_page(tcg_env, get_address(ctx, a->rs1, 0));
+    }
     return true;
 #endif
     return false;
