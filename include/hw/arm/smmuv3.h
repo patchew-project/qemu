@@ -26,6 +26,9 @@
 
 #define TYPE_SMMUV3_IOMMU_MEMORY_REGION "smmuv3-iommu-memory-region"
 
+/* Number of IDR registers, IDR0 to IDR5 */
+#define SMMU_NUM_IDR 6
+
 typedef struct SMMUQueue {
      uint64_t base; /* base register */
      uint32_t prod;
@@ -41,7 +44,9 @@ struct SMMUv3State {
     uint8_t sid_size;
     uint8_t sid_split;
 
-    uint32_t idr[6];
+    uint32_t idr[SMMU_NUM_IDR];
+    /* Locally resolved IDRs, saved by pre_load for post_load to check */
+    uint32_t local_idr[SMMU_NUM_IDR];
     uint32_t iidr;
     uint32_t aidr;
     uint32_t cr[3];

@@ -8,6 +8,7 @@
 #include "qapi/error.h"
 #include "hw/arm/smmuv3.h"
 #include "hw/arm/smmuv3-accel.h"
+#include "migration/vmstate.h"
 
 bool smmuv3_accel_init(SMMUv3State *s, Error **errp)
 {
@@ -53,6 +54,17 @@ int smmuv3_accel_event_read_validate(IOMMUFDVeventq *veventq, uint32_t type,
     return 0;
 }
 
+static bool smmuv3_accel_vmstate_needed(void *opaque)
+{
+    return false;
+}
+
+const VMStateDescription vmstate_smmuv3_accel = {
+    .name = "smmuv3/accel",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = smmuv3_accel_vmstate_needed,
+};
 
 void smmuv3_accel_reset(SMMUv3State *s)
 {
