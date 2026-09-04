@@ -25,6 +25,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/sd/cadence_sdhci.h"
 #include "sdhci-internal.h"
 
@@ -147,6 +148,11 @@ static void cadence_sdhci_realize(DeviceState *dev, Error **errp)
                           s, TYPE_CADENCE_SDHCI, CADENCE_SDHCI_REG_SIZE);
     memory_region_add_subregion(&s->container, 0, &s->iomem);
 
+    if (s->bus64bit) {
+        object_property_set_uint(OBJECT(&s->sdhci), "capareg",
+                                 SDHC_CAPAB_REG_DEFAULT |
+                                 R_SDHC_CAPAB_BUS64BIT_MASK, &error_abort);
+    }
     sysbus_realize(sbd_sdhci, errp);
     memory_region_add_subregion(&s->container, CADENCE_SDHCI_SRS_BASE,
                                 sysbus_mmio_get_region(sbd_sdhci, 0));
@@ -165,6 +171,10 @@ static const VMStateDescription vmstate_cadence_sdhci = {
     },
 };
 
+static const Property cadence_sdhci_properties[] = {
+    DEFINE_PROP_BOOL("bus64bit", CadenceSDHCIState, bus64bit, false),
+};
+
 static void cadence_sdhci_class_init(ObjectClass *classp, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(classp);
@@ -172,6 +182,7 @@ static void cadence_sdhci_class_init(ObjectClass *classp, const void *data)
     dc->desc = "Cadence SD/SDIO/eMMC Host Controller (SD4HC)";
     dc->realize = cadence_sdhci_realize;
     device_class_set_legacy_reset(dc, cadence_sdhci_reset);
+    device_class_set_props(dc, cadence_sdhci_properties);
     dc->vmsd = &vmstate_cadence_sdhci;
 }
 
