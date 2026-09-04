@@ -18,6 +18,7 @@
 
 #include "smmuv3-internal.h"
 #include "smmuv3-accel.h"
+#include "migration/blocker.h"
 #include "migration/vmstate.h"
 #include "system/runstate.h"
 #include "system/system.h"
@@ -801,6 +802,16 @@ smmuv3_accel_select_cmdqv(SMMUv3State *s, HostIOMMUDeviceIOMMUFD *idev,
         return false;
     }
     s->s_accel->cmdqv_ops = ops;
+
+    /* No support for CMDQV migration for now */
+    if (ops) {
+        error_setg(&s->migration_blocker,
+                   "Migration is not supported with SMMUv3 CMDQV enabled");
+        if (migrate_add_blocker(&s->migration_blocker, errp) < 0) {
+            return false;
+        }
+    }
+
     return true;
 }
 
