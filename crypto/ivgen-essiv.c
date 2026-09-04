@@ -31,10 +31,10 @@ static int qcrypto_ivgen_essiv_init(QCryptoIVGen *ivgen,
                                     const uint8_t *key, size_t nkey,
                                     Error **errp)
 {
-    uint8_t *salt;
+    g_autofree uint8_t *salt = NULL;
     size_t nhash;
     size_t nsalt;
-    QCryptoIVGenESSIV *essiv = g_new0(QCryptoIVGenESSIV, 1);
+    g_autofree QCryptoIVGenESSIV *essiv = g_new0(QCryptoIVGenESSIV, 1);
 
     /* Not necessarily the same as nkey */
     nsalt = qcrypto_cipher_get_key_len(ivgen->cipher);
@@ -46,8 +46,6 @@ static int qcrypto_ivgen_essiv_init(QCryptoIVGen *ivgen,
     if (qcrypto_hash_bytes(ivgen->hash, (const gchar *)key, nkey,
                            &salt, &nhash,
                            errp) < 0) {
-        g_free(essiv);
-        g_free(salt);
         return -1;
     }
 
@@ -57,13 +55,10 @@ static int qcrypto_ivgen_essiv_init(QCryptoIVGen *ivgen,
                                        salt, MIN(nhash, nsalt),
                                        errp);
     if (!essiv->cipher) {
-        g_free(essiv);
-        g_free(salt);
         return -1;
     }
 
-    g_free(salt);
-    ivgen->private = essiv;
+    ivgen->private = g_steal_pointer(&essiv);
 
     return 0;
 }
@@ -75,7 +70,7 @@ static int qcrypto_ivgen_essiv_calculate(QCryptoIVGen *ivgen,
 {
     QCryptoIVGenESSIV *essiv = ivgen->private;
     size_t ndata = qcrypto_cipher_get_block_len(ivgen->cipher);
-    uint8_t *data = g_new(uint8_t, ndata);
+    g_autofree uint8_t *data = g_new(uint8_t, ndata);
 
     sector = cpu_to_le64(sector);
     memcpy(data, (uint8_t *)&sector, MIN(sizeof(sector), ndata));
@@ -88,7 +83,6 @@ static int qcrypto_ivgen_essiv_calculate(QCryptoIVGen *ivgen,
                                data,
                                ndata,
                                errp) < 0) {
-        g_free(data);
         return -1;
     }
 
@@ -99,7 +93,6 @@ static int qcrypto_ivgen_essiv_calculate(QCryptoIVGen *ivgen,
     if (ndata < niv) {
         memset(iv + ndata, 0, niv - ndata);
     }
-    g_free(data);
     return 0;
 }
 
