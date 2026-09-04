@@ -11,6 +11,9 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/units.h"
+#include "qapi/error.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/core/register.h"
 #include "hw/core/registerfields.h"
 #include "hw/misc/mchp_pfsoc_l2cc.h"
@@ -39,6 +42,25 @@ REG64(L2_WAY_MASK_HART4_DCACHE, 0x868)
 REG64(L2_WAY_MASK_HART4_ICACHE, 0x870)
 
 #define L2_CONFIG_RESET         0x06091004
+#define L2_LIM_WAY_COUNT        15
+#define L2_WAY_SIZE             (128 * KiB)
+
+static void mchp_pfsoc_l2cc_update_l2lim(MchpPfSoCL2ccState *s,
+                                         uint64_t way_enable)
+{
+    uint64_t l2lim_size;
+
+    if (way_enable >= L2_LIM_WAY_COUNT) {
+        l2lim_size = 0;
+    } else {
+        l2lim_size = (L2_LIM_WAY_COUNT - way_enable) * L2_WAY_SIZE;
+    }
+
+    memory_region_transaction_begin();
+    memory_region_set_size(s->l2lim, l2lim_size);
+    memory_region_set_enabled(s->l2lim, l2lim_size != 0);
+    memory_region_transaction_commit();
+}
 
 static uint64_t mchp_pfsoc_l2cc_way_enable_pre_write(RegisterInfo *reg,
                                                      uint64_t value)
@@ -46,6 +68,14 @@ static uint64_t mchp_pfsoc_l2cc_way_enable_pre_write(RegisterInfo *reg,
     uint64_t current = *(uint64_t *)reg->data;
 
     return MAX(current, value);
+}
+
+static void mchp_pfsoc_l2cc_way_enable_post_write(RegisterInfo *reg,
+                                                  uint64_t value)
+{
+    MchpPfSoCL2ccState *s = MCHP_PFSOC_L2CC(reg->opaque);
+
+    mchp_pfsoc_l2cc_update_l2lim(s, value);
 }
 
 #define WAY_MASK_REGISTER(_name)                \
@@ -66,6 +96,7 @@ static const RegisterAccessInfo mchp_pfsoc_l2cc_regs_info[] = {
         .addr = A_L2_WAY_ENABLE,
         .rsvd = ~R_L2_WAY_ENABLE_VALUE_MASK,
         .pre_write = mchp_pfsoc_l2cc_way_enable_pre_write,
+        .post_write = mchp_pfsoc_l2cc_way_enable_post_write,
     },
     WAY_MASK_REGISTER(DMA),
     WAY_MASK_REGISTER(AXI4_PORT_0),
@@ -157,11 +188,31 @@ static void mchp_pfsoc_l2cc_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &reg_array->mem);
 }
 
+static void mchp_pfsoc_l2cc_realize(DeviceState *dev, Error **errp)
+{
+    MchpPfSoCL2ccState *s = MCHP_PFSOC_L2CC(dev);
+
+    if (!s->l2lim) {
+        error_setg(errp, TYPE_MCHP_PFSOC_L2CC ": 'l2-lim' link not set");
+        return;
+    }
+
+    mchp_pfsoc_l2cc_update_l2lim(s, s->regs[R_L2_WAY_ENABLE]);
+}
+
+static const Property mchp_pfsoc_l2cc_properties[] = {
+    DEFINE_PROP_LINK("l2-lim", MchpPfSoCL2ccState, l2lim,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
+};
+
 static void mchp_pfsoc_l2cc_class_init(ObjectClass *klass, const void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     rc->phases.hold = mchp_pfsoc_l2cc_reset_hold;
+    device_class_set_props(dc, mchp_pfsoc_l2cc_properties);
+    dc->realize = mchp_pfsoc_l2cc_realize;
 }
 
 static const TypeInfo mchp_pfsoc_l2cc_info = {

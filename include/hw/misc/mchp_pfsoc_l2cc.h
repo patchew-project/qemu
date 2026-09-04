@@ -22,6 +22,7 @@ typedef struct MchpPfSoCL2ccState {
     SysBusDevice parent;
     uint64_t regs[MCHP_PFSOC_L2CC_REG_NUM];
     RegisterInfo regs_info[MCHP_PFSOC_L2CC_REG_NUM];
+    MemoryRegion *l2lim;
 } MchpPfSoCL2ccState;
 
 #define TYPE_MCHP_PFSOC_L2CC "mchp.pfsoc.l2cc"

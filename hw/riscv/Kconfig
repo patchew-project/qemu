@@ -18,6 +18,7 @@ config MICROCHIP_PFSOC
     select DEVICE_TREE
     select MCHP_PFSOC_DMC
     select MCHP_PFSOC_IOSCB
+    select MCHP_PFSOC_L2CC
     select MCHP_PFSOC_MMUART
     select MCHP_PFSOC_SYSREG
     select RISCV_ACLINT

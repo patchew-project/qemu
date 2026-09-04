@@ -174,6 +174,9 @@ static void microchip_pfsoc_soc_instance_init(Object *obj)
     object_initialize_child(obj, "dma-controller", &s->dma,
                             TYPE_SIFIVE_PDMA);
 
+    object_initialize_child(obj, "l2-cache-controller", &s->l2cc,
+                            TYPE_MCHP_PFSOC_L2CC);
+
     object_initialize_child(obj, "sysreg", &s->sysreg,
                             TYPE_MCHP_PFSOC_SYSREG);
 
@@ -260,24 +263,22 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
         RISCV_ACLINT_DEFAULT_MTIMECMP, RISCV_ACLINT_DEFAULT_MTIME,
         iks->clint_timebase_freq, false);
 
-    /* L2 cache controller */
-    create_unimplemented_device("microchip.pfsoc.l2cc",
-        memmap[MICROCHIP_PFSOC_L2CC].base, memmap[MICROCHIP_PFSOC_L2CC].size);
-
     /*
-     * Add L2-LIM at reset size.
-     * This should be reduced in size as the L2 Cache Controller WayEnable
-     * register is incremented. Unfortunately I don't see a nice (or any) way
-     * to handle reducing or blocking out the L2 LIM while still allowing it
-     * be re returned to all enabled after a reset. For the time being, just
-     * leave it enabled all the time. This won't break anything, but will be
-     * too generous to misbehaving guests.
+     * Back the complete L2-LIM aperture. The L2 cache controller resizes
+     * this MemoryRegion to 128 KiB for every way assigned to L2-LIM.
      */
     memory_region_init_ram(l2lim_mem, NULL, "microchip.pfsoc.l2lim",
                            memmap[MICROCHIP_PFSOC_L2LIM].size, &error_fatal);
     memory_region_add_subregion(system_memory,
                                 memmap[MICROCHIP_PFSOC_L2LIM].base,
                                 l2lim_mem);
+
+    /* L2 cache controller */
+    object_property_set_link(OBJECT(&s->l2cc), "l2-lim",
+                             OBJECT(l2lim_mem), &error_abort);
+    sysbus_realize(SYS_BUS_DEVICE(&s->l2cc), errp);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->l2cc), 0,
+                    memmap[MICROCHIP_PFSOC_L2CC].base);
 
     /*
      * HSS decompresses into the L2 zero-device window and executes there.
