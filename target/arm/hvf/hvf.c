@@ -305,6 +305,10 @@ void hvf_arm_init_debug(void)
 #define SYSREG_CNTHCTL_EL2    SYSREG(3, 4, 14, 1, 0)
 #define SYSREG_MDCCINT_EL1    SYSREG(2, 0, 0, 2, 0)
 
+/* VHE registers */
+#define SYSREG_CNTKCTL_EL12 SYSREG(3, 5, 14, 1, 0)
+
+
 #define WFX_IS_WFE (1 << 0)
 
 #define TMR_CTL_ENABLE  (1 << 0)
@@ -1857,6 +1861,9 @@ static int hvf_sysreg_read(CPUState *cpu, uint32_t reg, uint64_t *val)
             assert_hvf_ok(hv_vcpu_get_sys_reg(cpu->accel->fd, HV_SYS_REG_CNTHCTL_EL2, val));
         }
         return 0;
+    case SYSREG_CNTKCTL_EL12:
+        /* Ignore for now */
+        return 0;
     case SYSREG_MDCCINT_EL1:
         assert_hvf_ok(hv_vcpu_get_sys_reg(cpu->accel->fd, HV_SYS_REG_MDCCINT_EL1, val));
         return 0;
@@ -2154,6 +2161,9 @@ static int hvf_sysreg_write(CPUState *cpu, uint32_t reg, uint64_t val)
         if (__builtin_available(macOS 15.0, *)) {
             assert_hvf_ok(hv_vcpu_set_sys_reg(cpu->accel->fd, HV_SYS_REG_CNTHCTL_EL2, val));
         }
+        return 0;
+    case SYSREG_CNTKCTL_EL12:
+        /* Ignore for now */
         return 0;
     case SYSREG_MDCCINT_EL1:
         assert_hvf_ok(hv_vcpu_set_sys_reg(cpu->accel->fd, HV_SYS_REG_MDCCINT_EL1, val));
