@@ -610,7 +610,7 @@ static void cpu_handle_ioreq(void *opaque)
         if (runstate_is_running()) {
             ShutdownCause request;
 
-            if (qemu_shutdown_requested_get()) {
+            if (qemu_shutdown_requested()) {
                 destroy_hvm_domain(false);
             }
             request = qemu_reset_requested_get();

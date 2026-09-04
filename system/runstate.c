@@ -582,7 +582,7 @@ static NotifierList shutdown_notifiers =
     NOTIFIER_LIST_INITIALIZER(shutdown_notifiers);
 static uint32_t wakeup_reason_mask = ~(1 << QEMU_WAKEUP_REASON_NONE);
 
-ShutdownCause qemu_shutdown_requested_get(void)
+bool qemu_shutdown_requested(void)
 {
     return shutdown_requested;
 }
