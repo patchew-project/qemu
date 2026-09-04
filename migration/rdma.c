@@ -360,6 +360,17 @@ typedef struct RDMAContext {
      */
     int migration_started_on_destination;
 
+    /*
+     * While the incoming-migration coroutine is parked in
+     * yield_until_fd_readable() on a completion channel we record the
+     * fd and AioContext here.  The cm event handler uses this to remove
+     * the fd handler before re-entering the coroutine; without that the
+     * handler keeps pointing at the coroutine stack after the wait
+     * returns, i.e. a dangling fd handler.
+     */
+    AioContext *wait_ctx;
+    int wait_fd;
+
     int total_registrations;
     int total_writes;
 
@@ -1248,7 +1259,21 @@ qemu_rdma_wait_comp_channel(RDMAContext *rdma,
     struct rdma_cm_event *cm_event;
 
     if (qemu_in_coroutine()) {
+        AioContext *ctx = qemu_get_current_aio_context();
+
+        /*
+         * Record where the coroutine is parked so that
+         * rdma_cm_poll_handler() can remove the fd handler before it
+         * re-enters us (yield_until_fd_readable() only removes the
+         * handler through its own fd_coroutine_enter() callback; a
+         * direct qemu_coroutine_enter() would leave a handler whose
+         * opaque points at our stack frame).
+         */
+        rdma->wait_ctx = ctx;
+        rdma->wait_fd = comp_channel->fd;
         yield_until_fd_readable(comp_channel->fd);
+        rdma->wait_ctx = NULL;
+        rdma->wait_fd = -1;
     } else {
         /* This is the source side, we're in a separate thread
          * or destination prior to migration_fd_process_incoming()
@@ -3024,6 +3049,21 @@ static void rdma_cm_poll_handler(void *opaque)
         }
         rdma_ack_cm_event(cm_event);
         if (mis->loadvm_co) {
+            /*
+             * The incoming coroutine may be parked in
+             * yield_until_fd_readable() on a completion channel.  Its
+             * fd handler is normally removed by fd_coroutine_enter()
+             * when that fd becomes readable.  If we re-enter the
+             * coroutine directly we must remove the handler first,
+             * otherwise it stays registered with an opaque pointing at
+             * the (now returned-from) coroutine stack frame.
+             */
+            if (rdma->wait_fd >= 0 && rdma->wait_ctx) {
+                aio_set_fd_handler(rdma->wait_ctx, rdma->wait_fd,
+                                   NULL, NULL, NULL, NULL, NULL);
+                rdma->wait_fd = -1;
+                rdma->wait_ctx = NULL;
+            }
             qemu_coroutine_enter(mis->loadvm_co);
         }
         return;
