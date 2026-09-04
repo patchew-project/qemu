@@ -220,14 +220,15 @@ static const uint8_t hpm_brd_id_eeprom[] = {
 };
 static const size_t hpm_brd_id_eeprom_len = sizeof(hpm_brd_id_eeprom);
 
-static void anacapa_add_adc128d818(I2CBus *bus, uint8_t addr,
+static void anacapa_add_adc128d818(AspeedMachineState *bmc,
+                                   I2CBus *bus, uint8_t addr,
                                    const char *description)
 {
     DeviceState *dev = DEVICE(i2c_slave_new(TYPE_ADC128D818, addr));
     g_autofree char *childname = g_strdup_printf("0x%02x", addr);
 
     qdev_prop_set_string(dev, "description", description);
-    object_property_add_child(OBJECT(bus), childname, OBJECT(dev));
+    aspeed_machine_add_label(bmc, description, OBJECT(dev));
     i2c_slave_realize_and_unref(I2C_SLAVE(dev), bus, &error_fatal);
 }
 
@@ -270,7 +271,8 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
 
     /* i2c8mux ch0 */
     /* adc128d818@1f - R-PDB ADC (mode 1: 8 voltage channels) */
-    anacapa_add_adc128d818(pca954x_i2c_get_bus(i2c_mux, 0), 0x1f, "i2c8:0:1f");
+    anacapa_add_adc128d818(bmc, pca954x_i2c_get_bus(i2c_mux, 0),
+                           0x1f, "i2c8:0:1f");
     /* pca9555@22 */
     i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 0),
                             TYPE_PCA9552, 0x22);
@@ -332,7 +334,8 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
 
     /* i2c13mux ch3 */
     /* adc128d818@1f - MB ADC (mode 1: 8 voltage channels) */
-    anacapa_add_adc128d818(pca954x_i2c_get_bus(i2c_mux, 3), 0x1f, "i2c13:3:1f");
+    anacapa_add_adc128d818(bmc, pca954x_i2c_get_bus(i2c_mux, 3),
+                           0x1f, "i2c13:3:1f");
 
     /* i2c13mux ch4 */
     /* eeprom@51 */
