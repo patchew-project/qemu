@@ -28,6 +28,11 @@ bool smmuv3_accel_install_ste_range(SMMUv3State *s, SMMUSIDRange *range,
     return true;
 }
 
+bool smmuv3_accel_replay_stes(SMMUv3State *s, Error **errp)
+{
+    return true;
+}
+
 bool smmuv3_accel_attach_gbpa_hwpt(SMMUv3State *s, Error **errp)
 {
     return true;
