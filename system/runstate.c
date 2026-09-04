@@ -970,18 +970,34 @@ bool qemu_wakeup_suspend_enabled(void)
     return wakeup_suspend_enabled;
 }
 
+/*
+ * Signal-safe part of qemu_system_shutdown_request(),
+ * only to be called from qemu_system_killed().
+ * Other callers use qemu_system_shutdown_request().
+ */
+static void qemu_system_shutdown_request_safe(ShutdownCause reason)
+{
+    shutdown_requested = reason;
+    if (reason == SHUTDOWN_CAUSE_HOST_QMP_QUIT ||
+        reason == SHUTDOWN_CAUSE_HOST_SIGNAL) {
+        force_shutdown = true;
+    }
+    qemu_notify_event();
+}
+
+void qemu_system_shutdown_request(ShutdownCause reason)
+{
+    trace_qemu_system_shutdown_request(reason);
+    replay_shutdown_request(reason);
+    qemu_system_shutdown_request_safe(reason);
+}
+
 void qemu_system_killed(int signal, pid_t pid)
 {
     shutdown_signal = signal;
     shutdown_pid = pid;
     shutdown_action = SHUTDOWN_ACTION_POWEROFF;
-
-    /* Cannot call qemu_system_shutdown_request directly because
-     * we are in a signal handler.
-     */
-    shutdown_requested = SHUTDOWN_CAUSE_HOST_SIGNAL;
-    force_shutdown = true;
-    qemu_notify_event();
+    qemu_system_shutdown_request_safe(SHUTDOWN_CAUSE_HOST_SIGNAL);
 }
 
 void qemu_system_shutdown_request_with_code(ShutdownCause reason,
@@ -989,17 +1005,6 @@ void qemu_system_shutdown_request_with_code(ShutdownCause reason,
 {
     shutdown_exit_code = exit_code;
     qemu_system_shutdown_request(reason);
-}
-
-void qemu_system_shutdown_request(ShutdownCause reason)
-{
-    trace_qemu_system_shutdown_request(reason);
-    replay_shutdown_request(reason);
-    shutdown_requested = reason;
-    if (reason == SHUTDOWN_CAUSE_HOST_QMP_QUIT) {
-        force_shutdown = true;
-    }
-    qemu_notify_event();
 }
 
 static void qemu_system_powerdown(void)
