@@ -18,6 +18,7 @@
 
 #include "smmuv3-internal.h"
 #include "smmuv3-accel.h"
+#include "system/runstate.h"
 #include "system/system.h"
 #include "tegra241-cmdqv.h"
 
@@ -515,6 +516,37 @@ static void smmuv3_accel_event_read(void *opaque)
 
     if (smmuv3_accel_event_read_one(s, &local_err) < 0) {
         warn_report_err_once(local_err);
+    }
+}
+
+/*
+ * Drain the kernel vEVENTQ into the guest event queue whenever the VM stops,
+ * so that a migration does not strand events in an object it does not carry.
+ * Propagating an event writes the record into guest RAM and raises the event
+ * queue interrupt, both of which are saved before the SMMUv3 device state, so
+ * a pre_save hook would be too late for either.
+ *
+ * VFIO registers at a higher priority and the stop path runs in descending
+ * priority, so the devices are already in STOP by the time this runs.
+ */
+static void smmuv3_accel_vm_state_change(void *opaque, bool running,
+                                         RunState state)
+{
+    SMMUv3State *s = opaque;
+    SMMUv3AccelState *accel = s->s_accel;
+    Error *local_err = NULL;
+    int ret;
+
+    if (running || !accel || !accel->veventq) {
+        return;
+    }
+
+    do {
+        ret = smmuv3_accel_event_read_one(s, &local_err);
+    } while (!ret);
+
+    if (ret < 0) {
+        warn_report_err(local_err);
     }
 }
 
@@ -1145,6 +1177,9 @@ bool smmuv3_accel_init(SMMUv3State *s, Error **errp)
         s->machine_done.notify = smmuv3_accel_machine_done;
         qemu_add_machine_init_done_notifier(&s->machine_done);
     }
+
+    /* For migartion of vEVENTQ pending events */
+    qemu_add_vm_change_state_handler(smmuv3_accel_vm_state_change, s);
 
     return true;
 }
