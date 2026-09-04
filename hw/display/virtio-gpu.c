@@ -1030,6 +1030,7 @@ void virtio_gpu_cleanup_mapping(VirtIOGPU *g,
 
     if (res->blob) {
         virtio_gpu_fini_udmabuf(g, res);
+        res->blob = NULL;
     }
 }
 
@@ -1095,6 +1096,23 @@ virtio_gpu_resource_detach_backing(VirtIOGPU *g,
                                          __func__, &cmd->error);
     if (!res) {
         return;
+    }
+
+    /*
+     * A blob resource may be backing a scanout: the scanout's surface
+     * aliases res->blob memory (do_set_scanout).  cleanup_mapping()
+     * below unmaps/releases that memory, so drop every scanout that
+     * still references this resource first, mirroring what
+     * virtio_gpu_resource_destroy() does before it frees a resource.
+     */
+    if (res->scanout_bitmask) {
+        int i;
+
+        for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
+            if (res->scanout_bitmask & (1 << i)) {
+                virtio_gpu_disable_scanout(g, i);
+            }
+        }
     }
     virtio_gpu_cleanup_mapping(g, res);
 }
