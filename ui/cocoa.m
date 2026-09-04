@@ -1221,7 +1221,6 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     COCOA_DEBUG("QemuCocoaAppController: applicationWillTerminate\n");
 
     with_bql(^{
-        shutdown_action = SHUTDOWN_ACTION_POWEROFF;
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_UI);
     });
 
