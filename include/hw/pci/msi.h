@@ -32,6 +32,7 @@ extern bool msi_nonbroken;
 
 void msi_set_message(PCIDevice *dev, MSIMessage msg);
 MSIMessage msi_get_message(PCIDevice *dev, unsigned int vector);
+uint64_t msi_message_address_register(PCIDevice *dev);
 bool msi_enabled(const PCIDevice *dev);
 void msi_set_enabled(PCIDevice *dev);
 int msi_init(struct PCIDevice *dev, uint8_t offset,
