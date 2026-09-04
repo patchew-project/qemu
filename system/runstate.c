@@ -597,11 +597,6 @@ ShutdownCause qemu_reset_requested_get(void)
     return reset_requested;
 }
 
-static int qemu_shutdown_requested(void)
-{
-    return qatomic_xchg(&shutdown_requested, SHUTDOWN_CAUSE_NONE);
-}
-
 static void qemu_kill_report(void)
 {
     if (!qtest_driver() && shutdown_signal) {
@@ -1054,7 +1049,7 @@ static bool main_loop_should_exit(int *status)
     if (qemu_suspend_requested()) {
         qemu_system_suspend();
     }
-    request = qemu_shutdown_requested();
+    request = qatomic_xchg(&shutdown_requested, SHUTDOWN_CAUSE_NONE);
     if (request) {
         qemu_kill_report();
         qemu_system_shutdown(request);
