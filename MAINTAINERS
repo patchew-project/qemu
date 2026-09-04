@@ -1787,7 +1787,7 @@ F: tests/tcg/riscv64/test-crc32.S
 
 Microchip PolarFire SoC Icicle Kit
 M: Bin Meng <bin.meng@processmission.com>
-M: Conor Dooley <conor@kernel.org>
+R: Conor Dooley <conor@kernel.org>
 M: Sebastian Huber <sebastian.huber@embedded-brains.de>
 L: qemu-riscv@nongnu.org
 S: Supported
