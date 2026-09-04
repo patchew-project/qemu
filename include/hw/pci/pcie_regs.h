@@ -182,4 +182,8 @@ typedef enum PCIExpLinkWidth {
 #define PCI_DOE_VER                     0x1
 #define PCI_DOE_SIZEOF                  24
 
+/* IDE */
+#define PCI_IDE_VER                     0x1
+#define PCI_IDE_SIZEOF                  12
+
 #endif /* QEMU_PCIE_REGS_H */
