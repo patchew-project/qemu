@@ -18,6 +18,7 @@
 
 #include "smmuv3-internal.h"
 #include "smmuv3-accel.h"
+#include "migration/vmstate.h"
 #include "system/runstate.h"
 #include "system/system.h"
 #include "tegra241-cmdqv.h"
@@ -1095,6 +1096,63 @@ bool smmuv3_accel_attach_gbpa_hwpt(SMMUv3State *s, Error **errp)
     }
     return all_ok;
 }
+
+static bool smmuv3_accel_vmstate_pre_load(void *opaque, Error **errp)
+{
+    SMMUv3State *s = opaque;
+
+    if (!s->s_accel) {
+        error_setg(errp, "Incoming stream carries SMMUv3 accelerator state "
+                   "but this arm-smmuv3 has accel=off");
+        return false;
+    }
+
+    /* Save the locally resolved IDRs before the stream overwrites them. */
+    memcpy(s->local_idr, s->idr, sizeof(s->idr));
+    return true;
+}
+
+static bool smmuv3_accel_vmstate_post_load(void *opaque, int version_id,
+                                           Error **errp)
+{
+    ERRP_GUARD();
+    SMMUv3State *s = opaque;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(s->idr); i++) {
+        if (s->idr[i] == s->local_idr[i]) {
+            continue;
+        }
+        error_setg(errp, "SMMUv3 IDR%d mismatch: source 0x%08x, "
+                   "destination 0x%08x", i, s->idr[i],
+                   s->local_idr[i]);
+        error_append_hint(errp, "ril, ats, oas and ssidsize must resolve to "
+                          "the same values on source and destination.\n");
+        return false;
+    }
+
+    return true;
+}
+
+static bool smmuv3_accel_vmstate_needed(void *opaque)
+{
+    SMMUv3State *s = opaque;
+
+    return s->accel;
+}
+
+const VMStateDescription vmstate_smmuv3_accel = {
+    .name = "smmuv3/accel",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = smmuv3_accel_vmstate_needed,
+    .pre_load_errp = smmuv3_accel_vmstate_pre_load,
+    .post_load_errp = smmuv3_accel_vmstate_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(idr, SMMUv3State, SMMU_NUM_IDR),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 void smmuv3_accel_reset(SMMUv3State *s)
 {
