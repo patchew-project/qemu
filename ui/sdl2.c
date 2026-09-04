@@ -645,7 +645,6 @@ static void handle_windowevent(SDL_Event *ev)
                 allow_close = false;
             }
             if (allow_close) {
-                shutdown_action = SHUTDOWN_ACTION_POWEROFF;
                 qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_UI);
             }
         } else {
@@ -692,7 +691,6 @@ void sdl2_poll_events(struct sdl2_console *scon)
                 allow_close = false;
             }
             if (allow_close) {
-                shutdown_action = SHUTDOWN_ACTION_POWEROFF;
                 qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_UI);
             }
             break;

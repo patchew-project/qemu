@@ -44,7 +44,6 @@ NameInfo *qmp_query_name(Error **errp)
 
 void qmp_quit(Error **errp)
 {
-    shutdown_action = SHUTDOWN_ACTION_POWEROFF;
     qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_QMP_QUIT);
 }
 

@@ -564,9 +564,9 @@ int vm_stop_force_state(RunState state)
 
 static ShutdownCause reset_requested;
 static ShutdownCause shutdown_requested;
+static ShutdownCause shutdown_force_requested;
 static int shutdown_exit_code = EXIT_SUCCESS;
 static int shutdown_signal;
-static bool force_shutdown;
 static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
@@ -584,12 +584,12 @@ static uint32_t wakeup_reason_mask = ~(1 << QEMU_WAKEUP_REASON_NONE);
 
 bool qemu_shutdown_requested(void)
 {
-    return shutdown_requested;
+    return shutdown_requested || shutdown_force_requested;
 }
 
 bool qemu_force_shutdown_requested(void)
 {
-    return force_shutdown;
+    return shutdown_force_requested;
 }
 
 ShutdownCause qemu_reset_requested_get(void)
@@ -972,11 +972,12 @@ bool qemu_wakeup_suspend_enabled(void)
  */
 static void qemu_system_shutdown_request_safe(ShutdownCause reason)
 {
-    shutdown_requested = reason;
     if (reason == SHUTDOWN_CAUSE_HOST_QMP_QUIT ||
         reason == SHUTDOWN_CAUSE_HOST_SIGNAL ||
         reason == SHUTDOWN_CAUSE_HOST_UI) {
-        force_shutdown = true;
+        shutdown_force_requested = reason;
+    } else {
+        shutdown_requested = reason;
     }
     qemu_notify_event();
 }
@@ -992,7 +993,6 @@ void qemu_system_killed(int signal, pid_t pid)
 {
     shutdown_signal = signal;
     shutdown_pid = pid;
-    shutdown_action = SHUTDOWN_ACTION_POWEROFF;
     qemu_system_shutdown_request_safe(SHUTDOWN_CAUSE_HOST_SIGNAL);
 }
 
@@ -1042,6 +1042,7 @@ static bool main_loop_should_exit(int *status)
 {
     RunState r;
     ShutdownCause request;
+    bool force = false;
 
     if (qemu_debug_requested()) {
         vm_stop(RUN_STATE_DEBUG);
@@ -1049,11 +1050,18 @@ static bool main_loop_should_exit(int *status)
     if (qemu_suspend_requested()) {
         qemu_system_suspend();
     }
-    request = qatomic_xchg(&shutdown_requested, SHUTDOWN_CAUSE_NONE);
+
+    if (shutdown_force_requested) {
+        force = true;
+        request = shutdown_force_requested;
+    } else {
+        request = qatomic_xchg(&shutdown_requested, SHUTDOWN_CAUSE_NONE);
+    }
+
     if (request) {
         qemu_kill_report();
         qemu_system_shutdown(request);
-        if (shutdown_action == SHUTDOWN_ACTION_PAUSE) {
+        if (!force && shutdown_action == SHUTDOWN_ACTION_PAUSE) {
             vm_stop(RUN_STATE_SHUTDOWN);
         } else {
             if (shutdown_exit_code != EXIT_SUCCESS) {
