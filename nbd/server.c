@@ -517,6 +517,14 @@ nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
         error_setg(errp, "export not found");
         return -EINVAL;
     }
+    /*
+     * The export can be deleted by the management layer while we are
+     * blocked in the writes below (before the client is inserted into
+     * exp->clients and takes its own reference).  Hold a reference for
+     * the whole negotiation so a concurrent block-export-del cannot
+     * free the export under us.
+     */
+    blk_exp_ref(&client->exp->common);
     nbd_check_meta_export(client, client->exp);
 
     myflags = client->exp->nbdflags;
@@ -533,11 +541,15 @@ nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
     ret = nbd_write(client->ioc, buf, len, errp);
     if (ret < 0) {
         error_prepend(errp, "write failed: ");
+        blk_exp_unref(&client->exp->common);
+        client->exp = NULL;
         return ret;
     }
 
     QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
     blk_exp_ref(&client->exp->common);
+    /* Drop the negotiation reference; the client owns one now. */
+    blk_exp_unref(&client->exp->common);
 
     return 0;
 }
@@ -659,6 +671,13 @@ nbd_negotiate_handle_info(NBDClient *client, Error **errp)
                                           errp, "export '%s' not present",
                                           sane_name);
     }
+    /*
+     * Hold a reference across the whole info exchange: the export can
+     * be deleted by the management layer (block-export-del) while we
+     * are blocked sending replies below and before the client is
+     * inserted into exp->clients for NBD_OPT_GO.
+     */
+    blk_exp_ref(&exp->common);
     if (client->opt == NBD_OPT_GO) {
         nbd_check_meta_export(client, exp);
     }
@@ -668,7 +687,7 @@ nbd_negotiate_handle_info(NBDClient *client, Error **errp)
         rc = nbd_negotiate_send_info(client, NBD_INFO_NAME, namelen, name,
                                      errp);
         if (rc < 0) {
-            return rc;
+            goto out;
         }
     }
 
@@ -681,7 +700,7 @@ nbd_negotiate_handle_info(NBDClient *client, Error **errp)
         rc = nbd_negotiate_send_info(client, NBD_INFO_DESCRIPTION,
                                      len, exp->description, errp);
         if (rc < 0) {
-            return rc;
+            goto out;
         }
     }
 
@@ -707,7 +726,7 @@ nbd_negotiate_handle_info(NBDClient *client, Error **errp)
     rc = nbd_negotiate_send_info(client, NBD_INFO_BLOCK_SIZE,
                                  sizeof(sizes), sizes, errp);
     if (rc < 0) {
-        return rc;
+        goto out;
     }
 
     /* Send NBD_INFO_EXPORT always */
@@ -725,7 +744,7 @@ nbd_negotiate_handle_info(NBDClient *client, Error **errp)
     rc = nbd_negotiate_send_info(client, NBD_INFO_EXPORT,
                                  sizeof(buf), buf, errp);
     if (rc < 0) {
-        return rc;
+        goto out;
     }
 
     /*
@@ -736,17 +755,18 @@ nbd_negotiate_handle_info(NBDClient *client, Error **errp)
      */
     if (client->opt == NBD_OPT_INFO && !blocksize &&
         blk_get_request_alignment(exp->common.blk) > 1) {
-        return nbd_negotiate_send_rep_err(client,
-                                          NBD_REP_ERR_BLOCK_SIZE_REQD,
-                                          errp,
-                                          "request NBD_INFO_BLOCK_SIZE to "
-                                          "use this export");
+        rc = nbd_negotiate_send_rep_err(client,
+                                        NBD_REP_ERR_BLOCK_SIZE_REQD,
+                                        errp,
+                                        "request NBD_INFO_BLOCK_SIZE to "
+                                        "use this export");
+        goto out;
     }
 
     /* Final reply */
     rc = nbd_negotiate_send_rep(client, NBD_REP_ACK, errp);
     if (rc < 0) {
-        return rc;
+        goto out;
     }
 
     if (client->opt == NBD_OPT_GO) {
@@ -756,6 +776,11 @@ nbd_negotiate_handle_info(NBDClient *client, Error **errp)
         blk_exp_ref(&client->exp->common);
         rc = 1;
     }
+    blk_exp_unref(&exp->common);
+    return rc;
+
+out:
+    blk_exp_unref(&exp->common);
     return rc;
 }
 
