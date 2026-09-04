@@ -408,6 +408,40 @@ bool smmuv3_accel_install_ste_range(SMMUv3State *s, SMMUSIDRange *range,
 }
 
 /*
+ * Install the STE again for every device behind this accelerated SMMUv3, by
+ * reading the guest stream table once more. Stops at the first failure.
+ */
+bool smmuv3_accel_replay_stes(SMMUv3State *s, Error **errp)
+{
+    ERRP_GUARD();
+    SMMUv3AccelState *accel = s->s_accel;
+    SMMUv3AccelDevice *accel_dev;
+
+    if (!accel || !accel->viommu) {
+        return true;
+    }
+
+    QLIST_FOREACH(accel_dev, &accel->device_list, next) {
+        uint32_t sid = smmu_get_sid(&accel_dev->sdev);
+        SMMUEventInfo event = {.type = SMMU_EVT_NONE, .sid = sid,
+                               .inval_ste_allowed = true};
+        STE ste;
+
+        /* Skip a device the guest has not programmed */
+        if (smmu_find_ste(s, sid, &ste, &event)) {
+            continue;
+        }
+
+        if (!smmuv3_accel_install_ste(s, &accel_dev->sdev, sid, errp)) {
+            error_prepend(errp, "Device 0x%x: Failed to install STE: ", sid);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/*
  * This issues the invalidation cmd to the host SMMUv3.
  *
  * sdev is non-NULL for SID based invalidations (e.g. CFGI_CD), and NULL for
