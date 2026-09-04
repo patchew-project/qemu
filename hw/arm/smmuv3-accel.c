@@ -484,28 +484,38 @@ int smmuv3_accel_event_read_validate(IOMMUFDVeventq *veventq, uint32_t type,
     return 0;
 }
 
-static void smmuv3_accel_event_read(void *opaque)
+/*
+ * Read one pending vEVENT and propagate it to the guest event queue.
+ * Returns 0 if an event was propagated, 1 if the queue is drained, -1 on
+ * error with @errp set.
+ */
+static int smmuv3_accel_event_read_one(SMMUv3State *s, Error **errp)
 {
-    SMMUv3State *s = opaque;
     IOMMUFDVeventq *veventq = s->s_accel->veventq;
     struct {
         struct iommufd_vevent_header hdr;
         struct iommu_vevent_arm_smmuv3 vevent;
     } buf;
-    Error *local_err = NULL;
     int ret;
 
     ret = smmuv3_accel_event_read_validate(veventq,
                                            IOMMU_VEVENTQ_TYPE_ARM_SMMUV3, &buf,
-                                           sizeof(buf), &local_err);
-    if (ret < 0) {
-        warn_report_err_once(local_err);
-        return;
-    }
-    if (ret > 0) {
-        return; /* EAGAIN/EINTR */
+                                           sizeof(buf), errp);
+    if (ret) {
+        return ret;
     }
     smmuv3_propagate_event(s, (Evt *)&buf.vevent);
+    return 0;
+}
+
+static void smmuv3_accel_event_read(void *opaque)
+{
+    SMMUv3State *s = opaque;
+    Error *local_err = NULL;
+
+    if (smmuv3_accel_event_read_one(s, &local_err) < 0) {
+        warn_report_err_once(local_err);
+    }
 }
 
 static void smmuv3_accel_free_veventq(SMMUv3AccelState *accel)
