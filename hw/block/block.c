@@ -208,6 +208,52 @@ uint32_t blkconf_zone_write_granularity(BlockConf *conf)
     return MAX(bs->bl.write_granularity, conf->logical_block_size);
 }
 
+bool blkconf_check_zoned_geometry(BlockConf *conf, Error **errp)
+{
+    BlockDriverState *bs = blk_bs(conf->blk);
+    uint32_t wg;
+
+    if (bs->bl.zoned == BLK_Z_NONE) {
+        return true;
+    }
+
+    wg = blkconf_zone_write_granularity(conf);
+
+    if (!QEMU_IS_ALIGNED(bs->bl.zone_size, wg)) {
+        error_setg(errp, "zone size %" PRIu64 " is not a multiple of the zone "
+                   "write granularity %" PRIu32, bs->bl.zone_size, wg);
+        return false;
+    }
+
+    /*
+     * A write pointer that is not a multiple of the write granularity does not
+     * fall on a logical block boundary, so the guest can neither read nor write
+     * at it and the zone can only be recovered by resetting it. A backend that
+     * records its write pointers, rather than reading them back from a device,
+     * can hand us such a pointer when the zones were written while the device
+     * was configured with a smaller logical block size.
+     */
+    for (uint32_t i = 0; i < bs->bl.nr_zones; i++) {
+        uint64_t wp = bs->wps->wp[i];
+
+        if (BDRV_ZT_IS_CONV(wp)) {
+            continue;
+        }
+
+        if (!QEMU_IS_ALIGNED(wp, wg)) {
+            error_setg(errp, "write pointer 0x%" PRIx64 " of zone %" PRIu32
+                       " is not a multiple of the zone write granularity %"
+                       PRIu32, wp, i, wg);
+            error_append_hint(errp, "The zones were written with a smaller "
+                              "logical_block_size. Reset them, or keep using "
+                              "the smaller size.\n");
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool blkconf_apply_backend_options(BlockConf *conf, bool readonly,
                                    bool resizable, Error **errp)
 {
