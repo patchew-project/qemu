@@ -17,12 +17,12 @@ class ArchTestsUart(QemuSystemTest):
 
     Tests output results via UART.
     """
-    timeout = 60
+    timeout = 180
 
     ASSET_TARBALL = Asset(
         "https://github.com/qualcomm/qemu-hexagon-testing/releases/"
-        "download/v0.2.12/arch_tests_uart.tar.gz",
-        "871a339bf78cac0ebaf1b2509bfcd5b249ad8190be33e0cf848283b2f6915323",
+        "download/v0.2.14/arch_tests_uart.tar.gz",
+        "ce93cb90b9d757c1946dfe8fe6abcec8292b08a66546ac51b2dd48650b05fa91",
     )
 
     def run_uart_test(self, test_name: str,
