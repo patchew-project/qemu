@@ -2203,8 +2203,12 @@ static bool decode_op_size(DisasContext *s, X86OpEntry *e, X86OpSize size, MemOp
         }
         /* fall through */
     case X86_SIZE_ps: /* SSE/AVX packed single precision */
-    case X86_SIZE_pd: /* SSE/AVX packed double precision */
-        *ot = s->vex_l ? MO_256 : MO_128;
+    case X86_SIZE_pd: { /* SSE/AVX packed double precision */
+            bool is_scalar = (e->s0 == X86_SIZE_ss || e->s0 == X86_SIZE_sd ||
+                              e->s1 == X86_SIZE_ss || e->s1 == X86_SIZE_sd ||
+                              e->s2 == X86_SIZE_ss || e->s2 == X86_SIZE_sd);
+            *ot = (s->vex_l && !is_scalar) ? MO_256 : MO_128;
+        }
         return true;
 
     case X86_SIZE_xh: /* SSE/AVX packed half register */
