@@ -441,7 +441,7 @@ void hex_interrupt_update(CPUHexagonState *env)
             const int exe_mode = get_exe_mode(hex_env);
             if (exe_mode != HEX_EXE_MODE_OFF) {
                 cpu_interrupt(cs, CPU_INTERRUPT_SWI);
-                cpu_resume(cs);
+                qemu_cpu_kick(cs);
             }
         }
     }
