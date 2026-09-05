@@ -1008,7 +1008,8 @@ static int apic_register_write(APICCommonState *s, int index, uint64_t val)
             s->lvt[n] = val;
             if (n == APIC_LVT_TIMER) {
                 apic_timer_update(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
-            } else if (n == APIC_LVT_LINT0 && apic_check_pic(s)) {
+            } else if (n == APIC_LVT_LINT0) {
+                apic_check_pic(s);
                 apic_update_irq(s);
             }
         }
