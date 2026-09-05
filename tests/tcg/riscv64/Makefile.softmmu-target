@@ -28,6 +28,18 @@ EXTRA_RUNS += run-test-minstret-ecall
 run-test-minstret-ecall: test-minstret-ecall
 	$(call run-test, $<, $(QEMU) -icount shift=1 $(QEMU_OPTS)$<)
 
+RV32_CFLAGS = -march=rv32im_zicsr -mabi=ilp32
+CLEANFILES += test-mcycle-rv32
+
+test-mcycle-rv32: test-mcycle-rv32.S $(LINK_SCRIPT)
+	$(CC) $(CFLAGS) $(RV32_CFLAGS) $< -Wa,--noexecstack -c -o $@.o
+	$(LD) -m elf32lriscv $(LDFLAGS) $@.o -o $@
+
+EXTRA_RUNS += run-test-mcycle-rv32
+run-test-mcycle-rv32: test-mcycle-rv32
+	$(call run-test, $<, \
+	  $(QEMU) -cpu rv32 -icount shift=1 $(QEMU_OPTS)$<)
+
 EXTRA_RUNS += run-plugin-doubletrap
 run-plugin-doubletrap: doubletrap
 	$(call run-test, $<, \
