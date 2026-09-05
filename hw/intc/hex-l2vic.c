@@ -92,7 +92,7 @@ typedef struct HexL2VICState {
     DECLARE_BITMAP32(int_pending, L2VIC_INTERRUPT_MAX);
     /* Which enabled interrupt is active */
     DECLARE_BITMAP32(int_status, L2VIC_INTERRUPT_MAX);
-    /* Edge or Level interrupt */
+    /* 1 for edge-triggered, 0 for level-triggered */
     DECLARE_BITMAP32(int_type, L2VIC_INTERRUPT_MAX);
     DECLARE_BITMAP32(int_group_n[4], L2VIC_INTERRUPT_MAX);
     qemu_irq irq[8];
@@ -249,6 +249,11 @@ static inline bool vid_active(HexL2VICState *s)
     return active_irq != size;
 }
 
+static bool edge_triggered_irq(HexL2VICState *s, int irq)
+{
+    return test_bit32(irq, s->int_type);
+}
+
 static bool l2vic_update(HexL2VICState *s, int irq)
 {
     bool pending;
@@ -270,7 +275,7 @@ static bool l2vic_update(HexL2VICState *s, int irq)
          * enable bit set across deliveries -- the firmware enables once
          * and expects the interrupt to remain enabled.
          */
-        if (test_bit32(irq, s->int_type)) {
+        if (edge_triggered_irq(s, irq)) {
             clear_bit32(irq, s->int_enable);
         }
         s->vid = irq;
@@ -299,7 +304,7 @@ static void l2vic_set_irq(void *opaque, int irq, int level)
 
     if (level) {
         set_bit32(irq, s->int_pending);
-    } else if (!test_bit32(irq, s->int_type)) {
+    } else if (!edge_triggered_irq(s, irq)) {
         clear_bit32(irq, s->int_pending);
     }
     l2vic_update(s, irq);
@@ -328,7 +333,7 @@ static void l2vic_write(void *opaque, hwaddr offset, uint64_t val,
         while ((bit = ctz32(bits)) < 32) {
             int irq = base_irq + bit;
 
-            if (test_bit32(irq, s->int_type)) {
+            if (edge_triggered_irq(s, irq)) {
                 set_bit32(irq, s->int_pending);
             }
             bits &= ~(1u << bit);
