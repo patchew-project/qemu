@@ -3260,6 +3260,16 @@ static RISCVException write_menvcfg(CPURISCVState *env, int csrno,
             stce_changed = true;
         }
     }
+
+    /*
+     * CBIE is a WARL field: encoding 10 is reserved.  A software write of
+     * this encoding must canonicalize to a supported value instead of being
+     * retained in the readback.
+     */
+    if (cfg->ext_zicbom && get_field(val, MENVCFG_CBIE) == 2) {
+        val &= ~MENVCFG_CBIE;
+    }
+
     env->menvcfg = (env->menvcfg & ~mask) | (val & mask);
 
     if (stce_changed) {
@@ -3354,6 +3364,16 @@ static RISCVException write_senvcfg(CPURISCVState *env, int csrno,
         mask |= SENVCFG_UKTE;
     }
 
+    /*
+     * CBIE is a WARL field: encoding 10 is reserved.  A software write of
+     * this encoding must canonicalize to a supported value instead of being
+     * retained in the readback.
+     */
+    if (env_archcpu(env)->cfg.ext_zicbom &&
+        get_field(val, SENVCFG_CBIE) == 2) {
+        val &= ~SENVCFG_CBIE;
+    }
+
     env->senvcfg = (env->senvcfg & ~mask) | (val & mask);
     return RISCV_EXCP_NONE;
 }
@@ -3420,6 +3440,15 @@ static RISCVException write_henvcfg(CPURISCVState *env, int csrno,
             ((env->henvcfg & HENVCFG_STCE) != (val & HENVCFG_STCE))) {
             stce_changed = true;
         }
+    }
+
+    /*
+     * CBIE is a WARL field: encoding 10 is reserved.  A software write of
+     * this encoding must canonicalize to a supported value instead of being
+     * retained in the readback.
+     */
+    if (cfg->ext_zicbom && get_field(val, HENVCFG_CBIE) == 2) {
+        val &= ~HENVCFG_CBIE;
     }
 
     if (riscv_cpu_mxl(env) == MXL_RV32) {
