@@ -529,6 +529,17 @@ DEF_ENC32(Y5_l2fetch,      ICLASS_ST" 011 01 00sssss PP-ttttt --------")
 DEF_ENC32(Y6_l2gcleanpa,   ICLASS_ST" 011 01 01----- PP-ttttt --------")
 DEF_ENC32(Y6_l2gcleaninvpa,ICLASS_ST" 011 01 10----- PP-ttttt --------")
 
+DEF_ENC32(Y6_dmcfgrd,   "10101000000sssssPP------101ddddd")
+DEF_ENC32(Y6_dmcfgwr,   "10101000000sssssPP-ttttt110-----")
+DEF_ENC32(Y6_dmlink,    "10100110000sssssPP-ttttt010-----")
+DEF_ENC32(Y6_dmpause,   "10101000000-----PP------011ddddd")
+DEF_ENC32(Y6_dmpoll,    "10101000000-----PP------010ddddd")
+DEF_ENC32(Y6_dmresume,  "10100110000sssssPP------100-----")
+DEF_ENC32(Y6_dmstart,   "10100110000sssssPP------001-----")
+DEF_ENC32(Y6_dmsyncht,  "10101000000-----PP-----0111ddddd")
+DEF_ENC32(Y6_dmtlbsynch,"10101000000-----PP-----1111ddddd")
+DEF_ENC32(Y6_dmwait,    "10101000000-----PP------001ddddd")
+
 
 /*******************************/
 /*                             */
