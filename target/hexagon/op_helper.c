@@ -1889,6 +1889,13 @@ static inline QEMU_ALWAYS_INLINE uint32_t sreg_read(CPUHexagonState *env,
     HexagonCPU *cpu;
 
     g_assert(bql_locked());
+    if (reg == HEX_SREG_BADVA) {
+        uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
+        if (GET_SSR_FIELD(SSR_BVS, ssr)) {
+            return env->t_sreg[HEX_SREG_BADVA1];
+        }
+        return env->t_sreg[HEX_SREG_BADVA0];
+    }
     if (reg < HEX_SREG_GLB_START) {
         return env->t_sreg[reg];
     }
