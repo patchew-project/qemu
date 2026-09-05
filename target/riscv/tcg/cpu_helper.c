@@ -905,6 +905,7 @@ void riscv_cpu_set_mode(CPURISCVState *env, privilege_mode_t newpriv,
  */
 static int get_physical_address_pmp(CPURISCVState *env, int *prot, hwaddr addr,
                                     int size, MMUAccessType access_type,
+                                    pmp_priv_t extra_privs,
                                     privilege_mode_t mode)
 {
     pmp_priv_t pmp_priv;
@@ -915,7 +916,8 @@ static int get_physical_address_pmp(CPURISCVState *env, int *prot, hwaddr addr,
         return TRANSLATE_SUCCESS;
     }
 
-    pmp_has_privs = pmp_hart_has_privs(env, addr, size, 1 << access_type,
+    pmp_has_privs = pmp_hart_has_privs(env, addr, size,
+                                       (1 << access_type) | extra_privs,
                                        &pmp_priv, mode);
     if (!pmp_has_privs) {
         *prot = 0;
@@ -1177,7 +1179,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
         int pmp_prot;
         int pmp_ret = get_physical_address_pmp(env, &pmp_prot, pte_addr,
                                                sxlen_bytes,
-                                               MMU_DATA_LOAD, PRV_S);
+                                               MMU_DATA_LOAD, 0, PRV_S);
         if (pmp_ret != TRANSLATE_SUCCESS) {
             return TRANSLATE_PMP_FAIL;
         }
@@ -1425,7 +1427,8 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
         }
 
         pmp_ret = get_physical_address_pmp(env, &pmp_prot, pte_addr,
-                                           sxlen_bytes, MMU_DATA_STORE, PRV_S);
+                                           sxlen_bytes, MMU_DATA_STORE, 0,
+                                           PRV_S);
         if (pmp_ret != TRANSLATE_SUCCESS) {
             return TRANSLATE_PMP_FAIL;
         }
@@ -1711,7 +1714,9 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
             if (ret == TRANSLATE_SUCCESS) {
                 ret = get_physical_address_pmp(env, &prot_pmp, pa,
-                                               size, access_type, mode);
+                                               size, access_type,
+                                               mmuidx_hlvx(mmu_idx) ?
+                                               PMP_READ : 0, mode);
                 tlb_size = pmp_get_tlb_size(env, pa);
 
                 qemu_log_mask(CPU_LOG_MMU,
@@ -1746,7 +1751,9 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
         if (ret == TRANSLATE_SUCCESS) {
             ret = get_physical_address_pmp(env, &prot_pmp, pa,
-                                           size, access_type, mode);
+                                           size, access_type,
+                                           mmuidx_hlvx(mmu_idx) ?
+                                           PMP_READ : 0, mode);
             tlb_size = pmp_get_tlb_size(env, pa);
 
             qemu_log_mask(CPU_LOG_MMU,
@@ -1786,9 +1793,10 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         cpu_check_watchpoint(cs, address, size, MEMTXATTRS_UNSPECIFIED,
                              wp_access, retaddr);
 
-        raise_mmu_exception(env, address, access_type, pmp_pma_violation,
-                            first_stage_error, two_stage_lookup,
-                            two_stage_indirect_error);
+        raise_mmu_exception(env, address,
+                            mmuidx_hlvx(mmu_idx) ? MMU_DATA_LOAD : access_type,
+                            pmp_pma_violation, first_stage_error,
+                            two_stage_lookup, two_stage_indirect_error);
         cpu_loop_exit_restore(cs, retaddr);
     }
 
