@@ -650,7 +650,7 @@ static int check_access_hlsv(CPURISCVState *env, bool x, uintptr_t ra)
     if (!x && mode == PRV_S && get_field(env->vsstatus, MSTATUS_SUM)) {
         mode = MMUIdx_S_SUM;
     }
-    return mode | MMU_2STAGE_BIT;
+    return mode | MMU_2STAGE_BIT | (x ? MMU_IDX_HLVX : 0);
 }
 
 target_ulong helper_hyp_hlv_bu(CPURISCVState *env, target_ulong addr)
@@ -726,11 +726,10 @@ void helper_hyp_hsv_d(CPURISCVState *env, target_ulong addr, target_ulong val)
 }
 
 /*
- * TODO: These implementations are not quite correct.  They perform the
- * access using execute permission just fine, but the final PMP check
- * is supposed to have read permission as well.  Without replicating
- * a fair fraction of cputlb.c, fixing this requires adding new mmu_idx
- * which would imply that exact check in tlb_fill.
+ * HLVX accesses are translated with execute permission (first stage),
+ * but the final PMP check on the supervisor physical address must
+ * require read permission as well.  The MMU_IDX_HLVX mmu_idx bit set
+ * by check_access_hlsv() makes riscv_cpu_tlb_fill() enforce this.
  */
 target_ulong helper_hyp_hlvx_hu(CPURISCVState *env, target_ulong addr)
 {
