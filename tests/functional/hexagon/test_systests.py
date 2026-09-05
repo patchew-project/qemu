@@ -21,8 +21,8 @@ class SysTestsStandaloneTests(QemuSystemTest):
     SYSTEST_TIMEOUT_SEC = 30
 
     ASSET_TARBALL = Asset(
-        "https://github.com/qualcomm/qemu-hexagon-testing/releases/download/v0.2.11/systests_standalone.tar.gz",
-        "b5777aa65245de7710a7a08d717953c1362be7c8b60d9014c9fee8b17610ad1c",
+        "https://github.com/qualcomm/qemu-hexagon-testing/releases/download/v0.2.14/systests_standalone.tar.gz",
+        "f0c535d746384126954757b6ce54452c5fe82624618c79862495eec24718a6ff",
     )
 
     def setUp(self):
@@ -34,7 +34,7 @@ class SysTestsStandaloneTests(QemuSystemTest):
         self.assertTrue(os.path.exists(path))
         return path
 
-    def run_exit_zero(self, binary_name, *extra_args, machine="V66G_1024"):
+    def run_exit_zero(self, binary_name, *extra_args, machine="sim"):
         self.set_machine(machine)
         self.set_vm_arg("-display", "none")
         self.set_vm_arg("-kernel", self.binary(binary_name))
@@ -47,7 +47,7 @@ class SysTestsStandaloneTests(QemuSystemTest):
                          f"code {self.vm.exitcode()}, expected 0")
 
     def run_console_pattern(self, binary_name, pattern, *extra_args,
-                            machine="V66G_1024"):
+                            machine="sim"):
         self.set_machine(machine)
         self.set_vm_arg("-display", "none")
         self.set_vm_arg("-kernel", self.binary(binary_name))
@@ -89,6 +89,15 @@ class SysTestsStandaloneTests(QemuSystemTest):
 
     def test_semihost(self):
         self.run_console_pattern("semihost", "PASS", "-append", "arg1", "arg2")
+
+    def test_dtg_interrupt(self):
+        self.run_exit_zero("dtg_interrupt")
+
+    def test_mmu_multi_tlb(self):
+        self.run_exit_zero("mmu_multi_tlb")
+
+    def test_timer_reg(self):
+        self.run_exit_zero("timer_reg")
 
 if __name__ == "__main__":
     QemuSystemTest.main()
