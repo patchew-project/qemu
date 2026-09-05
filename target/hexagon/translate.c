@@ -1065,20 +1065,14 @@ static void update_exec_counters(DisasContext *ctx)
  * A tlbp instruction may detect multiple TLB matches and set a pending
  * imprecise exception.  Raise it after the packet that ran the tlbp.
  */
-static void check_imprecise_exception(Packet *pkt)
+static void check_imprecise_exception(DisasContext *ctx)
 {
-    for (int i = 0; i < pkt->num_insns; i++) {
-        if (pkt->insn[i].opcode == Y2_tlbp) {
-            TCGv PC = tcg_constant_tl(pkt->pc);
-            TCGLabel *label = gen_new_label();
-            tcg_gen_brcondi_tl(TCG_COND_EQ, hex_imprecise_exception,
-                               0, label);
-            gen_helper_raise_exception(tcg_env,
-                                       hex_imprecise_exception, PC);
-            gen_set_label(label);
-            return;
-        }
-    }
+    TCGv PC = tcg_constant_tl(ctx->pkt.pc);
+    TCGLabel *label = gen_new_label();
+
+    tcg_gen_brcondi_tl(TCG_COND_EQ, hex_imprecise_exception, 0, label);
+    gen_helper_raise_exception(tcg_env, hex_imprecise_exception, PC);
+    gen_set_label(label);
 }
 #endif
 
@@ -1182,7 +1176,7 @@ static void gen_commit_packet(DisasContext *ctx)
     }
 
 #ifndef CONFIG_USER_ONLY
-    check_imprecise_exception(&ctx->pkt);
+    check_imprecise_exception(ctx);
 #endif
 
     if (ctx->pkt_ends_tb || ctx->base.is_jmp == DISAS_NORETURN) {

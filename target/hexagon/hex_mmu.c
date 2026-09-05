@@ -71,10 +71,16 @@ bool hex_tlb_find_match(CPUHexagonState *env, uint32_t VA,
     uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
     uint8_t asid = GET_SSR_FIELD(SSR_ASID, ssr);
     int cause_code = 0;
+    bool found;
 
-    bool found = hexagon_tlb_find_match(cpu->tlb, asid, VA, access_type,
-                                        PA, prot, size, excp, &cause_code,
-                                        mmu_idx);
+    env->imprecise_exception = 0;
+    found = hexagon_tlb_find_match(cpu->tlb, asid, VA, access_type,
+                                   PA, prot, size, excp, &cause_code,
+                                   mmu_idx);
+    if (*excp == HEX_EVENT_IMPRECISE) {
+        env->imprecise_exception = *excp;
+        *excp = 0;
+    }
     if (cause_code) {
         env->cause_code = cause_code;
     }
