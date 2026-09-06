@@ -10,11 +10,13 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/misc/aspeed_sbc.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
+#include "crypto/akcipher.h"
 #include "trace.h"
 
 #define R_PROT          (0x000 / 4)
@@ -24,8 +26,22 @@
 #define R_CAMP1         (0x020 / 4)
 #define R_CAMP2         (0x024 / 4)
 #define R_QSR           (0x040 / 4)
+#define R_SEC_TRIGGER   (0x0bc / 4)
+
+/*
+ * SEC SRAM layout for a secp384r1 ECDSA verify operation. All operands are
+ * 48-byte big-endian values.
+ */
+#define ECDSA_SRAM_QX   0x2080
+#define ECDSA_SRAM_QY   0x20c0
+#define ECDSA_SRAM_R    0x21c0
+#define ECDSA_SRAM_S    0x2200
+#define ECDSA_SRAM_M    0x2240
+#define ECDSA_P384_COORD_LEN    48
 
 /* R_STATUS */
+#define ECDSA_VERIFY_PASS       BIT(21)
+#define ECDSA_VERIFY_DONE       BIT(20)
 #define ABR_EN                  BIT(14) /* Mirrors SCU510[11] */
 #define ABR_IMAGE_SOURCE        BIT(13)
 #define SPI_ABR_IMAGE_SOURCE    BIT(12)
@@ -41,6 +57,10 @@
 #define OTP_IDLE                BIT(2)
 #define OTP_MEM_IDLE            BIT(1)
 #define OTP_COMPARE_STATUS      BIT(0)
+
+/* R_SEC_TRIGGER */
+#define ECDSA_CMD_TRIGGER BIT(1)
+#define RSA_CMD_TRIGGER   BIT(0)
 
 /* QSR */
 #define QSR_RSA_MASK           (0x3 << 12)
@@ -220,10 +240,111 @@ static void aspeed_sbc_handle_command(void *opaque, uint32_t cmd)
     s->regs[R_STATUS] |= (OTP_MEM_IDLE | OTP_IDLE);
 }
 
+static void sbc_ecdsa_hexdump(const char *desc, const char *buf, size_t size)
+{
+    g_autoptr(GString) str = g_string_sized_new(64);
+    size_t len;
+    size_t i;
+
+    for (i = 0; i < size; i += len) {
+        len = MIN(16, size - i);
+        g_string_truncate(str, 0);
+        qemu_hexdump_line(str, buf + i, len, 1, 4);
+        trace_aspeed_sbc_ecdsa_hexdump(desc, i, str->str);
+    }
+}
+
+/*
+ * The hardware only supports ECDSA secp384r1 (NIST P-384). The firmware has
+ * already staged the public key, signature and digest in the SEC SRAM; read
+ * them out and defer the actual verification to the crypto backend.
+ */
+static bool aspeed_sbc_ecdsa_verify(AspeedSBCState *s)
+{
+    QCryptoAkCipherOptions opts = {
+        .alg = QCRYPTO_AK_CIPHER_ALGO_ECDSA,
+        .u.ecdsa.curve_id = QCRYPTO_CURVE_ID_SECP384R1,
+    };
+    g_autoptr(QCryptoAkCipher) akcipher = NULL;
+    uint8_t pubkey[ECDSA_P384_COORD_LEN * 2];
+    uint8_t sig[ECDSA_P384_COORD_LEN * 2];
+    uint8_t dgst[ECDSA_P384_COORD_LEN];
+    Error *err = NULL;
+
+    if (!qcrypto_akcipher_supports(&opts)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: ECDSA secp384r1 is not supported by the crypto "
+                      "backend\n", __func__);
+        return false;
+    }
+
+    if (address_space_read(&s->sram_as, ECDSA_SRAM_QX,
+                           MEMTXATTRS_UNSPECIFIED, pubkey,
+                           ECDSA_P384_COORD_LEN) != MEMTX_OK) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: failed to read ECDSA QX from SEC SRAM\n", __func__);
+        return false;
+    }
+    if (address_space_read(&s->sram_as, ECDSA_SRAM_QY,
+                           MEMTXATTRS_UNSPECIFIED,
+                           pubkey + ECDSA_P384_COORD_LEN,
+                           ECDSA_P384_COORD_LEN) != MEMTX_OK) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: failed to read ECDSA QY from SEC SRAM\n", __func__);
+        return false;
+    }
+    if (address_space_read(&s->sram_as, ECDSA_SRAM_R,
+                           MEMTXATTRS_UNSPECIFIED, sig,
+                           ECDSA_P384_COORD_LEN) != MEMTX_OK) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: failed to read ECDSA R from SEC SRAM\n", __func__);
+        return false;
+    }
+    if (address_space_read(&s->sram_as, ECDSA_SRAM_S,
+                           MEMTXATTRS_UNSPECIFIED, sig + ECDSA_P384_COORD_LEN,
+                           ECDSA_P384_COORD_LEN) != MEMTX_OK) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: failed to read ECDSA S from SEC SRAM\n", __func__);
+        return false;
+    }
+    if (address_space_read(&s->sram_as, ECDSA_SRAM_M,
+                           MEMTXATTRS_UNSPECIFIED, dgst,
+                           ECDSA_P384_COORD_LEN) != MEMTX_OK) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: failed to read ECDSA M from SEC SRAM\n",
+                      __func__);
+        return false;
+    }
+
+    if (trace_event_get_state_backends(TRACE_ASPEED_SBC_ECDSA_HEXDUMP)) {
+        sbc_ecdsa_hexdump("pubkey", (char *)pubkey, sizeof(pubkey));
+        sbc_ecdsa_hexdump("signature", (char *)sig, sizeof(sig));
+        sbc_ecdsa_hexdump("digest", (char *)dgst, sizeof(dgst));
+    }
+
+    akcipher = qcrypto_akcipher_new(&opts, QCRYPTO_AK_CIPHER_KEY_TYPE_PUBLIC,
+                                    pubkey, sizeof(pubkey), &err);
+    if (!akcipher) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: %s\n", __func__,
+                      error_get_pretty(err));
+        error_free(err);
+        return false;
+    }
+
+    if (qcrypto_akcipher_verify(akcipher, sig, sizeof(sig),
+                                dgst, sizeof(dgst), &err) != 0) {
+        error_free(err);
+        return false;
+    }
+
+    return true;
+}
+
 static void aspeed_sbc_write(void *opaque, hwaddr addr, uint64_t data,
                               unsigned int size)
 {
     AspeedSBCState *s = ASPEED_SBC(opaque);
+    AspeedSBCClass *sc = ASPEED_SBC_GET_CLASS(s);
 
     addr >>= 2;
 
@@ -243,6 +364,26 @@ static void aspeed_sbc_write(void *opaque, hwaddr addr, uint64_t data,
         return;
     case R_CMD:
         aspeed_sbc_handle_command(opaque, data);
+        return;
+    case R_SEC_TRIGGER:
+        if (data & RSA_CMD_TRIGGER) {
+            qemu_log_mask(LOG_UNIMP,
+                          "%s: RSA is not supported\n", __func__);
+        }
+        if (data & ECDSA_CMD_TRIGGER) {
+            if (!sc->has_ecdsa) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "%s: ECDSA is not supported\n", __func__);
+                return;
+            }
+            s->regs[R_STATUS] &= ~(ECDSA_VERIFY_DONE | ECDSA_VERIFY_PASS);
+            if (aspeed_sbc_ecdsa_verify(s)) {
+                s->regs[R_STATUS] |= ECDSA_VERIFY_PASS;
+            }
+            s->regs[R_STATUS] |= ECDSA_VERIFY_DONE;
+            trace_aspeed_sbc_ecdsa_verify(
+                (s->regs[R_STATUS] & ECDSA_VERIFY_PASS) ? "pass" : "fail");
+        }
         return;
     default:
         break;
