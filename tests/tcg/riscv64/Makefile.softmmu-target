@@ -24,9 +24,13 @@ EXTRA_RUNS += run-test-mepc-masking
 run-test-mepc-masking: test-mepc-masking
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS)$<)
 
-EXTRA_RUNS += run-test-minstret-ecall
+TESTS += test-minstret-ecall
 run-test-minstret-ecall: test-minstret-ecall
 	$(call run-test, $<, $(QEMU) -icount shift=1 $(QEMU_OPTS)$<)
+
+TESTS += pmu-lpad
+run-pmu-lpad: pmu-lpad
+	$(call run-test, $<, $(QEMU) -cpu max -icount shift=0 $(QEMU_OPTS)$<)
 
 RV32_CFLAGS = -march=rv32im_zicsr -mabi=ilp32
 CLEANFILES += test-mcycle-rv32
