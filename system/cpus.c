@@ -237,9 +237,9 @@ void cpus_set_virtual_clock(int64_t new_time)
 }
 
 /*
- * return the time elapsed in VM between vm_start and vm_stop.  Unless
- * icount is active, cpus_get_elapsed_ticks() uses units of the host CPU cycle
- * counter.
+ * Return VM-elapsed ticks. While VM ticks are disabled, passage of host time
+ * does not advance the returned value. Unless icount is active, the units are
+ * those of the host CPU cycle counter.
  */
 int64_t cpus_get_elapsed_ticks(void)
 {
