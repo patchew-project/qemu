@@ -448,11 +448,7 @@ int riscv_pmu_incr_ctr(RISCVCPU *cpu, enum riscv_pmu_event_idx event_idx)
         counter = &env->pmu_ctrs[ctr_idx];
         if (counter->mhpmcounter_val == max_val) {
             counter->mhpmcounter_val = 0;
-            /* Generate interrupt only if OF bit is clear */
-            if (!(env->mhpmevent_val[ctr_idx] & MHPMEVENT_BIT_OF)) {
-                env->mhpmevent_val[ctr_idx] |= MHPMEVENT_BIT_OF;
-                riscv_cpu_update_mip(env, MIP_LCOFIP, BOOL_TO_MASK(1));
-            }
+            riscv_pmu_set_overflow(env, ctr_idx);
         } else {
             counter->mhpmcounter_val++;
         }

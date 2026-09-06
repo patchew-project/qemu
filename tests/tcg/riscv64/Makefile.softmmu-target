@@ -69,6 +69,16 @@ TESTS += sscofpmf-overflow
 run-sscofpmf-overflow: sscofpmf-overflow
 	$(call run-test, $<, $(QEMU) -cpu max -icount shift=0 $(QEMU_OPTS)$<)
 
+sscofpmf-event-overflow-off: sscofpmf-event-overflow.S $(LINK_SCRIPT)
+	$(CC) $(CFLAGS) -DEXPECT_SSCOFPMF=0 $< -Wa,--noexecstack -c -o $@.o
+	$(LD) $(LDFLAGS) $@.o -o $@
+
+TESTS += sscofpmf-event-overflow sscofpmf-event-overflow-off
+run-sscofpmf-event-overflow: sscofpmf-event-overflow
+	$(call run-test, $<, $(QEMU) -cpu max $(QEMU_OPTS)$<)
+run-sscofpmf-event-overflow-off: sscofpmf-event-overflow-off
+	$(call run-test, $<, $(QEMU) -cpu max$(COMMA)sscofpmf=false $(QEMU_OPTS)$<)
+
 TESTS += sscofpmf-cycle-overflow
 run-sscofpmf-cycle-overflow: sscofpmf-cycle-overflow
 	$(call run-test, $<, $(QEMU) -cpu max -icount shift=3 $(QEMU_OPTS)$<)
