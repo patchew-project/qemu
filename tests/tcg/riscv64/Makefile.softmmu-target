@@ -40,6 +40,31 @@ run-test-mcycle-rv32: test-mcycle-rv32
 	$(call run-test, $<, \
 	  $(QEMU) -cpu rv32 -icount shift=1 $(QEMU_OPTS)$<)
 
+smcdeleg-counter-rv32: $(SRC_PATH)/tests/tcg/riscv32/smcdeleg-counter-rv32.S $(LINK_SCRIPT)
+	$(CC) $(CFLAGS) $(RV32_CFLAGS) $< -Wa,--noexecstack -c -o $@.o
+	$(LD) -m elf32lriscv $(LDFLAGS) $@.o -o $@
+
+TESTS += smcdeleg-counter-rv32
+run-smcdeleg-counter-rv32: smcdeleg-counter-rv32
+	$(call run-test, $<, \
+	  $(QEMU) -cpu rv32$(COMMA)smcdeleg=true$(COMMA)ssccfg=true$(COMMA)sscofpmf=true $(QEMU_OPTS)$<)
+
+TESTS += smcdeleg-sxl32 smcdeleg-sxl32-high smcdeleg-sxl32-cfg
+smcdeleg-sxl32-high: smcdeleg-sxl32.S $(LINK_SCRIPT)
+	$(CC) $(CFLAGS) -DTEST_HIGH_HALF $< -Wa,--noexecstack -c -o $@.o
+	$(LD) $(LDFLAGS) $@.o -o $@
+
+smcdeleg-sxl32-cfg: smcdeleg-sxl32.S $(LINK_SCRIPT)
+	$(CC) $(CFLAGS) -DTEST_CONFIG $< -Wa,--noexecstack -c -o $@.o
+	$(LD) $(LDFLAGS) $@.o -o $@
+
+run-smcdeleg-sxl32: smcdeleg-sxl32
+	$(call run-test, $<, $(QEMU) -cpu max $(QEMU_OPTS)$<)
+run-smcdeleg-sxl32-high: smcdeleg-sxl32-high
+	$(call run-test, $<, $(QEMU) -cpu max $(QEMU_OPTS)$<)
+run-smcdeleg-sxl32-cfg: smcdeleg-sxl32-cfg
+	$(call run-test, $<, $(QEMU) -cpu max $(QEMU_OPTS)$<)
+
 TESTS += sscofpmf-overflow
 run-sscofpmf-overflow: sscofpmf-overflow
 	$(call run-test, $<, $(QEMU) -cpu max -icount shift=0 $(QEMU_OPTS)$<)

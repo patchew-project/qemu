@@ -24,3 +24,11 @@ run-smcdeleg-minh-rv32: smcdeleg-minh-rv32
 TESTS += pmu-minstretcfg-rv32
 run-pmu-minstretcfg-rv32: pmu-minstretcfg-rv32
 	$(call run-test, $<, $(QEMU) -cpu max $(QEMU_OPTS)$<)
+
+TESTS += smcdeleg-event-rv32
+run-smcdeleg-event-rv32: smcdeleg-event-rv32
+	$(call run-test, $<, $(QEMU) -cpu max $(QEMU_OPTS)$<)
+
+TESTS += smcdeleg-counter-rv32
+run-smcdeleg-counter-rv32: smcdeleg-counter-rv32
+	$(call run-test, $<, $(QEMU) -cpu max $(QEMU_OPTS)$<)
