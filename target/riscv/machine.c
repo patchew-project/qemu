@@ -24,6 +24,9 @@
 #include "migration/cpu.h"
 #include "exec/icount.h"
 #include "target/riscv/tcg/debug.h"
+#ifdef CONFIG_TCG
+#include "target/riscv/tcg/pmu.h"
+#endif
 #ifdef CONFIG_KVM
 #include "kvm/kvm_riscv.h"
 #endif
@@ -311,6 +314,9 @@ static int riscv_cpu_post_load(void *opaque, int version_id)
     CPURISCVState *env = &cpu->env;
 
     env->xl = cpu_recompute_xl(env);
+#ifdef CONFIG_TCG
+    riscv_pmu_rebuild_event_map(env);
+#endif
     return 0;
 }
 
