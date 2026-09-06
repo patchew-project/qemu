@@ -69,6 +69,7 @@ struct AspeedSoCState {
     MemoryRegion *dram_mr;
     MemoryRegion dram_container;
     MemoryRegion sram[ASPEED_SRAM_NUM];
+    MemoryRegion sram_container[ASPEED_SRAM_NUM];
     MemoryRegion spi_boot_container;
     MemoryRegion spi_boot;
     MemoryRegion vbootrom;
