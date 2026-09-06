@@ -603,25 +603,24 @@ static void sim_handle_trap0(CPUHexagonState *env)
 
     case HEX_SYS_ACCESS:
     {
-        char filename[BUFSIZ];
+        char *filename;
         uint32_t FileNameAddr;
         uint32_t BufferMode;
-        int rc;
-
-        int i = 0;
+        int rc, err;
 
         hexagon_read_memory(env, swi_info, 4, &FileNameAddr, retaddr);
-        do {
-            hexagon_read_memory(env, FileNameAddr + i, 1, &filename[i],
-                                retaddr);
-            i++;
-        } while ((i < BUFSIZ) && (filename[i - 1]));
-        filename[i] = 0;
+        filename = lock_user_string(FileNameAddr);
+        if (!filename) {
+            semi_cb(cs, -1, EFAULT);
+            break;
+        }
 
         hexagon_read_memory(env, swi_info + 4, 4, &BufferMode, retaddr);
 
         rc = access(filename, BufferMode);
-        semi_cb(cs, rc,  rc == 0 ? 0 : errno);
+        err = errno;
+        unlock_user(filename, FileNameAddr, 0);
+        semi_cb(cs, rc,  rc == 0 ? 0 : err);
     }
     break;
 
