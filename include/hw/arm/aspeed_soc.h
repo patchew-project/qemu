@@ -92,7 +92,6 @@ struct AspeedSoCState {
     AspeedSBCState sbc;
     AspeedSLIState sli;
     AspeedSLIState sliio;
-    UnimplementedDeviceState sbc_unimplemented;
     AspeedSDMCState sdmc;
     AspeedPWMState pwm;
     AspeedWDTState wdt[ASPEED_WDTS_NUM];

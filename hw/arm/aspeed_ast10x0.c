@@ -163,8 +163,6 @@ static void aspeed_soc_ast10x0_init(Object *obj, const char *socname)
     object_initialize_child(obj, "hace", &s->hace, typename);
 
     object_initialize_child(obj, "iomem", &s->iomem, TYPE_UNIMPLEMENTED_DEVICE);
-    object_initialize_child(obj, "sbc-unimplemented", &s->sbc_unimplemented,
-                            TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "pwm", &s->pwm, TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "espi", &s->espi, TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "udc", &s->udc, TYPE_UNIMPLEMENTED_DEVICE);
@@ -222,11 +220,6 @@ static bool aspeed_soc_ast10x0_realize(Aspeed10x0SoCState *a, Error **errp)
                                   "aspeed.io",
                                   sc->memmap[ASPEED_DEV_IOMEM],
                                   ASPEED_SOC_IOMEM_SIZE);
-    aspeed_mmio_map_unimplemented(s->memory,
-                                  SYS_BUS_DEVICE(&s->sbc_unimplemented),
-                                  "aspeed.sbc", sc->memmap[ASPEED_DEV_SBC],
-                                  0x40000);
-
     /* AST10x0 CPU Core */
     armv7m = DEVICE(&a->armv7m);
     qdev_prop_set_uint32(armv7m, "num-irq", 256);
