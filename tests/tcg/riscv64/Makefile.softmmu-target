@@ -40,6 +40,10 @@ run-test-mcycle-rv32: test-mcycle-rv32
 	$(call run-test, $<, \
 	  $(QEMU) -cpu rv32 -icount shift=1 $(QEMU_OPTS)$<)
 
+TESTS += sscofpmf-overflow
+run-sscofpmf-overflow: sscofpmf-overflow
+	$(call run-test, $<, $(QEMU) -cpu max -icount shift=0 $(QEMU_OPTS)$<)
+
 EXTRA_RUNS += run-plugin-doubletrap
 run-plugin-doubletrap: doubletrap
 	$(call run-test, $<, \

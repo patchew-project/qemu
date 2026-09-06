@@ -1209,23 +1209,58 @@ static RISCVException write_minstretcfgh(CPURISCVState *env, int csrno,
 static RISCVException read_mhpmevent(CPURISCVState *env, int csrno,
                                      target_ulong *val)
 {
-    int evt_index = csrno - CSR_MCOUNTINHIBIT;
+    int ctr_idx = csrno - CSR_MCOUNTINHIBIT;
     bool rv32 = riscv_cpu_mxl(env) == MXL_RV32;
 
-    *val = extract64(env->mhpmevent_val[evt_index], 0, rv32 ? 32 : 64);
+    *val = extract64(env->mhpmevent_val[ctr_idx], 0, rv32 ? 32 : 64);
 
     return RISCV_EXCP_NONE;
+}
+
+static uint64_t riscv_pmu_ctr_get_fixed_counters_val(CPURISCVState *env,
+                                                     int counter_idx);
+
+static void riscv_pmu_write_mhpmevent(CPURISCVState *env,
+                                      uint32_t ctr_idx, uint64_t value)
+{
+    PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
+    bool enabled = !get_field(env->mcountinhibit, BIT(ctr_idx));
+
+    /*
+     * A programmable counter backed by a fixed source uses mhpmcounter_val
+     * as its base and mhpmcounter_prev as the source snapshot.  Preserve the
+     * visible value before changing the source or its privilege filters.
+     */
+    if (enabled &&
+        (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
+         riscv_pmu_ctr_monitor_instructions(env, ctr_idx))) {
+        uint64_t source = riscv_pmu_ctr_get_fixed_counters_val(env,
+                                                               ctr_idx);
+
+        counter->mhpmcounter_val += source - counter->mhpmcounter_prev;
+    }
+
+    env->mhpmevent_val[ctr_idx] = value;
+    riscv_pmu_update_event_map(env, value, ctr_idx);
+
+    if (enabled &&
+        (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
+         riscv_pmu_ctr_monitor_instructions(env, ctr_idx))) {
+        counter->mhpmcounter_prev =
+            riscv_pmu_ctr_get_fixed_counters_val(env, ctr_idx);
+        riscv_pmu_setup_timer(env, counter->mhpmcounter_val, ctr_idx);
+    }
 }
 
 static RISCVException write_mhpmevent(CPURISCVState *env, int csrno,
                                       target_ulong val, uintptr_t ra)
 {
-    int evt_index = csrno - CSR_MCOUNTINHIBIT;
+    int ctr_idx = csrno - CSR_MCOUNTINHIBIT;
     uint64_t mhpmevt_val;
     uint64_t inh_avail_mask;
 
     if (riscv_cpu_mxl(env) == MXL_RV32) {
-        mhpmevt_val = deposit64(env->mhpmevent_val[evt_index], 0, 32, val);
+        mhpmevt_val = deposit64(env->mhpmevent_val[ctr_idx], 0, 32, val);
     } else {
         inh_avail_mask = ~MHPMEVENT_FILTER_MASK | MHPMEVENT_BIT_MINH;
         inh_avail_mask |= riscv_has_ext(env, RVU) ? MHPMEVENT_BIT_UINH : 0;
@@ -1237,8 +1272,7 @@ static RISCVException write_mhpmevent(CPURISCVState *env, int csrno,
         mhpmevt_val = val & inh_avail_mask;
     }
 
-    env->mhpmevent_val[evt_index] = mhpmevt_val;
-    riscv_pmu_update_event_map(env, mhpmevt_val, evt_index);
+    riscv_pmu_write_mhpmevent(env, ctr_idx, mhpmevt_val);
 
     return RISCV_EXCP_NONE;
 }
@@ -1246,9 +1280,9 @@ static RISCVException write_mhpmevent(CPURISCVState *env, int csrno,
 static RISCVException read_mhpmeventh(CPURISCVState *env, int csrno,
                                       target_ulong *val)
 {
-    int evt_index = csrno - CSR_MHPMEVENT3H + 3;
+    int ctr_idx = csrno - CSR_MHPMEVENT3H + 3;
 
-    *val = extract64(env->mhpmevent_val[evt_index], 32, 32);
+    *val = extract64(env->mhpmevent_val[ctr_idx], 32, 32);
 
     return RISCV_EXCP_NONE;
 }
@@ -1256,7 +1290,7 @@ static RISCVException read_mhpmeventh(CPURISCVState *env, int csrno,
 static RISCVException write_mhpmeventh(CPURISCVState *env, int csrno,
                                        target_ulong val, uintptr_t ra)
 {
-    int evt_index = csrno - CSR_MHPMEVENT3H + 3;
+    int ctr_idx = csrno - CSR_MHPMEVENT3H + 3;
     target_ulong inh_avail_mask = (target_ulong)(~MHPMEVENTH_FILTER_MASK |
                                                   MHPMEVENTH_BIT_MINH);
 
@@ -1267,10 +1301,9 @@ static RISCVException write_mhpmeventh(CPURISCVState *env, int csrno,
     inh_avail_mask |= (riscv_has_ext(env, RVH) &&
                        riscv_has_ext(env, RVS)) ? MHPMEVENTH_BIT_VSINH : 0;
 
-    env->mhpmevent_val[evt_index] = deposit64(env->mhpmevent_val[evt_index],
-                                              32, 32, val & inh_avail_mask);
-
-    riscv_pmu_update_event_map(env, env->mhpmevent_val[evt_index], evt_index);
+    riscv_pmu_write_mhpmevent(env, ctr_idx,
+                              deposit64(env->mhpmevent_val[ctr_idx], 32, 32,
+                                        val & inh_avail_mask));
 
     return RISCV_EXCP_NONE;
 }
@@ -1512,11 +1545,11 @@ static int rmw_cd_mhpmcounterh(CPURISCVState *env, int ctr_idx,
     return 0;
 }
 
-static int rmw_cd_mhpmevent(CPURISCVState *env, int evt_index,
+static int rmw_cd_mhpmevent(CPURISCVState *env, int ctr_idx,
                             target_ulong *val, target_ulong new_val,
                             uint64_t wr_mask)
 {
-    uint64_t mhpmevt_val = env->mhpmevent_val[evt_index];
+    uint64_t mhpmevt_val = env->mhpmevent_val[ctr_idx];
 
     if (wr_mask != 0 && wr_mask != -1) {
         return -EINVAL;
@@ -1531,8 +1564,7 @@ static int rmw_cd_mhpmevent(CPURISCVState *env, int evt_index,
         wr_mask &= ~MHPMEVENT_BIT_MINH;
         /* wr_mask is 64-bit so upper 32 bits of mhpmevt_val are retained */
         mhpmevt_val = (new_val & wr_mask) | (mhpmevt_val & ~wr_mask);
-        env->mhpmevent_val[evt_index] = mhpmevt_val;
-        riscv_pmu_update_event_map(env, mhpmevt_val, evt_index);
+        riscv_pmu_write_mhpmevent(env, ctr_idx, mhpmevt_val);
     } else {
         return -EINVAL;
     }
@@ -1540,11 +1572,11 @@ static int rmw_cd_mhpmevent(CPURISCVState *env, int evt_index,
     return 0;
 }
 
-static int rmw_cd_mhpmeventh(CPURISCVState *env, int evt_index,
+static int rmw_cd_mhpmeventh(CPURISCVState *env, int ctr_idx,
                              target_ulong *val, target_ulong new_val,
                              target_ulong wr_mask)
 {
-    uint64_t mhpmevt_val = env->mhpmevent_val[evt_index];
+    uint64_t mhpmevt_val = env->mhpmevent_val[ctr_idx];
     uint32_t mhpmevth_val = extract64(mhpmevt_val, 32, 32);
 
     if (wr_mask != 0 && wr_mask != -1) {
@@ -1560,8 +1592,7 @@ static int rmw_cd_mhpmeventh(CPURISCVState *env, int evt_index,
         wr_mask &= ~MHPMEVENTH_BIT_MINH;
         mhpmevth_val = (new_val & wr_mask) | (mhpmevth_val & ~wr_mask);
         mhpmevt_val = deposit64(mhpmevt_val, 32, 32, mhpmevth_val);
-        env->mhpmevent_val[evt_index] = mhpmevt_val;
-        riscv_pmu_update_event_map(env, mhpmevt_val, evt_index);
+        riscv_pmu_write_mhpmevent(env, ctr_idx, mhpmevt_val);
     } else {
         return -EINVAL;
     }
