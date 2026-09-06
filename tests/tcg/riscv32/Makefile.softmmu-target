@@ -20,3 +20,7 @@ QEMU_OPTS += -M virt -display none -semihosting -device loader,file=
 TESTS += smcdeleg-minh-rv32
 run-smcdeleg-minh-rv32: smcdeleg-minh-rv32
 	$(call run-test, $<, $(QEMU) -cpu max $(QEMU_OPTS)$<)
+
+TESTS += pmu-minstretcfg-rv32
+run-pmu-minstretcfg-rv32: pmu-minstretcfg-rv32
+	$(call run-test, $<, $(QEMU) -cpu max $(QEMU_OPTS)$<)
