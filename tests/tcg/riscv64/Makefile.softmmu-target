@@ -95,6 +95,12 @@ TESTS += pmu-cycle-controls
 run-pmu-cycle-controls: pmu-cycle-controls
 	$(call run-test, $<, $(QEMU) -cpu max -icount shift=0 $(QEMU_OPTS)$<)
 
+TESTS += pmu-reset-vs
+run-pmu-reset-vs: pmu-reset-vs
+	$(call run-test, $<, $(QEMU) -M virt -bios none -kernel $< \
+		-display none -semihosting -cpu max$(COMMA)smcntrpmf=true \
+		-icount shift=0)
+
 EXTRA_RUNS += run-plugin-doubletrap
 run-plugin-doubletrap: doubletrap
 	$(call run-test, $<, \
