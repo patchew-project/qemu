@@ -52,6 +52,7 @@ static const hwaddr aspeed_soc_ast2600_memmap[] = {
     [ASPEED_DEV_DP]        = 0x1E6EB000,
     [ASPEED_DEV_PCIE_PHY1] = 0x1E6ED200,
     [ASPEED_DEV_SBC]       = 0x1E6F2000,
+    [ASPEED_DEV_ACRY]      = 0x1E6FA000,
     [ASPEED_DEV_EMMC_BC]   = 0x1E6f5000,
     [ASPEED_DEV_VIDEO]     = 0x1E700000,
     [ASPEED_DEV_SDHCI]     = 0x1E740000,
@@ -144,6 +145,7 @@ static const int aspeed_soc_ast2600_irqmap[] = {
     [ASPEED_DEV_FSI1]      = 100,
     [ASPEED_DEV_FSI2]      = 101,
     [ASPEED_DEV_I3C]       = 102,   /* 102 -> 107 */
+    [ASPEED_DEV_ACRY]      = 160,
 };
 
 static qemu_irq aspeed_soc_ast2600_get_irq(AspeedSoCState *s, int dev)
@@ -268,6 +270,8 @@ static void aspeed_soc_ast2600_init(Object *obj)
 
     snprintf(typename, sizeof(typename), "aspeed.hace-%s", socname);
     object_initialize_child(obj, "hace", &s->hace, typename);
+
+    object_initialize_child(obj, "acry", &s->acry, TYPE_ASPEED_ACRY);
 
     object_initialize_child(obj, "i3c", &s->i3c, TYPE_ASPEED_I3C);
 
@@ -725,6 +729,19 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
                     sc->memmap[ASPEED_DEV_HACE]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->hace), 0,
                        aspeed_soc_ast2600_get_irq(s, ASPEED_DEV_HACE));
+
+    /* ACRY */
+    object_property_set_link(OBJECT(&s->acry), "dram", OBJECT(s->dram_mr),
+                             &error_abort);
+    object_property_set_link(OBJECT(&s->acry), "sram", OBJECT(&s->sram[1]),
+                             &error_abort);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->acry), errp)) {
+        return;
+    }
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&s->acry), 0,
+                    sc->memmap[ASPEED_DEV_ACRY]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->acry), 0,
+                       aspeed_soc_ast2600_get_irq(s, ASPEED_DEV_ACRY));
 
     /* I3C */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->i3c), errp)) {
