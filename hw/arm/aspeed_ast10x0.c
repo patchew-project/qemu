@@ -250,8 +250,11 @@ static bool aspeed_soc_ast10x0_realize(Aspeed10x0SoCState *a, Error **errp)
         error_propagate(errp, err);
         return false;
     }
+    memory_region_init(&s->sram_container[1], OBJECT(s), "sec.sram-container",
+                       sc->sram_size[1]);
+    memory_region_add_subregion(&s->sram_container[1], 0, &s->sram[1]);
     memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_SRAM1],
-                                &s->sram[1]);
+                                &s->sram_container[1]);
 
     /* SCU */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->scu), errp)) {
@@ -350,6 +353,8 @@ static bool aspeed_soc_ast10x0_realize(Aspeed10x0SoCState *a, Error **errp)
     }
 
     /* Secure Boot Controller */
+    object_property_set_link(OBJECT(&s->sbc), "sram", OBJECT(&s->sram[1]),
+                             &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->sbc), errp)) {
         return false;
     }

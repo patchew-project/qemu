@@ -306,6 +306,14 @@ static void aspeed_sbc_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    if (sc->has_ecdsa) {
+        if (!s->sram) {
+            error_setg(errp, TYPE_ASPEED_SBC ": 'sram' link not set");
+            return;
+        }
+        address_space_init(&s->sram_as, s->sram, TYPE_ASPEED_SBC ".sram");
+    }
+
     memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_sbc_ops, s,
             TYPE_ASPEED_SBC, ASPEED_SBC_NR_REGS << 2);
 
@@ -325,6 +333,8 @@ static const VMStateDescription vmstate_aspeed_sbc = {
 static const Property aspeed_sbc_properties[] = {
     DEFINE_PROP_BOOL("emmc-abr", AspeedSBCState, emmc_abr, 0),
     DEFINE_PROP_UINT32("signing-settings", AspeedSBCState, signing_settings, 0),
+    DEFINE_PROP_LINK("sram", AspeedSBCState, sram,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
 static void aspeed_sbc_class_init(ObjectClass *klass, const void *data)
@@ -355,6 +365,7 @@ static void aspeed_ast10x0_sbc_class_init(ObjectClass *klass, const void *data)
 
     dc->desc = "AST10X0 Secure Boot Controller";
     sc->has_otp = true;
+    sc->has_ecdsa = true;
 }
 
 static const TypeInfo aspeed_sbc_types[] = {
