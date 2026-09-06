@@ -236,8 +236,6 @@ typedef struct PMUCTRState {
     uint64_t mhpmcounter_val;
     /* Snapshot value of a counter */
     uint64_t mhpmcounter_prev;
-    /* Value beyond INT64_MAX before overflow interrupt trigger */
-    uint64_t irq_overflow_left;
 } PMUCTRState;
 
 typedef enum {
@@ -583,6 +581,8 @@ struct ArchCPU {
     RISCVSATPModes satp_modes;
 
     QEMUTimer *pmu_timer;
+    uint64_t pmu_timer_instret_snapshot;
+    bool pmu_timer_stalled;
     /* A bitmask of Available programmable counters */
     uint32_t pmu_avail_ctrs;
     /* Mapping of events to counters */
