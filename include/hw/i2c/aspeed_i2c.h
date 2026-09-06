@@ -231,6 +231,8 @@ REG32(I2CS_DMA_TX_ADDR_HI, 0x68)
     FIELD(I2CS_DMA_TX_ADDR_HI, ADDR_HI, 0, 7)
 REG32(I2CS_DMA_RX_ADDR_HI, 0x6c)
     FIELD(I2CS_DMA_RX_ADDR_HI, ADDR_HI, 0, 7)
+REG32(I2CC_BYTE_DATA_LOG, 0x84)
+    FIELD(I2CC_BYTE_DATA_LOG, RX_BUF, 0, 8)
 REG32(I2CC_VERSION_CTRL, 0x94)
     FIELD(I2CC_VERSION_CTRL, FUNC_CFG_DMA_EN, 2, 1)
 
@@ -302,6 +304,7 @@ struct AspeedI2CClass {
     bool has_share_pool;
     uint64_t mem_size;
     bool has_dma64;
+    bool has_byte_data_log;
     uint32_t dma_addr_lo_mask;
 };
 
