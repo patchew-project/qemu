@@ -1,5 +1,5 @@
 /*
- * Texas Instruments TMP105 Temperature Sensor
+ * Texas Instruments TMP105/TMP75/TMP175/LM75B Temperature Sensor
  *
  * Browse the data sheet:
  *
@@ -14,6 +14,10 @@
 #ifndef HW_SENSOR_TMP105_H
 #define HW_SENSOR_TMP105_H
 
+/* TMP75, TMP175 and NXP LM75B are register-compatible with TMP105. */
 #define TYPE_TMP105 "tmp105"
+#define TYPE_TMP175 "tmp175"
+#define TYPE_TMP75  "tmp75"
+#define TYPE_LM75B  "lm75b"
 
 #endif
