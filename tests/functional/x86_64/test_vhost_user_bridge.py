@@ -73,11 +73,24 @@ class VhostUserBridge(LinuxKernelTest):
             "-netdev",   "hubport,id=hub1,hubid=0,netdev=user0"
         )
 
+    @staticmethod
+    def _is_asan_linked(binary_path):
+        try:
+            output = subprocess.check_output(
+                ["ldd", binary_path], stderr=subprocess.DEVNULL, text=True)
+            return "libasan" in output
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return False
+
     def assemble_vubr_args(self, vubr_path, ud_socket_path, lport, rport):
         vubr_args = []
 
         if (stdbuf_path := which("stdbuf")) is None:
             self.log.info("Could not find stdbuf: vhost-user-bridge "
+                          "log lines may appear out of order")
+        elif self._is_asan_linked(vubr_path):
+            self.log.info("vhost-user-bridge is ASan-linked: skipping "
+                          "stdbuf to avoid LD_PRELOAD conflict, "
                           "log lines may appear out of order")
         else:
             vubr_args += [stdbuf_path, "-o0", "-e0"]
