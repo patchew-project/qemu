@@ -663,6 +663,85 @@ void riscv_pmu_rebuild_timer(CPURISCVState *env)
     riscv_pmu_rebuild_timer_internal(env, false);
 }
 
+static uint32_t riscv_pmu_fixed_source_counter_mask(CPURISCVState *env)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+    uint32_t mask = COUNTEREN_CY | COUNTEREN_IR;
+
+    mask |= riscv_pmu_event_counter_mask(
+        cpu, RISCV_PMU_EVENT_HW_CPU_CYCLES);
+    mask |= riscv_pmu_event_counter_mask(
+        cpu, RISCV_PMU_EVENT_HW_INSTRUCTIONS);
+    return mask;
+}
+
+static void riscv_pmu_accumulate_fixed_source_counters(
+    CPURISCVState *env, const RISCVPMUFixedSnapshot *snapshot)
+{
+    uint32_t mask = riscv_pmu_fixed_source_counter_mask(env);
+
+    while (mask) {
+        uint32_t ctr_idx = ctz32(mask);
+
+        mask &= ~BIT(ctr_idx);
+        if (riscv_pmu_fixed_ctr_running(env, ctr_idx)) {
+            riscv_pmu_accumulate_fixed_delta(env, ctr_idx, snapshot);
+        }
+    }
+}
+
+void riscv_pmu_prepare_save(CPURISCVState *env)
+{
+    RISCVPMUFixedSnapshot snapshot;
+
+    riscv_pmu_take_fixed_snapshot(env, &snapshot);
+    riscv_pmu_accumulate_fixed_source_counters(env, &snapshot);
+}
+
+static void riscv_pmu_rebase_fixed_source_counters(
+    CPURISCVState *env, const RISCVPMUFixedSnapshot *snapshot)
+{
+    uint32_t mask;
+
+    memset(env->pmu_fixed_ctrs, 0, sizeof(env->pmu_fixed_ctrs));
+    if (env->virt_enabled) {
+        env->pmu_fixed_ctrs[RISCV_PMU_FIXED_DOMAIN_CYCLE]
+            .counter_virt_prev[env->priv] = snapshot->cycle;
+        env->pmu_fixed_ctrs[RISCV_PMU_FIXED_DOMAIN_INSTRET]
+            .counter_virt_prev[env->priv] = snapshot->instret;
+    } else {
+        env->pmu_fixed_ctrs[RISCV_PMU_FIXED_DOMAIN_CYCLE]
+            .counter_prev[env->priv] = snapshot->cycle;
+        env->pmu_fixed_ctrs[RISCV_PMU_FIXED_DOMAIN_INSTRET]
+            .counter_prev[env->priv] = snapshot->instret;
+    }
+
+    mask = riscv_pmu_fixed_source_counter_mask(env);
+    while (mask) {
+        uint32_t ctr_idx = ctz32(mask);
+
+        mask &= ~BIT(ctr_idx);
+        if (riscv_pmu_fixed_ctr_enabled(env, ctr_idx)) {
+            riscv_pmu_set_fixed_baseline(env, ctr_idx, snapshot);
+        }
+    }
+}
+
+void riscv_pmu_complete_load(CPURISCVState *env)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+    RISCVPMUFixedSnapshot snapshot;
+
+    riscv_pmu_rebuild_event_map(env);
+    riscv_pmu_take_fixed_snapshot(env, &snapshot);
+    riscv_pmu_rebase_fixed_source_counters(env, &snapshot);
+
+    qatomic_set(&cpu->pmu_timer_work_pending, false);
+    cpu->pmu_timer_stalled = false;
+    cpu->pmu_timer_instret_snapshot = snapshot.instret;
+    riscv_pmu_rebuild_timer(env);
+}
+
 static void riscv_pmu_timer_work(CPUState *cs, run_on_cpu_data data)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);

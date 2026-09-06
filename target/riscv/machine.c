@@ -267,6 +267,30 @@ static const VMStateDescription vmstate_kvm_mp_state = {
 };
 #endif
 
+static int riscv_cpu_pre_load(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+
+    cpu->pmu_fixed_subsection_present = false;
+#ifdef CONFIG_KVM
+    return riscv_cpu_kvm_pre_load(opaque);
+#else
+    return 0;
+#endif
+}
+
+static int riscv_cpu_pre_save(void *opaque)
+{
+#ifdef CONFIG_TCG
+    RISCVCPU *cpu = opaque;
+
+    if (tcg_enabled()) {
+        riscv_pmu_prepare_save(&cpu->env);
+    }
+#endif
+    return 0;
+}
+
 static bool debug_needed(void *opaque)
 {
     RISCVCPU *cpu = opaque;
@@ -308,16 +332,25 @@ static const VMStateDescription vmstate_debug = {
     }
 };
 
-static int riscv_cpu_post_load(void *opaque, int version_id)
+static bool riscv_cpu_post_load(void *opaque, int version_id, Error **errp)
 {
     RISCVCPU *cpu = opaque;
     CPURISCVState *env = &cpu->env;
 
     env->xl = cpu_recompute_xl(env);
 #ifdef CONFIG_TCG
-    riscv_pmu_rebuild_event_map(env);
+    if (tcg_enabled()) {
+        if (!cpu->pmu_fixed_subsection_present) {
+            error_setg(errp,
+                       "missing RISC-V fixed-counter PMU migration state");
+            return false;
+        }
+        riscv_pmu_complete_load(env);
+        /* PMU pre-save can raise an interrupt after cpu_common was saved. */
+        riscv_cpu_interrupt(env);
+    }
 #endif
-    return 0;
+    return true;
 }
 
 static bool smstateen_needed(void *opaque)
@@ -400,6 +433,42 @@ static const VMStateDescription vmstate_pmu_ctr_state = {
     .fields = (const VMStateField[]) {
         VMSTATE_UINT64(mhpmcounter_val, PMUCTRState),
         VMSTATE_UINT64(mhpmcounter_prev, PMUCTRState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static int pmu_fixed_post_load(void *opaque, int version_id)
+{
+    RISCVCPU *cpu = opaque;
+
+    /* Let the outer post-load distinguish this format from a legacy stream. */
+    cpu->pmu_fixed_subsection_present = true;
+    return 0;
+}
+
+static bool pmu_fixed_needed(void *opaque)
+{
+    /*
+     * KVM keeps PMU state in the kernel, not in the TCG counter model.
+     * TCG implements mcycle/minstret even without Zicntr, Zihpm or
+     * programmable counters.
+     */
+    return tcg_enabled();
+}
+
+/*
+ * This subsection identifies TCG streams whose fixed-source counter values
+ * include pending deltas. It also carries mcyclecfg and minstretcfg.
+ */
+static const VMStateDescription vmstate_pmu_fixed = {
+    .name = "cpu/pmu-fixed",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = pmu_fixed_needed,
+    .post_load = pmu_fixed_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT64(env.mcyclecfg, RISCVCPU),
+        VMSTATE_UINT64(env.minstretcfg, RISCVCPU),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -505,10 +574,9 @@ const VMStateDescription vmstate_riscv_cpu = {
     .name = "cpu",
     .version_id = 12,
     .minimum_version_id = 12,
-#ifdef CONFIG_KVM
-    .pre_load = riscv_cpu_kvm_pre_load,
-#endif
-    .post_load = riscv_cpu_post_load,
+    .pre_load = riscv_cpu_pre_load,
+    .pre_save = riscv_cpu_pre_save,
+    .post_load_errp = riscv_cpu_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT64_ARRAY(env.gpr, RISCVCPU, 32),
         VMSTATE_UINT64_ARRAY(env.fpr, RISCVCPU, 32),
@@ -554,6 +622,11 @@ const VMStateDescription vmstate_riscv_cpu = {
         VMSTATE_UINT32(env.mcounteren, RISCVCPU),
         VMSTATE_UINT32(env.scountinhibit, RISCVCPU),
         VMSTATE_UINT32(env.mcountinhibit, RISCVCPU),
+        /*
+         * TCG includes pending fixed-source deltas in mhpmcounter_val
+         * before saving. After loading, it ignores mhpmcounter_prev and
+         * rebuilds the baseline from the destination source.
+         */
         VMSTATE_STRUCT_ARRAY(env.pmu_ctrs, RISCVCPU, RV_MAX_MHPMCOUNTERS, 0,
                              vmstate_pmu_ctr_state, PMUCTRState),
         VMSTATE_UINT64_ARRAY(env.mhpmevent_val, RISCVCPU, RV_MAX_MHPMEVENTS),
@@ -582,6 +655,7 @@ const VMStateDescription vmstate_riscv_cpu = {
         &vmstate_ctr,
         &vmstate_sstc,
         &vmstate_mseccfg,
+        &vmstate_pmu_fixed,
         NULL
     }
 };
