@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# RISC-V 32-bit system tests
+#
+
+TEST_SRC = $(SRC_PATH)/tests/tcg/riscv32
+VPATH += $(TEST_SRC)
+
+LINK_SCRIPT = $(SRC_PATH)/tests/tcg/riscv64/semihost.ld
+LDFLAGS = -m elf32lriscv -T $(LINK_SCRIPT)
+CFLAGS += -g -Og $(EXTRA_CFLAGS) -march=rv32im_zicsr -mabi=ilp32
+
+%.o: %.S
+	$(CC) $(CFLAGS) $< -Wa,--noexecstack -c -o $@
+%: %.o $(LINK_SCRIPT)
+	$(LD) $(LDFLAGS) $< -o $@
+
+QEMU_OPTS += -M virt -display none -semihosting -device loader,file=
+
+TESTS += smcdeleg-minh-rv32
+run-smcdeleg-minh-rv32: smcdeleg-minh-rv32
+	$(call run-test, $<, $(QEMU) -cpu max $(QEMU_OPTS)$<)

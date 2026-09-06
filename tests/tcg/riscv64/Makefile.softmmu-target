@@ -48,6 +48,10 @@ TESTS += sscofpmf-cycle-overflow
 run-sscofpmf-cycle-overflow: sscofpmf-cycle-overflow
 	$(call run-test, $<, $(QEMU) -cpu max -icount shift=3 $(QEMU_OPTS)$<)
 
+TESTS += smcdeleg-minh
+run-smcdeleg-minh: smcdeleg-minh
+	$(call run-test, $<, $(QEMU) -cpu max $(QEMU_OPTS)$<)
+
 EXTRA_RUNS += run-plugin-doubletrap
 run-plugin-doubletrap: doubletrap
 	$(call run-test, $<, \
