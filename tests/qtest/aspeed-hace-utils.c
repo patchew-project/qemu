@@ -1248,10 +1248,17 @@ static void aspeed_test_crypto(const void *data)
 {
     const AspeedCryptoTest *c = data;
     const CryptTest *t = &crypt_tests[c->index];
-    QTestState *s = qtest_init(c->machine);
+    QTestState *s;
     uint8_t out[64];
     uint8_t iv[16];
     size_t iv_off;
+
+    if (!qcrypto_cipher_supports(t->alg, t->mode)) {
+        g_test_skip("cipher not supported by the crypto backend");
+        return;
+    }
+
+    s = qtest_init(c->machine);
 
     g_assert_cmpuint(t->len, <=, sizeof(out));
 
@@ -1284,9 +1291,16 @@ static void aspeed_test_crypto_gcm(const void *data)
 {
     const AspeedCryptoTest *c = data;
     const CryptTest *t = &crypt_tests[c->index];
-    QTestState *s = qtest_init(c->machine);
+    QTestState *s;
     uint8_t out[64];
     uint8_t tag[16];
+
+    if (!qcrypto_cipher_supports(t->alg, t->mode)) {
+        g_test_skip("cipher not supported by the crypto backend");
+        return;
+    }
+
+    s = qtest_init(c->machine);
 
     g_assert_cmpuint(t->len, <=, sizeof(out));
 
@@ -1315,12 +1329,6 @@ void aspeed_add_crypto_tests(const char *prefix, const char *machine,
         AspeedCryptoTest *t;
 
         if (!(modes & crypt_mode_flag(crypt_tests[i].cmd))) {
-            continue;
-        }
-
-        if (!qcrypto_cipher_supports(crypt_tests[i].alg,
-                                     crypt_tests[i].mode)) {
-            g_printerr("# skip unsupported %s\n", crypt_tests[i].name);
             continue;
         }
 
