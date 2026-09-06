@@ -85,13 +85,25 @@ static bool riscv_pmu_counter_filtered(CPURISCVState *env, uint64_t cfg)
  * VM-elapsed ticks stop advancing while VM ticks are disabled.  Under
  * icount, instruction events retain raw instruction-count units.
  */
-uint64_t riscv_pmu_read_fixed_source(CPURISCVState *env, bool instret)
+static uint64_t riscv_pmu_read_fixed_source(CPURISCVState *env,
+                                            RISCVPMUFixedDomain domain)
 {
-    if (instret && icount_enabled()) {
+    if (domain == RISCV_PMU_FIXED_DOMAIN_INSTRET && icount_enabled()) {
         return icount_get_raw();
     }
 
+    g_assert(domain == RISCV_PMU_FIXED_DOMAIN_CYCLE ||
+             domain == RISCV_PMU_FIXED_DOMAIN_INSTRET);
     return cpus_get_elapsed_ticks();
+}
+
+void riscv_pmu_take_fixed_snapshot(CPURISCVState *env,
+                                   RISCVPMUFixedSnapshot *snapshot)
+{
+    snapshot->cycle =
+        riscv_pmu_read_fixed_source(env, RISCV_PMU_FIXED_DOMAIN_CYCLE);
+    snapshot->instret =
+        riscv_pmu_read_fixed_source(env, RISCV_PMU_FIXED_DOMAIN_INSTRET);
 }
 
 /*
@@ -106,82 +118,289 @@ uint64_t riscv_pmu_read_fixed_source(CPURISCVState *env, bool instret)
  *  env->priv and env->virt_enabled contain old priv and old virt and
  *  new priv and new virt values are passed in as arguments.
  */
-static void riscv_pmu_icount_update_priv(CPURISCVState *env,
-                                         privilege_mode_t newpriv,
-                                         bool new_virt)
+static void riscv_pmu_fixed_update_priv(CPURISCVState *env,
+                                        privilege_mode_t newpriv,
+                                        bool new_virt,
+                                        RISCVPMUFixedDomain domain,
+                                        uint64_t source)
 {
+    PMUFixedCtrState *fixed = &env->pmu_fixed_ctrs[domain];
     uint64_t *snapshot_prev, *snapshot_new;
-    uint64_t current_icount;
     uint64_t *counter_arr;
     uint64_t delta;
 
-    current_icount = riscv_pmu_read_fixed_source(env, true);
-
     if (env->virt_enabled) {
         g_assert(env->priv <= PRV_S);
-        counter_arr = env->pmu_fixed_ctrs[1].counter_virt;
-        snapshot_prev = env->pmu_fixed_ctrs[1].counter_virt_prev;
+        counter_arr = fixed->counter_virt;
+        snapshot_prev = fixed->counter_virt_prev;
     } else {
-        counter_arr = env->pmu_fixed_ctrs[1].counter;
-        snapshot_prev = env->pmu_fixed_ctrs[1].counter_prev;
+        counter_arr = fixed->counter;
+        snapshot_prev = fixed->counter_prev;
     }
 
     if (new_virt) {
         g_assert(newpriv <= PRV_S);
-        snapshot_new = env->pmu_fixed_ctrs[1].counter_virt_prev;
+        snapshot_new = fixed->counter_virt_prev;
     } else {
-        snapshot_new = env->pmu_fixed_ctrs[1].counter_prev;
+        snapshot_new = fixed->counter_prev;
     }
 
-     /*
-      * new_priv can be same as env->priv. So we need to calculate
-      * delta first before updating snapshot_new[new_priv].
-      */
-    delta = current_icount - snapshot_prev[env->priv];
-    snapshot_new[newpriv] = current_icount;
+    /*
+     * new_priv can be same as env->priv. So we need to calculate
+     * delta first before updating snapshot_new[new_priv].
+     */
+    delta = source - snapshot_prev[env->priv];
+    snapshot_new[newpriv] = source;
 
     counter_arr[env->priv] += delta;
 }
 
-static void riscv_pmu_cycle_update_priv(CPURISCVState *env,
-                                        privilege_mode_t newpriv,
-                                        bool new_virt)
+static void
+riscv_pmu_update_fixed_ctrs_snapshot(CPURISCVState *env,
+                                     privilege_mode_t newpriv, bool new_virt,
+                                     const RISCVPMUFixedSnapshot *snapshot)
 {
-    uint64_t *snapshot_prev, *snapshot_new;
-    uint64_t current_ticks;
-    uint64_t *counter_arr;
-    uint64_t delta;
-
-    current_ticks = riscv_pmu_read_fixed_source(env, false);
-
-    if (env->virt_enabled) {
-        g_assert(env->priv <= PRV_S);
-        counter_arr = env->pmu_fixed_ctrs[0].counter_virt;
-        snapshot_prev = env->pmu_fixed_ctrs[0].counter_virt_prev;
-    } else {
-        counter_arr = env->pmu_fixed_ctrs[0].counter;
-        snapshot_prev = env->pmu_fixed_ctrs[0].counter_prev;
-    }
-
-    if (new_virt) {
-        g_assert(newpriv <= PRV_S);
-        snapshot_new = env->pmu_fixed_ctrs[0].counter_virt_prev;
-    } else {
-        snapshot_new = env->pmu_fixed_ctrs[0].counter_prev;
-    }
-
-    delta = current_ticks - snapshot_prev[env->priv];
-    snapshot_new[newpriv] = current_ticks;
-
-    counter_arr[env->priv] += delta;
+    riscv_pmu_fixed_update_priv(env, newpriv, new_virt,
+                                RISCV_PMU_FIXED_DOMAIN_CYCLE,
+                                snapshot->cycle);
+    riscv_pmu_fixed_update_priv(env, newpriv, new_virt,
+                                RISCV_PMU_FIXED_DOMAIN_INSTRET,
+                                snapshot->instret);
 }
 
 void riscv_pmu_update_fixed_ctrs(CPURISCVState *env,
                                  privilege_mode_t newpriv,
                                  bool new_virt)
 {
-    riscv_pmu_cycle_update_priv(env, newpriv, new_virt);
-    riscv_pmu_icount_update_priv(env, newpriv, new_virt);
+    RISCVPMUFixedSnapshot snapshot;
+
+    riscv_pmu_take_fixed_snapshot(env, &snapshot);
+    riscv_pmu_update_fixed_ctrs_snapshot(env, newpriv, new_virt, &snapshot);
+}
+
+uint64_t
+riscv_pmu_ctr_get_fixed_value(CPURISCVState *env, uint32_t ctr_idx,
+                              const RISCVPMUFixedSnapshot *snapshot)
+{
+    RISCVPMUFixedDomain domain;
+    PMUFixedCtrState *fixed;
+    uint64_t *counter_arr_virt;
+    uint64_t *counter_arr;
+    uint64_t cfg;
+    uint64_t value = 0;
+
+    if (riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
+        domain = RISCV_PMU_FIXED_DOMAIN_INSTRET;
+    } else {
+        domain = RISCV_PMU_FIXED_DOMAIN_CYCLE;
+    }
+
+    fixed = &env->pmu_fixed_ctrs[domain];
+    counter_arr_virt = fixed->counter_virt;
+    counter_arr = fixed->counter;
+
+    if (ctr_idx == 0) {
+        cfg = env->mcyclecfg;
+    } else if (ctr_idx == 2) {
+        cfg = env->minstretcfg;
+    } else {
+        cfg = env->mhpmevent_val[ctr_idx] & MHPMEVENT_FILTER_MASK;
+    }
+
+    if (!cfg) {
+        return domain == RISCV_PMU_FIXED_DOMAIN_INSTRET ?
+               snapshot->instret : snapshot->cycle;
+    }
+
+    riscv_pmu_update_fixed_ctrs_snapshot(env, env->priv, env->virt_enabled,
+                                         snapshot);
+
+    if (!(cfg & MCYCLECFG_BIT_MINH)) {
+        value += counter_arr[PRV_M];
+    }
+    if (!(cfg & MCYCLECFG_BIT_SINH)) {
+        value += counter_arr[PRV_S];
+    }
+    if (!(cfg & MCYCLECFG_BIT_UINH)) {
+        value += counter_arr[PRV_U];
+    }
+    if (!(cfg & MCYCLECFG_BIT_VSINH)) {
+        value += counter_arr_virt[PRV_S];
+    }
+    if (!(cfg & MCYCLECFG_BIT_VUINH)) {
+        value += counter_arr_virt[PRV_U];
+    }
+
+    return value;
+}
+
+static bool riscv_pmu_fixed_ctr_selected(CPURISCVState *env,
+                                         uint32_t ctr_idx)
+{
+    return riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
+           riscv_pmu_ctr_monitor_instructions(env, ctr_idx);
+}
+
+static bool riscv_pmu_fixed_ctr_enabled(CPURISCVState *env,
+                                        uint32_t ctr_idx)
+{
+    return !(env->mcountinhibit & BIT(ctr_idx)) &&
+           riscv_pmu_fixed_ctr_selected(env, ctr_idx);
+}
+
+static bool riscv_pmu_fixed_ctr_running(CPURISCVState *env,
+                                        uint32_t ctr_idx)
+{
+    return riscv_pmu_fixed_ctr_enabled(env, ctr_idx);
+}
+
+static void riscv_pmu_set_overflow(CPURISCVState *env, uint32_t ctr_idx)
+{
+    if (ctr_idx < 3 || !riscv_cpu_cfg(env)->ext_sscofpmf ||
+        (env->mhpmevent_val[ctr_idx] & MHPMEVENT_BIT_OF)) {
+        return;
+    }
+
+    env->mhpmevent_val[ctr_idx] |= MHPMEVENT_BIT_OF;
+    riscv_cpu_update_mip(env, MIP_LCOFIP, BOOL_TO_MASK(1));
+}
+
+/*
+ * Accumulate the delta from mhpmcounter_prev to the fixed source snapshot,
+ * then align mhpmcounter_prev with that snapshot.
+ */
+static void
+riscv_pmu_accumulate_fixed_delta(CPURISCVState *env, uint32_t ctr_idx,
+                                 const RISCVPMUFixedSnapshot *snapshot)
+{
+    PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
+    uint64_t source, delta, value;
+
+    g_assert(riscv_pmu_fixed_ctr_selected(env, ctr_idx));
+
+    source = riscv_pmu_ctr_get_fixed_value(env, ctr_idx, snapshot);
+    delta = source - counter->mhpmcounter_prev;
+    value = counter->mhpmcounter_val;
+
+    if (delta > UINT64_MAX - value) {
+        riscv_pmu_set_overflow(env, ctr_idx);
+    }
+
+    counter->mhpmcounter_val = value + delta;
+    counter->mhpmcounter_prev = source;
+}
+
+static void
+riscv_pmu_set_fixed_baseline(CPURISCVState *env, uint32_t ctr_idx,
+                             const RISCVPMUFixedSnapshot *snapshot)
+{
+    g_assert(riscv_pmu_fixed_ctr_selected(env, ctr_idx));
+    env->pmu_ctrs[ctr_idx].mhpmcounter_prev =
+        riscv_pmu_ctr_get_fixed_value(env, ctr_idx, snapshot);
+}
+
+void riscv_pmu_write_ctr_cfg(CPURISCVState *env, uint32_t ctr_idx,
+                             uint64_t value)
+{
+    RISCVPMUFixedSnapshot snapshot;
+
+    g_assert(ctr_idx == 0 || ctr_idx == 2);
+
+    riscv_pmu_take_fixed_snapshot(env, &snapshot);
+    if (riscv_pmu_fixed_ctr_running(env, ctr_idx)) {
+        riscv_pmu_accumulate_fixed_delta(env, ctr_idx, &snapshot);
+    }
+    if (ctr_idx == 0) {
+        env->mcyclecfg = value;
+    } else {
+        env->minstretcfg = value;
+    }
+    if (riscv_pmu_fixed_ctr_enabled(env, ctr_idx)) {
+        riscv_pmu_set_fixed_baseline(env, ctr_idx, &snapshot);
+    }
+}
+
+void riscv_pmu_write_event(CPURISCVState *env, uint32_t ctr_idx,
+                           uint64_t value, uint64_t wr_mask)
+{
+    RISCVPMUFixedSnapshot snapshot;
+    PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
+
+    riscv_pmu_take_fixed_snapshot(env, &snapshot);
+    if (riscv_pmu_fixed_ctr_running(env, ctr_idx)) {
+        riscv_pmu_accumulate_fixed_delta(env, ctr_idx, &snapshot);
+    }
+    /* Accumulating the old source can set OF outside the written bits. */
+    env->mhpmevent_val[ctr_idx] = (value & wr_mask) |
+                                (env->mhpmevent_val[ctr_idx] & ~wr_mask);
+    riscv_pmu_rebuild_event_map(env);
+    if (riscv_pmu_fixed_ctr_enabled(env, ctr_idx)) {
+        riscv_pmu_set_fixed_baseline(env, ctr_idx, &snapshot);
+    }
+
+    if (riscv_pmu_fixed_ctr_running(env, ctr_idx)) {
+        riscv_pmu_setup_timer(env, counter->mhpmcounter_val, ctr_idx);
+    }
+}
+
+void riscv_pmu_write_counter(CPURISCVState *env, uint32_t ctr_idx,
+                             target_ulong value, bool upper_half, RISCVMXL xl)
+{
+    RISCVPMUFixedSnapshot snapshot;
+    PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
+    bool rv32 = xl == MXL_RV32;
+    bool running;
+    int start = upper_half ? 32 : 0;
+    int length = rv32 ? 32 : 64;
+
+    g_assert(rv32 || !upper_half);
+
+    riscv_pmu_take_fixed_snapshot(env, &snapshot);
+    running = riscv_pmu_fixed_ctr_running(env, ctr_idx);
+    if (running) {
+        riscv_pmu_accumulate_fixed_delta(env, ctr_idx, &snapshot);
+    }
+    counter->mhpmcounter_val = deposit64(counter->mhpmcounter_val,
+                                         start, length, value);
+    /* mhpmcounter_prev tracks the source, not the written counter value. */
+    if (running && ctr_idx > 2) {
+        riscv_pmu_setup_timer(env, counter->mhpmcounter_val, ctr_idx);
+    }
+}
+
+void riscv_pmu_write_inhibit(CPURISCVState *env, uint32_t value)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+    RISCVPMUFixedSnapshot snapshot;
+    uint32_t present = cpu->pmu_avail_ctrs | COUNTEREN_CY | COUNTEREN_IR;
+    uint32_t old = env->mcountinhibit;
+    uint32_t changed = (old ^ value) & present;
+    uint32_t ctr_idx;
+
+    riscv_pmu_take_fixed_snapshot(env, &snapshot);
+    for (ctr_idx = 0; ctr_idx < RV_MAX_MHPMCOUNTERS; ctr_idx++) {
+        if ((changed & BIT(ctr_idx)) && !(old & BIT(ctr_idx)) &&
+            riscv_pmu_fixed_ctr_running(env, ctr_idx)) {
+            riscv_pmu_accumulate_fixed_delta(env, ctr_idx, &snapshot);
+        }
+    }
+
+    env->mcountinhibit = value & present;
+
+    for (ctr_idx = 0; ctr_idx < RV_MAX_MHPMCOUNTERS; ctr_idx++) {
+        if (!(changed & BIT(ctr_idx)) ||
+            (env->mcountinhibit & BIT(ctr_idx))) {
+            continue;
+        }
+
+        if (riscv_pmu_fixed_ctr_enabled(env, ctr_idx)) {
+            riscv_pmu_set_fixed_baseline(env, ctr_idx, &snapshot);
+        }
+        if (ctr_idx > 2 && riscv_pmu_fixed_ctr_running(env, ctr_idx)) {
+            riscv_pmu_setup_timer(env, env->pmu_ctrs[ctr_idx].mhpmcounter_val,
+                                  ctr_idx);
+        }
+    }
 }
 
 void riscv_pmu_decr_instret(CPURISCVState *env)

@@ -17,6 +17,10 @@ CFLAGS += -g -Og $(EXTRA_CFLAGS) -march=rv32im_zicsr -mabi=ilp32
 
 QEMU_OPTS += -M virt -display none -semihosting -device loader,file=
 
+TESTS += pmu-fixed-rv32
+run-pmu-fixed-rv32: pmu-fixed-rv32
+	$(call run-test, $<, $(QEMU) -cpu max -icount shift=0 $(QEMU_OPTS)$<)
+
 TESTS += smcdeleg-minh-rv32
 run-smcdeleg-minh-rv32: smcdeleg-minh-rv32
 	$(call run-test, $<, $(QEMU) -cpu max $(QEMU_OPTS)$<)
@@ -32,3 +36,7 @@ run-smcdeleg-event-rv32: smcdeleg-event-rv32
 TESTS += smcdeleg-counter-rv32
 run-smcdeleg-counter-rv32: smcdeleg-counter-rv32
 	$(call run-test, $<, $(QEMU) -cpu max $(QEMU_OPTS)$<)
+
+TESTS += sscofpmf-event-rv32
+run-sscofpmf-event-rv32: sscofpmf-event-rv32
+	$(call run-test, $<, $(QEMU) -cpu max -icount shift=0 $(QEMU_OPTS)$<)

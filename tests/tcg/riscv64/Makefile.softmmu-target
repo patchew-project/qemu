@@ -77,6 +77,10 @@ TESTS += smcdeleg-minh
 run-smcdeleg-minh: smcdeleg-minh
 	$(call run-test, $<, $(QEMU) -cpu max $(QEMU_OPTS)$<)
 
+TESTS += pmu-cycle-controls
+run-pmu-cycle-controls: pmu-cycle-controls
+	$(call run-test, $<, $(QEMU) -cpu max -icount shift=0 $(QEMU_OPTS)$<)
+
 EXTRA_RUNS += run-plugin-doubletrap
 run-plugin-doubletrap: doubletrap
 	$(call run-test, $<, \

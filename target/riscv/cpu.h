@@ -240,6 +240,12 @@ typedef struct PMUCTRState {
     uint64_t irq_overflow_left;
 } PMUCTRState;
 
+typedef enum {
+    RISCV_PMU_FIXED_DOMAIN_CYCLE,
+    RISCV_PMU_FIXED_DOMAIN_INSTRET,
+    RISCV_PMU_FIXED_DOMAIN_COUNT,
+} RISCVPMUFixedDomain;
+
 typedef struct PMUFixedCtrState {
     /* Track cycle and icount for each privilege mode */
     uint64_t counter[4];
@@ -465,7 +471,7 @@ struct CPUArchState {
      */
     uint64_t mhpmevent_val[RV_MAX_MHPMEVENTS];
 
-    PMUFixedCtrState pmu_fixed_ctrs[2];
+    PMUFixedCtrState pmu_fixed_ctrs[RISCV_PMU_FIXED_DOMAIN_COUNT];
 
     uint64_t sscratch;
     uint64_t mscratch;
