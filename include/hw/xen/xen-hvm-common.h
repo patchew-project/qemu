@@ -25,13 +25,13 @@ extern DeviceListener xen_device_listener;
 
 #define XEN_GRANT_ADDR_OFF (1ULL << 63)
 
-static inline uint32_t xen_vcpu_eport(shared_iopage_t *shared_page, int i)
+static inline uint32_t xen_vcpu_eport(ioreq_t *shared_page, int i)
 {
-    return shared_page->vcpu_ioreq[i].vp_eport;
+    return shared_page[i].vp_eport;
 }
-static inline ioreq_t *xen_vcpu_ioreq(shared_iopage_t *shared_page, int vcpu)
+static inline ioreq_t *xen_vcpu_ioreq(ioreq_t *shared_page, int vcpu)
 {
-    return &shared_page->vcpu_ioreq[vcpu];
+    return &shared_page[vcpu];
 }
 
 #define BUFFER_IO_MAX_DELAY  100
@@ -53,7 +53,7 @@ typedef struct XenPciDevice {
 
 typedef struct XenIOState {
     ioservid_t ioservid;
-    shared_iopage_t *shared_page;
+    ioreq_t *shared_page;
     buffered_iopage_t *buffered_io_page;
     xenforeignmemory_resource_handle *fres;
     QEMUTimer *buffered_io_timer;

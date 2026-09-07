@@ -677,15 +677,18 @@ void xen_exit_notifier(Notifier *n, void *data)
     xs_daemon_close(state->xenstore);
 }
 
-static int xen_map_ioreq_server(XenIOState *state)
+static int xen_map_ioreq_server(XenIOState *state, unsigned int max_cpus)
 {
     void *addr = NULL;
     xen_pfn_t ioreq_pfn;
     xen_pfn_t bufioreq_pfn;
     evtchn_port_t bufioreq_evtchn;
-    unsigned long num_frames = 1;
-    unsigned long frame = 1;
+    unsigned long num_ioreq_pages;
+    unsigned long num_frames;
+    unsigned long frame;
     int rc;
+
+    num_ioreq_pages = DIV_ROUND_UP(max_cpus, XC_PAGE_SIZE / sizeof(ioreq_t));
 
     /*
      * Attempt to map using the resource API and fall back to normal
@@ -696,7 +699,10 @@ static int xen_map_ioreq_server(XenIOState *state)
 
     if (state->has_bufioreq) {
         frame = 0;
-        num_frames = 2;
+        num_frames = 1 + num_ioreq_pages;
+    } else {
+        frame = 1;
+        num_frames = num_ioreq_pages;
     }
     state->fres = xenforeignmemory_map_resource(xen_fmem, xen_domid,
                                          XENMEM_resource_ioreq_server,
@@ -711,6 +717,17 @@ static int xen_map_ioreq_server(XenIOState *state)
             state->buffered_io_page = addr;
             state->shared_page = addr + XC_PAGE_SIZE;
         }
+    } else if (errno == EINVAL && num_ioreq_pages > 1) {
+        /*
+         * The host may predate support for more than a single ioreq frame
+         * (i.e. it rejects any frame index beyond the single bufioreq/ioreq
+         * pair with EINVAL). We can't run this many vCPUs without an ioreq
+         * slot for each of them.
+         */
+        error_report("Xen does not support mapping %lu ioreq pages "
+                     "(needed for %u vCPUs)",
+                     num_ioreq_pages, max_cpus);
+        return -1;
     } else if (errno != EOPNOTSUPP) {
         error_report("failed to map ioreq server resources: error %d handle=%p",
                      errno, xen_xc);
@@ -740,6 +757,17 @@ static int xen_map_ioreq_server(XenIOState *state)
         if (state->shared_page == NULL) {
             trace_xen_map_ioreq_server_shared_page(ioreq_pfn);
 
+            if (num_ioreq_pages > 1) {
+                /*
+                 * The legacy get_ioreq_server_info()/map() path only ever
+                 * hands out a single ioreq page, so it has no way to give us
+                 * ioreq slots for every vCPU.
+                 */
+                error_report("ioreq server fallback path supports only 1 "
+                             "ioreq page. %lu pages are needed for %u vCPUs",
+                             num_ioreq_pages, max_cpus);
+                return -1;
+            }
             state->shared_page = xenforeignmemory_map(xen_fmem, xen_domid,
                                                       PROT_READ | PROT_WRITE,
                                                       1, &ioreq_pfn, NULL);
@@ -840,7 +868,7 @@ static void xen_do_ioreq_register(XenIOState *state,
      */
     qemu_register_wakeup_support();
 
-    rc = xen_map_ioreq_server(state);
+    rc = xen_map_ioreq_server(state, max_cpus);
     if (rc < 0) {
         goto err;
     }
@@ -857,7 +885,6 @@ static void xen_do_ioreq_register(XenIOState *state,
 
     state->ioreq_local_port = g_new0(evtchn_port_t, max_cpus);
 
-    /* FIXME: how about if we overflow the page here? */
     for (i = 0; i < max_cpus; i++) {
         rc = qemu_xen_evtchn_bind_interdomain(state->xce_handle, xen_domid,
                                               xen_vcpu_eport(state->shared_page,
