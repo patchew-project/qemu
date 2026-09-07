@@ -46,7 +46,11 @@ errors = False
 
 print("\nChecking all commits since %s...\n" % ancestor, flush=True)
 
-ret = subprocess.run(["scripts/checkpatch.pl", "--terse", ancestor + "..."])
+# We don't want "noise" for clean patches, but do want to see
+# the full commit hash for each violation, along with the
+# offending patch content
+ret = subprocess.run(["scripts/checkpatch.pl", "--emacs", "--quiet",
+                      ancestor + "..."])
 
 if ret.returncode != 0:
     print("    ❌ FAIL one or more commits failed scripts/checkpatch.pl")
