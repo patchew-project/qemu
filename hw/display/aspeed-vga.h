@@ -25,13 +25,23 @@ OBJECT_DECLARE_TYPE(AspeedVGAState, AspeedVGAClass, ASPEED_VGA)
 #define ASPEED_VGA_IOPORT_OFFSET    0x380
 #define ASPEED_VGA_IOPORT_SIZE      0x80
 
+/*
+ * 2D Graphics Engine (G2D)
+ *
+ * Offset 0x8000 from the BAR 1 register base
+ */
+#define ASPEED_VGA_G2D_OFFSET    0x8000
+#define ASPEED_VGA_G2D_NR_REGS   (0x200 >> 2)
+
 struct AspeedVGAState {
     PCIDevice parent_obj;
 
     VGACommonState vga;
     MemoryRegion mmio;
     MemoryRegion ioport;
+    MemoryRegion g2d;
 
+    uint32_t g2d_regs[ASPEED_VGA_G2D_NR_REGS];
     uint8_t vgaer;
     uint32_t last_cursor_y;
     bool last_cursor_on;

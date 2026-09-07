@@ -105,6 +105,259 @@ REG8(AST_CR_SOC_SCRATCH0, 0xd0)
 #define CURSOR_MONO_XOR 0x4000
 
 /*
+ * 2D Graphics Engine (G2D)
+ *
+ * Offset 0x8000 from the BAR 1 register base
+ */
+REG32(GER_SRC_BASE, 0x00)
+    FIELD(GER_SRC_BASE, ADDR, 3, 27)
+REG32(GER_SRC_PITCH, 0x04)
+    FIELD(GER_SRC_PITCH, PITCH, 19, 11)
+REG32(GER_DST_BASE, 0x08)
+    FIELD(GER_DST_BASE, ADDR, 3, 27)
+REG32(GER_DST_PITCH, 0x0c)
+    FIELD(GER_DST_PITCH, PITCH, 19, 11)
+REG32(GER_DST_XY, 0x10)
+    FIELD(GER_DST_XY, X, 16, 12)
+    FIELD(GER_DST_XY, Y, 0, 12)
+REG32(GER_SRC_XY, 0x14)
+    FIELD(GER_SRC_XY, X, 16, 12)
+    FIELD(GER_SRC_XY, Y, 0, 12)
+REG32(GER_DIMENSION, 0x18)
+    FIELD(GER_DIMENSION, WIDTH, 16, 12)
+    FIELD(GER_DIMENSION, HEIGHT, 0, 12)
+REG32(GER_CMD, 0x3c)
+    FIELD(GER_CMD, NEG_X, 21, 1)
+    FIELD(GER_CMD, NEG_Y, 20, 1)
+    FIELD(GER_CMD, PATTERN, 16, 2)
+    FIELD(GER_CMD, ROP, 8, 8)
+    FIELD(GER_CMD, MONO_TRANSPARENT, 7, 1)
+    FIELD(GER_CMD, SRC_FROM_QUEUE, 6, 1)
+    FIELD(GER_CMD, COLOR, 4, 2)
+    FIELD(GER_CMD, CLIP, 3, 1)
+    FIELD(GER_CMD, TYPE, 0, 3)
+#define GER_CMD_TYPE_BITBLT     0
+#define GER_CMD_COLOR_TRUE      2
+#define GER_CMD_COLOR_HIGH      1
+#define GER_CMD_COLOR_256       0
+/*
+ * A ROP3 code: an 8 bit truth table for a boolean function of source,
+ * destination and pattern. 0xcc is the one that leaves the destination
+ * equal to the source, and is the only one modelled.
+ */
+#define GER_CMD_ROP_SRCCOPY     0xcc
+REG32(GER_STATUS, 0x4c)
+    FIELD(GER_STATUS, IDLE, 24, 1)
+    FIELD(GER_STATUS, CMDQ_SPACE, 20, 1)
+
+/*
+ * Copy a rectangle. Only the source copy raster operation is modelled,
+ * which is all the firmware needs to scroll and clear the console.
+ */
+static void aspeed_g2d_bitblt(AspeedVGAState *s)
+{
+    uint32_t src_x = FIELD_EX32(s->g2d_regs[R_GER_SRC_XY], GER_SRC_XY, X);
+    uint32_t src_y = FIELD_EX32(s->g2d_regs[R_GER_SRC_XY], GER_SRC_XY, Y);
+    uint32_t dst_x = FIELD_EX32(s->g2d_regs[R_GER_DST_XY], GER_DST_XY, X);
+    uint32_t dst_y = FIELD_EX32(s->g2d_regs[R_GER_DST_XY], GER_DST_XY, Y);
+    uint32_t src_pitch = FIELD_EX32(s->g2d_regs[R_GER_SRC_PITCH],
+                                    GER_SRC_PITCH, PITCH) * 8;
+    uint32_t dst_pitch = FIELD_EX32(s->g2d_regs[R_GER_DST_PITCH],
+                                    GER_DST_PITCH, PITCH) * 8;
+    uint32_t src_base = FIELD_EX32(s->g2d_regs[R_GER_SRC_BASE],
+                                   GER_SRC_BASE, ADDR) << 3;
+    uint32_t dst_base = FIELD_EX32(s->g2d_regs[R_GER_DST_BASE],
+                                   GER_DST_BASE, ADDR) << 3;
+    uint32_t height = FIELD_EX32(s->g2d_regs[R_GER_DIMENSION],
+                                 GER_DIMENSION, HEIGHT);
+    uint32_t width = FIELD_EX32(s->g2d_regs[R_GER_DIMENSION],
+                                GER_DIMENSION, WIDTH);
+    uint32_t cmd = s->g2d_regs[R_GER_CMD];
+    uint64_t src_offset;
+    uint64_t dst_offset;
+    uint32_t bytes_pp;
+    bool right_to_left;
+    bool bottom_up;
+    uint32_t color;
+    uint64_t line;
+    uint32_t i;
+    uint32_t y;
+
+    right_to_left = FIELD_EX32(cmd, GER_CMD, NEG_X);
+    bottom_up = FIELD_EX32(cmd, GER_CMD, NEG_Y);
+    color = FIELD_EX32(cmd, GER_CMD, COLOR);
+
+    switch (color) {
+    case GER_CMD_COLOR_256:
+        bytes_pp = 1;
+        break;
+    case GER_CMD_COLOR_HIGH:
+        bytes_pp = 2;
+        break;
+    case GER_CMD_COLOR_TRUE:
+        bytes_pp = 4;
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: 2D command 0x%08x has an invalid color mode\n",
+                      __func__, cmd);
+        return;
+    }
+
+    if (FIELD_EX32(cmd, GER_CMD, ROP) != GER_CMD_ROP_SRCCOPY) {
+        qemu_log_mask(LOG_UNIMP, "%s: unimplemented raster operation 0x%02x\n",
+                      __func__, FIELD_EX32(cmd, GER_CMD, ROP));
+        return;
+    }
+
+    if (FIELD_EX32(cmd, GER_CMD, SRC_FROM_QUEUE)) {
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: source from the command queue is not implemented\n",
+                      __func__);
+        return;
+    }
+
+    if (FIELD_EX32(cmd, GER_CMD, CLIP)) {
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: rectangular clipping is not implemented\n",
+                      __func__);
+        return;
+    }
+
+    if (FIELD_EX32(cmd, GER_CMD, MONO_TRANSPARENT)) {
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: a transparent monochrome mask is not implemented\n",
+                      __func__);
+        return;
+    }
+
+    if (FIELD_EX32(cmd, GER_CMD, PATTERN)) {
+        qemu_log_mask(LOG_UNIMP, "%s: unimplemented pattern source %u\n",
+                      __func__, FIELD_EX32(cmd, GER_CMD, PATTERN));
+        return;
+    }
+
+    if (!width || !height || !src_pitch || !dst_pitch) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: 2D command 0x%08x has nothing to copy: "
+                      "width %u, height %u, src pitch %u, dst pitch %u\n",
+                      __func__, cmd, width, height, src_pitch, dst_pitch);
+        return;
+    }
+
+    trace_aspeed_g2d_bitblt(cmd, width, height, src_x, src_y, dst_x, dst_y,
+                            bytes_pp);
+
+    /*
+     * The engine renders away from the given corner, so when a direction is
+     * negative that corner is the last row or column. Step back to the top
+     * left one, which the rest of this function works from.
+     */
+    if (bottom_up) {
+        if (src_y + 1 < height || dst_y + 1 < height) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: 2D command 0x%08x runs off the top of the "
+                          "framebuffer\n", __func__, cmd);
+            return;
+        }
+        src_y -= height - 1;
+        dst_y -= height - 1;
+    }
+
+    if (right_to_left) {
+        if (src_x + 1 < width || dst_x + 1 < width) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: 2D command 0x%08x runs off the left of the "
+                          "framebuffer\n", __func__, cmd);
+            return;
+        }
+        src_x -= width - 1;
+        dst_x -= width - 1;
+    }
+
+    line = (uint64_t)width * bytes_pp;
+
+    src_offset = (uint64_t)src_base +
+                 (uint64_t)(src_y + height - 1) * src_pitch +
+                 (uint64_t)src_x * bytes_pp;
+    dst_offset = (uint64_t)dst_base +
+                 (uint64_t)(dst_y + height - 1) * dst_pitch +
+                 (uint64_t)dst_x * bytes_pp;
+
+    if (src_offset + line > s->vga.vram_size ||
+        dst_offset + line > s->vga.vram_size) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: 2D command 0x%08x reaches past the framebuffer\n",
+                      __func__, cmd);
+        return;
+    }
+
+    for (i = 0; i < height; i++) {
+        /* NEG_Y says which end to start from, so an overlap does not smear */
+        y = bottom_up ? height - 1 - i : i;
+        src_offset = (uint64_t)src_base +
+                     (uint64_t)(src_y + y) * src_pitch +
+                     (uint64_t)src_x * bytes_pp;
+        dst_offset = (uint64_t)dst_base +
+                     (uint64_t)(dst_y + y) * dst_pitch +
+                     (uint64_t)dst_x * bytes_pp;
+
+        memmove(s->vga.vram_ptr + dst_offset, s->vga.vram_ptr + src_offset,
+                line);
+        memory_region_set_dirty(&s->vga.vram, dst_offset, line);
+    }
+}
+
+static uint64_t aspeed_g2d_read(void *opaque, hwaddr addr, unsigned size)
+{
+    AspeedVGAState *s = opaque;
+    uint32_t reg = addr >> 2;
+    uint32_t val = s->g2d_regs[reg];
+
+    trace_aspeed_g2d_read(reg, val);
+    return val;
+}
+
+static void aspeed_g2d_write(void *opaque, hwaddr addr, uint64_t val,
+                             unsigned size)
+{
+    AspeedVGAState *s = opaque;
+    uint32_t reg = addr >> 2;
+
+    trace_aspeed_g2d_write(reg, val);
+
+    switch (reg) {
+    case R_GER_STATUS:
+        s->g2d_regs[reg] &= ~(val & (R_GER_STATUS_IDLE_MASK |
+                                     R_GER_STATUS_CMDQ_SPACE_MASK));
+        break;
+    case R_GER_CMD:
+        s->g2d_regs[reg] = val;
+        if (FIELD_EX32(val, GER_CMD, TYPE) == GER_CMD_TYPE_BITBLT) {
+            aspeed_g2d_bitblt(s);
+        } else {
+            qemu_log_mask(LOG_UNIMP, "%s: unimplemented 2D command type %u\n",
+                          __func__, FIELD_EX32(val, GER_CMD, TYPE));
+        }
+        s->g2d_regs[R_GER_STATUS] |= R_GER_STATUS_IDLE_MASK;
+        break;
+    default:
+        s->g2d_regs[reg] = val;
+        break;
+    }
+}
+
+static const MemoryRegionOps aspeed_g2d_ops = {
+    .read = aspeed_g2d_read,
+    .write = aspeed_g2d_write,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+/*
  * The ast driver writes a color format to CRA3 when it switches to the
  * extended mode. Until then CRA3 is zero and the device behaves like a
  * standard VGA.
@@ -517,6 +770,9 @@ static void aspeed_vga_reset_hold(Object *obj, ResetType type)
         R_AST_CR_SOC_SCRATCH0_VRAM_INIT_BY_BMC_MASK |
         R_AST_CR_SOC_SCRATCH0_VRAM_INIT_READY_MASK |
         R_AST_CR_SOC_SCRATCH0_IKVM_WIDESCREEN_MASK;
+
+    memset(s->g2d_regs, 0, sizeof(s->g2d_regs));
+    s->g2d_regs[R_GER_STATUS] = R_GER_STATUS_IDLE_MASK;
 }
 
 /*
@@ -592,6 +848,10 @@ static void aspeed_vga_realize(PCIDevice *dev, Error **errp)
     memory_region_add_subregion(&s->mmio, ASPEED_VGA_IOPORT_OFFSET,
                                 &s->ioport);
 
+    memory_region_init_io(&s->g2d, OBJECT(dev), &aspeed_g2d_ops, s,
+                          "aspeed-vga.g2d", ASPEED_VGA_G2D_NR_REGS << 2);
+    memory_region_add_subregion(&s->mmio, ASPEED_VGA_G2D_OFFSET, &s->g2d);
+
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &vga->vram);
     pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio);
 }
@@ -612,6 +872,7 @@ static const VMStateDescription vmstate_aspeed_vga = {
         VMSTATE_STRUCT(vga, AspeedVGAState, 0, vmstate_vga_common,
                        VGACommonState),
         VMSTATE_UINT8(vgaer, AspeedVGAState),
+        VMSTATE_UINT32_ARRAY(g2d_regs, AspeedVGAState, ASPEED_VGA_G2D_NR_REGS),
         VMSTATE_END_OF_LIST()
     }
 };
