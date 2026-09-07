@@ -16,7 +16,7 @@ import logging
 
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
-from qemu_test import skipIfMissingImports, skipUntrustedTest
+from qemu_test import skipIfMissingImports, skipUntrustedTest, skipUnlessConfig
 
 
 class IntegratorMachine(QemuSystemTest):
@@ -58,6 +58,7 @@ class IntegratorMachine(QemuSystemTest):
         wait_for_console_pattern(self, 'Log in as root')
 
     @skipIfMissingImports("numpy", "cv2")
+    @skipUnlessConfig("PIXMAN")
     @skipUntrustedTest()
     def test_framebuffer_tux_logo(self):
         """
@@ -73,10 +74,8 @@ class IntegratorMachine(QemuSystemTest):
         framebuffer_ready = 'Console: switching to colour frame buffer device'
         wait_for_console_pattern(self, framebuffer_ready)
         self.vm.cmd('human-monitor-command', command_line='stop')
-        res = self.vm.cmd('human-monitor-command',
-                          command_line='screendump %s' % screendump_path)
-        if 'unknown command' in res:
-            self.skipTest('screendump not available')
+        self.vm.cmd('human-monitor-command',
+                    command_line='screendump %s' % screendump_path)
 
         cpu_count = 1
         match_threshold = 0.92

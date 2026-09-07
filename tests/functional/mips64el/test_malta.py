@@ -13,7 +13,8 @@ import os
 
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test import skipIfMissingImports, skipFlakyTest, skipUntrustedTest
+from qemu_test import skipIfMissingImports, skipFlakyTest, skipUntrustedTest, \
+    skipUnlessConfig
 
 from mips.test_malta import mips_check_wheezy
 
@@ -114,6 +115,7 @@ class MaltaMachineConsole(LinuxKernelTest):
 
 
 @skipIfMissingImports('numpy', 'cv2')
+@skipUnlessConfig("PIXMAN")
 class MaltaMachineFramebuffer(LinuxKernelTest):
 
     timeout = 30
@@ -155,10 +157,8 @@ class MaltaMachineFramebuffer(LinuxKernelTest):
         framebuffer_ready = 'Console: switching to colour frame buffer device'
         self.wait_for_console_pattern(framebuffer_ready)
         self.vm.cmd('human-monitor-command', command_line='stop')
-        res = self.vm.cmd('human-monitor-command',
-                          command_line=f'screendump {screendump_path}')
-        if 'unknown command' in res:
-            self.skipTest('screendump not available')
+        self.vm.cmd('human-monitor-command',
+                    command_line=f'screendump {screendump_path}')
 
         match_threshold = 0.95
         screendump_bgr = cv2.imread(screendump_path, cv2.IMREAD_COLOR)

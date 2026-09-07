@@ -10,10 +10,11 @@
 import time
 
 from qemu_test import QemuSystemTest, Asset
-from qemu_test import skipIfMissingImports, skipIfMissingCommands
+from qemu_test import skipIfMissingImports, skipIfMissingCommands, skipUnlessConfig
 from qemu_test.tesseract import tesseract_ocr
 
 
+@skipUnlessConfig("PIXMAN")
 class NextCubeMachine(QemuSystemTest):
 
     timeout = 15
@@ -39,10 +40,8 @@ class NextCubeMachine(QemuSystemTest):
                 break
             time.sleep(0.1)
 
-        res = self.vm.cmd('human-monitor-command',
-                          command_line=f"screendump {screenshot_path}")
-        if 'unknown command' in res:
-            self.skipTest('screendump not available')
+        self.vm.cmd('human-monitor-command',
+                    command_line=f"screendump {screenshot_path}")
 
     @skipIfMissingImports("PIL")
     def test_bootrom_framebuffer_size(self):
