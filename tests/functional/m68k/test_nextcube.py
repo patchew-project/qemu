@@ -14,7 +14,7 @@ from qemu_test import skipIfMissingImports, skipIfMissingCommands, skipUnlessCon
 from qemu_test.tesseract import tesseract_ocr
 
 
-@skipUnlessConfig("PIXMAN")
+@skipUnlessConfig("PIXMAN", "HMP")
 class NextCubeMachine(QemuSystemTest):
 
     timeout = 15

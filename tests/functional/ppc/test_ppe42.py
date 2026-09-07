@@ -7,9 +7,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import asyncio
-from qemu_test import QemuSystemTest, Asset
+from qemu_test import QemuSystemTest, Asset, skipUnlessConfig
 
 
+@skipUnlessConfig("HMP")
 class Ppe42Machine(QemuSystemTest):
 
     timeout = 90
