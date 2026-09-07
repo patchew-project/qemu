@@ -77,6 +77,11 @@ struct Monitor {
     GString *outbuf;
     guint out_watch;
     int mux_out;
+
+    /* iothread context and holder identity */
+    IOThread *iothread;
+    char *iothread_qom_path;
+    AioContext *ctx;
 };
 
 struct MonitorQMPClass {
