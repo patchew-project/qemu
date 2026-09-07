@@ -40,8 +40,7 @@ class NextCubeMachine(QemuSystemTest):
                 break
             time.sleep(0.1)
 
-        self.vm.cmd('human-monitor-command',
-                    command_line=f"screendump {screenshot_path}")
+        self.vm.cmd('screendump', filename=screenshot_path)
 
     @skipIfMissingImports("PIL")
     def test_bootrom_framebuffer_size(self):
