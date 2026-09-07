@@ -36,6 +36,7 @@ AST2600 SoC based machines :
 - ``catalina-bmc``         Facebook Catalina BMC
 - ``sanmiguel-bmc``        Facebook SanMiguel BMC
 - ``anacapa-bmc``          Facebook Anacapa BMC
+- ``minerva-bmc``          Facebook Minerva BMC
 - ``gb200nvl-bmc``         Nvidia GB200nvl BMC
 
 Supported devices
