@@ -1128,6 +1128,12 @@ struct ArchCPU {
     bool prop_pauth_qarma5;
     bool prop_lpa2;
 
+    /*
+     * Used only during migration, to handle back-compat with older QEMU
+     * that mishandled migration of AArch32 banked cpregs.
+     */
+    bool secure_banked_regs_ok;
+
     /* GM blocksize, in log_2(words), ie low 4 bits of GMID_EL0 */
     uint8_t gm_blocksize;
 
