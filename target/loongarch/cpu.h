@@ -334,7 +334,6 @@ typedef struct CPUSysState {
     uint64_t CSR_TLBEHI;
     uint64_t CSR_TLBELO0;
     uint64_t CSR_TLBELO1;
-    uint64_t CSR_ASID;
     uint64_t CSR_PGDL;
     uint64_t CSR_PGDH;
     uint64_t CSR_PGD;
@@ -343,9 +342,6 @@ typedef struct CPUSysState {
     uint64_t CSR_STLBPS;
     uint64_t CSR_RVACFG;
     uint64_t CSR_CPUID;
-    uint64_t CSR_PRCFG1;
-    uint64_t CSR_PRCFG2;
-    uint64_t CSR_PRCFG3;
     uint64_t CSR_SAVE[16];
     uint64_t CSR_TID;
     uint64_t CSR_TCFG;
@@ -380,6 +376,14 @@ typedef struct CPUSysState {
     uint64_t CSR_MSGIS[N_MSGIS];
     uint64_t CSR_MSGIR;
     uint64_t CSR_MSGIE;
+
+    /* Fields up to this point are cleared by a CPU reset */
+    struct {} end_reset_fields;
+
+    uint64_t CSR_ASID;
+    uint64_t CSR_PRCFG1;
+    uint64_t CSR_PRCFG2;
+    uint64_t CSR_PRCFG3;
 } CPUSysState;
 
 typedef struct CPUArchState {
@@ -391,16 +395,9 @@ typedef struct CPUArchState {
     uint32_t fcsr0;
     lbt_t  lbt;
 
-    uint32_t cpucfg[21];
-    uint32_t pv_features;
-    uint64_t vendor_id;
-    uint64_t cpu_id;
-    CPUSysState sys_states[1];
-
     struct {
         uint64_t guest_addr;
     } stealtime;
-    uint32_t perf_event_num;
 
 #ifdef CONFIG_TCG
     float_status fp_status;
@@ -410,12 +407,23 @@ typedef struct CPUArchState {
     uint64_t llval_high; /* For 128-bit atomic SC.Q */
     uint64_t llbit_scq; /* Potential LL.D+LD.D+SC.Q sequence in effect */
     uint64_t hw_pte_mask; /* Mask of architecturally-defined (hardware) PTE bits. */
-#endif
+
 #ifndef CONFIG_USER_ONLY
-#ifdef CONFIG_TCG
     LoongArchTLB  tlb[LOONGARCH_TLB_MAX];
 #endif
+#endif
 
+    /* Fields up to this point are cleared by a CPU reset */
+    struct {} end_reset_fields;
+
+    CPUSysState sys_states[1];
+    uint32_t cpucfg[21];
+    uint32_t pv_features;
+    uint64_t vendor_id;
+    uint64_t cpu_id;
+    uint32_t perf_event_num;
+
+#ifndef CONFIG_USER_ONLY
     AddressSpace *address_space_iocsr;
     uint32_t mp_state;
 #endif
