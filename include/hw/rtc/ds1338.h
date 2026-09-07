@@ -1,5 +1,5 @@
 /*
- * MAXIM DS1338 I2C RTC+NVRAM
+ * MAXIM DS1338/DS1339 I2C RTC+NVRAM
  *
  * Copyright (c) 2009 CodeSourcery.
  * Written by Paul Brook
@@ -16,5 +16,6 @@
 #define HW_RTC_DS1338_H
 
 #define TYPE_DS1338 "ds1338"
+#define TYPE_DS1339 "ds1339"
 
 #endif
