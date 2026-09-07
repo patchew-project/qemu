@@ -369,4 +369,6 @@ int qcrypto_tls_session_get_key_size(QCryptoTLSSession *sess,
  */
 char *qcrypto_tls_session_get_peer_name(QCryptoTLSSession *sess);
 
+size_t qcrypto_tls_session_get_send_buffer(QCryptoTLSSession *sess);
+
 #endif /* QCRYPTO_TLSSESSION_H */

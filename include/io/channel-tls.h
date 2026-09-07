@@ -50,6 +50,8 @@ struct QIOChannelTLS {
     QIOChannelShutdown shutdown;
     guint hs_ioc_tag;
     guint bye_ioc_tag;
+    char *send_buffer;
+    size_t send_buffer_len;
 };
 
 /**

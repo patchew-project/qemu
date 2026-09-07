@@ -653,6 +653,11 @@ qcrypto_tls_session_get_peer_name(QCryptoTLSSession *session)
     return NULL;
 }
 
+size_t qcrypto_tls_session_get_send_buffer(QCryptoTLSSession *session)
+{
+    return gnutls_record_get_max_size(session->handle);
+}
+
 
 #else /* ! CONFIG_GNUTLS */
 
@@ -755,6 +760,11 @@ char *
 qcrypto_tls_session_get_peer_name(QCryptoTLSSession *sess)
 {
     return NULL;
+}
+
+size_t qcrypto_tls_session_get_send_buffer(QCryptoTLSSession *sess)
+{
+    return 1;
 }
 
 #endif

@@ -24,6 +24,7 @@
 #include "io/channel-tls.h"
 #include "trace.h"
 #include "qemu/atomic.h"
+#include "qemu/iov.h"
 
 
 static ssize_t qio_channel_tls_write_handler(const void *buf,
@@ -201,6 +202,12 @@ static gboolean qio_channel_tls_handshake_task(QIOChannelTLS *ioc,
         } else {
             trace_qio_channel_tls_credentials_allow(ioc);
         }
+
+        ioc->send_buffer_len = qcrypto_tls_session_get_send_buffer(
+            ioc->session);
+        ioc->send_buffer = g_new0(char, ioc->send_buffer_len);
+        trace_qio_channel_tls_send_buffer_len(ioc, ioc->send_buffer_len);
+
         qio_task_complete(task);
         return TRUE;
     } else {
@@ -376,6 +383,7 @@ static void qio_channel_tls_finalize(Object *obj)
         g_clear_handle_id(&ioc->bye_ioc_tag, g_source_remove);
     }
 
+    g_free(ioc->send_buffer);
     object_unref(OBJECT(ioc->master));
     qcrypto_tls_session_free(ioc->session);
 }
@@ -446,13 +454,30 @@ static ssize_t qio_channel_tls_writev(QIOChannel *ioc,
                                       Error **errp)
 {
     QIOChannelTLS *tioc = QIO_CHANNEL_TLS(ioc);
-    size_t i;
     ssize_t done = 0;
+    size_t tot = iov_size(iov, niov);
 
-    for (i = 0 ; i < niov ; i++) {
+    /* Skip bounce buffer in simple case */
+    if (niov == 1) {
         ssize_t ret = qcrypto_tls_session_write(tioc->session,
-                                                iov[i].iov_base,
-                                                iov[i].iov_len,
+                                                iov[0].iov_base,
+                                                iov[0].iov_len,
+                                                errp);
+        if (ret == QCRYPTO_TLS_SESSION_ERR_BLOCK) {
+            return QIO_CHANNEL_ERR_BLOCK;
+        } else if (ret < 0) {
+            return -1;
+        }
+        return ret;
+    }
+
+    while (done < tot) {
+        size_t got = iov_to_buf(iov, niov, done,
+                                tioc->send_buffer,
+                                tioc->send_buffer_len);
+        ssize_t ret = qcrypto_tls_session_write(tioc->session,
+                                                tioc->send_buffer,
+                                                got,
                                                 errp);
         if (ret == QCRYPTO_TLS_SESSION_ERR_BLOCK) {
             if (done) {
@@ -464,7 +489,7 @@ static ssize_t qio_channel_tls_writev(QIOChannel *ioc,
             return -1;
         }
         done += ret;
-        if (ret < iov[i].iov_len) {
+        if (ret < got) {
             break;
         }
     }
