@@ -539,6 +539,7 @@ config ASPEED_SOC
     select TMP421
     select EMC141X
     select INA230
+    select INA238
     select OR_IRQ
     select UNIMP
     select LED

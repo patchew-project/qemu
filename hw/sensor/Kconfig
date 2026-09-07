@@ -6,6 +6,10 @@ config INA230
     bool
     depends on I2C
 
+config INA238
+    bool
+    depends on I2C
+
 config TMP105
     bool
     depends on I2C
