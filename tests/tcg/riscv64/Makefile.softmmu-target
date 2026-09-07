@@ -85,5 +85,10 @@ run-test-vle32ff: test-vle32ff
 	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)v=true $(QEMU_OPTS)$<)
 test-vle32ff: CFLAGS += -march=rv64gcv
 
+EXTRA_RUNS += run-test-sdext-sigill
+SDEXT_CPU = rv64$(comma)sdtrig=true$(comma)sdext=true
+run-test-sdext-sigill: test-sdext-sigill
+	$(call run-test, $<, $(QEMU) -cpu $(SDEXT_CPU) $(QEMU_OPTS)$<)
+
 # We don't currently support the multiarch system tests
 undefine MULTIARCH_TESTS
