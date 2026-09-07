@@ -1814,7 +1814,7 @@ static bool vga_update_display(void *opaque)
         /* nothing to do */
     } else {
         full_update = 0;
-        if (!(s->ar_index & 0x20)) {
+        if (!(s->ar_index & 0x20) || (s->is_blanked && s->is_blanked(s))) {
             graphic_mode = GMODE_BLANK;
         } else {
             graphic_mode = s->gr[VGA_GFX_MISC] & VGA_GR06_GRAPHICS_MODE;
@@ -1936,7 +1936,7 @@ static void vga_update_text(void *opaque, uint32_t *chardata)
 
     qemu_flush_coalesced_mmio_buffer();
 
-    if (!(s->ar_index & 0x20)) {
+    if (!(s->ar_index & 0x20) || (s->is_blanked && s->is_blanked(s))) {
         graphic_mode = GMODE_BLANK;
     } else {
         graphic_mode = s->gr[VGA_GFX_MISC] & VGA_GR06_GRAPHICS_MODE;
