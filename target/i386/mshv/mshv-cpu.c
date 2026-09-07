@@ -157,9 +157,8 @@ static int get_xsave_state(CPUState *cpu)
     int ret;
     void *xsavec_buf;
     const size_t page = HV_HYP_PAGE_SIZE;
-    size_t xsavec_buf_len = page;
+    size_t xsavec_buf_len = mshv_state->xsave_data_size;
 
-    /* TODO: should properly determine xsavec size based on CPUID */
     xsavec_buf = qemu_memalign(page, xsavec_buf_len);
     memset(xsavec_buf, 0, xsavec_buf_len);
 
@@ -172,11 +171,12 @@ static int get_xsave_state(CPUState *cpu)
     ret = ioctl(cpu_fd, MSHV_GET_VP_STATE, &args);
     if (ret < 0) {
         error_report("failed to get xsave state: %s", strerror(errno));
+        qemu_vfree(xsavec_buf);
         return -errno;
     }
 
     ret = decompact_xsave_area(xsavec_buf, xsavec_buf_len, env);
-    g_free(xsavec_buf);
+    qemu_vfree(xsavec_buf);
     if (ret < 0) {
         error_report("failed to decompact xsave area");
         return ret;
@@ -196,8 +196,8 @@ static int set_xsave_state(const CPUState *cpu)
     size_t page = HV_HYP_PAGE_SIZE, xsavec_buf_len;
 
     /* allocate and populate compacted buffer */
-    xsavec_buf = qemu_memalign(page, page);
-    xsavec_buf_len = page;
+    xsavec_buf_len = mshv_state->xsave_data_size;
+    xsavec_buf = qemu_memalign(page, xsavec_buf_len);
 
     /* save registers to standard format buffer */
     x86_cpu_xsave_all_areas(x86cpu, env->xsave_buf, env->xsave_buf_len);
@@ -212,7 +212,7 @@ static int set_xsave_state(const CPUState *cpu)
     };
 
     ret = ioctl(cpu_fd, MSHV_SET_VP_STATE, &args);
-    g_free(xsavec_buf);
+    qemu_vfree(xsavec_buf);
     if (ret < 0) {
         error_report("failed to set xsave state: %s", strerror(errno));
         return -errno;
@@ -2125,6 +2125,24 @@ void mshv_arch_init_vcpu(CPUState *cpu)
     int ret;
     X86XSaveHeader *header;
 
+    /* get the xsave data size */
+    if (!mshv_state->xsave_data_size) {
+        ret = mshv_get_max_xsave_size(mshv_state->vm,
+                                      &mshv_state->xsave_data_size);
+        if (ret < 0) {
+            warn_report("failed to get the max xsave area size: %s",
+                        strerror(errno));
+            /*
+             * Use the maximum size for xsave because the partition is
+             * provisioned with every XSAVE component supported
+             */
+            mshv_state->xsave_data_size =
+                ROUND_UP(mshv_get_supported_cpuid(0xD, 0, R_ECX), page);
+        }
+        /* never allow a zero-sized xsave area */
+        mshv_state->xsave_data_size = MAX(mshv_state->xsave_data_size, page);
+    }
+
     /* sanity check, to make sure we don't overflow the page */
     QEMU_BUILD_BUG_ON((MAX_REGISTER_COUNT
                       * sizeof(hv_register_assoc)
@@ -2149,9 +2167,7 @@ void mshv_arch_init_vcpu(CPUState *cpu)
 
     env->emu_mmio_buf = g_new(char, 4096);
 
-    /* Initialize XSAVE buffer page-aligned */
-    /* TODO: pick proper size based on CPUID */
-    xsave_len = page;
+    xsave_len = mshv_state->xsave_data_size;
     env->xsave_buf = qemu_memalign(page, xsave_len);
     env->xsave_buf_len = xsave_len;
     memset(env->xsave_buf, 0, env->xsave_buf_len);

@@ -162,6 +162,27 @@ static int get_proc_features(int vm_fd,
     return 0;
 }
 
+int mshv_get_max_xsave_size(int vm_fd, uint32_t *size)
+{
+    uint64_t value = 0;
+    int ret;
+
+    ret = get_partition_property(vm_fd,
+                                 HV_PARTITION_PROPERTY_MAX_XSAVE_DATA_SIZE,
+                                 &value);
+    if (ret < 0) {
+        error_report("Failed to get partition property MAX_XSAVE_DATA_SIZE");
+        return -1;
+    }
+
+    /* round up to page size */
+    *size = ROUND_UP(value, HV_HYP_PAGE_SIZE);
+
+    trace_mshv_xsave_data_size(value, *size);
+
+    return 0;
+}
+
 static int create_partition(int mshv_fd, int *vm_fd)
 {
     int ret;

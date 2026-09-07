@@ -12,6 +12,8 @@ mshv_mem_ioeventfd_del(uint64_t addr, uint32_t size, uint32_t data) "addr=0x%" P
 
 mshv_hvcall_args(const char* hvcall, uint16_t code, uint16_t in_sz) "built args for '%s' code: %d in_sz: %d"
 
+mshv_xsave_data_size(uint64_t required, uint32_t allocated) "required=%" PRIu64 " allocated=%u"
+
 mshv_handle_interrupt(uint32_t cpu, int mask) "cpu_index=%d mask=0x%x"
 mshv_set_msi_routing(uint32_t gsi, uint64_t addr, uint32_t data) "gsi=%d addr=0x%" PRIx64 " data=0x%x"
 mshv_remove_msi_routing(uint32_t gsi) "gsi=%d"
