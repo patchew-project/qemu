@@ -13,14 +13,13 @@
 #include "hw/gpio/pca9552.h"
 #include "hw/gpio/pca9554.h"
 #include "hw/nvram/eeprom_at24c.h"
+#include "hw/rtc/ds1338.h"
 #include "hw/sensor/tmp105.h"
 
 /* SanMiguel hardware values */
 #define SANMIGUEL_BMC_HW_STRAP1 0x00002002
 #define SANMIGUEL_BMC_HW_STRAP2 0x00000000
 #define SANMIGUEL_BMC_RAM_SIZE ASPEED_RAM_SIZE(2 * GiB)
-
-#define TYPE_DS1338 "ds1338"
 
 /*
  * "Front IO" FRU data. Generated with frugen.
