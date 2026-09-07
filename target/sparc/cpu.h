@@ -601,6 +601,9 @@ bool sparc_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                         bool probe, uintptr_t retaddr);
 target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev);
 void dump_mmu(CPUSPARCState *env);
+#ifndef TARGET_SPARC64
+void dump_mmu_range(CPUSPARCState *env, hwaddr start, hwaddr end);
+#endif
 
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
 int sparc_cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
