@@ -861,6 +861,9 @@ static void dbus_gl_gfx_switch(DisplayChangeListener *dcl,
     trace_dbus_gl_gfx_switch(new_surface);
 
     ddl->ds = new_surface;
+    if (surface_is_placeholder(new_surface)) {
+        return;   /* nothing real to scan out; avoid dereferencing a non-GL surface */
+    }
     ddl->ds_share = SHARE_KIND_NONE;
     if (ddl->ds) {
         int width = surface_width(ddl->ds);
