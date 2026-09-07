@@ -10,6 +10,7 @@ import subprocess
 from unittest import skipIf, skipUnless
 
 from .cmd import which
+from .config import BUILD_DIR
 
 
 def skipIfMissingEnv(*vars_):
@@ -161,6 +162,30 @@ def skipIfMissingImports(*args):
 
     return skipUnless(has_imports, 'required import(s) "%s" not installed' %
                                    ", ".join(args))
+
+def _read_config_host():
+    config = set()
+    with open(BUILD_DIR / "config-host.h", "r") as f:
+        for line in f:
+            if line.startswith("#define CONFIG_"):
+                name = line.split()[1].removeprefix("CONFIG_")
+                config.add(name)
+    return config
+
+_CONFIG_HOST = _read_config_host()
+
+def skipUnlessConfig(*args):
+    '''
+    Decorator to skip execution of a test if the QEMU build
+    does not have the required CONFIG_* options enabled.
+    Example:
+
+      @skipUnlessConfig("PIXMAN")
+    '''
+    missing = [a for a in args if a not in _CONFIG_HOST]
+    return skipUnless(len(missing) == 0,
+                      'missing build config(s): %s' %
+                      ', '.join('CONFIG_' + m for m in missing))
 
 def skipLockedMemoryTest(locked_memory):
     '''

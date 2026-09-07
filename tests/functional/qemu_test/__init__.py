@@ -16,7 +16,7 @@ from .linuxkernel import LinuxKernelTest
 from .decorators import skipIfMissingCommands, skipIfNotMachine, \
     skipFlakyTest, skipUntrustedTest, skipBigDataTest, skipSlowTest, \
     skipIfMissingImports, skipIfOperatingSystem, skipUnlessOperatingSystem, \
-    skipLockedMemoryTest, skipIfMissingEnv
+    skipLockedMemoryTest, skipIfMissingEnv, skipUnlessConfig
 from .archive import archive_extract
 from .uncompress import uncompress
 from .gdb import GDB
