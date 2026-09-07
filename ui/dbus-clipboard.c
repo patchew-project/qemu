@@ -72,7 +72,7 @@ dbus_clipboard_update_info(DBusDisplay *dpy, QemuClipboardInfo *info)
         return;
     }
 
-    if (self_update || !info->has_serial) {
+    if (self_update) {
         return;
     }
 
