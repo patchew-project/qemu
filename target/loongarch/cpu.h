@@ -382,6 +382,13 @@ typedef struct CPUSysState {
     uint64_t CSR_MSGIE;
 } CPUSysState;
 
+typedef struct CPUTimerState {
+    QEMUTimer timer;
+    int irq;
+    CPUState *cs;
+    CPUSysState *sys_state;
+} CPUTimerState;
+
 typedef struct CPUArchState {
     uint64_t gpr[32];
     uint64_t pc;
@@ -418,6 +425,7 @@ typedef struct CPUArchState {
 
     AddressSpace *address_space_iocsr;
     uint32_t mp_state;
+    CPUTimerState timer_states[1];
 #endif
     CPUSysState *sys_state;
 } CPULoongArchState;
@@ -438,7 +446,6 @@ struct ArchCPU {
     CPUState parent_obj;
 
     CPULoongArchState env;
-    QEMUTimer timer;
     uint32_t  phy_id;
     OnOffAuto lbt;
     OnOffAuto pmu;
@@ -494,6 +501,11 @@ static inline CPUSysState *env_sys(CPULoongArchState *env)
 static inline void set_sys_state(CPULoongArchState *env, CPUSysState *sys)
 {
     env->sys_state = sys;
+}
+
+static inline CPUTimerState *env_timer(CPULoongArchState *env)
+{
+    return &env->timer_states[0];
 }
 
 static inline bool is_la64(CPULoongArchState *env)

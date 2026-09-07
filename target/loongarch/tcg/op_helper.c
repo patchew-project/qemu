@@ -73,7 +73,6 @@ uint64_t helper_rdtime_d(CPULoongArchState *env)
     return cpu_get_host_ticks();
 #else
     uint64_t plv;
-    LoongArchCPU *cpu = env_archcpu(env);
     CPUSysState *sys = env_sys(env);
 
     plv = FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, PLV);
@@ -81,7 +80,7 @@ uint64_t helper_rdtime_d(CPULoongArchState *env)
         do_raise_exception(env, EXCCODE_IPE, GETPC());
     }
 
-    return cpu_loongarch_get_timer_counter(cpu);
+    return cpu_loongarch_get_timer_counter(env_timer(env));
 #endif
 }
 

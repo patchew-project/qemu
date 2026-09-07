@@ -72,9 +72,7 @@ target_ulong helper_csrrd_cpuid(CPULoongArchState *env)
 
 target_ulong helper_csrrd_tval(CPULoongArchState *env)
 {
-    LoongArchCPU *cpu = env_archcpu(env);
-
-    return cpu_loongarch_get_timer_ticks(cpu);
+    return cpu_loongarch_get_timer_ticks(env_timer(env));
 }
 
 target_ulong helper_csrrd_msgir(CPULoongArchState *env)
@@ -135,11 +133,10 @@ target_ulong helper_csrwr_asid(CPULoongArchState *env, target_ulong val)
 
 target_ulong helper_csrwr_tcfg(CPULoongArchState *env, target_ulong val)
 {
-    LoongArchCPU *cpu = env_archcpu(env);
     CPUSysState *sys = env_sys(env);
     int64_t old_v = sys->CSR_TCFG;
 
-    cpu_loongarch_set_timer_config(cpu, val);
+    cpu_loongarch_set_timer_config(env_timer(env), val);
 
     return old_v;
 }
