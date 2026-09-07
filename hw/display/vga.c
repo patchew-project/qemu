@@ -53,13 +53,6 @@ bool have_vga = true;
 /* Address mask for non-VESA modes.  */
 #define VGA_VRAM_SIZE                   (256 * KiB)
 
-/* This value corresponds to a shift of zero pixels
- * in 9-dot text mode.  In other modes, bit 3 is undefined;
- * we just ignore it, so that 8 corresponds to zero pixels
- * in all modes.
- */
-#define VGA_HPEL_NEUTRAL		8
-
 /*
  * Video Graphics Array (VGA)
  *

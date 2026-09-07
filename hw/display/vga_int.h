@@ -38,6 +38,14 @@
 #define CH_ATTR_SIZE (160 * 100)
 #define VGA_MAX_HEIGHT 2048
 
+/*
+ * This value corresponds to a shift of zero pixels
+ * in 9-dot text mode.  In other modes, bit 3 is undefined;
+ * we just ignore it, so that 8 corresponds to zero pixels
+ * in all modes.
+ */
+#define VGA_HPEL_NEUTRAL 8
+
 struct vga_precise_retrace {
     int64_t ticks_per_char;
     int64_t total_chars;
