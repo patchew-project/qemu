@@ -1812,7 +1812,7 @@ static RISCVException write_stimecmph(CPURISCVState *env, int csrno,
 #define LOCAL_INTERRUPTS   (~0xFFFFULL)
 
 static const uint64_t delegable_ints =
-    S_MODE_INTERRUPTS | VS_MODE_INTERRUPTS | MIP_LCOFIP;
+    S_MODE_INTERRUPTS | VS_MODE_INTERRUPTS;
 static const uint64_t vs_delegable_ints =
     (VS_MODE_INTERRUPTS | LOCAL_INTERRUPTS) & ~MIP_LCOFIP;
 static const uint64_t all_ints = M_MODE_INTERRUPTS | S_MODE_INTERRUPTS |
@@ -1873,6 +1873,25 @@ static const uint64_t hvip_writable_mask = MIP_VSSIP | MIP_VSTIP |
 static const uint64_t hvien_writable_mask = LOCAL_INTERRUPTS;
 
 static const uint64_t vsip_writable_mask = MIP_VSSIP | LOCAL_INTERRUPTS;
+
+static bool lcofi_present(CPURISCVState *env, bool virt_int)
+{
+    const RISCVCPUConfig *cfg = riscv_cpu_cfg(env);
+
+    if (!cfg->ext_sscofpmf) {
+        return false;
+    }
+
+    /*
+     * For the virtual interrupts path, we also need to check if smcdeleg and
+     * smaia are both implemented.
+     */
+    if (virt_int && !(cfg->ext_smcdeleg && cfg->ext_smaia)) {
+        return false;
+    }
+
+    return true;
+}
 
 /* Machine Information Registers */
 static RISCVException read_zero(CPURISCVState *env, int csrno,
@@ -2248,6 +2267,10 @@ static RISCVException rmw_mideleg64(CPURISCVState *env, int csrno,
 {
     uint64_t mask = wr_mask & delegable_ints;
 
+    if (lcofi_present(env, false)) {
+        mask |= wr_mask & MIP_LCOFIP;
+    }
+
     if (ret_val) {
         *ret_val = env->mideleg;
     }
@@ -2299,6 +2322,10 @@ static RISCVException rmw_mie64(CPURISCVState *env, int csrno,
 {
     uint64_t mask = wr_mask & all_ints;
 
+    if (lcofi_present(env, false)) {
+        mask |= wr_mask & MIP_LCOFIP;
+    }
+
     if (ret_val) {
         *ret_val = env->mie;
     }
@@ -2348,6 +2375,10 @@ static RISCVException rmw_mvien64(CPURISCVState *env, int csrno,
                                 uint64_t new_val, uint64_t wr_mask)
 {
     uint64_t mask = wr_mask & mvien_writable_mask;
+
+    if (lcofi_present(env, true)) {
+        mask |= wr_mask & MIP_LCOFIP;
+    }
 
     if (ret_val) {
         *ret_val = env->mvien;
@@ -3784,6 +3815,10 @@ static RISCVException rmw_mip64(CPURISCVState *env, int csrno,
     uint64_t old_mip, mask = wr_mask & delegable_ints;
     uint32_t gin;
 
+    if (lcofi_present(env, false)) {
+        mask |= wr_mask & MIP_LCOFIP;
+    }
+
     /*
      * When mvien[9]=1, mip.SEIP is read-only and reflects only
      * the external interrupt signal from the interrupt controller.
@@ -3897,9 +3932,11 @@ static RISCVException rmw_mvip64(CPURISCVState *env, int csrno,
      *  alias_mask denotes the bits that come from mip nalias_mask denotes bits
      *  that come from hvip.
      */
-    uint64_t alias_mask = ((S_MODE_INTERRUPTS | LOCAL_INTERRUPTS) &
+    bool virt_int = (csrno == CSR_MVIP) || (csrno == CSR_MVIPH);
+    uint64_t lcofi_mask = lcofi_present(env, virt_int) ? MIP_LCOFIP : 0;
+    uint64_t alias_mask = ((S_MODE_INTERRUPTS | lcofi_mask | LOCAL_INTERRUPTS) &
         (env->mideleg | ~env->mvien)) | MIP_STIP;
-    uint64_t nalias_mask = (S_MODE_INTERRUPTS | LOCAL_INTERRUPTS) &
+    uint64_t nalias_mask = (S_MODE_INTERRUPTS | lcofi_mask | LOCAL_INTERRUPTS) &
         (~env->mideleg & env->mvien);
     uint64_t wr_mask_mvip;
     uint64_t wr_mask_mip;
@@ -3928,8 +3965,8 @@ static RISCVException rmw_mvip64(CPURISCVState *env, int csrno,
         alias_mask &= ~MIP_STIP;
     }
 
-    wr_mask_mip = wr_mask & alias_mask & mvip_writable_mask;
-    wr_mask_mvip = wr_mask & nalias_mask & mvip_writable_mask;
+    wr_mask_mip = wr_mask & alias_mask & (mvip_writable_mask | lcofi_mask);
+    wr_mask_mvip = wr_mask & nalias_mask & (mvip_writable_mask | lcofi_mask);
 
     /*
      * For bits set in alias_mask, mvip needs to be alias of mip, so forward
@@ -4132,9 +4169,11 @@ static RISCVException rmw_sie64(CPURISCVState *env, int csrno,
                                 uint64_t *ret_val,
                                 uint64_t new_val, uint64_t wr_mask)
 {
-    uint64_t nalias_mask = (S_MODE_INTERRUPTS | LOCAL_INTERRUPTS) &
+    uint64_t lcofi_mask = lcofi_present(env, false) ? MIP_LCOFIP : 0;
+    uint64_t nalias_mask = (S_MODE_INTERRUPTS | lcofi_mask | LOCAL_INTERRUPTS) &
         (~env->mideleg & env->mvien);
-    uint64_t alias_mask = (S_MODE_INTERRUPTS | LOCAL_INTERRUPTS) & env->mideleg;
+    uint64_t alias_mask = (S_MODE_INTERRUPTS | lcofi_mask | LOCAL_INTERRUPTS) &
+        env->mideleg;
     uint64_t sie_mask = wr_mask & nalias_mask;
     RISCVException ret;
 
@@ -4379,7 +4418,9 @@ static RISCVException rmw_sip64(CPURISCVState *env, int csrno,
                                 uint64_t new_val, uint64_t wr_mask)
 {
     RISCVException ret;
-    uint64_t mask = (env->mideleg | env->mvien) & sip_writable_mask;
+    uint64_t lcofi_mask = lcofi_present(env, false) ? MIP_LCOFIP : 0;
+    uint64_t mask = (env->mideleg | env->mvien) &
+                    (sip_writable_mask | lcofi_mask);
 
     if (env->virt_enabled) {
         if (env->hvictl & HVICTL_VTI) {
@@ -4392,7 +4433,7 @@ static RISCVException rmw_sip64(CPURISCVState *env, int csrno,
 
     if (ret_val) {
         *ret_val &= (env->mideleg | env->mvien) &
-            (S_MODE_INTERRUPTS | LOCAL_INTERRUPTS);
+            (S_MODE_INTERRUPTS | lcofi_mask | LOCAL_INTERRUPTS);
     }
 
     return ret;
