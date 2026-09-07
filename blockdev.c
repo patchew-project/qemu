@@ -3683,7 +3683,12 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
             goto out;
         }
 
-        new_context = iothread_get_aio_context(obj);
+        /*
+         * The block graph retains only the AioContext, not the IOThread.
+         * Context detachment happens outside this command, so there is no
+         * point here where a matching IOThread holder can be released.
+         */
+        new_context = iothread_unsafe_get_aio_context(obj);
     } else {
         new_context = qemu_get_aio_context();
     }
