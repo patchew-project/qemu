@@ -33,6 +33,8 @@ struct AspeedVGAState {
     MemoryRegion ioport;
 
     uint8_t vgaer;
+    uint32_t last_cursor_y;
+    bool last_cursor_on;
 
     /* saved standard VGA handlers, used while the extended mode is off */
     int (*std_get_bpp)(VGACommonState *s);

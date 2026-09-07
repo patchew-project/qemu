@@ -26,6 +26,7 @@
 #include "qemu/module.h"
 #include "qom/object.h"
 #include "ui/console.h"
+#include "ui/pixel_ops.h"
 #include "trace.h"
 #include "aspeed-vga.h"
 #include "vga_int.h"
@@ -69,10 +70,39 @@ REG8(AST_CR_OFFSET_HI, 0xb0)
 REG8(AST_CR_POWER_MGMT, 0xb6)
     FIELD(AST_CR_POWER_MGMT, VSYNC_OFF, 1, 1)
     FIELD(AST_CR_POWER_MGMT, HSYNC_OFF, 0, 1)
+REG8(AST_CR_CURSOR_XOFF, 0xc2)
+    FIELD(AST_CR_CURSOR_XOFF, OFFSET, 0, 6)
+REG8(AST_CR_CURSOR_YOFF, 0xc3)
+    FIELD(AST_CR_CURSOR_YOFF, OFFSET, 0, 6)
+REG8(AST_CR_CURSOR_X_LO, 0xc4)
+REG8(AST_CR_CURSOR_X_HI, 0xc5)
+    FIELD(AST_CR_CURSOR_X_HI, X, 0, 5)
+REG8(AST_CR_CURSOR_Y_LO, 0xc6)
+REG8(AST_CR_CURSOR_Y_HI, 0xc7)
+    FIELD(AST_CR_CURSOR_Y_HI, Y, 0, 4)
+REG8(AST_CR_CURSOR_ADDR0, 0xc8)
+    FIELD(AST_CR_CURSOR_ADDR0, ADDR, 1, 7)
+REG8(AST_CR_CURSOR_ADDR1, 0xc9)
+REG8(AST_CR_CURSOR_ADDR2, 0xca)
+    FIELD(AST_CR_CURSOR_ADDR2, ADDR, 0, 7)
+REG8(AST_CR_CURSOR_CTRL, 0xcb)
+    FIELD(AST_CR_CURSOR_CTRL, ENABLE, 1, 1)
+    FIELD(AST_CR_CURSOR_CTRL, FORMAT_ARGB4444, 0, 1)
 REG8(AST_CR_SOC_SCRATCH0, 0xd0)
     FIELD(AST_CR_SOC_SCRATCH0, VRAM_INIT_BY_BMC, 7, 1)
     FIELD(AST_CR_SOC_SCRATCH0, VRAM_INIT_READY, 6, 1)
     FIELD(AST_CR_SOC_SCRATCH0, IKVM_WIDESCREEN, 0, 1)
+
+/*
+ * The cursor bitmap is always 64x64 and lives in the framebuffer, two bytes
+ * per pixel in both formats.
+ */
+#define ASPEED_VGA_CURSOR_SIDE  64
+#define ASPEED_VGA_CURSOR_PITCH (ASPEED_VGA_CURSOR_SIDE * 2)
+#define ASPEED_VGA_CURSOR_SIZE  (ASPEED_VGA_CURSOR_SIDE * \
+                                 ASPEED_VGA_CURSOR_PITCH)
+#define CURSOR_MONO_AND 0x8000
+#define CURSOR_MONO_XOR 0x4000
 
 /*
  * The ast driver writes a color format to CRA3 when it switches to the
@@ -176,9 +206,13 @@ static void aspeed_vga_get_params(VGACommonState *vga,
     AspeedVGAState *s = container_of(vga, AspeedVGAState, vga);
 
     if (!aspeed_vga_ext_enabled(s)) {
+        vga->force_shadow = false;
         s->std_get_params(vga, params);
         return;
     }
+
+    vga->force_shadow = FIELD_EX8(vga->cr[R_AST_CR_CURSOR_CTRL],
+                                  AST_CR_CURSOR_CTRL, ENABLE);
 
     /*
      * GR05 bit 6 selects the mode 13 shift mode, which is packed pixel like
@@ -206,6 +240,164 @@ static void aspeed_vga_get_params(VGACommonState *vga,
     params->line_compare = 65535;
     params->hpel = VGA_HPEL_NEUTRAL;
     params->hpel_split = false;
+}
+
+static bool aspeed_vga_cursor_geometry(AspeedVGAState *s, uint32_t *x,
+                                       uint32_t *y, uint32_t *xoff,
+                                       uint32_t *yoff, uint32_t *addr)
+{
+    VGACommonState *vga = &s->vga;
+    bool is_cursor_enable;
+
+    is_cursor_enable = FIELD_EX8(vga->cr[R_AST_CR_CURSOR_CTRL],
+                                 AST_CR_CURSOR_CTRL, ENABLE);
+
+    if (!aspeed_vga_ext_enabled(s) || !is_cursor_enable) {
+        return false;
+    }
+
+    *x = vga->cr[R_AST_CR_CURSOR_X_LO] |
+         (FIELD_EX8(vga->cr[R_AST_CR_CURSOR_X_HI], AST_CR_CURSOR_X_HI, X) << 8);
+    *y = vga->cr[R_AST_CR_CURSOR_Y_LO] |
+         (FIELD_EX8(vga->cr[R_AST_CR_CURSOR_Y_HI], AST_CR_CURSOR_Y_HI, Y) << 8);
+    *xoff = FIELD_EX8(vga->cr[R_AST_CR_CURSOR_XOFF],
+                      AST_CR_CURSOR_XOFF, OFFSET);
+    *yoff = FIELD_EX8(vga->cr[R_AST_CR_CURSOR_YOFF],
+                      AST_CR_CURSOR_YOFF, OFFSET);
+    /*
+     * cursor pattern address, D[10:4] in CRC8, D[18:11] in CRC9 and
+     * D[25:19] in CRCA. D[3:0] are not stored, so it is 16 byte aligned.
+     */
+    *addr = ((uint32_t)FIELD_EX8(vga->cr[R_AST_CR_CURSOR_ADDR0],
+                                 AST_CR_CURSOR_ADDR0, ADDR) << 4) |
+            ((uint32_t)vga->cr[R_AST_CR_CURSOR_ADDR1] << 11) |
+            ((uint32_t)FIELD_EX8(vga->cr[R_AST_CR_CURSOR_ADDR2],
+                                 AST_CR_CURSOR_ADDR2, ADDR) << 19);
+
+    return *addr + ASPEED_VGA_CURSOR_SIZE <= vga->vram_size;
+}
+
+static void aspeed_vga_cursor_invalidate(VGACommonState *vga)
+{
+    AspeedVGAState *s = container_of(vga, AspeedVGAState, vga);
+    uint32_t addr = 0;
+    uint32_t xoff = 0;
+    uint32_t yoff = 0;
+    uint32_t x = 0;
+    uint32_t y = 0;
+    bool on;
+
+    on = aspeed_vga_cursor_geometry(s, &x, &y, &xoff, &yoff, &addr);
+
+    /*
+     * Moving the cursor dirties no VRAM, so repaint both bands here: where
+     * it was, to erase it, and where it is now, to draw it.
+     */
+    if (s->last_cursor_on) {
+        vga_invalidate_scanlines(vga, s->last_cursor_y,
+                                 s->last_cursor_y + ASPEED_VGA_CURSOR_SIDE);
+    }
+    if (on) {
+        vga_invalidate_scanlines(vga, y, y + ASPEED_VGA_CURSOR_SIDE);
+    }
+
+    s->last_cursor_on = on;
+    s->last_cursor_y = on ? y : 0;
+}
+
+/* Source-over blend of one 8 bit color channel with a 4 bit alpha */
+static uint32_t aspeed_vga_blend_channel(uint32_t under, uint32_t over,
+                                         uint32_t alpha)
+{
+    return (under * (15 - alpha) + over * alpha) / 15;
+}
+
+static void aspeed_vga_cursor_draw_line(VGACommonState *vga, uint8_t *d,
+                                        int scr_y)
+{
+    AspeedVGAState *s = container_of(vga, AspeedVGAState, vga);
+    uint32_t *dst = (uint32_t *)d;
+    const uint8_t *row;
+    uint32_t screen_x;
+    uint32_t under;
+    uint32_t out_r;
+    uint32_t out_g;
+    uint32_t out_b;
+    uint32_t addr;
+    uint32_t xoff;
+    uint32_t yoff;
+    uint32_t cols;
+    uint32_t col;
+    uint16_t px;
+    uint32_t x;
+    uint32_t y;
+    uint32_t a;
+    uint32_t r;
+    uint32_t g;
+    uint32_t b;
+    bool argb;
+
+    /* nothing to draw: the cursor is off or outside VRAM */
+    if (!aspeed_vga_cursor_geometry(s, &x, &y, &xoff, &yoff, &addr)) {
+        return;
+    }
+
+    /* this scan line is above or below the cursor */
+    if (scr_y < y || scr_y >= y + (ASPEED_VGA_CURSOR_SIDE - yoff)) {
+        return;
+    }
+
+    /* the cursor is off the right edge of the screen */
+    if (x >= vga->last_scr_width) {
+        return;
+    }
+
+    /* xoff hides the leftmost columns of the bitmap */
+    cols = ASPEED_VGA_CURSOR_SIDE - xoff;
+
+    /* the screen edge hides the rightmost columns */
+    if (x + cols > vga->last_scr_width) {
+        cols = vga->last_scr_width - x;
+    }
+
+    argb = FIELD_EX8(vga->cr[R_AST_CR_CURSOR_CTRL],
+                     AST_CR_CURSOR_CTRL, FORMAT_ARGB4444);
+
+    /* the bitmap row for this scan line, past the rows yoff hides */
+    row = vga->vram_ptr + addr +
+          (uint64_t)(yoff + scr_y - y) * ASPEED_VGA_CURSOR_PITCH;
+
+    for (col = 0; col < cols; col++) {
+        screen_x = x + col;
+        px = lduw_le_p(row + (xoff + col) * 2);
+        r = ((px >> 8) & 0xf) * 0x11;
+        g = ((px >> 4) & 0xf) * 0x11;
+        b = (px & 0xf) * 0x11;
+
+        if (!argb) {
+            /*
+             * AND clear draws the color. AND set leaves the pixel alone,
+             * or inverts it when XOR is set.
+             */
+            if (!(px & CURSOR_MONO_AND)) {
+                dst[screen_x] = rgb_to_pixel32(r, g, b);
+            } else if (px & CURSOR_MONO_XOR) {
+                dst[screen_x] = ~dst[screen_x] & 0xffffff;
+            }
+            continue;
+        }
+
+        a = px >> 12;
+        if (!a) {
+            continue;
+        }
+
+        under = dst[screen_x];
+        out_r = aspeed_vga_blend_channel((under >> 16) & 0xff, r, a);
+        out_g = aspeed_vga_blend_channel((under >> 8) & 0xff, g, a);
+        out_b = aspeed_vga_blend_channel(under & 0xff, b, a);
+        dst[screen_x] = rgb_to_pixel32(out_r, out_g, out_b);
+    }
 }
 
 static uint8_t aspeed_vga_vgamem_size_reg(uint32_t vram_size_mb)
@@ -384,6 +576,8 @@ static void aspeed_vga_realize(PCIDevice *dev, Error **errp)
     vga->get_params = aspeed_vga_get_params;
     vga->get_resolution = aspeed_vga_get_resolution;
     vga->is_blanked = aspeed_vga_is_blanked;
+    vga->cursor_invalidate = aspeed_vga_cursor_invalidate;
+    vga->cursor_draw_line = aspeed_vga_cursor_draw_line;
     vga->big_endian_fb = false;
 
     vga->con = qemu_graphic_console_create(DEVICE(dev), 0, vga->hw_ops, vga);
