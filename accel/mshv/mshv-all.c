@@ -187,7 +187,6 @@ static int create_partition(int mshv_fd, int *vm_fd)
 {
     int ret;
     uint64_t pt_flags, host_proc_features;
-    union hv_partition_processor_xsave_features disabled_xsave_features;
     union hv_partition_processor_features disabled_partition_features = {0};
 
     struct mshv_create_partition_v2 args = {0};
@@ -199,17 +198,6 @@ static int create_partition(int mshv_fd, int *vm_fd)
                (1ULL << MSHV_PT_BIT_X2APIC) |
                (1ULL << MSHV_PT_BIT_GPA_SUPER_PAGES) |
                (1ULL << MSHV_PT_BIT_CPU_AND_XSAVE_FEATURES);
-
-    /* enable all */
-    disabled_xsave_features.as_uint64 = 0;
-    /*
-     * AMX TILE XSAVE state (XTILE_DATA) is 8KB, which exceeds the
-     * current fixed 4KB XSAVE buffer size.
-     */
-    disabled_xsave_features.amx_tile_support = 1;
-    disabled_xsave_features.amx_bf16_support = 1;
-    disabled_xsave_features.amx_int8_support = 1;
-    disabled_xsave_features.amx_fp16_support = 1;
 
     /*
      * query host for supported processor features and disable unsupported
@@ -238,10 +226,14 @@ static int create_partition(int mshv_fd, int *vm_fd)
     args.pt_cpu_fbanks[0] |= disabled_partition_features.as_uint64[0];
     args.pt_cpu_fbanks[1] |= disabled_partition_features.as_uint64[1];
 
+    /*
+     * for now, all the xsave features are enabled, the filtering is only done
+     * at the CPUID level
+     * TODO: filter the xsave features based on the CPUID derived from Cpu model
+     */
     /* populate args structure */
     args.pt_flags = pt_flags;
     args.pt_isolation = MSHV_PT_ISOLATION_NONE;
-    args.pt_disabled_xsave = disabled_xsave_features.as_uint64;
     args.pt_num_cpu_fbanks = MSHV_NUM_CPU_FEATURES_BANKS;
 
     ret = ioctl(mshv_fd, MSHV_CREATE_PARTITION, &args);
