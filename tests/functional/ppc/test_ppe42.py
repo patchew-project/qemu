@@ -72,6 +72,7 @@ class Ppe42Machine(QemuSystemTest):
         self.vm.add_args('-device', 'loader,addr=0xfff80040,cpu-num=0')
         self.vm.add_args('-action', 'panic=pause')
         self.vm.launch()
+        self.skipTestIfNoHMP() # FIXME: QMP x-query-registers
         self._wait_pass_fail(self.timeout)
 
 if __name__ == '__main__':

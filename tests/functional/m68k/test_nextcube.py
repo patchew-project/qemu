@@ -28,6 +28,7 @@ class NextCubeMachine(QemuSystemTest):
 
         self.vm.add_args('-bios', rom_path)
         self.vm.launch()
+        self.skipTestIfNoHMP() # FIXME: QMP x-query-registers
 
         self.log.info('VM launched, waiting for display')
         # Wait for the FPU test to finish, then the display is available, too:
