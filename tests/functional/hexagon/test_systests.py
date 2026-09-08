@@ -65,14 +65,14 @@ class SysTestsStandaloneTests(QemuSystemTest):
         import tempfile
         # The fopen binary has a short cmdline buffer; use a short path.
         dummy = os.path.join(tempfile.gettempdir(), "qemu_fopen_test.so")
-        with open(dummy, "w") as f:
+        with open(dummy, "w", encoding="utf-8") as f:
             f.write("valid\n")
         self.run_exit_zero("fopen", "-append", dummy)
 
     def test_ftrunc(self):
         """ftrunc truncates _testfile_ftrunc from 6 bytes to 1 byte."""
         ftrunc_path = self.scratch_file("_testfile_ftrunc")
-        with open(ftrunc_path, "w") as f:
+        with open(ftrunc_path, "w", encoding="utf-8") as f:
             f.write("valid\n")
         # Sleep 1 s so mtime change is observable
         time.sleep(1)
@@ -83,7 +83,7 @@ class SysTestsStandaloneTests(QemuSystemTest):
     def test_access(self):
         """access checks R_OK|W_OK on _testfile_access."""
         testfile = self.scratch_file("_testfile_access")
-        with open(testfile, "w") as f:
+        with open(testfile, "w", encoding="utf-8") as f:
             f.write("valid\n")
         self.run_exit_zero("access", "-append", testfile)
 
