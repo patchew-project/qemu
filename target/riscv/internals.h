@@ -42,6 +42,7 @@
 #define MMUIdx_M            3
 #define MMU_2STAGE_BIT      (1 << 2)
 #define MMU_IDX_SS_WRITE    (1 << 3)
+#define MMU_IDX_HLVX        (1 << 4)
 
 static inline privilege_mode_t mmuidx_priv(int mmu_idx)
 {
@@ -60,6 +61,11 @@ static inline bool mmuidx_sum(int mmu_idx)
 static inline bool mmuidx_2stage(int mmu_idx)
 {
     return mmu_idx & MMU_2STAGE_BIT;
+}
+
+static inline bool mmuidx_hlvx(int mmu_idx)
+{
+    return mmu_idx & MMU_IDX_HLVX;
 }
 
 /*
