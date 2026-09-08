@@ -143,6 +143,8 @@ phytium_e2000_gem_irqmap[PHYTIUM_E2000_NUM_GEMS][MAX_PRIORITY_QUEUES] = {
     [3] = { 68, 69, 70, 71 },
 };
 
+static const int phytium_e2000_mhu_irq = 22;
+
 static const int phytium_e2000_pcie_irqmap[PCI_NUM_PINS] = {
     [0] = 4,
     [1] = 5,
@@ -677,6 +679,8 @@ static void phytium_e2000_create_mhu(PhytiumE2000SoCState *s)
     }
     sysbus_realize_and_unref(sbd, &error_fatal);
     sysbus_mmio_map_overlap(sbd, 0, PHYTIUM_E2000_MHU_BASE, 2);
+    sysbus_connect_irq(sbd, 0,
+                       qdev_get_gpio_in(s->gic, phytium_e2000_mhu_irq));
 }
 
 static void phytium_e2000_create_unimplemented(PhytiumE2000SoCState *s)
