@@ -25,8 +25,12 @@
 /* Test if priv level is M or S. */
 #define REQUIRE_PRIV_MS(ctx) do {          \
     if (ctx->priv == PRV_U) {              \
+        if (ctx->virt_enabled) {           \
+            ctx->virt_inst_excp = true;    \
+        }                                  \
         return false;                      \
     }                                      \
+    return true;                           \
 } while (0)
 
 static bool trans_sinval_vma(DisasContext *ctx, arg_sinval_vma *a)
