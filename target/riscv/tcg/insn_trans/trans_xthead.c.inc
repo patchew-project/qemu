@@ -141,6 +141,7 @@ GEN_TRANS_TH_ADDSL(3)
 static bool trans_th_srri(DisasContext *ctx, arg_th_srri * a)
 {
     REQUIRE_XTHEADBB(ctx);
+    a->shamt &= get_olen(ctx) - 1;
     return gen_shift_imm_fn_per_ol(ctx, a, EXT_NONE,
                                    tcg_gen_rotri_tl, gen_roriw, NULL);
 }
