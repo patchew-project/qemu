@@ -28,6 +28,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/sd/sd.h"
+#include "hw/ssi/phytium_qspi.h"
 #include "net/net.h"
 #include "qobject/qlist.h"
 #include "qom/object.h"
@@ -54,9 +55,11 @@
  * handoff data and IACC is the fixed execution window for system firmware.
  */
 const MemMapEntry phytium_e2000_memmap[] = {
+    [PHYTIUM_E2000_QSPI_DIRECT] =    { 0x00000000, 0x10000000 },
     [PHYTIUM_E2000_LOW_PERIPH] =     { 0x28000000, 0x00100000 },
     [PHYTIUM_E2000_MCI0] =           { 0x28000000, 0x00001000 },
     [PHYTIUM_E2000_MCI1] =           { 0x28001000, 0x00001000 },
+    [PHYTIUM_E2000_QSPI_REGS] =      { 0x28008000, 0x00001000 },
     [PHYTIUM_E2000_UART0] =          { 0x2800c000, 0x00001000 },
     [PHYTIUM_E2000_UART1] =          { 0x2800d000, 0x00001000 },
     [PHYTIUM_E2000_UART2] =          { 0x2800e000, 0x00001000 },
@@ -469,6 +472,17 @@ static void phytium_e2000_create_mci(PhytiumE2000SoCState *s, int index)
         qdev_get_gpio_in(s->gic, phytium_e2000_mci_irqmap[index]));
 }
 
+static void phytium_e2000_create_qspi(PhytiumE2000SoCState *s)
+{
+    s->qspi = PHYTIUM_E2000_QSPI(qdev_new(TYPE_PHYTIUM_E2000_QSPI));
+    object_property_add_child(OBJECT(s), "qspi", OBJECT(s->qspi));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(s->qspi), &error_fatal);
+    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(s->qspi), 0,
+        phytium_e2000_memmap[PHYTIUM_E2000_QSPI_REGS].base, 2);
+    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(s->qspi), 1,
+        phytium_e2000_memmap[PHYTIUM_E2000_QSPI_DIRECT].base, 2);
+}
+
 static void phytium_e2000_create_ddr_status(PhytiumE2000SoCState *s)
 {
     DeviceState *dev = qdev_new(TYPE_PHYTIUM_E2000_DDR);
@@ -631,6 +645,7 @@ static void phytium_e2000_soc_realize(DeviceState *dev, Error **errp)
     }
 
     phytium_e2000_create_unimplemented(s);
+    phytium_e2000_create_qspi(s);
     phytium_e2000_create_cpus(s);
     phytium_e2000_create_gic(s);
 

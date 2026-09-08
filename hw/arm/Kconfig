@@ -136,6 +136,7 @@ config PHYTIUM_E2000
     select DW_MCI
     select PCI_EXPRESS
     select PCI_EXPRESS_GENERIC_BRIDGE
+    select PHYTIUM_E2000_QSPI
     select PL011
     select SD
     select UNIMP

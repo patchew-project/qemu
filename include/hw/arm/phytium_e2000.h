@@ -16,6 +16,7 @@
 #include "hw/core/sysbus.h"
 #include "hw/net/cadence_gem.h"
 #include "hw/sd/phytium_e2000_mci.h"
+#include "hw/ssi/phytium_qspi.h"
 #include "qemu/typedefs.h"
 #include "target/arm/cpu.h"
 
@@ -27,9 +28,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(PhytiumE2000SoCState, PHYTIUM_E2000_SOC)
 #define PHYTIUM_E2000_NUM_GEMS 4
 
 enum {
+    PHYTIUM_E2000_QSPI_DIRECT,
     PHYTIUM_E2000_LOW_PERIPH,
     PHYTIUM_E2000_MCI0,
     PHYTIUM_E2000_MCI1,
+    PHYTIUM_E2000_QSPI_REGS,
     PHYTIUM_E2000_UART0,
     PHYTIUM_E2000_UART1,
     PHYTIUM_E2000_UART2,
@@ -63,6 +66,7 @@ struct PhytiumE2000SoCState {
     SysBusDevice parent_obj;
 
     DeviceState *gic;
+    PhytiumE2000QSPIState *qspi;
     PhytiumE2000MciState *mci[PHYTIUM_E2000_NUM_MCIS];
     CadenceGEMState *gem[PHYTIUM_E2000_NUM_GEMS];
     ARMCPU cpu[PHYTIUM_E2000_NUM_CPUS];
