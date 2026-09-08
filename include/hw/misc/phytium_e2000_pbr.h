@@ -35,6 +35,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(PhytiumE2000PBRState, PHYTIUM_E2000_PBR)
 #define PHYTIUM_E2000_PBR_BOOT_SRAM_SIZE    0x00100000
 #define PHYTIUM_E2000_PBR_IACC_SIZE         0x08000000
 #define PHYTIUM_E2000_PBR_MAX_CPUS          4
+#define PHYTIUM_E2000_PBR_ROOT              \
+    (PHYTIUM_E2000_PBR_BOOT_SRAM_BASE + 0x1000)
+#define PHYTIUM_E2000_PBR_CPU_CONTROL       \
+    (PHYTIUM_E2000_PBR_BOOT_SRAM_BASE + 0x2000)
+#define PHYTIUM_E2000_PBR_CPU_CONTROL_MAGIC 0xffaabbcc
 
 #define PHYTIUM_E2000_PBR_BOOT_MEDIA_QSPI   0x1
 #define PHYTIUM_E2000_PBR_BOOT_MEDIA_SD0    0x4
@@ -49,6 +54,8 @@ void phytium_e2000_pbr_configure(PhytiumE2000PBRState *s,
                                  unsigned int num_cpus);
 bool phytium_e2000_pbr_firmware_loaded(PhytiumE2000PBRState *s);
 int phytium_e2000_pbr_primary_cpu(PhytiumE2000PBRState *s);
+/* Return the firmware-owned slot address, not its runtime entry value */
+hwaddr phytium_e2000_pbr_secondary_vector_slot(PhytiumE2000PBRState *s);
 void phytium_e2000_pbr_connect_cpu(PhytiumE2000PBRState *s,
                                    unsigned int index, CPUState *cpu);
 
