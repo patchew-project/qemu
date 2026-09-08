@@ -399,6 +399,17 @@ QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event);
 QDict *qtest_qmp_event_ref(QTestState *s, const char *event);
 
 /**
+ * qtest_qmp_job_wait:
+ * @s: #QTestState instance to operate on.
+ * @job_id: job identifier to wait for.
+ *
+ * Wait for a QMP job to reach "concluded" status by consuming
+ * JOB_STATUS_CHANGE events, then dismiss the job.
+ * Asserts that the job completed without error.
+ */
+void qtest_qmp_job_wait(QTestState *s, const char *job_id);
+
+/**
  * qtest_hmp:
  * @s: #QTestState instance to operate on.
  * @fmt: HMP command to send to QEMU, formats arguments like sprintf().
