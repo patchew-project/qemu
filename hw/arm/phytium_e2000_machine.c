@@ -24,16 +24,27 @@
 #include "qom/object.h"
 #include "target/arm/cpu-qom.h"
 
-#define TYPE_PHYTIUM_PI MACHINE_TYPE_NAME("phytium-pi")
-OBJECT_DECLARE_SIMPLE_TYPE(PhytiumPiMachineState, PHYTIUM_PI)
+#define TYPE_PHYTIUM_E2000_MACHINE \
+    MACHINE_TYPE_NAME("phytium-e2000-base")
+OBJECT_DECLARE_TYPE(PhytiumE2000MachineState, PhytiumE2000MachineClass,
+                    PHYTIUM_E2000_MACHINE)
 
-struct PhytiumPiMachineState {
+#define TYPE_PHYTIUM_PI MACHINE_TYPE_NAME("phytium-pi")
+
+struct PhytiumE2000MachineState {
     MachineState parent_obj;
 
     struct arm_boot_info bootinfo;
     PhytiumE2000SoCState soc;
     MemoryRegion ram_low;
     MemoryRegion ram_high;
+};
+
+struct PhytiumE2000MachineClass {
+    MachineClass parent_class;
+
+    const char *machine_name;
+    const char *pbr_boot_mode;
 };
 
 static BlockBackend *phytium_e2000_sd_blk(int index)
@@ -43,7 +54,7 @@ static BlockBackend *phytium_e2000_sd_blk(int index)
     return dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
 }
 
-static void phytium_e2000_attach_sd_cards(PhytiumPiMachineState *s)
+static void phytium_e2000_attach_sd_cards(PhytiumE2000MachineState *s)
 {
     int i;
 
@@ -53,16 +64,21 @@ static void phytium_e2000_attach_sd_cards(PhytiumPiMachineState *s)
     }
 }
 
-static void phytium_e2000_reject_legacy_firmware(MachineState *ms)
+static void phytium_e2000_reject_legacy_firmware(
+    MachineState *ms, PhytiumE2000MachineClass *pemc)
 {
     if (ms->firmware || drive_get(IF_PFLASH, 0, 0)) {
-        error_report("phytium-pi: -bios and pflash firmware are not "
-                     "supported; use an if=sd,index=0 image");
+        error_report("%s: -bios and pflash firmware are not supported; "
+                     "use an if=%s,index=0 image",
+                     pemc->machine_name,
+                     !strcmp(pemc->pbr_boot_mode,
+                             PHYTIUM_E2000_PBR_BOOT_MODE_QSPI) ?
+                         "mtd" : "sd");
         exit(1);
     }
 }
 
-static void phytium_e2000_create_ram(PhytiumPiMachineState *s)
+static void phytium_e2000_create_ram(PhytiumE2000MachineState *s)
 {
     MachineState *ms = MACHINE(s);
     uint64_t low_size =
@@ -89,9 +105,11 @@ static void phytium_e2000_create_ram(PhytiumPiMachineState *s)
         phytium_e2000_memmap[PHYTIUM_E2000_RAM_HIGH].base, &s->ram_high);
 }
 
-static void phytium_pi_init(MachineState *ms)
+static void phytium_e2000_init(MachineState *ms)
 {
-    PhytiumPiMachineState *s = PHYTIUM_PI(ms);
+    PhytiumE2000MachineState *s = PHYTIUM_E2000_MACHINE(ms);
+    PhytiumE2000MachineClass *pemc =
+        PHYTIUM_E2000_MACHINE_GET_CLASS(ms);
     BlockBackend *boot_blk;
     bool firmware_loaded;
 
@@ -101,12 +119,12 @@ static void phytium_pi_init(MachineState *ms)
      * Phytium-specific system registers that KVM cannot provide.
      */
     if (kvm_enabled()) {
-        error_report("phytium-pi: KVM is not supported");
+        error_report("%s: KVM is not supported", pemc->machine_name);
         exit(1);
     }
 
     if (ms->smp.cpus > PHYTIUM_E2000_NUM_CPUS) {
-        error_report("phytium-pi supports at most %d CPUs",
+        error_report("%s supports at most %d CPUs", pemc->machine_name,
                      PHYTIUM_E2000_NUM_CPUS);
         exit(1);
     }
@@ -114,18 +132,22 @@ static void phytium_pi_init(MachineState *ms)
     if (ms->ram_size >
         phytium_e2000_memmap[PHYTIUM_E2000_RAM].size +
         phytium_e2000_memmap[PHYTIUM_E2000_RAM_HIGH].size) {
-        error_report("phytium-pi supports at most 8 GiB RAM");
+        error_report("%s supports at most 8 GiB RAM", pemc->machine_name);
         exit(1);
     }
 
-    phytium_e2000_reject_legacy_firmware(ms);
+    phytium_e2000_reject_legacy_firmware(ms, pemc);
     phytium_e2000_create_ram(s);
-    boot_blk = ms->kernel_filename ? NULL : phytium_e2000_sd_blk(0);
+    if (!ms->kernel_filename &&
+        !strcmp(pemc->pbr_boot_mode, PHYTIUM_E2000_PBR_BOOT_MODE_SD0)) {
+        boot_blk = phytium_e2000_sd_blk(0);
+    } else {
+        boot_blk = NULL;
+    }
 
     object_initialize_child(OBJECT(s), "soc", &s->soc,
                             TYPE_PHYTIUM_E2000_SOC);
-    phytium_e2000_soc_configure(&s->soc,
-                                PHYTIUM_E2000_PBR_BOOT_MODE_SD0,
+    phytium_e2000_soc_configure(&s->soc, pemc->pbr_boot_mode,
                                 boot_blk, ms->ram_size, ms->smp.cpus);
     sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
     phytium_e2000_attach_sd_cards(s);
@@ -169,7 +191,7 @@ static const CPUArchIdList *phytium_e2000_possible_cpu_arch_ids(
     return ms->possible_cpus;
 }
 
-static void phytium_pi_class_init(ObjectClass *oc, const void *data)
+static void phytium_e2000_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     static const char * const valid_cpu_types[] = {
@@ -177,8 +199,7 @@ static void phytium_pi_class_init(ObjectClass *oc, const void *data)
         NULL,
     };
 
-    mc->init = phytium_pi_init;
-    mc->desc = "Phytium Pi board (Phytium E2000Q)";
+    mc->init = phytium_e2000_init;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a72");
     mc->valid_cpu_types = valid_cpu_types;
     mc->max_cpus = PHYTIUM_E2000_NUM_CPUS;
@@ -190,21 +211,41 @@ static void phytium_pi_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 2 * GiB;
     mc->default_ram_id = "phytium-e2000.ram";
     mc->minimum_page_bits = 12;
-    mc->block_default_type = IF_SD;
     mc->no_cdrom = 1;
     mc->possible_cpu_arch_ids = phytium_e2000_possible_cpu_arch_ids;
 }
 
-static const TypeInfo phytium_pi_info = {
-    .name = TYPE_PHYTIUM_PI,
+static void phytium_pi_class_init(ObjectClass *oc, const void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    PhytiumE2000MachineClass *pemc =
+        PHYTIUM_E2000_MACHINE_CLASS(oc);
+
+    mc->desc = "Phytium Pi board (Phytium E2000Q)";
+    mc->block_default_type = IF_SD;
+    pemc->machine_name = "phytium-pi";
+    pemc->pbr_boot_mode = PHYTIUM_E2000_PBR_BOOT_MODE_SD0;
+}
+
+static const TypeInfo phytium_e2000_base_info = {
+    .name = TYPE_PHYTIUM_E2000_MACHINE,
     .parent = TYPE_MACHINE,
-    .class_init = phytium_pi_class_init,
-    .instance_size = sizeof(PhytiumPiMachineState),
+    .abstract = true,
+    .class_init = phytium_e2000_class_init,
+    .class_size = sizeof(PhytiumE2000MachineClass),
+    .instance_size = sizeof(PhytiumE2000MachineState),
 };
 
-static void phytium_pi_machine_init(void)
+static const TypeInfo phytium_pi_info = {
+    .name = TYPE_PHYTIUM_PI,
+    .parent = TYPE_PHYTIUM_E2000_MACHINE,
+    .class_init = phytium_pi_class_init,
+};
+
+static void phytium_e2000_machine_init(void)
 {
+    type_register_static(&phytium_e2000_base_info);
     type_register_static(&phytium_pi_info);
 }
 
-type_init(phytium_pi_machine_init);
+type_init(phytium_e2000_machine_init);
