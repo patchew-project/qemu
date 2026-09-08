@@ -22,9 +22,11 @@
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "hw/misc/unimp.h"
+#include "hw/net/cadence_gem.h"
 #include "hw/pci/pci.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/sd/sd.h"
+#include "net/net.h"
 #include "qobject/qlist.h"
 #include "qom/object.h"
 #include "target/arm/cpu.h"
@@ -62,6 +64,10 @@ const MemMapEntry phytium_e2000_memmap[] = {
     [PHYTIUM_E2000_PCIE_CTRL] =      { 0x31000000, 0x00200000 },
     [PHYTIUM_E2000_PCIE_PHY_CTRL] =  { 0x31500000, 0x00001000 },
     [PHYTIUM_E2000_BOARD_CTRL] =     { 0x31800000, 0x01400000 },
+    [PHYTIUM_E2000_GEM0] =           { 0x3200c000, 0x00002000 },
+    [PHYTIUM_E2000_GEM1] =           { 0x3200e000, 0x00002000 },
+    [PHYTIUM_E2000_GEM2] =           { 0x32010000, 0x00002000 },
+    [PHYTIUM_E2000_GEM3] =           { 0x32012000, 0x00002000 },
     [PHYTIUM_E2000_BOOT_IACC] =      { 0x38000000, 0x08000000 },
     [PHYTIUM_E2000_PCIE_ECAM] =      { 0x40000000, 0x10000000 },
     [PHYTIUM_E2000_PCIE_PIO] =       { 0x50000000, 0x00f00000 },
@@ -84,6 +90,16 @@ static const int phytium_e2000_uart_irqmap[] = {
     [4] = 92,
     [5] = 103,
     [6] = 107,
+};
+
+static const uint8_t phytium_e2000_gem_num_queues[] = { 8, 4, 4, 4 };
+
+static const int
+phytium_e2000_gem_irqmap[PHYTIUM_E2000_NUM_GEMS][MAX_PRIORITY_QUEUES] = {
+    [0] = { 55, 56, 57, 58, 28, 29, 30, 31 },
+    [1] = { 59, 60, 61, 62 },
+    [2] = { 64, 65, 66, 67 },
+    [3] = { 68, 69, 70, 71 },
 };
 
 static const int phytium_e2000_pcie_irqmap[PCI_NUM_PINS] = {
@@ -296,6 +312,45 @@ static void phytium_e2000_create_unimplemented_region(
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(dev), 0,
                             phytium_e2000_memmap[map_idx].base, -1000);
+}
+
+static void phytium_e2000_create_gem(PhytiumE2000SoCState *s, int index)
+{
+    DeviceState *dev = qdev_new(TYPE_CADENCE_GEM);
+    CadenceGEMState *gem = CADENCE_GEM(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    g_autofree char *name = g_strdup_printf("gem%d", index);
+    g_autofree char *unimp_child =
+        g_strdup_printf("gem%d-unimplemented", index);
+    g_autofree char *unimp_name =
+        g_strdup_printf("phytium-e2000.gem%d-unimplemented", index);
+    int map_idx = PHYTIUM_E2000_GEM0 + index;
+    hwaddr base = phytium_e2000_memmap[map_idx].base;
+    int i;
+
+    s->gem[index] = gem;
+    object_property_add_child(OBJECT(s), name, OBJECT(dev));
+
+    qemu_configure_nic_device(dev, true, name);
+    qdev_prop_set_uint8(dev, "phy-addr", 0);
+    qdev_prop_set_uint8(dev, "num-priority-queues",
+                        phytium_e2000_gem_num_queues[index]);
+    qdev_prop_set_uint16(dev, "jumbo-max-len", 16360);
+    qdev_prop_set_bit(dev, "pcs-enabled", true);
+
+    /*
+     * The E2000 exposes a 0x2000-byte aperture, while the generic Cadence
+     * model implements the first 0x800 bytes. Catch accesses to the remaining
+     * SoC-specific registers without inventing their clock and SerDes effects.
+     */
+    phytium_e2000_create_unimplemented_region(
+        s, unimp_child, unimp_name, map_idx);
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_mmio_map(sbd, 0, base);
+    for (i = 0; i < phytium_e2000_gem_num_queues[index]; i++) {
+        sysbus_connect_irq(sbd, i,
+            qdev_get_gpio_in(s->gic, phytium_e2000_gem_irqmap[index][i]));
+    }
 }
 
 /* The vendor DT maps root-bus INTx solely by pin */
@@ -535,6 +590,10 @@ static void phytium_e2000_soc_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < PHYTIUM_E2000_NUM_UARTS; i++) {
         phytium_e2000_create_uart(s, i);
     }
+    for (i = 0; i < PHYTIUM_E2000_NUM_GEMS; i++) {
+        phytium_e2000_create_gem(s, i);
+    }
+
     phytium_e2000_create_pcie(s);
 }
 

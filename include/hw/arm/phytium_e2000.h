@@ -14,6 +14,7 @@
 
 #include "hw/arm/boot.h"
 #include "hw/core/sysbus.h"
+#include "hw/net/cadence_gem.h"
 #include "hw/sd/phytium_e2000_mci.h"
 #include "qemu/typedefs.h"
 #include "target/arm/cpu.h"
@@ -23,6 +24,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(PhytiumE2000SoCState, PHYTIUM_E2000_SOC)
 
 #define PHYTIUM_E2000_NUM_CPUS 4
 #define PHYTIUM_E2000_NUM_MCIS 2
+#define PHYTIUM_E2000_NUM_GEMS 4
 
 enum {
     PHYTIUM_E2000_LOW_PERIPH,
@@ -42,6 +44,10 @@ enum {
     PHYTIUM_E2000_PCIE_CTRL,
     PHYTIUM_E2000_PCIE_PHY_CTRL,
     PHYTIUM_E2000_BOARD_CTRL,
+    PHYTIUM_E2000_GEM0,
+    PHYTIUM_E2000_GEM1,
+    PHYTIUM_E2000_GEM2,
+    PHYTIUM_E2000_GEM3,
     PHYTIUM_E2000_BOOT_IACC,
     PHYTIUM_E2000_PCIE_ECAM,
     PHYTIUM_E2000_PCIE_PIO,
@@ -58,6 +64,7 @@ struct PhytiumE2000SoCState {
 
     DeviceState *gic;
     PhytiumE2000MciState *mci[PHYTIUM_E2000_NUM_MCIS];
+    CadenceGEMState *gem[PHYTIUM_E2000_NUM_GEMS];
     ARMCPU cpu[PHYTIUM_E2000_NUM_CPUS];
     unsigned int num_cpus;
 };
