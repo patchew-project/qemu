@@ -57,11 +57,14 @@ static uint32_t npcm7xx_adc_convert(uint32_t input, uint32_t ref)
 {
     uint32_t result;
 
-    result = input * (NPCM7XX_ADC_MAX_RESULT + 1) / ref;
-    if (result > NPCM7XX_ADC_MAX_RESULT) {
+    if (ref) {
+        result = input * (NPCM7XX_ADC_MAX_RESULT + 1) / ref;
+        if (result > NPCM7XX_ADC_MAX_RESULT) {
+            result = NPCM7XX_ADC_MAX_RESULT;
+        }
+    } else {
         result = NPCM7XX_ADC_MAX_RESULT;
     }
-
     return result;
 }
 
@@ -244,6 +247,7 @@ static void npcm7xx_adc_init(Object *obj)
         object_property_add_uint32_ptr(obj, "adci[*]",
                 &s->adci[i], OBJ_PROP_FLAG_READWRITE);
     }
+    s->vref = NPCM7XX_ADC_DEFAULT_IREF;
     object_property_add_uint32_ptr(obj, "vref",
             &s->vref, OBJ_PROP_FLAG_WRITE);
     npcm7xx_adc_calibrate(s);
