@@ -9,6 +9,7 @@
 
 import time
 
+from qemu.qmp.qmp_client import ExecuteError
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import skipIfMissingImports, skipIfMissingCommands
 from qemu_test.tesseract import tesseract_ocr
@@ -39,10 +40,12 @@ class NextCubeMachine(QemuSystemTest):
                 break
             time.sleep(0.1)
 
-        res = self.vm.cmd('human-monitor-command',
-                          command_line=f"screendump {screenshot_path}")
-        if 'unknown command' in res:
-            self.skipTest('screendump not available')
+        try:
+            self.vm.cmd('screendump', filename=screenshot_path)
+        except ExecuteError as e:
+            if e.error_class == 'CommandNotFound':
+                self.skipTest('screendump command not found')
+            raise
 
     @skipIfMissingImports("PIL")
     def test_bootrom_framebuffer_size(self):
