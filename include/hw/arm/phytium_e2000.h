@@ -14,6 +14,7 @@
 
 #include "hw/arm/boot.h"
 #include "hw/core/sysbus.h"
+#include "hw/misc/phytium_e2000_pbr.h"
 #include "hw/net/cadence_gem.h"
 #include "hw/sd/phytium_e2000_mci.h"
 #include "hw/ssi/phytium_qspi.h"
@@ -67,14 +68,23 @@ struct PhytiumE2000SoCState {
 
     DeviceState *gic;
     PhytiumE2000QSPIState *qspi;
+    PhytiumE2000PBRState *pbr;
     PhytiumE2000MciState *mci[PHYTIUM_E2000_NUM_MCIS];
     CadenceGEMState *gem[PHYTIUM_E2000_NUM_GEMS];
     ARMCPU cpu[PHYTIUM_E2000_NUM_CPUS];
     MemoryRegion scp_sram;
+
+    const char *pbr_boot_mode;
+    BlockBackend *boot_blk;
+    uint64_t ram_size;
     unsigned int num_cpus;
+    bool firmware_loaded;
 };
 
 void phytium_e2000_soc_configure(PhytiumE2000SoCState *s,
+                                 const char *pbr_boot_mode,
+                                 BlockBackend *boot_blk,
+                                 uint64_t ram_size,
                                  unsigned int num_cpus);
 void phytium_e2000_soc_cpu_topology(unsigned int index,
                                     uint64_t *mp_affinity,
@@ -82,6 +92,7 @@ void phytium_e2000_soc_cpu_topology(unsigned int index,
                                     int64_t *core_id);
 ARMCPU *phytium_e2000_soc_cpu(PhytiumE2000SoCState *s,
                               unsigned int index);
+bool phytium_e2000_soc_firmware_loaded(PhytiumE2000SoCState *s);
 void phytium_e2000_soc_attach_sd_card(PhytiumE2000SoCState *s,
                                       unsigned int index,
                                       BlockBackend *blk);

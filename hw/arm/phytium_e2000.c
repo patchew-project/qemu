@@ -23,6 +23,7 @@
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "hw/misc/phytium_e2000_ddr.h"
 #include "hw/misc/phytium_e2000_mhu.h"
+#include "hw/misc/phytium_e2000_pbr.h"
 #include "hw/misc/unimp.h"
 #include "hw/net/cadence_gem.h"
 #include "hw/pci/pci.h"
@@ -222,6 +223,17 @@ static void phytium_e2000_configure_cpu(ARMCPU *cpu,
     default:
         g_assert_not_reached();
     }
+}
+
+static uint64_t phytium_e2000_cpu_mp_affinity(unsigned int cpu)
+{
+    /*
+     * E2000Q exposes one core in each of the first two clusters and two cores
+     * in the third cluster. Firmware stores these MPIDRs in its parameter
+     * tables, so a linear CPU index is not a valid affinity value.
+     */
+    g_assert(cpu < ARRAY_SIZE(phytium_e2000_cpu_config));
+    return phytium_e2000_cpu_config[cpu].mp_affinity;
 }
 
 static void phytium_e2000_create_its(PhytiumE2000SoCState *s)
@@ -483,6 +495,39 @@ static void phytium_e2000_create_qspi(PhytiumE2000SoCState *s)
         phytium_e2000_memmap[PHYTIUM_E2000_QSPI_DIRECT].base, 2);
 }
 
+static bool phytium_e2000_create_pbr(PhytiumE2000SoCState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_PHYTIUM_E2000_PBR);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    uint64_t cpu_mpidrs[PHYTIUM_E2000_NUM_CPUS];
+    int i;
+
+    for (i = 0; i < s->num_cpus; i++) {
+        cpu_mpidrs[i] = phytium_e2000_cpu_mp_affinity(i);
+    }
+
+    qdev_prop_set_string(dev, "boot-mode", s->pbr_boot_mode);
+    phytium_e2000_pbr_configure(PHYTIUM_E2000_PBR(dev), s->boot_blk,
+                                phytium_e2000_memmap[PHYTIUM_E2000_RAM].base,
+                                s->ram_size, cpu_mpidrs, s->num_cpus);
+
+    /*
+     * PBR owns the status snapshot and both boot memories. The status block
+     * overlaps the broad board-control placeholder and therefore needs the
+     * higher mapping priority used by the previous status-only device.
+     */
+    object_property_add_child(OBJECT(s), "pbr", OBJECT(dev));
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_mmio_map_overlap(sbd, 0, PHYTIUM_E2000_PBR_STATUS_BASE, 2);
+    sysbus_mmio_map(sbd, 1,
+                    phytium_e2000_memmap[PHYTIUM_E2000_BOOT_SRAM].base);
+    sysbus_mmio_map(sbd, 2,
+                    phytium_e2000_memmap[PHYTIUM_E2000_BOOT_IACC].base);
+    s->pbr = PHYTIUM_E2000_PBR(dev);
+
+    return phytium_e2000_pbr_firmware_loaded(s->pbr);
+}
+
 static void phytium_e2000_create_ddr_status(PhytiumE2000SoCState *s)
 {
     DeviceState *dev = qdev_new(TYPE_PHYTIUM_E2000_DDR);
@@ -572,23 +617,40 @@ static void phytium_e2000_create_cpus(PhytiumE2000SoCState *s)
                                 config->mp_affinity, &error_abort);
         object_property_set_int(cpuobj, "cntfrq", PHYTIUM_E2000_GTIMER_HZ,
                                 &error_abort);
-        if (object_property_find(cpuobj, "has_el3")) {
+        if (!s->firmware_loaded && object_property_find(cpuobj, "has_el3")) {
             /*
              * The generic-loader U-Boot path starts after the EL3 firmware
              * stages that normally provide the Phytium SMC services.
              */
             object_property_set_bool(cpuobj, "has_el3", false, &error_abort);
         }
+        /*
+         * PBR releases only the primary MPIDR named in the firmware parameter
+         * header. Secondary CPUs remain powered off for later firmware or
+         * PSCI bring-up.
+         */
+        if (s->firmware_loaded &&
+            i != phytium_e2000_pbr_primary_cpu(s->pbr)) {
+            object_property_set_bool(cpuobj, "start-powered-off", true,
+                                     &error_abort);
+        }
         object_property_set_link(cpuobj, "memory", OBJECT(get_system_memory()),
                                  &error_abort);
         cs->cpu_index = i;
         qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
+        phytium_e2000_pbr_connect_cpu(s->pbr, i, cs);
     }
 }
 
 void phytium_e2000_soc_configure(PhytiumE2000SoCState *s,
+                                 const char *pbr_boot_mode,
+                                 BlockBackend *boot_blk,
+                                 uint64_t ram_size,
                                  unsigned int num_cpus)
 {
+    s->pbr_boot_mode = pbr_boot_mode;
+    s->boot_blk = boot_blk;
+    s->ram_size = ram_size;
     s->num_cpus = num_cpus;
 }
 
@@ -611,6 +673,11 @@ ARMCPU *phytium_e2000_soc_cpu(PhytiumE2000SoCState *s,
 {
     g_assert(index < s->num_cpus);
     return &s->cpu[index];
+}
+
+bool phytium_e2000_soc_firmware_loaded(PhytiumE2000SoCState *s)
+{
+    return s->firmware_loaded;
 }
 
 void phytium_e2000_soc_attach_sd_card(PhytiumE2000SoCState *s,
@@ -643,9 +710,14 @@ static void phytium_e2000_soc_realize(DeviceState *dev, Error **errp)
                    PHYTIUM_E2000_NUM_CPUS);
         return;
     }
+    if (!s->pbr_boot_mode) {
+        error_setg(errp, "E2000 SoC boot mode is not configured");
+        return;
+    }
 
     phytium_e2000_create_unimplemented(s);
     phytium_e2000_create_qspi(s);
+    s->firmware_loaded = phytium_e2000_create_pbr(s);
     phytium_e2000_create_cpus(s);
     phytium_e2000_create_gic(s);
 

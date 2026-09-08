@@ -53,6 +53,15 @@ static void phytium_e2000_attach_sd_cards(PhytiumPiMachineState *s)
     }
 }
 
+static void phytium_e2000_reject_legacy_firmware(MachineState *ms)
+{
+    if (ms->firmware || drive_get(IF_PFLASH, 0, 0)) {
+        error_report("phytium-pi: -bios and pflash firmware are not "
+                     "supported; use an if=sd,index=0 image");
+        exit(1);
+    }
+}
+
 static void phytium_e2000_create_ram(PhytiumPiMachineState *s)
 {
     MachineState *ms = MACHINE(s);
@@ -83,6 +92,8 @@ static void phytium_e2000_create_ram(PhytiumPiMachineState *s)
 static void phytium_pi_init(MachineState *ms)
 {
     PhytiumPiMachineState *s = PHYTIUM_PI(ms);
+    BlockBackend *boot_blk;
+    bool firmware_loaded;
 
     /*
      * KVM cannot provide the heterogeneous FTC CPU configuration applied to
@@ -107,20 +118,25 @@ static void phytium_pi_init(MachineState *ms)
         exit(1);
     }
 
+    phytium_e2000_reject_legacy_firmware(ms);
     phytium_e2000_create_ram(s);
+    boot_blk = ms->kernel_filename ? NULL : phytium_e2000_sd_blk(0);
 
     object_initialize_child(OBJECT(s), "soc", &s->soc,
                             TYPE_PHYTIUM_E2000_SOC);
-    phytium_e2000_soc_configure(&s->soc, ms->smp.cpus);
+    phytium_e2000_soc_configure(&s->soc,
+                                PHYTIUM_E2000_PBR_BOOT_MODE_SD0,
+                                boot_blk, ms->ram_size, ms->smp.cpus);
     sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
     phytium_e2000_attach_sd_cards(s);
 
+    firmware_loaded = phytium_e2000_soc_firmware_loaded(&s->soc);
     s->bootinfo.ram_size = ms->ram_size;
     s->bootinfo.board_id = -1;
     s->bootinfo.loader_start =
         phytium_e2000_memmap[PHYTIUM_E2000_RAM].base;
     s->bootinfo.psci_conduit = QEMU_PSCI_CONDUIT_SMC;
-    s->bootinfo.firmware_loaded = false;
+    s->bootinfo.firmware_loaded = firmware_loaded;
     arm_load_kernel(phytium_e2000_soc_cpu(&s->soc, 0), ms, &s->bootinfo);
 }
 
@@ -167,7 +183,11 @@ static void phytium_pi_class_init(ObjectClass *oc, const void *data)
     mc->valid_cpu_types = valid_cpu_types;
     mc->max_cpus = PHYTIUM_E2000_NUM_CPUS;
     mc->default_cpus = PHYTIUM_E2000_NUM_CPUS;
-    mc->default_ram_size = 1 * GiB;
+    /*
+     * PBF/BL1 relocates to 0xf8c40000, which is outside a 1 GiB RAM window
+     * starting at 0x80000000. Two GiB is the minimum useful firmware default.
+     */
+    mc->default_ram_size = 2 * GiB;
     mc->default_ram_id = "phytium-e2000.ram";
     mc->minimum_page_bits = 12;
     mc->block_default_type = IF_SD;
