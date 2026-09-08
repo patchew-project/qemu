@@ -21,6 +21,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/intc/arm_gicv3_its_common.h"
+#include "hw/misc/phytium_e2000_ddr.h"
 #include "hw/misc/unimp.h"
 #include "hw/net/cadence_gem.h"
 #include "hw/pci/pci.h"
@@ -38,6 +39,8 @@
 #define PHYTIUM_E2000_NUM_IRQS        256
 
 #define PHYTIUM_E2000_NUM_UARTS       7
+
+#define PHYTIUM_E2000_DDR_STATUS_BASE 0x32b33000
 
 #define PHYTIUM_E2000_GTIMER_HZ       50000000
 
@@ -462,6 +465,21 @@ static void phytium_e2000_create_mci(PhytiumE2000SoCState *s, int index)
         qdev_get_gpio_in(s->gic, phytium_e2000_mci_irqmap[index]));
 }
 
+static void phytium_e2000_create_ddr_status(PhytiumE2000SoCState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_PHYTIUM_E2000_DDR);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    /*
+     * The selector window is embedded in the board-control aperture. It must
+     * override the placeholder because early U-Boot polls it while PBF is
+     * still coordinating DRAM initialization from EL3.
+     */
+    object_property_add_child(OBJECT(s), "ddr-status", OBJECT(dev));
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_mmio_map_overlap(sbd, 0, PHYTIUM_E2000_DDR_STATUS_BASE, 2);
+}
+
 static void phytium_e2000_create_unimplemented(PhytiumE2000SoCState *s)
 {
     /*
@@ -583,6 +601,8 @@ static void phytium_e2000_soc_realize(DeviceState *dev, Error **errp)
     phytium_e2000_create_unimplemented(s);
     phytium_e2000_create_cpus(s);
     phytium_e2000_create_gic(s);
+
+    phytium_e2000_create_ddr_status(s);
 
     for (i = 0; i < PHYTIUM_E2000_NUM_MCIS; i++) {
         phytium_e2000_create_mci(s, i);
