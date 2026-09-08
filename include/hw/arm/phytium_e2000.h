@@ -105,5 +105,7 @@ bool phytium_e2000_soc_firmware_loaded(PhytiumE2000SoCState *s);
 void phytium_e2000_soc_attach_sd_card(PhytiumE2000SoCState *s,
                                       unsigned int index,
                                       BlockBackend *blk);
+void phytium_e2000_soc_attach_qspi_flash(PhytiumE2000SoCState *s,
+                                         DeviceState *flash);
 
 #endif

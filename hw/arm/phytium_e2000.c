@@ -32,6 +32,7 @@
 #include "hw/pci-host/gpex.h"
 #include "hw/sd/sd.h"
 #include "hw/ssi/phytium_qspi.h"
+#include "hw/ssi/ssi.h"
 #include "hw/usb/xhci.h"
 #include "net/net.h"
 #include "qobject/qlist.h"
@@ -800,6 +801,18 @@ void phytium_e2000_soc_attach_sd_card(PhytiumE2000SoCState *s,
     card = qdev_new(TYPE_SD_CARD);
     qdev_prop_set_drive_err(card, "drive", blk, &error_fatal);
     qdev_realize_and_unref(card, bus, &error_fatal);
+}
+
+void phytium_e2000_soc_attach_qspi_flash(PhytiumE2000SoCState *s,
+                                         DeviceState *flash)
+{
+    qemu_irq flash_cs;
+
+    qdev_realize_and_unref(flash,
+                           qdev_get_child_bus(DEVICE(s->qspi), "spi"),
+                           &error_fatal);
+    flash_cs = qdev_get_gpio_in_named(flash, SSI_GPIO_CS, 0);
+    qdev_connect_gpio_out_named(DEVICE(s->qspi), "cs", 0, flash_cs);
 }
 
 static void phytium_e2000_soc_realize(DeviceState *dev, Error **errp)
