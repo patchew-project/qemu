@@ -131,10 +131,13 @@ config PHYTIUM_E2000
     default y
     depends on TCG && AARCH64
     imply PCI_DEVICES
+    select AHCI_SYSBUS
     select ARM_GIC
     select CADENCE
     select DESIGNWARE_I2C
     select DW_MCI
+    select IDE_BUS
+    select IDE_DEV
     select PCI_EXPRESS
     select PCI_EXPRESS_GENERIC_BRIDGE
     select PHYTIUM_E2000_QSPI

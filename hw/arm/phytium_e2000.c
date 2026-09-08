@@ -19,6 +19,8 @@
 #include "hw/arm/phytium_e2000.h"
 #include "hw/char/pl011.h"
 #include "hw/core/qdev-properties.h"
+#include "hw/ide/ahci-sysbus.h"
+#include "hw/ide/ide-bus.h"
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "hw/i2c/designware_i2c.h"
@@ -85,10 +87,12 @@ const MemMapEntry phytium_e2000_memmap[] = {
     [PHYTIUM_E2000_BOARD_CTRL] =     { 0x31800000, 0x01400000 },
     [PHYTIUM_E2000_XHCI0] =          { 0x31a08000, 0x00018000 },
     [PHYTIUM_E2000_XHCI1] =          { 0x31a28000, 0x00018000 },
+    [PHYTIUM_E2000_AHCI0] =          { 0x31a40000, 0x00001000 },
     [PHYTIUM_E2000_GEM0] =           { 0x3200c000, 0x00002000 },
     [PHYTIUM_E2000_GEM1] =           { 0x3200e000, 0x00002000 },
     [PHYTIUM_E2000_GEM2] =           { 0x32010000, 0x00002000 },
     [PHYTIUM_E2000_GEM3] =           { 0x32012000, 0x00002000 },
+    [PHYTIUM_E2000_AHCI1] =          { 0x32014000, 0x00001000 },
     [PHYTIUM_E2000_RNG_REGS] =       { 0x32a36000, 0x00001000 },
     [PHYTIUM_E2000_PLATFORM_CTRL] =  { 0x32e40000, 0x00010000 },
     [PHYTIUM_E2000_SECURITY_CTRL] =  { 0x32f00000, 0x00001000 },
@@ -122,6 +126,11 @@ static const int phytium_e2000_i2c_irq = 106;
 static const int phytium_e2000_xhci_irqmap[] = {
     [0] = 16,
     [1] = 17,
+};
+
+static const int phytium_e2000_ahci_irqmap[] = {
+    [0] = 42,
+    [1] = 43,
 };
 
 static const uint8_t phytium_e2000_gem_num_queues[] = { 8, 4, 4, 4 };
@@ -407,6 +416,22 @@ static void phytium_e2000_create_gem(PhytiumE2000SoCState *s, int index)
         sysbus_connect_irq(sbd, i,
             qdev_get_gpio_in(s->gic, phytium_e2000_gem_irqmap[index][i]));
     }
+}
+
+static void phytium_e2000_create_ahci(PhytiumE2000SoCState *s, int index)
+{
+    int map_idx = index ? PHYTIUM_E2000_AHCI1 : PHYTIUM_E2000_AHCI0;
+    DeviceState *dev = qdev_new(TYPE_SYSBUS_AHCI);
+    g_autofree char *name = g_strdup_printf("ahci%d", index);
+
+    s->ahci[index] = dev;
+    object_property_add_child(OBJECT(s), name, OBJECT(dev));
+    qdev_prop_set_uint32(dev, "num-ports", PHYTIUM_E2000_NUM_SATA_PORTS);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
+        phytium_e2000_memmap[map_idx].base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+        qdev_get_gpio_in(s->gic, phytium_e2000_ahci_irqmap[index]));
 }
 
 static void phytium_e2000_create_xhci(PhytiumE2000SoCState *s, int index)
@@ -815,6 +840,17 @@ void phytium_e2000_soc_attach_qspi_flash(PhytiumE2000SoCState *s,
     qdev_connect_gpio_out_named(DEVICE(s->qspi), "cs", 0, flash_cs);
 }
 
+void phytium_e2000_soc_attach_sata(PhytiumE2000SoCState *s,
+                                   unsigned int index,
+                                   DriveInfo **drives)
+{
+    SysbusAHCIState *sysahci;
+
+    g_assert(index < ARRAY_SIZE(s->ahci));
+    sysahci = SYSBUS_AHCI(s->ahci[index]);
+    ahci_ide_create_devs(&sysahci->ahci, drives);
+}
+
 static void phytium_e2000_soc_realize(DeviceState *dev, Error **errp)
 {
     PhytiumE2000SoCState *s = PHYTIUM_E2000_SOC(dev);
@@ -850,6 +886,9 @@ static void phytium_e2000_soc_realize(DeviceState *dev, Error **errp)
     phytium_e2000_create_i2c(s);
     for (i = 0; i < PHYTIUM_E2000_NUM_XHCIS; i++) {
         phytium_e2000_create_xhci(s, i);
+    }
+    for (i = 0; i < PHYTIUM_E2000_NUM_AHCIS; i++) {
+        phytium_e2000_create_ahci(s, i);
     }
     for (i = 0; i < PHYTIUM_E2000_NUM_GEMS; i++) {
         phytium_e2000_create_gem(s, i);

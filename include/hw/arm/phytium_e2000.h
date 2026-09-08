@@ -24,9 +24,12 @@
 #define TYPE_PHYTIUM_E2000_SOC "phytium-e2000-soc"
 OBJECT_DECLARE_SIMPLE_TYPE(PhytiumE2000SoCState, PHYTIUM_E2000_SOC)
 
-#define PHYTIUM_E2000_NUM_CPUS 4
-#define PHYTIUM_E2000_NUM_MCIS 2
-#define PHYTIUM_E2000_NUM_GEMS 4
+#define PHYTIUM_E2000_NUM_CPUS        4
+#define PHYTIUM_E2000_NUM_MCIS        2
+#define PHYTIUM_E2000_NUM_GEMS        4
+#define PHYTIUM_E2000_NUM_AHCIS       2
+#define PHYTIUM_E2000_NUM_SATA_PORTS  1
+#define PHYTIUM_E2000_SATA_BOOT_AHCI  1
 
 enum {
     PHYTIUM_E2000_QSPI_DIRECT,
@@ -53,10 +56,12 @@ enum {
     PHYTIUM_E2000_BOARD_CTRL,
     PHYTIUM_E2000_XHCI0,
     PHYTIUM_E2000_XHCI1,
+    PHYTIUM_E2000_AHCI0,
     PHYTIUM_E2000_GEM0,
     PHYTIUM_E2000_GEM1,
     PHYTIUM_E2000_GEM2,
     PHYTIUM_E2000_GEM3,
+    PHYTIUM_E2000_AHCI1,
     PHYTIUM_E2000_RNG_REGS,
     PHYTIUM_E2000_PLATFORM_CTRL,
     PHYTIUM_E2000_SECURITY_CTRL,
@@ -77,6 +82,7 @@ struct PhytiumE2000SoCState {
 
     DeviceState *gic;
     PhytiumE2000QSPIState *qspi;
+    DeviceState *ahci[PHYTIUM_E2000_NUM_AHCIS];
     PhytiumE2000PBRState *pbr;
     PhytiumE2000MciState *mci[PHYTIUM_E2000_NUM_MCIS];
     CadenceGEMState *gem[PHYTIUM_E2000_NUM_GEMS];
@@ -107,5 +113,8 @@ void phytium_e2000_soc_attach_sd_card(PhytiumE2000SoCState *s,
                                       BlockBackend *blk);
 void phytium_e2000_soc_attach_qspi_flash(PhytiumE2000SoCState *s,
                                          DeviceState *flash);
+void phytium_e2000_soc_attach_sata(PhytiumE2000SoCState *s,
+                                   unsigned int index,
+                                   DriveInfo **drives);
 
 #endif

@@ -23,6 +23,7 @@
 #include "hw/arm/phytium_e2000.h"
 #include "hw/core/boards.h"
 #include "hw/core/qdev-properties.h"
+#include "hw/ide/ide-bus.h"
 #include "qom/object.h"
 #include "target/arm/cpu-qom.h"
 
@@ -50,6 +51,7 @@ struct PhytiumE2000MachineClass {
     const char *direct_boot_dtb;
     const char *pbr_boot_mode;
     const char *qspi_flash_model;
+    bool has_sata_boot;
 };
 
 static BlockBackend *phytium_e2000_drive_blk(BlockInterfaceType type,
@@ -82,6 +84,19 @@ static void phytium_e2000_attach_qspi_flash(
                                 &error_fatal);
     }
     phytium_e2000_soc_attach_qspi_flash(&s->soc, flash);
+}
+
+static void phytium_e2000_attach_sata(PhytiumE2000MachineState *s)
+{
+    DriveInfo *hd[PHYTIUM_E2000_NUM_SATA_PORTS] = {};
+
+    /*
+     * The COMe boot disk is wired to the second fixed AHCI controller. U-Boot
+     * probes both controllers and exposes the only attached disk as scsi 0.
+     */
+    ide_drive_get(hd, ARRAY_SIZE(hd));
+    phytium_e2000_soc_attach_sata(&s->soc,
+                                  PHYTIUM_E2000_SATA_BOOT_AHCI, hd);
 }
 
 static void phytium_e2000_reject_legacy_firmware(
@@ -217,6 +232,12 @@ static void phytium_e2000_init(MachineState *ms)
         exit(1);
     }
 
+    if (!pemc->has_sata_boot && drive_get_by_index(IF_IDE, 0)) {
+        error_report("%s does not expose a SATA boot disk; "
+                     "use if=sd,index=0", pemc->machine_name);
+        exit(1);
+    }
+
     phytium_e2000_reject_legacy_firmware(ms, pemc);
     phytium_e2000_create_ram(s);
     if (!ms->kernel_filename &&
@@ -238,6 +259,9 @@ static void phytium_e2000_init(MachineState *ms)
     phytium_e2000_attach_sd_cards(s);
     if (pemc->qspi_flash_model) {
         phytium_e2000_attach_qspi_flash(s, pemc->qspi_flash_model);
+    }
+    if (pemc->has_sata_boot) {
+        phytium_e2000_attach_sata(s);
     }
 
     firmware_loaded = phytium_e2000_soc_firmware_loaded(&s->soc);
@@ -315,6 +339,7 @@ static void phytium_pi_class_init(ObjectClass *oc, const void *data)
     pemc->machine_name = "phytium-pi";
     pemc->direct_boot_dtb = "phytiumpi_firefly.dtb";
     pemc->pbr_boot_mode = PHYTIUM_E2000_PBR_BOOT_MODE_SD0;
+    pemc->has_sata_boot = false;
 }
 
 static void phytium_e2000_come_class_init(ObjectClass *oc, const void *data)
@@ -324,10 +349,12 @@ static void phytium_e2000_come_class_init(ObjectClass *oc, const void *data)
         PHYTIUM_E2000_MACHINE_CLASS(oc);
 
     mc->desc = "Phytium E2000Q COMe Development Board";
+    mc->block_default_type = IF_IDE;
     pemc->machine_name = "phytium-e2000-come";
     pemc->direct_boot_dtb = "e2000q-come-board.dtb";
     pemc->pbr_boot_mode = PHYTIUM_E2000_PBR_BOOT_MODE_QSPI;
     pemc->qspi_flash_model = "gd25q128";
+    pemc->has_sata_boot = true;
 }
 
 static const TypeInfo phytium_e2000_base_info = {
