@@ -126,6 +126,14 @@ config OMAP
     select SD
     select SERIAL_MM
 
+config PHYTIUM_E2000
+    bool
+    default y
+    depends on TCG && AARCH64
+    select ARM_GIC
+    select PL011
+    select UNIMP
+
 config REALVIEW
     bool
     default y
