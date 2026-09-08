@@ -15,6 +15,7 @@
 #include "qapi/error.h"
 #include "system/address-spaces.h"
 #include "system/block-backend-global-state.h"
+#include "system/device_tree.h"
 #include "system/kvm.h"
 #include "exec/hwaddr.h"
 #include "hw/arm/boot.h"
@@ -44,6 +45,7 @@ struct PhytiumE2000MachineClass {
     MachineClass parent_class;
 
     const char *machine_name;
+    const char *direct_boot_dtb;
     const char *pbr_boot_mode;
 };
 
@@ -105,6 +107,61 @@ static void phytium_e2000_create_ram(PhytiumE2000MachineState *s)
         phytium_e2000_memmap[PHYTIUM_E2000_RAM_HIGH].base, &s->ram_high);
 }
 
+static void phytium_e2000_add_memory_node(void *fdt, hwaddr base,
+                                          uint64_t size)
+{
+    uint32_t acells;
+    uint32_t scells;
+    g_autofree char *name = g_strdup_printf("/memory@%" HWADDR_PRIx, base);
+
+    acells = qemu_fdt_getprop_cell(fdt, "/", "#address-cells",
+                                   NULL, &error_fatal);
+    scells = qemu_fdt_getprop_cell(fdt, "/", "#size-cells",
+                                   NULL, &error_fatal);
+
+    qemu_fdt_add_subnode(fdt, name);
+    qemu_fdt_setprop_string(fdt, name, "device_type", "memory");
+    qemu_fdt_setprop_sized_cells(fdt, name, "reg",
+                                 acells, base, scells, size);
+}
+
+static void phytium_e2000_modify_dtb(const struct arm_boot_info *info,
+                                     void *fdt)
+{
+    uint64_t low_size =
+        MIN(info->ram_size, phytium_e2000_memmap[PHYTIUM_E2000_RAM].size);
+    uint64_t high_size = info->ram_size - low_size;
+    g_auto(GStrv) memory_nodes = NULL;
+    Error *err = NULL;
+    int i;
+
+    if (!high_size) {
+        return;
+    }
+
+    /*
+     * arm_load_dtb() normally describes RAM as one range beginning at
+     * loader_start. E2000 RAM above 2 GiB is instead mapped at 0x2000000000,
+     * beyond the PCIe aperture. Replace the generic range so Linux never
+     * treats the intervening address-space hole as RAM.
+     */
+    memory_nodes = qemu_fdt_node_unit_path(fdt, "memory", &err);
+    if (err) {
+        error_report_err(err);
+        exit(1);
+    }
+    for (i = 0; memory_nodes[i]; i++) {
+        if (g_str_has_prefix(memory_nodes[i], "/memory")) {
+            qemu_fdt_nop_node(fdt, memory_nodes[i]);
+        }
+    }
+
+    phytium_e2000_add_memory_node(
+        fdt, phytium_e2000_memmap[PHYTIUM_E2000_RAM].base, low_size);
+    phytium_e2000_add_memory_node(
+        fdt, phytium_e2000_memmap[PHYTIUM_E2000_RAM_HIGH].base, high_size);
+}
+
 static void phytium_e2000_init(MachineState *ms)
 {
     PhytiumE2000MachineState *s = PHYTIUM_E2000_MACHINE(ms);
@@ -120,6 +177,12 @@ static void phytium_e2000_init(MachineState *ms)
      */
     if (kvm_enabled()) {
         error_report("%s: KVM is not supported", pemc->machine_name);
+        exit(1);
+    }
+
+    if (ms->kernel_filename && !ms->dtb) {
+        error_report("%s: direct Linux boot requires the SDK %s via -dtb",
+                     pemc->machine_name, pemc->direct_boot_dtb);
         exit(1);
     }
 
@@ -159,6 +222,7 @@ static void phytium_e2000_init(MachineState *ms)
         phytium_e2000_memmap[PHYTIUM_E2000_RAM].base;
     s->bootinfo.psci_conduit = QEMU_PSCI_CONDUIT_SMC;
     s->bootinfo.firmware_loaded = firmware_loaded;
+    s->bootinfo.modify_dtb = phytium_e2000_modify_dtb;
     arm_load_kernel(phytium_e2000_soc_cpu(&s->soc, 0), ms, &s->bootinfo);
 }
 
@@ -224,6 +288,7 @@ static void phytium_pi_class_init(ObjectClass *oc, const void *data)
     mc->desc = "Phytium Pi board (Phytium E2000Q)";
     mc->block_default_type = IF_SD;
     pemc->machine_name = "phytium-pi";
+    pemc->direct_boot_dtb = "phytiumpi_firefly.dtb";
     pemc->pbr_boot_mode = PHYTIUM_E2000_PBR_BOOT_MODE_SD0;
 }
 
