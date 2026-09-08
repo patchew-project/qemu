@@ -17,6 +17,7 @@
 #include "exec/hwaddr.h"
 #include "hw/arm/bsa.h"
 #include "hw/arm/phytium_e2000.h"
+#include "hw/arm/smmuv3.h"
 #include "hw/char/pl011.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/ide/ahci-sysbus.h"
@@ -49,6 +50,7 @@
 
 #define PHYTIUM_E2000_NUM_UARTS       7
 #define PHYTIUM_E2000_NUM_XHCIS       2
+#define PHYTIUM_E2000_NUM_SMMU_IRQS   4
 
 #define PHYTIUM_E2000_MHU_BASE        0x32a00000
 #define PHYTIUM_E2000_SCP_SRAM_BASE   0x32a10000
@@ -122,6 +124,14 @@ static const int phytium_e2000_uart_irqmap[] = {
 };
 
 static const int phytium_e2000_i2c_irq = 106;
+
+/* Keep the architectural SMMUv3 output order aligned with the vendor DT */
+static const int phytium_e2000_smmu_irqmap[] = {
+    [SMMU_IRQ_EVTQ] = 240,
+    [SMMU_IRQ_PRIQ] = 239,
+    [SMMU_IRQ_CMD_SYNC] = 236,
+    [SMMU_IRQ_GERROR] = 242,
+};
 
 static const int phytium_e2000_xhci_irqmap[] = {
     [0] = 16,
@@ -462,7 +472,7 @@ static int phytium_e2000_pcie_map_irq(PCIDevice *pdev, int pin)
     return pin;
 }
 
-static void phytium_e2000_create_pcie(PhytiumE2000SoCState *s)
+static PCIBus *phytium_e2000_create_pcie(PhytiumE2000SoCState *s)
 {
     DeviceState *dev = qdev_new(TYPE_GPEX_HOST);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
@@ -537,6 +547,29 @@ static void phytium_e2000_create_pcie(PhytiumE2000SoCState *s)
         sysbus_connect_irq(sbd, i,
             qdev_get_gpio_in(s->gic, phytium_e2000_pcie_irqmap[i]));
         gpex_set_irq_num(GPEX_HOST(dev), i, phytium_e2000_pcie_irqmap[i]);
+    }
+
+    return PCI_HOST_BRIDGE(dev)->bus;
+}
+
+static void phytium_e2000_create_smmu(PhytiumE2000SoCState *s, PCIBus *bus)
+{
+    DeviceState *dev = qdev_new(TYPE_ARM_SMMUV3);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    int i;
+
+    object_property_add_child(OBJECT(s), "smmu", OBJECT(dev));
+    object_property_set_link(OBJECT(dev), "primary-bus", OBJECT(bus),
+                             &error_abort);
+    object_property_set_link(OBJECT(dev), "memory",
+                             OBJECT(get_system_memory()), &error_abort);
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_mmio_map_overlap(sbd, 0,
+        phytium_e2000_memmap[PHYTIUM_E2000_SYSTEM_CTRL].base, 2);
+
+    for (i = 0; i < PHYTIUM_E2000_NUM_SMMU_IRQS; i++) {
+        sysbus_connect_irq(sbd, i,
+            qdev_get_gpio_in(s->gic, phytium_e2000_smmu_irqmap[i]));
     }
 }
 
@@ -858,6 +891,7 @@ void phytium_e2000_soc_attach_sata(PhytiumE2000SoCState *s,
 static void phytium_e2000_soc_realize(DeviceState *dev, Error **errp)
 {
     PhytiumE2000SoCState *s = PHYTIUM_E2000_SOC(dev);
+    PCIBus *pcie_bus;
     int i;
 
     if (!s->num_cpus || s->num_cpus > PHYTIUM_E2000_NUM_CPUS) {
@@ -898,7 +932,8 @@ static void phytium_e2000_soc_realize(DeviceState *dev, Error **errp)
         phytium_e2000_create_gem(s, i);
     }
 
-    phytium_e2000_create_pcie(s);
+    pcie_bus = phytium_e2000_create_pcie(s);
+    phytium_e2000_create_smmu(s, pcie_bus);
 }
 
 static void phytium_e2000_soc_class_init(ObjectClass *oc, const void *data)
