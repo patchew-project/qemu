@@ -14,6 +14,7 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "system/address-spaces.h"
+#include "system/block-backend-global-state.h"
 #include "system/kvm.h"
 #include "exec/hwaddr.h"
 #include "hw/arm/boot.h"
@@ -34,6 +35,23 @@ struct PhytiumPiMachineState {
     MemoryRegion ram_low;
     MemoryRegion ram_high;
 };
+
+static BlockBackend *phytium_e2000_sd_blk(int index)
+{
+    DriveInfo *dinfo = drive_get(IF_SD, 0, index);
+
+    return dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
+}
+
+static void phytium_e2000_attach_sd_cards(PhytiumPiMachineState *s)
+{
+    int i;
+
+    for (i = 0; i < PHYTIUM_E2000_NUM_MCIS; i++) {
+        phytium_e2000_soc_attach_sd_card(
+            &s->soc, i, phytium_e2000_sd_blk(i));
+    }
+}
 
 static void phytium_e2000_create_ram(PhytiumPiMachineState *s)
 {
@@ -95,6 +113,7 @@ static void phytium_pi_init(MachineState *ms)
                             TYPE_PHYTIUM_E2000_SOC);
     phytium_e2000_soc_configure(&s->soc, ms->smp.cpus);
     sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
+    phytium_e2000_attach_sd_cards(s);
 
     s->bootinfo.ram_size = ms->ram_size;
     s->bootinfo.board_id = -1;
