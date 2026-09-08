@@ -66,6 +66,7 @@ struct PhytiumE2000SoCState {
     PhytiumE2000MciState *mci[PHYTIUM_E2000_NUM_MCIS];
     CadenceGEMState *gem[PHYTIUM_E2000_NUM_GEMS];
     ARMCPU cpu[PHYTIUM_E2000_NUM_CPUS];
+    MemoryRegion scp_sram;
     unsigned int num_cpus;
 };
 
