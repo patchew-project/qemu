@@ -1089,7 +1089,7 @@ static void tls_opt_to_str(StrOrNull *opt)
     opt->u.s = g_strdup("");
 }
 
-static QDict *migrate_params_to_dict(MigrationParameters *p, Error **errp)
+QDict *migrate_params_to_dict(MigrationParameters *p, Error **errp)
 {
     QObject *obj = NULL;
     Visitor *v = qobject_output_visitor_new(&obj);

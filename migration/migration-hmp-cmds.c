@@ -26,7 +26,12 @@
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-visit-migration.h"
 #include "qapi/qobject-input-visitor.h"
+#include "qapi/qobject-output-visitor.h"
+#include "qobject/qbool.h"
 #include "qobject/qdict.h"
+#include "qobject/qjson.h"
+#include "qobject/qlist.h"
+#include "qobject/qnum.h"
 #include "qobject/qstring.h"
 #include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
@@ -317,170 +322,95 @@ void hmp_info_migrate_capabilities(MonitorHMP *hmp, const QDict *qdict)
     qapi_free_MigrationCapabilityStatusList(caps);
 }
 
-static void monitor_print_cpr_exec_command(MonitorHMP *hmp, strList *args)
+static void hmp_migrate_print_qobject(MonitorHMP *hmp, const char *label,
+                                      QObject *obj)
 {
-    monitor_hmp_printf(hmp, "%s:",
-        MigrationParameter_str(MIGRATION_PARAMETER_CPR_EXEC_COMMAND));
+    const char *sep;
 
-    while (args) {
-        monitor_hmp_printf(hmp, " %s", args->value);
-        args = args->next;
+    if (!obj) {
+        return;
     }
-    monitor_hmp_printf(hmp, "\n");
+
+    /*
+     * Put a space after labels
+     * foo: bar
+     *     ^
+     */
+    if (label && label[0] && label[strlen(label) - 1] == ':') {
+        sep = " ";
+    } else {
+        sep = "";
+    }
+
+    switch (qobject_type(obj)) {
+    case QTYPE_QNUM: {
+        g_autofree char *str = qnum_to_string(qobject_to(QNum, obj));
+
+        monitor_hmp_printf(hmp, "%s%s%s", label, sep, str);
+        break;
+    }
+    case QTYPE_QSTRING:
+        monitor_hmp_printf(hmp, "%s%s%s", label, sep,
+                           qstring_get_str(qobject_to(QString, obj)));
+        break;
+    case QTYPE_QDICT: {
+        QDict *d = qobject_to(QDict, obj);
+        const QDictEntry *e;
+        int i = 0;
+
+        for (e = qdict_first(d); e; e = qdict_next(d, e), i++) {
+            g_autofree char *l = g_strdup_printf("%s:", qdict_entry_key(e));
+            if (i) {
+                monitor_hmp_printf(hmp, " ");
+            }
+            hmp_migrate_print_qobject(hmp, l, qdict_entry_value(e));
+        }
+        break;
+    }
+    case QTYPE_QLIST: {
+        const QListEntry *e;
+
+        monitor_hmp_printf(hmp, "%s", label);
+
+        for (e = qlist_first(qobject_to(QList, obj)); e; e = qlist_next(e)) {
+            /*
+             * In the first iteration, this is the space after the
+             * colon, otherwise it's the space between list
+             * elements.
+             */
+            monitor_hmp_printf(hmp, " ");
+            hmp_migrate_print_qobject(hmp, "", e->value);
+        }
+
+        break;
+    }
+    case QTYPE_QBOOL:
+        monitor_hmp_printf(hmp, "%s%s%s", label, sep,
+                           qbool_get_bool(qobject_to(QBool, obj)) ?
+                           "on" : "off");
+        break;
+    case QTYPE_NONE:
+    case QTYPE_QNULL:
+    default:
+        g_assert_not_reached();
+        break;
+    }
 }
 
 void hmp_info_migrate_parameters(MonitorHMP *hmp, const QDict *qdict)
 {
-    MigrationParameters *params;
-    MigrationState *s = migrate_get_current();
+    MigrationParameters *params = qmp_query_migrate_parameters(NULL);
+    g_autoptr(QDict) d;
+    const QDictEntry *e;
 
-    params = qmp_query_migrate_parameters(NULL);
+    assert(params);
 
-    if (params) {
-        monitor_hmp_printf(hmp, "%s: %" PRIu64 "\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_ANNOUNCE_INITIAL),
-            params->announce_initial);
-        monitor_hmp_printf(hmp, "%s: %" PRIu64 "\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_ANNOUNCE_MAX),
-            params->announce_max);
-        monitor_hmp_printf(hmp, "%s: %" PRIu64 "\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_ANNOUNCE_ROUNDS),
-            params->announce_rounds);
-        monitor_hmp_printf(hmp, "%s: %" PRIu64 "\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_ANNOUNCE_STEP),
-            params->announce_step);
-        assert(params->has_throttle_trigger_threshold);
-        monitor_hmp_printf(hmp, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_THROTTLE_TRIGGER_THRESHOLD),
-            params->throttle_trigger_threshold);
-        assert(params->has_cpu_throttle_initial);
-        monitor_hmp_printf(hmp, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL),
-            params->cpu_throttle_initial);
-        assert(params->has_cpu_throttle_increment);
-        monitor_hmp_printf(hmp, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT),
-            params->cpu_throttle_increment);
-        assert(params->has_cpu_throttle_tailslow);
-        monitor_hmp_printf(hmp, "%s: %s\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_CPU_THROTTLE_TAILSLOW),
-            params->cpu_throttle_tailslow ? "on" : "off");
-        assert(params->has_max_cpu_throttle);
-        monitor_hmp_printf(hmp, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_MAX_CPU_THROTTLE),
-            params->max_cpu_throttle);
-        assert(params->tls_creds);
-        monitor_hmp_printf(hmp, "%s: %s\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_TLS_CREDS),
-                       params->tls_creds->u.s);
-        assert(params->tls_hostname);
-        monitor_hmp_printf(hmp, "%s: %s\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_TLS_HOSTNAME),
-                       params->tls_hostname->u.s);
-        assert(params->tls_authz);
-        monitor_hmp_printf(hmp, "%s: %s\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_TLS_AUTHZ),
-                       params->tls_authz->u.s);
-        assert(params->has_max_bandwidth);
-        monitor_hmp_printf(hmp, "%s: %" PRIu64 "\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_MAX_BANDWIDTH),
-            params->max_bandwidth);
-        assert(params->has_avail_switchover_bandwidth);
-        monitor_hmp_printf(hmp, "%s: %" PRIu64 "\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_AVAIL_SWITCHOVER_BANDWIDTH),
-            params->avail_switchover_bandwidth);
-        assert(params->has_max_postcopy_bandwidth);
-        monitor_hmp_printf(hmp, "%s: %" PRIu64 "\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_MAX_POSTCOPY_BANDWIDTH),
-            params->max_postcopy_bandwidth);
-        assert(params->has_downtime_limit);
-        monitor_hmp_printf(hmp, "%s: %" PRIu64 "\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_DOWNTIME_LIMIT),
-            params->downtime_limit);
-        assert(params->has_x_checkpoint_delay);
-        monitor_hmp_printf(hmp, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_X_CHECKPOINT_DELAY),
-            params->x_checkpoint_delay);
-        monitor_hmp_printf(hmp, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_MULTIFD_CHANNELS),
-            params->multifd_channels);
-        monitor_hmp_printf(hmp, "%s: %s\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_MULTIFD_COMPRESSION),
-            MultiFDCompression_str(params->multifd_compression));
-        assert(params->has_zero_page_detection);
-        monitor_hmp_printf(hmp, "%s: %s\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_ZERO_PAGE_DETECTION),
-            qapi_enum_lookup(&ZeroPageDetection_lookup,
-                params->zero_page_detection));
-        monitor_hmp_printf(hmp, "%s: %" PRIu64 "\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE),
-            params->xbzrle_cache_size);
+    d = migrate_params_to_dict(params, NULL);
+    for (e = qdict_first(d); e; e = qdict_next(d, e)) {
+        g_autofree char *label = g_strdup_printf("%s:", qdict_entry_key(e));
 
-        if (s->has_block_bitmap_mapping) {
-            BitmapMigrationNodeAliasList *nal;
-            BitmapMigrationNodeAlias *na;
-            BitmapMigrationBitmapAliasList *bal;
-            BitmapMigrationBitmapAlias *ba;
-            BitmapMigrationBitmapAliasTransform *bat;
-
-            monitor_hmp_printf(hmp, "%s:",
-                           MigrationParameter_str(
-                               MIGRATION_PARAMETER_BLOCK_BITMAP_MAPPING));
-
-            for (nal = params->block_bitmap_mapping; nal; nal = nal->next)
-            {
-                na = nal->value;
-                monitor_hmp_printf(hmp, " bitmaps:");
-                for (bal = na->bitmaps; bal; bal = bal->next) {
-                    ba = bal->value;
-                    bat = ba->transform;
-
-                    monitor_hmp_printf(hmp, " name: %s", ba->name);
-                    if (bat && bat->has_persistent) {
-                        if (bat->persistent) {
-                            monitor_hmp_printf(hmp, " persistent: on");
-                        } else {
-                            monitor_hmp_printf(hmp, " persistent: off");
-                        }
-                    }
-                    monitor_hmp_printf(hmp, " alias: %s", ba->alias);
-                }
-                monitor_hmp_printf(hmp, " node-name: %s alias: %s",
-                               na->node_name, na->alias);
-            }
-
-            monitor_hmp_printf(hmp, "\n");
-        }
-
-        monitor_hmp_printf(hmp, "%s: %" PRIu64 "\n",
-        MigrationParameter_str(MIGRATION_PARAMETER_X_VCPU_DIRTY_LIMIT_PERIOD),
-        params->x_vcpu_dirty_limit_period);
-
-        monitor_hmp_printf(hmp, "%s: %" PRIu64 "\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_VCPU_DIRTY_LIMIT),
-            params->vcpu_dirty_limit);
-
-        assert(params->has_mode);
-        monitor_hmp_printf(hmp, "%s: %s\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_MODE),
-            qapi_enum_lookup(&MigMode_lookup, params->mode));
-
-        if (params->has_direct_io) {
-            monitor_hmp_printf(hmp, "%s: %s\n",
-                               MigrationParameter_str(
-                                   MIGRATION_PARAMETER_DIRECT_IO),
-                               params->direct_io ? "on" : "off");
-        }
-
-        if (params->has_x_rdma_chunk_size) {
-            monitor_hmp_printf(hmp, "%s: %" PRIu64 "\n",
-                           MigrationParameter_str(
-                               MIGRATION_PARAMETER_X_RDMA_CHUNK_SIZE),
-                           params->x_rdma_chunk_size);
-        }
-
-        assert(params->has_cpr_exec_command);
-        monitor_print_cpr_exec_command(hmp, params->cpr_exec_command);
+        hmp_migrate_print_qobject(hmp, label, qdict_entry_value(e));
+        monitor_hmp_printf(hmp, "\n");
     }
 
     qapi_free_MigrationParameters(params);
