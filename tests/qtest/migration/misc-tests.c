@@ -57,21 +57,21 @@ HMPTestData test_cases[] = {
     TEST("direct-io", "on", "on"),
 
     /* uint64_t */
-    TEST("announce-initial", "60", "60 ms"),
-    TEST("announce-max", "600", "600 ms"),
+    TEST("announce-initial", "60", "60"),
+    TEST("announce-max", "600", "600"),
     TEST("announce-rounds", "6", "6"),
-    TEST("announce-step", "15", "15 ms"),
-    TEST("downtime-limit", "400", "400 ms"),
-    TEST("avail-switchover-bandwidth", "2097152", "2097152 bytes/second"),
-    TEST("max-bandwidth", "9876543", "9876543 bytes/second"),
-    TEST("max-postcopy-bandwidth", "1048576", "1048576 bytes/second"),
-    TEST("vcpu-dirty-limit", "20", "20 MB/s"),
-    TEST("x-rdma-chunk-size", "1048576", "1048576 bytes"),
-    TEST("x-vcpu-dirty-limit-period", "750", "750 ms"),
-    TEST("xbzrle-cache-size", "67108864", "67108864 bytes"),
+    TEST("announce-step", "15", "15"),
+    TEST("downtime-limit", "400", "400"),
+    TEST("avail-switchover-bandwidth", "2097152", "2097152"),
+    TEST("max-bandwidth", "9876543", "9876543"),
+    TEST("max-postcopy-bandwidth", "1048576", "1048576"),
+    TEST("vcpu-dirty-limit", "20", "20"),
+    TEST("x-rdma-chunk-size", "1048576", "1048576"),
+    TEST("x-vcpu-dirty-limit-period", "750", "750"),
+    TEST("xbzrle-cache-size", "67108864", "67108864"),
 
     /* uint32_t */
-    TEST("x-checkpoint-delay", "5000", "5000 ms"),
+    TEST("x-checkpoint-delay", "5000", "5000"),
 
     /* uint8_t */
     TEST("cpu-throttle-increment", "15", "15"),
@@ -84,9 +84,9 @@ HMPTestData test_cases[] = {
     TEST("mode", "cpr-exec", "cpr-exec"),
     TEST("multifd-compression", "zlib", "zlib"),
     TEST("zero-page-detection", "none", "none"),
-    TEST("tls-authz", "my_authz", "'my_authz'"),
-    TEST("tls-creds", "null", "'null'"),
-    TEST("tls-hostname", "localhost", "'localhost'"),
+    TEST("tls-authz", "my_authz", "my_authz"),
+    TEST("tls-creds", "null", "null"),
+    TEST("tls-hostname", "localhost", "localhost"),
     TEST("cpr-exec-command", "/bin/true foobar", "/bin/true foobar"),
 
     /* can be set but are currently missing in the query output */

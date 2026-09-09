@@ -147,8 +147,7 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
 
             result = vm.qmp('human-monitor-command',
                             command_line='info migrate_parameters')
-
-            m = re.search(r'^block-bitmap-mapping:\r?(\n  .*)*\n',
+            m = re.search(r'^block-bitmap-mapping:(.*)\r\n',
                           result['return'], flags=re.MULTILINE)
             hmp_mapping = m.group(0).replace('\r', '') if m else None
 
@@ -158,15 +157,24 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
 
     @staticmethod
     def to_hmp_mapping(mapping: BlockBitmapMapping) -> str:
-        result = 'block-bitmap-mapping:\n'
+        result = 'block-bitmap-mapping:'
 
         for node in mapping:
-            result += f"  '{node['node-name']}' -> '{node['alias']}'\n"
-
             assert isinstance(node['bitmaps'], list)
+            result += ' bitmaps:'
             for bitmap in node['bitmaps']:
-                result += f"    '{bitmap['name']}' -> '{bitmap['alias']}'\n"
+                result += f" name: {bitmap['name']}"
+                if 'transform' in bitmap:
+                    if 'persistent' in bitmap['transform']:
+                        if bitmap['transform']['persistent']:
+                            result += " persistent: on"
+                        else:
+                            result += " persistent: off"
+                result += f" alias: {bitmap['alias']}"
 
+            result += f" node-name: {node['node-name']} alias: {node['alias']}"
+
+        result += '\n'
         return result
 
 
