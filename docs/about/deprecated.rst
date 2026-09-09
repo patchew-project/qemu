@@ -498,3 +498,16 @@ If the user requests a modern x86 CPU model (i.e. not one of ``486``,
 ``athlon``, ``kvm32``, ``pentium``, ``pentium2``, ``pentium3``or ``qemu32``)
 a warning will be displayed until a future QEMU version when such CPUs will
 be rejected.
+
+Migration
+---------
+
+``migrate-set-capabilities`` command (since 11.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``migrate-set-parameters`` instead.
+
+``query-migrate-capabilities`` command (since 11.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``query-migrate-parameters`` instead.

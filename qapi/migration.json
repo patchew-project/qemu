@@ -564,6 +564,11 @@
 #
 # @capabilities: json array of capability modifications to make
 #
+# Features:
+#
+# @deprecated: This command is deprecated.  Use migrate-set-parameters
+# instead.
+#
 # Since: 1.2
 #
 # .. qmp-example::
@@ -573,12 +578,18 @@
 #     <- { "return": {} }
 ##
 { 'command': 'migrate-set-capabilities',
-  'data': { 'capabilities': ['MigrationCapabilityStatus'] } }
+  'data': { 'capabilities': ['MigrationCapabilityStatus'] },
+  'features': ['deprecated'] }
 
 ##
 # @query-migrate-capabilities:
 #
 # Return information about the current migration capabilities status
+#
+# Features:
+#
+# @deprecated: This command is deprecated.  Use
+# query-migrate-parameters instead.
 #
 # Since: 1.2
 #
@@ -594,7 +605,8 @@
 #           {"state": false, "capability": "x-colo"}
 #        ]}
 ##
-{ 'command': 'query-migrate-capabilities', 'returns':   ['MigrationCapabilityStatus']}
+{ 'command': 'query-migrate-capabilities', 'returns':   ['MigrationCapabilityStatus'],
+  'features': ['deprecated'] }
 
 ##
 # @MultiFDCompression:
