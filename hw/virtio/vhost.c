@@ -796,6 +796,70 @@ out:
     g_free(old_sections);
 }
 
+static bool vhost_vring_part_crosses_boundary(uint64_t ring_gpa,
+                                              uint64_t ring_size,
+                                              uint64_t boundary)
+{
+    return ring_size && ring_gpa < boundary &&
+           range_get_last(ring_gpa, ring_size) >= boundary;
+}
+
+static bool vhost_vring_crosses_boundary(struct vhost_dev *dev,
+                                         uint64_t boundary)
+{
+    int i;
+
+    if (vhost_dev_has_iommu(dev)) {
+        return false;
+    }
+
+    for (i = 0; i < dev->nvqs; i++) {
+        struct vhost_virtqueue *vq = &dev->vqs[i];
+
+        if (vhost_vring_part_crosses_boundary(vq->desc_phys, vq->desc_size,
+                                              boundary) ||
+            vhost_vring_part_crosses_boundary(vq->avail_phys, vq->avail_size,
+                                              boundary) ||
+            vhost_vring_part_crosses_boundary(vq->used_phys, vq->used_size,
+                                              boundary)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool vhost_sections_can_merge(struct vhost_dev *dev,
+                                     const MemoryRegionSection *prev_sec,
+                                     const MemoryRegionSection *section,
+                                     uint64_t section_gpa,
+                                     uintptr_t section_host)
+{
+    uint64_t prev_gpa_start = prev_sec->offset_within_address_space;
+    uintptr_t prev_host_start =
+        (uintptr_t)memory_region_get_ram_ptr(prev_sec->mr) +
+        prev_sec->offset_within_region;
+    uint64_t offset;
+
+    if (section->mr != prev_sec->mr || section_gpa < prev_gpa_start) {
+        return false;
+    }
+
+    offset = section_gpa - prev_gpa_start;
+
+    if (prev_host_start + offset != section_host) {
+        return false;
+    }
+
+    if (!prev_sec->unmergeable && !section->unmergeable) {
+        return true;
+    }
+
+    /* Only override an unmergeable boundary when a ring part spans it. */
+    return vhost_vring_crosses_boundary(
+        dev, section->offset_within_address_space);
+}
+
 /* Adds the section data to the tmp_section structure.
  * It relies on the listener calling us in memory address order
  * and for each region (via the _add and _nop methods) to
@@ -833,7 +897,7 @@ static void vhost_region_add_section(struct vhost_dev *dev,
                                                mrs_size, mrs_host);
     }
 
-    if (dev->n_tmp_sections && !section->unmergeable) {
+    if (dev->n_tmp_sections) {
         /* Since we already have at least one section, lets see if
          * this extends it; since we're scanning in order, we only
          * have to look at the last one, and the FlatView that calls
@@ -862,11 +926,9 @@ static void vhost_region_add_section(struct vhost_dev *dev,
                 /* A way to cleanly fail here would be better */
                 return;
             }
-            /* Offset from the start of the previous GPA to this GPA */
-            size_t offset = mrs_gpa - prev_gpa_start;
 
-            if (prev_host_start + offset == mrs_host &&
-                section->mr == prev_sec->mr && !prev_sec->unmergeable) {
+            if (vhost_sections_can_merge(dev, prev_sec, section,
+                                         mrs_gpa, mrs_host)) {
                 uint64_t max_end = MAX(prev_host_end, mrs_host + mrs_size);
                 need_add = false;
                 prev_sec->offset_within_address_space =
