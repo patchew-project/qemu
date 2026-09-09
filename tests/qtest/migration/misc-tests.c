@@ -55,6 +55,147 @@ HMPTestData test_cases[] = {
     /* bool */
     TEST("cpu-throttle-tailslow", "on", "on"),
     TEST("direct-io", "on", "on"),
+    TEST("events", "on", "on"),
+
+    /* bool, with dependencies */
+
+    /*
+     * background-snapshot:
+     *  rejects dirty-bitmaps
+     *  rejects postcopy-blocktime
+     *  rejects late-block-activate
+     *  rejects multifd
+     *  rejects pause-before-switchover
+     *  rejects auto-converge
+     *  rejects release-ram
+     *  rejects rdma-pin-all
+     *  rejects validate-uuid
+     *  rejects zero-copy-send
+     *  rejects postcopy-ram
+     */
+    TEST("background-snapshot", "on", "on"),
+    TEST("dirty-bitmaps", "on", BG_SNAP_MSG),
+    TEST("postcopy-blocktime", "on", BG_SNAP_MSG),
+    TEST("late-block-activate", "on", BG_SNAP_MSG),
+    TEST("multifd", "on", BG_SNAP_MSG),
+    TEST("pause-before-switchover", "on", BG_SNAP_MSG),
+    TEST("auto-converge", "on", BG_SNAP_MSG),
+    TEST("release-ram", "on", BG_SNAP_MSG),
+    TEST("rdma-pin-all", "on", BG_SNAP_MSG),
+    TEST("validate-uuid", "on", BG_SNAP_MSG),
+    TEST("zero-copy-send", "on", BG_SNAP_MSG),
+    TEST("postcopy-ram", "on", BG_SNAP_MSG),
+    TEST("background-snapshot", "off", "off"),
+
+    TEST("dirty-bitmaps", "on", "on"),
+    TEST("postcopy-blocktime", "on", "on"),
+    TEST("late-block-activate", "on", "on"),
+    TEST("pause-before-switchover", "on", "on"),
+    TEST("auto-converge", "on", "on"),
+    TEST("release-ram", "on", "on"),
+    TEST("rdma-pin-all", "on", "on"),
+    TEST("validate-uuid", "on", "on"),
+
+    /*
+     * postcopy-preempt
+     *  requires postcopy-ram:
+     */
+    TEST("postcopy-preempt", "on",
+         "Error: Postcopy preempt requires postcopy-ram"),
+
+    /*
+     * postcopy-ram:
+     *  required by postcopy-preempt
+     *  rejected by x-ignore-shared
+     *  rejected by background-snapshot
+     *  rejected by mapped-ram
+     */
+    TEST("postcopy-ram", "on", "on"),
+    TEST("postcopy-preempt", "on", "on"),
+    TEST("x-ignore-shared", "on",
+         "Error: Postcopy is not compatible with ignore-shared"),
+    TEST("background-snapshot", "on", BG_SNAP_MSG),
+    TEST("mapped-ram", "on",
+         "Error: Postcopy Preempt is incompatible with fast snapshot load"),
+    TEST("postcopy-ram", "off",
+         "Error: Postcopy preempt requires postcopy-ram"),
+    TEST("postcopy-preempt", "off", "off"),
+    TEST("postcopy-ram", "off", "off"),
+
+    /*
+     * x-ignore-shared:
+     *  rejected by postcopy-ram
+     */
+    TEST("x-ignore-shared", "on", "on"),
+    TEST("postcopy-ram", "on",
+         "Error: Postcopy is not compatible with ignore-shared"),
+    TEST("x-ignore-shared", "off", "off"),
+
+    /*
+     * return-path:
+     *  required by x-colo
+     *  required by switchover-ack
+     *  rejected by background-snapshot
+     */
+    TEST("return-path", "on", "on"),
+    TEST("x-colo", "on", "on"),
+    TEST("switchover-ack", "on", "on"),
+    TEST("background-snapshot", "on", BG_SNAP_MSG),
+
+    TEST("return-path", "off",
+         "Error: Capability 'x-colo' requires capability 'return-path'"),
+    TEST("x-colo", "off", "off"),
+
+    TEST("return-path", "off",
+         "Error: Capability 'switchover-ack' requires capability "
+         "'return-path'"),
+    TEST("switchover-ack", "off", "off"),
+    TEST("return-path", "off", "off"),
+
+    TEST("x-colo", "on",
+         "Error: Capability 'x-colo' requires capability 'return-path'"),
+    TEST("switchover-ack", "on", "Error: Capability 'switchover-ack' requires "
+         "capability 'return-path'"),
+
+    /*
+     * xbzrle:
+     *  rejected by multifd
+     */
+    TEST("xbzrle", "on", "on"),
+    TEST("multifd", "on", "Error: Multifd is not compatible with xbzrle"),
+    TEST("xbzrle", "off", "off"),
+
+    /*
+     * multifd:
+     *  rejected by xbzrle
+     *  required by zero-copy-send
+     */
+    TEST("multifd", "on", "on"),
+    TEST("xbzrle", "on", "Error: Multifd is not compatible with xbzrle"),
+    TEST("zero-copy-send", "on", "on"),
+    TEST("multifd", "off", "Error: Zero copy only available for "
+         "non-compressed non-TLS multifd migration"),
+    TEST("zero-copy-send", "off", "off"),
+    TEST("multifd", "off", "off"),
+
+    /*
+     * auto-converge:
+     *  rejected by dirty-limit
+     */
+    TEST("auto-converge", "on", "on"),
+    TEST("dirty-limit", "on",
+         "Error: dirty-limit conflicts with auto-converge "
+         "either of then available currently"),
+    TEST("auto-converge", "off", "off"),
+
+    /*
+     * dirty-limit:
+     *  rejected by auto-converge
+     *  requires KVM acceleration
+     */
+    TEST("dirty-limit", "on",
+         "Error: dirty-limit requires KVM with accelerator "
+         "property 'dirty-ring-size' set"),
 
     /* uint64_t */
     TEST("announce-initial", "60", "60"),

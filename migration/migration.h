@@ -357,7 +357,7 @@ struct MigrationState {
     /* Timestamp when VM is down (ms) to migrate the last stuff */
     int64_t downtime_start;
     int64_t downtime;
-    bool capabilities[MIGRATION_CAPABILITY__MAX];
+    int64_t expected_downtime;
     int64_t setup_time;
 
     /*
