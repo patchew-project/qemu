@@ -1713,11 +1713,18 @@ static void nvme_clear_events(NvmeCtrl *n, uint8_t event_type)
     }
 }
 
+static inline uint64_t nvme_max_data_transfer_size(NvmeCtrl *n, uint8_t exp)
+{
+    unsigned shift = n->page_bits + exp;
+
+    return shift >= 64 ? UINT64_MAX : 1ULL << shift;
+}
+
 static inline uint16_t nvme_check_mdts(NvmeCtrl *n, size_t len)
 {
     uint8_t mdts = n->params.mdts;
 
-    if (mdts && len > n->page_size << mdts) {
+    if (mdts && len > nvme_max_data_transfer_size(n, mdts)) {
         trace_pci_nvme_err_mdts(len);
         return NVME_INVALID_FIELD | NVME_DNR;
     }
@@ -3809,7 +3816,7 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
             }
 
             if (n->params.zasl &&
-                data_size > (uint64_t)n->page_size << n->params.zasl) {
+                data_size > nvme_max_data_transfer_size(n, n->params.zasl)) {
                 trace_pci_nvme_err_zasl(data_size);
                 return NVME_INVALID_FIELD | NVME_DNR;
             }
