@@ -30,6 +30,7 @@
 #define CADENCE_UART_TX_FIFO_SIZE           16
 
 #define CADENCE_UART_R_MAX (0x48/4)
+#define CADENCE_UART_R_MAX_BRK (0x4C/4)
 
 #define TYPE_CADENCE_UART "cadence_uart"
 OBJECT_DECLARE_SIMPLE_TYPE(CadenceUARTState, CADENCE_UART)
@@ -40,7 +41,7 @@ struct CadenceUARTState {
 
     /*< public >*/
     MemoryRegion iomem;
-    uint32_t r[CADENCE_UART_R_MAX];
+    uint32_t r[CADENCE_UART_R_MAX_BRK];
     uint8_t rx_fifo[CADENCE_UART_RX_FIFO_SIZE];
     uint8_t tx_fifo[CADENCE_UART_TX_FIFO_SIZE];
     uint32_t rx_wpos;
@@ -51,6 +52,7 @@ struct CadenceUARTState {
     qemu_irq irq;
     QEMUTimer *fifo_trigger_handle;
     Clock *refclk;
+    bool brk_support;
 };
 
 #endif
