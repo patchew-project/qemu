@@ -18,7 +18,6 @@ OBJECT_DECLARE_TYPE(Ax3000MachineState, Ax3000MachineClass, AX3000_MACHINE)
 typedef struct Ax3000MachineState {
     MachineState parent;
 
-    Ax3000SoCState *soc;
 } Ax3000MachineState;
 
 typedef struct Ax3000MachineClass {

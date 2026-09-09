@@ -68,7 +68,7 @@ static struct arm_boot_info ax3000_binfo = {
 
 static void ax3000_machine_init(MachineState *machine)
 {
-    Ax3000MachineState *ams = AX3000_MACHINE(machine);
+    Ax3000SoCState *s;
 
     if (machine->ram_size != AX3000_DRAM_SIZE) {
         g_autofree char *size_str = size_to_str(AX3000_DRAM_SIZE);
@@ -77,12 +77,12 @@ static void ax3000_machine_init(MachineState *machine)
         exit(1);
     }
 
-    ams->soc = AX3000_SOC(object_new(TYPE_AX3000_SOC));
-    object_property_add_child(OBJECT(machine), "soc", OBJECT(ams->soc));
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(ams->soc), &error_fatal);
+    s = AX3000_SOC(object_new_with_props(TYPE_AX3000_SOC, OBJECT(machine),
+                                         "soc", &error_fatal, NULL));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(s), &error_fatal);
 
     ax3000_binfo.ram_size = machine->ram_size;
-    arm_load_kernel(&ams->soc->cpu[0], machine, &ax3000_binfo);
+    arm_load_kernel(&s->cpu[0], machine, &ax3000_binfo);
 }
 
 static void ax3000_machine_class_init(ObjectClass *oc, const void *data)
