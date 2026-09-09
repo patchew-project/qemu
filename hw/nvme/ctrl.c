@@ -8720,6 +8720,11 @@ static const MemoryRegionOps nvme_cmb_ops = {
     },
 };
 
+static inline uint64_t nvme_mdts_max_iovs(uint8_t mdts)
+{
+    return mdts >= 64 ? UINT64_MAX : (1ULL << mdts) + 1;
+}
+
 static bool nvme_check_params(NvmeCtrl *n, Error **errp)
 {
     NvmeParams *params = &n->params;
@@ -8802,8 +8807,9 @@ static bool nvme_check_params(NvmeCtrl *n, Error **errp)
         host_memory_backend_set_mapped(n->pmr.dev, true);
     }
 
-    if (!n->params.mdts || ((1 << n->params.mdts) + 1) > IOV_MAX) {
-        error_setg(errp, "mdts exceeds IOV_MAX");
+    if ((params->cmb_size_mb || n->pmr.dev) &&
+        (!params->mdts || nvme_mdts_max_iovs(params->mdts) > IOV_MAX)) {
+        error_setg(errp, "mdts=%u is incompatible with CMB/PMR", params->mdts);
         return false;
     }
 
