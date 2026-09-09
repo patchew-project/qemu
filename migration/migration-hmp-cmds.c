@@ -736,14 +736,19 @@ void migrate_set_capability_completion(ReadLineState *rs, int nb_args,
 void migrate_set_parameter_completion(ReadLineState *rs, int nb_args,
                                       const char *str)
 {
+    g_autoptr(QDict) d = NULL;
+    const QDictEntry *e;
     size_t len;
 
+    /* Temporarily borrow the global parameters */
+    d = migrate_params_to_dict(&migrate_get_current()->parameters,
+                               &error_abort);
     len = strlen(str);
     readline_set_completion_index(rs, len);
     if (nb_args == 2) {
-        int i;
-        for (i = 0; i < MIGRATION_PARAMETER__MAX; i++) {
-            readline_add_completion_of(rs, str, MigrationParameter_str(i));
+        for (e = qdict_first(d); e; e = qdict_next(d, e)) {
+            const char *key = qdict_entry_key(e);
+            readline_add_completion_of(rs, str, key);
         }
     }
 }
