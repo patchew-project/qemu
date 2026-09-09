@@ -158,6 +158,17 @@ static void dma_blk_cb(void *opaque, int ret)
         }
         if (!mem)
             break;
+
+        /* Ensure the last slot in the chunk ends on an aligned boundary */
+        if (dbs->iov.niov == IOV_MAX - 1) {
+            dma_addr_t aligned = QEMU_ALIGN_DOWN(dbs->iov.size + cur_len,
+                                                 dbs->align);
+            if (aligned <= dbs->iov.size) {
+                dma_memory_unmap(dbs->sg->as, mem, cur_len, dbs->dir, 0);
+                break;
+          }
+          cur_len = aligned - dbs->iov.size;
+        }
         qemu_iovec_add(&dbs->iov, mem, cur_len);
         dbs->sg_cur_byte += cur_len;
         if (dbs->sg_cur_byte == dbs->sg->sg[dbs->sg_cur_index].len) {
