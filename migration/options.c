@@ -775,6 +775,52 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
     return true;
 }
 
+static bool *migrate_capability_get_addr(MigrationParameters *params,
+                                         enum MigrationCapability i)
+{
+    bool *cap_addr[] = {
+        &params->xbzrle, &params->rdma_pin_all,
+        &params->auto_converge, &params->events, &params->postcopy_ram,
+        &params->x_colo, &params->release_ram, &params->return_path,
+        &params->pause_before_switchover, &params->multifd,
+        &params->dirty_bitmaps, &params->postcopy_blocktime,
+        &params->late_block_activate, &params->x_ignore_shared,
+        &params->validate_uuid, &params->background_snapshot,
+        &params->zero_copy_send, &params->postcopy_preempt,
+        &params->switchover_ack, &params->dirty_limit, &params->mapped_ram,
+    };
+
+    assert(i >= 0 && i < MIGRATION_CAPABILITY__MAX);
+    return cap_addr[i];
+}
+
+/* Compatibility for code that reads capabilities in a loop */
+bool migrate_capability_get_compat(MigrationParameters *params, int i)
+{
+    return *(migrate_capability_get_addr(params, i));
+}
+
+/* Compatibility for code that writes capabilities in a loop */
+void migrate_capability_set_compat(MigrationParameters *params, int i, bool val)
+{
+    *(migrate_capability_get_addr(params, i)) = val;
+}
+
+/*
+ * Set capabilities for compatibility with the old
+ * migrate-set-capabilities command.
+ */
+void migrate_capabilities_set_compat(MigrationParameters *params,
+                                     MigrationCapabilityStatusList *caps)
+{
+    MigrationCapabilityStatusList *cap;
+
+    for (cap = caps; cap; cap = cap->next) {
+        migrate_capability_set_compat(params, cap->value->capability,
+                                      cap->value->state);
+    }
+}
+
 MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
 {
     MigrationCapabilityStatusList *head = NULL, **tail = &head;
@@ -816,6 +862,8 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
     for (cap = params; cap; cap = cap->next) {
         s->capabilities[cap->value->capability] = cap->value->state;
     }
+
+    migrate_capabilities_set_compat(&s->parameters, params);
 }
 
 /* parameters */
@@ -1139,6 +1187,15 @@ static void migrate_mark_all_params_present(MigrationParameters *p)
         &p->has_x_vcpu_dirty_limit_period, &p->has_vcpu_dirty_limit,
         &p->has_mode, &p->has_zero_page_detection, &p->has_direct_io,
         &p->has_x_rdma_chunk_size, &p->has_cpr_exec_command,
+        &p->has_xbzrle, &p->has_rdma_pin_all,
+        &p->has_auto_converge, &p->has_events,
+        &p->has_postcopy_ram, &p->has_x_colo, &p->has_release_ram,
+        &p->has_return_path, &p->has_pause_before_switchover, &p->has_multifd,
+        &p->has_dirty_bitmaps, &p->has_postcopy_blocktime,
+        &p->has_late_block_activate, &p->has_x_ignore_shared,
+        &p->has_validate_uuid, &p->has_background_snapshot,
+        &p->has_zero_copy_send, &p->has_postcopy_preempt,
+        &p->has_switchover_ack, &p->has_dirty_limit, &p->has_mapped_ram,
     };
 
     len = ARRAY_SIZE(has_fields);
@@ -1413,6 +1470,20 @@ void qmp_migrate_set_parameters(MigrationParameters *input, Error **errp)
     tls_opt_to_str(input->tls_creds);
     tls_opt_to_str(input->tls_hostname);
     tls_opt_to_str(input->tls_authz);
+
+    /*
+     * FIXME: Temporarily while migrate_caps_check is not
+     * converted to look at s->parameters. Will be gone the end of
+     * the series.
+     */
+    bool new_caps[MIGRATION_CAPABILITY__MAX] = { 0 };
+    for (int i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
+        new_caps[i] = migrate_capability_get_compat(cur, i);
+    }
+    if (!migrate_caps_check(migrate_get_current()->capabilities, new_caps,
+                            errp)) {
+        return;
+    }
 
     /* merge input on top of current */
     if (!migrate_params_merge(cur, input, &new, errp)) {
