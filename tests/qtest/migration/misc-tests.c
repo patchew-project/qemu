@@ -50,7 +50,7 @@ typedef struct HMPTestData {
 HMPTestData test_cases[] = {
     TEST("", "", "migrate_set_parameter: string expected"),
     TEST("foo", "", "migrate_set_parameter: string expected"),
-    TEST("foo", "on", "Error: invalid parameter value: foo"),
+    TEST("foo", "on", "Error: Parameter 'foo' is unexpected"),
 
     /* bool */
     TEST("cpu-throttle-tailslow", "on", "on"),
