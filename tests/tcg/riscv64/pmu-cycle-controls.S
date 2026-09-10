@@ -17,6 +17,8 @@ _start:
 	 * 1: mcycle changes while M-mode is filtered
 	 * 2: disabling MINH adds the filtered interval
 	 * 3: mcycle does not resume after disabling MINH
+	 * 4: writing mhpmevent3 advances mcycle while CY is set
+	 * 5: mcycle does not resume after clearing CY
 	 */
 	li	t4, 0
 	csrw	mcountinhibit, zero
@@ -61,6 +63,31 @@ _start:
 	slli	t1, t1, 3
 	or	t4, t4, t1
 
+	/* Changing HPM3's event must leave mcycle stopped while CY is set. */
+	li	t0, 1			/* mcountinhibit.CY */
+	csrw	mcountinhibit, t0
+	csrr	s4, mcycle
+	.rept	128
+	nop
+	.endr
+	li	t0, 1			/* HW_CPU_CYCLES */
+	csrw	mhpmevent3, t0		/* mhpmevent3; rebuilds PMU timer */
+	csrr	s5, mcycle
+	xor	t1, s4, s5
+	sltu	t1, zero, t1
+	slli	t1, t1, 4
+	or	t4, t4, t1
+	csrw	mcountinhibit, zero
+	csrr	s6, mcycle
+	.rept	128
+	nop
+	.endr
+	csrr	t1, mcycle
+	sltu	t1, s6, t1
+	xori	t1, t1, 1
+	slli	t1, t1, 5
+	or	t4, t4, t1
+	csrw	mhpmevent3, zero
 	lla	a1, semiargs
 	li	t0, 0x20026		/* ADP_Stopped_ApplicationExit */
 	sd	t0, 0(a1)
