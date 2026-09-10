@@ -1050,7 +1050,7 @@ class QRegSource(Register, Hvx, OldSource):
         self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
             const intptr_t {self.hvx_off()} =
-                offsetof(CPUHexagonState, QRegs[{self.reg_num}]);
+                offsetof(CPUHexagonState, hvx_ctx.QRegs[{self.reg_num}]);
         """))
         if not skip_qemu_helper(tag):
             f.write(code_fmt(f"""\
@@ -1073,7 +1073,8 @@ class QRegReadWrite(Register, Hvx, ReadWrite):
             const intptr_t {self.hvx_off()} =
                 get_result_qreg(ctx, {self.reg_num});
             tcg_gen_gvec_mov(MO_64, {self.hvx_off()},
-                             offsetof(CPUHexagonState, QRegs[{self.reg_num}]),
+                             offsetof(CPUHexagonState,
+                                      hvx_ctx.QRegs[{self.reg_num}]),
                              sizeof(MMQReg), sizeof(MMQReg));
         """))
         if not skip_qemu_helper(tag):

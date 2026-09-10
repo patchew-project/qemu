@@ -182,7 +182,7 @@ static void print_vreg(FILE *f, CPUHexagonState *env, int regnum,
     if (skip_if_zero) {
         bool nonzero_found = false;
         for (int i = 0; i < MAX_VEC_SIZE_BYTES; i++) {
-            if (env->VRegs[regnum].ub[i] != 0) {
+            if (env->hvx->VRegs[regnum].ub[i] != 0) {
                 nonzero_found = true;
                 break;
             }
@@ -193,9 +193,10 @@ static void print_vreg(FILE *f, CPUHexagonState *env, int regnum,
     }
 
     qemu_fprintf(f, "  v%d = ( ", regnum);
-    qemu_fprintf(f, "0x%02x", env->VRegs[regnum].ub[MAX_VEC_SIZE_BYTES - 1]);
+    qemu_fprintf(f, "0x%02x",
+                 env->hvx->VRegs[regnum].ub[MAX_VEC_SIZE_BYTES - 1]);
     for (int i = MAX_VEC_SIZE_BYTES - 2; i >= 0; i--) {
-        qemu_fprintf(f, ", 0x%02x", env->VRegs[regnum].ub[i]);
+        qemu_fprintf(f, ", 0x%02x", env->hvx->VRegs[regnum].ub[i]);
     }
     qemu_fprintf(f, " )\n");
 }
@@ -211,7 +212,7 @@ static void print_qreg(FILE *f, CPUHexagonState *env, int regnum,
     if (skip_if_zero) {
         bool nonzero_found = false;
         for (int i = 0; i < MAX_VEC_SIZE_BYTES / 8; i++) {
-            if (env->QRegs[regnum].ub[i] != 0) {
+            if (env->hvx->QRegs[regnum].ub[i] != 0) {
                 nonzero_found = true;
                 break;
             }
@@ -223,9 +224,9 @@ static void print_qreg(FILE *f, CPUHexagonState *env, int regnum,
 
     qemu_fprintf(f, "  q%d = ( ", regnum);
     qemu_fprintf(f, "0x%02x",
-                 env->QRegs[regnum].ub[MAX_VEC_SIZE_BYTES / 8 - 1]);
+                 env->hvx->QRegs[regnum].ub[MAX_VEC_SIZE_BYTES / 8 - 1]);
     for (int i = MAX_VEC_SIZE_BYTES / 8 - 2; i >= 0; i--) {
-        qemu_fprintf(f, ", 0x%02x", env->QRegs[regnum].ub[i]);
+        qemu_fprintf(f, ", 0x%02x", env->hvx->QRegs[regnum].ub[i]);
     }
     qemu_fprintf(f, " )\n");
 }
@@ -418,6 +419,8 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     if (mcc->parent_phases.hold) {
         mcc->parent_phases.hold(obj, type);
     }
+
+    env->hvx = &env->hvx_ctx;
 
     set_default_nan_mode(1, &env->fp_status);
     set_float_detect_tininess(float_tininess_before_rounding, &env->fp_status);

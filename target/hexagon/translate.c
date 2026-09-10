@@ -87,7 +87,7 @@ intptr_t ctx_future_vreg_off(DisasContext *ctx, int regnum,
     intptr_t offset;
 
     if (!ctx->need_commit) {
-        return offsetof(CPUHexagonState, VRegs[regnum]);
+        return offsetof(CPUHexagonState, hvx_ctx.VRegs[regnum]);
     }
 
     /* See if it is already allocated */
@@ -697,7 +697,7 @@ static void gen_start_packet(DisasContext *ctx)
         while (i < NUM_VREGS) {
             const intptr_t VdV_off =
                 ctx_future_vreg_off(ctx, i, 1, true);
-            intptr_t src_off = offsetof(CPUHexagonState, VRegs[i]);
+            intptr_t src_off = offsetof(CPUHexagonState, hvx_ctx.VRegs[i]);
             tcg_gen_gvec_mov(MO_64, VdV_off,
                              src_off,
                              sizeof(MMVector),
@@ -710,7 +710,7 @@ static void gen_start_packet(DisasContext *ctx)
         while (i < NUM_VREGS) {
             const intptr_t VdV_off =
                 ctx_tmp_vreg_off(ctx, i, 1, true);
-            intptr_t src_off = offsetof(CPUHexagonState, VRegs[i]);
+            intptr_t src_off = offsetof(CPUHexagonState, hvx_ctx.VRegs[i]);
             tcg_gen_gvec_mov(MO_64, VdV_off,
                              src_off,
                              sizeof(MMVector),
@@ -1012,12 +1012,12 @@ static void gen_commit_hvx(DisasContext *ctx)
     /*
      *    for (i = 0; i < ctx->vreg_log_idx; i++) {
      *        int rnum = ctx->vreg_log[i];
-     *        env->VRegs[rnum] = env->future_VRegs[rnum];
+     *        env->hvx->VRegs[rnum] = env->future_VRegs[rnum];
      *    }
      */
     for (i = 0; i < ctx->vreg_log_idx; i++) {
         int rnum = ctx->vreg_log[i];
-        intptr_t dstoff = offsetof(CPUHexagonState, VRegs[rnum]);
+        intptr_t dstoff = offsetof(CPUHexagonState, hvx_ctx.VRegs[rnum]);
         intptr_t srcoff = ctx_future_vreg_off(ctx, rnum, 1, false);
         size_t size = sizeof(MMVector);
 
@@ -1027,12 +1027,12 @@ static void gen_commit_hvx(DisasContext *ctx)
     /*
      *    for (i = 0; i < ctx->qreg_log_idx; i++) {
      *        int rnum = ctx->qreg_log[i];
-     *        env->QRegs[rnum] = env->future_QRegs[rnum];
+     *        env->hvx->QRegs[rnum] = env->future_QRegs[rnum];
      *    }
      */
     for (i = 0; i < ctx->qreg_log_idx; i++) {
         int rnum = ctx->qreg_log[i];
-        intptr_t dstoff = offsetof(CPUHexagonState, QRegs[rnum]);
+        intptr_t dstoff = offsetof(CPUHexagonState, hvx_ctx.QRegs[rnum]);
         intptr_t srcoff = offsetof(CPUHexagonState, future_QRegs[rnum]);
         size_t size = sizeof(MMQReg);
 

@@ -120,6 +120,11 @@ typedef struct {
 /* Maximum number of vector temps in a packet */
 #define VECTOR_TEMPS_MAX            4
 
+typedef struct HexagonHVXContext {
+    MMVector VRegs[NUM_VREGS] QEMU_ALIGNED(16);
+    MMQReg QRegs[NUM_QREGS] QEMU_ALIGNED(16);
+} HexagonHVXContext;
+
 typedef struct CPUArchState {
     target_ulong gpr[TOTAL_PER_THREAD_REGS];
     target_ulong pred[NUM_PREGS];
@@ -159,11 +164,12 @@ typedef struct CPUArchState {
     target_ulong llsc_val;
     uint64_t     llsc_val_i64;
 
-    MMVector VRegs[NUM_VREGS] QEMU_ALIGNED(16);
+    HexagonHVXContext *hvx;
+    HexagonHVXContext hvx_ctx QEMU_ALIGNED(16);
+
     MMVector future_VRegs[VECTOR_TEMPS_MAX] QEMU_ALIGNED(16);
     MMVector tmp_VRegs[VECTOR_TEMPS_MAX] QEMU_ALIGNED(16);
 
-    MMQReg QRegs[NUM_QREGS] QEMU_ALIGNED(16);
     MMQReg future_QRegs[NUM_QREGS] QEMU_ALIGNED(16);
 
     /* Temporaries used within instructions */

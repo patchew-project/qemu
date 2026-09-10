@@ -1433,7 +1433,7 @@ static void gen_asr_r_svw_trun(DisasContext *ctx, TCGv RdV,
 
 static intptr_t vreg_src_off(DisasContext *ctx, int num)
 {
-    intptr_t offset = offsetof(CPUHexagonState, VRegs[num]);
+    intptr_t offset = offsetof(CPUHexagonState, hvx_ctx.VRegs[num]);
 
     if (test_bit(num, ctx->vregs_select)) {
         offset = ctx_future_vreg_off(ctx, num, 1, false);
@@ -1473,7 +1473,7 @@ static intptr_t get_result_qreg(DisasContext *ctx, int qnum)
     if (ctx->need_commit) {
         return  offsetof(CPUHexagonState, future_QRegs[qnum]);
     } else {
-        return  offsetof(CPUHexagonState, QRegs[qnum]);
+        return  offsetof(CPUHexagonState, hvx_ctx.QRegs[qnum]);
     }
 }
 
