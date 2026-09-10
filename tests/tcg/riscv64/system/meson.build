@@ -100,6 +100,21 @@ tests += {
 }
 
 tests += {
+  'sscofpmf-event-overflow.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'max', qemu_args],
+  },
+}
+
+tests += {
+  'sscofpmf-event-overflow.S': {
+    'exe_name': 'sscofpmf-event-overflow-off',
+    'cflags': cflags + ['-DEXPECT_SSCOFPMF=0'],
+    'qemu_args': ['-cpu', 'max,sscofpmf=false', qemu_args],
+  },
+}
+
+tests += {
   'sscofpmf-cycle-overflow.S': {
     'cflags': cflags,
     'qemu_args': ['-cpu', 'max', '-icount', 'shift=3', qemu_args],
