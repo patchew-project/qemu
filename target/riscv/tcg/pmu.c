@@ -663,14 +663,28 @@ void riscv_pmu_rebuild_timer(CPURISCVState *env)
     riscv_pmu_rebuild_timer_internal(env, false);
 }
 
+static void riscv_pmu_timer_work(CPUState *cs, run_on_cpu_data data)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+
+    /*
+     * An expiry before this exchange is covered by the following counter
+     * check. The first expiry after it sets pmu_timer_work_pending and queues
+     * another check.
+     */
+    qatomic_xchg(&cpu->pmu_timer_work_pending, false);
+    riscv_pmu_rebuild_timer_internal(&cpu->env, true);
+}
+
 /* Timer callback for instret and cycle counter overflow */
 void riscv_pmu_timer_cb(void *priv)
 {
     RISCVCPU *cpu = priv;
 
-    riscv_pmu_rebuild_timer_internal(&cpu->env, true);
+    if (!qatomic_xchg(&cpu->pmu_timer_work_pending, true)) {
+        async_run_on_cpu(CPU(cpu), riscv_pmu_timer_work, RUN_ON_CPU_NULL);
+    }
 }
-
 
 void riscv_pmu_init(RISCVCPU *cpu, Error **errp)
 {
