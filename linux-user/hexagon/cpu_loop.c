@@ -33,7 +33,7 @@ void cpu_loop(CPUHexagonState *env)
     target_ulong syscallnum;
     target_ulong ret;
 
-    env->hvx = &env->hvx_ctx;
+    env->hvx = &HEXAGON_CPU(cs)->hvx_ctx;
 
     for (;;) {
         cpu_exec_start(cs);

@@ -162,6 +162,7 @@ struct HexagonCommonMachineState {
     DeviceState *qtimer;
     DeviceState *glob_regs;
     DeviceState *tlb;
+    unsigned num_hvx_ctx;
 };
 
 #endif

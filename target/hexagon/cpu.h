@@ -29,6 +29,7 @@
 
 typedef struct HexagonTLBState HexagonTLBState;
 typedef struct HexagonGlobalRegState HexagonGlobalRegState;
+typedef struct HexagonHVXContextState HexagonHVXContextState;
 
 #include "cpu-qom.h"
 #include "exec/cpu-common.h"
@@ -49,6 +50,7 @@ typedef struct HexagonGlobalRegState HexagonGlobalRegState;
 #define REG_WRITES_MAX 32
 #define PRED_WRITES_MAX 5                   /* 4 insns + endloop */
 #define VSTORES_MAX 2
+#define HVX_CONTEXTS_MAX 8
 #define MAX_TLB_ENTRIES 1024
 #define THREADS_MAX 8
 
@@ -165,7 +167,6 @@ typedef struct CPUArchState {
     uint64_t     llsc_val_i64;
 
     HexagonHVXContext *hvx;
-    HexagonHVXContext hvx_ctx QEMU_ALIGNED(16);
 
     MMVector future_VRegs[VECTOR_TEMPS_MAX] QEMU_ALIGNED(16);
     MMVector tmp_VRegs[VECTOR_TEMPS_MAX] QEMU_ALIGNED(16);
@@ -201,7 +202,11 @@ struct ArchCPU {
 
     CPUHexagonState env;
     HexagonCPUConfig cfg;
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+    HexagonHVXContext hvx_ctx QEMU_ALIGNED(16);
+#else
+    HexagonHVXContextState *hvx_ctx[HVX_CONTEXTS_MAX];
+    HexagonHVXContext hvx_fallback QEMU_ALIGNED(16);
     HexagonTLBState *tlb;
     uint32_t boot_addr;
     HexagonGlobalRegState *globalregs;
