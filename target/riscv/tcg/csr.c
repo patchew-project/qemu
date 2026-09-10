@@ -1241,7 +1241,7 @@ static void riscv_pmu_write_mhpmevent(CPURISCVState *env,
     }
 
     env->mhpmevent_val[ctr_idx] = value;
-    riscv_pmu_update_event_map(env, value, ctr_idx);
+    riscv_pmu_rebuild_event_map(env);
 
     if (enabled &&
         (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
