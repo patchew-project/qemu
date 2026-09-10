@@ -48,6 +48,12 @@ config VGA_PCI
     select VGA
     select EDID
 
+config ASPEED_VGA
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select VGA
+
 config VGA_ISA
     bool
     depends on ISA_BUS
