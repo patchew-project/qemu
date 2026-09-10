@@ -584,6 +584,7 @@ struct ArchCPU {
     uint64_t pmu_timer_instret_snapshot;
     bool pmu_timer_stalled;
     bool pmu_timer_work_pending;
+    bool pmu_fixed_subsection_present;
     /* A bitmask of Available programmable counters */
     uint32_t pmu_avail_ctrs;
     /* Mapping of events to counters */
