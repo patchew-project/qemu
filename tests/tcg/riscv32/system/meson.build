@@ -23,6 +23,13 @@ tests += {
 }
 
 tests += {
+  'pmu-fixed-rv32.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'max', '-icount', 'shift=0', qemu_args],
+  },
+}
+
+tests += {
   'smcdeleg-minh-rv32.S': {
     'cflags': cflags,
     'qemu_args': ['-cpu', 'max', qemu_args],
@@ -40,6 +47,13 @@ tests += {
   'smcdeleg-rv32.S': {
     'cflags': cflags,
     'qemu_args': ['-cpu', 'max', qemu_args],
+  },
+}
+
+tests += {
+  'sscofpmf-event-rv32.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'max', '-icount', 'shift=0', qemu_args],
   },
 }
 

@@ -22,11 +22,27 @@
 #include "cpu.h"
 #include "qapi/error.h"
 
+typedef struct RISCVPMUFixedSnapshot {
+    uint64_t cycle;
+    uint64_t instret;
+} RISCVPMUFixedSnapshot;
+
 bool riscv_pmu_ctr_monitor_instructions(CPURISCVState *env,
                                         uint32_t target_ctr);
 bool riscv_pmu_ctr_monitor_cycles(CPURISCVState *env,
                                   uint32_t target_ctr);
-uint64_t riscv_pmu_read_fixed_source(CPURISCVState *env, bool instret);
+void riscv_pmu_take_fixed_snapshot(CPURISCVState *env,
+                                   RISCVPMUFixedSnapshot *snapshot);
+uint64_t riscv_pmu_ctr_get_fixed_value(CPURISCVState *env,
+                                       uint32_t ctr_idx,
+                                       const RISCVPMUFixedSnapshot *snapshot);
+void riscv_pmu_write_ctr_cfg(CPURISCVState *env, uint32_t ctr_idx,
+                             uint64_t value);
+void riscv_pmu_write_event(CPURISCVState *env, uint32_t ctr_idx,
+                           uint64_t value, uint64_t wr_mask);
+void riscv_pmu_write_counter(CPURISCVState *env, uint32_t ctr_idx,
+                             target_ulong value, bool upper_half, RISCVMXL xl);
+void riscv_pmu_write_inhibit(CPURISCVState *env, uint32_t value);
 void riscv_pmu_timer_cb(void *priv);
 void riscv_pmu_init(RISCVCPU *cpu, Error **errp);
 void riscv_pmu_rebuild_event_map(CPURISCVState *env);
