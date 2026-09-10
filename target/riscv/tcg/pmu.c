@@ -24,8 +24,14 @@
 #include "pmu.h"
 #include "exec/icount.h"
 #include "system/device_tree.h"
+#include "system/cpu-timers.h"
 
-#define RISCV_TIMEBASE_FREQ 1000000000 /* 1Ghz */
+/*
+ * cpu_get_ticks() does not expose the host tick frequency.  Use a 1 GHz
+ * approximation only when scheduling non-icount overflow checks; fixed
+ * counter values remain in host-tick units.
+ */
+#define RISCV_PMU_HOST_TICK_HZ_ASSUMED 1000000000
 
 static bool riscv_pmu_counter_valid(RISCVCPU *cpu, uint32_t ctr_idx)
 {
@@ -76,6 +82,19 @@ static bool riscv_pmu_counter_filtered(CPURISCVState *env, uint64_t cfg)
 }
 
 /*
+ * VM-elapsed ticks stop advancing while VM ticks are disabled.  Under
+ * icount, instruction events retain raw instruction-count units.
+ */
+uint64_t riscv_pmu_read_fixed_source(CPURISCVState *env, bool instret)
+{
+    if (instret && icount_enabled()) {
+        return icount_get_raw();
+    }
+
+    return cpus_get_elapsed_ticks();
+}
+
+/*
  * Information needed to update counters:
  *  new_priv, new_virt: To correctly save starting snapshot for the newly
  *                      started mode. Look at array being indexed with newprv.
@@ -96,11 +115,7 @@ static void riscv_pmu_icount_update_priv(CPURISCVState *env,
     uint64_t *counter_arr;
     uint64_t delta;
 
-    if (icount_enabled()) {
-        current_icount = icount_get_raw();
-    } else {
-        current_icount = cpu_get_host_ticks();
-    }
+    current_icount = riscv_pmu_read_fixed_source(env, true);
 
     if (env->virt_enabled) {
         g_assert(env->priv <= PRV_S);
@@ -137,11 +152,7 @@ static void riscv_pmu_cycle_update_priv(CPURISCVState *env,
     uint64_t *counter_arr;
     uint64_t delta;
 
-    if (icount_enabled()) {
-        current_ticks = icount_get();
-    } else {
-        current_ticks = cpu_get_host_ticks();
-    }
+    current_ticks = riscv_pmu_read_fixed_source(env, false);
 
     if (env->virt_enabled) {
         g_assert(env->priv <= PRV_S);
@@ -286,17 +297,15 @@ static bool riscv_pmu_event_supported(uint32_t event_idx)
     }
 }
 
-static int64_t pmu_icount_ticks_to_ns(int64_t value)
+static int64_t pmu_ticks_to_ns(CPURISCVState *env, uint32_t ctr_idx,
+                               int64_t value)
 {
-    int64_t ret = 0;
-
-    if (icount_enabled()) {
-        ret = icount_to_ns(value);
-    } else {
-        ret = (NANOSECONDS_PER_SECOND / RISCV_TIMEBASE_FREQ) * value;
+    if (icount_enabled() &&
+        riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
+        return icount_to_ns(value);
     }
 
-    return ret;
+    return (NANOSECONDS_PER_SECOND / RISCV_PMU_HOST_TICK_HZ_ASSUMED) * value;
 }
 
 void riscv_pmu_rebuild_event_map(CPURISCVState *env)
@@ -448,8 +457,9 @@ int riscv_pmu_setup_timer(CPURISCVState *env, uint64_t value, uint32_t ctr_idx)
 
     if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
         riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
-        overflow_ns = pmu_icount_ticks_to_ns((int64_t)overflow_delta);
-        overflow_left = pmu_icount_ticks_to_ns(overflow_left) ;
+        overflow_ns = pmu_ticks_to_ns(env, ctr_idx,
+                                      (int64_t)overflow_delta);
+        overflow_left = pmu_ticks_to_ns(env, ctr_idx, overflow_left);
     } else {
         return -1;
     }
