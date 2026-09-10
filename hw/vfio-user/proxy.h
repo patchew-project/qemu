@@ -83,6 +83,7 @@ typedef struct VFIOUserProxy {
     VFIOUserMsgQ incoming;
     VFIOUserMsgQ outgoing;
     VFIOUserMsg *last_nowait;
+    Error *nowait_error;
     VFIOUserMsg *part_recv;
     size_t recv_left;
     VFIOUserWRMulti *wr_multi;
@@ -116,7 +117,7 @@ void vfio_user_disable_posted_writes(VFIOUserProxy *proxy);
 
 void vfio_user_request_msg(VFIOUserHdr *hdr, uint16_t cmd,
                            uint32_t size, uint32_t flags);
-void vfio_user_wait_reqs(VFIOUserProxy *proxy);
+bool vfio_user_wait_reqs(VFIOUserProxy *proxy, Error **errp);
 bool vfio_user_send_wait(VFIOUserProxy *proxy, VFIOUserHdr *hdr,
                          VFIOUserFDs *fds, int rsize, Error **errp);
 bool vfio_user_send_nowait(VFIOUserProxy *proxy, VFIOUserHdr *hdr,

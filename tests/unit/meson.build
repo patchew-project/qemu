@@ -148,6 +148,14 @@ if have_system
       genh, qemuutil, qom
     ],
   }
+  if host_os == 'linux'
+    tests += {
+      'test-vfio-user-proxy': [
+        'iothread.c', io,
+        meson.project_source_root() / 'hw/vfio-user/proxy.c',
+      ],
+    }
+  endif
   if config_host_data.get('CONFIG_INOTIFY1')
     tests += {'test-util-filemonitor': []}
   endif

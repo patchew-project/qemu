@@ -10,6 +10,7 @@
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
 
+#include "hw/core/hw-error.h"
 #include "hw/vfio-user/container.h"
 #include "hw/vfio-user/device.h"
 #include "hw/vfio-user/trace.h"
@@ -33,10 +34,25 @@ static void vfio_user_listener_begin(VFIOContainer *bcontainer)
 static void vfio_user_listener_commit(VFIOContainer *bcontainer)
 {
     VFIOUserContainer *container = VFIO_IOMMU_USER(bcontainer);
+    Error *local_err = NULL;
 
     /* wait here for any async requests sent during the transaction */
     container->proxy->async_ops = false;
-    vfio_user_wait_reqs(container->proxy);
+    if (vfio_user_wait_reqs(container->proxy, &local_err)) {
+        return;
+    }
+
+    error_prepend(&local_err, "vfio-user DMA mapping transaction failed: ");
+    if (!bcontainer->initialized) {
+        if (!bcontainer->error) {
+            error_propagate(&bcontainer->error, local_err);
+        } else {
+            error_free(local_err);
+        }
+    } else {
+        error_report_err(local_err);
+        hw_error("vfio-user: DMA mapping failed, unable to continue");
+    }
 }
 
 static int vfio_user_dma_unmap(const VFIOContainer *bcontainer,

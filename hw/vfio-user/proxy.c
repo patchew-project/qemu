@@ -52,6 +52,26 @@ static void vfio_user_shutdown(VFIOUserProxy *proxy)
                                    proxy->ctx, NULL, NULL);
 }
 
+static void vfio_user_record_nowait_error(VFIOUserProxy *proxy,
+                                           const Error *err)
+{
+    if (proxy->nowait_error == NULL) {
+        proxy->nowait_error = error_copy(err);
+    }
+}
+
+static void vfio_user_record_nowait_reply_error(VFIOUserProxy *proxy,
+                                                 const VFIOUserMsg *msg)
+{
+    if (proxy->nowait_error == NULL) {
+        int error = msg->hdr->error_reply ?: EIO;
+
+        error_setg_errno(&proxy->nowait_error, error,
+                         "vfio-user command 0x%x failed",
+                         msg->hdr->command);
+    }
+}
+
 /*
  * Same return values as qio_channel_writev_full():
  *
@@ -162,10 +182,14 @@ static void vfio_user_process(VFIOUserProxy *proxy, VFIOUserMsg *msg)
             qemu_cond_signal(&msg->cv);
         } else {
             if (msg->hdr->flags & VFIO_USER_ERROR) {
-                error_printf("vfio_user_process: error reply on async ");
-                error_printf("request command %x error %s\n",
-                             msg->hdr->command,
-                             strerror(msg->hdr->error_reply));
+                if (msg->type == VFIO_MSG_NOWAIT) {
+                    vfio_user_record_nowait_reply_error(proxy, msg);
+                } else {
+                    error_printf("vfio_user_process: error reply on async ");
+                    error_printf("request command %x error %s\n",
+                                 msg->hdr->command,
+                                 strerror(msg->hdr->error_reply));
+                }
             }
             /* youngest nowait msg has been ack'd */
             if (proxy->last_nowait == msg) {
@@ -426,7 +450,15 @@ err:
              */
             vfio_user_set_error(msg->hdr, EINVAL);
             msg->complete = true;
-            qemu_cond_signal(&msg->cv);
+            if (msg->type == VFIO_MSG_NOWAIT) {
+                vfio_user_record_nowait_reply_error(proxy, msg);
+                if (proxy->last_nowait == msg) {
+                    proxy->last_nowait = NULL;
+                }
+                vfio_user_recycle(proxy, msg);
+            } else {
+                qemu_cond_signal(&msg->cv);
+            }
         }
     }
     return -1;
@@ -669,6 +701,7 @@ static bool vfio_user_send_queued(VFIOUserProxy *proxy, VFIOUserMsg *msg,
 bool vfio_user_send_nowait(VFIOUserProxy *proxy, VFIOUserHdr *hdr,
                            VFIOUserFDs *fds, int rsize, Error **errp)
 {
+    Error *local_err = NULL;
     VFIOUserMsg *msg;
 
     QEMU_LOCK_GUARD(&proxy->lock);
@@ -679,12 +712,17 @@ bool vfio_user_send_nowait(VFIOUserProxy *proxy, VFIOUserHdr *hdr,
     msg->type = VFIO_MSG_NOWAIT;
 
     if (hdr->flags & VFIO_USER_NO_REPLY) {
-        error_setg_errno(errp, EINVAL, "%s on NO_REPLY message", __func__);
+        error_setg_errno(&local_err, EINVAL,
+                         "%s on NO_REPLY message", __func__);
+        vfio_user_record_nowait_error(proxy, local_err);
+        error_propagate(errp, local_err);
         vfio_user_recycle(proxy, msg);
         return false;
     }
 
-    if (!vfio_user_send_queued(proxy, msg, errp)) {
+    if (!vfio_user_send_queued(proxy, msg, &local_err)) {
+        vfio_user_record_nowait_error(proxy, local_err);
+        error_propagate(errp, local_err);
         vfio_user_recycle(proxy, msg);
         return false;
     }
@@ -777,21 +815,24 @@ bool vfio_user_send_async(VFIOUserProxy *proxy, VFIOUserHdr *hdr,
     return true;
 }
 
-void vfio_user_wait_reqs(VFIOUserProxy *proxy)
+/*
+ * Wait for completion of the current nowait batch.  DMA map/unmap requests
+ * sent during a memory transaction are nowait requests.  The server processes
+ * commands in receive order, so the youngest reply is a completion fence for
+ * all older requests.  Errors from older replies are saved until the fence is
+ * reached.
+ */
+bool vfio_user_wait_reqs(VFIOUserProxy *proxy, Error **errp)
 {
-    VFIOUserMsg *msg;
+    bool success = true;
 
-    /*
-     * Any DMA map/unmap requests sent in the middle
-     * of a memory region transaction were sent nowait.
-     * Wait for them here.
-     */
     qemu_mutex_lock(&proxy->lock);
     if (proxy->last_nowait != NULL) {
+        VFIOUserMsg *msg = proxy->last_nowait;
+
         /*
          * Change type to WAIT to wait for reply
          */
-        msg = proxy->last_nowait;
         msg->type = VFIO_MSG_WAIT;
         proxy->last_nowait = NULL;
         while (!msg->complete) {
@@ -801,15 +842,16 @@ void vfio_user_wait_reqs(VFIOUserProxy *proxy)
 
                 list = msg->pending ? &proxy->pending : &proxy->outgoing;
                 QTAILQ_REMOVE(list, msg, next);
-                error_printf("vfio_wait_reqs - timed out\n");
+                if (proxy->nowait_error == NULL) {
+                    error_setg_errno(&proxy->nowait_error, ETIMEDOUT,
+                                     "timed out waiting for vfio-user reply");
+                }
                 break;
             }
         }
 
         if (msg->hdr->flags & VFIO_USER_ERROR) {
-            error_printf("vfio_user_wait_reqs - error reply on async ");
-            error_printf("request: command %x error %s\n", msg->hdr->command,
-                         strerror(msg->hdr->error_reply));
+            vfio_user_record_nowait_reply_error(proxy, msg);
         }
 
         /*
@@ -819,7 +861,15 @@ void vfio_user_wait_reqs(VFIOUserProxy *proxy)
         vfio_user_recycle(proxy, msg);
     }
 
+    if (proxy->nowait_error != NULL) {
+        error_propagate(errp, proxy->nowait_error);
+        proxy->nowait_error = NULL;
+        success = false;
+    }
+
     qemu_mutex_unlock(&proxy->lock);
+
+    return success;
 }
 
 /*
@@ -1018,6 +1068,7 @@ void vfio_user_disconnect(VFIOUserProxy *proxy)
 
     /* we now hold the only ref to proxy */
     qemu_mutex_unlock(&proxy->lock);
+    error_free(proxy->nowait_error);
     qemu_cond_destroy(&proxy->close_cv);
     qemu_mutex_destroy(&proxy->lock);
 
