@@ -75,6 +75,13 @@ tests += {
   },
 }
 
+tests += {
+  'smcdeleg-minh.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'max', qemu_args],
+  },
+}
+
 if 'qemu-system-riscv64' in emulators
   tcg_tests += {
     'riscv64-softmmu': {

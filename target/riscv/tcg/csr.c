@@ -1607,7 +1607,7 @@ static int rmw_cd_ctr_cfg(CPURISCVState *env, int cfg_index, target_ulong *val,
             wr_mask &= ~MCYCLECFG_BIT_MINH;
             env->mcyclecfg = (new_val & wr_mask) | (env->mcyclecfg & ~wr_mask);
         } else {
-            *val = env->mcyclecfg &= ~MHPMEVENT_BIT_MINH;
+            *val = env->mcyclecfg & ~MCYCLECFG_BIT_MINH;
         }
         break;
     case 2:             /* INSTRETCFG */
@@ -1616,7 +1616,7 @@ static int rmw_cd_ctr_cfg(CPURISCVState *env, int cfg_index, target_ulong *val,
             env->minstretcfg = (new_val & wr_mask) |
                                (env->minstretcfg & ~wr_mask);
         } else {
-            *val = env->minstretcfg &= ~MHPMEVENT_BIT_MINH;
+            *val = env->minstretcfg & ~MINSTRETCFG_BIT_MINH;
         }
         break;
     default:
@@ -1642,7 +1642,7 @@ static int rmw_cd_ctr_cfgh(CPURISCVState *env, int cfg_index, target_ulong *val,
             cfgh = (new_val & wr_mask) | (cfgh & ~wr_mask);
             env->mcyclecfg = deposit64(env->mcyclecfg, 32, 32, cfgh);
         } else {
-            *val = cfgh;
+            *val = cfgh & ~MCYCLECFGH_BIT_MINH;
         }
         break;
     case 2:          /* INSTRETCFGH */
@@ -1652,7 +1652,7 @@ static int rmw_cd_ctr_cfgh(CPURISCVState *env, int cfg_index, target_ulong *val,
             cfgh = (new_val & wr_mask) | (cfgh & ~wr_mask);
             env->minstretcfg = deposit64(env->minstretcfg, 32, 32, cfgh);
         } else {
-            *val = cfgh;
+            *val = cfgh & ~MINSTRETCFGH_BIT_MINH;
         }
         break;
     default:
