@@ -99,6 +99,7 @@ typedef struct VGACommonState {
     uint8_t palette[768];
     int32_t bank_offset;
     int (*get_bpp)(struct VGACommonState *s);
+    bool (*is_blanked)(struct VGACommonState *s);
     void (*get_params)(struct VGACommonState *s, VGADisplayParams *params);
     void (*get_resolution)(struct VGACommonState *s,
                         int *pwidth,
