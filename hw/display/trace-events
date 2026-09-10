@@ -141,6 +141,9 @@ vga_cirrus_bitblt_start(uint8_t blt_rop, uint8_t blt_mode, uint8_t blt_modeext, 
 # aspeed-vga.c
 aspeed_vga_read_byte(uint32_t port, uint8_t val) "port 0x%03x, val 0x%02x"
 aspeed_vga_write_byte(uint32_t port, uint8_t val) "port 0x%03x, val 0x%02x"
+aspeed_g2d_read(uint32_t reg, uint32_t val) "reg 0x%02x, val 0x%08x"
+aspeed_g2d_write(uint32_t reg, uint32_t val) "reg 0x%02x, val 0x%08x"
+aspeed_g2d_bitblt(uint32_t cmd, uint32_t w, uint32_t h, uint32_t sx, uint32_t sy, uint32_t dx, uint32_t dy, uint32_t bpp) "cmd 0x%08x, %ux%u, src %u,%u dst %u,%u, %u bytes/pixel"
 
 # sii9022.c
 sii9022_read_reg(uint8_t addr, uint8_t val) "addr 0x%02x, val 0x%02x"
