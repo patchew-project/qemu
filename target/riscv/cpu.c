@@ -42,6 +42,9 @@
 #include "disas/capstone.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "target/riscv/tcg/debug.h"
+#ifdef CONFIG_TCG
+#include "target/riscv/tcg/pmu.h"
+#endif
 #endif
 
 /* RISC-V CPU definitions */
@@ -979,6 +982,16 @@ static void riscv_cpu_reset_hold(Object *obj, ResetType type)
     }
 #ifndef CONFIG_USER_ONLY
     env->misa_mxl = mcc->def->misa_mxl_max;
+#ifdef CONFIG_TCG
+    /* The initial reset has no guest execution to count. */
+    if (tcg_enabled()) {
+        if (qdev_is_realized(DEVICE(cpu))) {
+            riscv_pmu_update_fixed_ctrs(env, PRV_M, false);
+        } else {
+            riscv_pmu_init_fixed_counter_baselines(env);
+        }
+    }
+#endif
     env->priv = PRV_M;
     env->virt_enabled = false;
     env->mstatus &= ~(MSTATUS_MIE | MSTATUS_MPRV);
@@ -1092,6 +1105,9 @@ static void riscv_cpu_reset_hold(Object *obj, ResetType type)
 
 #ifndef CONFIG_USER_ONLY
 #ifdef CONFIG_TCG
+    if (tcg_enabled()) {
+        riscv_pmu_rebuild_timer(env);
+    }
     if (cpu->cfg.debug || cpu->cfg.ext_sdtrig) {
         riscv_trigger_reset_hold(env);
     }
