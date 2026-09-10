@@ -2679,6 +2679,7 @@ static int vhost_user_backend_cleanup(struct vhost_dev *dev)
     if (u->backend_sioc) {
         close_backend_channel(u);
     }
+    virtio_remove_vhost_device(dev);
     g_free(u->region_rb);
     u->region_rb = NULL;
     g_free(u->region_rb_offset);
