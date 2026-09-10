@@ -152,6 +152,14 @@ static void bcm2835_powermgt_init(Object *obj)
                                  bcm2835_powermgt_expire, s);
 }
 
+static void bcm2835_powermgt_finalize(Object *obj)
+{
+    BCM2835PowerMgtState *s = BCM2835_POWERMGT(obj);
+
+    timer_free(s->wdog_timer);
+    s->wdog_timer = NULL;
+}
+
 static void bcm2835_powermgt_reset(DeviceState *dev)
 {
     BCM2835PowerMgtState *s = BCM2835_POWERMGT(dev);
@@ -177,6 +185,7 @@ static const TypeInfo bcm2835_powermgt_info = {
     .instance_size = sizeof(BCM2835PowerMgtState),
     .class_init    = bcm2835_powermgt_class_init,
     .instance_init = bcm2835_powermgt_init,
+    .instance_finalize = bcm2835_powermgt_finalize,
 };
 
 static void bcm2835_powermgt_register_types(void)
