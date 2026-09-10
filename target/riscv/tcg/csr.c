@@ -1327,13 +1327,7 @@ static uint64_t riscv_pmu_ctr_get_fixed_counters_val(CPURISCVState *env,
     }
 
     if (!cfg_val) {
-        if (icount_enabled()) {
-                curr_val = inst ? icount_get_raw() : icount_get();
-        } else {
-            curr_val = cpu_get_host_ticks();
-        }
-
-        return curr_val;
+        return riscv_pmu_read_fixed_source(env, inst);
     }
 
     /* Update counter before reading. */
