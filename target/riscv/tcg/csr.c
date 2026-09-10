@@ -1357,10 +1357,10 @@ static uint64_t riscv_pmu_ctr_get_fixed_counters_val(CPURISCVState *env,
 }
 
 static RISCVException riscv_pmu_write_ctr(CPURISCVState *env, target_ulong val,
-                                          uint32_t ctr_idx)
+                                          uint32_t ctr_idx, RISCVMXL xl)
 {
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
-    bool rv32 = riscv_cpu_mxl(env) == MXL_RV32;
+    bool rv32 = xl == MXL_RV32;
     int deposit_size = rv32 ? 32 : 64;
     uint64_t ctr;
 
@@ -1418,7 +1418,7 @@ static RISCVException write_mhpmcounter(CPURISCVState *env, int csrno,
 {
     int ctr_idx = csrno - CSR_MCYCLE;
 
-    return riscv_pmu_write_ctr(env, val, ctr_idx);
+    return riscv_pmu_write_ctr(env, val, ctr_idx, riscv_cpu_mxl(env));
 }
 
 static RISCVException write_mhpmcounterh(CPURISCVState *env, int csrno,
@@ -1430,10 +1430,11 @@ static RISCVException write_mhpmcounterh(CPURISCVState *env, int csrno,
 }
 
 RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
-                                  bool upper_half, uint32_t ctr_idx)
+                                  bool upper_half, uint32_t ctr_idx,
+                                  RISCVMXL xl)
 {
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
-    bool rv32 = riscv_cpu_mxl(env) == MXL_RV32;
+    bool rv32 = xl == MXL_RV32;
     int start = upper_half ? 32 : 0;
     int length = rv32 ? 32 : 64;
     uint64_t ctr_val;
@@ -1482,7 +1483,7 @@ static RISCVException read_hpmcounter(CPURISCVState *env, int csrno,
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
-    return riscv_pmu_read_ctr(env, val, false, ctr_index);
+    return riscv_pmu_read_ctr(env, val, false, ctr_index, riscv_cpu_mxl(env));
 }
 
 static RISCVException read_hpmcounterh(CPURISCVState *env, int csrno,
@@ -1498,21 +1499,23 @@ static RISCVException read_hpmcounterh(CPURISCVState *env, int csrno,
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
-    return riscv_pmu_read_ctr(env, val, true, ctr_index);
+    return riscv_pmu_read_ctr(env, val, true, ctr_index, riscv_cpu_mxl(env));
 }
 
 static int rmw_cd_mhpmcounter(CPURISCVState *env, int ctr_idx,
                               target_ulong *val, target_ulong new_val,
                               target_ulong wr_mask)
 {
-    if (wr_mask != 0 && wr_mask != -1) {
+    uint64_t xlen_mask = env->xl == MXL_RV32 ? UINT32_MAX : UINT64_MAX;
+
+    if (wr_mask != 0 && wr_mask != xlen_mask) {
         return -EINVAL;
     }
 
     if (!wr_mask && val) {
-        riscv_pmu_read_ctr(env, val, false, ctr_idx);
+        riscv_pmu_read_ctr(env, val, false, ctr_idx, env->xl);
     } else if (wr_mask) {
-        riscv_pmu_write_ctr(env, new_val, ctr_idx);
+        riscv_pmu_write_ctr(env, new_val, ctr_idx, env->xl);
     } else {
         return -EINVAL;
     }
@@ -1524,12 +1527,12 @@ static int rmw_cd_mhpmcounterh(CPURISCVState *env, int ctr_idx,
                                target_ulong *val, target_ulong new_val,
                                target_ulong wr_mask)
 {
-    if (wr_mask != 0 && wr_mask != -1) {
+    if (wr_mask != 0 && wr_mask != UINT32_MAX) {
         return -EINVAL;
     }
 
     if (!wr_mask && val) {
-        riscv_pmu_read_ctr(env, val, true, ctr_idx);
+        riscv_pmu_read_ctr(env, val, true, ctr_idx, env->xl);
     } else if (wr_mask) {
         riscv_pmu_write_ctrh(env, new_val, ctr_idx);
     } else {
@@ -1544,8 +1547,9 @@ static int rmw_cd_mhpmevent(CPURISCVState *env, int ctr_idx,
                             uint64_t wr_mask)
 {
     uint64_t mhpmevt_val = env->mhpmevent_val[ctr_idx];
+    uint64_t xlen_mask = env->xl == MXL_RV32 ? UINT32_MAX : UINT64_MAX;
 
-    if (wr_mask != 0 && wr_mask != -1) {
+    if (wr_mask != 0 && wr_mask != xlen_mask) {
         return -EINVAL;
     }
 
@@ -1573,7 +1577,7 @@ static int rmw_cd_mhpmeventh(CPURISCVState *env, int ctr_idx,
     uint64_t mhpmevt_val = env->mhpmevent_val[ctr_idx];
     uint32_t mhpmevth_val = extract64(mhpmevt_val, 32, 32);
 
-    if (wr_mask != 0 && wr_mask != -1) {
+    if (wr_mask != 0 && wr_mask != UINT32_MAX) {
         return -EINVAL;
     }
 
@@ -1629,10 +1633,6 @@ static int rmw_cd_ctr_cfgh(CPURISCVState *env, int cfg_index, target_ulong *val,
                            target_ulong new_val, target_ulong wr_mask)
 {
     uint64_t cfgh;
-
-    if (riscv_cpu_mxl(env) != MXL_RV32) {
-        return RISCV_EXCP_ILLEGAL_INST;
-    }
 
     switch (cfg_index) {
     case 0:         /* CYCLECFGH */
@@ -2809,9 +2809,9 @@ static int rmw_xireg_cd(CPURISCVState *env, int csrno,
         goto done;
     }
 
-    /* sireg4 and sireg5 provides access RV32 only CSRs */
+    /* Delegated high halves are accessible only when the current XLEN is 32. */
     if (((csrno == CSR_SIREG5) || (csrno == CSR_SIREG4)) &&
-        (riscv_cpu_mxl(env) != MXL_RV32)) {
+        env->xl != MXL_RV32) {
         ret = RISCV_EXCP_ILLEGAL_INST;
         goto done;
     }

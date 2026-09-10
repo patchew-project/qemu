@@ -61,6 +61,37 @@ tests += {
   }
 }
 
+# Exercise RV32 CSRs with the RV64 emulator's 64-bit target_ulong.
+tests += {
+  '../riscv32/smcdeleg-rv32.S': {
+    'cflags': cflags + ['-march=rv32im_zicsr', '-mabi=ilp32'],
+    'qemu_args': ['-cpu', 'rv32,smcdeleg=true,ssccfg=true,sscofpmf=true', qemu_args],
+  },
+}
+
+tests += {
+  'smcdeleg-sxl32.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'max', qemu_args],
+  },
+}
+
+tests += {
+  'smcdeleg-sxl32.S': {
+    'exe_name': 'smcdeleg-sxl32-high',
+    'cflags': cflags + ['-DTEST_HIGH_HALF'],
+    'qemu_args': ['-cpu', 'max', qemu_args],
+  },
+}
+
+tests += {
+  'smcdeleg-sxl32.S': {
+    'exe_name': 'smcdeleg-sxl32-cfg',
+    'cflags': cflags + ['-DTEST_CONFIG'],
+    'qemu_args': ['-cpu', 'max', qemu_args],
+  },
+}
+
 tests += {
   'sscofpmf-overflow.S': {
     'cflags': cflags,
