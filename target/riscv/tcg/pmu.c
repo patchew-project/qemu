@@ -387,18 +387,39 @@ void riscv_pmu_write_inhibit(CPURISCVState *env, uint32_t value)
 
 void riscv_pmu_decr_instret(CPURISCVState *env)
 {
-    if (!icount_enabled() ||
-        (env->mcountinhibit & COUNTEREN_IR) ||
-        riscv_pmu_counter_filtered(env, env->minstretcfg)) {
+    RISCVCPU *cpu = env_archcpu(env);
+    uint32_t ctr_mask;
+
+    if (!icount_enabled()) {
         return;
     }
 
     /*
-     * minstret is derived from icount, which includes the current
-     * instruction.  Move the baseline forward to exclude an instruction
-     * that raises an exception and therefore does not retire.
+     * Fixed instruction events are derived from icount, which includes the
+     * current instruction.  Move the baseline of each running
+     * instruction-source counter that counts the current privilege mode to
+     * exclude an instruction that raises an exception and does not retire.
+     *
+     * Do not read icount here: this helper can run in the middle of a TB.
+     * Excluding an instruction only postpones overflow, so keep the current
+     * timer deadline. The expiry handler checks for an actual counter wrap.
      */
-    env->pmu_ctrs[2].mhpmcounter_prev++;
+    ctr_mask = COUNTEREN_IR |
+               riscv_pmu_event_counter_mask(
+                   cpu, RISCV_PMU_EVENT_HW_INSTRUCTIONS);
+    while (ctr_mask) {
+        uint32_t ctr_idx = ctz32(ctr_mask);
+        uint64_t cfg = ctr_idx == 2 ? env->minstretcfg :
+                                      env->mhpmevent_val[ctr_idx];
+
+        ctr_mask &= ~BIT(ctr_idx);
+        if (!riscv_pmu_fixed_ctr_running(env, ctr_idx) ||
+            riscv_pmu_counter_filtered(env, cfg)) {
+            continue;
+        }
+
+        env->pmu_ctrs[ctr_idx].mhpmcounter_prev++;
+    }
 }
 
 int riscv_pmu_incr_ctr(RISCVCPU *cpu, enum riscv_pmu_event_idx event_idx)

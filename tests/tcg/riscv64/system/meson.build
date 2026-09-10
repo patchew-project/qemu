@@ -61,6 +61,13 @@ tests += {
   }
 }
 
+tests += {
+  'pmu-lpad.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'max', '-icount', 'shift=0', qemu_args],
+  },
+}
+
 # Exercise RV32 CSRs with the RV64 emulator's 64-bit target_ulong.
 tests += {
   '../riscv32/smcdeleg-rv32.S': {
