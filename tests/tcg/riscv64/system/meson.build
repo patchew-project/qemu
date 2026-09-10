@@ -142,6 +142,13 @@ tests += {
   },
 }
 
+tests += {
+  'pmu-reset-vs.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'max,smcntrpmf=true', '-icount', 'shift=0', qemu_args],
+  },
+}
+
 if 'qemu-system-riscv64' in emulators
   tcg_tests += {
     'riscv64-softmmu': {
