@@ -26,13 +26,6 @@
 #include "system/device_tree.h"
 #include "system/cpu-timers.h"
 
-/*
- * cpu_get_ticks() does not expose the host tick frequency.  Use a 1 GHz
- * approximation only when scheduling non-icount overflow checks; fixed
- * counter values remain in host-tick units.
- */
-#define RISCV_PMU_HOST_TICK_HZ_ASSUMED 1000000000
-
 static bool riscv_pmu_counter_valid(RISCVCPU *cpu, uint32_t ctr_idx)
 {
     if (ctr_idx < 3 || ctr_idx >= RV_MAX_MHPMCOUNTERS ||
@@ -324,7 +317,6 @@ void riscv_pmu_write_event(CPURISCVState *env, uint32_t ctr_idx,
                            uint64_t value, uint64_t wr_mask)
 {
     RISCVPMUFixedSnapshot snapshot;
-    PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
 
     riscv_pmu_take_fixed_snapshot(env, &snapshot);
     if (riscv_pmu_fixed_ctr_running(env, ctr_idx)) {
@@ -337,10 +329,7 @@ void riscv_pmu_write_event(CPURISCVState *env, uint32_t ctr_idx,
     if (riscv_pmu_fixed_ctr_enabled(env, ctr_idx)) {
         riscv_pmu_set_fixed_baseline(env, ctr_idx, &snapshot);
     }
-
-    if (riscv_pmu_fixed_ctr_running(env, ctr_idx)) {
-        riscv_pmu_setup_timer(env, counter->mhpmcounter_val, ctr_idx);
-    }
+    riscv_pmu_rebuild_timer(env);
 }
 
 void riscv_pmu_write_counter(CPURISCVState *env, uint32_t ctr_idx,
@@ -349,23 +338,19 @@ void riscv_pmu_write_counter(CPURISCVState *env, uint32_t ctr_idx,
     RISCVPMUFixedSnapshot snapshot;
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
     bool rv32 = xl == MXL_RV32;
-    bool running;
     int start = upper_half ? 32 : 0;
     int length = rv32 ? 32 : 64;
 
     g_assert(rv32 || !upper_half);
 
     riscv_pmu_take_fixed_snapshot(env, &snapshot);
-    running = riscv_pmu_fixed_ctr_running(env, ctr_idx);
-    if (running) {
+    if (riscv_pmu_fixed_ctr_running(env, ctr_idx)) {
         riscv_pmu_accumulate_fixed_delta(env, ctr_idx, &snapshot);
     }
     counter->mhpmcounter_val = deposit64(counter->mhpmcounter_val,
                                          start, length, value);
     /* mhpmcounter_prev tracks the source, not the written counter value. */
-    if (running && ctr_idx > 2) {
-        riscv_pmu_setup_timer(env, counter->mhpmcounter_val, ctr_idx);
-    }
+    riscv_pmu_rebuild_timer(env);
 }
 
 void riscv_pmu_write_inhibit(CPURISCVState *env, uint32_t value)
@@ -396,11 +381,8 @@ void riscv_pmu_write_inhibit(CPURISCVState *env, uint32_t value)
         if (riscv_pmu_fixed_ctr_enabled(env, ctr_idx)) {
             riscv_pmu_set_fixed_baseline(env, ctr_idx, &snapshot);
         }
-        if (ctr_idx > 2 && riscv_pmu_fixed_ctr_running(env, ctr_idx)) {
-            riscv_pmu_setup_timer(env, env->pmu_ctrs[ctr_idx].mhpmcounter_val,
-                                  ctr_idx);
-        }
     }
+    riscv_pmu_rebuild_timer(env);
 }
 
 void riscv_pmu_decr_instret(CPURISCVState *env)
@@ -512,17 +494,6 @@ static bool riscv_pmu_event_supported(uint32_t event_idx)
     }
 }
 
-static int64_t pmu_ticks_to_ns(CPURISCVState *env, uint32_t ctr_idx,
-                               int64_t value)
-{
-    if (icount_enabled() &&
-        riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
-        return icount_to_ns(value);
-    }
-
-    return (NANOSECONDS_PER_SECOND / RISCV_PMU_HOST_TICK_HZ_ASSUMED) * value;
-}
-
 void riscv_pmu_rebuild_event_map(CPURISCVState *env)
 {
     uint32_t ctr_idx, ctr_mask, event_idx;
@@ -551,87 +522,124 @@ void riscv_pmu_rebuild_event_map(CPURISCVState *env)
     }
 }
 
-static bool pmu_hpmevent_set_of_if_clear(CPURISCVState *env, uint32_t ctr_idx)
+static int64_t riscv_pmu_overflow_delay_ns(CPURISCVState *env,
+                                           uint32_t ctr_idx,
+                                           uint64_t value, int64_t now)
 {
-    if (!get_field(env->mhpmevent_val[ctr_idx], MHPMEVENT_BIT_OF)) {
-        env->mhpmevent_val[ctr_idx] |= MHPMEVENT_BIT_OF;
-        return true;
-    } else {
-        return false;
+    uint64_t remaining;
+    uint64_t max_delay = INT64_MAX - now;
+
+    if (!value) {
+        /* A complete 64-bit wrap is beyond the signed timer horizon. */
+        return max_delay;
     }
-}
+    remaining = -value;
 
-static void pmu_timer_trigger_irq_counter(RISCVCPU *cpu, uint32_t ctr_idx)
-{
-    CPURISCVState *env = &cpu->env;
-    PMUCTRState *counter;
-    int64_t irq_trigger_at;
-    uint64_t curr_ctr_val, curr_ctrh_val;
-    uint64_t ctr_val;
+    if (icount_enabled() &&
+        riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
+        /* Use one adaptive-shift sample for both bounds and conversion. */
+        uint64_t ns_per_tick = icount_to_ns(1);
+        uint64_t max_ticks = max_delay / ns_per_tick;
 
-    if (!riscv_pmu_counter_enabled(cpu, ctr_idx)) {
-        return;
-    }
-
-    /* Generate interrupt only if OF bit is clear */
-    if (get_field(env->mhpmevent_val[ctr_idx], MHPMEVENT_BIT_OF)) {
-        return;
-    }
-
-    counter = &env->pmu_ctrs[ctr_idx];
-    if (counter->irq_overflow_left > 0) {
-        irq_trigger_at = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                        counter->irq_overflow_left;
-        timer_mod_anticipate_ns(cpu->pmu_timer, irq_trigger_at);
-        counter->irq_overflow_left = 0;
-        return;
-    }
-
-    riscv_pmu_read_ctr(env, (target_ulong *)&curr_ctr_val, false, ctr_idx,
-                        riscv_cpu_mxl(env));
-    ctr_val = counter->mhpmcounter_val;
-    if (riscv_cpu_mxl(env) == MXL_RV32) {
-        riscv_pmu_read_ctr(env, (target_ulong *)&curr_ctrh_val, true, ctr_idx,
-                            riscv_cpu_mxl(env));
-        curr_ctr_val = curr_ctr_val | (curr_ctrh_val << 32);
+        if (remaining > max_ticks) {
+            return max_delay;
+        }
+        return remaining * ns_per_tick;
     }
 
     /*
-     * We can not accommodate for inhibited modes when setting up timer. Check
-     * if the counter has actually overflowed or not by comparing current
-     * counter value (accommodated for inhibited modes) with software written
-     * counter value.
+     * Cycle under icount is already virtual ns.  Non-icount fixed events
+     * retain QEMU's existing one-host-tick-per-ns deadline approximation.
      */
-    if (curr_ctr_val >= ctr_val) {
-        riscv_pmu_setup_timer(env, curr_ctr_val, ctr_idx);
+    return MIN(remaining, max_delay);
+}
+
+static void riscv_pmu_rebuild_timer_internal(CPURISCVState *env,
+                                             bool timer_expired)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+    RISCVPMUFixedSnapshot snapshot;
+    uint32_t ctr_idx;
+    uint32_t ctr_mask;
+    int64_t deadline = INT64_MAX;
+    int64_t now;
+    bool have_deadline = false;
+    bool timer_horizon_exhausted;
+    bool stalled = false;
+
+    if (!cpu->pmu_timer) {
         return;
     }
 
-    if (cpu->pmu_avail_ctrs & BIT(ctr_idx)) {
-        if (pmu_hpmevent_set_of_if_clear(env, ctr_idx)) {
-            riscv_cpu_update_mip(env, MIP_LCOFIP, BOOL_TO_MASK(1));
+    riscv_pmu_take_fixed_snapshot(env, &snapshot);
+    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    /* No future absolute timer deadline is representable at this point. */
+    timer_horizon_exhausted = now == INT64_MAX;
+
+    ctr_mask = riscv_pmu_event_counter_mask(
+        cpu, RISCV_PMU_EVENT_HW_CPU_CYCLES);
+    ctr_mask |= riscv_pmu_event_counter_mask(
+        cpu, RISCV_PMU_EVENT_HW_INSTRUCTIONS);
+
+    while (ctr_mask) {
+        PMUCTRState *counter;
+        int64_t candidate;
+
+        ctr_idx = ctz32(ctr_mask);
+        ctr_mask &= ~BIT(ctr_idx);
+        counter = &env->pmu_ctrs[ctr_idx];
+
+        if (!riscv_pmu_fixed_ctr_running(env, ctr_idx)) {
+            continue;
         }
+        riscv_pmu_accumulate_fixed_delta(env, ctr_idx, &snapshot);
+        if ((env->mhpmevent_val[ctr_idx] & MHPMEVENT_BIT_OF) ||
+            riscv_pmu_counter_filtered(env,
+                                       env->mhpmevent_val[ctr_idx])) {
+            continue;
+        }
+
+        /*
+         * Settle current deltas and overflows even when no future deadline is
+         * representable.
+         */
+        if (timer_horizon_exhausted) {
+            continue;
+        }
+
+        if (timer_expired && icount_enabled() &&
+            riscv_pmu_ctr_monitor_instructions(env, ctr_idx) &&
+            snapshot.instret == cpu->pmu_timer_instret_snapshot) {
+            /*
+             * Icount can warp QEMU_CLOCK_VIRTUAL to this deadline without
+             * executing an instruction. Re-arming the unchanged instruction
+             * distance would create a warp/rearm loop; defer it until this
+             * CPU enters execution again.
+             */
+            stalled = true;
+            continue;
+        }
+
+        candidate = now + riscv_pmu_overflow_delay_ns(
+                              env, ctr_idx, counter->mhpmcounter_val, now);
+        if (!have_deadline || candidate < deadline) {
+            deadline = candidate;
+            have_deadline = true;
+        }
+    }
+
+    cpu->pmu_timer_instret_snapshot = snapshot.instret;
+    cpu->pmu_timer_stalled = stalled;
+    if (have_deadline) {
+        timer_mod_ns(cpu->pmu_timer, deadline);
+    } else {
+        timer_del(cpu->pmu_timer);
     }
 }
 
-static void pmu_timer_trigger_irq(RISCVCPU *cpu,
-                                  enum riscv_pmu_event_idx evt_idx)
+void riscv_pmu_rebuild_timer(CPURISCVState *env)
 {
-    uint32_t ctr_idx;
-    uint32_t ctr_mask;
-
-    if (evt_idx != RISCV_PMU_EVENT_HW_CPU_CYCLES &&
-        evt_idx != RISCV_PMU_EVENT_HW_INSTRUCTIONS) {
-        return;
-    }
-
-    ctr_mask = riscv_pmu_event_counter_mask(cpu, evt_idx);
-
-    while (ctr_mask) {
-        ctr_idx = ctz32(ctr_mask);
-        ctr_mask &= ~BIT(ctr_idx);
-        pmu_timer_trigger_irq_counter(cpu, ctr_idx);
-    }
+    riscv_pmu_rebuild_timer_internal(env, false);
 }
 
 /* Timer callback for instret and cycle counter overflow */
@@ -639,60 +647,7 @@ void riscv_pmu_timer_cb(void *priv)
 {
     RISCVCPU *cpu = priv;
 
-    /* Timer event was triggered only for these events */
-    pmu_timer_trigger_irq(cpu, RISCV_PMU_EVENT_HW_CPU_CYCLES);
-    pmu_timer_trigger_irq(cpu, RISCV_PMU_EVENT_HW_INSTRUCTIONS);
-}
-
-int riscv_pmu_setup_timer(CPURISCVState *env, uint64_t value, uint32_t ctr_idx)
-{
-    uint64_t overflow_delta, overflow_at, curr_ns;
-    int64_t overflow_ns, overflow_left = 0;
-    RISCVCPU *cpu = env_archcpu(env);
-    PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
-
-    /* No need to setup a timer if LCOFI is disabled when OF is set */
-    if (!riscv_pmu_counter_valid(cpu, ctr_idx) || !cpu->cfg.ext_sscofpmf ||
-        get_field(env->mhpmevent_val[ctr_idx], MHPMEVENT_BIT_OF)) {
-        return -1;
-    }
-
-    if (value) {
-        overflow_delta = UINT64_MAX - value + 1;
-    } else {
-        overflow_delta = UINT64_MAX;
-    }
-
-    /*
-     * QEMU supports only int64_t timers while RISC-V counters are uint64_t.
-     * Compute the leftover and save it so that it can be reprogrammed again
-     * when timer expires.
-     */
-    if (overflow_delta > INT64_MAX) {
-        overflow_left = overflow_delta - INT64_MAX;
-    }
-
-    if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
-        riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
-        overflow_ns = pmu_ticks_to_ns(env, ctr_idx,
-                                      (int64_t)overflow_delta);
-        overflow_left = pmu_ticks_to_ns(env, ctr_idx, overflow_left);
-    } else {
-        return -1;
-    }
-    curr_ns = (uint64_t)qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    overflow_at =  curr_ns + overflow_ns;
-    if (overflow_at <= curr_ns)
-        overflow_at = UINT64_MAX;
-
-    if (overflow_at > INT64_MAX) {
-        overflow_left += overflow_at - INT64_MAX;
-        counter->irq_overflow_left = overflow_left;
-        overflow_at = INT64_MAX;
-    }
-    timer_mod_anticipate_ns(cpu->pmu_timer, overflow_at);
-
-    return 0;
+    riscv_pmu_rebuild_timer_internal(&cpu->env, true);
 }
 
 

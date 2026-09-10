@@ -889,6 +889,8 @@ void riscv_cpu_set_mode(CPURISCVState *env, privilege_mode_t newpriv,
             riscv_cpu_update_mip(env, 0, 0);
         }
     }
+
+    riscv_pmu_rebuild_timer(env);
 }
 
 /*

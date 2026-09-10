@@ -247,6 +247,15 @@ static void riscv_restore_state_to_opc(CPUState *cs,
 }
 
 #ifndef CONFIG_USER_ONLY
+static void riscv_cpu_exec_enter(CPUState *cs)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+
+    if (cpu->pmu_timer_stalled) {
+        riscv_pmu_rebuild_timer(&cpu->env);
+    }
+}
+
 static vaddr riscv_pointer_wrap(CPUState *cs, int mmu_idx,
                                 vaddr result, vaddr base)
 {
@@ -283,6 +292,7 @@ const TCGCPUOps riscv_tcg_ops = {
     .mmu_index = riscv_cpu_mmu_index,
 
 #ifndef CONFIG_USER_ONLY
+    .cpu_exec_enter = riscv_cpu_exec_enter,
     .tlb_fill = riscv_cpu_tlb_fill,
     .pointer_wrap = riscv_pointer_wrap,
     .cpu_exec_interrupt = riscv_cpu_exec_interrupt,
