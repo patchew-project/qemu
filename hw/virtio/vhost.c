@@ -1481,8 +1481,10 @@ int vhost_virtqueue_start(struct vhost_dev *dev,
      * will do it later.
      */
     if (!vdev->use_guest_notifier_mask) {
-        /* TODO: check and handle errors. */
-        vhost_virtqueue_mask(dev, vdev, idx, false);
+        r = vhost_virtqueue_mask(dev, vdev, idx, false);
+        if (r < 0) {
+            goto fail;
+        }
     }
 
     if (k->query_guest_notifiers &&
@@ -1962,7 +1964,7 @@ bool vhost_virtqueue_pending(struct vhost_dev *hdev, int n)
 }
 
 /* Mask/unmask events from this vq. */
-void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
+int vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
                          bool mask)
 {
     struct VirtQueue *vvq = virtio_get_queue(vdev, n);
@@ -1983,7 +1985,9 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
     r = hdev->vhost_ops->vhost_set_vring_call(hdev, &file);
     if (r < 0) {
         error_report("vhost_set_vring_call failed %d", -r);
+        return r;
     }
+    return 0;
 }
 
 bool vhost_config_pending(struct vhost_dev *hdev)
