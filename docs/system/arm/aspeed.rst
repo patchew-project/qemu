@@ -75,7 +75,6 @@ Missing devices
  * Slave GPIO Controller
  * Super I/O Controller
  * PCI-Express 1 Controller
- * Graphic Display Controller
  * MCTP Controller
  * Mailbox Controller
  * Virtual UART
@@ -319,7 +318,6 @@ Missing devices
  * Slave GPIO Controller
  * Super I/O Controller
  * PCI-Express 1 Controller
- * Graphic Display Controller
  * MCTP Controller
  * Mailbox Controller
  * Virtual UART
@@ -512,3 +510,38 @@ To boot a kernel directly from a Zephyr build tree:
 
   $ qemu-system-arm -M ast1030-evb -nographic \
         -kernel zephyr.bin
+
+VGA display controller
+======================
+
+The display controller of the Aspeed SoCs is reached by the host as a PCI
+VGA endpoint, so it is modelled as a device to be plugged into whichever
+machine plays that host rather than as part of the BMC machines above:
+
+- ``ast2600-vga``          Aspeed AST2600 VGA
+- ``ast2700-vga``          Aspeed AST2700 VGA
+
+The size of the framebuffer aperture is set with ``vgamem_mb``, 32 MiB by
+default. The device comes up with the standard VGA BIOS; pass ``romfile``
+to use Aspeed's own option ROM instead, which can be downloaded from
+https://www.aspeedtech.com/support_driver/
+
+To plug one into an ``aarch64`` guest standing in for the host:
+
+.. code-block:: bash
+
+  $ qemu-system-aarch64 \
+        -M virt \
+        -cpu neoverse-n1 -smp 8 -m 4G \
+        -bios edk2-aarch64-code.fd \
+        -device ast2700-vga,vgamem_mb=32,romfile=uefi_arm_2700_vga.rom \
+        -drive file=noble-server-cloudimg-arm64.img,format=qcow2 \
+        -device qemu-xhci,id=xhci \
+        -device usb-kbd,bus=xhci.0 \
+        -device usb-tablet,bus=xhci.0 \
+        -display vnc=0.0.0.0:0
+
+The disk image is an Ubuntu cloud image from
+https://cloud-images.ubuntu.com/. The output goes to the VNC backend on
+display 0, which listens on TCP port 5900, so point a VNC viewer at that
+port to see the screen.
