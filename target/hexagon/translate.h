@@ -91,6 +91,7 @@ typedef struct DisasContext {
     bool pcycle_enabled;
     bool hvx_coproc_enabled;
     bool hvx_check_emitted;
+    TCGv_ptr hvx_base;
     uint32_t num_cycles;
 } DisasContext;
 
@@ -192,9 +193,9 @@ static inline void ctx_log_reg_read_pair(DisasContext *ctx, int rnum)
 }
 
 intptr_t ctx_future_vreg_off(DisasContext *ctx, int regnum,
-                             int num, bool alloc_ok);
+                             int num, bool alloc_ok, TCGv_ptr *base);
 intptr_t ctx_tmp_vreg_off(DisasContext *ctx, int regnum,
-                          int num, bool alloc_ok);
+                          int num, bool alloc_ok, TCGv_ptr *base);
 
 static inline void ctx_start_hvx_insn(DisasContext *ctx)
 {
