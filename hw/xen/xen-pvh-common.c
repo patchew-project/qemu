@@ -504,6 +504,7 @@ static const TypeInfo xen_pvh_info = {
     .name = TYPE_XEN_PVH_MACHINE,
     .parent = TYPE_MACHINE,
     .abstract = true,
+    .secure = true,
     .instance_size = sizeof(XenPVHMachineState),
     .instance_init = xen_pvh_instance_init,
     .class_size = sizeof(XenPVHMachineClass),
