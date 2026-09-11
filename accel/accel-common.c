@@ -125,6 +125,7 @@ static const TypeInfo accel_types[] = {
         .class_size     = sizeof(AccelClass),
         .instance_size  = sizeof(AccelState),
         .abstract       = true,
+        .secure         = true,
     },
 };
 
@@ -137,6 +138,7 @@ static void register_accel_target_type(void)
         .name = name,
         .parent = TYPE_OBJECT,
         .abstract = true,
+        .secure = true,
         .class_size = sizeof(AccelCPUClass),
     };
 
