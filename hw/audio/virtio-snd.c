@@ -1410,6 +1410,7 @@ static const TypeInfo virtio_snd_types[] = {
       .parent        = TYPE_VIRTIO_DEVICE,
       .instance_size = sizeof(VirtIOSound),
       .class_init    = virtio_snd_class_init,
+      .secure        = true,
     }
 };
 
