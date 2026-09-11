@@ -131,35 +131,36 @@ static void tegra241_cmdqv_reset_vcmdq_cache(Tegra241CMDQV *cmdqv, int index)
 
 static void tegra241_cmdqv_guest_unmap_vintf_page0(Tegra241CMDQV *cmdqv)
 {
-    if (!cmdqv->mr_vintf_page0) {
+    if (!memory_region_is_mapped(&cmdqv->mr_vintf_page0)) {
         return;
     }
 
-    memory_region_del_subregion(&cmdqv->mmio_cmdqv, cmdqv->mr_vintf_page0);
-    object_unparent(OBJECT(cmdqv->mr_vintf_page0));
-    g_free(cmdqv->mr_vintf_page0);
-    cmdqv->mr_vintf_page0 = NULL;
+    /*
+     * Keep the region parented: old FlatViews can retain a pointer to it
+     * until their RCU callbacks have run.
+     */
+    memory_region_set_enabled(&cmdqv->mr_vintf_page0, false);
 }
 
 static void tegra241_cmdqv_guest_map_vintf_page0(Tegra241CMDQV *cmdqv)
 {
     char *name;
 
-    if (cmdqv->mr_vintf_page0) {
+    if (memory_region_is_mapped(&cmdqv->mr_vintf_page0)) {
+        memory_region_set_enabled(&cmdqv->mr_vintf_page0, true);
         return;
     }
 
     name = g_strdup_printf("%s vintf-page0",
                            memory_region_name(&cmdqv->mmio_cmdqv));
-    cmdqv->mr_vintf_page0 = g_malloc0(sizeof(*cmdqv->mr_vintf_page0));
-    memory_region_init_ram_device_ptr(cmdqv->mr_vintf_page0,
+    memory_region_init_ram_device_ptr(&cmdqv->mr_vintf_page0,
                                       memory_region_owner(&cmdqv->mmio_cmdqv),
                                       name, VINTF_PAGE_SIZE,
                                       cmdqv->vintf_page0);
-    memory_region_set_skip_iommu_map(cmdqv->mr_vintf_page0, true);
+    memory_region_set_skip_iommu_map(&cmdqv->mr_vintf_page0, true);
     memory_region_add_subregion_overlap(&cmdqv->mmio_cmdqv,
                                         CMDQV_VINTF_PAGE0_BASE,
-                                        cmdqv->mr_vintf_page0, 1);
+                                        &cmdqv->mr_vintf_page0, 1);
     g_free(name);
 }
 
