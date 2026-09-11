@@ -1963,6 +1963,7 @@ static const TypeInfo virtio_gpu_info = {
     .instance_size = sizeof(VirtIOGPU),
     .class_size = sizeof(VirtIOGPUClass),
     .class_init = virtio_gpu_class_init,
+    .secure = true,
 };
 module_obj(TYPE_VIRTIO_GPU);
 module_kconfig(VIRTIO_GPU);
