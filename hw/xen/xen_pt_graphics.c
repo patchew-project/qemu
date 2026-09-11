@@ -187,6 +187,13 @@ void xen_pt_setup_vga(XenPCIPassthroughState *s, XenHostPCIDevice *dev,
         return;
     }
 
+    /* Case when the host ROM file from sysfs could not be read */
+    if (!bios_size) {
+        object_unparent(OBJECT(&s->dev.rom));
+        bios = NULL;
+        return;
+    }
+
     if (bios_size < sizeof(struct rom_header)) {
         error_setg(errp, "VGA: VBIOS image corrupt (too small)");
         return;
