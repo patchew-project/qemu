@@ -1656,9 +1656,9 @@
 
 ##
 # @SMPConfiguration:
-#
-# Schema for CPU topology configuration.  A missing value lets QEMU
-# figure out a suitable value based on the ones that are provided.
+#     Schema for CPU topology configuration.  A missing value lets
+#     QEMU figure out a suitable value based on the ones that are
+#     provided.
 #
 # The members other than @cpus and @maxcpus define a topology of
 # containers.
@@ -1928,8 +1928,7 @@
 
 ##
 # @CpuModelInfo:
-#
-# Virtual CPU model.
+#     Virtual CPU model.
 #
 # A CPU model consists of the name of a CPU definition, to which delta
 # changes are applied (e.g. features added/removed).  Most magic
