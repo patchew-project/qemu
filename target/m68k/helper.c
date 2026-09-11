@@ -123,6 +123,48 @@ static int m68k_fpu_gdb_set_reg(CPUState *cs, uint8_t *mem_buf, int n)
     return 0;
 }
 
+#ifndef CONFIG_USER_ONLY
+static int m68k_gdb_read_system_register(CPUState *cs, GByteArray *buf, int n)
+{
+    CPUM68KState *env = cpu_env(cs);
+    static const int stacks[] = { M68K_SSP, M68K_USP, M68K_ISP };
+
+    if (n >= 0 && n < ARRAY_SIZE(stacks)) {
+        int sp = stacks[n];
+
+        return gdb_get_reg32(buf, env->sp[sp]);
+    }
+    switch (n) {
+    case 3:
+        return gdb_get_reg32(buf, env->sfc);
+    case 4:
+        return gdb_get_reg32(buf, env->dfc);
+    case 5:
+        return gdb_get_reg32(buf, env->mmu.urp);
+    case 6:
+        return gdb_get_reg32(buf, env->mmu.srp);
+    case 7:
+        return gdb_get_reg32(buf, env->mmu.ttr[M68K_DTTR0]);
+    case 8:
+        return gdb_get_reg32(buf, env->mmu.ttr[M68K_DTTR1]);
+    case 9:
+        return gdb_get_reg32(buf, env->mmu.ttr[M68K_ITTR0]);
+    case 10:
+        return gdb_get_reg32(buf, env->mmu.ttr[M68K_ITTR1]);
+    case 11:
+        return gdb_get_reg32(buf, env->mmu.mmusr);
+    default:
+        return 0;
+    }
+}
+
+static int m68k_gdb_write_system_register(CPUState *cs, uint8_t *buf, int n)
+{
+    /* These registers are exposed for inspection only. Ignore writes. */
+    return 4;
+}
+#endif
+
 void m68k_cpu_init_gdb(M68kCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -135,6 +177,11 @@ void m68k_cpu_init_gdb(M68kCPU *cpu)
         gdb_register_coprocessor(cs, m68k_fpu_gdb_get_reg, m68k_fpu_gdb_set_reg,
                                  gdb_find_static_feature("m68k-fp.xml"));
     }
+#ifndef CONFIG_USER_ONLY
+    gdb_register_coprocessor(cs, m68k_gdb_read_system_register,
+                             m68k_gdb_write_system_register,
+                             gdb_find_static_feature("m68k-system.xml"));
+#endif
     /* TODO: Add [E]MAC registers.  */
 }
 

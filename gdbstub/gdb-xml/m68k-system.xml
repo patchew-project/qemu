@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!--
+  SPDX-License-Identifier: GPL-2.0-or-later
+-->
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<!-- System-register values are read-only; writes are ignored. -->
+<feature name="org.qemu.gdb.m68k.system">
+  <reg name="ssp" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="usp" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="isp" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="sfc" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="dfc" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="urp" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="srp" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="dttr0" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="dttr1" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="ittr0" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="ittr1" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="mmusr" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+</feature>
