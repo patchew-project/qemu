@@ -4,13 +4,27 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qemu/datadir.h"
 #include "hw/xen/xen_pt.h"
 #include "hw/xen/xen_igd.h"
+#include "hw/xen/xen-hvm-common.h"
 #include "xen-host-pci-device.h"
 #include "system/physmem.h"
 
 static unsigned long igd_guest_opregion;
 static unsigned long igd_host_opregion;
+static uint8_t *opregion_vbt; /* pointer to OpRegion + VBT */
+/*
+ * If there is an extended VBT or if the OpRegion is not aligned on a page
+ * boundary, we will need extra pages for the OpRegion + VBT.
+ */
+static unsigned int extra_opregion_pages;
+static unsigned long opregion_vbt_pages; /* # of pages for OpRegion + VBT */
+static uint16_t version; /* OpRegion version */
+static uint32_t rvds; /* VBT size */
+static unsigned long rvda_host; /* VBT address in host */
+static bool opregion_is_direct_mapped;
+MemoryRegion mr_opregion;
 
 typedef struct VGARegion {
     int type;           /* Memory or port I/O */
@@ -115,12 +129,11 @@ int xen_pt_unregister_vga_regions(XenHostPCIDevice *dev)
         }
     }
 
-    if (igd_guest_opregion) {
+    if (opregion_is_direct_mapped && igd_guest_opregion) {
         ret = xc_domain_memory_mapping(xen_xc, xen_domid,
                 (unsigned long)(igd_guest_opregion >> XC_PAGE_SHIFT),
                 (unsigned long)(igd_host_opregion >> XC_PAGE_SHIFT),
-                3,
-                DPCI_REMOVE_MAPPING);
+                opregion_vbt_pages, DPCI_REMOVE_MAPPING);
         if (ret) {
             return ret;
         }
@@ -237,7 +250,157 @@ void xen_pt_setup_vga(XenPCIPassthroughState *s, XenHostPCIDevice *dev,
 
 uint32_t igd_read_opregion(XenPCIPassthroughState *s)
 {
+    char opregion_file[64], vbt_file[64];
+    FILE *fp = NULL;
+    struct stat st;
+    uint8_t *opregion = NULL, *vbt = NULL;
+    void *ptr = NULL;
     uint32_t val = 0;
+
+    if (!igd_host_opregion) {
+        /* We just work with LE. */
+        xen_host_pci_get_block(&s->real_device, XEN_PCI_IGD_OPREGION,
+                               (uint8_t *)&igd_host_opregion, 4);
+
+        g_autofree const char *fname1 = g_strdup("intel-opregion");
+        g_autofree const char *path1 = qemu_find_file(QEMU_FILE_TYPE_BIOS,
+                                                      fname1);
+        /*
+         * If getting the OpRegion or VBT from the host filesystem fails,
+         * fallback to direct mapping of the host OpRegion to the guest.
+         */
+        if (!path1) {
+            XEN_PT_WARN(&s->dev, "OpRegion host file \"%s\" not found\n",
+                        fname1);
+            goto fallback;
+        }
+        snprintf(opregion_file, sizeof(opregion_file), "%s", path1);
+        fp = fopen(opregion_file, "r");
+        if (fp == NULL) {
+            if (errno != ENOENT) {
+                XEN_PT_WARN(&s->dev, "Cannot open %s: %s\n",
+                            opregion_file, strerror(errno));
+            }
+            goto fallback;
+        }
+        if (fstat(fileno(fp), &st) == -1) {
+            XEN_PT_WARN(&s->dev, "Cannot stat %s: %s\n",
+                        opregion_file, strerror(errno));
+            goto fallback;
+        }
+        if (st.st_size != XEN_PCI_IGD_OPREGION_PAGES << XC_PAGE_SHIFT) {
+            XEN_PT_WARN(&s->dev, "Invalid OpRegion size (%u)\n", st.st_size);
+            goto fallback;
+        }
+        opregion = g_new0(uint8_t, st.st_size);
+        ptr = (void *)opregion;
+        if (fread(ptr, 1, st.st_size, fp) != st.st_size) {
+            XEN_PT_WARN(&s->dev, "Can't read host OpRegion %s\n",
+                        opregion_file);
+            goto fallback;
+        }
+        if (memcmp(ptr, XEN_PCI_IGD_OPREGION_SIGNATURE, 16)) {
+            XEN_PT_WARN(&s->dev, "Invalid OpRegion signature\n");
+            goto fallback;
+        }
+        fclose(fp);
+
+        version = *(uint16_t *)(opregion +
+                                XEN_PCI_IGD_OPREGION_VERSION);
+        XEN_PT_LOG(&s->dev, "OpRegion version: 0x%x\n", version);
+        if (version >= 0x0200) {
+            rvda_host = *(unsigned long *)(opregion +
+                                           XEN_PCI_IGD_OPREGION_RVDA);
+            /* It is convenient to make rvda_host absolute */
+            if (version > 0x0200) {
+                rvda_host += igd_host_opregion;
+            }
+            XEN_PT_LOG(&s->dev, "host VBT address: 0x%lx\n", rvda_host);
+            rvds = *(uint32_t *)(opregion +
+                                 XEN_PCI_IGD_OPREGION_RVDS);
+            XEN_PT_LOG(&s->dev, "VBT size: 0x%x\n", rvds);
+        }
+
+        if (rvds && rvda_host) {
+            g_autofree const char *fname2 = g_strdup("intel-vbt");
+            g_autofree const char *path2 = qemu_find_file(QEMU_FILE_TYPE_BIOS,
+                                                          fname2);
+            if (!path2) {
+                XEN_PT_WARN(&s->dev, "VBT host file \"%s\" not found\n",
+                            fname2);
+            goto fallback;
+            }
+            snprintf(vbt_file, sizeof(vbt_file), "%s", path2);
+            fp = fopen(vbt_file, "r");
+            if (fp == NULL) {
+                if (errno != ENOENT) {
+                    XEN_PT_WARN(&s->dev, "Cannot open %s: %s\n",
+                                vbt_file, strerror(errno));
+                }
+                goto fallback;
+            }
+            if (fstat(fileno(fp), &st) == -1) {
+                XEN_PT_WARN(&s->dev, "Cannot stat %s: %s\n",
+                            vbt_file, strerror(errno));
+                goto fallback;
+            }
+            if (st.st_size != rvds) {
+                XEN_PT_WARN(&s->dev, "Invalid VBT size (%u)\n", st.st_size);
+                goto fallback;
+            }
+            vbt = g_new0(uint8_t, st.st_size);
+            ptr = (void *)vbt;
+            if (fread(ptr, 1, st.st_size, fp) != st.st_size) {
+                XEN_PT_WARN(&s->dev, "Can't read host VBT %s\n",
+                            vbt_file);
+                goto fallback;
+            }
+            if (memcmp(ptr, XEN_PCI_IGD_VBT_SIGNATURE, 4)) {
+                XEN_PT_WARN(&s->dev, "Invalid VBT signature\n");
+                goto fallback;
+            }
+            fclose(fp);
+            extra_opregion_pages = rvds >> XC_PAGE_SHIFT;
+            if (rvds & XEN_PCI_IGD_OPREGION_MASK) {
+                extra_opregion_pages++;
+            }
+            if (((igd_host_opregion & XEN_PCI_IGD_OPREGION_MASK) +
+                (rvds & XEN_PCI_IGD_OPREGION_MASK)) >
+                (1 << XC_PAGE_SHIFT)) {
+                extra_opregion_pages++;
+            }
+        } else {
+            rvda_host = 0;
+            rvds = 0;
+            if (igd_host_opregion & XEN_PCI_IGD_OPREGION_MASK) {
+                extra_opregion_pages = 1;
+            }
+        }
+
+        opregion_vbt_pages = XEN_PCI_IGD_OPREGION_PAGES +
+                             extra_opregion_pages;
+        opregion_vbt = g_new0(uint8_t,
+                              opregion_vbt_pages << XC_PAGE_SHIFT);
+        ptr = (void *)(opregion_vbt +
+                       (igd_host_opregion & XEN_PCI_IGD_OPREGION_MASK));
+        memcpy(ptr, (void *)opregion,
+               XEN_PCI_IGD_OPREGION_PAGES << XC_PAGE_SHIFT);
+        if (rvds) {
+            ptr += (XEN_PCI_IGD_OPREGION_PAGES << XC_PAGE_SHIFT);
+            memcpy(ptr, (void *)vbt, rvds);
+        }
+        g_free(opregion);
+        g_free(vbt);
+        /*
+         * By returning the size of the OpRegion + VBT here instead of 0, we
+         * indicate to hvmloader that we support an extended VBT and we give
+         * hvmloader the information it needs to place the OpRegion + VBT in
+         * the E820 map. Also, in this case the guest read the OpRegion
+         * register before writing to it, which means the guest supports
+         * an extended VBT.
+         */
+        return opregion_vbt_pages;
+    }
 
     if (!igd_guest_opregion) {
         return val;
@@ -247,11 +410,38 @@ uint32_t igd_read_opregion(XenPCIPassthroughState *s)
 
     XEN_PT_LOG(&s->dev, "Read opregion val=%x\n", val);
     return val;
+
+fallback:
+    XEN_PT_LOG(&s->dev, "Fallback to host OpRegion mapping\n");
+    opregion_is_direct_mapped = true;
+    if (fp) {
+        fclose(fp);
+    }
+    g_free(opregion);
+    g_free(vbt);
+    return val;
 }
 
 void igd_write_opregion(XenPCIPassthroughState *s, uint32_t val)
 {
     int ret;
+    static bool opregion_is_ioreq_mapped;
+    static unsigned long igd_guest_opregion_pgbase;
+
+    if (opregion_is_ioreq_mapped && (val == igd_guest_opregion)) {
+        /*
+         * To support Windows IGD drivers that don't work with the OpRegion
+         * and VBT when they are mapped to an ioreq server, hvmloader writes
+         * the value of igd_guest_opregion a second time to signal it is time
+         * to unmap the OpRegion from the ioreq server. Hvmloader has made
+         * a copy of the OpRegion and will configure the guest to use its
+         * copy. In this way, the Windows IGD drivers work as expected.
+         */
+        memory_region_del_subregion(get_system_memory(), &mr_opregion);
+        object_unparent(OBJECT(&mr_opregion));
+        opregion_is_ioreq_mapped = false;
+        XEN_PT_LOG(&s->dev, "Successfully configured emulated OpRegion\n");
+    }
 
     if (igd_guest_opregion) {
         XEN_PT_LOG(&s->dev, "opregion register already been set, ignoring %x\n",
@@ -259,16 +449,73 @@ void igd_write_opregion(XenPCIPassthroughState *s, uint32_t val)
         return;
     }
 
-    /* We just work with LE. */
-    xen_host_pci_get_block(&s->real_device, XEN_PCI_IGD_OPREGION,
-            (uint8_t *)&igd_host_opregion, 4);
+    if (!igd_host_opregion) {
+        /* We just work with LE. */
+        xen_host_pci_get_block(&s->real_device, XEN_PCI_IGD_OPREGION,
+                               (uint8_t *)&igd_host_opregion, 4);
+        opregion_is_direct_mapped = true;
+    }
     igd_guest_opregion = (unsigned long)(val & ~XEN_PCI_IGD_OPREGION_MASK)
                             | (igd_host_opregion & XEN_PCI_IGD_OPREGION_MASK);
+    igd_guest_opregion_pgbase = igd_guest_opregion &
+                                ~XEN_PCI_IGD_OPREGION_MASK;
 
+    if (opregion_is_direct_mapped) {
+        XEN_PT_LOG(&s->dev, "hvmloader lacks extended VBT support, "
+                   "continuing with legacy support only\n");
+        /*
+         * In this case we need to direct map the OpRegion because either we
+         * failed to get a copy of the OpRegion from the host filesystem or
+         * the guest does not support an extended VBT. In this case we also
+         * assume we need an extra page because the OpRegion is not always
+         * aligned on a page boundary.
+         */
+        extra_opregion_pages = 1;
+        opregion_vbt_pages = XEN_PCI_IGD_OPREGION_PAGES +
+                             extra_opregion_pages;
+        goto map;
+    } else {
+        Object *owner = OBJECT(&s->dev);
+        unsigned long rvda_guest = 0; /* VBT address in guest */
+
+        /* Compute rvda value for the guest */
+        if (rvds && (version > 0x0200)) {
+            if (version == 0x0200) {
+                rvda_guest = igd_guest_opregion +
+                             (XEN_PCI_IGD_OPREGION_PAGES << XC_PAGE_SHIFT);
+            } else {
+                /* Convert to relative address */
+                rvda_guest = XEN_PCI_IGD_OPREGION_PAGES << XC_PAGE_SHIFT;
+                rvda_host -= igd_host_opregion;
+            }
+        }
+
+        /* Patch the OpRegion with the correct rvda value for the guest */
+        if (rvds && (rvda_guest != rvda_host)) {
+            *(unsigned long *)(opregion_vbt + (igd_guest_opregion &
+                               XEN_PCI_IGD_OPREGION_MASK) +
+                               XEN_PCI_IGD_OPREGION_RVDA) = rvda_guest;
+            XEN_PT_LOG(&s->dev, "Patched OpRegion with guest rvda = 0x%lx\n",
+                       rvda_guest);
+        }
+
+        /* Configure ioreq server for the emulated OpRegion */
+        memory_region_init_ram(&mr_opregion, owner, "xen.intel.opregion",
+                               opregion_vbt_pages << XC_PAGE_SHIFT,
+                               &error_fatal);
+        memory_region_add_subregion(get_system_memory(),
+                                    igd_guest_opregion_pgbase, &mr_opregion);
+        void *ptr = memory_region_get_ram_ptr(&mr_opregion);
+        memcpy(ptr, (void *)opregion_vbt, opregion_vbt_pages << XC_PAGE_SHIFT);
+        g_free(opregion_vbt);
+        opregion_is_ioreq_mapped = true;
+        return;
+    }
+
+map:
     ret = xc_domain_iomem_permission(xen_xc, xen_domid,
             (unsigned long)(igd_host_opregion >> XC_PAGE_SHIFT),
-            XEN_PCI_IGD_OPREGION_PAGES,
-            XEN_PCI_IGD_OPREGION_ENABLE_ACCESSED);
+            opregion_vbt_pages, XEN_PCI_IGD_OPREGION_ENABLE_ACCESSED);
 
     if (ret) {
         XEN_PT_ERR(&s->dev, "[%d]:Can't enable to access IGD host opregion:"
@@ -281,8 +528,7 @@ void igd_write_opregion(XenPCIPassthroughState *s, uint32_t val)
     ret = xc_domain_memory_mapping(xen_xc, xen_domid,
             (unsigned long)(igd_guest_opregion >> XC_PAGE_SHIFT),
             (unsigned long)(igd_host_opregion >> XC_PAGE_SHIFT),
-            XEN_PCI_IGD_OPREGION_PAGES,
-            DPCI_ADD_MAPPING);
+            opregion_vbt_pages, DPCI_ADD_MAPPING);
 
     if (ret) {
         XEN_PT_ERR(&s->dev, "[%d]:Can't map IGD host opregion:0x%lx to"
