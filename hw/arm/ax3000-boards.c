@@ -12,10 +12,58 @@
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qom/object.h"
+#include "system/device_tree.h"
+
+/*
+ * arm_load_dtb() drops every /memory node found in the DTB and replaces them
+ * with a single node spanning [loader_start, loader_start + ram_size).  The
+ * AX3000 DRAM is split into two banks with the MMIO region in between, so the
+ * generated node would describe unbacked addresses as RAM.  Describe the banks
+ * ourselves instead.
+ */
+static void ax3000_modify_dtb(const struct arm_boot_info *info, void *fdt)
+{
+    g_autofree char *nodename = NULL;
+    uint64_t reg[AX3000_NUM_BANKS * 2];
+    char **node_path;
+    Error *err = NULL;
+    int i;
+
+    node_path = qemu_fdt_node_unit_path(fdt, "memory", &err);
+    if (err) {
+        error_report_err(err);
+        exit(1);
+    }
+    for (i = 0; node_path[i]; i++) {
+        if (g_str_has_prefix(node_path[i], "/memory")) {
+            qemu_fdt_nop_node(fdt, node_path[i]);
+        }
+    }
+    g_strfreev(node_path);
+
+    const struct {
+        hwaddr addr;
+        size_t size;
+    } dram_table[] = {
+        { AX3000_DRAM0_BASE, AX3000_DRAM0_SIZE},
+        { AX3000_DRAM1_BASE, AX3000_DRAM1_SIZE}
+    };
+
+    for (i = 0; i < AX3000_NUM_BANKS; i++) {
+        reg[i * 2] = cpu_to_be64(dram_table[i].addr);
+        reg[i * 2 + 1] = cpu_to_be64(dram_table[i].size);
+    }
+
+    nodename = g_strdup_printf("/memory@%" HWADDR_PRIx, dram_table[0].addr);
+    qemu_fdt_add_subnode(fdt, nodename);
+    qemu_fdt_setprop_string(fdt, nodename, "device_type", "memory");
+    qemu_fdt_setprop(fdt, nodename, "reg", reg, sizeof(reg));
+}
 
 static struct arm_boot_info ax3000_binfo = {
     .loader_start = AX3000_DRAM0_BASE,
     .board_id = -1,
+    .modify_dtb = ax3000_modify_dtb,
 };
 
 static void ax3000_machine_init(MachineState *machine)
