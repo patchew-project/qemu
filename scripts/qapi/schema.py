@@ -323,6 +323,9 @@ class QAPISchemaInclude(QAPISchemaEntity):
 
 
 class QAPISchemaType(QAPISchemaDefinition, ABC):
+    # Internal types without a separate wire representation opt out.
+    introspectable: bool = True
+
     # Return the C type for common use.
     # For the types we commonly box, this is a pointer type.
     @abstractmethod
@@ -1265,8 +1268,10 @@ class QAPISchema:
         qtype_values = self._make_enum_members(
             [{'name': n} for n in qtypes], None)
 
-        self._def_definition(QAPISchemaEnumType(
-            'QType', None, None, None, None, qtype_values, None))
+        qtype = QAPISchemaEnumType(
+            'QType', None, None, None, None, qtype_values, None)
+        qtype.introspectable = False
+        self._def_definition(qtype)
 
     def _make_features(
         self,
@@ -1331,8 +1336,11 @@ class QAPISchema:
             # only be a duplicate definition, which will be flagged
             # later.
         else:
-            self._def_definition(QAPISchemaObjectType(
-                name, info, None, ifcond, None, None, members, None))
+            typ = QAPISchemaObjectType(
+                name, info, None, ifcond, None, None, members, None)
+            # Inline union bases are flattened into the containing union.
+            typ.introspectable = role != 'base'
+            self._def_definition(typ)
         return name
 
     def _def_enum_type(self, expr: QAPIExpression) -> None:

@@ -202,7 +202,7 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
         self._schema = schema
 
     def visit_end(self) -> None:
-        # visit the types that are actually used
+        # Visit all introspectable types
         for typ in self._schema_types.types():
             typ.visit(self)
         # generate C
@@ -222,7 +222,7 @@ const QLitObject %(c_name)s = %(c_string)s;
         self._trees = []
 
     def visit_needed(self, entity: QAPISchemaEntity) -> bool:
-        # Ignore types on first pass; visit_end() will pick up used types
+        # Ignore types on first pass; visit_end() emits introspectable types
         return not isinstance(entity, QAPISchemaType)
 
     @staticmethod
