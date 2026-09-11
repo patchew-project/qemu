@@ -476,6 +476,7 @@ void gdb_feature_builder_end(const GDBFeatureBuilder *builder)
 
     g_ptr_array_free(builder->xml, TRUE);
 
+    builder->feature->base_reg = builder->base_reg;
     builder->feature->num_regs = builder->regs->len;
     builder->feature->regs = (void *)g_ptr_array_free(builder->regs, FALSE);
     trace_gdbxml_feature_builder_header(builder->feature->name,
