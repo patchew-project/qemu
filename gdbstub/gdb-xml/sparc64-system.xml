@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!--
+  SPDX-License-Identifier: GPL-2.0-or-later
+-->
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<!-- System-register values are read-only; writes are ignored. -->
+<feature name="org.qemu.gdb.sparc.system">
+  <reg name="asi" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="pstate" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="cansave" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="canrestore" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="otherwin" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="wstate" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+  <reg name="cleanwin" bitsize="32" type="uint32"
+       group="qemu-debug" save-restore="no"/>
+</feature>

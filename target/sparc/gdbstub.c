@@ -266,6 +266,39 @@ static int sparc_cp0_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 #endif
 }
 
+#if defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
+static int sparc64_gdb_read_system_register(CPUState *cs, GByteArray *buf,
+                                           int n)
+{
+    CPUSPARCState *env = cpu_env(cs);
+
+    switch (n) {
+    case 0:
+        return gdb_get_reg32(buf, env->asi);
+    case 1:
+        return gdb_get_reg32(buf, env->pstate);
+    case 2:
+        return gdb_get_reg32(buf, env->cansave);
+    case 3:
+        return gdb_get_reg32(buf, env->canrestore);
+    case 4:
+        return gdb_get_reg32(buf, env->otherwin);
+    case 5:
+        return gdb_get_reg32(buf, env->wstate);
+    case 6:
+        return gdb_get_reg32(buf, env->cleanwin);
+    default:
+        return 0;
+    }
+}
+
+static int sparc64_gdb_write_system_register(CPUState *cs, uint8_t *buf, int n)
+{
+    /* These registers are exposed for inspection only. Ignore writes. */
+    return 4;
+}
+#endif
+
 void sparc_cpu_register_gdb_regs(CPUState *cs)
 {
 #if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
@@ -282,5 +315,10 @@ void sparc_cpu_register_gdb_regs(CPUState *cs)
     gdb_register_coprocessor(cs, sparc_cp0_gdb_read_register,
                              sparc_cp0_gdb_write_register,
                              gdb_find_static_feature("sparc64-cp0.xml"));
+#ifndef CONFIG_USER_ONLY
+    gdb_register_coprocessor(cs, sparc64_gdb_read_system_register,
+                             sparc64_gdb_write_system_register,
+                             gdb_find_static_feature("sparc64-system.xml"));
+#endif
 #endif
 }
