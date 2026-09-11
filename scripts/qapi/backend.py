@@ -8,6 +8,7 @@ from .events import gen_events
 from .features import gen_features
 from .introspect import gen_introspect
 from .schema import QAPISchema
+from .schema_analysis import QAPISchemaUsedTypes
 from .types import gen_types
 from .visit import gen_visit
 
@@ -49,7 +50,7 @@ class QAPICBackend(QAPIBackend):
         """
         Generate C code for the given schema into the target directory.
 
-        :param schema_file: The primary QAPI schema file.
+        :param schema: The primary QAPI schema file.
         :param output_dir: The output directory to store generated code.
         :param prefix: Optional C-code prefix for symbol names.
         :param unmask: Expose non-ABI names through introspection?
@@ -57,9 +58,11 @@ class QAPICBackend(QAPIBackend):
 
         :raise QAPIError: On failures.
         """
+        schema_types = QAPISchemaUsedTypes(unmask)
+        schema.visit(schema_types)
         gen_types(schema, output_dir, prefix, builtins)
         gen_features(schema, output_dir, prefix)
         gen_visit(schema, output_dir, prefix, builtins)
         gen_commands(schema, output_dir, prefix, gen_tracing)
         gen_events(schema, output_dir, prefix)
-        gen_introspect(schema, output_dir, prefix, unmask)
+        gen_introspect(schema, output_dir, prefix, schema_types)

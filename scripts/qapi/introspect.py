@@ -28,9 +28,7 @@ from .gen import QAPISchemaMonolithicCVisitor
 from .schema import (
     QAPISchema,
     QAPISchemaAlternatives,
-    QAPISchemaArrayType,
     QAPISchemaBranches,
-    QAPISchemaBuiltinType,
     QAPISchemaEntity,
     QAPISchemaEnumMember,
     QAPISchemaFeature,
@@ -40,6 +38,7 @@ from .schema import (
     QAPISchemaType,
     QAPISchemaVariant,
 )
+from .schema_analysis import QAPISchemaUsedTypes
 from .source import QAPISourceInfo
 
 
@@ -169,15 +168,13 @@ def to_c_string(string: str) -> str:
 
 class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
 
-    def __init__(self, prefix: str, unmask: bool):
+    def __init__(self, prefix: str, schema_types: QAPISchemaUsedTypes):
         super().__init__(
             prefix, 'qapi-introspect',
             ' * QAPI/QMP schema introspection', __doc__)
-        self._unmask = unmask
+        self._schema_types = schema_types
         self._schema: Optional[QAPISchema] = None
         self._trees: List[Annotated[SchemaInfo]] = []
-        self._used_types: List[QAPISchemaType] = []
-        self._name_map: Dict[str, str] = {}
         self._genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "%(prefix)sqapi-introspect.h"
@@ -190,7 +187,7 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
 
     def visit_end(self) -> None:
         # visit the types that are actually used
-        for typ in self._used_types:
+        for typ in self._schema_types.used_types():
             typ.visit(self)
         # generate C
         name = c_name(self._prefix, protect=False) + 'qmp_schema_qlit'
@@ -207,44 +204,10 @@ const QLitObject %(c_name)s = %(c_string)s;
                              c_string=_tree_to_qlit(self._trees)))
         self._schema = None
         self._trees = []
-        self._used_types = []
-        self._name_map = {}
 
     def visit_needed(self, entity: QAPISchemaEntity) -> bool:
         # Ignore types on first pass; visit_end() will pick up used types
         return not isinstance(entity, QAPISchemaType)
-
-    def _name(self, name: str) -> str:
-        if self._unmask:
-            return name
-        if name not in self._name_map:
-            self._name_map[name] = '%d' % len(self._name_map)
-        return self._name_map[name]
-
-    def _use_type(self, typ: QAPISchemaType) -> str:
-        assert self._schema is not None
-
-        # Map the various integer types to plain int
-        if typ.json_type() == 'int':
-            type_int = self._schema.lookup_type('int')
-            assert type_int
-            typ = type_int
-        elif (isinstance(typ, QAPISchemaArrayType) and
-              typ.element_type.json_type() == 'int'):
-            type_intlist = self._schema.lookup_type('intList')
-            assert type_intlist
-            typ = type_intlist
-        # Add type to work queue if new
-        if typ not in self._used_types:
-            self._used_types.append(typ)
-        # Clients should examine commands and events, not types.  Hide
-        # type names as integers to reduce the temptation.  Also, it
-        # saves a few characters on the wire.
-        if isinstance(typ, QAPISchemaBuiltinType):
-            return typ.name
-        if isinstance(typ, QAPISchemaArrayType):
-            return '[' + self._use_type(typ.element_type) + ']'
-        return self._name(typ.name)
 
     @staticmethod
     def _gen_features(features: Sequence[QAPISchemaFeature]
@@ -267,11 +230,10 @@ const QLitObject %(c_name)s = %(c_string)s;
         """
         comment: Optional[str] = None
         if mtype not in ('command', 'event', 'builtin', 'array'):
-            if not self._unmask:
-                # Output a comment to make it easy to map masked names
-                # back to the source when reading the generated output.
-                comment = f'"{self._name(name)}" = {name}'
-            name = self._name(name)
+            masked = self._schema_types.masked_name(name)
+            if masked != name:
+                comment = f'"{masked}" = {name}'
+            name = masked
         obj['name'] = name
         obj['meta-type'] = mtype
         if features:
@@ -291,7 +253,7 @@ const QLitObject %(c_name)s = %(c_string)s;
                            ) -> Annotated[SchemaInfoObjectMember]:
         obj: SchemaInfoObjectMember = {
             'name': member.name,
-            'type': self._use_type(member.type)
+            'type': self._schema_types.introspection_name(member.type)
         }
         if member.optional:
             obj['default'] = None
@@ -303,7 +265,7 @@ const QLitObject %(c_name)s = %(c_string)s;
                      ) -> Annotated[SchemaInfoObjectVariant]:
         obj: SchemaInfoObjectVariant = {
             'case': variant.name,
-            'type': self._use_type(variant.type)
+            'type': self._schema_types.introspection_name(variant.type)
         }
         return Annotated(obj, variant.ifcond)
 
@@ -326,7 +288,7 @@ const QLitObject %(c_name)s = %(c_string)s;
     def visit_array_type(self, name: str, info: Optional[QAPISourceInfo],
                          ifcond: QAPISchemaIfCond,
                          element_type: QAPISchemaType) -> None:
-        element = self._use_type(element_type)
+        element = self._schema_types.introspection_name(element_type)
         self._gen_tree('[' + element + ']', 'array', {'element-type': element},
                        ifcond)
 
@@ -349,8 +311,9 @@ const QLitObject %(c_name)s = %(c_string)s;
                              alternatives: QAPISchemaAlternatives) -> None:
         self._gen_tree(
             name, 'alternate',
-            {'members': [Annotated({'type': self._use_type(m.type)},
-                                   m.ifcond)
+            {'members': [Annotated({
+                'type': self._schema_types.introspection_name(m.type)
+            }, m.ifcond)
                          for m in alternatives.variants]},
             ifcond, features
         )
@@ -367,8 +330,8 @@ const QLitObject %(c_name)s = %(c_string)s;
         arg_type = arg_type or self._schema.the_empty_object_type
         ret_type = ret_type or self._schema.the_empty_object_type
         obj: SchemaInfoCommand = {
-            'arg-type': self._use_type(arg_type),
-            'ret-type': self._use_type(ret_type)
+            'arg-type': self._schema_types.introspection_name(arg_type),
+            'ret-type': self._schema_types.introspection_name(ret_type)
         }
         if allow_oob:
             obj['allow-oob'] = allow_oob
@@ -382,12 +345,13 @@ const QLitObject %(c_name)s = %(c_string)s;
         assert self._schema is not None
 
         arg_type = arg_type or self._schema.the_empty_object_type
-        self._gen_tree(name, 'event', {'arg-type': self._use_type(arg_type)},
-                       ifcond, features)
+        self._gen_tree(name, 'event', {
+            'arg-type': self._schema_types.introspection_name(arg_type)
+        }, ifcond, features)
 
 
 def gen_introspect(schema: QAPISchema, output_dir: str, prefix: str,
-                   opt_unmask: bool) -> None:
-    vis = QAPISchemaGenIntrospectVisitor(prefix, opt_unmask)
+                   schema_types: QAPISchemaUsedTypes) -> None:
+    vis = QAPISchemaGenIntrospectVisitor(prefix, schema_types)
     schema.visit(vis)
     vis.write(output_dir)
