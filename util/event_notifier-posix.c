@@ -27,6 +27,7 @@
  */
 void event_notifier_init_fd(EventNotifier *e, int fd)
 {
+    assert(fd >= 0);
     e->rfd = fd;
     e->wfd = fd;
     e->initialized = true;
