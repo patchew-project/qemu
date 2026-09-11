@@ -1024,29 +1024,42 @@ bool s390_pci_is_translation_enabled(uint64_t g_iota)
     return ((g_iota >> 11) & 0x1) != 0; /* "T" bit */
 }
 
+bool s390_pci_ioat_validate(S390PCIBusDevice *pbdev, uint64_t pba,
+                             uint64_t pal, uint64_t g_iota, bool report)
+{
+    uint8_t dt = (g_iota >> 2) & 0x7;
+    bool t = s390_pci_is_translation_enabled(g_iota);
+
+    if (pba > pal || pba < pbdev->zpci_fn.sdma || pal > pbdev->zpci_fn.edma) {
+        return false;
+    }
+    /* currently we only support designation type 1 with translation */
+    if (t && dt != ZPCI_IOTA_RTTO) {
+        if (report) {
+            error_report("unsupported ioat dt %d t %d", dt, t);
+        }
+        return false;
+    }
+    if (!t && !pbdev->rtr_avail) {
+        if (report) {
+            error_report("relaxed translation not allowed");
+        }
+        return false;
+    }
+    return true;
+}
+
 static int reg_ioat(CPUS390XState *env, S390PCIBusDevice *pbdev, ZpciFib fib,
                     uintptr_t ra)
 {
     uint64_t pba = ldq_be_p(&fib.pba);
     uint64_t pal = ldq_be_p(&fib.pal);
     uint64_t g_iota = ldq_be_p(&fib.iota);
-    uint8_t dt = (g_iota >> 2) & 0x7;
     bool t = s390_pci_is_translation_enabled(g_iota);
 
     pba &= ~0xfff;
     pal |= 0xfff;
-    if (pba > pal || pba < pbdev->zpci_fn.sdma || pal > pbdev->zpci_fn.edma) {
-        s390_program_interrupt(env, PGM_OPERAND, ra);
-        return -EINVAL;
-    }
-
-    /* currently we only support designation type 1 with translation */
-    if (t && dt != ZPCI_IOTA_RTTO) {
-        error_report("unsupported ioat dt %d t %d", dt, t);
-        s390_program_interrupt(env, PGM_OPERAND, ra);
-        return -EINVAL;
-    } else if (!t && !pbdev->rtr_avail) {
-        error_report("relaxed translation not allowed");
+    if (!s390_pci_ioat_validate(pbdev, pba, pal, g_iota, /*report=*/true)) {
         s390_program_interrupt(env, PGM_OPERAND, ra);
         return -EINVAL;
     }
