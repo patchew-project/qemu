@@ -145,6 +145,14 @@ static bool trans_th_srri(DisasContext *ctx, arg_th_srri * a)
                                    tcg_gen_rotri_tl, gen_roriw, NULL);
 }
 
+static bool trans_th_srri_rv32(DisasContext *ctx, arg_th_srri_rv32 *a)
+{
+    REQUIRE_XTHEADBB(ctx);
+    REQUIRE_32BIT(ctx);
+    return gen_shift_imm_fn_per_ol(ctx, a, EXT_NONE,
+                                   tcg_gen_rotri_tl, gen_roriw, NULL);
+}
+
 /* th.srriw is an alternate encoding for roriw (from Zbb) */
 static bool trans_th_srriw(DisasContext *ctx, arg_th_srriw *a)
 {
