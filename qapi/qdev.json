@@ -168,14 +168,14 @@
 ##
 # @device-sync-config:
 #
-# Synchronize device configuration from host to guest part.  First,
-# copy the configuration from the host part (backend) to the guest
-# part (frontend).  Then notify guest software that device
-# configuration changed.
+#     Synchronize device configuration from host to guest part.
+#     First, copy the configuration from the host part (backend) to
+#     the guest part (frontend).  Then notify guest software that
+#     device configuration changed.
 #
-# The command may be used to notify the guest about block device
-# capacity change.  Currently only vhost-user-blk device supports
-# this.
+#     The command may be used to notify the guest about block device
+#     capacity change.  Currently only vhost-user-blk device supports
+#     this.
 #
 # @id: the device's ID or QOM path
 #

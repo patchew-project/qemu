@@ -1805,13 +1805,12 @@
 
 ##
 # @blockdev-snapshot:
+#     Takes a snapshot of a block device.
 #
-# Takes a snapshot of a block device.
-#
-# Take a snapshot, by installing 'node' as the backing image of
-# 'overlay'.  Additionally, if 'node' is associated with a block
-# device, the block device changes to using 'overlay' as its new
-# active image.
+#     Take a snapshot, by installing 'node' as the backing image of
+#     'overlay'.  Additionally, if 'node' is associated with a block
+#     device, the block device changes to using 'overlay' as its new
+#     active image.
 #
 # Features:
 #
@@ -2513,15 +2512,15 @@
 ##
 # @block-dirty-bitmap-merge:
 #
-# Merge dirty bitmaps listed in @bitmaps to the @target dirty bitmap.
-# Dirty bitmaps in @bitmaps will be unchanged, except if it also
-# appears as the @target bitmap.  Any bits already set in @target will
-# still be set after the merge, i.e., this operation does not clear
-# the target.  On error, @target is unchanged.
+#     Merge dirty bitmaps listed in @bitmaps to the @target dirty
+#     bitmap.  Dirty bitmaps in @bitmaps will be unchanged, except if
+#     it also appears as the @target bitmap.  Any bits already set in
+#     @target will still be set after the merge, i.e., this operation
+#     does not clear the target.  On error, @target is unchanged.
 #
-# The resulting bitmap will count as dirty any clusters that were
-# dirty in any of the source bitmaps.  This can be used to achieve
-# backup checkpoints, or in simpler usages, to copy bitmaps.
+#     The resulting bitmap will count as dirty any clusters that were
+#     dirty in any of the source bitmaps.  This can be used to achieve
+#     backup checkpoints, or in simpler usages, to copy bitmaps.
 #
 # Errors:
 #     - If @node is not a valid block device, DeviceNotFound
@@ -5974,15 +5973,14 @@
 
 ##
 # @block-set-write-threshold:
+#     Change the write threshold for a block drive.  An event will be
+#     delivered if a write to this block drive crosses the configured
+#     threshold.  The threshold is an offset, thus must be
+#     non-negative.  Default is no write threshold.  Setting the
+#     threshold to zero disables it.
 #
-# Change the write threshold for a block drive.  An event will be
-# delivered if a write to this block drive crosses the configured
-# threshold.  The threshold is an offset, thus must be non-negative.
-# Default is no write threshold.  Setting the threshold to zero
-# disables it.
-#
-# This is useful to transparently resize thin-provisioned drives
-# without the guest OS noticing.
+#     This is useful to transparently resize thin-provisioned drives
+#     without the guest OS noticing.
 #
 # @node-name: graph node name on which the threshold must be set.
 #
@@ -6064,11 +6062,10 @@
 
 ##
 # @x-blockdev-set-iothread:
+#     Move @node and its children into the @iothread.  If @iothread is
+#     null then move @node and its children into the main loop.
 #
-# Move @node and its children into the @iothread.  If @iothread is
-# null then move @node and its children into the main loop.
-#
-# The node must not be attached to a BlockBackend.
+#     The node must not be attached to a BlockBackend.
 #
 # @node-name: the name of the block driver node
 #

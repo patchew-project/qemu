@@ -2007,12 +2007,11 @@
 
 ##
 # @cancel-vcpu-dirty-limit:
+#     Cancel the upper limit of dirty page rate for virtual CPUs.
 #
-# Cancel the upper limit of dirty page rate for virtual CPUs.
-#
-# Cancel the dirty page limit for the vCPU which has been set with
-# `set-vcpu-dirty-limit` command.  Note that this command requires
-# support from dirty ring, same as the `set-vcpu-dirty-limit`.
+#     Cancel the dirty page limit for the vCPU which has been set with
+#     `set-vcpu-dirty-limit` command.  Note that this command requires
+#     support from dirty ring, same as the `set-vcpu-dirty-limit`.
 #
 # @cpu-index: index of a virtual CPU, default is all.
 #
