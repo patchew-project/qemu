@@ -303,6 +303,29 @@ struct VMStateDescription {
     bool (*pre_load_errp)(void *opaque, Error **errp);
     int (*post_load)(void *opaque, int version_id);
     bool (*post_load_errp)(void *opaque, int version_id, Error **errp);
+
+    /*
+     * Run .post_load() once the whole stream has been loaded rather than
+     * as this section is read, so that it sees a machine whose devices
+     * have all been restored, and so that several of them can share the
+     * work they would each repeat.
+     *
+     * Three things must hold of a hook before it may be deferred.
+     *
+     * It must not fail. By the time the queue is drained the stream has
+     * been consumed, so a source may already have been told the migration
+     * succeeded and may have released the guest; there is nothing left to
+     * report a failure to. A hook which fails here is a bug in its vmsd
+     * and is fatal.
+     *
+     * Nothing else in the load may depend on what it does. The hooks run
+     * after every section has been read, so anything a later section needs
+     * to observe must not be produced here.
+     *
+     * It must not read guest memory or resolve an address space, because
+     * the drain runs as one batch with the memory topology in flux.
+     */
+    bool post_load_deferrable;
     int (*pre_save)(void *opaque);
     bool (*pre_save_errp)(void *opaque, Error **errp);
 
@@ -1298,6 +1321,23 @@ bool vmstate_save_vmsd(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, JSONWriter *vmdesc, Error **errp);
 
 bool vmstate_section_needed(const VMStateDescription *vmsd, void *opaque);
+
+/**
+ * vmstate_post_load_defer_begin: Queue deferrable post_load hooks
+ *
+ * Between this and vmstate_post_load_defer_finish(), a post_load hook whose
+ * vmsd sets post_load_deferrable is recorded rather than called. Hooks are
+ * queued in the order they would have run.
+ */
+void vmstate_post_load_defer_begin(void);
+
+/**
+ * vmstate_post_load_defer_finish: Stop deferring and drain the queue
+ * @run: run the queued hooks, in order; when false, discard them
+ *
+ * Returns false if a hook failed, in which case the rest are discarded.
+ */
+bool vmstate_post_load_defer_finish(bool run, Error **errp);
 
 #define  VMSTATE_INSTANCE_ID_ANY  -1
 

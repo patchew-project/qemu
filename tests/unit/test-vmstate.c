@@ -1619,6 +1619,116 @@ static void test_tmp_struct(void)
     g_assert_cmpint(obj.f, ==, 8); /* From the child->parent */
 }
 
+/* Deferred post_load */
+
+static int defer_order;
+static int defer_a_ran;
+static int defer_b_ran;
+static int defer_inline_ran;
+
+static int defer_a_post_load(void *opaque, int version_id)
+{
+    defer_a_ran = ++defer_order;
+    return 0;
+}
+
+static int defer_b_post_load(void *opaque, int version_id)
+{
+    defer_b_ran = ++defer_order;
+    return 0;
+}
+
+static int defer_inline_post_load(void *opaque, int version_id)
+{
+    defer_inline_ran = ++defer_order;
+    return 0;
+}
+
+static const VMStateDescription vmstate_defer_a = {
+    .name = "test/defer_a",
+    .version_id = 1,
+    .post_load = defer_a_post_load,
+    .post_load_deferrable = true,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(a, TestStruct),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_defer_b = {
+    .name = "test/defer_b",
+    .version_id = 1,
+    .post_load = defer_b_post_load,
+    .post_load_deferrable = true,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(a, TestStruct),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_defer_inline = {
+    .name = "test/defer_inline",
+    .version_id = 1,
+    .post_load = defer_inline_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(a, TestStruct),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void defer_reset(void)
+{
+    defer_order = 0;
+    defer_a_ran = 0;
+    defer_b_ran = 0;
+    defer_inline_ran = 0;
+}
+
+static void test_post_load_defer(void)
+{
+    uint8_t const wire[] = {
+        /* uint32 a */ 0x00, 0x00, 0x00, 0x01,
+        QEMU_VM_EOF,
+    };
+    TestStruct obj;
+    Error *err = NULL;
+
+    /* Not deferring: a deferrable hook still runs as the section is read */
+    defer_reset();
+    memset(&obj, 0, sizeof(obj));
+    SUCCESS(load_vmstate_one(&vmstate_defer_a, &obj, 1, wire, sizeof(wire)));
+    g_assert_cmpint(defer_a_ran, ==, 1);
+
+    /*
+     * Deferring holds back the hooks which opted in and replays them in the
+     * order they would have run. A hook which did not opt in is unaffected.
+     */
+    defer_reset();
+    memset(&obj, 0, sizeof(obj));
+    vmstate_post_load_defer_begin();
+    SUCCESS(load_vmstate_one(&vmstate_defer_a, &obj, 1, wire, sizeof(wire)));
+    SUCCESS(load_vmstate_one(&vmstate_defer_inline, &obj, 1, wire,
+                             sizeof(wire)));
+    SUCCESS(load_vmstate_one(&vmstate_defer_b, &obj, 1, wire, sizeof(wire)));
+    g_assert_cmpint(defer_a_ran, ==, 0);
+    g_assert_cmpint(defer_b_ran, ==, 0);
+    g_assert_cmpint(defer_inline_ran, ==, 1);
+
+    g_assert(vmstate_post_load_defer_finish(true, &err));
+    g_assert(!err);
+    g_assert_cmpint(defer_a_ran, ==, 2);
+    g_assert_cmpint(defer_b_ran, ==, 3);
+
+    /* A discarded queue runs nothing */
+    defer_reset();
+    memset(&obj, 0, sizeof(obj));
+    vmstate_post_load_defer_begin();
+    SUCCESS(load_vmstate_one(&vmstate_defer_a, &obj, 1, wire, sizeof(wire)));
+    g_assert(vmstate_post_load_defer_finish(false, &err));
+    g_assert(!err);
+    g_assert_cmpint(defer_a_ran, ==, 0);
+}
+
 int main(int argc, char **argv)
 {
     g_autofree char *temp_file = g_strdup_printf("%s/vmst.test.XXXXXX",
@@ -1663,6 +1773,7 @@ int main(int argc, char **argv)
     g_test_add_func("/vmstate/qlist/save/saveqlist", test_save_qlist);
     g_test_add_func("/vmstate/qlist/load/loadqlist", test_load_qlist);
     g_test_add_func("/vmstate/tmp_struct", test_tmp_struct);
+    g_test_add_func("/vmstate/post_load/defer", test_post_load_defer);
     g_test_run();
 
     close(temp_fd);

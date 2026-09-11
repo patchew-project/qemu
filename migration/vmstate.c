@@ -250,8 +250,19 @@ static bool vmstate_load_field(QEMUFile *f, void *pv, size_t size,
     return true;
 }
 
-static bool vmstate_post_load(const VMStateDescription *vmsd,
-                              void *opaque, int version_id, Error **errp)
+typedef struct VMStateDeferredPostLoad {
+    const VMStateDescription *vmsd;
+    void *opaque;
+    int version_id;
+    QSIMPLEQ_ENTRY(VMStateDeferredPostLoad) entry;
+} VMStateDeferredPostLoad;
+
+static QSIMPLEQ_HEAD(, VMStateDeferredPostLoad) vmstate_deferred_post_loads =
+    QSIMPLEQ_HEAD_INITIALIZER(vmstate_deferred_post_loads);
+static bool vmstate_defer_post_load;
+
+static bool vmstate_do_post_load(const VMStateDescription *vmsd,
+                                 void *opaque, int version_id, Error **errp)
 {
     ERRP_GUARD();
 
@@ -275,6 +286,58 @@ static bool vmstate_post_load(const VMStateDescription *vmsd,
     }
 
     return true;
+}
+
+static bool vmstate_post_load(const VMStateDescription *vmsd,
+                              void *opaque, int version_id, Error **errp)
+{
+    VMStateDeferredPostLoad *d;
+
+    if (!vmstate_defer_post_load || !vmsd->post_load_deferrable) {
+        return vmstate_do_post_load(vmsd, opaque, version_id, errp);
+    }
+
+    d = g_new(VMStateDeferredPostLoad, 1);
+    d->vmsd = vmsd;
+    d->opaque = opaque;
+    d->version_id = version_id;
+    QSIMPLEQ_INSERT_TAIL(&vmstate_deferred_post_loads, d, entry);
+
+    return true;
+}
+
+void vmstate_post_load_defer_begin(void)
+{
+    assert(!vmstate_defer_post_load);
+    assert(QSIMPLEQ_EMPTY(&vmstate_deferred_post_loads));
+    vmstate_defer_post_load = true;
+}
+
+bool vmstate_post_load_defer_finish(bool run, Error **errp)
+{
+    VMStateDeferredPostLoad *d;
+    bool ok = true;
+
+    vmstate_defer_post_load = false;
+
+    while ((d = QSIMPLEQ_FIRST(&vmstate_deferred_post_loads))) {
+        QSIMPLEQ_REMOVE_HEAD(&vmstate_deferred_post_loads, entry);
+        if (run) {
+            ERRP_GUARD();
+
+            if (!vmstate_do_post_load(d->vmsd, d->opaque, d->version_id,
+                                      errp)) {
+                error_prepend(errp, "deferrable post load hook failed, which "
+                              "its vmsd promised could not happen: ");
+                error_report_err(*errp);
+                *errp = NULL;
+                abort();
+            }
+        }
+        g_free(d);
+    }
+
+    return ok;
 }
 
 /*

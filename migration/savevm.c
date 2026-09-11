@@ -3128,6 +3128,7 @@ int qemu_loadvm_state(QEMUFile *f, Error **errp)
 {
     MigrationState *s = migrate_get_current();
     MigrationIncomingState *mis = migration_incoming_get_current();
+    bool defer_post_load;
     int ret;
 
     if (qemu_savevm_state_blocked(errp)) {
@@ -3147,7 +3148,29 @@ int qemu_loadvm_state(QEMUFile *f, Error **errp)
 
     cpu_synchronize_all_pre_loadvm();
 
+    /*
+     * The postcopy listen thread walks the same stream concurrently, so the
+     * queue would need locking and a defined owner for the drain.
+     */
+    defer_post_load = !migrate_postcopy_ram();
+    if (defer_post_load) {
+        vmstate_post_load_defer_begin();
+    }
+
     ret = qemu_loadvm_state_main(f, mis, errp);
+
+    if (defer_post_load) {
+        /*
+         * A deferrable hook only rearranges the memory topology, so the
+         * whole drain can share one flatview rebuild.
+         */
+        memory_region_transaction_begin();
+        if (!vmstate_post_load_defer_finish(ret == 0, errp)) {
+            ret = -EINVAL;
+        }
+        memory_region_transaction_commit();
+    }
+
     qemu_event_set(&mis->main_thread_load_event);
 
     trace_qemu_loadvm_state_post_main(ret);
