@@ -96,12 +96,12 @@ void event_notifier_cleanup(EventNotifier *e)
 
 int event_notifier_get_fd(const EventNotifier *e)
 {
-    return e->rfd;
+    return e->initialized ? e->rfd : -1;
 }
 
 int event_notifier_get_wfd(const EventNotifier *e)
 {
-    return e->wfd;
+    return e->initialized ? e->wfd : -1;
 }
 
 int event_notifier_set(EventNotifier *e)

@@ -37,6 +37,7 @@ int event_notifier_test_and_clear(EventNotifier *);
 
 #ifdef CONFIG_POSIX
 void event_notifier_init_fd(EventNotifier *, int fd);
+/* These accessors return -1 for an uninitialized notifier. */
 int event_notifier_get_fd(const EventNotifier *);
 int event_notifier_get_wfd(const EventNotifier *);
 #else
