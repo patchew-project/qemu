@@ -487,7 +487,9 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
                      s, iova, int128_get64(llsize), ret);
     }
 
-    memory_region_unref(section->mr);
+    if (!memory_region_is_iommu(section->mr)) {
+        memory_region_unref(section->mr);
+    }
 }
 /*
  * IOTLB API is used by vhost-vdpa which requires incremental updating
