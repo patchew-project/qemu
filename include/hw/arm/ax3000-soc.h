@@ -60,8 +60,8 @@ enum Ax3000Configuration {
     AX3000_NUM_GPIOS    = 8,
 };
 
-typedef struct Ax3000SoCState {
-    SysBusDevice        parent;
+struct Ax3000SoCState {
+    SysBusDevice        parent_obj;
 
     ARMCPU              cpu[AX3000_NUM_CPUS];
     GICv3State          gic;
@@ -70,13 +70,13 @@ typedef struct Ax3000SoCState {
     CadenceUARTState    uart[AX3000_NUM_UARTS];
     CadenceGPIOState    gpio[AX3000_NUM_GPIOS];
     AxiadoSDHCIState    sdhci0;
-} Ax3000SoCState;
+};
 
-typedef struct Ax3000SoCClass {
-    SysBusDeviceClass   parent;
+struct Ax3000SoCClass {
+    SysBusDeviceClass   parent_class;
 
     uint32_t            num_cpus;
-} Ax3000SoCClass;
+};
 
 enum Ax3000Irqs {
     AX3000_UART0_IRQ    = 112,
