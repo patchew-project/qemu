@@ -15,6 +15,7 @@
 #include "hw/mem/memory-device.h"
 #include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "target/i386/cpu.h"
 #include "system/address-spaces.h"
@@ -43,7 +44,7 @@ static void sgx_epc_get_size(Object *obj, Visitor *v, const char *name,
 
 static void sgx_epc_init(Object *obj)
 {
-    object_property_add(obj, SGX_EPC_SIZE_PROP, "uint64", sgx_epc_get_size,
+    object_property_add_qapi(obj, SGX_EPC_SIZE_PROP, &uint64_type_info, sgx_epc_get_size,
                         NULL, NULL, NULL);
 }
 

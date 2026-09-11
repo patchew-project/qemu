@@ -12,6 +12,7 @@
 #include "qemu/error-report.h"
 #include "hw/misc/aspeed_lpc.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
@@ -417,30 +418,54 @@ static void aspeed_lpc_realize(DeviceState *dev, Error **errp)
 
 static void aspeed_lpc_init(Object *obj)
 {
-    object_property_add(obj, "idr1", "uint32", aspeed_kcs_get_register_property,
-                        aspeed_kcs_set_register_property, NULL, NULL);
-    object_property_add(obj, "odr1", "uint32", aspeed_kcs_get_register_property,
-                        aspeed_kcs_set_register_property, NULL, NULL);
-    object_property_add(obj, "str1", "uint32", aspeed_kcs_get_register_property,
-                        aspeed_kcs_set_register_property, NULL, NULL);
-    object_property_add(obj, "idr2", "uint32", aspeed_kcs_get_register_property,
-                        aspeed_kcs_set_register_property, NULL, NULL);
-    object_property_add(obj, "odr2", "uint32", aspeed_kcs_get_register_property,
-                        aspeed_kcs_set_register_property, NULL, NULL);
-    object_property_add(obj, "str2", "uint32", aspeed_kcs_get_register_property,
-                        aspeed_kcs_set_register_property, NULL, NULL);
-    object_property_add(obj, "idr3", "uint32", aspeed_kcs_get_register_property,
-                        aspeed_kcs_set_register_property, NULL, NULL);
-    object_property_add(obj, "odr3", "uint32", aspeed_kcs_get_register_property,
-                        aspeed_kcs_set_register_property, NULL, NULL);
-    object_property_add(obj, "str3", "uint32", aspeed_kcs_get_register_property,
-                        aspeed_kcs_set_register_property, NULL, NULL);
-    object_property_add(obj, "idr4", "uint32", aspeed_kcs_get_register_property,
-                        aspeed_kcs_set_register_property, NULL, NULL);
-    object_property_add(obj, "odr4", "uint32", aspeed_kcs_get_register_property,
-                        aspeed_kcs_set_register_property, NULL, NULL);
-    object_property_add(obj, "str4", "uint32", aspeed_kcs_get_register_property,
-                        aspeed_kcs_set_register_property, NULL, NULL);
+    object_property_add_qapi(obj, "idr1", &uint32_type_info,
+                             aspeed_kcs_get_register_property,
+                             aspeed_kcs_set_register_property,
+                             NULL, NULL);
+    object_property_add_qapi(obj, "odr1", &uint32_type_info,
+                             aspeed_kcs_get_register_property,
+                             aspeed_kcs_set_register_property,
+                             NULL, NULL);
+    object_property_add_qapi(obj, "str1", &uint32_type_info,
+                             aspeed_kcs_get_register_property,
+                             aspeed_kcs_set_register_property,
+                             NULL, NULL);
+    object_property_add_qapi(obj, "idr2", &uint32_type_info,
+                             aspeed_kcs_get_register_property,
+                             aspeed_kcs_set_register_property,
+                             NULL, NULL);
+    object_property_add_qapi(obj, "odr2", &uint32_type_info,
+                             aspeed_kcs_get_register_property,
+                             aspeed_kcs_set_register_property,
+                             NULL, NULL);
+    object_property_add_qapi(obj, "str2", &uint32_type_info,
+                             aspeed_kcs_get_register_property,
+                             aspeed_kcs_set_register_property,
+                             NULL, NULL);
+    object_property_add_qapi(obj, "idr3", &uint32_type_info,
+                             aspeed_kcs_get_register_property,
+                             aspeed_kcs_set_register_property,
+                             NULL, NULL);
+    object_property_add_qapi(obj, "odr3", &uint32_type_info,
+                             aspeed_kcs_get_register_property,
+                             aspeed_kcs_set_register_property,
+                             NULL, NULL);
+    object_property_add_qapi(obj, "str3", &uint32_type_info,
+                             aspeed_kcs_get_register_property,
+                             aspeed_kcs_set_register_property,
+                             NULL, NULL);
+    object_property_add_qapi(obj, "idr4", &uint32_type_info,
+                             aspeed_kcs_get_register_property,
+                             aspeed_kcs_set_register_property,
+                             NULL, NULL);
+    object_property_add_qapi(obj, "odr4", &uint32_type_info,
+                             aspeed_kcs_get_register_property,
+                             aspeed_kcs_set_register_property,
+                             NULL, NULL);
+    object_property_add_qapi(obj, "str4", &uint32_type_info,
+                             aspeed_kcs_get_register_property,
+                             aspeed_kcs_set_register_property,
+                             NULL, NULL);
 }
 
 static const VMStateDescription vmstate_aspeed_lpc = {
