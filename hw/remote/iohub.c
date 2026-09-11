@@ -28,8 +28,6 @@ void remote_iohub_init(RemoteIOHubState *iohub)
     for (pirq = 0; pirq < REMOTE_IOHUB_NB_PIRQS; pirq++) {
         qemu_mutex_init(&iohub->irq_level_lock[pirq]);
         iohub->irq_level[pirq] = 0;
-        event_notifier_init_fd(&iohub->irqfds[pirq], -1);
-        event_notifier_init_fd(&iohub->resamplefds[pirq], -1);
     }
 }
 
