@@ -685,12 +685,11 @@
 
 ##
 # @NumaHmatLBOptions:
+#     Set the system locality latency and bandwidth information
+#     between Initiator and Target proximity Domains.
 #
-# Set the system locality latency and bandwidth information between
-# Initiator and Target proximity Domains.
-#
-# For more information about `NumaHmatLBOptions`, see chapter
-# 5.2.27.4: Table 5-146 of ACPI 6.3 spec.
+#     For more information about `NumaHmatLBOptions`, see chapter
+#     5.2.27.4: Table 5-146 of ACPI 6.3 spec.
 #
 # @initiator: the Initiator Proximity Domain.
 #
@@ -762,11 +761,11 @@
 
 ##
 # @NumaHmatCacheOptions:
+#     Set the memory side cache information for a given memory domain.
 #
-# Set the memory side cache information for a given memory domain.
-#
-# For more information of `NumaHmatCacheOptions`, see chapter
-# 5.2.27.5: Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
+#     For more information of `NumaHmatCacheOptions`, see chapter
+#     5.2.27.5: Table 5-147: Field "Cache Attributes" of ACPI 6.3
+#     spec.
 #
 # @node-id: the memory proximity domain to which the memory belongs.
 #

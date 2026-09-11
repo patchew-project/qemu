@@ -1072,16 +1072,16 @@
 
 ##
 # @SevSnpGuestProperties:
+#     Properties for sev-snp-guest objects.  Most of these are direct
+#     arguments for the KVM_SNP_* interfaces documented in the Linux
+#     kernel source under
+#     Documentation/arch/x86/amd-memory-encryption.rst, which are in
+#     turn closely coupled with the SNP_INIT/SNP_LAUNCH_* firmware
+#     commands documented in the SEV-SNP Firmware ABI Specification
+#     (Rev 0.9).
 #
-# Properties for sev-snp-guest objects.  Most of these are direct
-# arguments for the KVM_SNP_* interfaces documented in the Linux
-# kernel source under
-# Documentation/arch/x86/amd-memory-encryption.rst, which are in turn
-# closely coupled with the SNP_INIT/SNP_LAUNCH_* firmware commands
-# documented in the SEV-SNP Firmware ABI Specification (Rev 0.9).
-#
-# More usage information is also available in the QEMU source tree
-# under docs/amd-memory-encryption.
+#     More usage information is also available in the QEMU source tree
+#     under docs/amd-memory-encryption.
 #
 # @policy: the 'POLICY' parameter to the SNP_LAUNCH_START command, as
 #     defined in the SEV-SNP firmware ABI (default: 0x30000)
