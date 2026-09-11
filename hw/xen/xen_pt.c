@@ -862,12 +862,20 @@ static void xen_pt_realize(PCIDevice *d, Error **errp)
         if (*errp) {
             error_append_hint(errp, "Setup VGA BIOS of passthrough"
                               " GFX failed");
+            object_unparent(OBJECT(&d->rom));
             xen_host_pci_device_put(&s->real_device);
             return;
         }
 
         /* Register ISA bridge for passthrough GFX. */
-        xen_igd_passthrough_isa_bridge_create(s, &s->real_device);
+        xen_igd_passthrough_isa_bridge_create(s, &s->real_device, errp);
+        if (*errp) {
+            error_append_hint(errp, "Failed to create PCH bridge"
+                              " for passthrough GFX");
+            object_unparent(OBJECT(&d->rom));
+            xen_host_pci_device_put(&s->real_device);
+            return;
+        }
     }
 
     /* Handle real device's MMIO/PIO BARs */
