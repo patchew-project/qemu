@@ -164,6 +164,7 @@ static const TypeInfo vhost_scsi_common_info = {
     .parent = TYPE_VIRTIO_SCSI_COMMON,
     .instance_size = sizeof(VHostSCSICommon),
     .abstract = true,
+    .secure = true,
 };
 
 static void virtio_register_types(void)
