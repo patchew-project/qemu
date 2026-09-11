@@ -1861,9 +1861,9 @@
 
 ##
 # @calc-dirty-rate:
-#
-# Start measuring dirty page rate of the VM.  Results can be retrieved
-# with `query-dirty-rate` after measurements are completed.
+#     Start measuring dirty page rate of the VM.  Results can be
+#     retrieved with `query-dirty-rate` after measurements are
+#     completed.
 #
 # Dirty page rate is the number of pages changed in a given time
 # period expressed in MiB/s.  The following methods of calculation are
@@ -1981,8 +1981,7 @@
 
 ##
 # @set-vcpu-dirty-limit:
-#
-# Set the upper limit of dirty page rate for virtual CPUs.
+#     Set the upper limit of dirty page rate for virtual CPUs.
 #
 # Requires KVM with accelerator property "dirty-ring-size" set.  A
 # virtual CPU's dirty page rate is a measure of its memory load.  To

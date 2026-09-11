@@ -132,22 +132,7 @@
 
 ##
 # @blockdev-open-tray:
-#
-# Opens a block device's tray.  If there is a block driver state tree
-# inserted as a medium, it will become inaccessible to the guest (but
-# it will remain associated to the block device, so closing the tray
-# will make it accessible again).
-#
-# If the tray was already open before, this will be a no-op.
-#
-# Once the tray opens, a `DEVICE_TRAY_MOVED` event is emitted.  There
-# are cases in which no such event will be generated, these include:
-#
-# - if the guest has locked the tray, @force is false and the guest
-#   does not respond to the eject request
-# - if the BlockBackend denoted by @device does not have a guest
-#   device attached to it
-# - if the guest device does not have an actual tray
+#     Opens a block device's tray.
 #
 # @device: Block device name
 #
@@ -161,6 +146,22 @@
 # Features:
 #
 # @deprecated: Member @device is deprecated.  Use @id instead.
+#
+# If there is a block driver state tree inserted as a medium, it will
+# become inaccessible to the guest (but it will remain associated to
+# the block device, so closing the tray will make it accessible
+# again).
+#
+# If the tray was already open before, this will be a no-op.
+#
+# Once the tray opens, a `DEVICE_TRAY_MOVED` event is emitted.  There
+# are cases in which no such event will be generated, these include:
+#
+# - if the guest has locked the tray, @force is false and the guest
+#   does not respond to the eject request
+# - if the BlockBackend denoted by @device does not have a guest
+#   device attached to it
+# - if the guest device does not have an actual tray
 #
 # Since: 2.5
 #
@@ -437,8 +438,10 @@
 
 ##
 # @block_set_io_throttle:
+#     Change I/O throttle limits for a block drive.
 #
-# Change I/O throttle limits for a block drive.
+# Errors:
+#     - If @device is not a valid block device, DeviceNotFound
 #
 # Since QEMU 2.4, each device with I/O limits is member of a throttle
 # group.
@@ -460,9 +463,6 @@
 # I/O limits can be disabled by setting all of them to 0.  In this
 # case the device will be removed from its group and the rest of its
 # members will not be affected.  The 'group' parameter is ignored.
-#
-# Errors:
-#     - If @device is not a valid block device, DeviceNotFound
 #
 # Since: 1.1
 #
