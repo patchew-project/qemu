@@ -430,6 +430,52 @@
   'data': ['discard', 'delay', 'slew' ] }
 
 ##
+# @Pca9552LedState:
+#
+# LED state for PCA9552.
+#
+# @on: LED on
+#
+# @off: LED off
+#
+# @pwm0: LED controlled by PWM0
+#
+# @pwm1: LED controlled by PWM1
+#
+# Since: 11.2
+##
+{ 'enum': 'Pca9552LedState',
+  'data': ['on', 'off', 'pwm0', 'pwm1'] }
+
+##
+# @Pca9552PinState:
+#
+# Pin state for PCA9552.
+#
+# @low: Pin low
+#
+# @high: Pin high
+#
+# Since: 11.2
+##
+{ 'enum': 'Pca9552PinState',
+  'data': ['low', 'high'] }
+
+##
+# @Pca9554PinState:
+#
+# Pin state for PCA9554.
+#
+# @low: Pin low
+#
+# @high: Pin high
+#
+# Since: 11.2
+##
+{ 'enum': 'Pca9554PinState',
+  'data': ['low', 'high'] }
+
+##
 # @inject-nmi:
 #
 # Injects a Non-Maskable Interrupt (machine specific: for example on
