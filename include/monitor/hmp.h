@@ -31,12 +31,6 @@ MonitorHMP *monitor_cur_hmp(void);
         g_assert_not_reached(); \
     }
 
-struct MonitorDef {
-    const char *name;
-    int offset;
-    int64_t (*get_value)(MonitorHMP *hmp, const MonitorDef *md, int offset);
-};
-
 void monitor_new_hmp(const char *id, const char *chardev_id,
                      bool use_readline, Error **errp);
 

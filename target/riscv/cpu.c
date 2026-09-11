@@ -3015,7 +3015,6 @@ static const struct SysemuCPUOps riscv_sysemu_ops = {
     .legacy_vmsd = &vmstate_riscv_cpu,
 #ifdef CONFIG_TCG
     .translate_for_debug = riscv_cpu_translate_for_debug,
-    .monitor_get_register = riscv_monitor_get_register_legacy,
 #endif
 };
 #endif
