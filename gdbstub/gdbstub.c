@@ -605,13 +605,13 @@ void gdb_init_cpu(CPUState *cpu)
         gdb_register_feature(cpu, 0,
                              cc->gdb_read_register, cc->gdb_write_register,
                              feature);
-        cpu->gdb_num_regs = cpu->gdb_num_g_regs = feature->num_regs;
+        cpu->gdb_next_base_reg = cpu->gdb_num_g_regs = feature->num_regs;
     } else {
-        cpu->gdb_num_regs = cpu->gdb_num_g_regs = cc->gdb_num_core_regs;
+        cpu->gdb_next_base_reg = cpu->gdb_num_g_regs = cc->gdb_num_core_regs;
     }
 
     trace_gdbxml_init_cpu(object_get_typename(OBJECT(cpu)), cpu->cpu_index,
-                          cpu->gdb_num_regs, cpu->gdb_num_g_regs,
+                          cpu->gdb_next_base_reg, cpu->gdb_num_g_regs,
                           cc->gdb_num_core_regs);
 }
 
@@ -621,7 +621,7 @@ void gdb_register_coprocessor(CPUState *cpu,
 {
     GDBRegisterState *s;
     guint i;
-    int base_reg = cpu->gdb_num_regs;
+    int base_reg = cpu->gdb_next_base_reg;
 
     for (i = 0; i < cpu->gdb_regs->len; i++) {
         /* Check for duplicates.  */
@@ -639,7 +639,7 @@ void gdb_register_coprocessor(CPUState *cpu,
     gdb_register_feature(cpu, base_reg, get_reg, set_reg, feature);
 
     /* Add to end of list.  */
-    cpu->gdb_num_regs += feature->num_regs;
+    cpu->gdb_next_base_reg = base_reg + feature->num_regs;
 }
 
 void gdb_unregister_coprocessor_all(CPUState *cpu)
@@ -651,7 +651,7 @@ void gdb_unregister_coprocessor_all(CPUState *cpu)
     g_array_free(cpu->gdb_regs, true);
 
     cpu->gdb_regs = NULL;
-    cpu->gdb_num_regs = 0;
+    cpu->gdb_next_base_reg = 0;
     cpu->gdb_num_g_regs = 0;
 }
 
@@ -2522,4 +2522,3 @@ void gdb_create_default_process(GDBState *s)
     process->attached = false;
     process->target_xml = NULL;
 }
-

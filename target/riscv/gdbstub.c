@@ -348,9 +348,10 @@ void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
                                  gdb_find_static_feature("riscv-32bit-fpu.xml"));
     }
     if (cpu->cfg.ext_zve32x) {
+        GDBFeature *feature =
+            ricsv_gen_dynamic_vector_feature(cs, cs->gdb_next_base_reg);
         gdb_register_coprocessor(cs, riscv_gdb_get_vector,
-                                 riscv_gdb_set_vector,
-                                 ricsv_gen_dynamic_vector_feature(cs, cs->gdb_num_regs));
+                                 riscv_gdb_set_vector, feature);
     }
 
 #ifdef CONFIG_TCG
@@ -373,8 +374,10 @@ void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
     }
 
     if (cpu->cfg.ext_zicsr) {
+        GDBFeature *feature =
+            riscv_gen_dynamic_csr_feature(cs, cs->gdb_next_base_reg);
         gdb_register_coprocessor(cs, riscv_gdb_get_csr, riscv_gdb_set_csr,
-                                 riscv_gen_dynamic_csr_feature(cs, cs->gdb_num_regs));
+                                 feature);
     }
 #endif
 }

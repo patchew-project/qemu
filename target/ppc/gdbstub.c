@@ -206,7 +206,7 @@ static void gdb_gen_spr_feature(CPUState *cs)
 
     gdb_feature_builder_init(&builder, &pcc->gdb_spr,
                              "org.qemu.power.spr", "power-spr.xml",
-                             cs->gdb_num_regs);
+                             cs->gdb_next_base_reg);
 
     for (i = 0; i < ARRAY_SIZE(env->spr_cb); i++) {
         ppc_spr_t *spr = &env->spr_cb[i];

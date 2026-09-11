@@ -885,7 +885,8 @@ void aarch64_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
     CPUState *cs = CPU(cpu);
     if (isar_feature_aa64_sve(&cpu->isar) ||
         isar_feature_aa64_sme(&cpu->isar)) {
-        GDBFeature *feature = arm_gen_dynamic_svereg_feature(cs, cs->gdb_num_regs);
+        GDBFeature *feature =
+            arm_gen_dynamic_svereg_feature(cs, cs->gdb_next_base_reg);
         gdb_register_coprocessor(cs, aarch64_gdb_get_sve_reg,
                                  aarch64_gdb_set_sve_reg, feature);
     } else {
@@ -896,7 +897,7 @@ void aarch64_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
 
     if (isar_feature_aa64_sme(&cpu->isar)) {
         GDBFeature *sme_feature =
-            arm_gen_dynamic_smereg_feature(cs, cs->gdb_num_regs);
+            arm_gen_dynamic_smereg_feature(cs, cs->gdb_next_base_reg);
         gdb_register_coprocessor(cs, aarch64_gdb_get_sme_reg,
                                  aarch64_gdb_set_sme_reg, sme_feature);
         if (isar_feature_aa64_sme2(&cpu->isar)) {
@@ -927,7 +928,8 @@ void aarch64_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
 #endif
 
     /* All AArch64 CPUs have at least TPIDR */
+    GDBFeature *tls_feature =
+        arm_gen_dynamic_tls_feature(cs, cs->gdb_next_base_reg);
     gdb_register_coprocessor(cs, aarch64_gdb_get_tls_reg,
-                             aarch64_gdb_set_tls_reg,
-                             arm_gen_dynamic_tls_feature(cs, cs->gdb_num_regs));
+                             aarch64_gdb_set_tls_reg, tls_feature);
 }

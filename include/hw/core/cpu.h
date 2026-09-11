@@ -521,7 +521,7 @@ struct CPUState {
     struct CPUJumpCache *tb_jmp_cache;
 
     GArray *gdb_regs;
-    int gdb_num_regs;
+    int gdb_next_base_reg;
     int gdb_num_g_regs;
     QTAILQ_ENTRY(CPUState) node;
 

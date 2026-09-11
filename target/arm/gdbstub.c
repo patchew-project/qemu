@@ -555,19 +555,21 @@ void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
         gdb_register_coprocessor(cs, mve_gdb_get_reg, mve_gdb_set_reg,
                                  gdb_find_static_feature("arm-m-profile-mve.xml"));
     }
+    GDBFeature *feature =
+        arm_gen_dynamic_sysreg_feature(cs, cs->gdb_next_base_reg);
     gdb_register_coprocessor(cs, arm_gdb_get_sysreg, arm_gdb_set_sysreg,
-                             arm_gen_dynamic_sysreg_feature(cs, cs->gdb_num_regs));
+                             feature);
 
 #ifdef CONFIG_TCG
     if (arm_feature(env, ARM_FEATURE_M) && tcg_enabled()) {
         gdb_register_coprocessor(cs,
             arm_gdb_get_m_systemreg, arm_gdb_set_m_systemreg,
-            arm_gen_dynamic_m_systemreg_feature(cs, cs->gdb_num_regs));
+            arm_gen_dynamic_m_systemreg_feature(cs, cs->gdb_next_base_reg));
 #ifndef CONFIG_USER_ONLY
         if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
             gdb_register_coprocessor(cs,
                 arm_gdb_get_m_secextreg, arm_gdb_set_m_secextreg,
-                arm_gen_dynamic_m_secextreg_feature(cs, cs->gdb_num_regs));
+                arm_gen_dynamic_m_secextreg_feature(cs, cs->gdb_next_base_reg));
         }
 #endif
     }
