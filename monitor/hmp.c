@@ -424,7 +424,7 @@ static bool gdb_get_register(MonitorHMP *hmp, int64_t *pval, const char *name)
 
         buf = g_byte_array_new();
         reg_size = gdb_read_register(cs, buf, reg->gdb_reg);
-        if (reg_size > sizeof(*pval)) {
+        if (reg_size == 0 || reg_size > sizeof(*pval)) {
             return false;
         }
 
