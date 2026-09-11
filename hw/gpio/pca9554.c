@@ -18,7 +18,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-types-machine.h"
 #include "qapi/qapi-visit-machine.h"
-#include "qapi/visitor.h"
+#include "qapi/qapi-type-infos-machine.h"
 #include "trace.h"
 #include "qom/object.h"
 
@@ -151,83 +151,60 @@ static void pca9554_set_ext_state(PCA9554State *s, int pin, int level)
     }
 }
 
-static void pca9554_get_pin(Object *obj, Visitor *v, const char *name,
-                            void *opaque, Error **errp)
-{
-    PCA9554State *s = PCA9554(obj);
-    int pin, rc;
-    Pca9554PinState state;
-
-    rc = sscanf(name, "pin%2d", &pin);
-    if (rc != 1) {
-        error_setg(errp, "%s: error reading %s", __func__, name);
-        return;
-    }
-    if (pin < 0 || pin >= PCA9554_GET_CLASS(s)->pin_count) {
-        error_setg(errp, "%s invalid pin %s", __func__, name);
-        return;
-    }
-
-    /*
-     * Report the physical pin level. The input register is kept in sync by
-     * pca9554_update_pin_input(): output pins mirror the OUTPUT register and
-     * input pins reflect the externally driven (or pulled-up) level, so it
-     * holds the wire level regardless of the configured direction.
-     */
-    state = (s->regs[PCA9554_INPUT] >> pin) & 0x1;
-    visit_type_Pca9554PinState(v, name, &state, errp);
+/*
+ * Report the physical pin level. The input register is kept in sync
+ * by pca9554_update_pin_input(): output pins mirror the OUTPUT
+ * register and input pins reflect the externally driven (or
+ * pulled-up) level, so it holds the wire level regardless of the
+ * configured direction.
+ */
+#define DEFINE_PIN_ACCESSORS(n)                                              \
+static int prop_get_pin##n(Object *obj, Error **errp)                        \
+{                                                                            \
+    PCA9554State *s = PCA9554(obj);                                          \
+    return (s->regs[PCA9554_INPUT] >> (n)) & 0x1;                            \
+}                                                                            \
+static void prop_set_pin##n(Object *obj, int val, Error **errp)              \
+{                                                                            \
+    PCA9554State *s = PCA9554(obj);                                          \
+    if (s->hw_dir) {                                                         \
+        if (!((s->regs[PCA9554_CONFIG] >> (n)) & 0x1)) {                     \
+            qemu_log_mask(LOG_UNIMP,                                         \
+                          "%s: pin %d configured as output,"                 \
+                          " ignoring set\n",                                 \
+                          s->description, (n));                              \
+            return;                                                          \
+        }                                                                    \
+        pca9554_set_ext_state(s, (n), val != PCA9554_PIN_STATE_LOW);         \
+    } else {                                                                 \
+        /* Legacy behavior: force output mode and drive */                   \
+        uint8_t mask = 0x1 << (n);                                           \
+        int v = pca9554_read(s, PCA9554_OUTPUT);                             \
+        if (val == PCA9554_PIN_STATE_LOW) {                                  \
+            v &= ~mask;                                                      \
+        } else {                                                             \
+            v |= mask;                                                       \
+        }                                                                    \
+        pca9554_write(s, PCA9554_OUTPUT, v);                                 \
+        v = pca9554_read(s, PCA9554_CONFIG);                                 \
+        v &= ~mask;                                                          \
+        pca9554_write(s, PCA9554_CONFIG, v);                                 \
+    }                                                                        \
 }
 
-static void pca9554_set_pin(Object *obj, Visitor *v, const char *name,
-                            void *opaque, Error **errp)
-{
-    PCA9554State *s = PCA9554(obj);
-    int pin, rc, val;
-    uint8_t mask;
-    Pca9554PinState state;
+QEMU_REPEAT(PCA9554_PIN_COUNT, DEFINE_PIN_ACCESSORS)
 
-    if (!visit_type_Pca9554PinState(v, name, &state, errp)) {
-        return;
-    }
-    rc = sscanf(name, "pin%2d", &pin);
-    if (rc != 1) {
-        error_setg(errp, "%s: error reading %s", __func__, name);
-        return;
-    }
-    if (pin < 0 || pin >= PCA9554_GET_CLASS(s)->pin_count) {
-        error_setg(errp, "%s invalid pin %s", __func__, name);
-        return;
-    }
+#define PIN_ENUM_PROP(n) {                                              \
+    .name = "pin" #n,                                                   \
+    .default_value = -1,                                                \
+    .qapi_type = &Pca9554PinState_type_info,                            \
+    .get = prop_get_pin##n,                                             \
+    .set = prop_set_pin##n,                                             \
+},
 
-    if (s->hw_dir) {
-        /* Warn and ignore if the guest has configured this pin as output */
-        if (!((s->regs[PCA9554_CONFIG] >> pin) & 0x1)) {
-            qemu_log_mask(LOG_UNIMP,
-                          "%s: pin %d is configured as output, "
-                          "ignoring external set\n",
-                          s->description, pin);
-            return;
-        }
-        /* Drive the external input level */
-        pca9554_set_ext_state(s, pin, state != PCA9554_PIN_STATE_LOW);
-    } else {
-        /* Legacy behavior: force output mode and drive */
-        /* First, modify the output register bit */
-        val = pca9554_read(s, PCA9554_OUTPUT);
-        mask = 0x1 << pin;
-        if (state == PCA9554_PIN_STATE_LOW) {
-            val &= ~(mask);
-        } else {
-            val |= mask;
-        }
-        pca9554_write(s, PCA9554_OUTPUT, val);
-
-        /* Then, clear the config register bit for output mode */
-        val = pca9554_read(s, PCA9554_CONFIG);
-        val &= ~mask;
-        pca9554_write(s, PCA9554_CONFIG, val);
-    }
-}
+static const QapiEnumProp pin_enum_props[] = {
+    QEMU_REPEAT(PCA9554_PIN_COUNT, PIN_ENUM_PROP)
+};
 
 static const VMStateDescription pca9554_vmstate = {
     .name = "PCA9554",
@@ -264,16 +241,9 @@ static void pca9554_reset(DeviceState *dev)
 static void pca9554_initfn(Object *obj)
 {
     PCA9554Class *pc = PCA9554_GET_CLASS(obj);
-    int pin;
 
-    for (pin = 0; pin < pc->pin_count; pin++) {
-        char *name;
-
-        name = g_strdup_printf("pin%d", pin);
-        object_property_add(obj, name, "Pca9554PinState",
-                            pca9554_get_pin, pca9554_set_pin,
-                            NULL, NULL);
-        g_free(name);
+    for (int pin = 0; pin < pc->pin_count; pin++) {
+        object_property_add_qapi_enum(obj, &pin_enum_props[pin]);
     }
 }
 
