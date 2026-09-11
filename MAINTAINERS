@@ -1311,6 +1311,8 @@ F: hw/*/axiado*.c
 F: include/hw/arm/ax3000*.h
 F: include/hw/arm/ax3005*.h
 F: include/hw/*/axiado*.h
+F: tests/functional/arm/test_axiado_scm3003.py
+F: tests/functional/arm/test_ax3005_evb.py
 F: docs/system/arm/axiado.rst
 
 AVR Machines
