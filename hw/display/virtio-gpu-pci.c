@@ -75,7 +75,8 @@ static const TypeInfo virtio_gpu_pci_base_info = {
     .parent = TYPE_VIRTIO_PCI,
     .instance_size = sizeof(VirtIOGPUPCIBase),
     .class_init = virtio_gpu_pci_base_class_init,
-    .abstract = true
+    .abstract = true,
+    .secure = true,
 };
 module_obj(TYPE_VIRTIO_GPU_PCI_BASE);
 module_kconfig(VIRTIO_PCI);
