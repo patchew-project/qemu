@@ -637,6 +637,10 @@ static bool pkt_has_write_conflict(DisasContext *ctx)
     if (!bitmap_empty(ctx->gregs_multi_write, NUM_GREGS)) {
         return true;
     }
+
+    if (!bitmap_empty(ctx->sregs_multi_write, NUM_SREGS)) {
+        return true;
+    }
 #endif
 
     return false;
