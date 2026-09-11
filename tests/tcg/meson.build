@@ -266,7 +266,7 @@ foreach target, plan: tcg_tests
       build_test_depends += image_targets[cc_dockerfile]
       build_test_depend_files += dockerfile
       mount = meson.project_source_root()
-      mount = mount + ':' + mount
+      mount = mount + ':' + mount + ':z'
       here = meson.project_build_root()
       cc = [docker_wrapper, 'run', '--run-as-current-user',
             '-w', here, '-v', mount,

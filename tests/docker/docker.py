@@ -626,7 +626,7 @@ class CcCommand(SubCommand):
             argv = argv[1:]
         cwd = os.getcwd()
         cmd = ["-w", cwd,
-               "-v", "%s:%s:rw" % (cwd, cwd)]
+               "-v", "%s:%s:rw,z" % (cwd, cwd)]
         if args.paths:
             for p in args.paths:
                 cmd += ["-v", "%s:%s:ro,z" % (p, p)]
