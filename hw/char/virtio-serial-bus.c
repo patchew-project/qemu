@@ -836,6 +836,7 @@ static const TypeInfo virtser_bus_info = {
     .parent = TYPE_BUS,
     .instance_size = sizeof(VirtIOSerialBus),
     .class_init = virtser_bus_class_init,
+    .secure = true,
 };
 
 #ifdef CONFIG_HMP
@@ -1091,6 +1092,7 @@ static const TypeInfo virtio_serial_port_type_info = {
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(VirtIOSerialPort),
     .abstract = true,
+    .secure = true,
     .class_size = sizeof(VirtIOSerialPortClass),
     .class_init = virtio_serial_port_class_init,
 };
@@ -1169,6 +1171,7 @@ static const TypeInfo virtio_device_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOSerial),
     .class_init = virtio_serial_class_init,
+    .secure = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { }
