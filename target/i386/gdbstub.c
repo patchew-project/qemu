@@ -493,6 +493,25 @@ static int i386_cpu_gdb_set_egprs(CPUState *cs, uint8_t *mem_buf, int n)
 }
 #endif
 
+#ifndef CONFIG_USER_ONLY
+static int x86_gdb_read_segment_limit(CPUState *cs, GByteArray *buf, int n)
+{
+    CPUX86State *env = cpu_env(cs);
+    static const int segments[] = { R_CS, R_DS, R_ES, R_SS, R_FS, R_GS };
+
+    if (n < 0 || n >= ARRAY_SIZE(segments)) {
+        return 0;
+    }
+    return gdb_get_reg32(buf, env->segs[segments[n]].limit);
+}
+
+static int x86_gdb_write_segment_limit(CPUState *cs, uint8_t *buf, int n)
+{
+    /* Segment caches are exposed for inspection only. Ignore writes. */
+    return 4;
+}
+#endif
+
 void x86_cpu_gdb_init(CPUState *cs)
 {
 #ifdef TARGET_X86_64
@@ -513,5 +532,10 @@ void x86_cpu_gdb_init(CPUState *cs)
 #else
                              gdb_find_static_feature("i386-32bit-linux.xml"));
 #endif
+#endif
+#ifndef CONFIG_USER_ONLY
+    gdb_register_coprocessor(cs, x86_gdb_read_segment_limit,
+                             x86_gdb_write_segment_limit,
+                             gdb_find_static_feature("i386-segments.xml"));
 #endif
 }

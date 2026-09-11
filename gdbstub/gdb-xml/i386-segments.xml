@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!--
+  SPDX-License-Identifier: GPL-2.0-or-later
+-->
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<!-- Segment-cache values are read-only; writes are ignored. -->
+<feature name="org.qemu.gdb.i386.segments">
+  <reg name="cs.limit" bitsize="32" type="uint32" group="qemu-debug" save-restore="no"/>
+  <reg name="ds.limit" bitsize="32" type="uint32" group="qemu-debug" save-restore="no"/>
+  <reg name="es.limit" bitsize="32" type="uint32" group="qemu-debug" save-restore="no"/>
+  <reg name="ss.limit" bitsize="32" type="uint32" group="qemu-debug" save-restore="no"/>
+  <reg name="fs.limit" bitsize="32" type="uint32" group="qemu-debug" save-restore="no"/>
+  <reg name="gs.limit" bitsize="32" type="uint32" group="qemu-debug" save-restore="no"/>
+</feature>
