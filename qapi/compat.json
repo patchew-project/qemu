@@ -40,7 +40,7 @@
 ##
 # @CompatPolicy:
 #
-# Policy for handling deprecated management interfaces.
+# Policy for handling deprecated and unstable management interfaces.
 #
 # This is intended for testing users of the management interfaces.
 #
