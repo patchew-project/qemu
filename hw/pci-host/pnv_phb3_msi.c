@@ -306,6 +306,7 @@ static const TypeInfo phb3_msi_info = {
     .class_init = phb3_msi_class_init,
     .class_size = sizeof(ICSStateClass),
     .instance_init = phb3_msi_instance_init,
+    .secure = true,
 };
 
 static void pnv_phb3_msi_register_types(void)

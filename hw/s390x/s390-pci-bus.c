@@ -1406,6 +1406,7 @@ static const TypeInfo s390_pcihost_info = {
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(S390pciState),
     .class_init    = s390_pcihost_class_init,
+    .secure        = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { }
@@ -1416,6 +1417,7 @@ static const TypeInfo s390_pcibus_info = {
     .name = TYPE_S390_PCI_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(S390PCIBus),
+    .secure = true,
 };
 
 static uint16_t s390_pci_generate_uid(S390pciState *s)
@@ -1588,12 +1590,14 @@ static const TypeInfo s390_pci_device_info = {
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(S390PCIBusDevice),
     .class_init = s390_pci_device_class_init,
+    .secure = true,
 };
 
 static const TypeInfo s390_pci_iommu_info = {
     .name = TYPE_S390_PCI_IOMMU,
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(S390PCIIOMMU),
+    .secure = true,
 };
 
 static void s390_iommu_memory_region_class_init(ObjectClass *klass,
