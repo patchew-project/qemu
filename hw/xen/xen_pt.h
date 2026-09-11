@@ -87,15 +87,6 @@ typedef int (*xen_pt_conf_byte_read)
 
 #define XEN_PCI_CAP_MAX 48
 
-#define XEN_PCI_INTEL_OPREGION 0xfc
-
-#define XEN_PCI_IGD_DOMAIN 0
-#define XEN_PCI_IGD_BUS 0
-#define XEN_PCI_IGD_DEV 2
-#define XEN_PCI_IGD_FN 0
-#define XEN_PCI_IGD_SLOT_MASK \
-    (1UL << PCI_SLOT(PCI_DEVFN(XEN_PCI_IGD_DEV, XEN_PCI_IGD_FN)))
-
 typedef enum {
     XEN_PT_GRP_TYPE_HARDWIRED = 0,  /* 0 Hardwired reg group */
     XEN_PT_GRP_TYPE_EMU,            /* emul reg group */

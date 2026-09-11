@@ -12,8 +12,6 @@
 static unsigned long igd_guest_opregion;
 static unsigned long igd_host_opregion;
 
-#define XEN_PCI_INTEL_OPREGION_MASK 0xfff
-
 typedef struct VGARegion {
     int type;           /* Memory or port I/O */
     uint64_t guest_base_addr;
@@ -251,8 +249,6 @@ uint32_t igd_read_opregion(XenPCIPassthroughState *s)
     return val;
 }
 
-#define XEN_PCI_INTEL_OPREGION_PAGES 0x3
-#define XEN_PCI_INTEL_OPREGION_ENABLE_ACCESSED 0x1
 void igd_write_opregion(XenPCIPassthroughState *s, uint32_t val)
 {
     int ret;
@@ -264,15 +260,15 @@ void igd_write_opregion(XenPCIPassthroughState *s, uint32_t val)
     }
 
     /* We just work with LE. */
-    xen_host_pci_get_block(&s->real_device, XEN_PCI_INTEL_OPREGION,
+    xen_host_pci_get_block(&s->real_device, XEN_PCI_IGD_OPREGION,
             (uint8_t *)&igd_host_opregion, 4);
-    igd_guest_opregion = (unsigned long)(val & ~XEN_PCI_INTEL_OPREGION_MASK)
-                            | (igd_host_opregion & XEN_PCI_INTEL_OPREGION_MASK);
+    igd_guest_opregion = (unsigned long)(val & ~XEN_PCI_IGD_OPREGION_MASK)
+                            | (igd_host_opregion & XEN_PCI_IGD_OPREGION_MASK);
 
     ret = xc_domain_iomem_permission(xen_xc, xen_domid,
             (unsigned long)(igd_host_opregion >> XC_PAGE_SHIFT),
-            XEN_PCI_INTEL_OPREGION_PAGES,
-            XEN_PCI_INTEL_OPREGION_ENABLE_ACCESSED);
+            XEN_PCI_IGD_OPREGION_PAGES,
+            XEN_PCI_IGD_OPREGION_ENABLE_ACCESSED);
 
     if (ret) {
         XEN_PT_ERR(&s->dev, "[%d]:Can't enable to access IGD host opregion:"
@@ -285,7 +281,7 @@ void igd_write_opregion(XenPCIPassthroughState *s, uint32_t val)
     ret = xc_domain_memory_mapping(xen_xc, xen_domid,
             (unsigned long)(igd_guest_opregion >> XC_PAGE_SHIFT),
             (unsigned long)(igd_host_opregion >> XC_PAGE_SHIFT),
-            XEN_PCI_INTEL_OPREGION_PAGES,
+            XEN_PCI_IGD_OPREGION_PAGES,
             DPCI_ADD_MAPPING);
 
     if (ret) {

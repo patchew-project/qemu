@@ -11,6 +11,22 @@
 #ifndef XEN_IGD_H
 #define XEN_IGD_H
 
+#define XEN_PCI_IGD_OPREGION 0xfc
+#define XEN_PCI_IGD_OPREGION_MASK 0xfff
+#define XEN_PCI_IGD_OPREGION_PAGES 0x3
+#define XEN_PCI_IGD_OPREGION_ENABLE_ACCESSED 0x1
+#define XEN_PCI_IGD_OPREGION_SIGNATURE "IntelGraphicsMem"
+#define XEN_PCI_IGD_VBT_SIGNATURE "$VBT"
+#define XEN_PCI_IGD_OPREGION_RVDA 0x3ba
+#define XEN_PCI_IGD_OPREGION_RVDS 0x3c2
+#define XEN_PCI_IGD_OPREGION_VERSION 0x16
+#define XEN_PCI_IGD_DOMAIN 0
+#define XEN_PCI_IGD_BUS 0
+#define XEN_PCI_IGD_DEV 2
+#define XEN_PCI_IGD_FN 0
+#define XEN_PCI_IGD_SLOT_MASK \
+    (1UL << PCI_SLOT(PCI_DEVFN(XEN_PCI_IGD_DEV, XEN_PCI_IGD_FN)))
+
 #include "hw/xen/xen-host-pci-device.h"
 
 typedef struct XenPCIPassthroughState XenPCIPassthroughState;

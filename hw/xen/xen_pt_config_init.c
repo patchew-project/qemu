@@ -1808,7 +1808,7 @@ static const XenPTRegGroupInfo xen_pt_emu_reg_grps[] = {
     },
     /* Intel IGD Opregion group */
     {
-        .grp_id      = XEN_PCI_INTEL_OPREGION,
+        .grp_id      = XEN_PCI_IGD_OPREGION,
         .grp_type    = XEN_PT_GRP_TYPE_EMU,
         .grp_size    = 0x4,
         .size_init   = xen_pt_reg_grp_size_init,
@@ -2023,7 +2023,7 @@ void xen_pt_config_init(XenPCIPassthroughState *s, Error **errp)
         XenPTRegGroup *reg_grp_entry = NULL;
 
         if (xen_pt_emu_reg_grps[i].grp_id != 0xFF
-            && xen_pt_emu_reg_grps[i].grp_id != XEN_PCI_INTEL_OPREGION) {
+            && xen_pt_emu_reg_grps[i].grp_id != XEN_PCI_IGD_OPREGION) {
             if (xen_pt_hide_dev_cap(&s->real_device,
                                     xen_pt_emu_reg_grps[i].grp_id)) {
                 continue;
@@ -2036,7 +2036,7 @@ void xen_pt_config_init(XenPCIPassthroughState *s, Error **errp)
             }
         }
 
-        if (xen_pt_emu_reg_grps[i].grp_id == XEN_PCI_INTEL_OPREGION) {
+        if (xen_pt_emu_reg_grps[i].grp_id == XEN_PCI_IGD_OPREGION) {
             if (!is_igd_vga_passthrough(&s->real_device) ||
                 s->real_device.vendor_id != PCI_VENDOR_ID_INTEL) {
                 continue;
@@ -2046,7 +2046,7 @@ void xen_pt_config_init(XenPCIPassthroughState *s, Error **errp)
              * If an intel device is pass through we need to trap 0xfc,
              * therefore the size should be 0xff.
              */
-            reg_grp_offset = XEN_PCI_INTEL_OPREGION;
+            reg_grp_offset = XEN_PCI_IGD_OPREGION;
         }
 
         reg_grp_entry = g_new0(XenPTRegGroup, 1);
