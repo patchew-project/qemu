@@ -200,6 +200,7 @@ static const TypeInfo pcie_port_type_info = {
     .parent = TYPE_PCI_BRIDGE,
     .instance_size = sizeof(PCIEPort),
     .abstract = true,
+    .secure = true,
     .class_init = pcie_port_class_init,
 };
 
