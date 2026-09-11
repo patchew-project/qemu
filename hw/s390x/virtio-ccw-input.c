@@ -96,6 +96,7 @@ static const TypeInfo virtio_ccw_input = {
     .instance_size = sizeof(VirtIOInputCcw),
     .class_init    = virtio_ccw_input_class_init,
     .abstract = true,
+    .secure = true,
 };
 
 static const TypeInfo virtio_ccw_input_hid = {
@@ -103,6 +104,7 @@ static const TypeInfo virtio_ccw_input_hid = {
     .parent        = TYPE_VIRTIO_INPUT_CCW,
     .instance_size = sizeof(VirtIOInputHIDCcw),
     .abstract = true,
+    .secure = true,
 };
 
 static const TypeInfo virtio_ccw_keyboard = {
@@ -110,6 +112,7 @@ static const TypeInfo virtio_ccw_keyboard = {
     .parent        = TYPE_VIRTIO_INPUT_HID_CCW,
     .instance_size = sizeof(VirtIOInputHIDCcw),
     .instance_init = virtio_ccw_keyboard_instance_init,
+    .secure        = true,
 };
 
 static const TypeInfo virtio_ccw_mouse = {
@@ -117,6 +120,7 @@ static const TypeInfo virtio_ccw_mouse = {
     .parent        = TYPE_VIRTIO_INPUT_HID_CCW,
     .instance_size = sizeof(VirtIOInputHIDCcw),
     .instance_init = virtio_ccw_mouse_instance_init,
+    .secure        = true,
 };
 
 static const TypeInfo virtio_ccw_tablet = {
@@ -124,6 +128,7 @@ static const TypeInfo virtio_ccw_tablet = {
     .parent        = TYPE_VIRTIO_INPUT_HID_CCW,
     .instance_size = sizeof(VirtIOInputHIDCcw),
     .instance_init = virtio_ccw_tablet_instance_init,
+    .secure        = true,
 };
 
 static void virtio_ccw_input_register(void)
