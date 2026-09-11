@@ -192,6 +192,17 @@ struct VFIODeviceIOOps {
     uint64_t capabilities;
 
     /**
+     * @device_reset
+     *
+     * Perform a device reset.
+     *
+     * @vdev: #VFIODevice to use
+     *
+     * Returns 0 on success or -errno.
+     */
+    int (*device_reset)(VFIODevice *vdev);
+
+    /**
      * @device_feature
      *
      * Fill in feature info for the given device.
@@ -287,6 +298,7 @@ bool vfio_device_get_host_iommu_quirk_bypass_ro(VFIODevice *vbasedev,
                                                 uint32_t type, void *caps,
                                                 uint32_t size);
 
+int vfio_device_reset(VFIODevice *vbasedev);
 int vfio_device_get_feature(VFIODevice *vbasedev,
                             struct vfio_device_feature *feature);
 
