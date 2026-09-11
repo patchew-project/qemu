@@ -53,7 +53,8 @@ RISCVException smstateen_acc_ok(CPURISCVState *env, int index, uint64_t bit)
 {
     bool virt = env->virt_enabled;
 
-    if (env->priv == PRV_M || !riscv_cpu_cfg(env)->ext_smstateen) {
+    if (env->debugger || env->priv == PRV_M ||
+        !riscv_cpu_cfg(env)->ext_smstateen) {
         return RISCV_EXCP_NONE;
     }
 
