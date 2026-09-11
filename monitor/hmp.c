@@ -402,7 +402,7 @@ void hmp_help_cmd(MonitorHMP *mon, const char *name)
  * Set @pval to the value in the register identified by @name.
  * return %true if the register is found, %false otherwise.
  */
-static bool gdb_get_register(MonitorHMP *hmp, int64_t *pval, const char *name)
+static bool get_register(MonitorHMP *hmp, int64_t *pval, const char *name)
 {
     g_autoptr(GArray) regs = NULL;
     CPUState *cs = monitor_hmp_get_cpu(hmp);
@@ -433,6 +433,10 @@ static bool gdb_get_register(MonitorHMP *hmp, int64_t *pval, const char *name)
         } else {
             *pval = ldn_le_p(buf->data, reg_size);
         }
+        return true;
+    }
+    if (!strcmp(name, "pc") && cs->cc->get_pc) {
+        *pval = cs->cc->get_pc(cs);
         return true;
     }
     return false;
@@ -526,7 +530,7 @@ static int64_t expr_unary(MonitorHMP *mon)
                 pch++;
             }
             *q = 0;
-            if (!gdb_get_register(mon, &reg, buf)
+            if (!get_register(mon, &reg, buf)
                 && get_monitor_def(mon, &reg, buf) < 0) {
                 expr_error(mon, "unknown register");
             }
