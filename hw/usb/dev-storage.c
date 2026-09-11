@@ -608,6 +608,7 @@ static const TypeInfo usb_storage_dev_type_info = {
     .instance_size = sizeof(MSDState),
     .abstract = true,
     .class_init = usb_msd_class_initfn_common,
+    .secure = true,
 };
 
 static void usb_msd_register_types(void)
