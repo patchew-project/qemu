@@ -84,6 +84,7 @@ static const TypeInfo uefi_vars_sysbus_info = {
     .instance_size = sizeof(uefi_vars_sysbus_state),
     .instance_init = uefi_vars_sysbus_init,
     .class_init    = uefi_vars_sysbus_class_init,
+    .secure        = true,
 };
 module_obj(TYPE_UEFI_VARS_SYSBUS);
 
@@ -113,6 +114,7 @@ static const TypeInfo uefi_vars_x64_info = {
     .name          = TYPE_UEFI_VARS_X64,
     .parent        = TYPE_UEFI_VARS_SYSBUS,
     .class_init    = uefi_vars_x64_class_init,
+    .secure        = true,
 };
 module_obj(TYPE_UEFI_VARS_X64);
 
