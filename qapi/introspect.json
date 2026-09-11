@@ -117,10 +117,28 @@
 #
 # @json-type: the JSON type used for this type on the wire.
 #
+# @integer: the integer type's representation.  Present exactly when
+#     @json-type is 'int'.  (since 11.2)
+#
 # Since: 2.5
 ##
 { 'struct': 'SchemaInfoBuiltin',
-  'data': { 'json-type': 'JSONType' } }
+  'data': { 'json-type': 'JSONType',
+            '*integer': 'SchemaInfoBuiltinInteger' } }
+
+##
+# @SchemaInfoBuiltinInteger:
+#
+# Representation of an integer built-in type.
+#
+# @signed: whether the integer is signed.
+#
+# @bits: the integer's width in bits.
+#
+# Since: 11.2
+##
+{ 'struct': 'SchemaInfoBuiltinInteger',
+  'data': { 'signed': 'bool', 'bits': 'int' } }
 
 ##
 # @JSONType:
