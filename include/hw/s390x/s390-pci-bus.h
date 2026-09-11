@@ -337,6 +337,8 @@ struct S390PCIBusDevice {
     uint16_t uid;
     uint32_t idx;
     uint32_t fh;
+    Error *zpci_migr_blocker; /* machines 11.1 or older */
+    Error *passthrough_migr_blocker;
     uint32_t fid;
     bool fid_defined;
     uint64_t fmb_addr;
@@ -385,11 +387,22 @@ struct S390pciState {
     S390PCIBus *bus;
     GHashTable *iommu_table;
     GHashTable *zpci_table;
+    /*
+     * pending_sei is the zPCI payload queue drained by CHSC SEI (one
+     * SeiContainer per instruction execution).  It is the zPCI-layer
+     * counterpart of ChannelSubSys.pending_crws, which carries the
+     * architectural CRW notifications that prompt the guest to issue
+     * CHSC SEI in the first place.  pending_crws is migrated by
+     * vmstate_css; pending_sei is migrated by vmstate_s390_pcihost_pending_sei
+     * in s390-pci-bus.c so that the two queues remain consistent on the
+     * destination.
+     */
     QTAILQ_HEAD(, SeiContainer) pending_sei;
     QTAILQ_HEAD(, S390PCIBusDevice) zpci_devs;
     QTAILQ_HEAD(, S390PCIDMACount) zpci_dma_limit;
     QTAILQ_HEAD(, S390PCIGroup) zpci_groups;
     uint8_t next_sim_grp;
+    bool zpci_migr_enabled;
 };
 
 S390pciState *s390_get_phb(void);
