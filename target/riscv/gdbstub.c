@@ -336,16 +336,59 @@ static GDBFeature *ricsv_gen_dynamic_vector_feature(CPUState *cs, int base_reg)
     return &cpu->dyn_vreg_feature;
 }
 
+/* x0-x31, s0, then pairs of numeric and ABI high-half aliases. */
+static int riscv_gdb_get_alias(CPUState *cs, GByteArray *buf, int n)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    uint64_t val;
+
+    if (n < 33) {
+        return riscv_cpu_gdb_read_register(cs, buf, n == 32 ? 8 : n);
+    }
+
+    val = cpu->env.gprh[(n - 33) / 2];
+    if (riscv_cpu_is_32bit(cpu)) {
+        return gdb_get_reg32(buf, val);
+    }
+    return gdb_get_reg64(buf, val);
+}
+
+static int riscv_gdb_set_alias(CPUState *cs, uint8_t *buf, int n)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
+    const unsigned regsz = riscv_cpu_is_32bit(cpu) ? 4 : 8;
+
+    if (n < 33) {
+        return riscv_cpu_gdb_write_register(cs, buf, n == 32 ? 8 : n);
+    }
+
+    env->gprh[(n - 33) / 2] = ldn(env, buf, regsz);
+    return regsz;
+}
+
 void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
+
+    gdb_register_coprocessor(cs, riscv_gdb_get_alias, riscv_gdb_set_alias,
+                             gdb_find_static_feature(riscv_cpu_is_32bit(cpu) ?
+                                                     "riscv-32bit-alias.xml" :
+                                                     "riscv-64bit-alias.xml"));
+
     if (env->misa_ext & RVD) {
         gdb_register_coprocessor(cs, riscv_gdb_get_fpu, riscv_gdb_set_fpu,
                                  gdb_find_static_feature("riscv-64bit-fpu.xml"));
+        gdb_register_coprocessor(cs, riscv_gdb_get_fpu,
+            riscv_gdb_set_fpu,
+            gdb_find_static_feature("riscv-64bit-fpu-alias.xml"));
     } else if (env->misa_ext & RVF) {
         gdb_register_coprocessor(cs, riscv_gdb_get_fpu, riscv_gdb_set_fpu,
                                  gdb_find_static_feature("riscv-32bit-fpu.xml"));
+        gdb_register_coprocessor(cs, riscv_gdb_get_fpu,
+            riscv_gdb_set_fpu,
+            gdb_find_static_feature("riscv-32bit-fpu-alias.xml"));
     }
     if (cpu->cfg.ext_zve32x) {
         GDBFeature *feature =
