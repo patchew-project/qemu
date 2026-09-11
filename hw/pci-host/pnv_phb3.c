@@ -910,6 +910,7 @@ static const TypeInfo pnv_phb3_iommu_memory_region_info = {
     .parent = TYPE_IOMMU_MEMORY_REGION,
     .name = TYPE_PNV_PHB3_IOMMU_MEMORY_REGION,
     .class_init = pnv_phb3_iommu_memory_region_class_init,
+    .secure = true,
 };
 
 /*
@@ -1123,6 +1124,7 @@ static const TypeInfo pnv_phb3_type_info = {
     .instance_size = sizeof(PnvPHB3),
     .class_init    = pnv_phb3_class_init,
     .instance_init = pnv_phb3_instance_init,
+    .secure        = true,
 };
 
 static void pnv_phb3_root_bus_get_prop(Object *obj, Visitor *v,
@@ -1186,6 +1188,7 @@ static const TypeInfo pnv_phb3_root_bus_info = {
     .parent = TYPE_PCIE_BUS,
     .instance_size = sizeof(PnvPHB3RootBus),
     .class_init = pnv_phb3_root_bus_class_init,
+    .secure = true,
 };
 
 static void pnv_phb3_register_types(void)
