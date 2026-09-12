@@ -104,6 +104,11 @@ TCGOp * NI tcg_gen_op6(TCGOpcode opc, TCGType type, TCGArg a1, TCGArg a2,
     return op;
 }
 
+static void gen_op_tt(TCGOpcode opc, TCGType type, TCGTemp *t0, TCGTemp *t1)
+{
+    tcg_gen_op2(opc, type, temp_arg(t0), temp_arg(t1));
+}
+
 /*
  * With CONFIG_DEBUG_TCG, tcgv_*_tmp via tcgv_*_arg, is an out-of-line
  * assertion check.  Force tail calls to avoid too much code expansion.
@@ -315,18 +320,47 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
     tcg_gen_op2(INDEX_op_plugin_mem_cb, 0, tcgv_i64_arg(addr), meminfo);
 }
 
+/*
+ * Forward declarations of generic expansions.
+ */
+
+#define DEF_RR(NAME) \
+    static void glue(gen_,NAME)(TCGType, TCGTemp *, TCGTemp *);
+
+#include "tcg/tcg-op-def2.h.inc"
+
+#undef DEF_RR
+
+/*
+ * Generic expansions for templated operations.
+ * We have used compiler type checks to ensure all operands
+ * are of the proper type.
+ */
+
+static void gen_mov(TCGType type, TCGTemp *dst, TCGTemp *src)
+{
+    if (src != dst) {
+        gen_op_tt(INDEX_op_mov, type, dst, src);
+    }
+}
+
+/*
+ * Templated operations.
+ */
+
+#define DEF_RR(NAME)                                                    \
+    DNI void glue(glue(tcg_gen_,NAME),TEXT)(TCGV a, TCGV b)             \
+    { gen_##NAME(TYPE, TTMP(a), TTMP(b)); }
+
+#include "tcg/tcg-op-def.h.inc"
+
+#undef DEF_RR
+
 /* 32 bit ops */
 
 void tcg_gen_discard_i32(TCGv_i32 arg)
 {
     tcg_gen_op1_i32(INDEX_op_discard, TCG_TYPE_I32, arg);
-}
-
-void tcg_gen_mov_i32(TCGv_i32 ret, TCGv_i32 arg)
-{
-    if (ret != arg) {
-        tcg_gen_op2_i32(INDEX_op_mov, ret, arg);
-    }
 }
 
 void tcg_gen_movi_i32(TCGv_i32 ret, int32_t arg)
@@ -1394,13 +1428,6 @@ void tcg_gen_st_i32(TCGv_i32 arg1, TCGv_ptr arg2, tcg_target_long offset)
 void tcg_gen_discard_i64(TCGv_i64 arg)
 {
     tcg_gen_op1_i64(INDEX_op_discard, TCG_TYPE_I64, arg);
-}
-
-void tcg_gen_mov_i64(TCGv_i64 ret, TCGv_i64 arg)
-{
-    if (ret != arg) {
-        tcg_gen_op2_i64(INDEX_op_mov, ret, arg);
-    }
 }
 
 void tcg_gen_movi_i64(TCGv_i64 ret, int64_t arg)
