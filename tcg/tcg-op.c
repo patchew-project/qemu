@@ -327,9 +327,13 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
 #define DEF_RR(NAME) \
     static void glue(gen_,NAME)(TCGType, TCGTemp *, TCGTemp *);
 
+#define DEF_RI(NAME) \
+    static void glue(gen_,NAME)(TCGType, TCGTemp *, int64_t);
+
 #include "tcg/tcg-op-def2.h.inc"
 
 #undef DEF_RR
+#undef DEF_RI
 
 /*
  * Generic expansions for templated operations.
@@ -344,6 +348,11 @@ static void gen_mov(TCGType type, TCGTemp *dst, TCGTemp *src)
     }
 }
 
+static void gen_movi(TCGType type, TCGTemp *dst, int64_t src)
+{
+    gen_op_tt(INDEX_op_mov, type, dst, tcg_constant_internal(type, src));
+}
+
 /*
  * Templated operations.
  */
@@ -352,20 +361,20 @@ static void gen_mov(TCGType type, TCGTemp *dst, TCGTemp *src)
     DNI void glue(glue(tcg_gen_,NAME),TEXT)(TCGV a, TCGV b)             \
     { gen_##NAME(TYPE, TTMP(a), TTMP(b)); }
 
+#define DEF_RI(NAME)                                                    \
+    DNI void glue(glue(tcg_gen_,NAME),TEXT)(TCGV a, TINT b)             \
+    { gen_##NAME(TYPE, TTMP(a), b); }
+
 #include "tcg/tcg-op-def.h.inc"
 
 #undef DEF_RR
+#undef DEF_RI
 
 /* 32 bit ops */
 
 void tcg_gen_discard_i32(TCGv_i32 arg)
 {
     tcg_gen_op1_i32(INDEX_op_discard, TCG_TYPE_I32, arg);
-}
-
-void tcg_gen_movi_i32(TCGv_i32 ret, int32_t arg)
-{
-    tcg_gen_mov_i32(ret, tcg_constant_i32(arg));
 }
 
 void tcg_gen_add_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
@@ -1428,11 +1437,6 @@ void tcg_gen_st_i32(TCGv_i32 arg1, TCGv_ptr arg2, tcg_target_long offset)
 void tcg_gen_discard_i64(TCGv_i64 arg)
 {
     tcg_gen_op1_i64(INDEX_op_discard, TCG_TYPE_I64, arg);
-}
-
-void tcg_gen_movi_i64(TCGv_i64 ret, int64_t arg)
-{
-    tcg_gen_mov_i64(ret, tcg_constant_i64(arg));
 }
 
 void tcg_gen_ld8u_i64(TCGv_i64 ret, TCGv_ptr arg2, tcg_target_long offset)
