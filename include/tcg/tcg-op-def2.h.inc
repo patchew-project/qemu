@@ -2,6 +2,7 @@
 
 DEF_CRIL(brcondi)
 DEF_CRRL(brcond)
+DEF_CRRR(setcond)
 DEF_R(discard)
 DEF_RI(movi)
 DEF_RIR(subfi)
