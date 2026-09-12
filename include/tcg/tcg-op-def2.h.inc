@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 
 DEF_CRIL(brcondi)
+DEF_CRRI(negsetcondi)
 DEF_CRRI(setcondi)
 DEF_CRRL(brcond)
 DEF_CRRR(negsetcond)
