@@ -2392,6 +2392,7 @@ static int accelerator_set_property(void *opaque,
 
 static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
 {
+    Error *local_err = NULL;
     bool *p_init_failed = opaque;
     const char *acc = qemu_opt_get(opts, "accel");
     AccelClass *ac = accel_find(acc);
@@ -2418,10 +2419,12 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
                      accel,
                      &error_fatal);
 
-    ret = accel_init_machine(accel, current_machine);
+    ret = accel_init_machine(accel, current_machine, &local_err);
     if (ret < 0) {
-        if (!qtest_with_kvm || ret != -ENOENT) {
-            error_report("failed to initialize %s: %s", acc, strerror(-ret));
+        if (qtest_with_kvm && ret == -ENOENT) {
+            error_free(local_err);
+        } else {
+            error_reportf_err(local_err, "failed to initialize %s: ", acc);
         }
         goto bad;
     }

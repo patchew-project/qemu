@@ -26,7 +26,9 @@
 #include "qemu/osdep.h"
 #include "qemu/accel.h"
 #include "qom/compat-properties.h"
+#include "qapi/error.h"
 #include "qapi/qapi-commands-accelerator.h"
+#include "migration/migration.h"
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"
 #include "hw/core/boards.h"
@@ -37,20 +39,31 @@
 #include "qemu/error-report.h"
 #include "accel-internal.h"
 
-int accel_init_machine(AccelState *accel, MachineState *ms)
+int accel_init_machine(AccelState *accel, MachineState *ms, Error **errp)
 {
     AccelClass *acc = ACCEL_GET_CLASS(accel);
     int ret;
     ms->accelerator = accel;
     *(acc->allowed) = true;
+
+    if (!enforce_only_migratable(errp)) {
+        ret = -EACCES;
+        goto fail;
+    }
+
     ret = acc->init_machine(accel, ms);
     if (ret < 0) {
-        ms->accelerator = NULL;
-        *(acc->allowed) = false;
-        object_unref(OBJECT(accel));
-    } else {
-        object_set_accelerator_compat_props(acc->compat_props);
+        error_setg(errp, "%s", strerror(-ret));
+        goto fail;
     }
+
+    object_set_accelerator_compat_props(acc->compat_props);
+    return ret;
+
+fail:
+    ms->accelerator = NULL;
+    *(acc->allowed) = false;
+    object_unref(OBJECT(accel));
     return ret;
 }
 

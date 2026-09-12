@@ -17,6 +17,14 @@
 #include "qapi/qapi-types-migration.h"
 
 /**
+ * define MIG_XEN - identifier for Xen migration
+ *
+ * Xen migration is distinct from those expressed with &typedef MigMode.
+ * Use this for migration blockers that affect Xen.
+ */
+#define MIG_XEN MIG_MODE__MAX
+
+/**
  * @migrate_add_blocker - prevent all modes of migration from proceeding
  *
  * @reasonp - address of an error to be returned whenever migration is attempted
@@ -80,7 +88,7 @@ int migrate_add_blocker_normal(Error **reasonp, Error **errp);
  *
  * @reasonp - address of an error to be returned whenever migration is attempted
  *
- * @modes - the migration modes to be blocked, a bit set of MigMode
+ * @modes - the migration modes to be blocked, a bit set of MigMode and %MIG_XEN
  *
  * @errp - [out] The reason (if any) we cannot block migration right now.
  *

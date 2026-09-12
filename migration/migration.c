@@ -23,6 +23,7 @@
 #include "system/runstate.h"
 #include "system/system.h"
 #include "system/cpu-throttle.h"
+#include "system/xen.h"
 #include "ram.h"
 #include "migration/cpr.h"
 #include "migration/global_state.h"
@@ -94,7 +95,8 @@ enum mig_rp_message_type {
 static MigrationState *current_migration;
 static MigrationIncomingState *current_incoming;
 
-static GSList *migration_blockers[MIG_MODE__MAX];
+static GSList *migration_blockers[MIG_MODE__MAX + 1];
+static bool enforcing_only_migratable;
 
 static bool migration_object_check(MigrationState *ms, Error **errp);
 static bool migration_switchover_start(MigrationState *s, Error **errp);
@@ -1773,15 +1775,22 @@ static bool is_busy(Error **reasonp, Error **errp)
     return false;
 }
 
+static void propagate_disallowed_blocker(Error **errp, Error **reasonp)
+{
+    error_propagate_prepend(errp, *reasonp,
+                            "disallowing migration blocker "
+                            "(--only-migratable) for: ");
+    *reasonp = NULL;
+}
+
 static bool is_only_migratable(Error **reasonp, unsigned modes, Error **errp)
 {
+    unsigned mode = xen_enabled() ? MIG_XEN : MIG_MODE_NORMAL;
+
     ERRP_GUARD();
 
-    if (only_migratable && (modes & BIT(MIG_MODE_NORMAL))) {
-        error_propagate_prepend(errp, *reasonp,
-                                "disallowing migration blocker "
-                                "(--only-migratable) for: ");
-        *reasonp = NULL;
+    if (enforcing_only_migratable && (modes & BIT(mode))) {
+        propagate_disallowed_blocker(errp, reasonp);
         return true;
     }
     return false;
@@ -1789,7 +1798,7 @@ static bool is_only_migratable(Error **reasonp, unsigned modes, Error **errp)
 
 static int add_blockers(Error **reasonp, unsigned modes, Error **errp)
 {
-    for (MigMode mode = 0; mode < MIG_MODE__MAX; mode++) {
+    for (MigMode mode = 0; mode < ARRAY_SIZE(migration_blockers); mode++) {
         if (modes & BIT(mode)) {
             assert(g_slist_index(migration_blockers[mode],
                                  *reasonp) == -1);
@@ -1822,7 +1831,7 @@ int migrate_add_blocker_modes(Error **reasonp, unsigned modes, Error **errp)
 
 int migrate_add_blocker_internal(Error **reasonp, Error **errp)
 {
-    unsigned modes = BIT(MIG_MODE__MAX) - 1;
+    unsigned modes = BIT(ARRAY_SIZE(migration_blockers)) - 1;
 
     if (is_busy(reasonp, errp)) {
         return -EBUSY;
@@ -1833,7 +1842,7 @@ int migrate_add_blocker_internal(Error **reasonp, Error **errp)
 void migrate_del_blocker(Error **reasonp)
 {
     if (*reasonp) {
-        for (MigMode mode = 0; mode < MIG_MODE__MAX; mode++) {
+        for (MigMode mode = 0; mode < ARRAY_SIZE(migration_blockers); mode++) {
             migration_blockers[mode] = g_slist_remove(migration_blockers[mode],
                                                       *reasonp);
         }
@@ -1961,9 +1970,45 @@ void qmp_migrate_pause(Error **errp)
                "during postcopy-active or postcopy-recover state");
 }
 
+bool enforce_only_migratable(Error **errp)
+{
+    unsigned mode = xen_enabled() ? MIG_XEN : MIG_MODE_NORMAL;
+    GSList *blockers = migration_blockers[mode];
+    Error *reason;
+
+    if (!only_migratable) {
+        return true;
+    }
+
+    if (blockers) {
+        reason = error_copy(blockers->data);
+        propagate_disallowed_blocker(errp, &reason);
+        return false;
+    }
+
+    enforcing_only_migratable = true;
+    return true;
+}
+
 bool migration_is_blocked(Error **errp)
 {
     GSList *blockers = migration_blockers[migrate_mode()];
+
+    if (qemu_savevm_state_blocked(errp)) {
+        return true;
+    }
+
+    if (blockers) {
+        error_propagate(errp, error_copy(blockers->data));
+        return true;
+    }
+
+    return false;
+}
+
+bool xen_migration_is_blocked(Error **errp)
+{
+    GSList *blockers = migration_blockers[MIG_XEN];
 
     if (qemu_savevm_state_blocked(errp)) {
         return true;

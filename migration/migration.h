@@ -568,7 +568,9 @@ void migration_start_incoming(void);
 int migration_call_notifiers(MigrationEventType type, Error **errp);
 
 int migrate_init(MigrationState *s, Error **errp);
+bool enforce_only_migratable(Error **errp);
 bool migration_is_blocked(Error **errp);
+bool xen_migration_is_blocked(Error **errp);
 /* True if outgoing migration has entered postcopy phase */
 bool migration_in_postcopy(void);
 bool migration_postcopy_is_alive(MigrationStatus state);
