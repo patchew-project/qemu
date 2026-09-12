@@ -353,6 +353,9 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
 #define DEF_CRRR(NAME) \
     static void glue(gen_,NAME)(TCGType, TCGCond, TCGTemp *, TCGTemp *, TCGTemp *);
 
+#define DEF_CRRI(NAME) \
+    static void glue(gen_,NAME)(TCGType, TCGCond, TCGTemp *, TCGTemp *, int64_t);
+
 #include "tcg/tcg-op-def2.h.inc"
 
 #undef DEF_R
@@ -364,6 +367,7 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
 #undef DEF_CRRL
 #undef DEF_CRIL
 #undef DEF_CRRR
+#undef DEF_CRRI
 
 /*
  * Generic expansions for templated operations.
@@ -653,6 +657,12 @@ static void gen_setcond(TCGType type, TCGCond cond, TCGTemp *dst,
     }
 }
 
+static void gen_setcondi(TCGType type, TCGCond cond, TCGTemp *dst,
+                         TCGTemp *src1, int64_t src2)
+{
+    gen_setcond(type, cond, dst, src1, tcg_constant_internal(type, src2));
+}
+
 static void gen_shl(TCGType type, TCGTemp *dst, TCGTemp *src1, TCGTemp *src2)
 {
     gen_op_ttt(INDEX_op_shl, type, dst, src1, src2);
@@ -761,6 +771,10 @@ static void gen_xori(TCGType type, TCGTemp *dst, TCGTemp *src1, int64_t src2)
     void glue(glue(tcg_gen_,NAME),TEXT)(TCGCond a, TCGV b, TCGV c, TCGV d) \
     { gen_##NAME(TYPE, a, TTMP(b), TTMP(c), TTMP(d)); }
 
+#define DEF_CRRI(NAME)                                                  \
+    void glue(glue(tcg_gen_,NAME),TEXT)(TCGCond a, TCGV b, TCGV c, TINT d) \
+    { gen_##NAME(TYPE, a, TTMP(b), TTMP(c), d); }
+
 #include "tcg/tcg-op-def.h.inc"
 
 #undef DEF_R
@@ -772,14 +786,9 @@ static void gen_xori(TCGType type, TCGTemp *dst, TCGTemp *src1, int64_t src2)
 #undef DEF_CRRL
 #undef DEF_CRIL
 #undef DEF_CRRR
+#undef DEF_CRRI
 
 /* 32 bit ops */
-
-void tcg_gen_setcondi_i32(TCGCond cond, TCGv_i32 ret,
-                          TCGv_i32 arg1, int32_t arg2)
-{
-    tcg_gen_setcond_i32(cond, ret, arg1, tcg_constant_i32(arg2));
-}
 
 void tcg_gen_negsetcond_i32(TCGCond cond, TCGv_i32 ret,
                             TCGv_i32 arg1, TCGv_i32 arg2)
@@ -1551,12 +1560,6 @@ void tcg_gen_st32_i64(TCGv_i64 arg1, TCGv_ptr arg2, tcg_target_long offset)
 void tcg_gen_st_i64(TCGv_i64 arg1, TCGv_ptr arg2, tcg_target_long offset)
 {
     tcg_gen_ldst_op_i64(INDEX_op_st, arg1, arg2, offset);
-}
-
-void tcg_gen_setcondi_i64(TCGCond cond, TCGv_i64 ret,
-                          TCGv_i64 arg1, int64_t arg2)
-{
-    tcg_gen_setcond_i64(cond, ret, arg1, tcg_constant_i64(arg2));
 }
 
 void tcg_gen_negsetcondi_i64(TCGCond cond, TCGv_i64 ret,
