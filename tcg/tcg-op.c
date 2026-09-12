@@ -360,6 +360,10 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
     static void glue(gen_,NAME)(TCGType, TCGCond, TCGTemp *, TCGTemp *, \
                                 TCGTemp *, TCGTemp *, TCGTemp *);
 
+#define DEF_RRUU(NAME) \
+    static void glue(gen_,NAME)(TCGType, TCGTemp *, TCGTemp *, \
+                                unsigned, unsigned);
+
 #define DEF_RRRUU(NAME) \
     static void glue(gen_,NAME)(TCGType, TCGTemp *, TCGTemp *, TCGTemp *, \
                                 unsigned, unsigned);
@@ -377,6 +381,7 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
 #undef DEF_CRRR
 #undef DEF_CRRI
 #undef DEF_CRRRRR
+#undef DEF_RRUU
 #undef DEF_RRRUU
 
 static void gen_extrh_i64_i32(TCGTemp *dst, TCGTemp *src);
@@ -648,6 +653,50 @@ static void gen_eqv(TCGType type, TCGTemp *dst, TCGTemp *src1, TCGTemp *src2)
     } else {
         gen_xor(type, dst, src1, src2);
         gen_not(type, dst, dst);
+    }
+}
+
+static void gen_extract(TCGType type, TCGTemp *dst, TCGTemp *src,
+                        unsigned int ofs, unsigned int len)
+{
+    unsigned width = tcg_type_size(type) * 8;
+    uint64_t mask;
+
+    tcg_debug_assert(ofs < width);
+    tcg_debug_assert(len > 0);
+    tcg_debug_assert(len <= width);
+    tcg_debug_assert(ofs + len <= width);
+
+    /* Canonicalize certain special cases, even if extract is supported.  */
+    if (ofs + len == width) {
+        gen_shri(type, dst, src, width - len);
+        return;
+    }
+
+    if (TCG_TARGET_extract_valid(type, ofs, len)) {
+        gen_op_ttii(INDEX_op_extract, type, dst, src, ofs, len);
+        return;
+    }
+
+    mask = MAKE_64BIT_MASK(0, len);
+    if (ofs == 0) {
+        gen_andi(type, dst, src, mask);
+        return;
+    }
+
+    /* Assume that zero-extension, if available, is cheaper than a shift.  */
+    if (TCG_TARGET_extract_valid(type, 0, ofs + len)) {
+        gen_op_ttii(INDEX_op_extract, type, dst, src, 0, ofs + len);
+        gen_shri(type, dst, dst, ofs);
+        return;
+    }
+
+    if (tcg_op_imm_match(INDEX_op_and, type, mask)) {
+        gen_shri(type, dst, src, ofs);
+        gen_andi(type, dst, dst, mask);
+    } else {
+        gen_shli(type, dst, src, width - len - ofs);
+        gen_shri(type, dst, dst, width - len);
     }
 }
 
@@ -1062,6 +1111,11 @@ static void gen_xori(TCGType type, TCGTemp *dst, TCGTemp *src1, int64_t src2)
                                         TCGV d, TCGV e, TCGV f)         \
     { gen_##NAME(TYPE, a, TTMP(b), TTMP(c), TTMP(d), TTMP(e), TTMP(f)); }
 
+#define DEF_RRUU(NAME)                                                  \
+    DNI void glue(glue(tcg_gen_,NAME),TEXT)(TCGV a, TCGV b,             \
+                                            unsigned c, unsigned d)     \
+    { gen_##NAME(TYPE, TTMP(a), TTMP(b), c, d); }
+
 #define DEF_RRRUU(NAME)                                                 \
     DNI void glue(glue(tcg_gen_,NAME),TEXT)(TCGV a, TCGV b, TCGV c,     \
                                             unsigned d, unsigned e)     \
@@ -1080,6 +1134,7 @@ static void gen_xori(TCGType type, TCGTemp *dst, TCGTemp *src1, int64_t src2)
 #undef DEF_CRRR
 #undef DEF_CRRI
 #undef DEF_CRRRRR
+#undef DEF_RRUU
 #undef DEF_RRRUU
 
 /* 32 bit ops */
@@ -1099,49 +1154,6 @@ void tcg_gen_deposit_z_i32(TCGv_i32 ret, TCGv_i32 arg,
     } else {
         TCGv_i32 zero = tcg_constant_i32(0);
         tcg_gen_op5ii_i32(INDEX_op_deposit, ret, zero, arg, ofs, len);
-    }
-}
-
-void tcg_gen_extract_i32(TCGv_i32 ret, TCGv_i32 arg,
-                         unsigned int ofs, unsigned int len)
-{
-    uint32_t mask;
-
-    tcg_debug_assert(ofs < 32);
-    tcg_debug_assert(len > 0);
-    tcg_debug_assert(len <= 32);
-    tcg_debug_assert(ofs + len <= 32);
-
-    /* Canonicalize certain special cases, even if extract is supported.  */
-    if (ofs + len == 32) {
-        tcg_gen_shri_i32(ret, arg, 32 - len);
-        return;
-    }
-
-    if (TCG_TARGET_extract_valid(TCG_TYPE_I32, ofs, len)) {
-        tcg_gen_op4ii_i32(INDEX_op_extract, ret, arg, ofs, len);
-        return;
-    }
-
-    mask = (1u << len) - 1;
-    if (ofs == 0) {
-        tcg_gen_andi_i32(ret, arg, mask);
-        return;
-    }
-
-    /* Assume that zero-extension, if available, is cheaper than a shift.  */
-    if (TCG_TARGET_extract_valid(TCG_TYPE_I32, 0, ofs + len)) {
-        tcg_gen_op4ii_i32(INDEX_op_extract, ret, arg, 0, ofs + len);
-        tcg_gen_shri_i32(ret, ret, ofs);
-        return;
-    }
-
-    if (tcg_op_imm_match(INDEX_op_and, TCG_TYPE_I32, mask)) {
-        tcg_gen_shri_i32(ret, arg, ofs);
-        tcg_gen_andi_i32(ret, ret, mask);
-    } else {
-        tcg_gen_shli_i32(ret, arg, 32 - len - ofs);
-        tcg_gen_shri_i32(ret, ret, 32 - len);
     }
 }
 
@@ -1846,49 +1858,6 @@ void tcg_gen_deposit_z_i64(TCGv_i64 ret, TCGv_i64 arg,
     } else {
         TCGv_i64 zero = tcg_constant_i64(0);
         tcg_gen_op5ii_i64(INDEX_op_deposit, ret, zero, arg, ofs, len);
-    }
-}
-
-void tcg_gen_extract_i64(TCGv_i64 ret, TCGv_i64 arg,
-                         unsigned int ofs, unsigned int len)
-{
-    uint64_t mask;
-
-    tcg_debug_assert(ofs < 64);
-    tcg_debug_assert(len > 0);
-    tcg_debug_assert(len <= 64);
-    tcg_debug_assert(ofs + len <= 64);
-
-    /* Canonicalize certain special cases, even if extract is supported.  */
-    if (ofs + len == 64) {
-        tcg_gen_shri_i64(ret, arg, 64 - len);
-        return;
-    }
-
-    if (TCG_TARGET_extract_valid(TCG_TYPE_I64, ofs, len)) {
-        tcg_gen_op4ii_i64(INDEX_op_extract, ret, arg, ofs, len);
-        return;
-    }
-
-    mask = (1ull << len) - 1;
-    if (ofs == 0) {
-        tcg_gen_andi_i64(ret, arg, mask);
-        return;
-    }
-
-    /* Assume that zero-extension, if available, is cheaper than a shift.  */
-    if (TCG_TARGET_extract_valid(TCG_TYPE_I64, 0, ofs + len)) {
-        tcg_gen_op4ii_i64(INDEX_op_extract, ret, arg, 0, ofs + len);
-        tcg_gen_shri_i64(ret, ret, ofs);
-        return;
-    }
-
-    if (tcg_op_imm_match(INDEX_op_and, TCG_TYPE_I64, mask)) {
-        tcg_gen_shri_i64(ret, arg, ofs);
-        tcg_gen_andi_i64(ret, ret, mask);
-    } else {
-        tcg_gen_shli_i64(ret, arg, 64 - len - ofs);
-        tcg_gen_shri_i64(ret, ret, 64 - len);
     }
 }
 
