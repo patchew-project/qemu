@@ -293,6 +293,10 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
 #define DEF_RRR(NAME) \
     static void glue(gen_,NAME)(TCGType, TCGTemp *, TCGTemp *, TCGTemp *);
 
+#define DEF_RRRRR(NAME) \
+    static void glue(gen_,NAME)(TCGType, TCGTemp *, TCGTemp *, \
+                                TCGTemp *, TCGTemp *, TCGTemp *);
+
 #define DEF_RI(NAME) \
     static void glue(gen_,NAME)(TCGType, TCGTemp *, int64_t);
 
@@ -335,6 +339,7 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
 #undef DEF_R
 #undef DEF_RR
 #undef DEF_RRR
+#undef DEF_RRRRR
 #undef DEF_RI
 #undef DEF_RRI
 #undef DEF_RIR
@@ -386,6 +391,32 @@ static void gen_addi(TCGType type, TCGTemp *dst, TCGTemp *src1, int64_t src2)
     } else {
         gen_add(type, dst, src1, tcg_constant_internal(type, src2));
     }
+}
+
+static void gen_addcio(TCGType type, TCGTemp *r, TCGTemp *co,
+                       TCGTemp *a, TCGTemp *b, TCGTemp *ci)
+{
+    TCGTemp *t0 = tcg_temp_new_internal(type, TEMP_EBB);
+
+    if (tcg_op_supported(INDEX_op_addci, type, 0)) {
+        TCGTemp *zero = tcg_constant_internal(type, 0);
+        TCGTemp *mone = tcg_constant_internal(type, -1);
+
+        gen_op_ttt(INDEX_op_addco, type, t0, ci, mone);
+        gen_op_ttt(INDEX_op_addcio, type, r, a, b);
+        gen_op_ttt(INDEX_op_addci, type, co, zero, zero);
+    } else {
+        TCGTemp *t1 = tcg_temp_new_internal(type, TEMP_EBB);
+
+        gen_add(type, t0, a, b);
+        gen_setcond(type, TCG_COND_LTU, t1, t0, a);
+        gen_add(type, r, t0, ci);
+        gen_setcond(type, TCG_COND_LTU, t0, r, t0);
+        gen_or(type, co, t0, t1);
+
+        tcg_temp_free_internal(t1);
+    }
+    tcg_temp_free_internal(t0);
 }
 
 static void gen_and(TCGType type, TCGTemp *dst, TCGTemp *src1, TCGTemp *src2)
@@ -1200,6 +1231,11 @@ static void gen_xori(TCGType type, TCGTemp *dst, TCGTemp *src1, int64_t src2)
     DNI void glue(glue(tcg_gen_,NAME),TEXT)(TCGV a, TCGV b, TCGV c)     \
     { gen_##NAME(TYPE, TTMP(a), TTMP(b), TTMP(c)); }
 
+#define DEF_RRRRR(NAME)                                                 \
+    DNI void glue(glue(tcg_gen_,NAME),TEXT)(TCGV a, TCGV b, TCGV c,     \
+                                            TCGV d, TCGV e)             \
+    { gen_##NAME(TYPE, TTMP(a), TTMP(b), TTMP(c), TTMP(d), TTMP(e)); }
+
 #define DEF_RI(NAME)                                                    \
     DNI void glue(glue(tcg_gen_,NAME),TEXT)(TCGV a, TINT b)             \
     { gen_##NAME(TYPE, TTMP(a), b); }
@@ -1255,6 +1291,7 @@ static void gen_xori(TCGType type, TCGTemp *dst, TCGTemp *src1, int64_t src2)
 #undef DEF_R
 #undef DEF_RR
 #undef DEF_RRR
+#undef DEF_RRRRR
 #undef DEF_RI
 #undef DEF_RRI
 #undef DEF_RIR
@@ -1307,33 +1344,6 @@ void tcg_gen_add2_i32(TCGv_i32 rl, TCGv_i32 rh, TCGv_i32 al,
         tcg_gen_add_i32(rh, ah, bh);
         tcg_gen_add_i32(rh, rh, t1);
         tcg_gen_mov_i32(rl, t0);
-        tcg_temp_free_i32(t0);
-        tcg_temp_free_i32(t1);
-    }
-}
-
-void tcg_gen_addcio_i32(TCGv_i32 r, TCGv_i32 co,
-                        TCGv_i32 a, TCGv_i32 b, TCGv_i32 ci)
-{
-    if (tcg_op_supported(INDEX_op_addci, TCG_TYPE_I32, 0)) {
-        TCGv_i32 t0 = tcg_temp_ebb_new_i32();
-        TCGv_i32 zero = tcg_constant_i32(0);
-        TCGv_i32 mone = tcg_constant_i32(-1);
-
-        tcg_gen_op3_i32(INDEX_op_addco, t0, ci, mone);
-        tcg_gen_op3_i32(INDEX_op_addcio, r, a, b);
-        tcg_gen_op3_i32(INDEX_op_addci, co, zero, zero);
-        tcg_temp_free_i32(t0);
-    } else {
-        TCGv_i32 t0 = tcg_temp_ebb_new_i32();
-        TCGv_i32 t1 = tcg_temp_ebb_new_i32();
-
-        tcg_gen_add_i32(t0, a, b);
-        tcg_gen_setcond_i32(TCG_COND_LTU, t1, t0, a);
-        tcg_gen_add_i32(r, t0, ci);
-        tcg_gen_setcond_i32(TCG_COND_LTU, t0, r, t0);
-        tcg_gen_or_i32(co, t0, t1);
-
         tcg_temp_free_i32(t0);
         tcg_temp_free_i32(t1);
     }
@@ -1844,33 +1854,6 @@ void tcg_gen_add2_i64(TCGv_i64 rl, TCGv_i64 rh, TCGv_i64 al,
         tcg_gen_add_i64(rh, ah, bh);
         tcg_gen_add_i64(rh, rh, t1);
         tcg_gen_mov_i64(rl, t0);
-        tcg_temp_free_i64(t0);
-        tcg_temp_free_i64(t1);
-    }
-}
-
-void tcg_gen_addcio_i64(TCGv_i64 r, TCGv_i64 co,
-                        TCGv_i64 a, TCGv_i64 b, TCGv_i64 ci)
-{
-    if (tcg_op_supported(INDEX_op_addci, TCG_TYPE_I64, 0)) {
-        TCGv_i64 discard = tcg_temp_ebb_new_i64();
-        TCGv_i64 zero = tcg_constant_i64(0);
-        TCGv_i64 mone = tcg_constant_i64(-1);
-
-        tcg_gen_op3_i64(INDEX_op_addco, discard, ci, mone);
-        tcg_gen_op3_i64(INDEX_op_addcio, r, a, b);
-        tcg_gen_op3_i64(INDEX_op_addci, co, zero, zero);
-        tcg_temp_free_i64(discard);
-    } else {
-        TCGv_i64 t0 = tcg_temp_ebb_new_i64();
-        TCGv_i64 t1 = tcg_temp_ebb_new_i64();
-
-        tcg_gen_add_i64(t0, a, b);
-        tcg_gen_setcond_i64(TCG_COND_LTU, t1, t0, a);
-        tcg_gen_add_i64(r, t0, ci);
-        tcg_gen_setcond_i64(TCG_COND_LTU, t0, r, t0);
-        tcg_gen_or_i64(co, t0, t1);
-
         tcg_temp_free_i64(t0);
         tcg_temp_free_i64(t1);
     }
