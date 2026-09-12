@@ -8,7 +8,11 @@
 #define SPARC_CPU_PARAM_H
 
 #ifdef TARGET_SPARC64
-# define TARGET_PAGE_BITS 13 /* 8k */
+# ifdef CONFIG_USER_ONLY
+#  define TARGET_PAGE_BITS_VARY
+# else
+#  define TARGET_PAGE_BITS 13 /* 8k */
+# endif
 # ifdef TARGET_ABI32
 #  define TARGET_VIRT_ADDR_SPACE_BITS 32
 # else
