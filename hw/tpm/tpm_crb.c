@@ -482,7 +482,7 @@ static void tpm_crb_realize(DeviceState *dev, Error **errp)
         error_setg(&s->migration_blocker,
                    "The tpm-crb device does not support chunk migration with "
                    "machine version less than 11.1");
-        ret = migrate_add_blocker_normal(&s->migration_blocker, errp);
+        ret = migrate_add_blocker(&s->migration_blocker, errp);
         if (ret < 0) {
             return;
         }
