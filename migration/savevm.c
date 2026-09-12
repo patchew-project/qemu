@@ -3418,6 +3418,10 @@ void qmp_xen_save_devices_state(const char *filename, bool has_live, bool live,
     int saved_vm_running;
     int ret;
 
+    if (xen_migration_is_blocked(errp)) {
+        return;
+    }
+
     if (!has_live) {
         /* live default to true so old version of Xen tool stack can have a
          * successful live migration */

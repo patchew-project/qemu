@@ -47,7 +47,7 @@ const char *current_accel_name(void);
 
 void accel_init_interfaces(AccelClass *ac);
 
-int accel_init_machine(AccelState *accel, MachineState *ms);
+int accel_init_machine(AccelState *accel, MachineState *ms, Error **errp);
 
 /* Called just before os_setup_post (ie just before drop OS privs) */
 void accel_setup_post(MachineState *ms);
