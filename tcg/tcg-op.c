@@ -1186,6 +1186,17 @@ static void gen_xori(TCGType type, TCGTemp *dst, TCGTemp *src1, int64_t src2)
 #undef DEF_RRUU
 #undef DEF_RRRUU
 
+static void gen_ext(TCGType type, TCGTemp *dst, TCGTemp *src, MemOp mop)
+{
+    unsigned width = memop_size(mop) * 8;
+
+    if (mop & MO_SIGN) {
+        gen_sextract(type, dst, src, 0, width);
+    } else {
+        gen_extract(type, dst, src, 0, width);
+    }
+}
+
 /* 32 bit ops */
 
 /*
@@ -1205,6 +1216,16 @@ void tcg_gen_extract2_i32(TCGv_i32 ret, TCGv_i32 al, TCGv_i32 ah,
     } else {
         tcg_gen_op4i_i32(INDEX_op_extract2, ret, al, ah, ofs);
     }
+}
+
+void tcg_gen_ext_i32(TCGv_i32 dst, TCGv_i32 src, MemOp mop)
+{
+    gen_ext(TCG_TYPE_I32, tcgv_i32_temp(dst), tcgv_i32_temp(src), mop);
+}
+
+void tcg_gen_ext_i64(TCGv_i64 dst, TCGv_i64 src, MemOp mop)
+{
+    gen_ext(TCG_TYPE_I64, tcgv_i64_temp(dst), tcgv_i64_temp(src), mop);
 }
 
 void tcg_gen_add2_i32(TCGv_i32 rl, TCGv_i32 rh, TCGv_i32 al,
