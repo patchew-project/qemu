@@ -3687,6 +3687,32 @@ static inline void la_reset_pref(TCGTemp *ts)
         = (ts->state == TS_DEAD ? 0 : tcg_target_available_regs[ts->type]);
 }
 
+/* For liveness_pass_1, allocate a new dead temporary. */
+static TCGTemp *la_temp_new(TCGType type)
+{
+    TCGTemp *t = tcg_temp_new_internal(type, TEMP_EBB);
+
+    t->state_ptr = tcg_malloc(sizeof(TCGRegSet));
+    t->state = TS_DEAD;
+    la_reset_pref(t);
+
+    return t;
+}
+
+/* For liveness_pass_1, allocate a new constant. */
+static TCGTemp *la_const_new(TCGType type, int64_t val)
+{
+    TCGTemp *t = tcg_constant_internal(type, val);
+
+    /* This constant may already be live within the TB. */
+    if (!t->state_ptr) {
+        t->state_ptr = tcg_malloc(sizeof(TCGRegSet));
+        t->state = TS_DEAD;
+        la_reset_pref(t);
+    }
+    return t;
+}
+
 /* liveness analysis: end of function: all temps are dead, and globals
    should be in memory. */
 static void la_func_end(TCGContext *s, int ng, int nt)
@@ -3890,9 +3916,184 @@ static void assert_carry_dead(TCGContext *s)
     tcg_debug_assert(!s->carry_live);
 }
 
-/* Liveness analysis : update the opc_arg_life array to tell if a
-   given input arguments is dead. Instructions updating dead
-   temporaries are removed. */
+/*
+ * Expand missing mulu2.  This is delayed until liveness because x86
+ * translation generates double-word multiplies which may turn out to
+ * be dead with condition codes, and we may be able to simplify to
+ * just a single-word multiply.
+ */
+
+static TCGTemp *la_mulu2_ext32u(TCGContext *ctx, TCGOp *op,
+                                TCGTemp *dst, TCGTemp *src)
+{
+    TCGOp *op2 = tcg_op_insert_before(ctx, op, INDEX_op_extract,
+                                      TCG_TYPE_I64, 4);
+
+    op2->args[0] = temp_arg(dst);
+    op2->args[1] = temp_arg(src);
+    op2->args[2] = 0;
+    op2->args[3] = 32;
+    return dst;
+}
+
+static TCGTemp *la_mulu2_mov(TCGContext *ctx, TCGOp *op,
+                             TCGTemp *dst, TCGTemp *src)
+{
+    TCGOp *op2 = tcg_op_insert_before(ctx, op, INDEX_op_mov, TCG_TYPE_I64, 2);
+
+    op2->args[0] = temp_arg(dst);
+    op2->args[1] = temp_arg(src);
+    return dst;
+}
+
+static TCGTemp *la_mulu2_op3(TCGContext *ctx, TCGOp *op, TCGOpcode opc,
+                             TCGTemp *dst, TCGTemp *src1, TCGTemp *src2)
+{
+    TCGOp *op2 = tcg_op_insert_before(ctx, op, opc, TCG_TYPE_I64, 3);
+
+    op2->args[0] = temp_arg(dst);
+    op2->args[1] = temp_arg(src1);
+    op2->args[2] = temp_arg(src2);
+    return dst;
+}
+
+static TCGTemp *la_mulu2_op3c(TCGContext *ctx, TCGOp *op, TCGOpcode opc,
+                              TCGTemp *dst, TCGTemp *src1, TCGTemp *src2)
+{
+    if (src2->kind != TEMP_CONST && (src1->kind == TEMP_CONST || dst == src2)) {
+        TCGTemp *t = src1;
+        src1 = src2;
+        src2 = t;
+    }
+    return la_mulu2_op3(ctx, op, opc, dst, src1, src2);
+}
+
+static TCGOp *la_expand_mulu2_i64(TCGContext *s, TCGOp *op)
+{
+    TCGTemp *o0_orig = arg_temp(op->args[0]);
+    TCGTemp *o1_orig = arg_temp(op->args[1]);
+    TCGTemp *i0 = arg_temp(op->args[2]);
+    TCGTemp *i1 = arg_temp(op->args[3]);
+    TCGTemp *o0, *o1, *l0, *l1, *h0, *h1, *m0, *m1, *t0 = NULL, *t1 = NULL;
+    TCGTemp *t32 = la_const_new(TCG_TYPE_I64, 32);
+    TCGTemp *tzero = la_const_new(TCG_TYPE_I64, 0);
+    TCGOp *ret;
+
+    /*
+     * At present, the only two hosts missing some form of double-word or
+     * high-part multiply are s390x without misc-insn-ext-2 (before z14)
+     * or sparc64 without vis3 (before ultrasparc t3).
+     * Both of these have ext32u and addci.
+     */
+    tcg_debug_assert(op->opc == INDEX_op_mulu2);
+    tcg_debug_assert(TCGOP_TYPE(op) == TCG_TYPE_I64);
+    tcg_debug_assert(TCG_TARGET_extract_valid(TCG_TYPE_I64, 0, 32));
+    tcg_debug_assert(tcg_op_supported(INDEX_op_addci, TCG_TYPE_I64, 0));
+
+    /*
+     * Split the two 64-bit multiplicands into unsigned halves.
+     * Via fold_multiply2, i0 must be non-constant.
+     */
+    l0 = la_mulu2_ext32u(s, op, la_temp_new(TCG_TYPE_I64), i0);
+    h0 = la_mulu2_op3(s, op, INDEX_op_shr, la_temp_new(TCG_TYPE_I64), i0, t32);
+
+    if (i1->kind == TEMP_CONST) {
+        l1 = la_const_new(TCG_TYPE_I64, extract64(i1->val, 0, 32));
+        h1 = la_const_new(TCG_TYPE_I64, extract64(i1->val, 32, 32));
+    } else {
+        l1 = la_mulu2_ext32u(s, op, la_temp_new(TCG_TYPE_I64), i1);
+        h1 = la_mulu2_op3(s, op, INDEX_op_shr,
+                          la_temp_new(TCG_TYPE_I64), i1, t32);
+    }
+
+    /*
+     * Compute partial products.
+     */
+    if (l1 == tzero) {
+        o0 = tzero;
+        m0 = tzero;
+    } else {
+        o0 = la_mulu2_op3c(s, op, INDEX_op_mul, o0_orig, l0, l1);
+        m0 = la_mulu2_op3c(s, op, INDEX_op_mul,
+                           la_temp_new(TCG_TYPE_I64), h0, l1);
+    }
+    if (h1 == tzero) {
+        m1 = tzero;
+        o1 = tzero;
+    } else {
+        m1 = la_mulu2_op3c(s, op, INDEX_op_mul,
+                           la_temp_new(TCG_TYPE_I64), l0, h1);
+        o1 = la_mulu2_op3c(s, op, INDEX_op_mul, o1_orig, h0, h1);
+    }
+
+    /*
+     * The middle partial products need shifting up by 32, producing
+     * bits within [63:32] and [95:64].
+     */
+    if (m0 != tzero) {
+        t0 = la_mulu2_op3(s, op, INDEX_op_shr,
+                          la_temp_new(TCG_TYPE_I64), m0, t32);
+        la_mulu2_op3(s, op, INDEX_op_shl, m0, m0, t32);
+        if (o0 == tzero) {
+            o0 = m0;
+            if (o1 == tzero) {
+                o1 = t0;
+            } else {
+                o1 = la_mulu2_op3c(s, op, INDEX_op_add, o0_orig, o1, t0);
+            }
+        } else {
+            o0 = la_mulu2_op3c(s, op, INDEX_op_addco, o0_orig, o0, m0);
+            o1 = la_mulu2_op3c(s, op, INDEX_op_addci, o1_orig, o1, t0);
+        }
+    }
+    if (m1 != tzero) {
+        t1 = la_mulu2_op3(s, op, INDEX_op_shr,
+                          la_temp_new(TCG_TYPE_I64), m1, t32);
+        la_mulu2_op3(s, op, INDEX_op_shl, m1, m1, t32);
+        if (o0 == tzero) {
+            o0 = m1;
+            if (o1 == tzero) {
+                o1 = t1;
+            } else {
+                o1 = la_mulu2_op3c(s, op, INDEX_op_add, o0_orig, o1, t1);
+            }
+        } else {
+            o0 = la_mulu2_op3c(s, op, INDEX_op_addco, o0_orig, o0, m1);
+            o1 = la_mulu2_op3c(s, op, INDEX_op_addci, o1_orig, o1, t1);
+        }
+    }
+
+    /* Final write-back, if necessary. */
+    if (o0 != o0_orig) {
+        la_mulu2_mov(s, op, o0_orig, o0);
+    }
+    if (o1 != o1_orig) {
+        la_mulu2_mov(s, op, o1_orig, o1);
+    }
+
+    tcg_temp_free_internal(l0);
+    tcg_temp_free_internal(l1);
+    tcg_temp_free_internal(h0);
+    tcg_temp_free_internal(h1);
+    tcg_temp_free_internal(m0);
+    tcg_temp_free_internal(m1);
+    if (t0) {
+        tcg_temp_free_internal(t0);
+    }
+    if (t1) {
+        tcg_temp_free_internal(t1);
+    }
+
+    ret = QTAILQ_PREV(op, link);
+    tcg_op_remove(s, op);
+    return ret;
+}
+
+/*
+ * Liveness analysis : update the opc_arg_life array to tell if a
+ * given input arguments is dead. Instructions updating dead
+ * temporaries are removed.
+ */
 static void __attribute__((noinline))
 liveness_pass_1(TCGContext *s)
 {
@@ -4067,10 +4268,11 @@ liveness_pass_1(TCGContext *s)
                 op->args[0] = op->args[1];
                 op->args[1] = op->args[2];
                 op->args[2] = op->args[3];
-            } else {
-                goto do_not_remove;
+            } else if (!tcg_op_supported(opc, TCGOP_TYPE(op), 0)) {
+                op = la_expand_mulu2_i64(s, op);
+                op_prev = QTAILQ_PREV(op, link);
+                opc = op->opc;
             }
-            /* Mark the single-word operation live.  */
             goto do_not_remove;
 
         case INDEX_op_addco:

@@ -871,8 +871,7 @@ static void gen_muls2(TCGType type, TCGTemp *rl, TCGTemp *rh,
 
         tcg_temp_free_internal(t0);
         tcg_temp_free_internal(t1);
-    } else if (tcg_op_supported(INDEX_op_mulu2, TCG_TYPE_I64, 0) ||
-               tcg_op_supported(INDEX_op_muluh, TCG_TYPE_I64, 0)) {
+    } else {
         TCGTemp *t0 = tcg_temp_new_internal(TCG_TYPE_I64, TEMP_EBB);
         TCGTemp *t1 = tcg_temp_new_internal(TCG_TYPE_I64, TEMP_EBB);
         TCGTemp *t2 = tcg_temp_new_internal(TCG_TYPE_I64, TEMP_EBB);
@@ -893,24 +892,13 @@ static void gen_muls2(TCGType type, TCGTemp *rl, TCGTemp *rh,
         tcg_temp_free_internal(t1);
         tcg_temp_free_internal(t2);
         tcg_temp_free_internal(t3);
-    } else {
-        TCGTemp *t = tcg_temp_new_internal(TCG_TYPE_I64, TEMP_EBB);
-
-        gen_mul(TCG_TYPE_I64, t, src1, src2);
-        gen_helper_mulsh_i64(temp_tcgv_i64(rh), temp_tcgv_i64(src1),
-                             temp_tcgv_i64(src2));
-        gen_mov(TCG_TYPE_I64, rl, t);
-
-        tcg_temp_free_internal(t);
     }
 }
 
 static void gen_mulu2(TCGType type, TCGTemp *rl, TCGTemp *rh,
                       TCGTemp *src1, TCGTemp *src2)
 {
-    if (tcg_op_supported(INDEX_op_mulu2, type, 0)) {
-        gen_op_tttt(INDEX_op_mulu2, type, rl, rh, src1, src2);
-    } else if (tcg_op_supported(INDEX_op_muluh, type, 0)) {
+    if (tcg_op_supported(INDEX_op_muluh, type, 0)) {
         TCGTemp *t = tcg_temp_new_internal(type, TEMP_EBB);
 
         gen_mul(type, t, src1, src2);
@@ -918,7 +906,14 @@ static void gen_mulu2(TCGType type, TCGTemp *rl, TCGTemp *rh,
         gen_mov(type, rl, t);
 
         tcg_temp_free_internal(t);
-    } else if (type == TCG_TYPE_I32) {
+    } if (type == TCG_TYPE_I64 ||
+          tcg_op_supported(INDEX_op_mulu2, TCG_TYPE_I32, 0)) {
+        /*
+         * Unsupported mulu2_i64 is expanded after liveness analysis
+         * has a chance to discard an unused high-part.
+         */
+        gen_op_tttt(INDEX_op_mulu2, type, rl, rh, src1, src2);
+    } else {
         TCGTemp *t0 = tcg_temp_new_internal(TCG_TYPE_I64, TEMP_EBB);
         TCGTemp *t1 = tcg_temp_new_internal(TCG_TYPE_I64, TEMP_EBB);
 
@@ -931,15 +926,6 @@ static void gen_mulu2(TCGType type, TCGTemp *rl, TCGTemp *rh,
 
         tcg_temp_free_internal(t0);
         tcg_temp_free_internal(t1);
-    } else {
-        TCGTemp *t = tcg_temp_new_internal(TCG_TYPE_I64, TEMP_EBB);
-
-        gen_mul(TCG_TYPE_I64, t, src1, src2);
-        gen_helper_muluh_i64(temp_tcgv_i64(rh), temp_tcgv_i64(src1),
-                             temp_tcgv_i64(src2));
-        gen_mov(TCG_TYPE_I64, rl, t);
-
-        tcg_temp_free_internal(t);
     }
 }
 
