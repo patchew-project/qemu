@@ -338,6 +338,9 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
 #define DEF_RIR(NAME) \
     static void glue(gen_,NAME)(TCGType, TCGTemp *, int64_t, TCGTemp *);
 
+#define DEF_CRRL(NAME) \
+    static void glue(gen_,NAME)(TCGType, TCGCond, TCGTemp *, TCGTemp *, TCGLabel *);
+
 #include "tcg/tcg-op-def2.h.inc"
 
 #undef DEF_R
@@ -346,6 +349,7 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
 #undef DEF_RI
 #undef DEF_RRI
 #undef DEF_RIR
+#undef DEF_CRRL
 
 /*
  * Generic expansions for templated operations.
@@ -406,6 +410,18 @@ static void gen_andc(TCGType type, TCGTemp *dst, TCGTemp *src1, TCGTemp *src2)
         gen_not(type, tmp, src2);
         gen_and(type, dst, src1, tmp);
         tcg_temp_free_internal(tmp);
+    }
+}
+
+static void gen_brcond(TCGType type, TCGCond cond, TCGTemp *src1,
+                       TCGTemp *src2, TCGLabel *l)
+{
+    if (cond == TCG_COND_ALWAYS) {
+        tcg_gen_br(l);
+    } else if (cond != TCG_COND_NEVER) {
+        TCGOp *op = gen_op_ttii(INDEX_op_brcond, type,
+                                src1, src2, cond, label_arg(l));
+        add_as_label_use(l, op);
     }
 }
 
@@ -699,6 +715,11 @@ static void gen_xori(TCGType type, TCGTemp *dst, TCGTemp *src1, int64_t src2)
     void glue(glue(tcg_gen_,NAME),TEXT)(TCGV a, TINT b, TCGV c)         \
     { gen_##NAME(TYPE, TTMP(a), b, TTMP(c)); }
 
+#define DEF_CRRL(NAME)                                                  \
+    void glue(glue(tcg_gen_,NAME),TEXT)(TCGCond a, TCGV b,              \
+                                        TCGV c, TCGLabel *d)            \
+    { gen_##NAME(TYPE, a, TTMP(b), TTMP(c), d); }
+
 #include "tcg/tcg-op-def.h.inc"
 
 #undef DEF_R
@@ -707,19 +728,9 @@ static void gen_xori(TCGType type, TCGTemp *dst, TCGTemp *src1, int64_t src2)
 #undef DEF_RI
 #undef DEF_RRI
 #undef DEF_RIR
+#undef DEF_CRRL
 
 /* 32 bit ops */
-
-void tcg_gen_brcond_i32(TCGCond cond, TCGv_i32 arg1, TCGv_i32 arg2, TCGLabel *l)
-{
-    if (cond == TCG_COND_ALWAYS) {
-        tcg_gen_br(l);
-    } else if (cond != TCG_COND_NEVER) {
-        TCGOp *op = tcg_gen_op4ii_i32(INDEX_op_brcond,
-                                      arg1, arg2, cond, label_arg(l));
-        add_as_label_use(l, op);
-    }
-}
 
 void tcg_gen_brcondi_i32(TCGCond cond, TCGv_i32 arg1, int32_t arg2, TCGLabel *l)
 {
@@ -1518,17 +1529,6 @@ void tcg_gen_st32_i64(TCGv_i64 arg1, TCGv_ptr arg2, tcg_target_long offset)
 void tcg_gen_st_i64(TCGv_i64 arg1, TCGv_ptr arg2, tcg_target_long offset)
 {
     tcg_gen_ldst_op_i64(INDEX_op_st, arg1, arg2, offset);
-}
-
-void tcg_gen_brcond_i64(TCGCond cond, TCGv_i64 arg1, TCGv_i64 arg2, TCGLabel *l)
-{
-    if (cond == TCG_COND_ALWAYS) {
-        tcg_gen_br(l);
-    } else if (cond != TCG_COND_NEVER) {
-        TCGOp *op = tcg_gen_op4ii_i64(INDEX_op_brcond, arg1, arg2, cond,
-                                      label_arg(l));
-        add_as_label_use(l, op);
-    }
 }
 
 void tcg_gen_brcondi_i64(TCGCond cond, TCGv_i64 arg1, int64_t arg2, TCGLabel *l)

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 
+DEF_CRRL(brcond)
 DEF_R(discard)
 DEF_RI(movi)
 DEF_RIR(subfi)
