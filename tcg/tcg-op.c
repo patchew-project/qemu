@@ -135,6 +135,14 @@ static TCGOp *gen_op_ttttt(TCGOpcode opc, TCGType type,
                        temp_arg(t3), temp_arg(t4));
 }
 
+static TCGOp *gen_op_ttttti(TCGOpcode opc, TCGType type,
+                            TCGTemp *t0, TCGTemp *t1, TCGTemp *t2,
+                            TCGTemp *t3, TCGTemp *t4, TCGArg a5)
+{
+    return tcg_gen_op6(opc, type, temp_arg(t0), temp_arg(t1), temp_arg(t2),
+                       temp_arg(t3), temp_arg(t4), a5);
+}
+
 /*
  * With CONFIG_DEBUG_TCG, tcgv_*_tmp via tcgv_*_arg, is an out-of-line
  * assertion check.  Force tail calls to avoid too much code expansion.
@@ -256,22 +264,6 @@ static void DNI tcg_gen_op5ii_i64(TCGOpcode opc, TCGv_i64 a1, TCGv_i64 a2,
                 tcgv_i64_arg(a3), a4, a5);
 }
 
-static void DNI tcg_gen_op6i_i32(TCGOpcode opc, TCGv_i32 a1, TCGv_i32 a2,
-                                 TCGv_i32 a3, TCGv_i32 a4,
-                                 TCGv_i32 a5, TCGArg a6)
-{
-    tcg_gen_op6(opc, TCG_TYPE_I32, tcgv_i32_arg(a1), tcgv_i32_arg(a2),
-                tcgv_i32_arg(a3), tcgv_i32_arg(a4), tcgv_i32_arg(a5), a6);
-}
-
-static void DNI tcg_gen_op6i_i64(TCGOpcode opc, TCGv_i64 a1, TCGv_i64 a2,
-                                 TCGv_i64 a3, TCGv_i64 a4,
-                                 TCGv_i64 a5, TCGArg a6)
-{
-    tcg_gen_op6(opc, TCG_TYPE_I64, tcgv_i64_arg(a1), tcgv_i64_arg(a2),
-                tcgv_i64_arg(a3), tcgv_i64_arg(a4), tcgv_i64_arg(a5), a6);
-}
-
 /* Generic ops.  */
 
 void gen_set_label(TCGLabel *l)
@@ -356,6 +348,10 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
 #define DEF_CRRI(NAME) \
     static void glue(gen_,NAME)(TCGType, TCGCond, TCGTemp *, TCGTemp *, int64_t);
 
+#define DEF_CRRRRR(NAME) \
+    static void glue(gen_,NAME)(TCGType, TCGCond, TCGTemp *, TCGTemp *, \
+                                TCGTemp *, TCGTemp *, TCGTemp *);
+
 #include "tcg/tcg-op-def2.h.inc"
 
 #undef DEF_R
@@ -368,6 +364,7 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
 #undef DEF_CRIL
 #undef DEF_CRRR
 #undef DEF_CRRI
+#undef DEF_CRRRRR
 
 /*
  * Generic expansions for templated operations.
@@ -505,6 +502,18 @@ static void gen_mov(TCGType type, TCGTemp *dst, TCGTemp *src)
 static void gen_movi(TCGType type, TCGTemp *dst, int64_t src)
 {
     gen_op_tt(INDEX_op_mov, type, dst, tcg_constant_internal(type, src));
+}
+
+static void gen_movcond(TCGType type, TCGCond cond, TCGTemp *dst,
+                        TCGTemp *c1, TCGTemp *c2, TCGTemp *v1, TCGTemp *v2)
+{
+    if (cond == TCG_COND_ALWAYS) {
+        gen_mov(type, dst, v1);
+    } else if (cond == TCG_COND_NEVER) {
+        gen_mov(type, dst, v2);
+    } else {
+        gen_op_ttttti(INDEX_op_movcond, type, dst, c1, c2, v1, v2, cond);
+    }
 }
 
 static void gen_mul(TCGType type, TCGTemp *dst, TCGTemp *src1, TCGTemp *src2)
@@ -793,6 +802,11 @@ static void gen_xori(TCGType type, TCGTemp *dst, TCGTemp *src1, int64_t src2)
     void glue(glue(tcg_gen_,NAME),TEXT)(TCGCond a, TCGV b, TCGV c, TINT d) \
     { gen_##NAME(TYPE, a, TTMP(b), TTMP(c), d); }
 
+#define DEF_CRRRRR(NAME)                                                \
+    void glue(glue(tcg_gen_,NAME),TEXT)(TCGCond a, TCGV b, TCGV c,      \
+                                        TCGV d, TCGV e, TCGV f)         \
+    { gen_##NAME(TYPE, a, TTMP(b), TTMP(c), TTMP(d), TTMP(e), TTMP(f)); }
+
 #include "tcg/tcg-op-def.h.inc"
 
 #undef DEF_R
@@ -805,6 +819,7 @@ static void gen_xori(TCGType type, TCGTemp *dst, TCGTemp *src1, int64_t src2)
 #undef DEF_CRIL
 #undef DEF_CRRR
 #undef DEF_CRRI
+#undef DEF_CRRRRR
 
 /* 32 bit ops */
 
@@ -1114,18 +1129,6 @@ void tcg_gen_extract2_i32(TCGv_i32 ret, TCGv_i32 al, TCGv_i32 ah,
         tcg_gen_rotri_i32(ret, al, ofs);
     } else {
         tcg_gen_op4i_i32(INDEX_op_extract2, ret, al, ah, ofs);
-    }
-}
-
-void tcg_gen_movcond_i32(TCGCond cond, TCGv_i32 ret, TCGv_i32 c1,
-                         TCGv_i32 c2, TCGv_i32 v1, TCGv_i32 v2)
-{
-    if (cond == TCG_COND_ALWAYS) {
-        tcg_gen_mov_i32(ret, v1);
-    } else if (cond == TCG_COND_NEVER) {
-        tcg_gen_mov_i32(ret, v2);
-    } else {
-        tcg_gen_op6i_i32(INDEX_op_movcond, ret, c1, c2, v1, v2, cond);
     }
 }
 
@@ -2039,18 +2042,6 @@ void tcg_gen_extract2_i64(TCGv_i64 ret, TCGv_i64 al, TCGv_i64 ah,
         tcg_gen_rotri_i64(ret, al, ofs);
     } else {
         tcg_gen_op4i_i64(INDEX_op_extract2, ret, al, ah, ofs);
-    }
-}
-
-void tcg_gen_movcond_i64(TCGCond cond, TCGv_i64 ret, TCGv_i64 c1,
-                         TCGv_i64 c2, TCGv_i64 v1, TCGv_i64 v2)
-{
-    if (cond == TCG_COND_ALWAYS) {
-        tcg_gen_mov_i64(ret, v1);
-    } else if (cond == TCG_COND_NEVER) {
-        tcg_gen_mov_i64(ret, v2);
-    } else {
-        tcg_gen_op6i_i64(INDEX_op_movcond, ret, c1, c2, v1, v2, cond);
     }
 }
 
