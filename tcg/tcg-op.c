@@ -119,16 +119,6 @@ static void gen_op_tt(TCGOpcode opc, TCGType type, TCGTemp *t0, TCGTemp *t1)
 # define DNI
 #endif
 
-static void DNI tcg_gen_op1_i32(TCGOpcode opc, TCGType type, TCGv_i32 a1)
-{
-    tcg_gen_op1(opc, type, tcgv_i32_arg(a1));
-}
-
-static void DNI tcg_gen_op1_i64(TCGOpcode opc, TCGType type, TCGv_i64 a1)
-{
-    tcg_gen_op1(opc, type, tcgv_i64_arg(a1));
-}
-
 static TCGOp * DNI tcg_gen_op1i(TCGOpcode opc, TCGType type, TCGArg a1)
 {
     return tcg_gen_op1(opc, type, a1);
@@ -324,6 +314,9 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
  * Forward declarations of generic expansions.
  */
 
+#define DEF_R(NAME) \
+    static void glue(gen_,NAME)(TCGType, TCGTemp *);
+
 #define DEF_RR(NAME) \
     static void glue(gen_,NAME)(TCGType, TCGTemp *, TCGTemp *);
 
@@ -332,6 +325,7 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
 
 #include "tcg/tcg-op-def2.h.inc"
 
+#undef DEF_R
 #undef DEF_RR
 #undef DEF_RI
 
@@ -340,6 +334,11 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
  * We have used compiler type checks to ensure all operands
  * are of the proper type.
  */
+
+static void gen_discard(TCGType type, TCGTemp *src)
+{
+    tcg_gen_op1(INDEX_op_discard, type, temp_arg(src));
+}
 
 static void gen_mov(TCGType type, TCGTemp *dst, TCGTemp *src)
 {
@@ -357,6 +356,10 @@ static void gen_movi(TCGType type, TCGTemp *dst, int64_t src)
  * Templated operations.
  */
 
+#define DEF_R(NAME)                                                     \
+    DNI void glue(glue(tcg_gen_,NAME),TEXT)(TCGV a)                     \
+    { gen_##NAME(TYPE, TTMP(a)); }
+
 #define DEF_RR(NAME)                                                    \
     DNI void glue(glue(tcg_gen_,NAME),TEXT)(TCGV a, TCGV b)             \
     { gen_##NAME(TYPE, TTMP(a), TTMP(b)); }
@@ -367,15 +370,11 @@ static void gen_movi(TCGType type, TCGTemp *dst, int64_t src)
 
 #include "tcg/tcg-op-def.h.inc"
 
+#undef DEF_R
 #undef DEF_RR
 #undef DEF_RI
 
 /* 32 bit ops */
-
-void tcg_gen_discard_i32(TCGv_i32 arg)
-{
-    tcg_gen_op1_i32(INDEX_op_discard, TCG_TYPE_I32, arg);
-}
 
 void tcg_gen_add_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 {
@@ -1433,11 +1432,6 @@ void tcg_gen_st_i32(TCGv_i32 arg1, TCGv_ptr arg2, tcg_target_long offset)
 
 
 /* 64-bit ops */
-
-void tcg_gen_discard_i64(TCGv_i64 arg)
-{
-    tcg_gen_op1_i64(INDEX_op_discard, TCG_TYPE_I64, arg);
-}
 
 void tcg_gen_ld8u_i64(TCGv_i64 ret, TCGv_ptr arg2, tcg_target_long offset)
 {
