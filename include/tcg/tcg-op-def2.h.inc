@@ -2,6 +2,7 @@
 
 DEF_R(discard)
 DEF_RI(movi)
+DEF_RIR(subfi)
 DEF_RR(mov)
 DEF_RR(neg)
 DEF_RRI(addi)
