@@ -29,6 +29,7 @@
 
 typedef struct HexagonTLBState HexagonTLBState;
 typedef struct HexagonGlobalRegState HexagonGlobalRegState;
+typedef struct HexagonHVXContextState HexagonHVXContextState;
 
 #include "cpu-qom.h"
 #include "exec/cpu-common.h"
@@ -49,6 +50,7 @@ typedef struct HexagonGlobalRegState HexagonGlobalRegState;
 #define REG_WRITES_MAX 32
 #define PRED_WRITES_MAX 5                   /* 4 insns + endloop */
 #define VSTORES_MAX 2
+#define HVX_CONTEXTS_MAX 8
 #define MAX_TLB_ENTRIES 1024
 #define THREADS_MAX 16
 
@@ -120,6 +122,11 @@ typedef struct {
 /* Maximum number of vector temps in a packet */
 #define VECTOR_TEMPS_MAX            4
 
+typedef struct HexagonHVXContext {
+    MMVector VRegs[NUM_VREGS];
+    MMQReg QRegs[NUM_QREGS];
+} QEMU_ALIGNED(16) HexagonHVXContext;
+
 typedef struct CPUArchState {
     target_ulong gpr[TOTAL_PER_THREAD_REGS];
     target_ulong pred[NUM_PREGS];
@@ -159,11 +166,13 @@ typedef struct CPUArchState {
     target_ulong llsc_val;
     uint64_t     llsc_val_i64;
 
-    MMVector VRegs[NUM_VREGS] QEMU_ALIGNED(16);
+#ifndef CONFIG_USER_ONLY
+    HexagonHVXContext *hvx;
+#endif
+
     MMVector future_VRegs[VECTOR_TEMPS_MAX] QEMU_ALIGNED(16);
     MMVector tmp_VRegs[VECTOR_TEMPS_MAX] QEMU_ALIGNED(16);
 
-    MMQReg QRegs[NUM_QREGS] QEMU_ALIGNED(16);
     MMQReg future_QRegs[NUM_QREGS] QEMU_ALIGNED(16);
 
     /* Temporaries used within instructions */
@@ -195,7 +204,10 @@ struct ArchCPU {
 
     CPUHexagonState env;
     HexagonCPUConfig cfg;
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+    HexagonHVXContext hvx_ctx;
+#else
+    HexagonHVXContextState *hvx_ctx[HVX_CONTEXTS_MAX];
     HexagonTLBState *tlb;
     uint32_t boot_addr;
     HexagonGlobalRegState *globalregs;
@@ -203,6 +215,15 @@ struct ArchCPU {
     HexL2VicInterface *l2vic;
 #endif
 };
+
+static inline HexagonHVXContext *hex_hvx(CPUHexagonState *env)
+{
+#ifdef CONFIG_USER_ONLY
+    return &env_archcpu(env)->hvx_ctx;
+#else
+    return env->hvx;
+#endif
+}
 
 FIELD(TB_FLAGS, IS_TIGHT_LOOP, 0, 1)
 FIELD(TB_FLAGS, MMU_INDEX, 1, 3)
