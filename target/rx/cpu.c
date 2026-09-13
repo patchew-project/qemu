@@ -99,11 +99,14 @@ static void rx_cpu_reset_hold(Object *obj, ResetType type)
     resetvec = rom_ptr(0xfffffffc, 4);
     if (resetvec) {
         /* In the case of kernel, it is ignored because it is not set. */
-        env->pc = ldl_le_p(resetvec);
+        env->pc = ldl_p(resetvec);
     }
     rx_cpu_unpack_psw(env, 0, 1);
     env->regs[0] = env->isp = env->usp = 0;
+    env->extb = 0xffffff80;
     env->fpsw = 0;
+    /* DECNT comes out of reset with EHM set; the rest of DPSW is zero. */
+    env->dcr[RX_DCR_DECNT] = RX_DECNT_RESET;
     set_flush_to_zero(1, &env->fp_status);
     set_flush_inputs_to_zero(1, &env->fp_status);
     /*
@@ -123,6 +126,17 @@ static void rx_cpu_reset_hold(Object *obj, ResetType type)
      * be the correct setting.
      */
     set_float_ftz_detection(float_ftz_before_rounding, &env->fp_status);
+
+    /*
+     * The DPFPU keeps its own softfloat state: DPSW carries a separate
+     * rounding mode (DRM) and denormal setting (DDN) from the FPSW. The
+     * NaN and denormal conventions match the single-precision unit.
+     */
+    set_flush_to_zero(1, &env->dp_status);
+    set_flush_inputs_to_zero(1, &env->dp_status);
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->dp_status);
+    set_float_default_nan_pattern(0b01000000, &env->dp_status);
+    set_float_ftz_detection(float_ftz_before_rounding, &env->dp_status);
 }
 
 static ObjectClass *rx_cpu_class_by_name(const char *cpu_model)
@@ -256,6 +270,32 @@ static void rx_cpu_class_init(ObjectClass *klass, const void *data)
 
     cc->gdb_core_xml_file = "rx-core.xml";
     cc->tcg_ops = &rx_tcg_ops;
+
+    /*
+     * Base of the hierarchy: the abstract type is never instantiated, so
+     * this only provides a conservative default for models that forget to
+     * declare their revision.
+     */
+    rcc->isa_version = RX_ISA_V1;
+}
+
+static void rx62n_cpu_class_init(ObjectClass *klass, const void *data)
+{
+    RX_CPU_CLASS(klass)->isa_version = RX_ISA_V1;
+}
+
+static void rx65n_cpu_class_init(ObjectClass *klass, const void *data)
+{
+    RX_CPU_CLASS(klass)->isa_version = RX_ISA_V2;
+}
+
+static void rx72m_cpu_class_init(ObjectClass *klass, const void *data)
+{
+    RXCPUClass *rcc = RX_CPU_CLASS(klass);
+
+    rcc->isa_version = RX_ISA_V3;
+    /* RX72M provides 16 save register banks, selected by bank numbers 0-15. */
+    rcc->num_save_banks = 16;
 }
 
 static const TypeInfo rx_cpu_info = {
@@ -272,12 +312,27 @@ static const TypeInfo rx_cpu_info = {
 static const TypeInfo rx62n_rx_cpu_info = {
     .name = TYPE_RX62N_CPU,
     .parent = TYPE_RX_CPU,
+    .class_init = rx62n_cpu_class_init,
+};
+
+static const TypeInfo rx65n_rx_cpu_info = {
+    .name = TYPE_RX65N_CPU,
+    .parent = TYPE_RX_CPU,
+    .class_init = rx65n_cpu_class_init,
+};
+
+static const TypeInfo rx72m_rx_cpu_info = {
+    .name = TYPE_RX72M_CPU,
+    .parent = TYPE_RX_CPU,
+    .class_init = rx72m_cpu_class_init,
 };
 
 static void rx_cpu_register_types(void)
 {
     type_register_static(&rx_cpu_info);
     type_register_static(&rx62n_rx_cpu_info);
+    type_register_static(&rx65n_rx_cpu_info);
+    type_register_static(&rx72m_rx_cpu_info);
 }
 
 type_init(rx_cpu_register_types)

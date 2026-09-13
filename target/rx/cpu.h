@@ -24,6 +24,7 @@
 #include "cpu-qom.h"
 
 #include "exec/cpu-common.h"
+#include "exec/cpu-defs.h"
 #include "exec/cpu-interrupt.h"
 #include "qemu/cpu-float.h"
 
@@ -67,9 +68,111 @@ FIELD(FPSW, FX, 30, 1)
 FIELD(FPSW, FLAGS, 26, 4)
 FIELD(FPSW, FS, 31, 1)
 
+/* DPSW define. The DPFPU status word mirrors the FPSW layout exactly. */
+REG32(DPSW, 0)
+FIELD(DPSW, DRM, 0, 2)
+FIELD(DPSW, DCV, 2, 1)
+FIELD(DPSW, DCO, 3, 1)
+FIELD(DPSW, DCZ, 4, 1)
+FIELD(DPSW, DCU, 5, 1)
+FIELD(DPSW, DCX, 6, 1)
+FIELD(DPSW, DCE, 7, 1)
+FIELD(DPSW, CAUSE, 2, 6)
+FIELD(DPSW, DDN, 8, 1)
+FIELD(DPSW, DEV, 10, 1)
+FIELD(DPSW, DEO, 11, 1)
+FIELD(DPSW, DEZ, 12, 1)
+FIELD(DPSW, DEU, 13, 1)
+FIELD(DPSW, DEX, 14, 1)
+FIELD(DPSW, ENABLE, 10, 5)
+FIELD(DPSW, DFV, 26, 1)
+FIELD(DPSW, DFO, 27, 1)
+FIELD(DPSW, DFZ, 28, 1)
+FIELD(DPSW, DFU, 29, 1)
+FIELD(DPSW, DFX, 30, 1)
+/* DFS is the OR of DFV, DFO, DFZ and DFU only; DFX is not included. */
+FIELD(DPSW, FLAGS, 26, 4)
+FIELD(DPSW, DFS, 31, 1)
+
+/*
+ * Writable bits of DPSW: DRM, the DC* causes, DDN, the DE* enables and the
+ * DF* flags. The reserved bits and the read-only DFS summary are masked out.
+ */
+#define RX_DPSW_WRITE_MASK 0x7c007dff
+/* The DC* cause bits, which MVTDC can only clear, never set. */
+#define RX_DPSW_CAUSE_MASK 0x000000fc
+
+/* DECNT define: DP exception information preservation. */
+REG32(DECNT, 0)
+FIELD(DECNT, EHM, 0, 1)
+FIELD(DECNT, EHS, 16, 1)
+#define RX_DECNT_RESET 0x00000001   /* EHM = 1 out of reset */
+
+/* DCMR holds only the RES bit; everything else reads as 0. */
+#define RX_DCMR_WRITE_MASK 0x00000001
+
 enum {
     NUM_REGS = 16,
+    /* RXv3 DPFPU: DR0-DR15 are dedicated 64-bit registers, not GPR pairs. */
+    NUM_DREGS = 16,
+    /* RXv3 DPFPU control registers: DPSW, DCMR, DECNT, DEPC. */
+    NUM_DCREGS = 4,
+    /*
+     * RXv3 register bank save function. The banks are internal CPU state
+     * reachable only through the SAVE and RSTR instructions, so no memory
+     * layout is involved. How many banks exist is implementation defined,
+     * so the per-model count lives in RXCPUClass::num_save_banks and this
+     * is only the storage ceiling. RX72M/RX72N/RX72T provide 16, selected
+     * by bank numbers 0-15.
+     */
+    RX_MAX_SAVE_BANKS = 16,
 };
+
+/* RXv3 DPFPU control register numbers (MVFDC/MVTDC/DPUSHM.L/DPOPM.L). */
+enum {
+    RX_DCR_DPSW  = 0,
+    RX_DCR_DCMR  = 1,
+    RX_DCR_DECNT = 2,
+    RX_DCR_DEPC  = 3,
+};
+
+/*
+ * DCMR.RES, bit 0, holds the result of the last DCMP; MVFDR copies it into
+ * the PSW Z flag.
+ */
+#define RX_DCMR_RES_BIT 0
+
+/*
+ * DCMP condition field. The four documented mnemonics (un, eq, lt, le) are
+ * a three bit mask of the relations that make DCMR.RES true, which is why
+ * le == lt | eq == 6.
+ */
+#define RX_DCMP_UN  1
+#define RX_DCMP_EQ  2
+#define RX_DCMP_LT  4
+
+/*
+ * Instruction set architecture revision implemented by a CPU model.
+ * Later revisions are supersets of earlier ones, so instruction gating is a
+ * simple >= comparison.
+ */
+typedef enum RXISAVersion {
+    RX_ISA_V1 = 1,
+    RX_ISA_V2 = 2,
+    RX_ISA_V3 = 3,
+} RXISAVersion;
+
+/*
+ * One save register bank, written by SAVE and read back by RSTR. A bank
+ * holds R1-R15 (R0/SP is excluded), the USP, the FPSW and the accumulators.
+ * QEMU models a single accumulator, so only ACC0 is covered here.
+ */
+typedef struct RXSaveBank {
+    uint32_t regs[NUM_REGS];    /* [0] unused: R0 is not banked */
+    uint32_t usp;
+    uint32_t fpsw;
+    uint64_t acc;
+} RXSaveBank;
 
 typedef struct CPUArchState {
     /* CPU registers */
@@ -88,9 +191,19 @@ typedef struct CPUArchState {
     uint32_t usp;               /* vector base register */
     uint32_t pc;                /* program counter */
     uint32_t intb;              /* interrupt vector */
+    uint32_t extb;              /* exception vector table base */
     uint32_t fintv;
     uint32_t fpsw;
     uint64_t acc;
+    uint64_t acc1;
+    uint32_t acc_guard[2]; /* Sign-extended 8-bit RXv2 guard fields. */
+
+    /* RXv3 double-precision FPU (DPFPU) */
+    uint64_t dr[NUM_DREGS];     /* DR0-DR15 */
+    uint32_t dcr[NUM_DCREGS];   /* DPSW, DCMR, DECNT, DEPC */
+
+    /* RXv3 register bank save function (SAVE/RSTR) */
+    RXSaveBank bank[RX_MAX_SAVE_BANKS];
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
@@ -102,6 +215,7 @@ typedef struct CPUArchState {
     uint32_t ack_irq;           /* execute irq */
     uint32_t ack_ipl;           /* execute ipl */
     float_status fp_status;
+    float_status dp_status;
     qemu_irq ack;               /* Interrupt acknowledge */
 } CPURXState;
 
@@ -129,6 +243,16 @@ struct RXCPUClass {
 
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;
+
+    /* Instruction set revision this model implements. */
+    RXISAVersion isa_version;
+
+    /*
+     * Number of save register banks reachable by SAVE/RSTR, or 0 on models
+     * without the register bank save function. Must not exceed
+     * RX_MAX_SAVE_BANKS.
+     */
+    uint32_t num_save_banks;
 };
 
 #define CPU_RESOLVING_TYPE TYPE_RX_CPU

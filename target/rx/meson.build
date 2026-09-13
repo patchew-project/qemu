@@ -9,10 +9,8 @@ rx_ss.add(files(
   'op_helper.c',
   'helper.c',
   'cpu.c',
+  'gdbstub.c',
   'disas.c'))
 
-rx_common_system_ss = ss.source_set()
-rx_common_system_ss.add(files('gdbstub.c'))
-
 target_arch += {'rx': rx_ss}
-target_common_system_arch += {'rx': rx_common_system_ss}
+target_system_arch += {'rx': ss.source_set()}

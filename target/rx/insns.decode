@@ -29,6 +29,26 @@
 &mi		rs ld mi imm
 &mr		rs ld mi rs2
 &mcnd		ld sz rd cd
+# RXv3 DPFPU argument types
+&drr		drd drs
+&drrr		drd drs1 drs2
+&dcmpd		drs1 drs2 cd
+&idr		rs drd
+&dppm		drd rnum
+# RXv3 DPFPU: GPR/control-register/memory/immediate transfers
+&rdrh		rd drs
+&drhr		drd rs
+&rdcr		rd dcrs
+&dcrr		dcrd rs
+&dcppm		dcrd rnum
+&dmovi		drd imm
+&dmovst		rd ld
+&dmovld		rs ld
+# RXv3 bit field move
+&bfm		rd rs
+# RXv3 register bank save/restore
+&svr		rs
+&svi		imm
 ########
 %b1_bdsp	24:3 !function=bdsp_s
 
@@ -285,6 +305,10 @@ FSUB_mr		1111 1100 1000 00.. .... ....		@b3_rd_ld_ul
 # FTOI dsp[rs], rd
 FTOI		1111 1100 1001 01.. .... ....		@b3_rd_ld_ul
 
+# FTOU rs, rd  (RXv2)
+# FTOU dsp[rs], rd  (RXv2)
+FTOU		1111 1100 1010 01.. .... ....		@b3_rd_ld_ul
+
 # INT #uimm8
 INT		0111 0101 0110 0000 imm:8
 
@@ -293,6 +317,11 @@ INT		0111 0101 0110 0000 imm:8
 ITOF		1111 1100 0100 01.. .... ....		@b3_rd_ld_ub
 # ITOF dsp[rs], rd
 ITOF		0000 0110 ..10 00.. 0001 0001 .... ....	@b4_rd_ldmi
+
+# UTOF rs, rd  (RXv2)
+UTOF		1111 1100 0101 01.. .... ....		@b3_rd_ld_ub
+# UTOF dsp[rs], rd  (RXv2)
+UTOF		0000 0110 ..10 00.. 0001 0101 .... ....	@b4_rd_ldmi
 
 # JMP rs
 JMP		0111 1111 0000 rs:4			&jreg
@@ -347,7 +376,15 @@ MOV_ir		1111 1011 rd:4 .. 10			imm=%b2_li_2
 # MOV.<bwl> #imm, [rd]
 MOV_im		1111 1000 rd:4 .. sz:2			dsp=0 imm=%b2_li_2
 # MOV.<bwl> #imm, dsp8[rd]
-MOV_im		1111 1001 rd:4 .. sz:2 dsp:8		imm=%b3_li_10
+# The RXv3 DMOV immediate forms reuse this opcode with rd=0 and li/sz=0011,
+# an encoding MOV.<bwl> never produces (sz=3 is not a valid transfer size),
+# so they have to be matched ahead of it.
+{
+  DMOVL_irl	1111 1001 0000 0011 drd:4 0000		&dmovi imm=0
+  DMOVL_irh	1111 1001 0000 0011 drd:4 0010		&dmovi imm=0
+  DMOVD_irh	1111 1001 0000 0011 drd:4 0011		&dmovi imm=0
+  MOV_im	1111 1001 rd:4 .. sz:2 dsp:8		imm=%b3_li_10
+}
 # MOV.<bwl> #imm, dsp16[rd]
 MOV_im		1111 1010 rd:4 .. sz:2 .... .... .... .... \
 		imm=%b4_li_18 dsp=%b4_dsp_16
@@ -619,3 +656,89 @@ XOR_ir		1111 1101 0111 ..00 1101 ....		@b3_rd_li
 XOR_mr		1111 1100 0011 01.. .... ....		@b3_rd_ld_ub
 # XOR dsp[rs], rd
 XOR_mr		0000 0110 ..10 00.. 0000 1101 .... ....	@b4_rd_ldmi
+
+########
+# RXv2 DPFPU instructions
+# All 4-byte register-to-register ops use prefix 0x76 0x90
+#
+# Binary ops: 0111 0110 1001 0000 drs2:4 op:4 drd:4 drs1:4
+# Result: DRdrd = DRdrs1 op DRdrs2
+DADD		0111 0110 1001 0000 drs2:4 0000 drd:4 drs1:4	&drrr
+DSUB		0111 0110 1001 0000 drs2:4 0001 drd:4 drs1:4	&drrr
+DMUL		0111 0110 1001 0000 drs2:4 0010 drd:4 drs1:4	&drrr
+DDIV		0111 0110 1001 0000 drs2:4 0101 drd:4 drs1:4	&drrr
+DCMP		0111 0110 1001 0000 drs2:4 1000 cd:4  drs1:4	&dcmpd
+
+# Unary ops group A (1100): DMOV, DABS, DNEG
+DMOV		0111 0110 1001 0000 drs:4 1100 drd:4 0000	&drr
+DABS		0111 0110 1001 0000 drs:4 1100 drd:4 0001	&drr
+DNEG		0111 0110 1001 0000 drs:4 1100 drd:4 0010	&drr
+
+# Unary ops group B (1101): DSQRT, DROUND; DR-to-GPR conversions
+DSQRT		0111 0110 1001 0000 drs:4 1101 drd:4 0000	&drr
+DROUND		0111 0110 1001 0000 drs:4 1101 drd:4 1101	&drr
+# DTOI/DTOU/DTOF convert within the DPFPU: the result lands in a DR register
+# and is moved out to a GPR with DMOV.L DRLn, Rd.
+DTOI		0111 0110 1001 0000 drs:4 1101 drd:4 1000	&drr
+DTOU		0111 0110 1001 0000 drs:4 1101 drd:4 1001	&drr
+DTOF		0111 0110 1001 0000 drs:4 1101 drd:4 1100	&drr
+
+# GPR/float-to-DR conversions using 0xFD 0x77 prefix
+# Note: 0xFD 0x77 with byte2 in 0x00-0x0F is MVTC_i (li=01); no conflict with 0x8x
+ITOD		1111 1101 0111 0111 1000 rs:4 drd:4 1001	&idr
+FTOD		1111 1101 0111 0111 1000 rs:4 drd:4 1010	&idr
+UTOD		1111 1101 0111 0111 1000 rs:4 drd:4 1101	&idr
+
+# DPUSHM.D/DPOPM.D: push/pop range of DR registers (3-byte: 0x75 prefix)
+DPUSHM		0111 0101 1011 0000 drd:4 rnum:4		&dppm
+DPOPM		0111 0101 1011 1000 drd:4 rnum:4		&dppm
+# DPUSHM.L/DPOPM.L: same, for the DPFPU control registers
+DPUSHM_l	0111 0101 1010 0000 dcrd:4 rnum:4		&dcppm
+DPOPM_l		0111 0101 1010 1000 dcrd:4 rnum:4		&dcppm
+
+########
+# RXv3: remaining DPFPU transfers
+#
+# GPR -> DR half (0xFD 0x77 prefix): byte3 low nibble is the source GPR,
+# byte4 high nibble the destination DR.
+DMOV_rdrl	1111 1101 0111 0111 1000 rs:4 drd:4 0000	&drhr
+DMOV_rdrh	1111 1101 0111 0111 1000 rs:4 drd:4 0010	&drhr
+DMOVD_rdrh	1111 1101 0111 0111 1000 rs:4 drd:4 0011	&drhr
+# DR half -> GPR (0xFD 0x75 prefix): byte3 low nibble is the destination GPR.
+DMOV_drlr	1111 1101 0111 0101 1000 rd:4 drs:4 0000	&rdrh
+DMOV_drhr	1111 1101 0111 0101 1000 rd:4 drs:4 0010	&rdrh
+
+# DPFPU control register transfers
+MVFDC		1111 1101 0111 0101 1000 rd:4 dcrs:4 0100	&rdcr
+MVTDC		1111 1101 0111 0111 1000 rs:4 dcrd:4 0100	&dcrr
+MVFDR		0111 0101 1001 0000 0001 1011
+
+# DMOV.D DRs, dsp[Rd] / DMOV.D dsp[Rs], DRd.
+# The DR register is supplied by a trailing post-byte that follows the
+# displacement, so it is read during translation rather than by decodetree.
+DMOV_mst	1111 1100 0111 10 ld:2 rd:4 1000		&dmovst
+DMOV_mld	1111 1100 1100 10 ld:2 rs:4 1000		&dmovld
+
+########
+# RXv3: bit field move. The 16-bit field descriptor follows the opcode.
+BFMOVZ		1111 1100 0101 1010 rs:4 rd:4			&bfm
+BFMOV		1111 1100 0101 1110 rs:4 rd:4			&bfm
+
+########
+# RXv3: register bank save and restore
+SAVE_r		1111 1101 0111 0110 1100 rs:4 0000 0000		&svr
+RSTR_r		1111 1101 0111 0110 1101 rs:4 0000 0000		&svr
+SAVE_i		1111 1101 0111 0110 1110 0000 imm:8		&svi
+RSTR_i		1111 1101 0111 0110 1111 0000 imm:8		&svi
+
+########
+# RXv3: three-operand XOR
+XOR_rrr		1111 1111 0110 .... .... ....		@b3_rd_rs_rs2
+
+# RXv2 accumulator context save/restore (unshifted reads).
+MVTACHI_A1 1111 1101 0001 0111 1000 r:4
+MVTACLO_A1 1111 1101 0001 0111 1001 r:4
+MVTACGU 1111 1101 0001 0111 a:1 011 r:4
+MVFACHI_A1 1111 1101 0001 1111 1000 r:4
+MVFACLO 1111 1101 0001 1111 a:1 001 r:4
+MVFACGU 1111 1101 0001 1111 a:1 011 r:4
