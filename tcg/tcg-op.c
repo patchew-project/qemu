@@ -1207,10 +1207,15 @@ static void gen_umin(TCGType type, TCGTemp *dst, TCGTemp *src1, TCGTemp *src2)
 static void gen_ussub(TCGType type, TCGTemp *dst, TCGTemp *src1, TCGTemp *src2)
 {
     TCGTemp *tmp = tcg_temp_new_internal(type, TEMP_EBB);
-    TCGTemp *zero = tcg_constant_internal(type, 0);
 
-    gen_sub(type, tmp, src1, src2);
-    gen_movcond(type, TCG_COND_LTU, dst, src1, src2, zero, tmp);
+    if (tcg_op_supported(INDEX_op_umax, type, 0)) {
+        gen_umax(type, tmp, src1, src2);
+        gen_sub(type, dst, tmp, src2);
+    } else {
+        TCGTemp *zero = tcg_constant_internal(type, 0);
+        gen_sub(type, tmp, src1, src2);
+        gen_movcond(type, TCG_COND_LTU, dst, src1, src2, zero, tmp);
+    }
     tcg_temp_free_internal(tmp);
 }
 
