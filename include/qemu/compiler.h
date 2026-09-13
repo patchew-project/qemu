@@ -223,6 +223,13 @@
 #endif
 
 /*
+ * Alias the current function definition to another.
+ */
+
+#define QEMU_ALIAS(N) \
+    __attribute__((alias(stringify(glue(__USER_LABEL_PREFIX__, N)))))
+
+/*
  * http://clang.llvm.org/docs/ThreadSafetyAnalysis.html
  *
  * TSA is available since clang 3.6-ish.
