@@ -3039,10 +3039,30 @@ F: include/hw/timer/renesas_*.h
 Renesas RX peripherals
 R: Yoshinori Sato <yoshinori.sato@nifty.com>
 S: Orphan
+F: hw/adc/renesas_s12ad.c
+F: hw/dma/renesas_rx_*.c
+F: hw/gpio/renesas_rx_gpio.c
 F: hw/intc/rx_icu.c
+F: hw/misc/renesas_rx_*.c
+F: hw/misc/rx65n_sysclk.c
+F: hw/net/renesas_etherc.c
+F: hw/rtc/renesas_rx_rtc.c
 F: hw/rx/
+F: hw/ssi/renesas_rspi.c
+F: hw/timer/renesas_mtu3.c
+F: hw/watchdog/renesas_rx_wdt.c
+F: include/hw/adc/renesas_s12ad.h
+F: include/hw/dma/renesas_rx_*.h
+F: include/hw/gpio/renesas_rx_gpio.h
 F: include/hw/intc/rx_icu.h
+F: include/hw/misc/renesas_rx_*.h
+F: include/hw/misc/rx65n_sysclk.h
+F: include/hw/net/renesas_etherc.h
+F: include/hw/rtc/renesas_rx_rtc.h
 F: include/hw/rx/
+F: include/hw/ssi/renesas_rspi.h
+F: include/hw/timer/renesas_mtu3.h
+F: include/hw/watchdog/renesas_rx_wdt.h
 
 CAN bus subsystem and hardware
 M: Pavel Pisa <pisa@cmp.felk.cvut.cz>
