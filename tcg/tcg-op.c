@@ -418,11 +418,16 @@ static void gen_extu_i32_i64(TCGTemp *dst, TCGTemp *src);
 static void gen_abs(TCGType type, TCGTemp *dst, TCGTemp *src)
 {
     TCGTemp *tmp = tcg_temp_new_internal(type, TEMP_EBB);
-    int width = tcg_type_size(type) * 8;
 
-    gen_sari(type, tmp, src, width - 1);
-    gen_xor(type, dst, src, tmp);
-    gen_sub(type, dst, dst, tmp);
+    if (tcg_op_supported(INDEX_op_smax, type, 0)) {
+        gen_neg(type, tmp, src);
+        gen_smax(type, dst, tmp, src);
+    } else {
+        int width = tcg_type_size(type) * 8;
+        gen_sari(type, tmp, src, width - 1);
+        gen_xor(type, dst, src, tmp);
+        gen_sub(type, dst, dst, tmp);
+    }
     tcg_temp_free_internal(tmp);
 }
 
