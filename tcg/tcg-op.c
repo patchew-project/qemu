@@ -415,6 +415,17 @@ static void gen_extu_i32_i64(TCGTemp *dst, TCGTemp *src);
  * are of the proper type.
  */
 
+static void gen_abs(TCGType type, TCGTemp *dst, TCGTemp *src)
+{
+    TCGTemp *tmp = tcg_temp_new_internal(type, TEMP_EBB);
+    int width = tcg_type_size(type) * 8;
+
+    gen_sari(type, tmp, src, width - 1);
+    gen_xor(type, dst, src, tmp);
+    gen_sub(type, dst, dst, tmp);
+    tcg_temp_free_internal(tmp);
+}
+
 static void gen_add(TCGType type, TCGTemp *dst, TCGTemp *src1, TCGTemp *src2)
 {
     gen_op_ttt(INDEX_op_add, type, dst, src1, src2);
@@ -1495,16 +1506,6 @@ void tcg_gen_ussub_i32(TCGv_i32 ret, TCGv_i32 a, TCGv_i32 b)
     tcg_temp_free_i32(t);
 }
 
-void tcg_gen_abs_i32(TCGv_i32 ret, TCGv_i32 a)
-{
-    TCGv_i32 t = tcg_temp_ebb_new_i32();
-
-    tcg_gen_sari_i32(t, a, 31);
-    tcg_gen_xor_i32(ret, a, t);
-    tcg_gen_sub_i32(ret, ret, t);
-    tcg_temp_free_i32(t);
-}
-
 void tcg_gen_ld8u_i32(TCGv_i32 ret, TCGv_ptr arg2, tcg_target_long offset)
 {
     tcg_gen_ldst_op_i32(INDEX_op_ld8u, ret, arg2, offset);
@@ -1996,16 +1997,6 @@ void tcg_gen_ussub_i64(TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b)
 
     tcg_gen_sub_i64(t, a, b);
     tcg_gen_movcond_i64(TCG_COND_LTU, ret, a, b, z, t);
-    tcg_temp_free_i64(t);
-}
-
-void tcg_gen_abs_i64(TCGv_i64 ret, TCGv_i64 a)
-{
-    TCGv_i64 t = tcg_temp_ebb_new_i64();
-
-    tcg_gen_sari_i64(t, a, 63);
-    tcg_gen_xor_i64(ret, a, t);
-    tcg_gen_sub_i64(ret, ret, t);
     tcg_temp_free_i64(t);
 }
 
