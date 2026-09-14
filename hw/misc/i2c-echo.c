@@ -32,6 +32,9 @@ typedef struct I2CEchoState {
     QEMUBH *bh;
 
     unsigned int pos;
+    unsigned int len;
+    unsigned int tx_pos;
+    bool receiving;
     uint8_t data[3];
 } I2CEchoState;
 
@@ -48,16 +51,16 @@ static void i2c_echo_bh(void *opaque)
             goto release_bus;
         }
 
-        state->pos++;
+        state->tx_pos = 1;
         state->state = I2C_ECHO_STATE_ACK;
         return;
 
     case I2C_ECHO_STATE_ACK:
-        if (state->pos > 2) {
+        if (state->tx_pos >= state->len) {
             break;
         }
 
-        if (i2c_send_async(state->bus, state->data[state->pos++])) {
+        if (i2c_send_async(state->bus, state->data[state->tx_pos++])) {
             break;
         }
 
@@ -90,9 +93,12 @@ static int i2c_echo_event(I2CSlave *s, enum i2c_event event)
         break;
 
     case I2C_FINISH:
+        if (state->receiving && state->pos &&
+            state->state == I2C_ECHO_STATE_IDLE) {
+            state->state = I2C_ECHO_STATE_START_SEND;
+            i2c_bus_master(state->bus, state->bh);
+        }
         state->pos = 0;
-        state->state = I2C_ECHO_STATE_START_SEND;
-        i2c_bus_master(state->bus, state->bh);
 
         trace_i2c_echo_event(DEVICE(s)->canonical_path, "I2C_FINISH");
         break;
@@ -103,9 +109,11 @@ static int i2c_echo_event(I2CSlave *s, enum i2c_event event)
 
     default:
         trace_i2c_echo_event(DEVICE(s)->canonical_path, "UNHANDLED");
+        state->receiving = false;
         return -1;
     }
 
+    state->receiving = event == I2C_START_SEND;
     return 0;
 }
 
@@ -126,11 +134,16 @@ static int i2c_echo_send(I2CSlave *s, uint8_t data)
     I2CEchoState *state = I2C_ECHO(s);
 
     trace_i2c_echo_send(DEVICE(s)->canonical_path, data);
+    if (!state->receiving || state->state != I2C_ECHO_STATE_IDLE) {
+        state->receiving = false;
+        return -1;
+    }
     if (state->pos > 2) {
         return -1;
     }
 
     state->data[state->pos++] = data;
+    state->len = state->pos;
 
     return 0;
 }
