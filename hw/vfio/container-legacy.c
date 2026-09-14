@@ -844,16 +844,21 @@ static void vfio_group_put(VFIOGroup *group)
 static bool vfio_device_get(VFIOGroup *group, const char *name,
                             VFIODevice *vbasedev, Error **errp)
 {
+    ERRP_GUARD();
     g_autofree struct vfio_device_info *info = NULL;
     int fd;
 
-    fd = vfio_cpr_group_get_device_fd(group->fd, name);
+    fd = vfio_cpr_group_get_device_fd(group->fd, name, errp);
     if (fd < 0) {
-        error_setg_errno(errp, errno, "error getting device from group %d",
-                         group->groupid);
-        error_append_hint(errp,
-                      "Verify all devices in group %d are bound to vfio-<bus> "
-                      "or pci-stub and not already in use\n", group->groupid);
+        if (!*errp) {
+            error_setg_errno(errp, errno,
+                             "error getting device from group %d",
+                             group->groupid);
+            error_append_hint(errp,
+                              "Verify all devices in group %d are bound to "
+                              "vfio-<bus> or pci-stub and not already in use\n",
+                              group->groupid);
+        }
         return false;
     }
 
