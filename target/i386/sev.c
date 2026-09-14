@@ -18,6 +18,7 @@
 #include <linux/psp-sev.h>
 
 #include <sys/ioctl.h>
+#include <sys/prctl.h>
 
 #include "qapi/error.h"
 #include "qom/object_interfaces.h"
@@ -2031,6 +2032,47 @@ static int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     return 0;
 }
 
+/*
+ * Mint a cookie for the first vCPU and copy it to all the others, so that
+ * every vCPU thread of this guest ends up in one core-scheduling group.
+ */
+static void esmtp_core_sched_setup(CPUState *leader, run_on_cpu_data arg)
+{
+    CPUState *cpu;
+    int ret;
+
+    ret = prctl(PR_SCHED_CORE, PR_SCHED_CORE_CREATE, leader->thread_id,
+                PR_SCHED_CORE_SCOPE_THREAD, 0);
+    if (ret < 0) {
+        error_report("vCPU %lu: failed to create core-sched cookie: %s",
+                     kvm_arch_vcpu_id(leader), strerror(errno));
+        return;
+    }
+
+    CPU_FOREACH(cpu) {
+        if (cpu == leader) {
+            continue;
+        }
+
+        ret = prctl(PR_SCHED_CORE, PR_SCHED_CORE_SHARE_TO, cpu->thread_id,
+                    PR_SCHED_CORE_SCOPE_THREAD, 0);
+        if (ret < 0) {
+            error_report("vCPU %lu: failed to share core-sched cookie: %s",
+                         kvm_arch_vcpu_id(cpu), strerror(errno));
+            return;
+        }
+    }
+}
+
+static void esmtp_core_sched_notify(Notifier *notifier, void *data)
+{
+    run_on_cpu(first_cpu, esmtp_core_sched_setup, RUN_ON_CPU_NULL);
+}
+
+static Notifier sev_snp_esmtp_notify = {
+    .notify = esmtp_core_sched_notify,
+};
+
 static int sev_snp_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
@@ -2048,6 +2090,11 @@ static int sev_snp_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     /* free existing kernel hashes data if any */
     g_free(sev_snp_guest->kernel_hashes_data);
     sev_snp_guest->kernel_hashes_data = NULL;
+
+    /* Setup core scheduling cookies for esmtp after the vCPUS are all up */
+    if (is_sev_feature_set(sev_common, SVM_SEV_FEAT_ESMTP)) {
+        qemu_add_machine_init_done_notifier(&sev_snp_esmtp_notify);
+    }
 
     return 0;
 }
