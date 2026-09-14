@@ -39,6 +39,12 @@
 #define BLOCK_COPY_CLUSTER_SIZE_DEFAULT (1 << 16)
 
 typedef enum {
+    ZERO_WIDEN_UNPROBED,
+    ZERO_WIDEN_ON,
+    ZERO_WIDEN_OFF,
+} BlockCopyZeroWiden;
+
+typedef enum {
     COPY_READ_WRITE_CLUSTER,
     COPY_READ_WRITE,
     COPY_WRITE_ZEROES,
@@ -159,6 +165,8 @@ typedef struct BlockCopyState {
     bool skip_unallocated; /* atomic */
     /* State fields that use a thread-safe API */
     BdrvDirtyBitmap *copy_bitmap;
+    /* Whether the target zeroes by metadata; see block_copy_write_zeroes(). */
+    BlockCopyZeroWiden zero_widen; /* atomic */
     /* Clusters reading as zero; allocated on demand, frozen once valid. */
     HBitmap *zero_bitmap;
     /* Published only after the scan, with skip_unallocated already false. */
@@ -188,6 +196,34 @@ static int64_t block_copy_chunk_size(BlockCopyState *s)
 }
 
 /*
+ * A write-zeroes task carries no buffer, so it may cover far more than
+ * block_copy_chunk_size(). Return how far it may run; the caller clamps it
+ * to where the zero run ends.
+ */
+static int64_t block_copy_widen_zero_area(BlockCopyState *s,
+                                          BlockCopyCallState *call_state,
+                                          int64_t offset, int64_t search_end,
+                                          int64_t bytes)
+{
+    int64_t aligned = QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES,
+                                      s->cluster_size);
+    int64_t zero_chunk = MIN_NON_ZERO(MAX(aligned, s->cluster_size),
+                                      call_state->max_chunk);
+    int64_t wide_offset, wide_bytes;
+
+    if (!bdrv_dirty_bitmap_next_dirty_area(s->copy_bitmap, offset, search_end,
+                                           zero_chunk, &wide_offset,
+                                           &wide_bytes)) {
+        return bytes;
+    }
+
+    /* @offset is dirty, so the search cannot have moved past it. */
+    assert(wide_offset == offset);
+
+    return wide_bytes;
+}
+
+/*
  * Search for the first dirty area in offset/bytes range and create task at
  * the beginning of it.
  */
@@ -198,6 +234,7 @@ block_copy_task_create(BlockCopyState *s, BlockCopyCallState *call_state,
     BlockCopyTask *task;
     BlockCopyMethod method;
     int64_t max_chunk;
+    int64_t search_end = offset + bytes;
 
     QEMU_LOCK_GUARD(&s->lock);
     max_chunk = MIN_NON_ZERO(block_copy_chunk_size(s), call_state->max_chunk);
@@ -219,6 +256,10 @@ block_copy_task_create(BlockCopyState *s, BlockCopyCallState *call_state,
 
         if (hbitmap_get(s->zero_bitmap, offset)) {
             method = COPY_WRITE_ZEROES;
+            if (qatomic_read(&s->zero_widen) != ZERO_WIDEN_OFF) {
+                bytes = block_copy_widen_zero_area(s, call_state, offset,
+                                                   search_end, bytes);
+            }
             boundary = hbitmap_next_zero(s->zero_bitmap, offset, bytes);
         } else {
             boundary = hbitmap_next_dirty(s->zero_bitmap, offset, bytes);
@@ -465,6 +506,8 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
         .max_transfer = QEMU_ALIGN_DOWN(
                                     block_copy_max_transfer(source, target),
                                     cluster_size),
+        .zero_widen = target->bs->supported_zero_flags & BDRV_REQ_NO_FALLBACK ?
+                      ZERO_WIDEN_UNPROBED : ZERO_WIDEN_OFF,
     };
 
     s->discard_source = discard_source;
@@ -522,6 +565,54 @@ static coroutine_fn int block_copy_task_run(AioTaskPool *pool,
 }
 
 /*
+ * Widening a write-zeroes request only pays off where the target zeroes by
+ * metadata. Ask the first one to fail instead of falling back to writing the
+ * zeroes out: it then costs nothing, and a target which would have written
+ * them keeps its requests small for the rest of the run.
+ */
+static int coroutine_fn GRAPH_RDLOCK
+block_copy_write_zeroes(BlockCopyState *s, int64_t offset, int64_t bytes,
+                        bool *error_is_read)
+{
+    BdrvRequestFlags flags = s->write_flags & ~BDRV_REQ_WRITE_COMPRESSED;
+    int64_t chunk = bytes;
+    int ret = 0;
+
+    if (qatomic_read(&s->zero_widen) == ZERO_WIDEN_UNPROBED) {
+        ret = bdrv_co_pwrite_zeroes(s->target, offset, bytes,
+                                    flags | BDRV_REQ_NO_FALLBACK);
+        if (ret != -ENOTSUP) {
+            qatomic_set(&s->zero_widen, ZERO_WIDEN_ON);
+            goto out;
+        }
+
+        /* Nothing has been written, so the whole range is still to do. */
+        qatomic_set(&s->zero_widen, ZERO_WIDEN_OFF);
+        chunk = block_copy_chunk_size(s);
+    }
+
+    while (bytes) {
+        int64_t n = MIN(bytes, chunk);
+
+        ret = bdrv_co_pwrite_zeroes(s->target, offset, n, flags);
+        if (ret < 0) {
+            break;
+        }
+
+        offset += n;
+        bytes -= n;
+    }
+
+out:
+    if (ret < 0) {
+        trace_block_copy_write_zeroes_fail(s, offset, ret);
+        *error_is_read = false;
+    }
+
+    return ret;
+}
+
+/*
  * block_copy_do_copy
  *
  * Do copy of cluster-aligned chunk. Requested region is allowed to exceed
@@ -552,13 +643,7 @@ block_copy_do_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
 
     switch (*method) {
     case COPY_WRITE_ZEROES:
-        ret = bdrv_co_pwrite_zeroes(s->target, offset, nbytes, s->write_flags &
-                                    ~BDRV_REQ_WRITE_COMPRESSED);
-        if (ret < 0) {
-            trace_block_copy_write_zeroes_fail(s, offset, ret);
-            *error_is_read = false;
-        }
-        return ret;
+        return block_copy_write_zeroes(s, offset, nbytes, error_is_read);
 
     case COPY_RANGE_SMALL:
     case COPY_RANGE_FULL:
