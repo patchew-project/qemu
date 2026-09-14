@@ -1119,6 +1119,12 @@
 # @tsc-frequency: set secure TSC frequency.  Only valid if Secure TSC
 #     is enabled (default: zero) (since 11.1)
 #
+# @esmtp: Enable Enhanced SMT Protection support for the guest.  Adds
+#     corresponding VMSA feature bit to KVM_SEV_INIT2 vmsa_features so
+#     the host applies it to each vCPU's VMSA.  Opt-in feature as it
+#     provides additional protection but with runtime overhead.
+#     (default: false) (since 11.2)
+#
 # Since: 9.1
 ##
 { 'struct': 'SevSnpGuestProperties',
@@ -1132,7 +1138,8 @@
             '*host-data': 'str',
             '*vcek-disabled': 'bool',
             '*secure-tsc': 'bool',
-            '*tsc-frequency': 'uint32' } }
+            '*tsc-frequency': 'uint32',
+            '*esmtp': 'bool' } }
 
 ##
 # @TdxGuestProperties:
