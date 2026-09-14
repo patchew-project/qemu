@@ -146,6 +146,7 @@ typedef enum VirtGICType {
 struct VirtMachineClass {
     MachineClass parent;
     hwaddr min_highmem_base;
+    hwaddr high_pcie_mmio_size;
     bool no_tcg_its;
     bool no_highmem_compact;
     bool no_kvm_steal_time;
@@ -186,6 +187,7 @@ struct VirtMachineState {
     VirtMSIControllerType msi_controller;
     uint16_t virtio_iommu_bdf;
     struct arm_boot_info bootinfo;
+    hwaddr high_pcie_mmio_size;
     MemMapEntry *memmap;
     char *pciehb_nodename;
     const int *irqmap;

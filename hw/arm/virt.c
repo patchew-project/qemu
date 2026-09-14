@@ -223,8 +223,7 @@ static const MemMapEntry base_memmap[] = {
 };
 
 /* Update the docs for highmem-mmio-size when changing this default */
-#define DEFAULT_HIGH_PCIE_MMIO_SIZE_GB 512
-#define DEFAULT_HIGH_PCIE_MMIO_SIZE (DEFAULT_HIGH_PCIE_MMIO_SIZE_GB * GiB)
+#define MAX_DEFAULT_HIGH_PCIE_MMIO_SIZE (512 * GiB)
 
 /*
  * Highmem IO Regions: This memory map is floating, located after the RAM.
@@ -250,7 +249,7 @@ static MemMapEntry extended_memmap[] = {
     [VIRT_CXL_HOST] =           { 0x0, 64 * KiB * 16 }, /* 16 UID */
     [VIRT_HIGH_PCIE_ECAM] =     { 0x0, 256 * MiB },
     /* Second PCIe window */
-    [VIRT_HIGH_PCIE_MMIO] =     { 0x0, DEFAULT_HIGH_PCIE_MMIO_SIZE },
+    [VIRT_HIGH_PCIE_MMIO] =     { 0x0, 0 },
     /* Any CXL Fixed memory windows come here */
 };
 
@@ -2496,9 +2495,14 @@ static void virt_set_high_memmap(VirtMachineState *vms,
 
     for (i = VIRT_LOWMEMMAP_LAST; i < ARRAY_SIZE(extended_memmap); i++) {
         region_enabled = virt_get_high_memmap_enabled(vms, i);
-        region_base = ROUND_UP(base, extended_memmap[i].size);
         region_size = extended_memmap[i].size;
 
+        if (i == VIRT_HIGH_PCIE_MMIO && !region_size) {
+            region_size = CLAMP(pow2floor(BIT_ULL(pa_bits) - base),
+                                64 * KiB, MAX_DEFAULT_HIGH_PCIE_MMIO_SIZE);
+        }
+
+        region_base = ROUND_UP(base, region_size);
         vms->memmap[i].base = region_base;
         vms->memmap[i].size = region_size;
 
@@ -2530,6 +2534,7 @@ static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
     hwaddr base, device_memory_base, device_memory_size, memtop;
     int i;
 
+    extended_memmap[VIRT_HIGH_PCIE_MMIO].size = vms->high_pcie_mmio_size;
     vms->memmap = extended_memmap;
 
     for (i = 0; i < ARRAY_SIZE(base_memmap); i++) {
@@ -3368,7 +3373,8 @@ static void virt_get_highmem_mmio_size(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
 {
-    uint64_t size = extended_memmap[VIRT_HIGH_PCIE_MMIO].size;
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+    uint64_t size = vms->high_pcie_mmio_size;
 
     visit_type_size(v, name, &size, errp);
 }
@@ -3377,6 +3383,7 @@ static void virt_set_highmem_mmio_size(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
 {
+    VirtMachineState *vms = VIRT_MACHINE(obj);
     uint64_t size;
 
     if (!visit_type_size(v, name, &size, errp)) {
@@ -3388,15 +3395,13 @@ static void virt_set_highmem_mmio_size(Object *obj, Visitor *v,
         return;
     }
 
-    if (size < DEFAULT_HIGH_PCIE_MMIO_SIZE) {
-        char *sz = size_to_str(DEFAULT_HIGH_PCIE_MMIO_SIZE);
+    if (size < 64 * KiB) {
         error_setg(errp, "highmem-mmio-size cannot be set to a lower value "
-                         "than the default (%s)", sz);
-        g_free(sz);
+                         "than 64 KiB");
         return;
     }
 
-    extended_memmap[VIRT_HIGH_PCIE_MMIO].size = size;
+    vms->high_pcie_mmio_size = size;
 }
 
 static char *virt_get_msi(Object *obj, Error **errp)
@@ -4373,6 +4378,8 @@ static void virt_instance_init(Object *obj)
     vms->highmem_mmio = true;
     vms->highmem_redists = true;
 
+    vms->high_pcie_mmio_size = vmc->high_pcie_mmio_size;
+
     /* Default allows ITS instantiation if available */
     vms->msi_controller = VIRT_MSI_CTRL_AUTO;
     /* Allow ITS emulation if the machine version supports it */
@@ -4458,6 +4465,8 @@ static void virt_machine_11_1_options(MachineClass *mc)
      * < 255GiB we keep the legacy memory map.
      */
     vmc->min_highmem_base = base_memmap[VIRT_MEM].base + LEGACY_RAMLIMIT_BYTES;
+
+    vmc->high_pcie_mmio_size = MAX_DEFAULT_HIGH_PCIE_MMIO_SIZE;
 }
 DEFINE_VIRT_MACHINE(11, 1)
 
