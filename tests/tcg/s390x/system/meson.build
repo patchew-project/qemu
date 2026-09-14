@@ -6,11 +6,13 @@ link_script = files('../softmmu.ld')[0]
 head64 = files('../head64.S')[0]
 console = files('../console.c')[0]
 ipl_inc = meson.project_source_root()/'include'/'hw'/'s390x'/'ipl'
+slof_inc = meson.project_source_root()/'roms'/'SLOF'/'lib'/'libc'/'include'
 cflags = ['-nostdlib',
           '-ffreestanding',
           '-Wa,--noexecstack',
           '-I', minilib_dir, minilib_printf,
           '-I', ipl_inc,
+          '-I', slof_inc,
           '-march=z13',
           head64, console]
 asmflags = ['-nostdlib',
@@ -20,6 +22,11 @@ qemu_args = ['-display', 'none',
              '-action', 'panic=exit-failure',
              '-serial', 'stdio',
              '-kernel']
+
+if not fs.exists(slof_inc) and get_option('wrap_mode') != 'nodownload'
+  run_command(meson.project_source_root()/'scripts'/'git-submodule.sh',
+              'update', 'roms/SLOF', check: false)
+endif
 
 # Multi arch tests - add cflags only once per src
 multi_src = []
