@@ -28,6 +28,7 @@
 #include "semihosting/console.h"
 #include "semihosting/syscalls.h"
 #include "semihosting/guestfd.h"
+#include "semihosting/uaccess.h"
 #include "system/runstate.h"
 
 /* non-arm-compatible semihosting calls */
@@ -461,31 +462,17 @@ static void sim_handle_trap0(CPUHexagonState *env)
 
     case HEX_SYS_OPEN:
     {
-        char filename[BUFSIZ];
+        char *filename;
         target_ulong physical_filename_addr;
         unsigned int filemode;
-        int length;
+        uint32_t filename_len;
+        size_t filename_size;
         int real_openmode;
         int ret, err = 0;
-        int i = 0;
 
         hexagon_read_memory(env, swi_info, 4, &physical_filename_addr, retaddr);
         hexagon_read_memory(env, swi_info + 4, 4, &filemode, retaddr);
-        hexagon_read_memory(env, swi_info + 8, 4, &length, retaddr);
-
-        if (length >= BUFSIZ) {
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "%s: filename too large (%d)\n",
-                          __func__, length);
-            semi_cb(cs, -1, ENAMETOOLONG);
-            break;
-        }
-
-        do {
-            hexagon_read_memory(env, physical_filename_addr + i, 1,
-                                &filename[i], retaddr);
-            i++;
-        } while (filename[i - 1]);
+        hexagon_read_memory(env, swi_info + 8, 4, &filename_len, retaddr);
 
         /* convert ARM ANGEL filemode into host filemode */
         if (filemode < ARRAY_SIZE(angel_to_host_filemode_table)) {
@@ -495,6 +482,16 @@ static void sim_handle_trap0(CPUHexagonState *env)
                           "%s: invalid OPEN mode: %u\n",
                           __func__, filemode);
             semi_cb(cs, -1, EINVAL);
+            break;
+        }
+
+        /* The ABI length excludes the filename's terminating NUL. */
+        filename_size = (size_t)filename_len + 1;
+        filename = lock_user(VERIFY_READ, physical_filename_addr,
+                             filename_size, true);
+        if (!filename || filename[filename_len] != '\0') {
+            unlock_user(filename, physical_filename_addr, 0);
+            semi_cb(cs, -1, EFAULT);
             break;
         }
 
@@ -513,6 +510,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
                 ret = guestfd;
             }
         }
+        unlock_user(filename, physical_filename_addr, 0);
         semi_cb(cs, ret, err);
     }
     break;
