@@ -185,6 +185,15 @@ static void s390_pci_err_handler(void *opaque)
     return;
 }
 
+void s390_pci_reset(S390PCIBusDevice *pbdev)
+{
+    VFIOPCIDevice *vfio_pci = VFIO_PCI_DEVICE(pbdev->pdev);
+    if (ioctl(vfio_pci->vbasedev.fd, VFIO_DEVICE_RESET)) {
+        error_report("Failed to reset PCI device %s : %s ",
+                      vfio_pci->vbasedev.name, strerror(errno));
+    }
+}
+
 static void s390_pci_read_base(S390PCIBusDevice *pbdev,
                                struct vfio_device_info *info)
 {

@@ -36,3 +36,7 @@ bool s390_pci_setup_err_handler(S390PCIBusDevice *pbdev, Error **errp)
     error_setg(errp, "VFIO not available, cannot setup error handler");
     return false;
 }
+
+void s390_pci_reset(S390PCIBusDevice *pbdev)
+{
+}
