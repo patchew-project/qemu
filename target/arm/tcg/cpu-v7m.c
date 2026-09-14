@@ -76,6 +76,15 @@ static void cortex_m0_initfn(Object *obj)
     SET_IDREG(isar, ID_ISAR6, 0x00000000);
 }
 
+static void cortex_m0plus_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    cortex_m0_initfn(obj);
+    set_feature(&cpu->env, ARM_FEATURE_M_UNPRIV);
+    cpu->midr = 0x410cc601;
+}
+
 static void cortex_m3_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -325,6 +334,8 @@ static void arm_v7m_class_init(ObjectClass *oc, const void *data)
 static const ARMCPUInfo arm_v7m_cpus[] = {
     { .name = "cortex-m0",   .initfn = cortex_m0_initfn,
                              .class_init = arm_v7m_class_init },
+    { .name = "cortex-m0plus", .initfn = cortex_m0plus_initfn,
+                                .class_init = arm_v7m_class_init },
     { .name = "cortex-m3",   .initfn = cortex_m3_initfn,
                              .class_init = arm_v7m_class_init },
     { .name = "cortex-m4",   .initfn = cortex_m4_initfn,
