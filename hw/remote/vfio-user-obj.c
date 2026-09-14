@@ -519,13 +519,14 @@ static vfu_region_access_cb_t *vfu_object_bar_handlers[PCI_NUM_REGIONS] = {
  */
 static void vfu_object_register_bars(vfu_ctx_t *vfu_ctx, PCIDevice *pdev)
 {
-    int flags = VFU_REGION_FLAG_RW;
-    int i;
+    int flags, i;
 
     for (i = 0; i < PCI_NUM_REGIONS; i++) {
         if (!pdev->io_regions[i].size) {
             continue;
         }
+
+        flags = VFU_REGION_FLAG_RW;
 
         if ((i == VFU_PCI_DEV_ROM_REGION_IDX) ||
             pdev->io_regions[i].memory->readonly) {
