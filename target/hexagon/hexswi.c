@@ -19,6 +19,7 @@
 #include "hex_mmu.h"
 #include "hexswi.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon.h"
 
 #ifdef CONFIG_USER_ONLY
 #error "This file is only used in system emulation"
@@ -30,6 +31,18 @@
 #include "semihosting/guestfd.h"
 #include "semihosting/uaccess.h"
 #include "system/runstate.h"
+
+/* We start from 1 as 0 is used to signal an error from g_dir_open(). */
+static const int DIR_INDEX_OFFSET = 1;
+
+/*
+ * GDir does not surface "." and ".." itself, so we track how many of
+ * those synthetic entries have been served for this handle so far.
+ */
+typedef struct {
+    GDir *dir;
+    unsigned int dot_entries;
+} SemihostingDir;
 
 /* non-arm-compatible semihosting calls */
 #define HEXAGON_SPECIFIC_SWI_FLAGS \
@@ -401,6 +414,13 @@ static void coredump(CPUHexagonState *env)
     qemu_log_unlock(f);
 }
 
+static GList **hex_semihosting_dir_list(CPUHexagonState *env)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+    HexagonClusterState *cluster = HEXAGON_CLUSTER_STATE(OBJECT(cpu)->parent);
+    return &cluster->semihosting.dir_list;
+}
+
 static void sim_handle_trap0(CPUHexagonState *env)
 {
     target_ulong what_swi, swi_info;
@@ -665,6 +685,94 @@ static void sim_handle_trap0(CPUHexagonState *env)
         semi_cb(cs, -1, ENOSYS);
     }
     break;
+
+    case HEX_SYS_OPENDIR:
+    {
+        GDir *dir;
+        SemihostingDir *semidir;
+        char *buf;
+        int rc = 0, err = 0;
+
+        buf = lock_user_string(swi_info);
+        if (!buf) {
+            common_semi_cb(cs, -1, EFAULT);
+            break;
+        }
+
+        GList **dir_list = hex_semihosting_dir_list(env);
+        dir = g_dir_open(buf, 0, NULL);
+        if (dir != NULL) {
+            semidir = g_new(SemihostingDir, 1);
+            semidir->dir = dir;
+            semidir->dot_entries = 0;
+            *dir_list = g_list_append(*dir_list, semidir);
+            rc = g_list_index(*dir_list, semidir) + DIR_INDEX_OFFSET;
+        } else {
+            err = errno;
+        }
+        unlock_user(buf, swi_info, 0);
+        common_semi_cb(cs, rc, rc != 0 ? 0 : err);
+        break;
+    }
+
+    case HEX_SYS_READDIR:
+    {
+        const char *host_dir_entry = NULL;
+        int dir_index = swi_info - DIR_INDEX_OFFSET;
+        GList **dir_list = hex_semihosting_dir_list(env);
+        SemihostingDir *dir = g_list_nth_data(*dir_list, dir_index);
+        uint32_t rc = 0, err = 0;
+        size_t i, name_len;
+
+        if (dir) {
+            if (dir->dot_entries < 2) {
+                host_dir_entry = dir->dot_entries++ ? ".." : ".";
+            } else {
+                errno = 0;
+                host_dir_entry = g_dir_read_name(dir->dir);
+                if (host_dir_entry == NULL) {
+                    err = errno;
+                }
+            }
+        } else {
+            err = EBADF;
+        }
+
+        if (host_dir_entry) {
+            uint32_t guest_dir_entry = env->gpr[HEX_REG_R02];
+            /* GDir does not provide a portable inode number. */
+            hexagon_write_memory(env, guest_dir_entry, 4, 0, retaddr);
+            name_len = MIN(strlen(host_dir_entry), 254);
+            for (i = 0; i <= name_len; i++) {
+                hexagon_write_memory(env, guest_dir_entry + 4 + i, 1,
+                                     host_dir_entry[i], retaddr);
+            }
+            rc = guest_dir_entry;
+        }
+        common_semi_cb(cs, rc, err);
+        break;
+    }
+
+    case HEX_SYS_CLOSEDIR:
+    {
+        SemihostingDir *dir;
+        int ret = -1, err = 0;
+        int dir_index = swi_info - DIR_INDEX_OFFSET;
+        GList **dir_list = hex_semihosting_dir_list(env);
+        GList *node = g_list_nth(*dir_list, dir_index);
+
+        dir = node ? node->data : NULL;
+        if (dir != NULL) {
+            g_dir_close(dir->dir);
+            g_free(dir);
+            ret = 0;
+            node->data = NULL;
+        } else {
+            err = EBADF;
+        }
+        common_semi_cb(cs, ret, ret == 0 ? 0 : err);
+        break;
+    }
 
     case HEX_SYS_COREDUMP:
         coredump(env);

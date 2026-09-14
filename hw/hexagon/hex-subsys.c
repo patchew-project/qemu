@@ -98,14 +98,11 @@ static DeviceState *tlb_create(HexagonCommonMachineState *hms,
     return tlb;
 }
 
-static DeviceState *cluster_create(HexagonCommonMachineState *hms)
+static void cluster_create(HexagonCommonMachineState *hms)
 {
-    DeviceState *cluster = qdev_new(TYPE_CPU_CLUSTER);
-
-    object_property_add_child(OBJECT(hms), "cluster", OBJECT(cluster));
-    qdev_prop_set_uint32(cluster, "cluster-id", 0);
-
-    return cluster;
+    object_initialize_child(OBJECT(hms), "cluster", &hms->cluster,
+                            TYPE_HEXAGON_CLUSTER_STATE);
+    qdev_prop_set_uint32(DEVICE(&hms->cluster), "cluster-id", 0);
 }
 
 void hex_subsys_create(HexagonCommonMachineState *hms,
@@ -135,7 +132,7 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
                                     &hms->vtcm);
     }
 
-    hms->cluster = cluster_create(hms);
+    cluster_create(hms);
     hms->l2vic = l2vic_create(hms, m_cfg);
     hms->qtimer = qtimer_create(hms, m_cfg);
     hms->glob_regs = globalreg_create(hms, m_cfg, rev);
@@ -144,7 +141,7 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
 
 void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
 {
-    object_property_add_child(OBJECT(hms->cluster), "cpu[*]", OBJECT(cpu));
+    object_property_add_child(OBJECT(&hms->cluster), "cpu[*]", OBJECT(cpu));
     object_property_set_link(OBJECT(cpu), "global-regs",
                              OBJECT(hms->glob_regs), &error_fatal);
     object_property_set_link(OBJECT(cpu), "tlb", OBJECT(hms->tlb),
@@ -158,10 +155,10 @@ void hex_subsys_realize_cluster(HexagonCommonMachineState *hms)
     /*
      * The cluster must be realized after its CPUs have been parented into it
      * (see hex_subsys_add_cpu()) but before any CPU is itself realized, since
-     * qdev_realize_and_unref() on a CPU latches cluster_index into the TCG
+     * qdev_realize() on a CPU latches cluster_index into the TCG
      * cflags at that point.
      */
-    qdev_realize_and_unref(hms->cluster, NULL, &error_fatal);
+    qdev_realize(DEVICE(&hms->cluster), NULL, &error_fatal);
 }
 
 void hex_subsys_realize_cpu(HexagonCommonMachineState *hms, DeviceState *cpu,
@@ -173,3 +170,16 @@ void hex_subsys_realize_cpu(HexagonCommonMachineState *hms, DeviceState *cpu,
         l2vic_connect_cpu(hms->l2vic, cpu);
     }
 }
+
+static const TypeInfo hexagon_cluster_type_info = {
+    .name = TYPE_HEXAGON_CLUSTER_STATE,
+    .parent = TYPE_CPU_CLUSTER,
+    .instance_size = sizeof(HexagonClusterState),
+};
+
+static void hexagon_cluster_register_types(void)
+{
+    type_register_static(&hexagon_cluster_type_info);
+}
+
+type_init(hexagon_cluster_register_types)

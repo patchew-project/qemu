@@ -11,6 +11,7 @@
 
 #include "system/memory.h"
 #include "hw/core/boards.h"
+#include "hw/cpu/cluster.h"
 
 struct hexagon_board_boot_info {
     uint64_t ram_size;
@@ -159,6 +160,17 @@ struct hexagon_machine_config {
     union hexagon_config_table cfgtable;
 };
 
+#define TYPE_HEXAGON_CLUSTER_STATE "hexagon-cluster-state"
+OBJECT_DECLARE_SIMPLE_TYPE(HexagonClusterState, HEXAGON_CLUSTER_STATE)
+
+struct HexagonClusterState {
+    CPUClusterState parent_obj;
+
+    struct {
+        GList *dir_list;
+    } semihosting;
+};
+
 #define TYPE_HEXAGON_COMMON_MACHINE "hexagon-common-machine"
 OBJECT_DECLARE_SIMPLE_TYPE(HexagonCommonMachineState, HEXAGON_COMMON_MACHINE)
 
@@ -168,7 +180,7 @@ struct HexagonCommonMachineState {
     MemoryRegion ram;
     MemoryRegion cfgtable_rom;
     MemoryRegion vtcm;
-    DeviceState *cluster;
+    HexagonClusterState cluster;
     DeviceState *l2vic;
     DeviceState *qtimer;
     DeviceState *glob_regs;
