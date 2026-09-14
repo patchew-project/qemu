@@ -2234,6 +2234,28 @@ static void test_acpi_aarch64_virt_tcg(void)
     free_test_data(&data);
 }
 
+static void test_acpi_aarch64_virt_tcg_11_1(void)
+{
+    test_data data = {
+        .machine = "virt",
+        .machine_param = "-11.1",
+        .arch = "aarch64",
+        .variant = ".11.1",
+        .tcg_only = true,
+        .uefi_fl1 = "pc-bios/edk2-aarch64-code.fd",
+        .uefi_fl2 = "pc-bios/edk2-aarch64-vars.fd",
+        .cd = "tests/data/uefi-boot-images/bios-tables-test.aarch64.iso.qcow2",
+        .ram_start = 0x40000000ULL,
+        .scan_len = 128ULL * MiB,
+    };
+
+    data.smbios_cpu_max_speed = 2900;
+    data.smbios_cpu_curr_speed = 2700;
+    test_acpi_one("-cpu cortex-a57 -machine ras=on "
+                  "-smbios type=4,max-speed=2900,current-speed=2700", &data);
+    free_test_data(&data);
+}
+
 static void test_acpi_aarch64_virt_tcg_topology(void)
 {
     test_data data = {
@@ -2930,6 +2952,8 @@ int main(int argc, char *argv[])
     } else if (strcmp(arch, "aarch64") == 0) {
         if (has_tcg && qtest_has_device("virtio-blk-pci")) {
             qtest_add_func("acpi/virt", test_acpi_aarch64_virt_tcg);
+            qtest_add_func("acpi/virt/11.1",
+                           test_acpi_aarch64_virt_tcg_11_1);
             qtest_add_func("acpi/virt/acpihmatvirt",
                            test_acpi_aarch64_virt_tcg_acpi_hmat);
             qtest_add_func("acpi/virt/topology",
