@@ -1916,7 +1916,7 @@ static void test_write_engine_stop_in_flight(void)
      * Retire the abandoned write. handle_cmd() drops a command that arrives
      * while the drive is still busy and nothing retries it.
      */
-    g_free(qtest_hmp(ahci->parent->qts, "qemu-io drive0 \"aio_flush\""));
+    qtest_qemu_io(ahci->parent->qts, "drive0", "aio_flush");
 
     /* Round-trip through the device to confirm qemu is still alive. */
     ahci_px_rreg(ahci, port, AHCI_PX_TFD);
