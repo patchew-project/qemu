@@ -284,7 +284,11 @@ def need_ea(tag):
 
 
 def need_PC(tag):
-    return "A_IMPLICIT_READS_PC" in attribdict[tag]
+    return (
+        "A_IMPLICIT_READS_PC" in attribdict[tag]
+        or tag == "Y2_k0lock"
+        or tag == "Y2_tlblock"
+    )
 
 
 def need_next_PC(tag):
