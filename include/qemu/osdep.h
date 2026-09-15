@@ -677,6 +677,16 @@ int qemu_get_thread_id(void);
 bool qemu_debugger_attached(void);
 
 /**
+ * qemu_thread_states:
+ *
+ * Returns a newly allocated, newline terminated description of every thread
+ * in this process apart from the caller: its id, name, scheduler state and
+ * the wait channel it is parked on, or NULL on a host that cannot report any
+ * of that.
+ */
+char *qemu_thread_states(void);
+
+/**
  * qemu_kill_thread:
  * @tid: thread id.
  * @sig: host signal.
