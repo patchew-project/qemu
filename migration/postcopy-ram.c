@@ -1122,8 +1122,6 @@ int postcopy_request_shared_page(struct PostCopyFD *pcfd, RAMBlock *rb,
                                         qemu_ram_get_idstr(rb), rb_offset);
         return postcopy_wake_shared(pcfd, client_addr, rb);
     }
-    /* TODO: support blocktime tracking */
-
     /*
      * The page will be placed by qemu_ufd_copy_ioctl(), which removes the
      * matching entry from mis->page_requested (and drops
@@ -1133,10 +1131,16 @@ int postcopy_request_shared_page(struct PostCopyFD *pcfd, RAMBlock *rb,
      * backend's address space and can never equal that host address, so the
      * removal would miss forever, leaking page_requested_count and hanging
      * postcopy teardown.
+     *
+     * We have no thread id to report for the client: its userfaultfd is not
+     * required to enable UFFD_FEATURE_THREAD_ID, and even when it does the
+     * thread ids it reports belong to another process, so they could never
+     * match one of our vCPUs.  Report the fault as a foreign one, so that it
+     * still shows up in the latency reports.
      */
     postcopy_request_page(mis, rb, aligned_rbo,
                           (uint64_t)(uintptr_t)qemu_ram_get_host_addr(rb) +
-                          aligned_rbo, 0);
+                          aligned_rbo, POSTCOPY_TID_FOREIGN);
     return 0;
 }
 
@@ -1234,7 +1238,8 @@ bool try_mark_postcopy_blocktime_begin(MigrationIncomingState *mis,
  * blocking time.  It's protected by @page_request_mutex.
  *
  * @addr: faulted host virtual address
- * @ptid: faulted process thread id
+ * @ptid: faulted process thread id, or POSTCOPY_TID_FOREIGN when the fault
+ *        was taken by a thread of another process
  * @rb: ramblock appropriate to addr
  */
 void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
@@ -1256,7 +1261,7 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
     assert(!ramblock_recv_bitmap_test(rb, (void *)addr));
 
     current = get_current_ns();
-    cpu = blocktime_get_vcpu(dc, ptid);
+    cpu = ptid == POSTCOPY_TID_FOREIGN ? -1 : blocktime_get_vcpu(dc, ptid);
 
     if (cpu >= 0) {
         /* How many faults on this vCPU in total? */
@@ -1281,11 +1286,12 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
         }
     } else {
         /*
-         * For non-vCPU thread faults, we don't care about tid or cpu index
-         * or time the thread is blocked (e.g., a kworker trying to help
-         * KVM when async_pf=on is OK to be blocked and not affect guest
-         * responsiveness), but we care about latency.  Track it with
-         * cpu=-1.
+         * For faults that did not come from a vCPU thread, we don't care
+         * about tid or cpu index or time the thread is blocked (e.g., a
+         * kworker trying to help KVM when async_pf=on is OK to be blocked
+         * and not affect guest responsiveness; likewise for a thread of a
+         * process that shares guest memory with us), but we care about
+         * latency.  Track it with cpu=-1.
          *
          * Note that this will NOT affect blocktime reports on vCPU being
          * blocked, but only about system-wide latency reports.

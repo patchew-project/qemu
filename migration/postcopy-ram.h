@@ -200,6 +200,16 @@ bool postcopy_is_paused(MigrationStatus status);
 bool try_mark_postcopy_blocktime_begin(MigrationIncomingState *mis,
                                        RAMBlock *rb, ram_addr_t start,
                                        uint64_t haddr, uint32_t tid);
+
+/*
+ * Thread id to report for a fault that did not come from one of our own
+ * threads, e.g. one taken by a process that shares guest memory with us.  It
+ * can never collide with a real thread id, as Linux pid values are far below
+ * this.  See mark_postcopy_blocktime_begin() for how such faults are
+ * accounted.
+ */
+#define POSTCOPY_TID_FOREIGN  ((uint32_t)-1)
+
 void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
                                    RAMBlock *rb);
 
