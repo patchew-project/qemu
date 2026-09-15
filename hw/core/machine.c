@@ -45,6 +45,8 @@ GlobalProperty hw_compat_11_1[] = {
     { "pci-ehci-usb", "x-migrate-fetch-addr-64bit", "off" },
     { "xio3130-downstream", "x-speed", "2_5" },
     { "xio3130-downstream", "x-width", "1" },
+    { "x3130-upstream", "x-speed", "2_5" },
+    { "x3130-upstream", "x-width", "1" },
 };
 const size_t hw_compat_11_1_len = G_N_ELEMENTS(hw_compat_11_1);
 

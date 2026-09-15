@@ -24,8 +24,23 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/pcie.h"
 #include "hw/pci/pcie_port.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
+
+#define TYPE_XIO3130_UPSTREAM "x3130-upstream"
+
+OBJECT_DECLARE_SIMPLE_TYPE(XIO3130Upstream, XIO3130_UPSTREAM)
+
+struct XIO3130Upstream {
+    /*< private >*/
+    PCIEPort parent_obj;
+
+    /*< public >*/
+    PCIExpLinkSpeed speed;
+    PCIExpLinkWidth width;
+};
 
 #define PCI_DEVICE_ID_TI_XIO3130U       0x8232  /* upstream port */
 #define XIO3130_REVISION                0x2
@@ -49,9 +64,11 @@ static void xio3130_upstream_write_config(PCIDevice *d, uint32_t address,
 static void xio3130_upstream_reset(DeviceState *qdev)
 {
     PCIDevice *d = PCI_DEVICE(qdev);
+    XIO3130Upstream *u = XIO3130_UPSTREAM(qdev);
 
     pci_bridge_reset(qdev);
     pcie_cap_deverr_reset(d);
+    pcie_cap_fill_link_ep_usp(d, u->width, u->speed, false);
 }
 
 static void xio3130_upstream_realize(PCIDevice *d, Error **errp)
@@ -110,6 +127,13 @@ static void xio3130_upstream_exitfn(PCIDevice *d)
     pci_bridge_exitfn(d);
 }
 
+static const Property xio3130_upstream_props[] = {
+    DEFINE_PROP_PCIE_LINK_SPEED("x-speed", XIO3130Upstream,
+                                speed, PCIE_LINK_SPEED_16),
+    DEFINE_PROP_PCIE_LINK_WIDTH("x-width", XIO3130Upstream,
+                                width, PCIE_LINK_WIDTH_32),
+};
+
 static const VMStateDescription vmstate_xio3130_upstream = {
     .name = "xio3130-express-upstream-port",
     .priority = MIG_PRI_PCI_BUS,
@@ -138,11 +162,13 @@ static void xio3130_upstream_class_init(ObjectClass *klass, const void *data)
     dc->desc = "TI X3130 Upstream Port of PCI Express Switch";
     device_class_set_legacy_reset(dc, xio3130_upstream_reset);
     dc->vmsd = &vmstate_xio3130_upstream;
+    device_class_set_props(dc, xio3130_upstream_props);
 }
 
 static const TypeInfo xio3130_upstream_info = {
-    .name          = "x3130-upstream",
+    .name          = TYPE_XIO3130_UPSTREAM,
     .parent        = TYPE_PCIE_PORT,
+    .instance_size = sizeof(XIO3130Upstream),
     .class_init    = xio3130_upstream_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
