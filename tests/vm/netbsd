@@ -64,15 +64,16 @@ class NetBSDVM(basevm.BaseVM):
     ]
 
     BUILD_SCRIPT = """
-        set -e;
+        set -e
         rm -rf /home/qemu/qemu-test.*
-        cd $(mktemp -d /home/qemu/qemu-test.XXXXXX);
-        mkdir src build; cd src;
-        tar -xf /dev/rld1a;
+        cd $(mktemp -d /home/qemu/qemu-test.XXXXXX)
+        mkdir src build
+        cd src
+        tar -xf /dev/rld1a
         cd ../build
         ../src/configure --disable-opengl --extra-ldflags=-L/usr/pkg/lib \
-                          --extra-cflags=-I/usr/pkg/include {configure_opts};
-        gmake --output-sync -j{jobs} {target} {verbose};
+                         --extra-cflags=-I/usr/pkg/include {configure_opts}
+        gmake --output-sync -j{jobs} {target} {verbose}
     """
     poweroff = "/sbin/poweroff"
 
