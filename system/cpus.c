@@ -441,6 +441,10 @@ static void *bql_watchdog_fn(void *opaque)
         if (++stuck_polls < BQL_WATCHDOG_POLLS) {
             continue;
         }
+        if (qemu_debugger_attached()) {
+            stuck_polls = 0;
+            continue;
+        }
         if (seq == reported) {
             continue;
         }
