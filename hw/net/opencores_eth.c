@@ -130,6 +130,9 @@ static void mii_write_host(Mii *s, unsigned idx, uint16_t v)
 
 static uint16_t mii_read_host(Mii *s, unsigned idx)
 {
+    if (idx >= MII_REG_MAX) {
+        return 0xffff;
+    }
     trace_open_eth_mii_read(idx, s->regs[idx]);
     return s->regs[idx];
 }

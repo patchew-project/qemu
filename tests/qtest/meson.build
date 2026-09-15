@@ -217,6 +217,9 @@ qtests_sparc64 = \
   qtests_filter + \
   ['prom-env-test', 'boot-serial-test']
 
+qtests_xtensa = \
+  (config_all_devices.has_key('CONFIG_OPENCORES_ETH') ? ['opencores-eth-test'] : [])
+
 qtests_npcm7xx = \
   ['npcm7xx_adc-test',
    'npcm7xx_gpio-test',
