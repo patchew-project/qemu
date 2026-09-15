@@ -81,6 +81,20 @@ void rp_restart_sync_timer(RemotePort *s)
     ptimer_transaction_commit(s->sync.ptimer);
 }
 
+void rp_register_dev(RemotePort *s, RemotePortDevice *dev, uint32_t chan)
+{
+    assert(chan < REMOTE_PORT_MAX_DEVS);
+
+    /* Skip if device registered via 'remote-port-dev%d' property */
+    if (s->devs[chan] == dev) {
+        return;
+    }
+
+    assert(!s->devs[chan]);
+
+    s->devs[chan] = dev;
+}
+
 static void rp_fatal_error(RemotePort *s, const char *reason)
 {
     int64_t clk = rp_normalized_vmclk(s);
@@ -719,6 +733,11 @@ static void rp_init(Object *obj)
                sizeof s->dev_state[i].rsp_queue[t].rsp.pkt->busaccess + 1024);
         }
     }
+}
+
+struct rp_peer_state *rp_get_peer(RemotePort *s)
+{
+    return &s->peer;
 }
 
 static void rp_class_init(ObjectClass *klass, const void *data)

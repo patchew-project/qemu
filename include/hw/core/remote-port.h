@@ -129,6 +129,8 @@ struct RemotePort {
     RemotePortDevice *devs[REMOTE_PORT_MAX_DEVS];
 };
 
+void rp_register_dev(RemotePort *s, RemotePortDevice *dev, uint32_t chan);
+
 
 void rp_rsp_mutex_lock(RemotePort *s);
 void rp_rsp_mutex_unlock(RemotePort *s);
@@ -145,5 +147,7 @@ int64_t rp_normalized_vmclk(RemotePort *s);
 void rp_process(RemotePort *s);
 
 ssize_t rp_write(RemotePort *s, const void *buf, size_t count);
+
+struct rp_peer_state *rp_get_peer(RemotePort *s);
 
 #endif
