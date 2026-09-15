@@ -1,30 +1,20 @@
-include config.mak
-SRC_DIR := $(TOPSRC_DIR)/pc-bios/optionrom
-VPATH = $(SRC_DIR)
-
 all: multiboot_dma.bin linuxboot_dma.bin kvmvapic.bin pvh.bin
-# Dummy command so that make thinks it has done something
-	@true
 
-CFLAGS = -O2 -g
+CROSS := $(or $(CROSS),i686-linux-gnu-)
+CC := $(CROSS)gcc
+OBJCOPY := $(CROSS)objcopy
 
-NULL :=
-SPACE := $(NULL) #
-TARGET_PREFIX := $(patsubst %/,%:$(SPACE),$(TARGET_DIR))
-
-quiet-@ = $(if $(V),,@$(if $1,printf "%s\n" "$(TARGET_PREFIX)$1" && ))
-quiet-command = $(call quiet-@,$2 $@)$1
+CFLAGS = -O2 -g -I ../../include
 
 # Flags for dependency generation
 override CPPFLAGS += -MMD -MP -MT $@ -MF $(@D)/$(*F).d
-
 override CFLAGS += -march=i486 -Wall $(EXTRA_CFLAGS) -m16
 override CFLAGS += -ffreestanding -I$(TOPSRC_DIR)/include
 
 cc-test = $(CC) -Werror $1 -c -o /dev/null -xc /dev/null >/dev/null 2>/dev/null
 cc-option = if $(call cc-test, $1); then \
-    echo "$(TARGET_PREFIX)$1 detected" && echo "override CFLAGS += $1" >&3; else \
-    echo "$(TARGET_PREFIX)$1 not detected" $(if $2,&& echo "override CFLAGS += $2" >&3); fi
+    echo "$1 detected" && echo "override CFLAGS += $1" >&3; else \
+    echo "$1 not detected" $(if $2,&& echo "override CFLAGS += $2" >&3); fi
 
 # If -fcf-protection is enabled in flags or compiler defaults that will
 # conflict with -march=i486
@@ -36,34 +26,31 @@ config-cc.mak: Makefile
 	    $(call cc-option,-Wno-array-bounds)) 3> config-cc.mak
 -include config-cc.mak
 
-override LDFLAGS = -nostdlib -Wl,--build-id=none,-T,$(SRC_DIR)/flat.lds,-m,elf_i386
+override LDFLAGS = -nostdlib -Wl,--build-id=none,-T,flat.lds,-m,elf_i386
 
 pvh.img: pvh.o pvh_main.o
 
 %.o: %.S
-	$(call quiet-command,$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<,Assembling)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 %.o: %.c
-	$(call quiet-command,$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@,Compiling)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 %.img: %.o
-	$(call quiet-command,$(CC) $(CFLAGS) $(LDFLAGS) -s -o $@ $^,Linking)
+	$(CC) $(CFLAGS) $(LDFLAGS) -s -o $@ $^
 
 %.raw: %.img
-	$(call quiet-command,$(OBJCOPY) -O binary -j .text $< $@,Extracting raw object)
+	$(OBJCOPY) -O binary -j .text $< $@
 
 %.bin: %.raw
-	$(call quiet-command,$(PYTHON) $(TOPSRC_DIR)/scripts/signrom.py $< $@,Computing checksum into)
+	$(PYTHON) ../../scripts/signrom.py $< $@
 
 include $(wildcard *.d)
 
 clean:
 	rm -f *.o *.d *.raw *.img *.bin *~
 
-distclean:
+distclean: clean
 	rm -f config-cc.mak
-
-# suppress auto-removal of intermediate files
-.SECONDARY:
 
 .PHONY: all clean distclean
