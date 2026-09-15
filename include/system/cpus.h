@@ -40,4 +40,8 @@ void cpu_synchronize_all_post_reset(void);
 void cpu_synchronize_all_post_init(void);
 void cpu_synchronize_all_pre_loadvm(void);
 
+/* Watchdog deadline for a BQL hold. 0 disables the watchdog. */
+bool bql_watchdog_set_timeout_ms(uint64_t ms, Error **errp);
+uint64_t bql_watchdog_get_timeout_ms(void);
+
 #endif

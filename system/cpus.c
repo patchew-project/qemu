@@ -31,6 +31,7 @@
 #include "exec/cpu-common.h"
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
+#include "qemu/error-report.h"
 #include "qemu/plugin.h"
 #include "system/cpus.h"
 #include "qemu/guest-random.h"
@@ -367,12 +368,129 @@ static QemuCond qemu_cpu_cond;
 /* system init */
 static QemuCond qemu_pause_cond;
 
+/*
+ * Advanced by bql_update_status() below, so odd while the BQL is held and
+ * even while it is free. A sampler that sees one odd value throughout its
+ * window knows a single owner held the lock for the whole window: any
+ * handover would have advanced it twice.
+ */
+static unsigned int bql_seq;
+
+/* Who advanced bql_seq to its current odd value, 0 while the BQL is free */
+static int bql_owner_tid;
+
+static int bql_this_tid(void)
+{
+    static __thread int tid;
+
+    if (tid) {
+        return tid;
+    }
+    tid = qemu_get_thread_id();
+    return tid;
+}
+
+/* Poll this many times per timeout, to bound how late the watchdog reacts */
+#define BQL_WATCHDOG_POLLS 4
+
+#define BQL_WATCHDOG_MAX_MS (60 * 1000)
+
+static QemuThread bql_watchdog_thread;
+static QemuSemaphore bql_watchdog_sem;
+static uint64_t bql_watchdog_timeout_ms;
+
+static void bql_report_thread_states(void)
+{
+    g_autofree char *states = qemu_thread_states();
+
+    if (!states) {
+        return;
+    }
+    qemu_flockfile(stderr);
+    fputs(states, stderr);
+    qemu_funlockfile(stderr);
+}
+
+static void *bql_watchdog_fn(void *opaque)
+{
+    unsigned int last = qatomic_read(&bql_seq);
+    unsigned int reported = 0;
+    int stuck_polls = 0;
+
+    for (;;) {
+        uint64_t timeout_ms = qatomic_read(&bql_watchdog_timeout_ms);
+        g_autofree char *when = NULL;
+        unsigned int seq;
+
+        if (!timeout_ms) {
+            /* Park rather than exit, so re-arming needs no new thread */
+            qemu_sem_wait(&bql_watchdog_sem);
+            last = qatomic_read(&bql_seq);
+            stuck_polls = 0;
+            continue;
+        }
+        qemu_sem_timedwait(&bql_watchdog_sem,
+                           MAX(timeout_ms / BQL_WATCHDOG_POLLS, 1));
+
+        seq = qatomic_read(&bql_seq);
+        if (seq != last || !(seq & 1)) {
+            last = seq;
+            stuck_polls = 0;
+            continue;
+        }
+        if (++stuck_polls < BQL_WATCHDOG_POLLS) {
+            continue;
+        }
+        if (seq == reported) {
+            continue;
+        }
+        reported = seq;
+        if (!message_with_timestamp) {
+            when = real_time_iso8601();
+        }
+        error_report("%s%sBQL held for more than %" PRIu64 " ms by thread %d",
+                     when ?: "", when ? " " : "", timeout_ms,
+                     qatomic_read(&bql_owner_tid));
+        bql_report_thread_states();
+    }
+}
+
+uint64_t bql_watchdog_get_timeout_ms(void)
+{
+    return qatomic_read(&bql_watchdog_timeout_ms);
+}
+
+bool bql_watchdog_set_timeout_ms(uint64_t ms, Error **errp)
+{
+    static bool started;
+
+    assert(bql_locked());
+    if (ms > BQL_WATCHDOG_MAX_MS) {
+        error_setg(errp, "BQL watchdog deadline must not exceed %d ms",
+                   BQL_WATCHDOG_MAX_MS);
+        return false;
+    }
+    qatomic_set(&bql_watchdog_timeout_ms, ms);
+    if (!ms) {
+        return true;
+    }
+    if (!started) {
+        started = true;
+        qemu_thread_create(&bql_watchdog_thread, "bql-watchdog",
+                           bql_watchdog_fn, NULL, QEMU_THREAD_DETACHED);
+    } else {
+        qemu_sem_post(&bql_watchdog_sem);
+    }
+    return true;
+}
+
 void qemu_init_cpu_loop(void)
 {
     qemu_init_sigbus();
     qemu_cond_init(&qemu_cpu_cond);
     qemu_cond_init(&qemu_pause_cond);
     qemu_mutex_init(&bql);
+    qemu_sem_init(&bql_watchdog_sem, 0);
 
     qemu_thread_get_self(&io_thread);
 }
@@ -477,6 +595,8 @@ void bql_update_status(bool locked)
     /* This function should only be used when an update happened.. */
     assert(bql_locked() != locked);
     set_bql_locked(locked);
+    qatomic_set(&bql_owner_tid, locked ? bql_this_tid() : 0);
+    qatomic_set(&bql_seq, qatomic_read(&bql_seq) + 1);
 }
 
 static uint32_t bql_unlock_blocked;

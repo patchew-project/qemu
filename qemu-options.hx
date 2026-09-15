@@ -32,6 +32,7 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                vmport=on|off|auto controls emulation of vmport (default: auto)\n"
     "                dump-guest-core=on|off include guest memory in a core dump (default=on)\n"
     "                mem-merge=on|off controls memory merge support (default: on)\n"
+    "                bql-watchdog-ms=ms report a Big QEMU Lock held longer than ms (default: 0, off)\n"
     "                aes-key-wrap=on|off controls support for AES key wrapping (default=on)\n"
     "                dea-key-wrap=on|off controls support for DEA key wrapping (default=on)\n"
     "                suppress-vmdesc=on|off disables self-describing migration (default=off)\n"
@@ -87,6 +88,11 @@ SRST
         Enables or disables memory merge support. This feature, when
         supported by the host, de-duplicates identical memory pages
         among VMs instances (enabled by default).
+
+    ``bql-watchdog-ms=ms``
+        Report when the Big QEMU Lock has been held for more than ``ms``
+        milliseconds, up to a minute. The default is 0, which disables the
+        watchdog.
 
     ``aes-key-wrap=on|off``
         Enables or disables AES key wrapping support on s390-ccw hosts.

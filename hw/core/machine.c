@@ -389,6 +389,27 @@ static void machine_set_dump_guest_core(Object *obj, bool value, Error **errp)
     ms->dump_guest_core = value;
 }
 
+static void machine_get_bql_watchdog_ms(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    uint64_t value = bql_watchdog_get_timeout_ms();
+
+    visit_type_uint64(v, name, &value, errp);
+}
+
+static void machine_set_bql_watchdog_ms(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    uint64_t value;
+
+    if (!visit_type_uint64(v, name, &value, errp)) {
+        return;
+    }
+    bql_watchdog_set_timeout_ms(value, errp);
+}
+
 static bool machine_get_new_accel_vmfd_on_reset(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -1158,6 +1179,12 @@ static void machine_class_init(ObjectClass *oc, const void *data)
         machine_get_dump_guest_core, machine_set_dump_guest_core);
     object_class_property_set_description(oc, "dump-guest-core",
         "Include guest memory in a core dump");
+
+    object_class_property_add(oc, "bql-watchdog-ms", "uint64",
+        machine_get_bql_watchdog_ms, machine_set_bql_watchdog_ms, NULL, NULL);
+    object_class_property_set_description(oc, "bql-watchdog-ms",
+        "Watchdog deadline for a Big QEMU Lock hold, in ms. "
+        "Default: 0 (disabled)");
 
     object_class_property_add_bool(oc, "x-change-vmfd-on-reset",
         machine_get_new_accel_vmfd_on_reset,
