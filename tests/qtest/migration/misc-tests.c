@@ -11,6 +11,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
+#include "qemu/sockets.h"
 #include "qapi/error.h"
 #include "qobject/qjson.h"
 #include "libqtest.h"
@@ -76,6 +78,22 @@ static bool token_list_is_substr(char **smaller, char **larger, int *last)
     }
 
     return match;
+}
+
+static void assert_hmp_match_text(const char *str, const char *text)
+{
+    g_auto(GStrv) tok_str = g_strsplit_set(str, " ", -1);
+    g_auto(GStrv) tok_txt = g_strsplit_set(text, " \r\n", -1);
+    int idx;
+
+    if (token_list_is_substr(tok_str, tok_txt, &idx)) {
+        return;
+    }
+
+    g_test_message("HMP output mismatch for entry at line %d:", test_case_line);
+    g_test_message("expected vs. found (whitespace ignored):\n\n%s\n---\n%s",
+                   str, text);
+    g_assert_not_reached();
 }
 
 static void assert_hmp_match_line(const char *str, const char *text)
@@ -214,6 +232,202 @@ static void test_hmp_migration_parameters(char *name, MigrateCommon *args)
         assert_hmp_match_line(line, resp);
     }
 
+    qtest_quit(qts);
+}
+
+static void hmp_sock_write(int fd, const char *buf)
+{
+    size_t sz = strlen(buf);
+
+    assert(fd > 0);
+    assert(write(fd, buf, sz) == sz);
+}
+
+static void hmp_sock_read(int fd, char *buf, size_t buf_sz)
+{
+    char *p = buf;
+    size_t sz = buf_sz - 1;
+
+    assert(fd >= 0);
+    memset(buf, 0, buf_sz);
+
+    while (sz > 0) {
+        ssize_t r = read(fd, p, sz);
+        char *prompt;
+
+        if (!r) {
+            break;
+        } else if (r < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            g_assert_not_reached();
+        }
+
+        p += r;
+        sz -= r;
+
+        /* stop reading after the next prompt appears */
+        prompt = strstr(buf, "(qemu) ");
+        if (prompt) {
+            *prompt = '\0';
+            break;
+        }
+    }
+}
+
+static gint comp(gconstpointer a, gconstpointer b)
+{
+    return qemu_pstrcmp0((const char **)a, (const char **)b);
+}
+
+static char *get_migration_opts_sorted(QTestState *qts, const char *opt)
+{
+    GPtrArray *header = g_ptr_array_new_with_free_func(g_free);
+    GPtrArray *opts = g_ptr_array_new();
+    char *sorted_str;
+
+    if (g_str_equal(opt, "@params@")) {
+        const QDictEntry *e;
+        QDict *rsp;
+
+        g_ptr_array_add(header, g_strdup("migrate_set_parameter"));
+
+        rsp = qtest_qmp_assert_success_ref(
+            qts, "{ 'execute': 'query-migrate-parameters' }");
+
+        for (e = qdict_first(rsp); e; e = qdict_next(rsp, e)) {
+            g_ptr_array_add(opts, g_strdup(qdict_entry_key(e)));
+        }
+
+        qobject_unref(rsp);
+
+        /*
+         * query_migrate has this as optional, but for completion we want
+         * it present.
+         */
+        g_ptr_array_add(opts, g_strdup("block-bitmap-mapping"));
+
+    } else if (g_str_equal(opt, "@caps@")) {
+        int i;
+
+        g_ptr_array_add(header, g_strdup("migrate_set_capability"));
+
+        for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
+            g_ptr_array_add(opts,
+                            g_strdup(MigrationCapability_lookup.array[i]));
+        }
+    } else {
+        g_assert_not_reached();
+    }
+
+    g_ptr_array_sort(opts, comp);
+    g_ptr_array_extend_and_steal(header, opts);
+
+    g_ptr_array_add(header, NULL);
+    sorted_str = g_strjoinv(" ", (char **)header->pdata);
+
+    g_ptr_array_unref(header);
+
+    return sorted_str;
+}
+
+static void hmp_completion_single(QTestState *qts, int fd,
+                                  const struct HMPTestData *t)
+{
+    g_autofree char *exp = NULL;
+    char buf[8192];
+    char *output;
+
+    test_case_line = t->line;
+
+    if (g_str_has_prefix(t->output1, "@")) {
+        exp = get_migration_opts_sorted(qts, t->output1);
+    } else {
+        exp = g_strdup(t->output1);
+    }
+
+    hmp_sock_write(fd, t->input1);
+    hmp_sock_read(fd, buf, sizeof(buf));
+
+    /*
+     * readline first rewrites the input to the common root of the
+     * completions, then outputs the completion suggestions:
+     *
+     * (qemu) info migr<TAB>
+     * (qemu) migrate migrate_parameters
+     * migrate_capabilities ...
+     */
+    output = strstr(buf, t->input2);
+    assert_hmp_match_text(exp, output);
+
+    /* ^U backward kill line */
+    hmp_sock_write(fd, "\x15");
+}
+
+static void test_hmp_completion(char *name, MigrateCommon *args)
+{
+    g_autofree char *cmdline;
+    char buf[1024];
+    QTestState *qts;
+    int sockfds[2];
+    /*
+     * .input1:  partial string with an ending TAB (as if pressed by
+     *           the user).
+     * .input2:  common root of the completions, i.e. what the partial
+     *           part of .input1 string completes to.
+     * .output1: full list of completion suggestions for the string
+     *           in .input2.
+     * E.g:
+     * (qemu) .input1
+     * <after TAB>
+     * (qemu) .input2
+     * .output1
+     */
+    HMPTestData completion_cases[] = {
+        TEST("migra\t",
+             "migrate",
+             "migrate migrate_cancel migrate_continue migrate_incoming "
+             "migrate_pause migrate_recover migrate_set_capability "
+             "migrate_set_parameter migrate_start_postcopy"),
+
+        /*
+         * Note QEMU doesn't keep 'info' when offering the completions
+         * suggestions.
+         */
+        TEST("info migra\t",
+             "migrate",
+             "migrate migrate_capabilities migrate_parameters"),
+
+        TEST("migrate_se\t",
+             "migrate_set_",
+             "migrate_set_capability migrate_set_parameter"),
+
+        /*
+         * parameters and capabilities are not listed here to avoid having
+         * to enumerate them all, see test_hmp_completion().
+         */
+        TEST("migrate_set_parameter \t", "migrate_set_parameter ", "@params@"),
+        TEST("migrate_set_capability \t", "migrate_set_capability ", "@caps@"),
+    };
+
+    assert(!qemu_socketpair(AF_UNIX, SOCK_STREAM, 0, sockfds));
+    qemu_clear_cloexec(sockfds[1]);
+
+    cmdline = g_strdup_printf("-chardev socket,id=mon0,fd=%d "
+                              "-mon chardev=mon0,mode=readline -S",
+                              sockfds[1]);
+    qts = qtest_init(cmdline);
+    close(sockfds[1]);
+
+    /* read HMP banner */
+    hmp_sock_read(sockfds[0], buf, sizeof(buf));
+
+    for (int i = 0; i < G_N_ELEMENTS(completion_cases); i++) {
+        hmp_completion_single(qts, sockfds[0], &completion_cases[i]);
+    }
+
+    close(sockfds[0]);
     qtest_quit(qts);
 }
 #endif /* CONFIG_HMP */
@@ -459,5 +673,7 @@ void migration_test_add_misc(MigrationTestEnv *env)
 #ifdef CONFIG_HMP
     migration_test_add("/migration/hmp/parameters",
                        test_hmp_migration_parameters);
+    migration_test_add("/migration/hmp/completion",
+                       test_hmp_completion);
 #endif
 }
