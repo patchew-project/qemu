@@ -30,6 +30,7 @@ qtests_generic = [
 if have_hmp
   qtests_generic += [
     'test-hmp',
+    'hmp-expr-overflow-test',
   ]
 endif
 qtests_generic += [

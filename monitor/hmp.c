@@ -35,6 +35,7 @@
 #include "qemu/config-file.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
+#include "qemu/host-utils.h"
 #include "qemu/log.h"
 #include "qemu/option.h"
 #include "qemu/base-arch-defs.h"
@@ -480,7 +481,10 @@ static int64_t expr_unary(MonitorHMP *mon)
         break;
     case '-':
         next();
-        n = -expr_unary(mon);
+        n = expr_unary(mon);
+        if (ssub64_overflow(0, n, &n)) {
+            expr_error(mon, "integer overflow");
+        }
         break;
     case '~':
         next();
@@ -571,12 +575,17 @@ static int64_t expr_prod(MonitorHMP *mon)
         switch (op) {
         default:
         case '*':
-            val *= val2;
+            if (smul64_overflow(val, val2, &val)) {
+                expr_error(mon, "integer overflow");
+            }
             break;
         case '/':
         case '%':
             if (val2 == 0) {
                 expr_error(mon, "division by zero");
+            }
+            if (val == INT64_MIN && val2 == -1) {
+                expr_error(mon, "integer overflow");
             }
             if (op == '/') {
                 val /= val2;
@@ -632,9 +641,13 @@ static int64_t expr_sum(MonitorHMP *mon)
         next();
         val2 = expr_logic(mon);
         if (op == '+') {
-            val += val2;
+            if (sadd64_overflow(val, val2, &val)) {
+                expr_error(mon, "integer overflow");
+            }
         } else {
-            val -= val2;
+            if (ssub64_overflow(val, val2, &val)) {
+                expr_error(mon, "integer overflow");
+            }
         }
     }
     return val;
@@ -1028,7 +1041,10 @@ static QDict *monitor_parse_arguments(MonitorHMP *mon,
                         monitor_hmp_printf(mon, "enter a positive value\n");
                         goto fail;
                     }
-                    val *= MiB;
+                    if (smul64_overflow(val, MiB, &val)) {
+                        monitor_hmp_printf(mon, "integer overflow\n");
+                        goto fail;
+                    }
                 }
                 qdict_put_int(qdict, key, val);
             }
