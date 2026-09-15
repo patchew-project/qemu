@@ -34,6 +34,7 @@ clock_set_mul_div(const char *clk, uint32_t oldmul, uint32_t mul, uint32_t olddi
 cpu_reset(int cpu_index) "%d"
 
 # remote-port.c
-rp_pt_process_pkt(const char *rp, uint32_t cmd, uint32_t id, uint32_t dev) "%s: cmd=0x%"PRIx32" id=0x%"PRIx32" dev=0x%"PRIx32
+rp_pt_process_pkt(const char *rp, uint32_t cmd, uint32_t id, uint32_t dev, bool response) "%s: cmd=0x%"PRIx32" id=0x%"PRIx32" dev=0x%"PRIx32" rsp=%d"
 rp_process(const char *rp, unsigned int rpos, unsigned int wpos, uint32_t cmd, uint32_t dev) "%s: io-thread rpos=%u wpos=%u cmd=0x%"PRIx32" dev=0x%"PRIx32
 rp_pt_rx_queue_full(const char *rp, unsigned int rpos, unsigned int wpos) "%s: rpos=%u wpos=%u"
+rp_wait_resp(const char *rp) "'%s'"
