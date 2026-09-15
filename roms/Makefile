@@ -63,6 +63,7 @@ default help:
 	@echo "  pxerom             -- update nic roms (bios only)"
 	@echo "  efirom             -- update nic roms (bios+efi)"
 	@echo "  slof               -- update slof.bin"
+	@echo "  vofrom             -- update vof.bin"
 	@echo "  skiboot            -- update skiboot.lid"
 	@echo "  u-boot.e500        -- update u-boot.e500"
 	@echo "  u-boot.sam460      -- update u-boot.sam460"
@@ -135,6 +136,10 @@ build-efi-roms: build-pxe-roms
 slof:
 	$(MAKE) -C SLOF CROSS=$(powerpc64_cross_prefix) qemu
 	cp SLOF/boot_rom.bin ../pc-bios/slof.bin
+
+vofrom:
+	$(MAKE) -C vof
+	cp vof/vof.bin ../pc-bios/vof.bin
 
 u-boot.e500:
 	$(MAKE) -C u-boot O=build-e500 qemu-ppce500_config
@@ -217,6 +222,7 @@ clean:
 	$(MAKE) -C edk2/BaseTools clean
 	rm -rf edk2/Conf/{.cache,BuildEnv.sh,build_rule.txt,target.txt,tools_def.txt}
 	$(MAKE) -C SLOF clean
+	$(MAKE) -C vof clean
 	rm -rf u-boot/build-e500
 	$(MAKE) -C u-boot-sam460ex distclean
 	$(MAKE) -C skiboot clean
