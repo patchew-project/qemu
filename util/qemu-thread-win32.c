@@ -177,11 +177,11 @@ bool qemu_cond_timedwait_impl(QemuCond *cond, QemuMutex *mutex, int ms,
     int rc = 0;
 
     assert(cond->initialized);
-    trace_qemu_mutex_unlock(mutex, file, line);
+    qemu_mutex_pre_unlock(mutex, file, line);
     if (!SleepConditionVariableSRW(&cond->var, &mutex->lock, ms, 0)) {
         rc = GetLastError();
     }
-    trace_qemu_mutex_locked(mutex, file, line);
+    qemu_mutex_post_lock(mutex, file, line);
     if (rc && rc != ERROR_TIMEOUT) {
         error_exit(rc, __func__);
     }
