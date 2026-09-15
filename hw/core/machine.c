@@ -410,6 +410,17 @@ static void machine_set_bql_watchdog_ms(Object *obj, Visitor *v,
     bql_watchdog_set_timeout_ms(value, errp);
 }
 
+static bool machine_get_bql_watchdog_abort(Object *obj, Error **errp)
+{
+    return bql_watchdog_get_abort();
+}
+
+static void machine_set_bql_watchdog_abort(Object *obj, bool value,
+                                           Error **errp)
+{
+    bql_watchdog_set_abort(value);
+}
+
 static bool machine_get_new_accel_vmfd_on_reset(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -1185,6 +1196,12 @@ static void machine_class_init(ObjectClass *oc, const void *data)
     object_class_property_set_description(oc, "bql-watchdog-ms",
         "Watchdog deadline for a Big QEMU Lock hold, in ms. "
         "Default: 0 (disabled)");
+
+    object_class_property_add_bool(oc, "bql-watchdog-abort",
+        machine_get_bql_watchdog_abort, machine_set_bql_watchdog_abort);
+    object_class_property_set_description(oc, "bql-watchdog-abort",
+        "Abort after the bql-watchdog-ms report, to leave a core dump. "
+        "Default: off");
 
     object_class_property_add_bool(oc, "x-change-vmfd-on-reset",
         machine_get_new_accel_vmfd_on_reset,

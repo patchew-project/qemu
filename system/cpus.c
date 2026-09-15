@@ -398,6 +398,7 @@ static int bql_this_tid(void)
 static QemuThread bql_watchdog_thread;
 static QemuSemaphore bql_watchdog_sem;
 static uint64_t bql_watchdog_timeout_ms;
+static bool bql_watchdog_abort;
 
 static void bql_report_thread_states(void)
 {
@@ -409,6 +410,16 @@ static void bql_report_thread_states(void)
     qemu_flockfile(stderr);
     fputs(states, stderr);
     qemu_funlockfile(stderr);
+}
+
+bool bql_watchdog_get_abort(void)
+{
+    return qatomic_read(&bql_watchdog_abort);
+}
+
+void bql_watchdog_set_abort(bool enable)
+{
+    qatomic_set(&bql_watchdog_abort, enable);
 }
 
 static void *bql_watchdog_fn(void *opaque)
@@ -456,6 +467,14 @@ static void *bql_watchdog_fn(void *opaque)
                      when ?: "", when ? " " : "", timeout_ms,
                      qatomic_read(&bql_owner_tid));
         bql_report_thread_states();
+        if (!qatomic_read(&bql_watchdog_abort)) {
+            continue;
+        }
+        /*
+         * A core carries the whole of every stack, and a qemu whose BQL has
+         * been held this long has stopped running its vCPUs anyway.
+         */
+        abort();
     }
 }
 
