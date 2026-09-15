@@ -25,7 +25,10 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-visit-migration.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qobject/qdict.h"
+#include "qobject/qlist.h"
+#include "qobject/qstring.h"
 #include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
 #include "qemu/cutils.h"
@@ -605,183 +608,43 @@ void hmp_migrate_set_parameter(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *param = qdict_get_str(qdict, "parameter");
     const char *valuestr = qdict_get_str(qdict, "value");
-    Visitor *v = string_input_visitor_new(valuestr);
-    MigrationParameters *p = g_new0(MigrationParameters, 1);
-    uint64_t cache_size;
+    g_autoptr(QDict) input = qdict_new();
+    g_autoptr(MigrationParameters) p = NULL;
+    QObject *value;
+    Visitor *v;
     Error *err = NULL;
-    int val;
 
-    val = qapi_enum_parse(&MigrationParameter_lookup, param, -1, &err);
-    if (val < 0) {
-        goto cleanup;
-    }
-
-    switch (val) {
-    case MIGRATION_PARAMETER_THROTTLE_TRIGGER_THRESHOLD:
-        p->has_throttle_trigger_threshold = true;
-        visit_type_uint8(v, param, &p->throttle_trigger_threshold, &err);
-        break;
-    case MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL:
-        p->has_cpu_throttle_initial = true;
-        visit_type_uint8(v, param, &p->cpu_throttle_initial, &err);
-        break;
-    case MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT:
-        p->has_cpu_throttle_increment = true;
-        visit_type_uint8(v, param, &p->cpu_throttle_increment, &err);
-        break;
-    case MIGRATION_PARAMETER_CPU_THROTTLE_TAILSLOW:
-        p->has_cpu_throttle_tailslow = true;
-        visit_type_bool(v, param, &p->cpu_throttle_tailslow, &err);
-        break;
-    case MIGRATION_PARAMETER_MAX_CPU_THROTTLE:
-        p->has_max_cpu_throttle = true;
-        visit_type_uint8(v, param, &p->max_cpu_throttle, &err);
-        break;
-    case MIGRATION_PARAMETER_TLS_CREDS:
-        p->tls_creds = g_new0(StrOrNull, 1);
-        p->tls_creds->type = QTYPE_QSTRING;
-        visit_type_str(v, param, &p->tls_creds->u.s, &err);
-        break;
-    case MIGRATION_PARAMETER_TLS_HOSTNAME:
-        p->tls_hostname = g_new0(StrOrNull, 1);
-        p->tls_hostname->type = QTYPE_QSTRING;
-        visit_type_str(v, param, &p->tls_hostname->u.s, &err);
-        break;
-    case MIGRATION_PARAMETER_TLS_AUTHZ:
-        p->tls_authz = g_new0(StrOrNull, 1);
-        p->tls_authz->type = QTYPE_QSTRING;
-        visit_type_str(v, param, &p->tls_authz->u.s, &err);
-        break;
-    case MIGRATION_PARAMETER_MAX_BANDWIDTH:
-        p->has_max_bandwidth = true;
-        visit_type_size(v, param, &p->max_bandwidth, &err);
-        break;
-    case MIGRATION_PARAMETER_AVAIL_SWITCHOVER_BANDWIDTH:
-        p->has_avail_switchover_bandwidth = true;
-        visit_type_size(v, param, &p->avail_switchover_bandwidth, &err);
-        break;
-    case MIGRATION_PARAMETER_DOWNTIME_LIMIT:
-        p->has_downtime_limit = true;
-        visit_type_size(v, param, &p->downtime_limit, &err);
-        break;
-    case MIGRATION_PARAMETER_X_CHECKPOINT_DELAY:
-        p->has_x_checkpoint_delay = true;
-        visit_type_uint32(v, param, &p->x_checkpoint_delay, &err);
-        break;
-    case MIGRATION_PARAMETER_MULTIFD_CHANNELS:
-        p->has_multifd_channels = true;
-        visit_type_uint8(v, param, &p->multifd_channels, &err);
-        break;
-    case MIGRATION_PARAMETER_MULTIFD_COMPRESSION:
-        p->has_multifd_compression = true;
-        visit_type_MultiFDCompression(v, param, &p->multifd_compression,
-                                      &err);
-        break;
-    case MIGRATION_PARAMETER_MULTIFD_ZLIB_LEVEL:
-        p->has_multifd_zlib_level = true;
-        visit_type_uint8(v, param, &p->multifd_zlib_level, &err);
-        break;
-    case MIGRATION_PARAMETER_MULTIFD_QATZIP_LEVEL:
-        p->has_multifd_qatzip_level = true;
-        visit_type_uint8(v, param, &p->multifd_qatzip_level, &err);
-        break;
-    case MIGRATION_PARAMETER_MULTIFD_ZSTD_LEVEL:
-        p->has_multifd_zstd_level = true;
-        visit_type_uint8(v, param, &p->multifd_zstd_level, &err);
-        break;
-    case MIGRATION_PARAMETER_ZERO_PAGE_DETECTION:
-        p->has_zero_page_detection = true;
-        visit_type_ZeroPageDetection(v, param, &p->zero_page_detection, &err);
-        break;
-    case MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE:
-        p->has_xbzrle_cache_size = true;
-        if (!visit_type_size(v, param, &cache_size, &err)) {
-            break;
-        }
-        if (cache_size > INT64_MAX || (size_t)cache_size != cache_size) {
-            error_setg(&err, "Invalid size %s", valuestr);
-            break;
-        }
-        p->xbzrle_cache_size = cache_size;
-        break;
-    case MIGRATION_PARAMETER_MAX_POSTCOPY_BANDWIDTH:
-        p->has_max_postcopy_bandwidth = true;
-        visit_type_size(v, param, &p->max_postcopy_bandwidth, &err);
-        break;
-    case MIGRATION_PARAMETER_ANNOUNCE_INITIAL:
-        p->has_announce_initial = true;
-        visit_type_size(v, param, &p->announce_initial, &err);
-        break;
-    case MIGRATION_PARAMETER_ANNOUNCE_MAX:
-        p->has_announce_max = true;
-        visit_type_size(v, param, &p->announce_max, &err);
-        break;
-    case MIGRATION_PARAMETER_ANNOUNCE_ROUNDS:
-        p->has_announce_rounds = true;
-        visit_type_size(v, param, &p->announce_rounds, &err);
-        break;
-    case MIGRATION_PARAMETER_ANNOUNCE_STEP:
-        p->has_announce_step = true;
-        visit_type_size(v, param, &p->announce_step, &err);
-        break;
-    case MIGRATION_PARAMETER_BLOCK_BITMAP_MAPPING:
-        error_setg(&err, "The block-bitmap-mapping parameter can only be set "
-                   "through QMP");
-        break;
-    case MIGRATION_PARAMETER_X_VCPU_DIRTY_LIMIT_PERIOD:
-        p->has_x_vcpu_dirty_limit_period = true;
-        visit_type_size(v, param, &p->x_vcpu_dirty_limit_period, &err);
-        break;
-    case MIGRATION_PARAMETER_VCPU_DIRTY_LIMIT:
-        p->has_vcpu_dirty_limit = true;
-        visit_type_size(v, param, &p->vcpu_dirty_limit, &err);
-        break;
-    case MIGRATION_PARAMETER_MODE:
-        p->has_mode = true;
-        visit_type_MigMode(v, param, &p->mode, &err);
-        break;
-    case MIGRATION_PARAMETER_DIRECT_IO:
-        p->has_direct_io = true;
-        visit_type_bool(v, param, &p->direct_io, &err);
-        break;
-    case MIGRATION_PARAMETER_X_RDMA_CHUNK_SIZE:
-        p->has_x_rdma_chunk_size = true;
-        visit_type_size(v, param, &p->x_rdma_chunk_size, &err);
-        break;
-    case MIGRATION_PARAMETER_CPR_EXEC_COMMAND: {
-        /*
-         * NOTE: g_autofree will only auto g_free() the strv array when
-         * needed, it will not free the strings within the array. It's
-         * intentional: when strv is set, the ownership of the strings will
-         * always be passed to p->cpr_exec_command via QAPI_LIST_APPEND().
-         */
+    if (g_str_equal(param, "block-bitmap-mapping")) {
+        error_setg(&err, "The %s parameter can only be set through QMP", param);
+        goto err;
+    } else if (g_str_equal(param, "cpr-exec-command")) {
         g_autofree char **strv = NULL;
         g_autoptr(GError) gerr = NULL;
-        strList **tail = &p->cpr_exec_command;
+        QList *list;
 
         if (!g_shell_parse_argv(valuestr, NULL, &strv, &gerr)) {
             error_setg(&err, "%s", gerr->message);
-            break;
+            goto err;
         }
+
+        list = qlist_new();
         for (int i = 0; strv[i]; i++) {
-            QAPI_LIST_APPEND(tail, strv[i]);
+            qlist_append_str(list, strv[i]);
+            g_free(strv[i]);
         }
-        p->has_cpr_exec_command = true;
-        break;
-    }
-    default:
-        g_assert_not_reached();
+        value = QOBJECT(list);
+    } else {
+        value = QOBJECT(qstring_from_str(valuestr));
     }
 
-    if (err) {
-        goto cleanup;
+    qdict_put_obj(input, param, value);
+    v = qobject_input_visitor_new_keyval(QOBJECT(input));
+    if (visit_type_MigrationParameters(v, NULL, &p, &err)) {
+        qmp_migrate_set_parameters(p, &err);
     }
 
-    qmp_migrate_set_parameters(p, &err);
-
- cleanup:
-    qapi_free_MigrationParameters(p);
     visit_free(v);
+err:
     hmp_handle_error(hmp, err);
 }
 
