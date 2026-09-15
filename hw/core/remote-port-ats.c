@@ -58,14 +58,217 @@ static IOMMUTLBEntry *rp_ats_lookup_translation(RemotePortATSCache *cache,
                                                 hwaddr translated_addr,
                                                 hwaddr len)
 {
-    /* TBD */
+    RemotePortATS *s = REMOTE_PORT_ATS(cache);
+
+    for (int i = 0; i < s->cache->len; i++) {
+        IOMMUTLBEntry *iotlb = g_array_index(s->cache, IOMMUTLBEntry *, i);
+        hwaddr masked_start = (translated_addr & ~iotlb->addr_mask);
+        hwaddr masked_end = ((translated_addr + len - 1) & ~iotlb->addr_mask);
+
+        if (masked_start == iotlb->translated_addr &&
+            masked_end == iotlb->translated_addr) {
+            return iotlb;
+        }
+    }
+
     return NULL;
+}
+
+static void rp_ats_cache_remove(RemotePortATS *s, IOMMUTLBEntry *iotlb)
+{
+    for (int i = 0; i < s->cache->len; i++) {
+        IOMMUTLBEntry *tmp = g_array_index(s->cache, IOMMUTLBEntry *, i);
+        hwaddr masked_start = (tmp->iova & ~iotlb->addr_mask);
+        hwaddr masked_end = ((tmp->iova | tmp->addr_mask) & ~iotlb->addr_mask);
+
+        if (masked_start == iotlb->iova || masked_end == iotlb->iova) {
+            g_array_remove_index_fast(s->cache, i);
+        }
+    }
+}
+
+static void rp_ats_invalidate(RemotePortATS *s, IOMMUTLBEntry *iotlb)
+{
+    size_t pktlen = sizeof(struct rp_pkt_ats);
+    struct rp_pkt_ats pkt;
+    RemotePortRespSlot *rsp_slot;
+    RemotePortDynPkt *rsp;
+    size_t enclen;
+    int64_t clk;
+    uint32_t id;
+    hwaddr len = iotlb->addr_mask + 1;
+
+    id = rp_new_id(s->rp);
+    clk = rp_normalized_vmclk(s->rp);
+
+    enclen = rp_encode_ats_inv(id, s->rp_dev,
+                             &pkt,
+                             clk,
+                             0,
+                             iotlb->iova,
+                             len,
+                             0,
+                             0);
+    assert(enclen == pktlen);
+
+    rp_rsp_mutex_lock(s->rp);
+    rp_write(s->rp, (void *) &pkt, enclen);
+
+    rsp_slot = rp_dev_wait_resp(s->rp, s->rp_dev, id);
+    rsp = &rsp_slot->rsp;
+
+    /* We dont support out of order answers yet.  */
+    assert(rsp->pkt->hdr.id == id);
+
+    rp_resp_slot_done(s->rp, rsp_slot);
+    rp_rsp_mutex_unlock(s->rp);
+}
+
+static void rp_ats_cache_insert(RemotePortATS *s,
+                                hwaddr iova,
+                                hwaddr translated_addr,
+                                hwaddr mask,
+                                AddressSpace *target_as)
+{
+    IOMMUTLBEntry *iotlb;
+
+    /*
+     * Invalidate all current translations that collide with the new one and
+     * does not have the same target_as. This means that translated_addresses
+     * towards the same addresses but in different target address spaces are
+     * not allowed.
+     */
+    for (int i = 0; i < s->cache->len; i++) {
+        iotlb = g_array_index(s->cache, IOMMUTLBEntry *, i);
+        hwaddr masked_start = (translated_addr & ~iotlb->addr_mask);
+        hwaddr masked_end = ((translated_addr | mask) & ~iotlb->addr_mask);
+        bool spans_region = masked_start < iotlb->translated_addr &&
+                             masked_end > iotlb->translated_addr;
+
+        if (masked_start == iotlb->translated_addr ||
+            masked_end == iotlb->translated_addr || spans_region) {
+            hwaddr masked_iova_start;
+            hwaddr masked_iova_end;
+
+            /*
+             * Invalidated & remove the mapping if the address range hit in the
+             * cache but the target_as is different.
+             */
+            if (iotlb->target_as != target_as) {
+                rp_ats_invalidate(s, iotlb);
+                g_array_remove_index_fast(s->cache, i);
+                continue;
+            }
+
+            /*
+             * Remove duplicates with a smaller range length since the new
+             * mapping will span over it.
+             */
+            masked_iova_start = (iova & ~iotlb->addr_mask);
+            masked_iova_end = ((iova | mask) & ~iotlb->addr_mask);
+            spans_region = masked_iova_start < iotlb->iova &&
+                            masked_iova_end > iotlb->iova;
+
+            if (masked_iova_start == iotlb->iova ||
+                masked_iova_end == iotlb->iova || spans_region) {
+
+                if ((iotlb->addr_mask + 1) < (mask + 1)) {
+                    g_array_remove_index_fast(s->cache, i);
+                } else {
+                    /*
+                     * The new mapping is smaller or equal in size and is thus
+                     * already cached.
+                     */
+                    return;
+                }
+            }
+        }
+    }
+
+    iotlb = g_new0(IOMMUTLBEntry, 1);
+    iotlb->iova = iova;
+    iotlb->translated_addr = translated_addr;
+    iotlb->addr_mask = mask;
+    iotlb->target_as = target_as;
+    g_array_append_val(s->cache, iotlb);
+}
+
+static void rp_ats_iommu_unmap_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
+{
+    ATSIOMMUNotifier *notifier = container_of(n, ATSIOMMUNotifier, n);
+    RemotePortATS *s = notifier->rp_ats;
+
+    rp_ats_invalidate(s, iotlb);
+    rp_ats_cache_remove(s, iotlb);
 }
 
 static bool ats_translate_address(RemotePortATS *s, struct rp_pkt *pkt,
                                   hwaddr *phys_addr, hwaddr *phys_len)
 {
-    /* TBD */
+    MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+    IOMMUMemoryRegion *iommu_mr;
+    AddressSpace *target_as;
+    MemoryRegion *mr;
+    int prot = 0;
+
+    RCU_READ_LOCK_GUARD();
+
+    mr = ats_do_translate(&s->as, pkt->ats.addr, phys_addr, phys_len,
+                          &target_as, &prot, attrs);
+    if (!mr) {
+        return false;
+    }
+
+    iommu_mr = memory_region_get_iommu(mr);
+    if (iommu_mr) {
+        int iommu_idx = memory_region_iommu_attrs_to_index(iommu_mr, attrs);
+        ATSIOMMUNotifier *notifier;
+        int i;
+
+        for (i = 0; i < s->iommu_notifiers->len; i++) {
+            notifier = g_array_index(s->iommu_notifiers, ATSIOMMUNotifier *, i);
+            if (notifier->mr == mr && notifier->iommu_idx == iommu_idx) {
+                break;
+            }
+        }
+
+        /* Register a notifier if not found.  */
+        if (i == s->iommu_notifiers->len) {
+            Error *err = NULL;
+            bool ret;
+
+            s->iommu_notifiers = g_array_set_size(s->iommu_notifiers, i + 1);
+            notifier = g_new0(ATSIOMMUNotifier, 1);
+            g_array_index(s->iommu_notifiers, ATSIOMMUNotifier *, i) = notifier;
+
+            notifier->mr = mr;
+            notifier->iommu_idx = iommu_idx;
+            notifier->rp_ats = s;
+
+            iommu_notifier_init(&notifier->n,
+                                rp_ats_iommu_unmap_notify,
+                                IOMMU_NOTIFIER_UNMAP,
+                                0,
+                                HWADDR_MAX,
+                                iommu_idx);
+
+            ret = memory_region_register_iommu_notifier(mr, &notifier->n, &err);
+            if (ret) {
+                error_report_err(err);
+                exit(1);
+            }
+        }
+    }
+
+    if (!(prot & IOMMU_RO)) {
+        pkt->ats.attributes &= ~(RP_ATS_ATTR_exec | RP_ATS_ATTR_read);
+    }
+    if (!(prot & IOMMU_WO)) {
+        pkt->ats.attributes &= ~(RP_ATS_ATTR_write);
+    }
+
+    rp_ats_cache_insert(s, pkt->ats.addr, *phys_addr, *phys_len - 1, target_as);
+
     return true;
 }
 
