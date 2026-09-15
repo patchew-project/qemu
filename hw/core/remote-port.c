@@ -39,6 +39,11 @@ static void rp_event_read_and_process(RemotePort *s);
 static void sync_timer_hit(void *opaque);
 static void syncresp_timer_hit(void *opaque);
 
+uint32_t rp_new_id(RemotePort *s)
+{
+    return qatomic_fetch_inc(&s->current_id);
+}
+
 void rp_rsp_mutex_lock(RemotePort *s)
 {
     qemu_mutex_lock(&s->rsp_mutex);

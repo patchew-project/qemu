@@ -150,4 +150,15 @@ ssize_t rp_write(RemotePort *s, const void *buf, size_t count);
 
 struct rp_peer_state *rp_get_peer(RemotePort *s);
 
+uint32_t rp_new_id(RemotePort *s);
+
+static inline void rp_resp_slot_done(RemotePort *s,
+                                     RemotePortRespSlot *rsp_slot)
+{
+    rp_dpkt_invalidate(&rsp_slot->rsp);
+    rsp_slot->id = ~0;
+    rsp_slot->used = false;
+    rsp_slot->valid = false;
+}
+
 #endif

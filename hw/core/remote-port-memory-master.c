@@ -29,18 +29,201 @@
 
 #define RP_MAX_ACCESS_SIZE 4096
 
+static int rp_mm_get_timeout(RPMemoryTransaction *tr)
+{
+    RemotePortMap *map = tr->opaque;
+    RemotePortMemoryMaster *s;
+
+    if (!map || !map->parent ||
+        !object_dynamic_cast(OBJECT(map->parent),
+                             TYPE_REMOTE_PORT_MEMORY_MASTER)) {
+        return 0;
+    }
+    s = REMOTE_PORT_MEMORY_MASTER(map->parent);
+    return s->rp_timeout;
+}
+
+MemTxResult rp_mm_access_with_def_attr(RemotePort *rp, uint32_t rp_dev,
+                                       struct rp_peer_state *peer,
+                                       RPMemoryTransaction *tr,
+                                       bool relative, uint64_t offset,
+                                       uint32_t def_attr)
+{
+    uint64_t addr = tr->addr;
+    RemotePortRespSlot *rsp_slot;
+    RemotePortDynPkt *rsp;
+    struct  {
+        struct rp_pkt_busaccess_ext_base pkt;
+        uint8_t reserved[RP_MAX_ACCESS_SIZE];
+    } pay;
+    uint8_t *data = rp_busaccess_tx_dataptr(peer, &pay.pkt);
+    struct rp_encode_busaccess_in in = {0};
+    int i;
+    int len;
+    int rp_timeout = rp_mm_get_timeout(tr);
+    MemTxResult ret;
+
+    if (tr->rw) {
+        /* Data up to 8 bytes is passed as values.  */
+        if (tr->size <= 8) {
+            for (i = 0; i < tr->size; i++) {
+                data[i] = tr->data.u64 >> (i * 8);
+            }
+        } else {
+            memcpy(data, tr->data.p8, tr->size);
+        }
+    }
+
+    addr += relative ? 0 : offset;
+
+    in.cmd = tr->rw ? RP_CMD_write : RP_CMD_read;
+    in.id = rp_new_id(rp);
+    in.dev = rp_dev;
+    in.clk = rp_normalized_vmclk(rp);
+    in.master_id = tr->attr.requester_id;
+    in.addr = addr;
+    in.attr = def_attr;
+    in.attr |= tr->attr.secure ? RP_BUS_ATTR_SECURE : 0;
+    in.size = tr->size;
+    in.stream_width = tr->size;
+    len = rp_encode_busaccess(peer, &pay.pkt, &in);
+    len += tr->rw ? tr->size : 0;
+
+    trace_remote_port_memory_master_tx_busaccess(rp_cmd_to_string(in.cmd),
+        in.id, in.flags, in.dev, in.addr, in.size, in.attr);
+
+    rp_rsp_mutex_lock(rp);
+    rp_write(rp, (void *) &pay, len);
+
+    if (!rp_timeout) {
+        rsp_slot = rp_dev_wait_resp(rp, in.dev, in.id);
+    } else {
+        rsp_slot = rp_dev_timed_wait_resp(rp, in.dev, in.id, rp_timeout);
+        if (rsp_slot->valid == false) {
+            /*
+             * Timeout error
+             */
+            rp_rsp_mutex_unlock(rp);
+            return MEMTX_ERROR;
+        }
+    }
+    rsp = &rsp_slot->rsp;
+
+    /* We dont support out of order answers yet.  */
+    assert(rsp->pkt->hdr.id == in.id);
+
+    switch (rp_get_busaccess_response(rsp->pkt)) {
+    case RP_RESP_OK:
+        ret = MEMTX_OK;
+        break;
+    case RP_RESP_ADDR_ERROR:
+        ret = MEMTX_DECODE_ERROR;
+        break;
+    default:
+        ret = MEMTX_ERROR;
+        break;
+    }
+
+    if (ret == MEMTX_OK && !tr->rw) {
+        data = rp_busaccess_rx_dataptr(peer, &rsp->pkt->busaccess_ext_base);
+        /* Data up to 8 bytes is return as values.  */
+        if (tr->size <= 8) {
+            for (i = 0; i < tr->size; i++) {
+                tr->data.u64 |= ((uint64_t) data[i]) << (i * 8);
+            }
+        } else {
+            memcpy(tr->data.p8, data, tr->size);
+        }
+    }
+
+    trace_remote_port_memory_master_rx_busaccess(
+        rp_cmd_to_string(rsp->pkt->hdr.cmd), rsp->pkt->hdr.id,
+        rsp->pkt->hdr.flags, rsp->pkt->hdr.dev, rsp->pkt->busaccess.addr,
+        rsp->pkt->busaccess.len, rsp->pkt->busaccess.attributes);
+
+    if (rp_timeout) {
+        for (i = 0; i < ARRAY_SIZE(rp->dev_state[rp_dev].rsp_queue); i++) {
+            if (rp->dev_state[rp_dev].rsp_queue[i].used &&
+                rp->dev_state[rp_dev].rsp_queue[i].valid) {
+                rp_resp_slot_done(rp, &rp->dev_state[rp_dev].rsp_queue[i]);
+            }
+        }
+    } else {
+        rp_resp_slot_done(rp, rsp_slot);
+    }
+    rp_rsp_mutex_unlock(rp);
+
+    /*
+     * For strongly ordered or transactions that don't allow Early Acking,
+     * we need to drain the pending RP processing queue here. This is
+     * because RP handles responses in parallel with normal requests so
+     * they may get reordered. This becomes visible for example with reads
+     * to read-to-clear registers that clear interrupts. Even though the
+     * lowering of the interrupt-wires arrives to us before the read-resp,
+     * we may handle the response before the wire update, resulting in
+     * spurious interrupts.
+     *
+     * This has some room for optimization but for now we use the big hammer
+     * and drain the entire qeueue.
+     */
+    rp_process(rp);
+
+    /* Reads are sync-points, roll the sync timer.  */
+    rp_restart_sync_timer(rp);
+    return ret;
+}
+
+MemTxResult rp_mm_access(RemotePort *rp, uint32_t rp_dev,
+                         struct rp_peer_state *peer,
+                         RPMemoryTransaction *tr,
+                         bool relative, uint64_t offset)
+{
+    return rp_mm_access_with_def_attr(rp, rp_dev, peer, tr, relative, offset,
+                                      0);
+}
+
 static MemTxResult rp_mm_read(void *opaque, hwaddr addr, uint64_t *data,
                                  unsigned size, MemTxAttrs attrs)
 {
-    /* TBD */
-    return MEMTX_OK;
+    MemTxResult ret;
+    RemotePortMap *map = opaque;
+    RemotePortMemoryMaster *s = map->parent;
+
+    RPMemoryTransaction tr = {};
+
+    tr.opaque = map;
+    tr.rw = false;
+    tr.addr = addr;
+    tr.size = size;
+    tr.attr = attrs;
+
+    ret = rp_mm_access(s->rp, s->rp_dev, s->peer, &tr, s->relative,
+                map->offset);
+
+    if (ret == MEMTX_OK) {
+        *data = tr.data.u64;
+    }
+
+    return ret;
 }
 
 static MemTxResult rp_mm_write(void *opaque, hwaddr addr, uint64_t data,
                                   unsigned size, MemTxAttrs attrs)
 {
-    /* TBD */
-    return MEMTX_OK;
+    RemotePortMap *map = opaque;
+    RemotePortMemoryMaster *s = map->parent;
+
+    RPMemoryTransaction tr = {};
+
+    tr.opaque = map;
+    tr.rw = true;
+    tr.addr = addr;
+    tr.size = size;
+    tr.attr = attrs;
+    tr.data.u64 = data;
+
+    return rp_mm_access(s->rp, s->rp_dev, s->peer, &tr, s->relative,
+                    map->offset);
 }
 
 static const MemoryRegionOps rp_ops_template = {
