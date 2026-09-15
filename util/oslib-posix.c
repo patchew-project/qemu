@@ -112,6 +112,28 @@ int qemu_get_thread_id(void)
 #endif
 }
 
+bool qemu_debugger_attached(void)
+{
+#ifdef CONFIG_LINUX
+    static const char key[] = "TracerPid:";
+    g_autofree char *status = NULL;
+    const char *p = NULL;
+
+    if (!g_file_get_contents("/proc/self/status", &status, NULL, NULL)) {
+        return false;
+    }
+    while ((p = strstr(p ? p : status, key))) {
+        if (p == status || p[-1] == '\n') {
+            return atoi(p + sizeof(key) - 1) > 0;
+        }
+        p += sizeof(key) - 1;
+    }
+    return false;
+#else
+    return false;
+#endif
+}
+
 int qemu_kill_thread(int tid, int sig)
 {
 #if defined(__linux__)
