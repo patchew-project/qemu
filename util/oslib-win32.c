@@ -228,6 +228,11 @@ int qemu_get_thread_id(void)
     return GetCurrentThreadId();
 }
 
+bool qemu_debugger_attached(void)
+{
+    return IsDebuggerPresent();
+}
+
 char *
 qemu_get_local_state_dir(void)
 {

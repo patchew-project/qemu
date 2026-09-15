@@ -668,6 +668,15 @@ bool qemu_write_pidfile(const char *pidfile, Error **errp);
 int qemu_get_thread_id(void);
 
 /**
+ * qemu_debugger_attached:
+ *
+ * Returns true if a debugger is currently tracing this process. Meant for
+ * code that would otherwise mistake a debugger stop for a hang, and false
+ * on hosts where this cannot be determined.
+ */
+bool qemu_debugger_attached(void);
+
+/**
  * qemu_kill_thread:
  * @tid: thread id.
  * @sig: host signal.
