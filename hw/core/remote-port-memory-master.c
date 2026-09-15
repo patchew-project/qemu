@@ -23,6 +23,8 @@
 #include "hw/core/remote-port.h"
 #include "hw/core/remote-port-memory-master.h"
 
+#include "hw/core/fdt_generic_util.h"
+
 #define REMOTE_PORT_MEMORY_MASTER_PARENT_CLASS \
     object_class_get_parent( \
             object_class_by_name(TYPE_REMOTE_PORT_MEMORY_MASTER))
@@ -298,6 +300,35 @@ static void rp_memory_master_init(Object *obj)
                              OBJ_PROP_LINK_STRONG);
 }
 
+static bool rp_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
+                         Error **errp)
+{
+    RemotePortMemoryMaster *s = REMOTE_PORT_MEMORY_MASTER(obj);
+    FDTGenericMMapClass *parent_fmc =
+        FDT_GENERIC_MMAP_CLASS(REMOTE_PORT_MEMORY_MASTER_PARENT_CLASS);
+    int i;
+
+    /* Initialize rp_ops from template.  */
+    s->rp_ops = g_malloc(sizeof *s->rp_ops);
+    memcpy(s->rp_ops, &rp_ops_template, sizeof *s->rp_ops);
+    s->rp_ops->valid.max_access_size = s->max_access_size;
+    s->rp_ops->impl.max_access_size = s->max_access_size;
+
+    s->mmaps = g_new0(typeof(*s->mmaps), reg.n);
+    for (i = 0; i < reg.n; ++i) {
+        char *name = g_strdup_printf("rp-%d", i);
+
+        s->mmaps[i].offset = reg.a[i];
+        memory_region_init_io(&s->mmaps[i].iomem, OBJECT(obj), s->rp_ops,
+                              &s->mmaps[i], name, reg.s[i]);
+        sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmaps[i].iomem);
+        s->mmaps[i].parent = s;
+        g_free(name);
+    }
+
+    return parent_fmc ? parent_fmc->parse_reg(obj, reg, errp) : false;
+}
+
 static Property rp_properties[] = {
     DEFINE_PROP_UINT32("map-num", RemotePortMemoryMaster, map_num, 0),
     DEFINE_PROP_UINT64("map-offset", RemotePortMemoryMaster, map_offset, 0),
@@ -310,9 +341,11 @@ static Property rp_properties[] = {
 
 static void rp_memory_master_class_init(ObjectClass *oc, const void *data)
 {
+    FDTGenericMMapClass *fmc = FDT_GENERIC_MMAP_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
     device_class_set_props_n(dc, rp_properties, ARRAY_SIZE(rp_properties));
     dc->realize = rp_memory_master_realize;
+    fmc->parse_reg = rp_parse_reg;
 }
 
 static const TypeInfo rp_info = {
@@ -322,6 +355,7 @@ static const TypeInfo rp_info = {
     .instance_init = rp_memory_master_init,
     .class_init    = rp_memory_master_class_init,
     .interfaces    = (InterfaceInfo[]) {
+        { TYPE_FDT_GENERIC_MMAP },
         { TYPE_REMOTE_PORT_DEVICE },
         { },
     },
