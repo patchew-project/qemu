@@ -326,7 +326,7 @@ endif
 
 foreach lang : all_languages
   compiler = meson.get_compiler(lang)
-  if compiler.get_id() == 'gcc' and compiler.version().version_compare('>=10.4')
+  if compiler.get_id() == 'gcc' and compiler.version().version_compare('>=12.0')
     # ok
   elif compiler.get_id() == 'clang' and compiler.compiles('''
       #ifdef __apple_build_version__
@@ -342,7 +342,7 @@ foreach lang : all_languages
   elif compiler.get_id() == 'emscripten'
     # ok
   else
-    error('You either need GCC v10.4 or Clang v17.0 (or XCode Clang v17.0) to compile QEMU')
+    error('You either need GCC v12.0 or Clang v17.0 (or XCode Clang v17.0) to compile QEMU')
   endif
 endforeach
 

@@ -61,6 +61,9 @@ class NetBSDVM(basevm.BaseVM):
 
         # libs: networking
         "libslirp",
+
+        # Until system GCC is updated to >= 12.0
+        "clang",
     ]
 
     BUILD_SCRIPT = """
@@ -72,7 +75,8 @@ class NetBSDVM(basevm.BaseVM):
         tar -xf /dev/rld1a
         cd ../build
         ../src/configure --disable-opengl --extra-ldflags=-L/usr/pkg/lib \
-                         --extra-cflags=-I/usr/pkg/include {configure_opts}
+                         --extra-cflags=-I/usr/pkg/include {configure_opts} \
+                         --cc=clang
         gmake --output-sync -j{jobs} {target} {verbose}
     """
     poweroff = "/sbin/poweroff"
