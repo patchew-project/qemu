@@ -676,6 +676,15 @@ int qemu_get_thread_id(void);
  */
 bool qemu_debugger_attached(void);
 
+/*
+ * Signal reserved for asking a thread what it is doing. It is only ever
+ * sent thread directed, so it does not compete for the process directed
+ * signals that qemu routes to the main loop.
+ */
+#if defined(SIGRTMIN) && !defined(_WIN32)
+#define QEMU_SIG_INTROSPECT SIGRTMIN
+#endif
+
 /**
  * qemu_thread_states:
  *

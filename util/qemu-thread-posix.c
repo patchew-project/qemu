@@ -444,6 +444,10 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     sigdelset(&set, SIGFPE);
     sigdelset(&set, SIGILL);
     /* TODO avoid SIGBUS loss on macOS */
+#ifdef QEMU_SIG_INTROSPECT
+    /* Thread directed, so it was never the iothread's to receive */
+    sigdelset(&set, QEMU_SIG_INTROSPECT);
+#endif
     pthread_sigmask(SIG_SETMASK, &set, &oldset);
 
     qemu_thread_args = g_new0(QemuThreadArgs, 1);
