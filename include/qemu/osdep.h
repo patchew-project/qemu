@@ -689,9 +689,10 @@ bool qemu_debugger_attached(void);
  * qemu_thread_states:
  *
  * Returns a newly allocated, newline terminated description of every thread
- * in this process apart from the caller: its id, name, scheduler state and
- * kernel stack, or NULL on a host that cannot report any of that. Where the
- * kernel stack is privileged the description falls back to a wait channel.
+ * in this process apart from the caller: its id, name, scheduler state, the
+ * program counter it stopped at and its kernel stack, or NULL on a host that
+ * cannot report any of that. A privileged kernel stack falls back to a wait
+ * channel, and a host with no way to read a program counter omits it.
  */
 char *qemu_thread_states(void);
 
