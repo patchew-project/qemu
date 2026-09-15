@@ -809,49 +809,6 @@
   } }
 
 ##
-# @MigrationParameter:
-#
-# Migration parameters enumeration.  The enumeration values mirror the
-# members of @MigrationParameters.
-#
-# Features:
-#
-# @unstable: Members @x-checkpoint-delay, @x-rdma-chunk-size, and
-#     @x-vcpu-dirty-limit-period are experimental.
-#
-# Since: 2.4
-##
-{ 'enum': 'MigrationParameter',
-  'data': ['announce-initial', 'announce-max',
-           'announce-rounds', 'announce-step',
-           'throttle-trigger-threshold',
-           'cpu-throttle-initial', 'cpu-throttle-increment',
-           'cpu-throttle-tailslow',
-           'tls-creds', 'tls-hostname', 'tls-authz', 'max-bandwidth',
-           'avail-switchover-bandwidth', 'downtime-limit',
-           { 'name': 'x-checkpoint-delay', 'features': [ 'unstable' ] },
-           'multifd-channels',
-           'xbzrle-cache-size', 'max-postcopy-bandwidth',
-           'max-cpu-throttle', 'multifd-compression',
-           'multifd-zlib-level', 'multifd-zstd-level',
-           'multifd-qatzip-level',
-           'block-bitmap-mapping',
-           { 'name': 'x-vcpu-dirty-limit-period', 'features': ['unstable'] },
-           'vcpu-dirty-limit',
-           'mode',
-           'zero-page-detection',
-           'direct-io',
-           { 'name': 'x-rdma-chunk-size', 'features': [ 'unstable' ] },
-           'cpr-exec-command',
-           'local', 'xbzrle', 'rdma-pin-all', 'auto-converge', 'events',
-           'postcopy-ram', 'x-colo', 'release-ram', 'return-path',
-           'pause-before-switchover', 'multifd', 'dirty-bitmaps',
-           'postcopy-blocktime', 'late-block-activate', 'x-ignore-shared',
-           'validate-uuid', 'background-snapshot', 'zero-copy-send',
-           'postcopy-preempt', 'switchover-ack', 'dirty-limit',
-           'mapped-ram'] }
-
-##
 # @migrate-set-parameters:
 #
 # Set migration parameters.  All arguments are optional.
