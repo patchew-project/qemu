@@ -63,6 +63,8 @@ int rp_decode_hdr(struct rp_pkt *pkt)
 int rp_decode_payload(struct rp_pkt *pkt)
 {
     int used = 0;
+    /* Master_id has an odd decoding due to historical reasons.  */
+    uint64_t master_id;
 
     switch (pkt->hdr.cmd) {
     case RP_CMD_hello:
@@ -101,6 +103,34 @@ int rp_decode_payload(struct rp_pkt *pkt)
          * know about.
          */
         used = pkt->hdr.len;
+        break;
+    case RP_CMD_write:
+    case RP_CMD_read:
+        assert(pkt->hdr.len >= sizeof pkt->busaccess - sizeof pkt->hdr);
+        pkt->busaccess.timestamp = be64_to_cpu(pkt->busaccess.timestamp);
+        pkt->busaccess.addr = be64_to_cpu(pkt->busaccess.addr);
+        pkt->busaccess.attributes = be64_to_cpu(pkt->busaccess.attributes);
+        pkt->busaccess.len = be32_to_cpu(pkt->busaccess.len);
+        pkt->busaccess.width = be32_to_cpu(pkt->busaccess.width);
+        pkt->busaccess.stream_width = be32_to_cpu(pkt->busaccess.stream_width);
+        master_id = be16_to_cpu(pkt->busaccess.master_id);
+
+        used += sizeof pkt->busaccess - sizeof pkt->hdr;
+
+        if (pkt->busaccess.attributes & RP_BUS_ATTR_EXT_BASE) {
+            struct rp_pkt_busaccess_ext_base *pext = &pkt->busaccess_ext_base;
+
+            assert(pkt->hdr.len >= sizeof *pext - sizeof pkt->hdr);
+            master_id |= (uint64_t)be16_to_cpu(pext->master_id_31_16) << 16;
+            master_id |= (uint64_t)be32_to_cpu(pext->master_id_63_32) << 32;
+            pext->data_offset = be32_to_cpu(pext->data_offset);
+            pext->next_offset = be32_to_cpu(pext->next_offset);
+            pext->byte_enable_offset = be32_to_cpu(pext->byte_enable_offset);
+            pext->byte_enable_len = be32_to_cpu(pext->byte_enable_len);
+
+            used += sizeof *pext - sizeof pkt->busaccess;
+        }
+        pkt->busaccess.master_id = master_id;
         break;
     default:
         break;
@@ -144,6 +174,127 @@ size_t rp_encode_hello_caps(uint32_t id, uint32_t dev, struct rp_pkt_hello *pkt,
     return sizeof *pkt;
 }
 
+static void rp_encode_busaccess_common(struct rp_pkt_busaccess *pkt,
+                                  int64_t clk, uint16_t master_id,
+                                  uint64_t addr, uint64_t attr, uint32_t size,
+                                  uint32_t width, uint32_t stream_width)
+{
+    pkt->timestamp = cpu_to_be64(clk);
+    pkt->master_id = cpu_to_be16(master_id);
+    pkt->addr = cpu_to_be64(addr);
+    pkt->attributes = cpu_to_be64(attr);
+    pkt->len = cpu_to_be32(size);
+    pkt->width = cpu_to_be32(width);
+    pkt->stream_width = cpu_to_be32(stream_width);
+}
+
+size_t rp_encode_read(uint32_t id, uint32_t dev,
+                      struct rp_pkt_busaccess *pkt,
+                      int64_t clk, uint16_t master_id,
+                      uint64_t addr, uint64_t attr, uint32_t size,
+                      uint32_t width, uint32_t stream_width)
+{
+    rp_encode_hdr(&pkt->hdr, RP_CMD_read, id, dev,
+                  sizeof *pkt - sizeof pkt->hdr, 0);
+    rp_encode_busaccess_common(pkt, clk, master_id, addr, attr,
+                               size, width, stream_width);
+    return sizeof *pkt;
+}
+
+size_t rp_encode_read_resp(uint32_t id, uint32_t dev,
+                           struct rp_pkt_busaccess *pkt,
+                           int64_t clk, uint16_t master_id,
+                           uint64_t addr, uint64_t attr, uint32_t size,
+                           uint32_t width, uint32_t stream_width)
+{
+    rp_encode_hdr(&pkt->hdr, RP_CMD_read, id, dev,
+                  sizeof *pkt - sizeof pkt->hdr + size, RP_PKT_FLAGS_response);
+    rp_encode_busaccess_common(pkt, clk, master_id, addr, attr,
+                               size, width, stream_width);
+    return sizeof *pkt + size;
+}
+
+size_t rp_encode_write(uint32_t id, uint32_t dev,
+                       struct rp_pkt_busaccess *pkt,
+                       int64_t clk, uint16_t master_id,
+                       uint64_t addr, uint64_t attr, uint32_t size,
+                       uint32_t width, uint32_t stream_width)
+{
+    rp_encode_hdr(&pkt->hdr, RP_CMD_write, id, dev,
+                  sizeof *pkt - sizeof pkt->hdr + size, 0);
+    rp_encode_busaccess_common(pkt, clk, master_id, addr, attr,
+                               size, width, stream_width);
+    return sizeof *pkt;
+}
+
+size_t rp_encode_write_resp(uint32_t id, uint32_t dev,
+                       struct rp_pkt_busaccess *pkt,
+                       int64_t clk, uint16_t master_id,
+                       uint64_t addr, uint64_t attr, uint32_t size,
+                       uint32_t width, uint32_t stream_width)
+{
+    rp_encode_hdr(&pkt->hdr, RP_CMD_write, id, dev,
+                  sizeof *pkt - sizeof pkt->hdr, RP_PKT_FLAGS_response);
+    rp_encode_busaccess_common(pkt, clk, master_id, addr, attr,
+                               size, width, stream_width);
+    return sizeof *pkt;
+}
+
+/* New API for extended header.  */
+size_t rp_encode_busaccess(struct rp_peer_state *peer,
+                           struct rp_pkt_busaccess_ext_base *pkt,
+                           struct rp_encode_busaccess_in *in) {
+    struct rp_pkt_busaccess *pkt_v4_0 = (void *) pkt;
+    uint32_t hsize = 0;
+    uint32_t ret_size = 0;
+
+    /* Allocate packet space.  */
+    if (in->cmd == RP_CMD_write && !(in->flags & RP_PKT_FLAGS_response)) {
+        hsize = in->size;
+    }
+    if (in->cmd == RP_CMD_read && (in->flags & RP_PKT_FLAGS_response)) {
+        hsize = in->size;
+        ret_size = in->size;
+    }
+
+    /*
+     * If peer does not support the busaccess base extensions, use the
+     * old layout. For responses, what matters is if we're responding
+     * to a packet with the extensions.
+     */
+    if (!peer->caps.busaccess_ext_base && !(in->attr & RP_BUS_ATTR_EXT_BASE)) {
+        /* Old layout.  */
+        assert(in->master_id < UINT16_MAX);
+
+        rp_encode_hdr(&pkt->hdr, in->cmd, in->id, in->dev,
+                  sizeof *pkt_v4_0 - sizeof pkt->hdr + hsize, in->flags);
+        rp_encode_busaccess_common(pkt_v4_0, in->clk, in->master_id,
+                                   in->addr, in->attr,
+                                   in->size, in->width, in->stream_width);
+        return sizeof *pkt_v4_0 + ret_size;
+    }
+
+    /* Encode the extended fields.  */
+    pkt->master_id_31_16 = cpu_to_be16(in->master_id >> 16);
+    pkt->master_id_63_32 = cpu_to_be32(in->master_id >> 32);
+
+    /* We always put data right after the header.  */
+    pkt->data_offset = cpu_to_be32(sizeof *pkt);
+    pkt->next_offset = 0;
+
+    pkt->byte_enable_offset = cpu_to_be32(sizeof *pkt + hsize);
+    pkt->byte_enable_len = cpu_to_be32(in->byte_enable_len);
+    hsize += in->byte_enable_len;
+
+    rp_encode_hdr(&pkt->hdr, in->cmd, in->id, in->dev,
+                  sizeof *pkt - sizeof pkt->hdr + hsize, in->flags);
+    rp_encode_busaccess_common(pkt_v4_0, in->clk, in->master_id, in->addr,
+                               in->attr | RP_BUS_ATTR_EXT_BASE,
+                               in->size, in->width, in->stream_width);
+
+    return sizeof *pkt + ret_size;
+}
+
 void rp_process_caps(struct rp_peer_state *peer,
                      void *caps, size_t caps_len)
 {
@@ -172,6 +323,7 @@ void rp_process_caps(struct rp_peer_state *peer,
         }
     }
 }
+
 
 void rp_dpkt_alloc(RemotePortDynPkt *dpkt, size_t size)
 {
