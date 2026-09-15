@@ -1752,7 +1752,7 @@ S: Odd Fixes
 F: hw/ppc/spapr_vof*
 F: hw/ppc/vof*
 F: include/hw/ppc/vof*
-F: pc-bios/vof/*
+F: roms/vof/*
 F: pc-bios/vof*
 
 PowerPC RAS (Reliability, Availability and Serviceability)
