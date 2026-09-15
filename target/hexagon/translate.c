@@ -70,6 +70,9 @@ TCGv hex_imprecise_exception;
 TCGv hex_vstore_addr[VSTORES_MAX];
 TCGv hex_vstore_size[VSTORES_MAX];
 TCGv hex_vstore_pending[VSTORES_MAX];
+#ifndef CONFIG_USER_ONLY
+TCGv_ptr hex_hvx_ptr;
+#endif
 
 #ifndef CONFIG_USER_ONLY
 TCGv_i32 hex_greg[NUM_GREGS];
@@ -82,13 +85,17 @@ static const char * const hexagon_prednames[] = {
 };
 
 intptr_t ctx_future_vreg_off(DisasContext *ctx, int regnum,
-                          int num, bool alloc_ok)
+                          int num, bool alloc_ok, TCGv_ptr *base)
 {
     intptr_t offset;
 
     if (!ctx->need_commit) {
-        return offsetof(CPUHexagonState, VRegs[regnum]);
+        /* Short circuit: the write goes straight to the register file. */
+        *base = hex_hvx_ptr;
+        return HEX_HVX_OFFSET(VRegs[regnum]);
     }
+
+    *base = tcg_env;
 
     /* See if it is already allocated */
     for (int i = 0; i < ctx->future_vregs_idx; i++) {
@@ -108,9 +115,11 @@ intptr_t ctx_future_vreg_off(DisasContext *ctx, int regnum,
 }
 
 intptr_t ctx_tmp_vreg_off(DisasContext *ctx, int regnum,
-                          int num, bool alloc_ok)
+                          int num, bool alloc_ok, TCGv_ptr *base)
 {
     intptr_t offset;
+
+    *base = tcg_env;
 
     /* See if it is already allocated */
     for (int i = 0; i < ctx->tmp_vregs_idx; i++) {
@@ -697,26 +706,28 @@ static void gen_start_packet(DisasContext *ctx)
     if (!bitmap_empty(ctx->predicated_future_vregs, NUM_VREGS)) {
         i = find_first_bit(ctx->predicated_future_vregs, NUM_VREGS);
         while (i < NUM_VREGS) {
+            TCGv_ptr VdV_base;
             const intptr_t VdV_off =
-                ctx_future_vreg_off(ctx, i, 1, true);
-            intptr_t src_off = offsetof(CPUHexagonState, VRegs[i]);
-            tcg_gen_gvec_mov(MO_64, VdV_off,
-                             src_off,
-                             sizeof(MMVector),
-                             sizeof(MMVector));
+                ctx_future_vreg_off(ctx, i, 1, true, &VdV_base);
+            intptr_t src_off = HEX_HVX_OFFSET(VRegs[i]);
+            tcg_gen_gvec_mov_var(MO_64, VdV_base, VdV_off,
+                                 hex_hvx_ptr, src_off,
+                                 sizeof(MMVector),
+                                 sizeof(MMVector));
             i = find_next_bit(ctx->predicated_future_vregs, NUM_VREGS, i + 1);
         }
     }
     if (!bitmap_empty(ctx->predicated_tmp_vregs, NUM_VREGS)) {
         i = find_first_bit(ctx->predicated_tmp_vregs, NUM_VREGS);
         while (i < NUM_VREGS) {
+            TCGv_ptr VdV_base;
             const intptr_t VdV_off =
-                ctx_tmp_vreg_off(ctx, i, 1, true);
-            intptr_t src_off = offsetof(CPUHexagonState, VRegs[i]);
-            tcg_gen_gvec_mov(MO_64, VdV_off,
-                             src_off,
-                             sizeof(MMVector),
-                             sizeof(MMVector));
+                ctx_tmp_vreg_off(ctx, i, 1, true, &VdV_base);
+            intptr_t src_off = HEX_HVX_OFFSET(VRegs[i]);
+            tcg_gen_gvec_mov_var(MO_64, VdV_base, VdV_off,
+                                 hex_hvx_ptr, src_off,
+                                 sizeof(MMVector),
+                                 sizeof(MMVector));
             i = find_next_bit(ctx->predicated_tmp_vregs, NUM_VREGS, i + 1);
         }
     }
@@ -1016,31 +1027,34 @@ static void gen_commit_hvx(DisasContext *ctx)
     /*
      *    for (i = 0; i < ctx->vreg_log_idx; i++) {
      *        int rnum = ctx->vreg_log[i];
-     *        env->VRegs[rnum] = env->future_VRegs[rnum];
+     *        env->hvx->VRegs[rnum] = env->future_VRegs[rnum];
      *    }
      */
     for (i = 0; i < ctx->vreg_log_idx; i++) {
         int rnum = ctx->vreg_log[i];
-        intptr_t dstoff = offsetof(CPUHexagonState, VRegs[rnum]);
-        intptr_t srcoff = ctx_future_vreg_off(ctx, rnum, 1, false);
+        intptr_t dstoff = HEX_HVX_OFFSET(VRegs[rnum]);
+        TCGv_ptr srcbase;
+        intptr_t srcoff = ctx_future_vreg_off(ctx, rnum, 1, false, &srcbase);
         size_t size = sizeof(MMVector);
 
-        tcg_gen_gvec_mov(MO_64, dstoff, srcoff, size, size);
+        tcg_gen_gvec_mov_var(MO_64, hex_hvx_ptr, dstoff, srcbase, srcoff,
+                             size, size);
     }
 
     /*
      *    for (i = 0; i < ctx->qreg_log_idx; i++) {
      *        int rnum = ctx->qreg_log[i];
-     *        env->QRegs[rnum] = env->future_QRegs[rnum];
+     *        env->hvx->QRegs[rnum] = env->future_QRegs[rnum];
      *    }
      */
     for (i = 0; i < ctx->qreg_log_idx; i++) {
         int rnum = ctx->qreg_log[i];
-        intptr_t dstoff = offsetof(CPUHexagonState, QRegs[rnum]);
+        intptr_t dstoff = HEX_HVX_OFFSET(QRegs[rnum]);
         intptr_t srcoff = offsetof(CPUHexagonState, future_QRegs[rnum]);
         size_t size = sizeof(MMQReg);
 
-        tcg_gen_gvec_mov(MO_64, dstoff, srcoff, size, size);
+        tcg_gen_gvec_mov_var(MO_64, hex_hvx_ptr, dstoff, tcg_env, srcoff,
+                             size, size);
     }
 
     if (pkt_has_hvx_store(&ctx->pkt)) {
@@ -1360,6 +1374,8 @@ void hexagon_translate_init(void)
     opcode_init();
 
 #ifndef CONFIG_USER_ONLY
+    hex_hvx_ptr = tcg_global_mem_new_ptr(tcg_env,
+        offsetof(CPUHexagonState, hvx), "hvx");
     for (i = 0; i < NUM_GREGS; i++) {
             hex_greg[i] = tcg_global_mem_new_i32(tcg_env,
                 offsetof(CPUHexagonState, greg[i]),
