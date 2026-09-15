@@ -145,13 +145,39 @@ static char *read_task_file(const char *tid, const char *name)
     return buf;
 }
 
+#define THREAD_STACK_FRAMES 12
+
+/*
+ * /proc/tid/stack is restricted to CAP_SYS_ADMIN in the init namespace, so
+ * ask once instead of failing per thread, and say why the report is thinner.
+ */
+static bool thread_stacks_readable(void)
+{
+    static int readable = -1;
+    g_autofree char *path = NULL;
+    g_autofree char *buf = NULL;
+
+    if (readable >= 0) {
+        return readable;
+    }
+    path = g_strdup_printf("/proc/self/task/%d/stack", qemu_get_thread_id());
+    readable = g_file_get_contents(path, &buf, NULL, NULL);
+    if (!readable) {
+        warn_report("kernel stacks need CAP_SYS_ADMIN, falling back to wchan");
+    }
+    return readable;
+}
+
 static void append_thread_state(GString *out, const char *tid)
 {
     g_autofree char *comm = read_task_file(tid, "comm");
     g_autofree char *stat = NULL;
+    g_autofree char *stack = NULL;
     g_autofree char *wchan = NULL;
+    g_auto(GStrv) lines = NULL;
     char state = '?';
     char *rparen;
+    int i;
 
     if (!comm) {
         return;
@@ -168,9 +194,26 @@ static void append_thread_state(GString *out, const char *tid)
     }
     g_string_append_printf(out, "  %-7s %-16s %c\n", tid, comm, state);
 
-    wchan = read_task_file(tid, "wchan");
-    if (wchan && wchan[0]) {
-        g_string_append_printf(out, "      wchan %s\n", wchan);
+    /* A running thread has no settled kernel stack to unwind */
+    if (state != 'R' && thread_stacks_readable()) {
+        stack = read_task_file(tid, "stack");
+    }
+    if (!stack) {
+        wchan = read_task_file(tid, "wchan");
+        if (wchan && wchan[0]) {
+            g_string_append_printf(out, "      wchan %s\n", wchan);
+        }
+        return;
+    }
+
+    lines = g_strsplit(stack, "\n", 0);
+    for (i = 0; i < THREAD_STACK_FRAMES && lines[i]; i++) {
+        if (lines[i][0]) {
+            g_string_append_printf(out, "      %s\n", lines[i]);
+        }
+    }
+    if (lines[i]) {
+        g_string_append(out, "      ...\n");
     }
 }
 
@@ -183,6 +226,9 @@ char *qemu_thread_states(void)
     if (!dir) {
         return NULL;
     }
+    /* Emit the permission notice ahead of the listing, not inside it */
+    thread_stacks_readable();
+
     out = g_string_new(NULL);
     while ((tid = g_dir_read_name(dir))) {
         if (atoi(tid) != qemu_get_thread_id()) {
