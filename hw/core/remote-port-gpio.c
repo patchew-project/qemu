@@ -20,6 +20,8 @@
 #include "hw/core/irq.h"
 #include "trace.h"
 
+#include "hw/core/fdt_generic_util.h"
+
 #include "hw/core/remote-port.h"
 #include "hw/core/remote-port-proto.h"
 #include "hw/core/remote-port-gpio.h"
@@ -157,14 +159,34 @@ static Property rp_properties[] = {
     DEFINE_PROP_BOOL("posted-updates", RemotePortGPIO, posted_updates, true),
 };
 
+static int rp_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
+                          uint32_t *cells, int ncells, int max,
+                          Error **errp)
+{
+    RemotePortGPIO *s = REMOTE_PORT_GPIO(obj);
+
+    if (cells[s->cell_offset_irq_num] >= s->num_gpios) {
+        error_setg(errp, "RP-GPIO was setup for %u interrupts: index %"
+                   PRIu32 " requested", s->num_gpios,
+                   cells[s->cell_offset_irq_num]);
+        return 0;
+    }
+
+    (*irqs) = qdev_get_gpio_in(DEVICE(obj), cells[s->cell_offset_irq_num]);
+    return 1;
+};
+
 static void rp_gpio_class_init(ObjectClass *oc, const void *data)
 {
     RemotePortDeviceClass *rpdc = REMOTE_PORT_DEVICE_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
+    FDTGenericIntcClass *fgic = FDT_GENERIC_INTC_CLASS(oc);
+
     rpdc->ops[RP_CMD_interrupt] = rp_gpio_interrupt;
     dc->legacy_reset = rp_gpio_reset;
     dc->realize = rp_gpio_realize;
     device_class_set_props_n(dc, rp_properties, ARRAY_SIZE(rp_properties));
+    fgic->get_irq = rp_fdt_get_irq;
 }
 
 static const TypeInfo rp_info = {
@@ -175,6 +197,7 @@ static const TypeInfo rp_info = {
     .class_init    = rp_gpio_class_init,
     .interfaces    = (InterfaceInfo[]) {
         { TYPE_REMOTE_PORT_DEVICE },
+        { TYPE_FDT_GENERIC_INTC },
         { },
     },
 };
