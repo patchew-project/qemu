@@ -296,4 +296,12 @@ struct rp_pkt {
     };
 };
 
+const char *rp_cmd_to_string(enum rp_cmd cmd);
+int rp_decode_hdr(struct rp_pkt *pkt);
+int rp_decode_payload(struct rp_pkt *pkt);
+
+void rp_encode_hdr(struct rp_pkt_hdr *hdr,
+                   uint32_t cmd, uint32_t id, uint32_t dev, uint32_t len,
+                   uint32_t flags);
+
 #endif
