@@ -472,6 +472,35 @@ size_t rp_encode_busaccess(struct rp_peer_state *peer,
                            struct rp_pkt_busaccess_ext_base *pkt,
                            struct rp_encode_busaccess_in *in);
 
+size_t rp_encode_interrupt_f(uint32_t id, uint32_t dev,
+                             struct rp_pkt_interrupt *pkt,
+                             int64_t clk,
+                             uint32_t line, uint64_t vector, uint8_t val,
+                             uint32_t flags);
+
+size_t rp_encode_interrupt(uint32_t id, uint32_t dev,
+                           struct rp_pkt_interrupt *pkt,
+                           int64_t clk,
+                           uint32_t line, uint64_t vector, uint8_t val);
+
+size_t rp_encode_sync(uint32_t id, uint32_t dev,
+                      struct rp_pkt_sync *pkt,
+                      int64_t clk);
+
+size_t rp_encode_sync_resp(uint32_t id, uint32_t dev,
+                           struct rp_pkt_sync *pkt,
+                           int64_t clk);
+
+size_t rp_encode_ats_req(uint32_t id, uint32_t dev,
+                         struct rp_pkt_ats *pkt,
+                         int64_t clk, uint64_t attr, uint64_t addr,
+                         uint64_t size, uint64_t result, uint32_t flags);
+
+size_t rp_encode_ats_inv(uint32_t id, uint32_t dev,
+                         struct rp_pkt_ats *pkt,
+                         int64_t clk, uint64_t attr, uint64_t addr,
+                         uint64_t size, uint64_t result, uint32_t flags);
+
 void rp_process_caps(struct rp_peer_state *peer,
                      void *caps, size_t caps_len);
 

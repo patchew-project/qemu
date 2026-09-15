@@ -132,6 +132,24 @@ int rp_decode_payload(struct rp_pkt *pkt)
         }
         pkt->busaccess.master_id = master_id;
         break;
+    case RP_CMD_interrupt:
+        pkt->interrupt.timestamp = be64_to_cpu(pkt->interrupt.timestamp);
+        pkt->interrupt.vector = be64_to_cpu(pkt->interrupt.vector);
+        pkt->interrupt.line = be32_to_cpu(pkt->interrupt.line);
+        pkt->interrupt.val = pkt->interrupt.val;
+        used += pkt->hdr.len;
+        break;
+    case RP_CMD_sync:
+        pkt->sync.timestamp = be64_to_cpu(pkt->interrupt.timestamp);
+        used += pkt->hdr.len;
+        break;
+    case RP_CMD_ats_req:
+    case RP_CMD_ats_inv:
+        pkt->ats.attributes = be64_to_cpu(pkt->ats.attributes);
+        pkt->ats.addr = be64_to_cpu(pkt->ats.addr);
+        pkt->ats.len = be64_to_cpu(pkt->ats.len);
+        pkt->ats.result = be32_to_cpu(pkt->ats.result);
+        break;
     default:
         break;
     }
@@ -293,6 +311,88 @@ size_t rp_encode_busaccess(struct rp_peer_state *peer,
                                in->size, in->width, in->stream_width);
 
     return sizeof *pkt + ret_size;
+}
+
+size_t rp_encode_interrupt_f(uint32_t id, uint32_t dev,
+                             struct rp_pkt_interrupt *pkt,
+                             int64_t clk,
+                             uint32_t line, uint64_t vector, uint8_t val,
+                             uint32_t flags)
+{
+    rp_encode_hdr(&pkt->hdr, RP_CMD_interrupt, id, dev,
+                  sizeof *pkt - sizeof pkt->hdr, flags);
+    pkt->timestamp = cpu_to_be64(clk);
+    pkt->vector = cpu_to_be64(vector);
+    pkt->line = cpu_to_be32(line);
+    pkt->val = val;
+    return sizeof *pkt;
+}
+
+size_t rp_encode_interrupt(uint32_t id, uint32_t dev,
+                           struct rp_pkt_interrupt *pkt,
+                           int64_t clk,
+                           uint32_t line, uint64_t vector, uint8_t val)
+{
+    return rp_encode_interrupt_f(id, dev, pkt, clk, line, vector, val, 0);
+}
+
+static size_t rp_encode_ats_common(uint32_t cmd, uint32_t id, uint32_t dev,
+                         struct rp_pkt_ats *pkt,
+                         int64_t clk, uint64_t attr, uint64_t addr,
+                         uint64_t len, uint64_t result, uint32_t flags)
+{
+    rp_encode_hdr(&pkt->hdr, cmd, id, dev,
+                  sizeof *pkt - sizeof pkt->hdr, flags);
+    pkt->timestamp = cpu_to_be64(clk);
+    pkt->attributes = cpu_to_be64(attr);
+    pkt->addr = cpu_to_be64(addr);
+    pkt->len = cpu_to_be64(len);
+    pkt->result = cpu_to_be32(result);
+    return sizeof *pkt;
+}
+
+size_t rp_encode_ats_req(uint32_t id, uint32_t dev,
+                         struct rp_pkt_ats *pkt,
+                         int64_t clk, uint64_t attr, uint64_t addr,
+                         uint64_t len, uint64_t result, uint32_t flags)
+{
+    return rp_encode_ats_common(RP_CMD_ats_req, id, dev,
+                                pkt, clk, attr,
+                                addr, len, result, flags);
+}
+
+size_t rp_encode_ats_inv(uint32_t id, uint32_t dev,
+                         struct rp_pkt_ats *pkt,
+                         int64_t clk, uint64_t attr, uint64_t addr,
+                         uint64_t len, uint64_t result, uint32_t flags)
+{
+    return rp_encode_ats_common(RP_CMD_ats_inv, id, dev,
+                                pkt, clk, attr,
+                                addr, len, result, flags);
+}
+
+static size_t rp_encode_sync_common(uint32_t id, uint32_t dev,
+                                    struct rp_pkt_sync *pkt,
+                                    int64_t clk, uint32_t flags)
+{
+    rp_encode_hdr(&pkt->hdr, RP_CMD_sync, id, dev,
+                  sizeof *pkt - sizeof pkt->hdr, flags);
+    pkt->timestamp = cpu_to_be64(clk);
+    return sizeof *pkt;
+}
+
+size_t rp_encode_sync(uint32_t id, uint32_t dev,
+                      struct rp_pkt_sync *pkt,
+                      int64_t clk)
+{
+    return rp_encode_sync_common(id, dev, pkt, clk, 0);
+}
+
+size_t rp_encode_sync_resp(uint32_t id, uint32_t dev,
+                           struct rp_pkt_sync *pkt,
+                           int64_t clk)
+{
+    return rp_encode_sync_common(id, dev, pkt, clk, RP_PKT_FLAGS_response);
 }
 
 void rp_process_caps(struct rp_peer_state *peer,
