@@ -44,4 +44,8 @@ void cpu_synchronize_all_pre_loadvm(void);
 bool bql_watchdog_set_timeout_ms(uint64_t ms, Error **errp);
 uint64_t bql_watchdog_get_timeout_ms(void);
 
+/* Abort after reporting, to leave a core behind. */
+void bql_watchdog_set_abort(bool enable);
+bool bql_watchdog_get_abort(void);
+
 #endif
