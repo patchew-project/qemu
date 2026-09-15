@@ -134,6 +134,77 @@ bool qemu_debugger_attached(void)
 #endif
 }
 
+#ifdef CONFIG_LINUX
+
+static char *read_task_file(const char *tid, const char *name)
+{
+    g_autofree char *path = g_strdup_printf("/proc/self/task/%s/%s", tid, name);
+    char *buf = NULL;
+
+    g_file_get_contents(path, &buf, NULL, NULL);
+    return buf;
+}
+
+static void append_thread_state(GString *out, const char *tid)
+{
+    g_autofree char *comm = read_task_file(tid, "comm");
+    g_autofree char *stat = NULL;
+    g_autofree char *wchan = NULL;
+    char state = '?';
+    char *rparen;
+
+    if (!comm) {
+        return;
+    }
+    g_strchomp(comm);
+
+    stat = read_task_file(tid, "stat");
+    if (stat) {
+        /* comm can hold anything, ')' included, so scan from the right */
+        rparen = strrchr(stat, ')');
+        if (rparen && rparen[1] == ' ') {
+            state = rparen[2];
+        }
+    }
+    g_string_append_printf(out, "  %-7s %-16s %c\n", tid, comm, state);
+
+    wchan = read_task_file(tid, "wchan");
+    if (wchan && wchan[0]) {
+        g_string_append_printf(out, "      wchan %s\n", wchan);
+    }
+}
+
+char *qemu_thread_states(void)
+{
+    g_autoptr(GDir) dir = g_dir_open("/proc/self/task", 0, NULL);
+    const char *tid;
+    GString *out;
+
+    if (!dir) {
+        return NULL;
+    }
+    out = g_string_new(NULL);
+    while ((tid = g_dir_read_name(dir))) {
+        if (atoi(tid) != qemu_get_thread_id()) {
+            append_thread_state(out, tid);
+        }
+    }
+    if (!out->len) {
+        g_string_free(out, TRUE);
+        return NULL;
+    }
+    return g_string_free(out, FALSE);
+}
+
+#else
+
+char *qemu_thread_states(void)
+{
+    return NULL;
+}
+
+#endif /* CONFIG_LINUX */
+
 int qemu_kill_thread(int tid, int sig)
 {
 #if defined(__linux__)
