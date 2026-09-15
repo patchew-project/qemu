@@ -4076,7 +4076,7 @@ static void migration_instance_init(Object *obj)
     qemu_event_init(&ms->pause_event, false);
     qemu_mutex_init(&ms->error_mutex);
 
-    migrate_params_init(&ms->parameters);
+    migrate_params_init(ms);
 
     qemu_sem_init(&ms->postcopy_pause_sem, 0);
     qemu_sem_init(&ms->rp_state.rp_sem, 0);

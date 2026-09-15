@@ -78,7 +78,7 @@ ZeroPageDetection migrate_zero_page_detection(void);
 uint64_t migrate_rdma_chunk_size(void);
 
 bool migrate_params_check(MigrationParameters *params, Error **errp);
-void migrate_params_init(MigrationParameters *params);
+void migrate_params_init(MigrationState *s);
 bool migrate_params_free(MigrationParameters *params, Error **errp);
 QDict *migrate_params_to_dict(MigrationParameters *p, Error **errp);
 bool migrate_capability_get_compat(MigrationParameters *params, int i);

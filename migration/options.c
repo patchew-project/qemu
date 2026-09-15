@@ -233,6 +233,31 @@ const Property migration_properties[] = {
 };
 const size_t migration_properties_count = ARRAY_SIZE(migration_properties);
 
+/*
+ * After qdev sets the defaults for the migration parameters using the
+ * migration_properties above, s->parameters is left inconsistent from
+ * QAPI point of view because the parameters' present flag is not
+ * set. Use the custom-built qapi_clone_visitor_all() to copy
+ * s->parameters back to itself while setting all present flags. The
+ * resulting object is fit to be used with QAPI and the visitor
+ * infrastructure.
+ *
+ * WARNING: missing entries in the migration_properties array in
+ * respect to MigrationParameters will still have their corresponding
+ * struct member marked as present.
+ */
+void migrate_params_init(MigrationState *s)
+{
+    Visitor *v = qapi_clone_visitor_new_all();
+    g_autoptr(MigrationParameters) p = &s->parameters;
+
+    visit_type_MigrationParameters(v, NULL, &p, &error_abort);
+    visit_free(v);
+    migrate_params_free(&s->parameters, &error_abort);
+    QAPI_CLONE_MEMBERS(MigrationParameters, &s->parameters, p);
+}
+
+
 static void get_StrOrNull(Object *obj, Visitor *v, const char *name,
                           void *opaque, Error **errp)
 {
@@ -1121,53 +1146,6 @@ static MigrationParameters *migrate_params_from_dict(QDict *d, Error **errp)
     return tmp;
 }
 
-/*
- * query-migrate-parameters expects all members of MigrationParameters
- * to be present, but we cannot mark them non-optional in QAPI because
- * the structure is also used for migrate-set-parameters, which needs
- * the optionality. Force all parameters to be seen as present
- * now. Note that this depends on some form of default being set for
- * every member of MigrationParameters, currently done during qdev
- * init using migration_properties defined in this file. The TLS
- * options are a special case because they don't have a default and
- * need to be normalized before use.
- */
-static void migrate_mark_all_params_present(MigrationParameters *p)
-{
-    int len, n_str_args = 3; /* tls-creds, tls-hostname, tls-authz */
-    bool *has_fields[] = {
-        &p->has_throttle_trigger_threshold, &p->has_cpu_throttle_initial,
-        &p->has_cpu_throttle_increment, &p->has_cpu_throttle_tailslow,
-        &p->has_max_bandwidth, &p->has_avail_switchover_bandwidth,
-        &p->has_downtime_limit, &p->has_x_checkpoint_delay,
-        &p->has_multifd_channels, &p->has_multifd_compression,
-        &p->has_multifd_zlib_level, &p->has_multifd_qatzip_level,
-        &p->has_multifd_zstd_level, &p->has_xbzrle_cache_size,
-        &p->has_max_postcopy_bandwidth, &p->has_max_cpu_throttle,
-        &p->has_announce_initial, &p->has_announce_max, &p->has_announce_rounds,
-        &p->has_announce_step, &p->has_block_bitmap_mapping,
-        &p->has_x_vcpu_dirty_limit_period, &p->has_vcpu_dirty_limit,
-        &p->has_mode, &p->has_zero_page_detection, &p->has_direct_io,
-        &p->has_x_rdma_chunk_size, &p->has_cpr_exec_command, &p->has_local,
-        &p->has_xbzrle, &p->has_rdma_pin_all,
-        &p->has_auto_converge, &p->has_events,
-        &p->has_postcopy_ram, &p->has_x_colo, &p->has_release_ram,
-        &p->has_return_path, &p->has_pause_before_switchover, &p->has_multifd,
-        &p->has_dirty_bitmaps, &p->has_postcopy_blocktime,
-        &p->has_late_block_activate, &p->has_x_ignore_shared,
-        &p->has_validate_uuid, &p->has_background_snapshot,
-        &p->has_zero_copy_send, &p->has_postcopy_preempt,
-        &p->has_switchover_ack, &p->has_dirty_limit, &p->has_mapped_ram,
-    };
-
-    len = ARRAY_SIZE(has_fields);
-    assert(len + n_str_args == MIGRATION_PARAMETER__MAX);
-
-    for (int i = 0; i < len; i++) {
-        *has_fields[i] = true;
-    }
-}
-
 MigrationParameters *qmp_query_migrate_parameters(Error **errp)
 {
     MigrationState *s = migrate_get_current();
@@ -1186,11 +1164,6 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     }
 
     return params;
-}
-
-void migrate_params_init(MigrationParameters *params)
-{
-    migrate_mark_all_params_present(params);
 }
 
 static void migrate_post_update_params(MigrationParameters *new, Error **errp)

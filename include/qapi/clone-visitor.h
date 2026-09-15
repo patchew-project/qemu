@@ -22,6 +22,7 @@
 typedef struct QapiCloneVisitor QapiCloneVisitor;
 
 Visitor *qapi_clone_visitor_new(void);
+Visitor *qapi_clone_visitor_new_all(void);
 Visitor *qapi_clone_members_visitor_new(void);
 
 /*

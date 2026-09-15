@@ -174,6 +174,19 @@ Visitor *qapi_clone_visitor_new(void)
     return &v->visitor;
 }
 
+static void qapi_clone_optional_all(Visitor *v, const char *name, bool *present)
+{
+    *present = true;
+}
+
+Visitor *qapi_clone_visitor_new_all(void)
+{
+   Visitor *v = qapi_clone_visitor_new();
+
+   v->optional = qapi_clone_optional_all;
+   return v;
+}
+
 Visitor *qapi_clone_members_visitor_new(void)
 {
     Visitor *v = qapi_clone_visitor_new();
