@@ -785,7 +785,7 @@ static int mirror_exit_common(Job *job)
         bdrv_graph_rdlock_main_loop();
         assert(!bdrv_backing_chain_next(target_bs));
         ret = bdrv_open_backing_file(bdrv_skip_filters(target_bs), NULL,
-                                     "backing", &local_err);
+                                     true, "backing", &local_err);
         bdrv_graph_rdunlock_main_loop();
         if (ret < 0) {
             error_report_err(local_err);
