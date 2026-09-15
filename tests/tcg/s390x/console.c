@@ -1,11 +1,11 @@
 /*
  * Console code for multiarch tests.
- * Reuses the pc-bios/s390-ccw implementation.
+ * Reuses the roms/s390-ccw implementation.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "../../../pc-bios/s390-ccw/sclp.c"
+#include "../../../roms/s390-ccw/sclp.c"
 #include "string.h"
 
 
