@@ -596,10 +596,9 @@ void hmp_migrate_set_parameter(MonitorHMP *hmp, const QDict *qdict)
     const char *valuestr = qdict_get_str(qdict, "value");
     Visitor *v = string_input_visitor_new(valuestr);
     MigrationParameters *p = g_new0(MigrationParameters, 1);
-    uint64_t valuebw = 0;
     uint64_t cache_size;
     Error *err = NULL;
-    int val, ret;
+    int val;
 
     val = qapi_enum_parse(&MigrationParameter_lookup, param, -1, &err);
     if (val < 0) {
@@ -644,27 +643,11 @@ void hmp_migrate_set_parameter(MonitorHMP *hmp, const QDict *qdict)
         break;
     case MIGRATION_PARAMETER_MAX_BANDWIDTH:
         p->has_max_bandwidth = true;
-        /*
-         * Can't use visit_type_size() here, because it
-         * defaults to Bytes rather than Mebibytes.
-         */
-        ret = qemu_strtosz_MiB(valuestr, NULL, &valuebw);
-        if (ret < 0 || valuebw > INT64_MAX
-            || (size_t)valuebw != valuebw) {
-            error_setg(&err, "Invalid size %s", valuestr);
-            break;
-        }
-        p->max_bandwidth = valuebw;
+        visit_type_size(v, param, &p->max_bandwidth, &err);
         break;
     case MIGRATION_PARAMETER_AVAIL_SWITCHOVER_BANDWIDTH:
         p->has_avail_switchover_bandwidth = true;
-        ret = qemu_strtosz_MiB(valuestr, NULL, &valuebw);
-        if (ret < 0 || valuebw > INT64_MAX
-            || (size_t)valuebw != valuebw) {
-            error_setg(&err, "Invalid size %s", valuestr);
-            break;
-        }
-        p->avail_switchover_bandwidth = valuebw;
+        visit_type_size(v, param, &p->avail_switchover_bandwidth, &err);
         break;
     case MIGRATION_PARAMETER_DOWNTIME_LIMIT:
         p->has_downtime_limit = true;
