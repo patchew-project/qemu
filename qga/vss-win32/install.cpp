@@ -241,6 +241,89 @@ out:
     return hr;
 }
 
+/* Check whether the QGA VSS provider service is registered with the SCM.*/
+static bool QGAProviderServiceExists(void)
+{
+    qga_debug_begin;
+
+    bool exists = false;
+    DWORD err;
+    SC_HANDLE manager = OpenSCManager(NULL, NULL, SC_MANAGER_CONNECT);
+    SC_HANDLE service = NULL;
+
+    if (!manager) {
+        errmsg(GetLastError(), "Failed to open service manager");
+        goto out;
+    }
+
+    service = OpenService(manager, QGA_PROVIDER_NAME, SERVICE_QUERY_CONFIG);
+    if (service) {
+        exists = true;
+    } else {
+        err = GetLastError();
+        if (err != ERROR_SERVICE_DOES_NOT_EXIST) {
+            errmsg(err, "Failed to open service");
+        }
+    }
+
+out:
+    if (service) {
+        CloseServiceHandle(service);
+    }
+    if (manager) {
+        CloseServiceHandle(manager);
+    }
+    qga_debug_end;
+    return exists;
+}
+
+/* Delete a QGA VSS provider service that COM+ no longer owns.*/
+static HRESULT QGAProviderRemoveService(void)
+{
+    qga_debug_begin;
+
+    HRESULT hr = S_OK;
+    DWORD err;
+    SC_HANDLE manager = OpenSCManager(NULL, NULL, SC_MANAGER_CONNECT);
+    SC_HANDLE service = NULL;
+
+    if (!manager) {
+        hr = HRESULT_FROM_WIN32(GetLastError());
+        errmsg(hr, "Failed to open service manager");
+        goto out;
+    }
+
+    service = OpenService(manager, QGA_PROVIDER_NAME, DELETE);
+    if (!service) {
+        err = GetLastError();
+        if (err != ERROR_SERVICE_DOES_NOT_EXIST) {
+            hr = HRESULT_FROM_WIN32(err);
+            errmsg(hr, "Failed to open service");
+        }
+        goto out;
+    }
+
+    qga_debug("Removing service: %s", QGA_PROVIDER_NAME);
+
+    if (!DeleteService(service)) {
+        err = GetLastError();
+        if (err != ERROR_SERVICE_MARKED_FOR_DELETE) {
+            hr = HRESULT_FROM_WIN32(err);
+            errmsg(hr, "Failed to delete service");
+        }
+    }
+
+out:
+    if (service) {
+        CloseServiceHandle(service);
+    }
+    if (manager) {
+        CloseServiceHandle(manager);
+    }
+    qga_debug_end;
+    return hr;
+}
+
 /* Unregister this module from COM+ Applications Catalog */
 STDAPI COMUnregister(void);
 STDAPI COMUnregister(void)
@@ -251,6 +334,7 @@ STDAPI COMUnregister(void)
 
     DllUnregisterServer();
     chk(QGAProviderFind(QGAProviderRemove, NULL));
+    chk(QGAProviderRemoveService());
 out:
     qga_debug_end;
     return hr;
@@ -286,7 +370,7 @@ STDAPI COMRegister(void)
     }
 
     chk(QGAProviderFind(QGAProviderCount, (void *)&count));
-    if (count) {
+    if (count || QGAProviderServiceExists()) {
         qga_debug("QGA VSS Provider is already installed. Attempting to unregister first.");
         hr = COMUnregister();
         if (FAILED(hr)) {
@@ -499,6 +583,7 @@ STDAPI DllRegisterServer(void)
                                      g_gProviderVersion);
     if (hr == (long int) VSS_E_PROVIDER_ALREADY_REGISTERED) {
         DllUnregisterServer();
+        QGAProviderRemoveService();
         hr = pVssAdmin->RegisterProvider(g_gProviderId, CLSID_QGAVSSProvider,
                                          const_cast<WCHAR * >
                                          (QGA_PROVIDER_LNAME),
@@ -515,6 +600,7 @@ STDAPI DllRegisterServer(void)
 out:
     if (FAILED(hr)) {
         DllUnregisterServer();
+        QGAProviderRemoveService();
     }
 
     qga_debug_end;
