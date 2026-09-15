@@ -25,12 +25,293 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-properties-system.h"
 #include "qemu/cutils.h"
+#include "trace.h"
 
 #include "hw/core/remote-port-proto.h"
 #include "hw/core/remote-port.h"
 
 #define REMOTE_PORT_CLASS(klass)    \
      OBJECT_CLASS_CHECK(RemotePortClass, (klass), TYPE_REMOTE_PORT)
+
+static void rp_event_read_and_process(RemotePort *s);
+
+static void rp_fatal_error(RemotePort *s, const char *reason)
+{
+    error_report("%s: %s", s->prefix, reason);
+    exit(EXIT_FAILURE);
+}
+
+static ssize_t rp_recv(RemotePort *s, void *buf, size_t count)
+{
+    ssize_t r;
+
+    r = qemu_chr_fe_read_all(&s->chr, buf, count);
+    if (r <= 0) {
+        return r;
+    }
+    if (r != count) {
+        error_report("%s: Bad read, expected %zd but got %zd",
+                     s->prefix, count, r);
+        rp_fatal_error(s, "Bad read");
+    }
+
+    return r;
+}
+
+ssize_t rp_write(RemotePort *s, const void *buf, size_t count)
+{
+    ssize_t r;
+
+    qemu_mutex_lock(&s->write_mutex);
+    r = qemu_chr_fe_write_all(&s->chr, buf, count);
+    qemu_mutex_unlock(&s->write_mutex);
+    assert(r == count);
+    if (r <= 0) {
+        error_report("%s: Disconnected r=%zd buf=%p count=%zd",
+                     s->prefix, r, buf, count);
+        rp_fatal_error(s, "Bad write");
+    }
+    return r;
+}
+
+static unsigned int rp_has_work(RemotePort *s)
+{
+    unsigned int work = s->rx_queue.wpos - s->rx_queue.rpos;
+    return work;
+}
+
+static void rp_cmd_hello(RemotePort *s, struct rp_pkt *pkt)
+{
+    s->peer.version = pkt->hello.version;
+    if (pkt->hello.version.major != RP_VERSION_MAJOR) {
+        error_report("remote-port version missmatch remote=%d.%d local=%d.%d",
+                      pkt->hello.version.major, pkt->hello.version.minor,
+                      RP_VERSION_MAJOR, RP_VERSION_MINOR);
+        rp_fatal_error(s, "Bad version");
+    }
+
+    if (pkt->hello.caps.len) {
+        void *caps = (char *) pkt + pkt->hello.caps.offset;
+
+        rp_process_caps(&s->peer, caps, pkt->hello.caps.len);
+    }
+}
+
+static void rp_say_hello(RemotePort *s)
+{
+    struct rp_pkt_hello pkt;
+    uint32_t caps[] = {
+        CAP_BUSACCESS_EXT_BASE,
+        CAP_BUSACCESS_EXT_BYTE_EN,
+        CAP_WIRE_POSTED_UPDATES,
+        CAP_ATS,
+    };
+    size_t len;
+
+    len = rp_encode_hello_caps(s->current_id++, 0, &pkt, RP_VERSION_MAJOR,
+                               RP_VERSION_MINOR,
+                               caps, caps, sizeof caps / sizeof caps[0]);
+    rp_write(s, (void *) &pkt, len);
+
+    if (sizeof caps) {
+        rp_write(s, caps, sizeof caps);
+    }
+}
+
+void rp_process(RemotePort *s)
+{
+    while (true) {
+        struct rp_pkt *pkt;
+        unsigned int rpos;
+        bool actioned = false;
+        RemotePortDevice *dev;
+        RemotePortDeviceClass *rpdc;
+
+        qemu_mutex_lock(&s->rsp_mutex);
+        if (!rp_has_work(s)) {
+            qemu_mutex_unlock(&s->rsp_mutex);
+            break;
+        }
+        rpos = s->rx_queue.rpos;
+
+        pkt = s->rx_queue.pkt[rpos].pkt;
+        trace_rp_process(s->prefix, s->rx_queue.rpos, s->rx_queue.wpos,
+                         pkt->hdr.cmd, pkt->hdr.dev);
+
+        /*
+         * To handle recursiveness, we need to advance the index
+         * index before processing the packet.
+         */
+        s->rx_queue.rpos++;
+        s->rx_queue.rpos %= ARRAY_SIZE(s->rx_queue.pkt);
+        qemu_mutex_unlock(&s->rsp_mutex);
+
+        dev = s->devs[pkt->hdr.dev];
+        if (dev) {
+            rpdc = REMOTE_PORT_DEVICE_GET_CLASS(dev);
+            if (rpdc->ops[pkt->hdr.cmd]) {
+                rpdc->ops[pkt->hdr.cmd](dev, pkt);
+                actioned = true;
+            }
+        }
+
+        switch (pkt->hdr.cmd) {
+        /* TBD */
+        default:
+            assert(actioned);
+        }
+
+        s->rx_queue.inuse[rpos] = false;
+        qemu_sem_post(&s->rx_queue.sem);
+    }
+}
+
+static void rp_event_read_and_process(RemotePort *s)
+{
+    event_notifier_test_and_clear(&s->event_notifier);
+
+    rp_process(s);
+}
+
+static void rp_event_read_cb(EventNotifier *n)
+{
+    RemotePort *s = container_of(n, RemotePort, event_notifier);
+
+    rp_event_read_and_process(s);
+}
+
+static void rp_event_notify(RemotePort *s)
+{
+    event_notifier_set(&s->event_notifier);
+}
+
+/* Handover a pkt to CPU or IO-thread context.  */
+static void rp_pt_handover_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
+{
+    bool full;
+
+    /*
+     * Take the rsp lock around the wpos update, otherwise
+     * rp_wait_resp will race with us.
+     */
+    qemu_mutex_lock(&s->rsp_mutex);
+    s->rx_queue.wpos++;
+    s->rx_queue.wpos %= ARRAY_SIZE(s->rx_queue.pkt);
+    /*
+     * Ensure rx_queue index update is visible to consumer
+     * before signaling event, to prevent lost wakeup
+     */
+    smp_mb();
+    rp_event_notify(s);
+    qemu_cond_signal(&s->progress_cond);
+    qemu_mutex_unlock(&s->rsp_mutex);
+
+    do {
+        full = s->rx_queue.inuse[s->rx_queue.wpos];
+        if (full) {
+            trace_rp_pt_rx_queue_full(s->prefix, s->rx_queue.rpos,
+                                      s->rx_queue.wpos);
+            qemu_sem_timedwait(&s->rx_queue.sem, 2 * 1000);
+        }
+    } while (full);
+}
+
+static bool rp_pt_process_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
+{
+    struct rp_pkt *pkt = dpkt->pkt;
+
+    trace_rp_pt_process_pkt(s->prefix, pkt->hdr.cmd, pkt->hdr.id, pkt->hdr.dev);
+
+    if (pkt->hdr.dev >= ARRAY_SIZE(s->devs)) {
+        /* FIXME: Respond with an error.  */
+        return true;
+    }
+
+    switch (pkt->hdr.cmd) {
+    case RP_CMD_hello:
+        rp_cmd_hello(s, pkt);
+        break;
+    case RP_CMD_read:
+    case RP_CMD_write:
+    case RP_CMD_interrupt:
+    case RP_CMD_ats_req:
+    case RP_CMD_ats_inv:
+        rp_pt_handover_pkt(s, dpkt);
+        break;
+    default:
+        g_assert_not_reached();
+        break;
+    }
+    return false;
+}
+
+static int rp_read_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
+{
+    struct rp_pkt *pkt = dpkt->pkt;
+    int used;
+    int r;
+
+    r = rp_recv(s, pkt, sizeof pkt->hdr);
+    if (r <= 0) {
+        return r;
+    }
+    used = rp_decode_hdr((void *) &pkt->hdr);
+    assert(used == sizeof pkt->hdr);
+
+    if (pkt->hdr.len) {
+        rp_dpkt_alloc(dpkt, sizeof pkt->hdr + pkt->hdr.len);
+        /* pkt may move due to realloc.  */
+        pkt = dpkt->pkt;
+        r = rp_recv(s, &pkt->hdr + 1, pkt->hdr.len);
+        if (r <= 0) {
+            return r;
+        }
+        rp_decode_payload(pkt);
+    }
+
+    return used + r;
+}
+
+static void *rp_protocol_thread(void *arg)
+{
+    RemotePort *s = REMOTE_PORT(arg);
+    unsigned int i;
+    int r;
+
+    /* Make sure we have a decent bufsize to start with.  */
+    rp_dpkt_alloc(&s->rsp, sizeof s->rsp.pkt->busaccess + 1024);
+    for (i = 0; i < ARRAY_SIZE(s->rx_queue.pkt); i++) {
+        rp_dpkt_alloc(&s->rx_queue.pkt[i],
+                      sizeof s->rx_queue.pkt[i].pkt->busaccess + 1024);
+        s->rx_queue.inuse[i] = false;
+    }
+
+    rp_say_hello(s);
+
+    while (1) {
+        RemotePortDynPkt *dpkt;
+        unsigned int wpos = s->rx_queue.wpos;
+        bool handled;
+
+        dpkt = &s->rx_queue.pkt[wpos];
+        s->rx_queue.inuse[wpos] = true;
+
+        r = rp_read_pkt(s, dpkt);
+        if (r <= 0) {
+            /* Disconnected.  */
+            break;
+        }
+        handled = rp_pt_process_pkt(s, dpkt);
+        if (handled) {
+            s->rx_queue.inuse[wpos] = false;
+        }
+    }
+
+    if (!s->finalizing) {
+        rp_fatal_error(s, "Disconnected");
+    }
+    return NULL;
+}
 
 static void rp_reset(DeviceState *dev)
 {
@@ -40,6 +321,9 @@ static void rp_reset(DeviceState *dev)
         return;
     }
 
+    qemu_thread_create(&s->thread, "remote-port", rp_protocol_thread, s,
+                       QEMU_THREAD_JOINABLE);
+
     s->reset_done = true;
 }
 
@@ -47,6 +331,10 @@ static void rp_realize(DeviceState *dev, Error **errp)
 {
     RemotePort *s = REMOTE_PORT(dev);
     Chardev *chr = NULL;
+
+    qemu_mutex_init(&s->write_mutex);
+    qemu_mutex_init(&s->rsp_mutex);
+    qemu_cond_init(&s->progress_cond);
 
     s->prefix = object_get_canonical_path(OBJECT(dev));
 
@@ -65,7 +353,18 @@ static void rp_realize(DeviceState *dev, Error **errp)
 
     s->chrdev = chr;
 
+    if (event_notifier_init(&s->event_notifier, 0) < 0) {
+        error_setg(errp,
+                   "Unable to initialize event notifier for remote port");
+        return;
+    }
 
+    aio_set_event_notifier(qemu_get_aio_context(), &s->event_notifier,
+                           rp_event_read_cb,
+                           NULL, NULL);
+
+
+    qemu_sem_init(&s->rx_queue.sem, ARRAY_SIZE(s->rx_queue.pkt) - 1);
 }
 
 static void rp_unrealize(DeviceState *dev)
@@ -74,11 +373,17 @@ static void rp_unrealize(DeviceState *dev)
 
     s->finalizing = true;
 
+    aio_set_event_notifier(qemu_get_aio_context(), &s->event_notifier,
+                            NULL, NULL, NULL);
+
     info_report("%s: Wait for remote-port to disconnect", s->prefix);
     qemu_chr_fe_disconnect(&s->chr);
+    if (s->reset_done) {
+        qemu_thread_join(&s->thread);
+    }
     qemu_chr_fe_deinit(&s->chr, false);
 
-    object_unparent(OBJECT(s->chrdev));
+    event_notifier_cleanup(&s->event_notifier);
 }
 
 static const VMStateDescription vmstate_rp = {

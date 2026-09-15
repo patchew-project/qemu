@@ -16,6 +16,7 @@
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
 #include "qobject/qdict.h"
+#include "qemu/event_notifier.h"
 
 #define TYPE_REMOTE_PORT_DEVICE "remote-port-device"
 
@@ -57,11 +58,35 @@ typedef struct RemotePortDeviceClass {
 struct RemotePort {
     DeviceState parent;
 
+    QemuThread thread;
+    EventNotifier event_notifier;
     Chardev *chrdev;
     CharFrontend chr;
     bool finalizing;
+    /* To serialize writes to fd.  */
+    QemuMutex write_mutex;
 
     char *chrdev_id;
+    struct rp_peer_state peer;
+
+    QemuMutex rsp_mutex;
+    QemuCond progress_cond;
+
+#define RX_QUEUE_SIZE 1024
+    struct {
+        /* This array must be sized minimum 2 and always a power of 2.  */
+        RemotePortDynPkt pkt[RX_QUEUE_SIZE];
+        bool inuse[RX_QUEUE_SIZE];
+        QemuSemaphore sem;
+        unsigned int wpos;
+        unsigned int rpos;
+    } rx_queue;
+
+    /*
+     * rsp holds responses for the remote side.
+     * Used by the slave.
+     */
+    RemotePortDynPkt rsp;
 
     const char *prefix;
     const char *remote_prefix;
@@ -72,5 +97,9 @@ struct RemotePort {
 #define REMOTE_PORT_MAX_DEVS 1024
     RemotePortDevice *devs[REMOTE_PORT_MAX_DEVS];
 };
+
+void rp_process(RemotePort *s);
+
+ssize_t rp_write(RemotePort *s, const void *buf, size_t count);
 
 #endif
