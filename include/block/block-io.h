@@ -92,7 +92,8 @@ int64_t co_wrapper_bdrv_rdlock
 bdrv_get_allocated_file_size(BlockDriverState *bs);
 
 BlockMeasureInfo *bdrv_measure(BlockDriver *drv, QemuOpts *opts,
-                               BlockDriverState *in_bs, Error **errp);
+                               BlockDriverState *in_bs,
+                               BlockDriverState *base_bs, Error **errp);
 
 int coroutine_fn GRAPH_RDLOCK
 bdrv_co_delete_file(BlockDriverState *bs, Error **errp);

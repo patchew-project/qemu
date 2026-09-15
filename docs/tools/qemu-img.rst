@@ -632,7 +632,7 @@ Command description:
   For more information, consult ``include/block/block.h`` in QEMU's
   source code.
 
-.. option:: measure [--output=OFMT] [-O OUTPUT_FMT] [-o OPTIONS] [--size N | [--object OBJECTDEF] [--image-opts] [-f FMT] [-l SNAPSHOT_PARAM] FILENAME]
+.. option:: measure [--output=OFMT] [-O OUTPUT_FMT] [-o OPTIONS] [-b BASE] [--size N | [--object OBJECTDEF] [--image-opts] [-f FMT] [-l SNAPSHOT_PARAM] FILENAME]
 
   Calculate the file size required for a new image.  This information
   can be used to size logical volumes or SAN LUNs appropriately for
@@ -648,6 +648,13 @@ Command description:
   file is given by *FMT*.
 
   A snapshot in an existing image can be specified using *SNAPSHOT_PARAM*.
+
+  If *BASE* is given, open the backing chain of *FILENAME* up to and
+  including the image *BASE*, and calculate the file size that *BASE*
+  will occupy after *FILENAME* is committed into it (i.e. the size of
+  the merged image).  This is different from the default behaviour,
+  which calculates the size of a standalone copy of *FILENAME*.
+  *BASE* has to be part of the backing chain of *FILENAME*.
 
   The following fields are reported:
 

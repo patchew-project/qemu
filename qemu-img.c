@@ -5694,6 +5694,7 @@ static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
     BlockBackend *in_blk = NULL;
     BlockDriver *drv;
     const char *filename = NULL;
+    const char *base_filename = NULL;
     const char *fmt = NULL;
     const char *out_fmt = "raw";
     char *options = NULL;
@@ -5705,6 +5706,7 @@ static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
     QemuOptsList *create_opts = NULL;
     bool image_opts = false;
     int64_t img_size = -1;
+    BlockDriverState *base_bs = NULL;
     BlockMeasureInfo *info = NULL;
     Error *local_err = NULL;
     int ret = 1;
@@ -5717,6 +5719,7 @@ static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
         {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
         {"source-image-opts", no_argument, 0, OPTION_IMAGE_OPTS}, /* img_convert */
         {"snapshot", required_argument, 0, 'l'},
+        {"base", required_argument, 0, 'b'},
         {"target-format", required_argument, 0, 'O'},
         {"target-format-options", required_argument, 0, 'o'}, /* img_convert */
         {"options", required_argument, 0, 'o'},
@@ -5727,11 +5730,11 @@ static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
         {0, 0, 0, 0}
     };
 
-    while ((c = getopt_long(argc, argv, "hf:l:O:o:Us:",
+    while ((c = getopt_long(argc, argv, "hf:l:b:O:o:Us:",
                             long_options, NULL)) != -1) {
         switch (c) {
         case 'h':
-            cmd_help(ccmd, "[-f FMT|--image-opts] [-l SNAPSHOT]\n"
+            cmd_help(ccmd, "[-f FMT|--image-opts] [-l SNAPSHOT] [-b BASE]\n"
 "       [-O TARGET_FMT] [-o TARGET_FMT_OPTS] [--output human|json]\n"
 "       [--object OBJDEF] (--size SIZE | FILE)\n"
 ,
@@ -5742,6 +5745,8 @@ static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
 "     instead of a file name (incompatible with --format)\n"
 "  -l, --snapshot SNAPSHOT\n"
 "     use this snapshot in FILE as source\n"
+"  -b, --base BASE\n"
+"     open FILE backing chain up to BASE (inclusive)\n"
 "  -O, --target-format TARGET_FMT\n"
 "     desired target/output image format (default: raw)\n"
 "  -o TARGET_FMT_OPTS\n"
@@ -5779,6 +5784,9 @@ static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
                 snapshot_name = optarg;
             }
             break;
+        case 'b':
+            base_filename = optarg;
+            break;
         case 'O':
             out_fmt = optarg;
             break;
@@ -5814,8 +5822,10 @@ static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
         filename = argv[optind];
     }
 
-    if (!filename && (image_opts || fmt || snapshot_name || sn_opts)) {
-        error_report("--image-opts, -f, and -l require a filename argument.");
+    if (!filename && (image_opts || fmt || snapshot_name || sn_opts ||
+                      base_filename)) {
+        error_report("--image-opts, -f, -l, and -b require a filename "
+                     "argument.");
         goto out;
     }
     if (filename && img_size != -1) {
@@ -5828,10 +5838,32 @@ static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
     }
 
     if (filename) {
-        in_blk = img_open(image_opts, filename, fmt, 0,
+        int src_flags = 0;
+
+        /*
+         * When measuring with --base, avoid opening the full backing chain.
+         * We selectively open only up to the requested base afterwards.
+         * An explicit image specification (--image-opts or a json: filename)
+         * defines the backing chain itself, so it has to be opened normally.
+         */
+        if (base_filename && !image_opts &&
+            !g_str_has_prefix(filename, "json:")) {
+            src_flags |= BDRV_O_NO_BACKING;
+        }
+
+        in_blk = img_open(image_opts, filename, fmt, src_flags,
                           false, false, force_share);
         if (!in_blk) {
             goto out;
+        }
+
+        if (base_filename) {
+            if (bdrv_open_backing_chain_until(blk_bs(in_blk), base_filename,
+                                              &local_err) < 0) {
+                error_report_err(local_err);
+                goto out;
+            }
+            base_bs = bdrv_find_backing_image(blk_bs(in_blk), base_filename);
         }
 
         if (sn_opts) {
@@ -5874,7 +5906,8 @@ static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
         qemu_opt_set_number(opts, BLOCK_OPT_SIZE, img_size, &error_abort);
     }
 
-    info = bdrv_measure(drv, opts, in_blk ? blk_bs(in_blk) : NULL, &local_err);
+    info = bdrv_measure(drv, opts, in_blk ? blk_bs(in_blk) : NULL, base_bs,
+                        &local_err);
     if (local_err) {
         error_report_err(local_err);
         goto out;

@@ -731,7 +731,7 @@ struct BlockDriver {
         BlockDriverState *bs);
 
     BlockMeasureInfo *(*bdrv_measure)(QemuOpts *opts, BlockDriverState *in_bs,
-                                      Error **errp);
+                                      BlockDriverState *base_bs, Error **errp);
 
     int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_pwritev_compressed)(
         BlockDriverState *bs, int64_t offset, int64_t bytes,

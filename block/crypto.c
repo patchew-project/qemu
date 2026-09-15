@@ -634,6 +634,7 @@ block_crypto_co_getlength(BlockDriverState *bs)
 
 static BlockMeasureInfo *block_crypto_measure(QemuOpts *opts,
                                               BlockDriverState *in_bs,
+                                              BlockDriverState *base_bs,
                                               Error **errp)
 {
     g_autoptr(QCryptoBlockCreateOptions) create_opts = NULL;

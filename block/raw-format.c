@@ -369,7 +369,7 @@ raw_co_getlength(BlockDriverState *bs)
 }
 
 static BlockMeasureInfo *raw_measure(QemuOpts *opts, BlockDriverState *in_bs,
-                                     Error **errp)
+                                     BlockDriverState *base_bs, Error **errp)
 {
     BlockMeasureInfo *info;
     int64_t required;
