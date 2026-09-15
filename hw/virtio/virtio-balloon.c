@@ -896,12 +896,19 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
     s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
 
     if (virtio_has_feature(s->host_features, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        const IOThreadHolder io_holder = {
+            .type = IO_THREAD_HOLDER_KIND_QOM_OBJECT,
+            .u.qom_object.qom_path = path,
+        };
+
         s->free_page_vq = virtio_add_queue(vdev, VIRTQUEUE_MAX_SIZE,
                                            virtio_balloon_handle_free_page_vq);
         precopy_add_notifier(&s->free_page_hint_notify);
 
-        object_ref(OBJECT(s->iothread));
-        s->free_page_bh = aio_bh_new_guarded(iothread_get_aio_context(s->iothread),
+        s->free_page_ctx = iothread_ref_and_get_aio_context(s->iothread,
+                                                          &io_holder);
+        s->free_page_bh = aio_bh_new_guarded(s->free_page_ctx,
                                              virtio_ballloon_get_free_page_hints, s,
                                              &dev->mem_reentrancy_guard);
     }
@@ -928,7 +935,11 @@ static void virtio_balloon_device_unrealize(DeviceState *dev)
 
     qemu_unregister_resettable(OBJECT(dev));
     if (s->free_page_bh) {
-        AioContext *ctx = iothread_get_aio_context(s->iothread);
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        const IOThreadHolder io_holder = {
+            .type = IO_THREAD_HOLDER_KIND_QOM_OBJECT,
+            .u.qom_object.qom_path = path,
+        };
 
         qemu_bh_delete(s->free_page_bh);
 
@@ -936,9 +947,9 @@ static void virtio_balloon_device_unrealize(DeviceState *dev)
         s->free_page_hint_status = FREE_PAGE_HINT_S_UNREALIZE;
         qemu_cond_signal(&s->free_page_cond);
         qemu_mutex_unlock(&s->free_page_lock);
-        aio_wait_bh_oneshot(ctx, dummy_bh, NULL);
+        aio_wait_bh_oneshot(s->free_page_ctx, dummy_bh, NULL);
 
-        object_unref(OBJECT(s->iothread));
+        iothread_unref_and_put_aio_context(s->iothread, &io_holder);
         precopy_remove_notifier(&s->free_page_hint_notify);
     }
     balloon_stats_destroy_timer(s);
