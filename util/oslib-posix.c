@@ -58,8 +58,13 @@
 #include <lwp.h>
 #endif
 
+#ifdef CONFIG_DLADDR
+#include <dlfcn.h>
+#endif
+
 #include "qemu/memalign.h"
 #include "qemu/mmap-alloc.h"
+#include "host/signal-pc.h"
 
 #define MAX_MEM_PREALLOC_THREAD_COUNT 32
 
@@ -168,8 +173,164 @@ static bool thread_stacks_readable(void)
     return readable;
 }
 
-static void append_thread_state(GString *out, const char *tid)
+/* Where a thread was, and where its line belongs in the report */
+typedef struct {
+    int tid;
+    size_t at;
+    void *pc;
+    int done;
+} ThreadPc;
+
+#if HAVE_HOST_SIGNAL_PC
+
+/* How long to wait for the answers, however many threads were asked */
+#define THREAD_PC_WAIT_MS 100
+
+/*
+ * Published to the handler, which runs in whichever thread was interrupted
+ * and so may only touch this with atomics: every qemu synchronisation
+ * primitive is built on a mutex, and none of them may be taken here.
+ * pc_handlers counts handlers between entry and exit, so the slots can be
+ * withdrawn and the last handler waited out before the caller frees them.
+ */
+static ThreadPc *pc_slots;
+static int pc_nslots;
+static int pc_handlers;
+
+static void thread_pc_handler(int sig, siginfo_t *si, void *ctx)
 {
+    ThreadPc *slots;
+    int me, i, n;
+
+    qatomic_inc(&pc_handlers);
+    smp_mb__after_rmw();
+    slots = qatomic_load_acquire(&pc_slots);
+    if (slots) {
+        n = qatomic_read(&pc_nslots);
+        me = qemu_get_thread_id();
+        for (i = 0; i < n; i++) {
+            if (qatomic_read(&slots[i].tid) == me) {
+                slots[i].pc = (void *)host_signal_pc(ctx);
+                qatomic_store_release(&slots[i].done, 1);
+                break;
+            }
+        }
+    }
+    qatomic_dec(&pc_handlers);
+}
+
+static bool thread_pc_armed(void)
+{
+    static int armed = -1;
+    struct sigaction sa;
+
+    if (armed >= 0) {
+        return armed;
+    }
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_sigaction = thread_pc_handler;
+    sa.sa_flags = SA_SIGINFO | SA_RESTART;
+    sigemptyset(&sa.sa_mask);
+    armed = sigaction(QEMU_SIG_INTROSPECT, &sa, NULL) == 0;
+    return armed;
+}
+
+/*
+ * Ask every thread at once. Asking one at a time would spend the timeout
+ * again for each thread that never answers, and the threads that never
+ * answer are the ones a hung qemu has most of.
+ */
+static void thread_pc_collect(GArray *slots)
+{
+    int64_t deadline;
+    guint i;
+    int left;
+
+    if (!slots->len || !thread_pc_armed()) {
+        return;
+    }
+    qatomic_set(&pc_nslots, slots->len);
+    qatomic_store_release(&pc_slots, &g_array_index(slots, ThreadPc, 0));
+
+    for (i = 0; i < slots->len; i++) {
+        ThreadPc *slot = &g_array_index(slots, ThreadPc, i);
+
+        if (qemu_kill_thread(slot->tid, QEMU_SIG_INTROSPECT) < 0) {
+            qatomic_store_release(&slot->done, -1);
+        }
+    }
+
+    deadline = g_get_monotonic_time() + THREAD_PC_WAIT_MS * 1000;
+    do {
+        left = 0;
+        for (i = 0; i < slots->len; i++) {
+            if (!qatomic_load_acquire(&g_array_index(slots, ThreadPc,
+                                                     i).done)) {
+                left++;
+            }
+        }
+        if (!left) {
+            break;
+        }
+        g_usleep(1000);
+    } while (g_get_monotonic_time() < deadline);
+
+    qatomic_set(&pc_slots, NULL);
+    /* Pairs with the barrier in thread_pc_handler() */
+    smp_mb();
+    while (qatomic_read(&pc_handlers)) {
+        g_usleep(1000);
+    }
+}
+
+static void insert_thread_pc(GString *out, const ThreadPc *slot)
+{
+    g_autofree char *line = NULL;
+    void *pc = slot->pc;
+#ifdef CONFIG_DLADDR
+    Dl_info info = { };
+#endif
+
+    if (qatomic_read(&slot->done) != 1 || !pc) {
+        return;
+    }
+#ifdef CONFIG_DLADDR
+    if (dladdr(pc, &info) && info.dli_sname) {
+        line = g_strdup_printf("      pc %p %s+0x%tx\n", pc, info.dli_sname,
+                               (char *)pc - (char *)info.dli_saddr);
+    } else if (info.dli_fname && info.dli_fbase) {
+        /*
+         * dladdr() only knows exported symbols, so an address inside a
+         * library's own internals has none. The object and the offset
+         * within it still resolve later, the raw address does not.
+         */
+        g_autofree char *obj = g_path_get_basename(info.dli_fname);
+
+        line = g_strdup_printf("      pc %p %s+0x%tx\n", pc, obj,
+                               (char *)pc - (char *)info.dli_fbase);
+    }
+#endif
+    if (!line) {
+        line = g_strdup_printf("      pc %p\n", pc);
+    }
+    g_string_insert(out, slot->at, line);
+}
+
+#else
+
+static void thread_pc_collect(GArray *slots)
+{
+}
+
+static void insert_thread_pc(GString *out, const ThreadPc *slot)
+{
+}
+
+#endif /* HAVE_HOST_SIGNAL_PC */
+
+static void append_thread_state(GString *out, GArray *slots, const char *tid)
+{
+    ThreadPc slot = { };
     g_autofree char *comm = read_task_file(tid, "comm");
     g_autofree char *stat = NULL;
     g_autofree char *stack = NULL;
@@ -193,6 +354,10 @@ static void append_thread_state(GString *out, const char *tid)
         }
     }
     g_string_append_printf(out, "  %-7s %-16s %c\n", tid, comm, state);
+
+    slot.tid = atoi(tid);
+    slot.at = out->len;
+    g_array_append_val(slots, slot);
 
     /* A running thread has no settled kernel stack to unwind */
     if (state != 'R' && thread_stacks_readable()) {
@@ -220,8 +385,10 @@ static void append_thread_state(GString *out, const char *tid)
 char *qemu_thread_states(void)
 {
     g_autoptr(GDir) dir = g_dir_open("/proc/self/task", 0, NULL);
+    g_autoptr(GArray) slots = g_array_new(FALSE, TRUE, sizeof(ThreadPc));
     const char *tid;
     GString *out;
+    guint i;
 
     if (!dir) {
         return NULL;
@@ -232,13 +399,23 @@ char *qemu_thread_states(void)
     out = g_string_new(NULL);
     while ((tid = g_dir_read_name(dir))) {
         if (atoi(tid) != qemu_get_thread_id()) {
-            append_thread_state(out, tid);
+            append_thread_state(out, slots, tid);
         }
     }
     if (!out->len) {
         g_string_free(out, TRUE);
         return NULL;
     }
+
+    /*
+     * Only now, with every passive read taken, disturb the threads. Insert
+     * from the back so the offsets recorded above stay where they were.
+     */
+    thread_pc_collect(slots);
+    for (i = slots->len; i > 0; i--) {
+        insert_thread_pc(out, &g_array_index(slots, ThreadPc, i - 1));
+    }
+
     return g_string_free(out, FALSE);
 }
 
