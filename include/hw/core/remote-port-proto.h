@@ -296,6 +296,28 @@ struct rp_pkt {
     };
 };
 
+struct rp_peer_state {
+    void *opaque;
+
+    struct rp_pkt pkt;
+    bool hdr_used;
+
+    struct rp_version version;
+
+    struct {
+        bool busaccess_ext_base;
+        bool busaccess_ext_byte_en;
+        bool wire_posted_updates;
+        bool ats;
+    } caps;
+
+    /* Used to normalize our clk.  */
+    int64_t clk_base;
+
+    struct rp_cfg_state local_cfg;
+    struct rp_cfg_state peer_cfg;
+};
+
 const char *rp_cmd_to_string(enum rp_cmd cmd);
 int rp_decode_hdr(struct rp_pkt *pkt);
 int rp_decode_payload(struct rp_pkt *pkt);
@@ -303,5 +325,55 @@ int rp_decode_payload(struct rp_pkt *pkt);
 void rp_encode_hdr(struct rp_pkt_hdr *hdr,
                    uint32_t cmd, uint32_t id, uint32_t dev, uint32_t len,
                    uint32_t flags);
+
+/*
+ * caps is a an array of supported capabilities by the implementor.
+ * caps_out is the encoded (network byte order) version of the
+ * same array. It should be sent to the peer after the hello packet.
+ */
+size_t rp_encode_hello_caps(uint32_t id, uint32_t dev, struct rp_pkt_hello *pkt,
+                            uint16_t version_major, uint16_t version_minor,
+                            uint32_t *caps, uint32_t *features_out,
+                            uint32_t features_len);
+
+/* rp_encode_hello is deprecated in favor of hello_caps.  */
+static inline size_t __attribute__ ((deprecated))
+rp_encode_hello(uint32_t id, uint32_t dev, struct rp_pkt_hello *pkt,
+                uint16_t version_major, uint16_t version_minor) {
+    return rp_encode_hello_caps(id, dev, pkt, version_major, version_minor,
+                                NULL, NULL, 0);
+}
+
+void rp_process_caps(struct rp_peer_state *peer,
+                     void *caps, size_t caps_len);
+
+/* Dynamically resizable remote port pkt.  */
+
+typedef struct RemotePortDynPkt {
+    struct rp_pkt *pkt;
+    size_t size;
+} RemotePortDynPkt;
+
+/*
+ * Make sure dpkt is allocated and has enough room.
+ */
+
+void rp_dpkt_alloc(RemotePortDynPkt *dpkt, size_t size);
+
+void rp_dpkt_swap(RemotePortDynPkt *a, RemotePortDynPkt *b);
+
+/*
+ * Check if the dpkt is valid. Used for debugging purposes.
+ */
+
+bool rp_dpkt_is_valid(RemotePortDynPkt *dpkt);
+
+/*
+ * Invalidate the dpkt. Used for debugging purposes.
+ */
+
+void rp_dpkt_invalidate(RemotePortDynPkt *dpkt);
+
+void rp_dpkt_free(RemotePortDynPkt *dpkt);
 
 #endif

@@ -65,7 +65,43 @@ int rp_decode_payload(struct rp_pkt *pkt)
     int used = 0;
 
     switch (pkt->hdr.cmd) {
-    /* TBD */
+    case RP_CMD_hello:
+        assert(pkt->hdr.len >= sizeof pkt->hello.version);
+        pkt->hello.version.major = be16_to_cpu(pkt->hello.version.major);
+        pkt->hello.version.minor = be16_to_cpu(pkt->hello.version.minor);
+        used += sizeof pkt->hello.version;
+
+        if ((pkt->hdr.len - used) >= sizeof pkt->hello.caps) {
+            void *offset;
+            int i;
+
+            pkt->hello.caps.offset = be32_to_cpu(pkt->hello.caps.offset);
+            pkt->hello.caps.len = be16_to_cpu(pkt->hello.caps.len);
+
+            offset = (char *)pkt + pkt->hello.caps.offset;
+            for (i = 0; i < pkt->hello.caps.len; i++) {
+                uint32_t cap;
+
+                /*
+                 * We don't know if offset is 32bit aligned so use
+                 * memcpy to do the endian conversion.
+                 */
+                memcpy(&cap, offset + i * sizeof cap, sizeof cap);
+                cap = be32_to_cpu(cap);
+                memcpy(offset + i * sizeof cap, &cap, sizeof cap);
+            }
+            used += sizeof pkt->hello.caps;
+        } else {
+            pkt->hello.caps.offset = 0;
+            pkt->hello.caps.len = 0;
+        }
+
+        /*
+         * Consume everything ignoring additional headers we do not yet
+         * know about.
+         */
+        used = pkt->hdr.len;
+        break;
     default:
         break;
     }
@@ -80,4 +116,100 @@ void rp_encode_hdr(struct rp_pkt_hdr *hdr, uint32_t cmd, uint32_t id,
     hdr->id = cpu_to_be32(id);
     hdr->dev = cpu_to_be32(dev);
     hdr->flags = cpu_to_be32(flags);
+}
+
+size_t rp_encode_hello_caps(uint32_t id, uint32_t dev, struct rp_pkt_hello *pkt,
+                            uint16_t version_major, uint16_t version_minor,
+                            uint32_t *caps, uint32_t *caps_out,
+                            uint32_t caps_len)
+{
+    size_t psize = sizeof *pkt + sizeof caps[0] * caps_len;
+    unsigned int i;
+
+    rp_encode_hdr(&pkt->hdr, RP_CMD_hello, id, dev,
+                  psize - sizeof pkt->hdr, 0);
+    pkt->version.major = cpu_to_be16(version_major);
+    pkt->version.minor = cpu_to_be16(version_minor);
+
+    /* Feature list is appeneded right after the hello packet.  */
+    pkt->caps.offset = cpu_to_be32(sizeof *pkt);
+    pkt->caps.len = cpu_to_be16(caps_len);
+
+    for (i = 0; i < caps_len; i++) {
+        uint32_t cap;
+
+        cap = caps[i];
+        caps_out[i] = cpu_to_be32(cap);
+    }
+    return sizeof *pkt;
+}
+
+void rp_process_caps(struct rp_peer_state *peer,
+                     void *caps, size_t caps_len)
+{
+    int i;
+
+    assert(peer->caps.busaccess_ext_base == false);
+
+    for (i = 0; i < caps_len; i++) {
+        uint32_t cap;
+
+        memcpy(&cap, caps + i * sizeof cap, sizeof cap);
+
+        switch (cap) {
+        case CAP_BUSACCESS_EXT_BASE:
+            peer->caps.busaccess_ext_base = true;
+            break;
+        case CAP_BUSACCESS_EXT_BYTE_EN:
+            peer->caps.busaccess_ext_byte_en = true;
+            break;
+        case CAP_WIRE_POSTED_UPDATES:
+            peer->caps.wire_posted_updates = true;
+            break;
+        case CAP_ATS:
+            peer->caps.ats = true;
+            break;
+        }
+    }
+}
+
+void rp_dpkt_alloc(RemotePortDynPkt *dpkt, size_t size)
+{
+    if (dpkt->size < size) {
+        char *u8;
+        dpkt->pkt = realloc(dpkt->pkt, size);
+        u8 = (void *) dpkt->pkt;
+        memset(u8 + dpkt->size, 0, size - dpkt->size);
+        dpkt->size = size;
+    }
+}
+
+void rp_dpkt_swap(RemotePortDynPkt *a, RemotePortDynPkt *b)
+{
+    struct rp_pkt *tmp_pkt;
+    size_t tmp_size;
+
+    tmp_pkt = a->pkt;
+    tmp_size = a->size;
+    a->pkt = b->pkt;
+    a->size = b->size;
+    b->pkt = tmp_pkt;
+    b->size = tmp_size;
+}
+
+bool rp_dpkt_is_valid(RemotePortDynPkt *dpkt)
+{
+    return dpkt->size > 0 && dpkt->pkt->hdr.len;
+}
+
+void rp_dpkt_invalidate(RemotePortDynPkt *dpkt)
+{
+    assert(rp_dpkt_is_valid(dpkt));
+    dpkt->pkt->hdr.len = 0;
+}
+
+inline void rp_dpkt_free(RemotePortDynPkt *dpkt)
+{
+    dpkt->size = 0;
+    free(dpkt->pkt);
 }
