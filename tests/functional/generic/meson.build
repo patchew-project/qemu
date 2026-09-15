@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 tests_generic_system = [
+  'bql_watchdog',
   'empty_cpu_model',
   'info_usernet',
   'linters',
