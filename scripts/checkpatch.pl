@@ -3347,11 +3347,18 @@ sub process {
 					 info_vreport|
 					 error_report|
 					 warn_report|
-					 info_report|
-					 g_test_message}x;
+					 info_report}x;
 
 		if ($rawline =~ /\b(?:$qemu_error_funcs)\s*\(.*\".*\\n/) {
 			ERROR("Error messages should not contain newlines\n" . $herecurr);
+		}
+
+		# No newlines at the end
+		my $trail_newline_error_funcs = qr{g_test_message}x;
+
+		if ($rawline =~ /\b(?:$trail_newline_error_funcs)\s*\(.*\".*\\n\"/) {
+		    ERROR("Error messages should not contain trailing " .
+			  "newlines\n" . $herecurr);
 		}
 
 		# Continue checking for error messages that contains newlines.
