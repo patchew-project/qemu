@@ -14,6 +14,7 @@
 #include "chardev/char.h"
 #include "system/cpus.h"
 #include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "system/reset.h"
 #include "hw/core/sysbus.h"
 #include "hw/core/hw-error.h"
@@ -35,6 +36,9 @@
 
 static void rp_event_read_and_process(RemotePort *s);
 
+static void sync_timer_hit(void *opaque);
+static void syncresp_timer_hit(void *opaque);
+
 void rp_rsp_mutex_lock(RemotePort *s)
 {
     qemu_mutex_lock(&s->rsp_mutex);
@@ -45,9 +49,42 @@ void rp_rsp_mutex_unlock(RemotePort *s)
     qemu_mutex_unlock(&s->rsp_mutex);
 }
 
+int64_t rp_normalized_vmclk(RemotePort *s)
+{
+    int64_t clk;
+
+    clk = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    clk -= s->peer.clk_base;
+    return clk;
+}
+
+static void rp_restart_sync_timer_bare(RemotePort *s)
+{
+    if (!s->do_sync) {
+        return;
+    }
+
+    if (s->sync.quantum) {
+        ptimer_stop(s->sync.ptimer);
+        ptimer_set_limit(s->sync.ptimer, s->sync.quantum, 1);
+        ptimer_run(s->sync.ptimer, 1);
+    }
+}
+
+void rp_restart_sync_timer(RemotePort *s)
+{
+    if (s->doing_sync) {
+        return;
+    }
+    ptimer_transaction_begin(s->sync.ptimer);
+    rp_restart_sync_timer_bare(s);
+    ptimer_transaction_commit(s->sync.ptimer);
+}
+
 static void rp_fatal_error(RemotePort *s, const char *reason)
 {
-    error_report("%s: %s", s->prefix, reason);
+    int64_t clk = rp_normalized_vmclk(s);
+    error_report("%s: %s clk=%" PRIu64 " ns", s->prefix, reason, clk);
     exit(EXIT_FAILURE);
 }
 
@@ -181,6 +218,35 @@ static void rp_cmd_hello(RemotePort *s, struct rp_pkt *pkt)
     }
 }
 
+static void rp_cmd_sync(RemotePort *s, struct rp_pkt *pkt)
+{
+    size_t enclen;
+    int64_t clk;
+    int64_t diff;
+
+    assert(!(pkt->hdr.flags & RP_PKT_FLAGS_response));
+
+    clk = rp_normalized_vmclk(s);
+    diff = pkt->sync.timestamp - clk;
+
+    enclen = rp_encode_sync_resp(pkt->hdr.id, pkt->hdr.dev, &s->sync.rsp.sync,
+                                 pkt->sync.timestamp);
+    assert(enclen == sizeof s->sync.rsp.sync);
+
+    /* We have temporarily disabled blocking syncs into QEMU.  */
+    if (diff <= 0LL || true) {
+        /* We are already a head of time. Respond and issue a sync.  */
+        rp_write(s, (void *) &s->sync.rsp, enclen);
+        return;
+    }
+
+    ptimer_transaction_begin(s->sync.ptimer_resp);
+    ptimer_set_limit(s->sync.ptimer_resp, diff, 1);
+    ptimer_run(s->sync.ptimer_resp, 1);
+    s->sync.resp_timer_enabled = true;
+    ptimer_transaction_commit(s->sync.ptimer_resp);
+}
+
 static void rp_say_hello(RemotePort *s)
 {
     struct rp_pkt_hello pkt;
@@ -200,6 +266,52 @@ static void rp_say_hello(RemotePort *s)
     if (sizeof caps) {
         rp_write(s, caps, sizeof caps);
     }
+}
+
+static void rp_say_sync(RemotePort *s, int64_t clk)
+{
+    struct rp_pkt_sync pkt;
+    size_t len;
+
+    len = rp_encode_sync(s->current_id++, 0, &pkt, clk);
+    rp_write(s, (void *) &pkt, len);
+}
+
+static void syncresp_timer_hit(void *opaque)
+{
+    RemotePort *s = REMOTE_PORT(opaque);
+
+    s->sync.resp_timer_enabled = false;
+    rp_write(s, (void *) &s->sync.rsp, sizeof s->sync.rsp.sync);
+    memset(&s->sync.rsp, 0, sizeof s->sync.rsp);
+}
+
+static void sync_timer_hit(void *opaque)
+{
+    RemotePort *s = REMOTE_PORT(opaque);
+    int64_t clk;
+    RemotePortDynPkt rsp;
+
+    clk = rp_normalized_vmclk(s);
+    if (s->sync.resp_timer_enabled) {
+        s->sync.need_sync = true;
+        rp_restart_sync_timer_bare(s);
+        return;
+    }
+
+    /* Sync.  */
+    s->doing_sync = true;
+    s->sync.need_sync = false;
+    qemu_mutex_lock(&s->rsp_mutex);
+    /* Send the sync.  */
+    rp_say_sync(s, clk);
+
+    rsp = rp_wait_resp(s);
+    rp_dpkt_invalidate(&rsp);
+    qemu_mutex_unlock(&s->rsp_mutex);
+    s->doing_sync = false;
+
+    rp_restart_sync_timer_bare(s);
 }
 
 void rp_process(RemotePort *s)
@@ -240,7 +352,9 @@ void rp_process(RemotePort *s)
         }
 
         switch (pkt->hdr.cmd) {
-        /* TBD */
+        case RP_CMD_sync:
+            rp_cmd_sync(s, pkt);
+            break;
         default:
             assert(actioned);
         }
@@ -300,6 +414,33 @@ static void rp_pt_handover_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
     } while (full);
 }
 
+static bool rp_pt_cmd_sync(RemotePort *s, struct rp_pkt *pkt)
+{
+    size_t enclen;
+    int64_t clk;
+    int64_t diff = 0;
+    struct rp_pkt rsp;
+
+    assert(!(pkt->hdr.flags & RP_PKT_FLAGS_response));
+
+    if (use_icount) {
+        clk = rp_normalized_vmclk(s);
+        diff = pkt->sync.timestamp - clk;
+    }
+    enclen = rp_encode_sync_resp(pkt->hdr.id, pkt->hdr.dev, &rsp.sync,
+                                 pkt->sync.timestamp);
+    assert(enclen == sizeof rsp.sync);
+
+    if (!use_icount || diff < s->sync.quantum) {
+        /* We are still OK.  */
+        rp_write(s, (void *) &rsp, enclen);
+        return true;
+    }
+
+    /* We need IO or CPU thread sync.  */
+    return false;
+}
+
 static bool rp_pt_process_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
 {
     struct rp_pkt *pkt = dpkt->pkt;
@@ -352,6 +493,11 @@ static bool rp_pt_process_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
     case RP_CMD_hello:
         rp_cmd_hello(s, pkt);
         break;
+    case RP_CMD_sync:
+        if (rp_pt_cmd_sync(s, pkt)) {
+            return true;
+        }
+        /* Fall-through.  */
     case RP_CMD_read:
     case RP_CMD_write:
     case RP_CMD_interrupt:
@@ -446,6 +592,7 @@ static void rp_reset(DeviceState *dev)
     qemu_thread_create(&s->thread, "remote-port", rp_protocol_thread, s,
                        QEMU_THREAD_JOINABLE);
 
+    rp_restart_sync_timer(s);
     s->reset_done = true;
 }
 
@@ -453,6 +600,8 @@ static void rp_realize(DeviceState *dev, Error **errp)
 {
     RemotePort *s = REMOTE_PORT(dev);
     Chardev *chr = NULL;
+
+    s->peer.clk_base = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     qemu_mutex_init(&s->write_mutex);
     qemu_mutex_init(&s->rsp_mutex);
@@ -485,6 +634,25 @@ static void rp_realize(DeviceState *dev, Error **errp)
                            rp_event_read_cb,
                            NULL, NULL);
 
+    /*
+     * Pick up the quantum from the local property setup.
+     * After config negotiation with the peer, sync.quantum value might
+     * change.
+     */
+    s->sync.quantum = s->peer.local_cfg.quantum;
+
+    s->sync.ptimer = ptimer_init(sync_timer_hit, s, PTIMER_POLICY_LEGACY);
+    s->sync.ptimer_resp = ptimer_init(syncresp_timer_hit, s,
+                                      PTIMER_POLICY_LEGACY);
+
+    /* The Sync-quantum is expressed in nano-seconds.  */
+    ptimer_transaction_begin(s->sync.ptimer);
+    ptimer_set_freq(s->sync.ptimer, 1000 * 1000 * 1000);
+    ptimer_transaction_commit(s->sync.ptimer);
+
+    ptimer_transaction_begin(s->sync.ptimer_resp);
+    ptimer_set_freq(s->sync.ptimer_resp, 1000 * 1000 * 1000);
+    ptimer_transaction_commit(s->sync.ptimer_resp);
 
     qemu_sem_init(&s->rx_queue.sem, ARRAY_SIZE(s->rx_queue.pkt) - 1);
 }
@@ -519,6 +687,9 @@ static const VMStateDescription vmstate_rp = {
 
 static Property rp_properties[] = {
     DEFINE_PROP_STRING("chrdev-id", RemotePort, chrdev_id),
+    DEFINE_PROP_BOOL("sync", RemotePort, do_sync, false),
+    DEFINE_PROP_UINT64("sync-quantum", RemotePort, peer.local_cfg.quantum,
+                       1000000),
 };
 
 static void rp_prop_allow_set_link(const Object *obj, const char *name,

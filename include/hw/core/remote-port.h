@@ -17,6 +17,7 @@
 #include "chardev/char-fe.h"
 #include "qobject/qdict.h"
 #include "qemu/event_notifier.h"
+#include "hw/core/ptimer.h"
 
 #define TYPE_REMOTE_PORT_DEVICE "remote-port-device"
 
@@ -69,12 +70,23 @@ struct RemotePort {
     EventNotifier event_notifier;
     Chardev *chrdev;
     CharFrontend chr;
+    bool do_sync;
+    bool doing_sync;
     bool finalizing;
     /* To serialize writes to fd.  */
     QemuMutex write_mutex;
 
     char *chrdev_id;
     struct rp_peer_state peer;
+
+    struct {
+        ptimer_state *ptimer;
+        ptimer_state *ptimer_resp;
+        bool resp_timer_enabled;
+        bool need_sync;
+        struct rp_pkt rsp;
+        uint64_t quantum;
+    } sync;
 
     QemuMutex rsp_mutex;
     QemuCond progress_cond;
@@ -126,6 +138,9 @@ RemotePortDynPkt rp_wait_resp(RemotePort *s);
 RemotePortRespSlot *rp_dev_wait_resp(RemotePort *s, uint32_t dev, uint32_t id);
 RemotePortRespSlot *rp_dev_timed_wait_resp(RemotePort *s, uint32_t dev,
                                            uint32_t id, int timems);
+void rp_restart_sync_timer(RemotePort *s);
+
+int64_t rp_normalized_vmclk(RemotePort *s);
 
 void rp_process(RemotePort *s);
 
