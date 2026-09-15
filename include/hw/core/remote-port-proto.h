@@ -1,0 +1,299 @@
+/*
+ * SPDX-License-Identifier: MIT
+ *
+ * QEMU remote port protocol parts.
+ *
+ * Copyright (c) 2013 Xilinx Inc
+ * Written by Edgar E. Iglesias <edgar.iglesias@xilinx.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+#ifndef REMOTE_PORT_PROTO_H__
+#define REMOTE_PORT_PROTO_H__
+
+/*
+ * Remote-Port (RP) is an inter-simulator protocol. It assumes a reliable
+ * point to point communcation with the remote simulation environment.
+ *
+ * Setup
+ * In the SETUP phase a mandatory HELLO packet is exchanged with optional
+ * CFG packets following. HELLO packets are useful to ensure that both
+ * sides are speaking the same protocol and using compatible versions.
+ *
+ * CFG packets are used to negotiate configuration options. At the moment
+ * these remain unimplemented.
+ *
+ * Once the session is up, communication can start through various other
+ * commands. The list can be found further down this document.
+ * Commands are carried over RP packets. Every RP packet contains a header
+ * with length, flags and an ID to track potential responses.
+ * The header is followed by a packet specific payload. You'll find the
+ * details of the various commands packet layouts here. Some commands can
+ * carry data/blobs in their payload.
+ */
+
+
+#define RP_VERSION_MAJOR 4
+#define RP_VERSION_MINOR 3
+
+/* Could be auto generated.  */
+enum rp_cmd {
+    RP_CMD_nop         = 0,
+    RP_CMD_hello       = 1,
+    RP_CMD_cfg         = 2,
+    RP_CMD_read        = 3,
+    RP_CMD_write       = 4,
+    RP_CMD_interrupt   = 5,
+    RP_CMD_sync        = 6,
+    RP_CMD_ats_req     = 7,
+    RP_CMD_ats_inv     = 8,
+    RP_CMD_max         = 8
+};
+
+enum {
+    RP_OPT_quantum = 0,
+};
+
+struct rp_cfg_state {
+    uint64_t quantum;
+};
+
+enum {
+    RP_PKT_FLAGS_optional      = 1 << 0,
+    RP_PKT_FLAGS_response      = 1 << 1,
+
+    /*
+     * Posted hint.
+     * When set this means that the receiver is not required to respond to
+     * the message. Since it's just a hint, the sender must be prepared to
+     * drop responses. Note that since flags are echoed back in responses
+     * a response to a posted packet will be easy to identify early in the
+     * protocol stack.
+     */
+    RP_PKT_FLAGS_posted        = 1 << 2,
+};
+
+struct rp_pkt_hdr {
+    uint32_t cmd;
+    uint32_t len;
+    uint32_t id;
+    uint32_t flags;
+    uint32_t dev;
+} QEMU_PACKED;
+
+struct rp_pkt_cfg {
+    struct rp_pkt_hdr hdr;
+    uint32_t opt;
+    uint8_t set;
+} QEMU_PACKED;
+
+struct rp_version {
+    uint16_t major;
+    uint16_t minor;
+} QEMU_PACKED;
+
+struct rp_capabilities {
+    /* Offset from start of packet.  */
+    uint32_t offset;
+    uint16_t len;
+    uint16_t reserved0;
+} QEMU_PACKED;
+
+enum {
+    CAP_BUSACCESS_EXT_BASE = 1,    /* New header layout. */
+    CAP_BUSACCESS_EXT_BYTE_EN = 2, /* Support for Byte Enables.  */
+
+    /*
+     * Originally, all interrupt/wire updates over remote-port were posted.
+     * This turned out to be a bad idea. To fix it without breaking backwards
+     * compatibility, we add the WIRE Posted updates capability.
+     *
+     * If the peer supportes this, it will respect the RP_PKT_FLAGS_posted
+     * flag. If the peer doesn't support this capability, senders need to
+     * be aware that the peer will not respond to wire updates regardless
+     * of the posted header-flag.
+     */
+    CAP_WIRE_POSTED_UPDATES = 3,
+
+    CAP_ATS = 4, /* Address translation services */
+};
+
+struct rp_pkt_hello {
+    struct rp_pkt_hdr hdr;
+    struct rp_version version;
+    struct rp_capabilities caps;
+} QEMU_PACKED;
+
+enum {
+    /* Remote port responses. */
+    RP_RESP_OK                  =  0x0,
+    RP_RESP_BUS_GENERIC_ERROR   =  0x1,
+    RP_RESP_ADDR_ERROR          =  0x2,
+    RP_RESP_MAX                 =  0xF,
+};
+
+enum {
+    RP_BUS_ATTR_EOP        =  (1 << 0),
+    RP_BUS_ATTR_SECURE     =  (1 << 1),
+    RP_BUS_ATTR_EXT_BASE   =  (1 << 2),
+    RP_BUS_ATTR_PHYS_ADDR  =  (1 << 3),
+
+    /*
+     * The access targets the I/O address space.
+     */
+    RP_BUS_ATTR_IO_ACCESS  =  (1 << 4),
+
+    /*
+     * Bits [11:8] are allocated for storing transaction response codes.
+     * These new response codes are backward compatible as existing
+     * implementations will not set/read these bits.
+     * For existing implementations, these bits will be zero which is RESP_OKAY.
+     */
+    RP_BUS_RESP_SHIFT      =  8,
+    RP_BUS_RESP_MASK       =  (RP_RESP_MAX << RP_BUS_RESP_SHIFT),
+};
+
+struct rp_pkt_busaccess {
+    struct rp_pkt_hdr hdr;
+    uint64_t timestamp;
+    uint64_t attributes;
+    uint64_t addr;
+
+    /* Length in bytes.  */
+    uint32_t len;
+
+    /*
+     * Width of each beat in bytes. Set to zero for unknown (let the remote
+     * side choose).
+     */
+    uint32_t width;
+
+    /*
+     * Width of streaming, must be a multiple of width.
+     * addr should repeat itself around this width. Set to same as len
+     * for incremental (normal) accesses.  In bytes.
+     */
+    uint32_t stream_width;
+
+    /* Implementation specific source or master-id.  */
+    uint16_t master_id;
+} QEMU_PACKED;
+
+
+/* This is the new extended busaccess packet layout.  */
+struct rp_pkt_busaccess_ext_base {
+    struct rp_pkt_hdr hdr;
+    uint64_t timestamp;
+    uint64_t attributes;
+    uint64_t addr;
+
+    /* Length in bytes.  */
+    uint32_t len;
+
+    /*
+     * Width of each beat in bytes. Set to zero for unknown (let the remote
+     * side choose).
+     */
+    uint32_t width;
+
+    /*
+     * Width of streaming, must be a multiple of width.
+     * addr should repeat itself around this width. Set to same as len
+     * for incremental (normal) accesses.  In bytes.
+     */
+    uint32_t stream_width;
+
+    /* Implementation specific source or master-id.  */
+    uint16_t master_id;
+    /* ---- End of 4.0 base busaccess. ---- */
+
+    uint16_t master_id_31_16;   /* MasterID bits [31:16].  */
+    uint32_t master_id_63_32;   /* MasterID bits [63:32].  */
+    /*
+     * ---------------------------------------------------
+     * Since hdr is 5 x 32bit, we are now 64bit aligned.
+     */
+
+    uint32_t data_offset;       /* Offset to data from start of pkt.  */
+    uint32_t next_offset;       /* Offset to next extension. 0 if none.  */
+
+    uint32_t byte_enable_offset;
+    uint32_t byte_enable_len;
+
+    /* ---- End of CAP_BUSACCESS_EXT_BASE. ---- */
+
+    /*
+     * If new features are needed that may always occupy space
+     * in the header, then add a new capability and extend the
+     * this area with new fields.
+     * Will help receivers find data_offset and next offset,
+     * even those that don't know about extended fields.
+     */
+} QEMU_PACKED;
+
+struct rp_pkt_interrupt {
+    struct rp_pkt_hdr hdr;
+    uint64_t timestamp;
+    uint64_t vector;
+    uint32_t line;
+    uint8_t val;
+} QEMU_PACKED;
+
+struct rp_pkt_sync {
+    struct rp_pkt_hdr hdr;
+    uint64_t timestamp;
+} QEMU_PACKED;
+
+enum {
+    RP_ATS_ATTR_exec     = 1 << 0,
+    RP_ATS_ATTR_read     = 1 << 1,
+    RP_ATS_ATTR_write    = 1 << 2,
+};
+
+enum {
+    RP_ATS_RESULT_ok = 0,
+    RP_ATS_RESULT_error = 1,
+};
+
+struct rp_pkt_ats {
+    struct rp_pkt_hdr hdr;
+    uint64_t timestamp;
+    uint64_t attributes;
+    uint64_t addr;
+    uint64_t len;
+    uint32_t result;
+    uint64_t reserved0;
+    uint64_t reserved1;
+    uint64_t reserved2;
+    uint64_t reserved3;
+} QEMU_PACKED;
+
+struct rp_pkt {
+    union {
+        struct rp_pkt_hdr hdr;
+        struct rp_pkt_hello hello;
+        struct rp_pkt_busaccess busaccess;
+        struct rp_pkt_busaccess_ext_base busaccess_ext_base;
+        struct rp_pkt_interrupt interrupt;
+        struct rp_pkt_sync sync;
+        struct rp_pkt_ats ats;
+    };
+};
+
+#endif
