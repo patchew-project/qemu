@@ -8,8 +8,9 @@
 # later.  See the COPYING file in the top-level directory.
 
 from qemu_test import Asset
-from qemu_test import wait_for_console_pattern
+from qemu_test import wait_for_console_pattern, which
 from migration import MigrationTest
+from qemu_test.ports import Ports
 
 class PseriesMachine(MigrationTest):
 
@@ -88,11 +89,19 @@ class PseriesMachine(MigrationTest):
         wait_for_console_pattern(self, console_pattern, self.panic_message)
         wait_for_console_pattern(self, self.good_message, self.panic_message)
 
-    def test_ppc64_linux_migration(self):
+    def _do_linux_migration(self, dst_uri, src_uri=None):
+        """
+        Boot a pseries kernel on a source VM, wait until Linux is up, then
+        migrate to a destination VM over the given URI(s) and verify the boot
+        continues on the destination.
+        """
         self.set_machine('pseries')
 
         kernel_path = self.ASSET_KERNEL.fetch()
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE
+
+        if src_uri is None:
+            src_uri = dst_uri
 
         dest_vm = self.get_vm(name="dest-qemu")
         dest_vm.add_args('-incoming', 'defer')
@@ -111,16 +120,38 @@ class PseriesMachine(MigrationTest):
         source_vm.set_console()
         source_vm.launch()
 
-        # ensure the boot has reached Linux
+        # ensure the boot has reached Linux before migrating
         console_pattern = 'smp: Brought up 1 node, 4 CPUs'
         wait_for_console_pattern(self, console_pattern, self.panic_message,
                                  vm=source_vm)
 
-        self.migration_with_tcp_localhost_vms(dest_vm, source_vm)
+        self.migrate_vms(dst_uri, src_uri, dest_vm, source_vm)
 
-        # ensure the boot proceeds after migration
+        # ensure the boot continues on the destination after migration
         wait_for_console_pattern(self, self.good_message, self.panic_message,
                                  vm=dest_vm)
+
+    def test_ppc64_linux_migration(self):
+        with Ports() as ports:
+            port = ports.find_free_port()
+            if port is None:
+                self.skipTest('Failed to find a free port')
+            self._do_linux_migration('tcp:localhost:%u' % port)
+
+    def test_ppc64_linux_migration_unix(self):
+        self._do_linux_migration(
+            'unix:%s/migration.sock' % self.socket_dir().name)
+
+    def test_ppc64_linux_migration_exec(self):
+        if not which('socat'):
+            self.skipTest('socat is not available')
+        with Ports() as ports:
+            port = ports.find_free_port()
+            if port is None:
+                self.skipTest('Failed to find a free port')
+            self._do_linux_migration(
+                'exec:socat TCP-LISTEN:%u -' % port,
+                'exec:socat - TCP:localhost:%u,forever' % port)
 
 if __name__ == '__main__':
     MigrationTest.main()
