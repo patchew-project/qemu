@@ -797,13 +797,10 @@ void ncr710_command_complete(SCSIRequest *req, size_t resid)
     s->status = req->status;
     s->command_complete = NCR710_CMD_COMPLETE;
 
-    if (p) {
-        p->pending = 0;
-    }
-
     ncr710_set_phase(s, PHASE_ST);
 
     if (p) {
+        p->pending = 0;
         ncr710_request_orphan(s, p);
     }
 
