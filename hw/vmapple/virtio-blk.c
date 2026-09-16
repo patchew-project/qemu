@@ -119,12 +119,17 @@ static const Property vmapple_virtio_blk_pci_properties[] = {
                                            VM_APPLE_VIRTIO_BLK_VARIANT_UNSPECIFIED),
 };
 
+#define VMAPPLE_PCI_VNDR_SIZE 14
+/* Disable requirement for FileVault to be enabled on the guest */
+#define VMAPPLE_PCI_VNDR_LEGACY_FEATURES_DISABLE_ENCRYPTION (1 << 0)
+
 static void vmapple_virtio_blk_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     ERRP_GUARD();
     VMAppleVirtIOBlkPCI *dev = VMAPPLE_VIRTIO_BLK_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
     VirtIOBlkConf *conf = &dev->vdev.parent_obj.conf;
+    int offset;
 
     if (dev->variant == VM_APPLE_VIRTIO_BLK_VARIANT_UNSPECIFIED) {
         error_setg(errp, "vmapple virtio block device variant unspecified");
@@ -162,6 +167,19 @@ static void vmapple_virtio_blk_pci_realize(VirtIOPCIProxy *vpci_dev, Error **err
     pci_config_set_vendor_id(vpci_dev->pci_dev.config, PCI_VENDOR_ID_APPLE);
     pci_config_set_device_id(vpci_dev->pci_dev.config,
                              PCI_DEVICE_ID_APPLE_VIRTIO_BLK);
+
+    offset = pci_add_capability(&vpci_dev->pci_dev, PCI_CAP_ID_VNDR, 0,
+                                    VMAPPLE_PCI_VNDR_SIZE, errp);
+    if (offset < 0) {
+        return;
+    }
+
+    pci_set_byte(vpci_dev->pci_dev.config + offset + 2,
+        VMAPPLE_PCI_VNDR_SIZE);
+    pci_set_byte(vpci_dev->pci_dev.config + offset + 3, 9);
+    pci_set_word(vpci_dev->pci_dev.config + offset + 4, PCI_VENDOR_ID_APPLE);
+    pci_set_byte(vpci_dev->pci_dev.config + offset + 6,
+        VMAPPLE_PCI_VNDR_LEGACY_FEATURES_DISABLE_ENCRYPTION);
 }
 
 static void vmapple_virtio_blk_pci_class_init(ObjectClass *klass,
