@@ -141,6 +141,11 @@ static NBDClientRequest *nbd_request_by_cookie(BDRVNBDState *s, uint64_t cookie,
 {
     uint64_t ind = COOKIE_TO_INDEX(cookie);
 
+    /*
+     * Once requests[].coroutine is set, it will not be cleared until its
+     * reply is read completely; so it is okay to read it as long as a
+     * request is in progress or receive_mutex is taken.
+     */
     if (ind >= MAX_NBD_REQUESTS || !s->requests[ind].coroutine) {
         error_setg(errp, "unexpected cookie value");
         return NULL;
@@ -154,6 +159,12 @@ static bool coroutine_fn nbd_recv_coroutine_wake_one(NBDClientRequest *req)
 {
     if (req->receiving) {
         req->receiving = false;
+
+        /*
+         * Once requests[].coroutine is set, it will not be cleared until its
+         * reply is read completely; so it is okay to read it within
+         * receive_mutex.
+         */
         aio_co_wake(req->coroutine);
         return true;
     }
