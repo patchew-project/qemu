@@ -316,11 +316,7 @@ static inline int ncr710_irq_on_rsl(NCR710State *s)
 static void ncr710_clear_pending_irq(NCR710State *s)
 {
     if (s->current) {
-        if (s->current->req) {
-            s->current->req->hba_private = NULL;
-        }
         ncr710_request_free(s, s->current);
-        s->current = NULL;
     }
 }
 
@@ -739,9 +735,6 @@ static void ncr710_add_msg_byte(NCR710State *s, uint8_t data)
 
 static void ncr710_request_free(NCR710State *s, NCR710Request *p)
 {
-    if (!p) {
-        return;
-    }
     if (p->req && p->req->hba_private == p) {
         p->req->hba_private = NULL;
     }
