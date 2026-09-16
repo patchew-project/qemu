@@ -61,6 +61,7 @@ arm_common_system_ss.add(files(
   'ptw.c',
 ))
 
+subdir('emulate')
 subdir('hvf')
 subdir('whpx')
 
