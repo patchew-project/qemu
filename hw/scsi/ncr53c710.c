@@ -842,43 +842,42 @@ void ncr710_transfer_data(SCSIRequest *req, uint32_t len)
     }
     s->current->dma_len = len;
 
-    if (s->waiting) {
-        s->scntl1 |= NCR710_SCNTL1_CON;
-        s->istat |= NCR710_ISTAT_CON;
-        s->sbcl = NCR710_SBCL_IO | NCR710_SBCL_CD | NCR710_SBCL_MSG |
-                  NCR710_SBCL_BSY | NCR710_SBCL_SEL | NCR710_SBCL_REQ;
-        uint8_t host_id = (s->scid & 0x07);
-
-        /* Special case: both target and host are ID 0 */
-        if (req->dev->id == 0 && host_id == 0) {
-            s->sfbr = 0x00;
-        } else {
-            s->sfbr = (req->dev->id == 0 ? 0 : (1 << req->dev->id)) |
-                      (host_id == 0 ? 0 : (1 << host_id));
+    if (!s->waiting) {
+        if (!s->script_active) {
+            ncr710_execute_script(s);
         }
-
-        ncr710_set_phase(s, PHASE_MI);
-
-        if (s->current) {
-            uint8_t identify_msg = 0x80 | (req->lun & 0x07);
-            ncr710_add_msg_byte(s, identify_msg);
-
-            if (s->current->tag) {
-                ncr710_add_msg_byte(s, 0x20);  /* SIMPLE_TAG_MSG */
-                ncr710_add_msg_byte(s, s->current->tag & 0xff);
-            }
-        }
-
-        s->sstat0 |= NCR710_SSTAT0_SEL;
-        s->istat |= NCR710_ISTAT_SIP;
-        s->dsps = RESELECTED_DURING_SELECTION;
-        s->waiting = NCR710_WAIT_NONE;
-        ncr710_update_irq(s);
         return;
     }
-    if (!s->script_active && !s->waiting) {
-        ncr710_execute_script(s);
+
+    s->scntl1 |= NCR710_SCNTL1_CON;
+    s->istat |= NCR710_ISTAT_CON;
+    s->sbcl = NCR710_SBCL_IO | NCR710_SBCL_CD | NCR710_SBCL_MSG |
+              NCR710_SBCL_BSY | NCR710_SBCL_SEL | NCR710_SBCL_REQ;
+    uint8_t host_id = (s->scid & 0x07);
+
+    /* Special case: both target and host are ID 0 */
+    if (req->dev->id == 0 && host_id == 0) {
+        s->sfbr = 0x00;
+    } else {
+        s->sfbr = (req->dev->id == 0 ? 0 : (1 << req->dev->id)) |
+                  (host_id == 0 ? 0 : (1 << host_id));
     }
+
+    ncr710_set_phase(s, PHASE_MI);
+
+    uint8_t identify_msg = 0x80 | (req->lun & 0x07);
+    ncr710_add_msg_byte(s, identify_msg);
+
+    if (s->current->tag) {
+        ncr710_add_msg_byte(s, 0x20);  /* SIMPLE_TAG_MSG */
+        ncr710_add_msg_byte(s, s->current->tag & 0xff);
+    }
+
+    s->sstat0 |= NCR710_SSTAT0_SEL;
+    s->istat |= NCR710_ISTAT_SIP;
+    s->dsps = RESELECTED_DURING_SELECTION;
+    s->waiting = NCR710_WAIT_NONE;
+    ncr710_update_irq(s);
 }
 
 static int idbitstonum(uint8_t id)
