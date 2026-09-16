@@ -670,6 +670,8 @@ Once the source has finished migration, rings will be stopped by the
 source (:ref:`Suspended device state <suspended_device_state>`). No
 further update must be done before rings are restarted.
 
+.. _vhost_user_postcopy:
+
 In postcopy migration the back-end is started before all the memory has
 been received from the source host, and care must be taken to avoid
 accessing pages that have yet to be received.  The back-end opens a
@@ -679,6 +681,14 @@ userfaultfd for pages that are accessed and when the page is available
 it performs WAKE ioctl's on the userfaultfd to wake the stalled
 back-end.  The front-end indicates support for this via the
 ``VHOST_USER_PROTOCOL_F_PAGEFAULT`` feature.
+
+Postcopy migration is not supported when
+``VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS`` has been negotiated. In this
+case, the front-end MUST NOT send ``VHOST_USER_POSTCOPY_ADVISE``,
+``VHOST_USER_POSTCOPY_LISTEN``, or ``VHOST_USER_POSTCOPY_END``. The behavior
+of the back-end if it receives any of these messages is unspecified.
+Negotiating both ``VHOST_USER_PROTOCOL_F_PAGEFAULT`` and
+``VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS`` does not lift this restriction.
 
 .. _migrating_backend_state:
 
@@ -768,6 +778,9 @@ Memory regions can be added via the ``VHOST_USER_ADD_MEM_REG`` message.  They
 can be removed via the ``VHOST_USER_REM_MEM_REG`` message. These messages can
 only be used if the ``VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS`` protocol
 feature has been successfully negotiated.
+
+Negotiating this feature prevents the use of
+:ref:`postcopy migration <vhost_user_postcopy>`.
 
 Guest addresses are physical addresses in the guest.  User addresses are
 arbitrary opaque values, though they typically refer to userspace addresses in
@@ -1593,6 +1606,10 @@ Front-end message types
   the back-end must open a userfaultfd for later use.  Note that at this
   stage the migration is still in precopy mode.
 
+  This message MUST NOT be sent when
+  ``VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS`` has been negotiated; see
+  :ref:`postcopy migration <vhost_user_postcopy>`.
+
 ``VHOST_USER_POSTCOPY_LISTEN``
   :id: 29
   :request payload: N/A
@@ -1604,6 +1621,10 @@ Front-end message types
 
   This is always sent sometime after a ``VHOST_USER_POSTCOPY_ADVISE``,
   and thus only when ``VHOST_USER_PROTOCOL_F_PAGEFAULT`` is supported.
+
+  This message MUST NOT be sent when
+  ``VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS`` has been negotiated; see
+  :ref:`postcopy migration <vhost_user_postcopy>`.
 
 ``VHOST_USER_POSTCOPY_END``
   :id: 30
@@ -1619,6 +1640,10 @@ Front-end message types
   ``VHOST_USER_POSTCOPY_LISTEN`` was previously sent.
 
   The value returned is an error indication; 0 is success.
+
+  This message MUST NOT be sent when
+  ``VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS`` has been negotiated; see
+  :ref:`postcopy migration <vhost_user_postcopy>`.
 
 ``VHOST_USER_GET_INFLIGHT_FD``
   :id: 31
@@ -1713,11 +1738,6 @@ Front-end message types
 
   Exactly one file descriptor from which the memory is mapped is
   passed in the ancillary data.
-
-  In postcopy mode (see ``VHOST_USER_POSTCOPY_LISTEN``), the back-end
-  replies with the bases of the memory mapped region to the front-end.
-  For further details on postcopy, see ``VHOST_USER_SET_MEM_TABLE``.
-  They apply to ``VHOST_USER_ADD_MEM_REG`` accordingly.
 
 ``VHOST_USER_REM_MEM_REG``
   :id: 38

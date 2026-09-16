@@ -360,7 +360,6 @@ struct vhost_user {
 struct scrub_regions {
     struct vhost_memory_region *region;
     int reg_idx;
-    int fd_idx;
 };
 
 bool vhost_user_has_protocol_feature(struct vhost_dev *dev, uint64_t feature)
@@ -682,15 +681,12 @@ static void scrub_shadow_regions(struct vhost_dev *dev,
                                  struct scrub_regions *add_reg,
                                  int *nr_add_reg,
                                  struct scrub_regions *rem_reg,
-                                 int *nr_rem_reg, uint64_t *shadow_pcb,
-                                 bool track_ramblocks)
+                                 int *nr_rem_reg)
 {
     struct vhost_user *u = dev->opaque;
     bool found[VHOST_USER_MAX_RAM_SLOTS] = {};
     struct vhost_memory_region *reg, *shadow_reg;
-    int i, j, fd, add_idx = 0, rm_idx = 0, fd_num = 0;
-    ram_addr_t offset;
-    MemoryRegion *mr;
+    int i, j, add_idx = 0, rm_idx = 0;
     bool matching;
 
     /*
@@ -706,25 +702,9 @@ static void scrub_shadow_regions(struct vhost_dev *dev,
         for (j = 0; j < dev->mem->nregions; j++) {
             reg = &dev->mem->regions[j];
 
-            mr = vhost_user_get_mr_data(reg->userspace_addr, &offset, &fd);
-
             if (reg_equal(shadow_reg, reg)) {
                 matching = true;
                 found[j] = true;
-                if (track_ramblocks) {
-                    /*
-                     * Reset postcopy client bases, region_rb, and
-                     * region_rb_offset in case regions are removed.
-                     */
-                    if (fd > 0) {
-                        u->region_rb_offset[j] = offset;
-                        u->region_rb[j] = mr->ram_block;
-                        shadow_pcb[j] = u->postcopy_client_bases[i];
-                    } else {
-                        u->region_rb_offset[j] = 0;
-                        u->region_rb[j] = NULL;
-                    }
-                }
                 break;
             }
         }
@@ -747,11 +727,6 @@ static void scrub_shadow_regions(struct vhost_dev *dev,
      */
     for (i = 0; i < dev->mem->nregions; i++) {
         reg = &dev->mem->regions[i];
-        vhost_user_get_mr_data(reg->userspace_addr, &offset, &fd);
-        if (fd > 0) {
-            ++fd_num;
-        }
-
         /*
          * If the region was in both the shadow and device state we don't
          * need to send a VHOST_USER_ADD_MEM_REG message for it.
@@ -762,7 +737,7 @@ static void scrub_shadow_regions(struct vhost_dev *dev,
 
         add_reg[add_idx].region = reg;
         add_reg[add_idx].reg_idx = i;
-        add_reg[add_idx++].fd_idx = fd_num;
+        add_idx++;
     }
     *nr_rem_reg = rm_idx;
     *nr_add_reg = add_idx;
@@ -824,34 +799,21 @@ static int send_remove_regions(struct vhost_dev *dev,
 
 static int send_add_regions(struct vhost_dev *dev,
                             struct scrub_regions *add_reg, int nr_add_reg,
-                            VhostUserMsg *msg, uint64_t *shadow_pcb,
-                            bool reply_supported, bool track_ramblocks)
+                            VhostUserMsg *msg,
+                            bool reply_supported)
 {
     struct vhost_user *u = dev->opaque;
-    int i, fd, ret, reg_idx, reg_fd_idx;
+    int i, fd, ret;
     struct vhost_memory_region *reg;
-    MemoryRegion *mr;
     ram_addr_t offset;
-    VhostUserMsg msg_reply;
     VhostUserMemoryRegion region_buffer;
 
     for (i = 0; i < nr_add_reg; i++) {
         reg = add_reg[i].region;
-        reg_idx = add_reg[i].reg_idx;
-        reg_fd_idx = add_reg[i].fd_idx;
 
-        mr = vhost_user_get_mr_data(reg->userspace_addr, &offset, &fd);
+        vhost_user_get_mr_data(reg->userspace_addr, &offset, &fd);
 
         if (fd > 0) {
-            if (track_ramblocks) {
-                trace_vhost_user_set_mem_table_withfd(reg_fd_idx, mr->name,
-                                                      reg->memory_size,
-                                                      reg->guest_phys_addr,
-                                                      reg->userspace_addr,
-                                                      offset);
-                u->region_rb_offset[reg_idx] = offset;
-                u->region_rb[reg_idx] = mr->ram_block;
-            }
             msg->hdr.request = VHOST_USER_ADD_MEM_REG;
             vhost_user_fill_msg_region(dev, &region_buffer, reg, offset);
             msg->payload.mem_reg.region = region_buffer;
@@ -861,59 +823,12 @@ static int send_add_regions(struct vhost_dev *dev,
                 return ret;
             }
 
-            if (track_ramblocks) {
-                uint64_t reply_gpa;
-
-                ret = vhost_user_read(dev, &msg_reply);
-                if (ret < 0) {
-                    return ret;
-                }
-
-                reply_gpa = msg_reply.payload.mem_reg.region.guest_phys_addr;
-
-                if (msg_reply.hdr.request != VHOST_USER_ADD_MEM_REG) {
-                    error_report("%s: Received unexpected msg type."
-                                 "Expected %d received %d", __func__,
-                                 VHOST_USER_ADD_MEM_REG,
-                                 msg_reply.hdr.request);
-                    return -EPROTO;
-                }
-
-                /*
-                 * We're using the same structure, just reusing one of the
-                 * fields, so it should be the same size.
-                 */
-                if (msg_reply.hdr.size != msg->hdr.size) {
-                    error_report("%s: Unexpected size for postcopy reply "
-                                 "%d vs %d", __func__, msg_reply.hdr.size,
-                                 msg->hdr.size);
-                    return -EPROTO;
-                }
-
-                /* Get the postcopy client base from the backend's reply. */
-                if (reply_gpa == dev->mem->regions[reg_idx].guest_phys_addr) {
-                    shadow_pcb[reg_idx] =
-                        msg_reply.payload.mem_reg.region.userspace_addr;
-                    trace_vhost_user_set_mem_table_postcopy(
-                        msg_reply.payload.mem_reg.region.userspace_addr,
-                        msg->payload.mem_reg.region.userspace_addr,
-                        reg_fd_idx, reg_idx);
-                } else {
-                    error_report("%s: invalid postcopy reply for region. "
-                                 "Got guest physical address %" PRIX64 ", expected "
-                                 "%" PRIX64, __func__, reply_gpa,
-                                 dev->mem->regions[reg_idx].guest_phys_addr);
-                    return -EPROTO;
-                }
-            } else if (reply_supported) {
+            if (reply_supported) {
                 ret = process_message_reply(dev, msg);
                 if (ret) {
                     return ret;
                 }
             }
-        } else if (track_ramblocks) {
-            u->region_rb_offset[reg_idx] = 0;
-            u->region_rb[reg_idx] = NULL;
         }
 
         /*
@@ -936,13 +851,10 @@ static int send_add_regions(struct vhost_dev *dev,
 
 static int vhost_user_add_remove_regions(struct vhost_dev *dev,
                                          VhostUserMsg *msg,
-                                         bool reply_supported,
-                                         bool track_ramblocks)
+                                         bool reply_supported)
 {
-    struct vhost_user *u = dev->opaque;
     struct scrub_regions add_reg[VHOST_USER_MAX_RAM_SLOTS];
     struct scrub_regions rem_reg[VHOST_USER_MAX_RAM_SLOTS];
-    uint64_t shadow_pcb[VHOST_USER_MAX_RAM_SLOTS] = {};
     int nr_add_reg, nr_rem_reg;
     int ret;
 
@@ -952,57 +864,29 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev,
     assert(dev->mem->nregions <= VHOST_USER_MAX_RAM_SLOTS);
 
     /* Find the regions which need to be removed or added. */
-    scrub_shadow_regions(dev, add_reg, &nr_add_reg, rem_reg, &nr_rem_reg,
-                         shadow_pcb, track_ramblocks);
+    scrub_shadow_regions(dev, add_reg, &nr_add_reg, rem_reg, &nr_rem_reg);
 
     if (nr_rem_reg) {
         ret = send_remove_regions(dev, rem_reg, nr_rem_reg, msg,
                                   reply_supported);
         if (ret < 0) {
-            goto err;
+            return ret;
         }
     }
 
     if (nr_add_reg) {
-        ret = send_add_regions(dev, add_reg, nr_add_reg, msg, shadow_pcb,
-                               reply_supported, track_ramblocks);
-        if (ret < 0) {
-            goto err;
-        }
-    }
-
-    if (track_ramblocks) {
-        memcpy(u->postcopy_client_bases, shadow_pcb,
-               sizeof(uint64_t) * VHOST_USER_MAX_RAM_SLOTS);
-        /*
-         * Now we've registered this with the postcopy code, we ack to the
-         * client, because now we're in the position to be able to deal with
-         * any faults it generates.
-         */
-        /* TODO: Use this for failure cases as well with a bad value. */
-        msg->hdr.size = sizeof(msg->payload.u64);
-        msg->payload.u64 = 0; /* OK */
-
-        ret = vhost_user_write(dev, msg, NULL, 0);
+        ret = send_add_regions(dev, add_reg, nr_add_reg, msg,
+                               reply_supported);
         if (ret < 0) {
             return ret;
         }
     }
 
     return 0;
-
-err:
-    if (track_ramblocks) {
-        memcpy(u->postcopy_client_bases, shadow_pcb,
-               sizeof(uint64_t) * VHOST_USER_MAX_RAM_SLOTS);
-    }
-
-    return ret;
 }
 
 static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
                                              struct vhost_memory *mem,
-                                             bool reply_supported,
                                              bool config_mem_slots)
 {
     struct vhost_user *u = dev->opaque;
@@ -1028,10 +912,9 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
     }
 
     if (config_mem_slots) {
-        ret = vhost_user_add_remove_regions(dev, &msg, reply_supported, true);
-        if (ret < 0) {
-            return ret;
-        }
+        error_report(
+            "vhost-user: postcopy is not supported with CONFIGURE_MEM_SLOTS");
+        return -ENOTSUP;
     } else {
         ret = vhost_user_fill_set_mem_table_msg(u, dev, &msg, fds, &fd_num,
                                                 true);
@@ -1133,8 +1016,7 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
          * Postcopy has enough differences that it's best done in it's own
          * version
          */
-        return vhost_user_set_mem_table_postcopy(dev, mem, reply_supported,
-                                                 config_mem_slots);
+        return vhost_user_set_mem_table_postcopy(dev, mem, config_mem_slots);
     }
 
     VhostUserMsg msg = {
@@ -1146,7 +1028,7 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
     }
 
     if (config_mem_slots) {
-        ret = vhost_user_add_remove_regions(dev, &msg, reply_supported, false);
+        ret = vhost_user_add_remove_regions(dev, &msg, reply_supported);
         if (ret < 0) {
             return ret;
         }
@@ -2511,6 +2393,13 @@ static int vhost_user_postcopy_notifier(NotifierWithReturn *notifier,
 
     switch (pnd->reason) {
     case POSTCOPY_NOTIFY_PROBE:
+        if (vhost_user_has_protocol_feature(
+                dev, VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS)) {
+            error_setg(errp,
+                       "vhost-user: postcopy is not supported with "
+                       "CONFIGURE_MEM_SLOTS");
+            return -ENOTSUP;
+        }
         if (!vhost_user_has_protocol_feature(
                 dev, VHOST_USER_PROTOCOL_F_PAGEFAULT)) {
             /* TODO: Get the device name into this error somehow */
