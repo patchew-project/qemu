@@ -663,6 +663,7 @@ uint32_t whpx_arm_get_ipa_bit_size(void)
     if (FAILED(hr)) {
         error_report("WHPX: failed to get supported "
              "physical address width, hr=%08lx", hr);
+        whpx_cap.PhysicalAddressWidth = 32;
     }
 
     /*
