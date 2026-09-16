@@ -915,83 +915,80 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
         error_report(
             "vhost-user: postcopy is not supported with CONFIGURE_MEM_SLOTS");
         return -ENOTSUP;
-    } else {
-        ret = vhost_user_fill_set_mem_table_msg(u, dev, &msg, fds, &fd_num,
-                                                true);
-        if (ret < 0) {
-            return ret;
-        }
+    }
 
-        ret = vhost_user_write(dev, &msg, fds, fd_num);
-        if (ret < 0) {
-            return ret;
-        }
+    ret = vhost_user_fill_set_mem_table_msg(u, dev, &msg, fds, &fd_num, true);
+    if (ret < 0) {
+        return ret;
+    }
 
-        ret = vhost_user_read(dev, &msg_reply);
-        if (ret < 0) {
-            return ret;
-        }
+    ret = vhost_user_write(dev, &msg, fds, fd_num);
+    if (ret < 0) {
+        return ret;
+    }
 
-        if (msg_reply.hdr.request != VHOST_USER_SET_MEM_TABLE) {
-            error_report("%s: Received unexpected msg type."
-                         "Expected %d received %d", __func__,
-                         VHOST_USER_SET_MEM_TABLE, msg_reply.hdr.request);
-            return -EPROTO;
-        }
+    ret = vhost_user_read(dev, &msg_reply);
+    if (ret < 0) {
+        return ret;
+    }
 
-        /*
-         * We're using the same structure, just reusing one of the
-         * fields, so it should be the same size.
-         */
-        if (msg_reply.hdr.size != msg.hdr.size) {
-            error_report("%s: Unexpected size for postcopy reply "
-                         "%d vs %d", __func__, msg_reply.hdr.size,
-                         msg.hdr.size);
-            return -EPROTO;
-        }
+    if (msg_reply.hdr.request != VHOST_USER_SET_MEM_TABLE) {
+        error_report("%s: Received unexpected msg type."
+                     "Expected %d received %d", __func__,
+                     VHOST_USER_SET_MEM_TABLE, msg_reply.hdr.request);
+        return -EPROTO;
+    }
 
-        memset(u->postcopy_client_bases, 0,
-               sizeof(uint64_t) * VHOST_USER_MAX_RAM_SLOTS);
+    /*
+     * We're using the same structure, just reusing one of the
+     * fields, so it should be the same size.
+     */
+    if (msg_reply.hdr.size != msg.hdr.size) {
+        error_report("%s: Unexpected size for postcopy reply "
+                     "%d vs %d", __func__, msg_reply.hdr.size,
+                     msg.hdr.size);
+        return -EPROTO;
+    }
 
-        /*
-         * They're in the same order as the regions that were sent
-         * but some of the regions were skipped (above) if they
-         * didn't have fd's
-         */
-        for (msg_i = 0, region_i = 0;
-             region_i < dev->mem->nregions;
-             region_i++) {
-            if (msg_i < fd_num &&
-                msg_reply.payload.memory.regions[msg_i].guest_phys_addr ==
-                dev->mem->regions[region_i].guest_phys_addr) {
-                u->postcopy_client_bases[region_i] =
-                    msg_reply.payload.memory.regions[msg_i].userspace_addr;
-                trace_vhost_user_set_mem_table_postcopy(
-                    msg_reply.payload.memory.regions[msg_i].userspace_addr,
-                    msg.payload.memory.regions[msg_i].userspace_addr,
-                    msg_i, region_i);
-                msg_i++;
-            }
-        }
-        if (msg_i != fd_num) {
-            error_report("%s: postcopy reply not fully consumed "
-                         "%d vs %zd",
-                         __func__, msg_i, fd_num);
-            return -EIO;
-        }
+    memset(u->postcopy_client_bases, 0,
+           sizeof(uint64_t) * VHOST_USER_MAX_RAM_SLOTS);
 
-        /*
-         * Now we've registered this with the postcopy code, we ack to the
-         * client, because now we're in the position to be able to deal
-         * with any faults it generates.
-         */
-        /* TODO: Use this for failure cases as well with a bad value. */
-        msg.hdr.size = sizeof(msg.payload.u64);
-        msg.payload.u64 = 0; /* OK */
-        ret = vhost_user_write(dev, &msg, NULL, 0);
-        if (ret < 0) {
-            return ret;
+    /*
+     * They're in the same order as the regions that were sent
+     * but some of the regions were skipped (above) if they
+     * didn't have fd's
+     */
+    for (msg_i = 0, region_i = 0; region_i < dev->mem->nregions; region_i++) {
+        if (msg_i < fd_num &&
+            msg_reply.payload.memory.regions[msg_i].guest_phys_addr ==
+            dev->mem->regions[region_i].guest_phys_addr) {
+            u->postcopy_client_bases[region_i] =
+                msg_reply.payload.memory.regions[msg_i].userspace_addr;
+            trace_vhost_user_set_mem_table_postcopy(
+                msg_reply.payload.memory.regions[msg_i].userspace_addr,
+                msg.payload.memory.regions[msg_i].userspace_addr,
+                msg_i, region_i);
+            msg_i++;
         }
+    }
+    if (msg_i != fd_num) {
+        error_report("%s: postcopy reply not fully consumed "
+                     "%d vs %zd",
+                     __func__, msg_i, fd_num);
+        return -EIO;
+    }
+
+    /*
+     * Now we've registered this with the postcopy code, we ack to the
+     * client, because now we're in the position to be able to deal
+     * with any faults it generates.
+     */
+    /* TODO: Use this for failure cases as well with a bad value. */
+    msg.hdr.size = sizeof(msg.payload.u64);
+    msg.payload.u64 = 0; /* OK */
+    ret = vhost_user_write(dev, &msg, NULL, 0);
+    if (ret < 0) {
+        return ret;
     }
 
     return 0;
