@@ -1040,8 +1040,6 @@ static void ncr710_do_msgin(NCR710State *s)
 
 static void ncr710_do_msgout(NCR710State *s)
 {
-    NCR710Request *current_req = s->current;
-
     while (s->dbc > 0) {
         int to_move = MIN((int)s->dbc, NCR710_SCSI_FIFO_SIZE);
         uint8_t temp_buf[NCR710_SCSI_FIFO_SIZE];
@@ -1169,8 +1167,8 @@ static void ncr710_do_msgout(NCR710State *s)
                 break;
 
             case 0x0d: /* ABORT TAG */
-                if (current_req) {
-                    scsi_req_cancel(current_req->req);
+                if (s->current) {
+                    scsi_req_cancel(s->current->req);
                 }
                 ncr710_disconnect(s);
                 break;
