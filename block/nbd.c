@@ -207,6 +207,7 @@ static void coroutine_fn nbd_channel_error(BDRVNBDState *s, int ret)
     nbd_channel_error_locked(s, ret);
 }
 
+/* Called with s->requests_lock held.  */
 static void reconnect_delay_timer_del(BDRVNBDState *s)
 {
     if (s->reconnect_delay_timer) {
@@ -219,8 +220,8 @@ static void reconnect_delay_timer_cb(void *opaque)
 {
     BDRVNBDState *s = opaque;
 
-    reconnect_delay_timer_del(s);
     WITH_QEMU_LOCK_GUARD(&s->requests_lock) {
+        reconnect_delay_timer_del(s);
         if (s->state != NBD_CLIENT_CONNECTING_WAIT) {
             return;
         }
@@ -2134,9 +2135,9 @@ static void nbd_cancel_in_flight(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
 
+    qemu_mutex_lock(&s->requests_lock);
     reconnect_delay_timer_del(s);
 
-    qemu_mutex_lock(&s->requests_lock);
     if (s->state == NBD_CLIENT_CONNECTING_WAIT) {
         s->state = NBD_CLIENT_CONNECTING_NOWAIT;
     }
