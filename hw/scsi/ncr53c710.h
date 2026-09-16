@@ -133,6 +133,7 @@ struct NCR710Request {
     bool active;
     uint8_t *dma_buf;
     bool out;
+    bool orphan;
     uint32_t resume_offset;
     uint32_t saved_dnad;
 };
