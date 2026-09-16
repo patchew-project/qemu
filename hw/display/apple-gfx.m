@@ -22,6 +22,7 @@
 #include "system/address-spaces.h"
 #include "system/dma.h"
 #include "migration/blocker.h"
+#include "system/memory.h"
 #include "ui/console.h"
 #include "apple-gfx.h"
 #include "trace.h"
@@ -80,6 +81,7 @@ struct PGTask_s {
     GPtrArray *mapped_regions;
 };
 
+API_OBSOLETED("Legacy ParavirtualizedGraphics", macos(11.0, 27.0, 27.0)) 
 static PGTask_t *apple_gfx_new_task(AppleGFXState *s, uint64_t len)
 {
     mach_vm_address_t task_mem;
@@ -103,6 +105,7 @@ static PGTask_t *apple_gfx_new_task(AppleGFXState *s, uint64_t len)
     return task;
 }
 
+API_OBSOLETED("Legacy ParavirtualizedGraphics", macos(11.0, 27.0, 27.0))
 static void apple_gfx_destroy_task(AppleGFXState *s, PGTask_t *task)
 {
     GPtrArray *regions = task->mapped_regions;
@@ -152,6 +155,7 @@ void *apple_gfx_host_ptr_for_gpa_range(uint64_t guest_physical,
     return host_ptr;
 }
 
+API_OBSOLETED("Legacy ParavirtualizedGraphics", macos(11.0, 27.0, 27.0))
 static bool apple_gfx_task_map_memory(AppleGFXState *s, PGTask_t *task,
                                       uint64_t virtual_offset,
                                       PGPhysicalMemoryRange_t *ranges,
@@ -208,6 +212,7 @@ static bool apple_gfx_task_map_memory(AppleGFXState *s, PGTask_t *task,
     return success;
 }
 
+API_OBSOLETED("Legacy ParavirtualizedGraphics", macos(11.0, 27.0, 27.0))
 static void apple_gfx_task_unmap_memory(AppleGFXState *s, PGTask_t *task,
                                         uint64_t virtual_offset, uint64_t length)
 {
@@ -597,6 +602,36 @@ void apple_gfx_common_init(Object *obj, AppleGFXState *s, const char* obj_name)
     /* TODO: PVG framework supports serialising device state: integrate it! */
 }
 
+@interface PGDeviceDescriptor (IOSurfaceMapper)
+@property (readwrite, nonatomic, copy, nullable) PGMemoryMapDescriptor* memoryMapDescriptor;
+@end
+
+bool apple_gfx_register_memory_cb(Int128 start, Int128 len,
+                                  const MemoryRegion *mr,
+                                  hwaddr offset_in_region, void *opaque) {
+    PGGuestPhysicalRange_t range;
+    PGMemoryMapDescriptor *memory_map_descriptor = opaque;
+    if (memory_access_is_direct(mr, true, MEMTXATTRS_UNSPECIFIED)) {
+        range.physicalAddress = start;
+        range.physicalLength = len;
+        range.hostAddress = memory_region_get_ram_ptr(mr);
+        [memory_map_descriptor addRange:range];
+    }
+    return false;
+}
+
+static void apple_gfx_register_memory(AppleGFXState *s,
+                                                     PGDeviceDescriptor *desc)
+{
+    PGMemoryMapDescriptor* memoryMapDescriptor = [PGMemoryMapDescriptor new];
+
+    FlatView* fv = address_space_to_flatview(&address_space_memory);
+    flatview_for_each_range(fv, apple_gfx_register_memory_cb, memoryMapDescriptor);
+
+    desc.memoryMapDescriptor = memoryMapDescriptor;
+}
+
+API_OBSOLETED("Legacy ParavirtualizedGraphics", macos(11.0, 27.0, 27.0))
 static void apple_gfx_register_task_mapping_handlers(AppleGFXState *s,
                                                      PGDeviceDescriptor *desc)
 {
@@ -668,16 +703,25 @@ static PGDisplayDescriptor *apple_gfx_prepare_display_descriptor(AppleGFXState *
         BQL_LOCK_GUARD();
         set_mode(s, sizeInPixels.x, sizeInPixels.y);
     };
-    disp_desc.cursorGlyphHandler = ^(NSBitmapImageRep *glyph,
-                                     PGDisplayCoord_t hotspot) {
-        AppleGFXSetCursorGlyphJob *job = g_malloc0(sizeof(*job));
-        job->s = s;
-        job->glyph = glyph;
-        job->hotspot = hotspot;
-        [glyph retain];
-        aio_bh_schedule_oneshot(qemu_get_aio_context(),
-                                set_cursor_glyph, job);
-    };
+
+    if (@available(macOS 27.0, *)) {
+
+    } else {
+#ifndef __MAC_27_0
+        disp_desc.cursorGlyphHandler = ^(NSBitmapImageRep *glyph,
+                                         PGDisplayCoord_t hotspot) {
+            AppleGFXSetCursorGlyphJob *job = g_malloc0(sizeof(*job));
+            job->s = s;
+            job->glyph = glyph;
+            job->hotspot = hotspot;
+            [glyph retain];
+            aio_bh_schedule_oneshot(qemu_get_aio_context(),
+                                    set_cursor_glyph, job);
+        };
+#else
+        abort();
+#endif
+    }
     disp_desc.cursorShowHandler = ^(BOOL show) {
         trace_apple_gfx_cursor_show(show);
         qatomic_set(&s->cursor_show, show);
@@ -764,11 +808,33 @@ bool apple_gfx_common_realize(AppleGFXState *s, DeviceState *dev,
 
     desc.device = s->mtl;
 
-    apple_gfx_register_task_mapping_handlers(s, desc);
+    /* 
+     * The legacy memory management interface doesn't allow for
+     * vGPU sandboxing. As such, always use the new interface
+     * on macOS 15.4 onwards. 
+     */
+    if (@available(macOS 15.4, *)) {
+        apple_gfx_register_memory(s, desc);
+    } else {
+#ifndef __MAC_27_0
+        apple_gfx_register_task_mapping_handlers(s, desc);
+#else
+        abort();
+#endif
+    }
 
     s->cursor_show = true;
 
-    s->pgdev = PGNewDeviceWithDescriptor(desc);
+    if (@available(macOS 15.2, *)) {
+        s->pgdev = PGCreateDeviceWithDescriptor(desc);
+    }
+    else {
+#ifndef __MAC_27_0
+        s->pgdev = PGNewDeviceWithDescriptor(desc);
+#else
+        abort();
+#endif
+    }
 
     disp_desc = apple_gfx_prepare_display_descriptor(s);
     /*
