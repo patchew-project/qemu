@@ -752,7 +752,13 @@ target_ulong HELPER(lddir)(CPULoongArchState *env, target_ulong base,
     }
 
     badvaddr = sys->CSR_TLBRBADV;
-    base = base & palen_mask;
+    /*
+     * Extract only the PPN field (bits 12-47) from the directory entry.
+     * Flag bits (V, D, PLV, MAT, etc.) at positions 0-11 must not
+     * participate in the next-level address calculation.
+     */
+    base = (target_ulong)FIELD_EX64(base, TLBENTRY_64, PPN)
+           << TARGET_PAGE_BITS;
     get_dir_base_width(env, &dir_base, &dir_width, level);
     index = (badvaddr >> dir_base) & ((1 << dir_width) - 1);
     phys = base | index << 3;
@@ -770,10 +776,8 @@ void HELPER(ldpte)(CPULoongArchState *env, target_ulong base, target_ulong odd,
     uint64_t badv;
     uint64_t ptbase = FIELD_EX64(sys->CSR_PWCL, CSR_PWCL, PTBASE);
     uint64_t ptwidth = FIELD_EX64(sys->CSR_PWCL, CSR_PWCL, PTWIDTH);
-    uint64_t palen_mask = loongarch_palen_mask(env);
     uint64_t dir_base, dir_width;
     uint8_t  ps;
-
 
     /*
      * The parameter "base" has only two types,
@@ -816,9 +820,9 @@ void HELPER(ldpte)(CPULoongArchState *env, target_ulong base, target_ulong odd,
         }
     } else {
         badv = sys->CSR_TLBRBADV;
-
-        base = base & palen_mask;
-
+        /* Strip flag bits (0-11) from base before address calculation. */
+        base = (target_ulong)FIELD_EX64(base, TLBENTRY_64, PPN)
+               << TARGET_PAGE_BITS;
         ptindex = (badv >> ptbase) & ((1 << ptwidth) - 1);
         ptindex = ptindex & ~0x1;   /* clear bit 0 */
         ptoffset0 = ptindex << 3;
