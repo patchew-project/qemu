@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #include "hw/virtio/virtio-pci.h"
 #include "hw/virtio/virtio-cpufreq.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qom/object.h"
@@ -28,6 +29,10 @@ struct VirtIOCPUFreqPCI {
     VirtIOCPUFreq vdev;
 };
 
+static const Property virtio_cpufreq_pci_properties[] = {
+    DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
+};
+
 static void virtio_cpufreq_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VirtIOCPUFreqPCI *vcpufreq = VIRTIO_CPUFREQ_PCI(vpci_dev);
@@ -44,6 +49,7 @@ static void virtio_cpufreq_pci_class_init(ObjectClass *klass, const void *data)
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
 
+    device_class_set_props(dc, virtio_cpufreq_pci_properties);
     k->realize = virtio_cpufreq_pci_realize;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 
