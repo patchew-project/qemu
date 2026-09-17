@@ -730,8 +730,7 @@ static int send_remove_regions(struct vhost_dev *dev,
 {
     struct vhost_user *u = dev->opaque;
     struct vhost_memory_region *shadow_reg;
-    int i, fd, shadow_reg_idx, ret;
-    ram_addr_t offset;
+    int i, shadow_reg_idx, ret;
 
     /*
      * The regions in remove_reg appear in the same order they do in the
@@ -742,13 +741,9 @@ static int send_remove_regions(struct vhost_dev *dev,
         shadow_reg = remove_reg[i].region;
         shadow_reg_idx = remove_reg[i].reg_idx;
 
-        vhost_user_get_mr_data(shadow_reg->userspace_addr, &offset, &fd);
-
-        if (fd > 0) {
-            ret = send_add_rem_mem_reg(dev, shadow_reg, false, 0, 0);
-            if (ret < 0) {
-                return ret;
-            }
+        ret = send_add_rem_mem_reg(dev, shadow_reg, false, 0, 0);
+        if (ret < 0) {
+            return ret;
         }
 
         /*
@@ -777,12 +772,13 @@ static int send_add_regions(struct vhost_dev *dev,
         reg = add_reg[i].region;
 
         vhost_user_get_mr_data(reg->userspace_addr, &offset, &fd);
+        if (fd <= 0) {
+            continue;
+        }
 
-        if (fd > 0) {
-            ret = send_add_rem_mem_reg(dev, reg, true, offset, fd);
-            if (ret < 0) {
-                return ret;
-            }
+        ret = send_add_rem_mem_reg(dev, reg, true, offset, fd);
+        if (ret < 0) {
+            return ret;
         }
 
         /*
