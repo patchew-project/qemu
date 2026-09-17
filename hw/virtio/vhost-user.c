@@ -677,17 +677,61 @@ static inline bool reg_equal(struct vhost_memory_region *shadow_reg,
         shadow_reg->memory_size == vdev_reg->memory_size;
 }
 
+static int send_add_rem_mem_reg(struct vhost_dev *dev,
+                                struct vhost_memory_region *reg,
+                                bool add, uint64_t mmap_offset, int fd)
+{
+    int ret;
+    VhostUserMemoryRegion region_buffer;
+    bool reply_supported =
+        vhost_user_has_protocol_feature(dev, VHOST_USER_PROTOCOL_F_REPLY_ACK);
+    VhostUserMsg msg = {
+        .hdr.flags = VHOST_USER_VERSION,
+    };
+    int *fds, fd_num;
+
+    msg.hdr.size = sizeof(msg.payload.mem_reg);
+
+    if (add) {
+        msg.hdr.request = VHOST_USER_ADD_MEM_REG;
+        fds = &fd;
+        fd_num = 1;
+    } else {
+        msg.hdr.request = VHOST_USER_REM_MEM_REG;
+        fds = NULL;
+        fd_num = 0;
+    }
+
+    if (reply_supported) {
+        msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
+    }
+
+    vhost_user_fill_msg_region(dev, &region_buffer, reg, mmap_offset);
+    msg.payload.mem_reg.region = region_buffer;
+
+    ret = vhost_user_write(dev, &msg, fds, fd_num);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (reply_supported) {
+        ret = process_message_reply(dev, &msg);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    return 0;
+}
 
 static int send_remove_regions(struct vhost_dev *dev,
                                struct scrub_regions *remove_reg,
-                               int nr_rem_reg, VhostUserMsg *msg,
-                               bool reply_supported)
+                               int nr_rem_reg)
 {
     struct vhost_user *u = dev->opaque;
     struct vhost_memory_region *shadow_reg;
     int i, fd, shadow_reg_idx, ret;
     ram_addr_t offset;
-    VhostUserMemoryRegion region_buffer;
 
     /*
      * The regions in remove_reg appear in the same order they do in the
@@ -701,20 +745,9 @@ static int send_remove_regions(struct vhost_dev *dev,
         vhost_user_get_mr_data(shadow_reg->userspace_addr, &offset, &fd);
 
         if (fd > 0) {
-            msg->hdr.request = VHOST_USER_REM_MEM_REG;
-            vhost_user_fill_msg_region(dev, &region_buffer, shadow_reg, 0);
-            msg->payload.mem_reg.region = region_buffer;
-
-            ret = vhost_user_write(dev, msg, NULL, 0);
+            ret = send_add_rem_mem_reg(dev, shadow_reg, false, 0, 0);
             if (ret < 0) {
                 return ret;
-            }
-
-            if (reply_supported) {
-                ret = process_message_reply(dev, msg);
-                if (ret) {
-                    return ret;
-                }
             }
         }
 
@@ -733,15 +766,12 @@ static int send_remove_regions(struct vhost_dev *dev,
 }
 
 static int send_add_regions(struct vhost_dev *dev,
-                            struct scrub_regions *add_reg, int nr_add_reg,
-                            VhostUserMsg *msg,
-                            bool reply_supported)
+                            struct scrub_regions *add_reg, int nr_add_reg)
 {
     struct vhost_user *u = dev->opaque;
     int i, fd, ret;
     struct vhost_memory_region *reg;
     ram_addr_t offset;
-    VhostUserMemoryRegion region_buffer;
 
     for (i = 0; i < nr_add_reg; i++) {
         reg = add_reg[i].region;
@@ -749,20 +779,9 @@ static int send_add_regions(struct vhost_dev *dev,
         vhost_user_get_mr_data(reg->userspace_addr, &offset, &fd);
 
         if (fd > 0) {
-            msg->hdr.request = VHOST_USER_ADD_MEM_REG;
-            vhost_user_fill_msg_region(dev, &region_buffer, reg, offset);
-            msg->payload.mem_reg.region = region_buffer;
-
-            ret = vhost_user_write(dev, msg, &fd, 1);
+            ret = send_add_rem_mem_reg(dev, reg, true, offset, fd);
             if (ret < 0) {
                 return ret;
-            }
-
-            if (reply_supported) {
-                ret = process_message_reply(dev, msg);
-                if (ret) {
-                    return ret;
-                }
             }
         }
 
@@ -784,9 +803,7 @@ static int send_add_regions(struct vhost_dev *dev,
     return 0;
 }
 
-static int vhost_user_add_remove_regions(struct vhost_dev *dev,
-                                         VhostUserMsg *msg,
-                                         bool reply_supported)
+static int vhost_user_add_remove_regions(struct vhost_dev *dev)
 {
     struct vhost_user *u = dev->opaque;
     struct scrub_regions add_reg[VHOST_USER_MAX_RAM_SLOTS];
@@ -797,8 +814,6 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev,
     struct vhost_memory_region *reg, *shadow_reg;
     int i, j, add_idx = 0, rm_idx = 0;
     bool matching;
-
-    msg->hdr.size = sizeof(msg->payload.mem_reg);
 
     /* Ensure nregions fits the fixed-size arrays used below. */
     assert(dev->mem->nregions <= VHOST_USER_MAX_RAM_SLOTS);
@@ -857,16 +872,14 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev,
     nr_add_reg = add_idx;
 
     if (nr_rem_reg) {
-        ret = send_remove_regions(dev, rem_reg, nr_rem_reg, msg,
-                                  reply_supported);
+        ret = send_remove_regions(dev, rem_reg, nr_rem_reg);
         if (ret < 0) {
             return ret;
         }
     }
 
     if (nr_add_reg) {
-        ret = send_add_regions(dev, add_reg, nr_add_reg, msg,
-                               reply_supported);
+        ret = send_add_regions(dev, add_reg, nr_add_reg);
         if (ret < 0) {
             return ret;
         }
@@ -1006,20 +1019,20 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
         return vhost_user_set_mem_table_postcopy(dev, mem, config_mem_slots);
     }
 
-    VhostUserMsg msg = {
-        .hdr.flags = VHOST_USER_VERSION,
-    };
-
-    if (reply_supported) {
-        msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
-    }
-
     if (config_mem_slots) {
-        ret = vhost_user_add_remove_regions(dev, &msg, reply_supported);
+        ret = vhost_user_add_remove_regions(dev);
         if (ret < 0) {
             return ret;
         }
     } else {
+        VhostUserMsg msg = {
+            .hdr.flags = VHOST_USER_VERSION,
+        };
+
+        if (reply_supported) {
+            msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
+        }
+
         ret = vhost_user_fill_set_mem_table_msg(u, dev, &msg, fds, &fd_num,
                                                 false);
         if (ret < 0) {
