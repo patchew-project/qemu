@@ -677,71 +677,6 @@ static inline bool reg_equal(struct vhost_memory_region *shadow_reg,
         shadow_reg->memory_size == vdev_reg->memory_size;
 }
 
-static void scrub_shadow_regions(struct vhost_dev *dev,
-                                 struct scrub_regions *add_reg,
-                                 int *nr_add_reg,
-                                 struct scrub_regions *rem_reg,
-                                 int *nr_rem_reg)
-{
-    struct vhost_user *u = dev->opaque;
-    bool found[VHOST_USER_MAX_RAM_SLOTS] = {};
-    struct vhost_memory_region *reg, *shadow_reg;
-    int i, j, add_idx = 0, rm_idx = 0;
-    bool matching;
-
-    /*
-     * Find memory regions present in our shadow state which are not in
-     * the device's current memory state.
-     *
-     * Mark regions in both the shadow and device state as "found".
-     */
-    for (i = 0; i < u->num_shadow_regions; i++) {
-        shadow_reg = &u->shadow_regions[i];
-        matching = false;
-
-        for (j = 0; j < dev->mem->nregions; j++) {
-            reg = &dev->mem->regions[j];
-
-            if (reg_equal(shadow_reg, reg)) {
-                matching = true;
-                found[j] = true;
-                break;
-            }
-        }
-
-        /*
-         * If the region was not found in the current device memory state
-         * create an entry for it in the removed list.
-         */
-        if (!matching) {
-            rem_reg[rm_idx].region = shadow_reg;
-            rem_reg[rm_idx++].reg_idx = i;
-        }
-    }
-
-    /*
-     * For regions not marked "found", create entries in the added list.
-     *
-     * Note their indexes in the device memory state and the indexes of their
-     * file descriptors.
-     */
-    for (i = 0; i < dev->mem->nregions; i++) {
-        reg = &dev->mem->regions[i];
-        /*
-         * If the region was in both the shadow and device state we don't
-         * need to send a VHOST_USER_ADD_MEM_REG message for it.
-         */
-        if (found[i]) {
-            continue;
-        }
-
-        add_reg[add_idx].region = reg;
-        add_reg[add_idx].reg_idx = i;
-        add_idx++;
-    }
-    *nr_rem_reg = rm_idx;
-    *nr_add_reg = add_idx;
-}
 
 static int send_remove_regions(struct vhost_dev *dev,
                                struct scrub_regions *remove_reg,
@@ -853,18 +788,73 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev,
                                          VhostUserMsg *msg,
                                          bool reply_supported)
 {
+    struct vhost_user *u = dev->opaque;
     struct scrub_regions add_reg[VHOST_USER_MAX_RAM_SLOTS];
     struct scrub_regions rem_reg[VHOST_USER_MAX_RAM_SLOTS];
     int nr_add_reg, nr_rem_reg;
     int ret;
+    bool found[VHOST_USER_MAX_RAM_SLOTS] = {};
+    struct vhost_memory_region *reg, *shadow_reg;
+    int i, j, add_idx = 0, rm_idx = 0;
+    bool matching;
 
     msg->hdr.size = sizeof(msg->payload.mem_reg);
 
     /* Ensure nregions fits the fixed-size arrays used below. */
     assert(dev->mem->nregions <= VHOST_USER_MAX_RAM_SLOTS);
 
-    /* Find the regions which need to be removed or added. */
-    scrub_shadow_regions(dev, add_reg, &nr_add_reg, rem_reg, &nr_rem_reg);
+    /*
+     * Find memory regions present in our shadow state which are not in
+     * the device's current memory state.
+     *
+     * Mark regions in both the shadow and device state as "found".
+     */
+    for (i = 0; i < u->num_shadow_regions; i++) {
+        shadow_reg = &u->shadow_regions[i];
+        matching = false;
+
+        for (j = 0; j < dev->mem->nregions; j++) {
+            reg = &dev->mem->regions[j];
+
+            if (reg_equal(shadow_reg, reg)) {
+                matching = true;
+                found[j] = true;
+                break;
+            }
+        }
+
+        /*
+         * If the region was not found in the current device memory state
+         * create an entry for it in the removed list.
+         */
+        if (!matching) {
+            rem_reg[rm_idx].region = shadow_reg;
+            rem_reg[rm_idx++].reg_idx = i;
+        }
+    }
+
+    /*
+     * For regions not marked "found", create entries in the added list.
+     *
+     * Note their indexes in the device memory state and the indexes of their
+     * file descriptors.
+     */
+    for (i = 0; i < dev->mem->nregions; i++) {
+        reg = &dev->mem->regions[i];
+        /*
+         * If the region was in both the shadow and device state we don't
+         * need to send a VHOST_USER_ADD_MEM_REG message for it.
+         */
+        if (found[i]) {
+            continue;
+        }
+
+        add_reg[add_idx].region = reg;
+        add_reg[add_idx].reg_idx = i;
+        add_idx++;
+    }
+    nr_rem_reg = rm_idx;
+    nr_add_reg = add_idx;
 
     if (nr_rem_reg) {
         ret = send_remove_regions(dev, rem_reg, nr_rem_reg, msg,
