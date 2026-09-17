@@ -805,19 +805,18 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev)
     int ret;
     bool found[VHOST_USER_MAX_RAM_SLOTS] = {};
     VhostShadowRegion *shadow_reg, *next_reg;
-    int i, j;
-    bool matching;
+    int i;
 
     /* Ensure nregions fits the fixed-size array used below. */
     assert(dev->mem->nregions <= VHOST_USER_MAX_RAM_SLOTS);
 
     QLIST_FOREACH_SAFE(shadow_reg, &u->shadow_regions, next, next_reg) {
-        matching = false;
+        bool matching = false;
 
-        for (j = 0; j < dev->mem->nregions; j++) {
-            if (reg_equal(shadow_reg, &dev->mem->regions[j])) {
+        for (i = 0; i < dev->mem->nregions; i++) {
+            if (reg_equal(shadow_reg, &dev->mem->regions[i])) {
                 matching = true;
-                found[j] = true;
+                found[i] = true;
                 break;
             }
         }
