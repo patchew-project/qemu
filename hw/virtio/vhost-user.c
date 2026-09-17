@@ -724,13 +724,66 @@ static int send_add_rem_mem_reg(struct vhost_dev *dev,
     return 0;
 }
 
+static int send_remove_region(struct vhost_dev *dev,
+                              int shadow_reg_idx)
+{
+    struct vhost_user *u = dev->opaque;
+    struct vhost_memory_region *shadow_reg = &u->shadow_regions[shadow_reg_idx];
+    int ret;
+
+    ret = send_add_rem_mem_reg(dev, shadow_reg, false, 0, 0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    memmove(&u->shadow_regions[shadow_reg_idx],
+            &u->shadow_regions[shadow_reg_idx + 1],
+            sizeof(struct vhost_memory_region) *
+            (u->num_shadow_regions - shadow_reg_idx - 1));
+    u->num_shadow_regions--;
+
+    return 0;
+}
+
+static int send_add_region(struct vhost_dev *dev,
+                           struct vhost_memory_region *reg)
+{
+    struct vhost_user *u = dev->opaque;
+    int fd, ret;
+    ram_addr_t offset;
+
+    vhost_user_get_mr_data(reg->userspace_addr, &offset, &fd);
+    if (fd <= 0) {
+        return 0;
+    }
+
+    ret = send_add_rem_mem_reg(dev, reg, true, offset, fd);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /*
+     * At this point, we know the backend has mapped in the new
+     * region, if the region has a valid file descriptor.
+     *
+     * The region should now be added to the shadow table.
+     */
+    u->shadow_regions[u->num_shadow_regions].guest_phys_addr =
+        reg->guest_phys_addr;
+    u->shadow_regions[u->num_shadow_regions].userspace_addr =
+        reg->userspace_addr;
+    u->shadow_regions[u->num_shadow_regions].memory_size =
+        reg->memory_size;
+    u->num_shadow_regions++;
+
+    return 0;
+}
+
 static int send_remove_regions(struct vhost_dev *dev,
                                struct scrub_regions *remove_reg,
                                int nr_rem_reg)
 {
-    struct vhost_user *u = dev->opaque;
-    struct vhost_memory_region *shadow_reg;
-    int i, shadow_reg_idx, ret;
+    int i, ret;
 
     /*
      * The regions in remove_reg appear in the same order they do in the
@@ -738,23 +791,10 @@ static int send_remove_regions(struct vhost_dev *dev,
      * through remove_reg backwards.
      */
     for (i = nr_rem_reg - 1; i >= 0; i--) {
-        shadow_reg = remove_reg[i].region;
-        shadow_reg_idx = remove_reg[i].reg_idx;
-
-        ret = send_add_rem_mem_reg(dev, shadow_reg, false, 0, 0);
+        ret = send_remove_region(dev, remove_reg[i].reg_idx);
         if (ret < 0) {
             return ret;
         }
-
-        /*
-         * At this point we know the backend has unmapped the region. It is now
-         * safe to remove it from the shadow table.
-         */
-        memmove(&u->shadow_regions[shadow_reg_idx],
-                &u->shadow_regions[shadow_reg_idx + 1],
-                sizeof(struct vhost_memory_region) *
-                (u->num_shadow_regions - shadow_reg_idx - 1));
-        u->num_shadow_regions--;
     }
 
     return 0;
@@ -763,37 +803,13 @@ static int send_remove_regions(struct vhost_dev *dev,
 static int send_add_regions(struct vhost_dev *dev,
                             struct scrub_regions *add_reg, int nr_add_reg)
 {
-    struct vhost_user *u = dev->opaque;
-    int i, fd, ret;
-    struct vhost_memory_region *reg;
-    ram_addr_t offset;
+    int i, ret;
 
     for (i = 0; i < nr_add_reg; i++) {
-        reg = add_reg[i].region;
-
-        vhost_user_get_mr_data(reg->userspace_addr, &offset, &fd);
-        if (fd <= 0) {
-            continue;
-        }
-
-        ret = send_add_rem_mem_reg(dev, reg, true, offset, fd);
+        ret = send_add_region(dev, add_reg[i].region);
         if (ret < 0) {
             return ret;
         }
-
-        /*
-         * At this point, we know the backend has mapped in the new
-         * region, if the region has a valid file descriptor.
-         *
-         * The region should now be added to the shadow table.
-         */
-        u->shadow_regions[u->num_shadow_regions].guest_phys_addr =
-            reg->guest_phys_addr;
-        u->shadow_regions[u->num_shadow_regions].userspace_addr =
-            reg->userspace_addr;
-        u->shadow_regions[u->num_shadow_regions].memory_size =
-            reg->memory_size;
-        u->num_shadow_regions++;
     }
 
     return 0;
