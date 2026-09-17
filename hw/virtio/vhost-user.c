@@ -325,7 +325,12 @@ static VhostUserMsg m __attribute__ ((unused));
 typedef struct VhostShadowRegion {
     uint64_t guest_phys_addr;
     uint64_t memory_size; /* bytes */
-    uint64_t userspace_addr;
+    /*
+     * @userspace_addr_or_zero is unused and must be zero
+     * when vhost_user_gpa_addresses(). Otherwise, it's
+     * a userspace address, sent to backend.
+     */
+    uint64_t userspace_addr_or_zero;
     QLIST_ENTRY(VhostShadowRegion) next;
 } VhostShadowRegion;
 
@@ -627,7 +632,8 @@ static void vhost_user_fill_rem_msg_region(struct vhost_dev *dev,
 
     assert(src != NULL && dst != NULL);
 
-    dst->userspace_addr = use_phys ? src->guest_phys_addr : src->userspace_addr;
+    dst->userspace_addr =
+        use_phys ? src->guest_phys_addr : src->userspace_addr_or_zero;
     dst->memory_size = src->memory_size;
     dst->guest_phys_addr = src->guest_phys_addr;
     dst->mmap_offset = 0;
@@ -689,11 +695,15 @@ static int vhost_user_fill_set_mem_table_msg(struct vhost_user *u,
     return 0;
 }
 
-static inline bool reg_equal(VhostShadowRegion *shadow_reg,
+static inline bool reg_equal(struct vhost_dev *dev,
+                             VhostShadowRegion *shadow_reg,
                              struct vhost_memory_region *vdev_reg)
 {
+    bool use_phys = vhost_user_gpa_addresses(dev);
+
     return shadow_reg->guest_phys_addr == vdev_reg->guest_phys_addr &&
-        shadow_reg->userspace_addr == vdev_reg->userspace_addr &&
+        (use_phys ||
+         shadow_reg->userspace_addr_or_zero == vdev_reg->userspace_addr) &&
         shadow_reg->memory_size == vdev_reg->memory_size;
 }
 
@@ -767,6 +777,7 @@ static int send_remove_region(struct vhost_dev *dev,
 static int send_add_region(struct vhost_dev *dev,
                            struct vhost_memory_region *reg)
 {
+    bool use_phys = vhost_user_gpa_addresses(dev);
     struct vhost_user *u = dev->opaque;
     int fd, ret;
     ram_addr_t offset;
@@ -791,7 +802,7 @@ static int send_add_region(struct vhost_dev *dev,
     new_reg = g_new(VhostShadowRegion, 1);
     *new_reg = (VhostShadowRegion) {
         .guest_phys_addr = reg->guest_phys_addr,
-        .userspace_addr = reg->userspace_addr,
+        .userspace_addr_or_zero = use_phys ? 0 : reg->userspace_addr,
         .memory_size = reg->memory_size,
     };
     QLIST_INSERT_HEAD(&u->shadow_regions, new_reg, next);
@@ -814,7 +825,7 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev)
         bool matching = false;
 
         for (i = 0; i < dev->mem->nregions; i++) {
-            if (reg_equal(shadow_reg, &dev->mem->regions[i])) {
+            if (reg_equal(dev, shadow_reg, &dev->mem->regions[i])) {
                 matching = true;
                 found[i] = true;
                 break;
