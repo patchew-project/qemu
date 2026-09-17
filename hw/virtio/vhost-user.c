@@ -823,7 +823,7 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev)
     int nr_add_reg, nr_rem_reg;
     int ret;
     bool found[VHOST_USER_MAX_RAM_SLOTS] = {};
-    struct vhost_memory_region *reg, *shadow_reg;
+    struct vhost_memory_region *shadow_reg;
     int i, j, add_idx = 0, rm_idx = 0;
     bool matching;
 
@@ -841,9 +841,7 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev)
         matching = false;
 
         for (j = 0; j < dev->mem->nregions; j++) {
-            reg = &dev->mem->regions[j];
-
-            if (reg_equal(shadow_reg, reg)) {
+            if (reg_equal(shadow_reg, &dev->mem->regions[j])) {
                 matching = true;
                 found[j] = true;
                 break;
@@ -867,7 +865,6 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev)
      * file descriptors.
      */
     for (i = 0; i < dev->mem->nregions; i++) {
-        reg = &dev->mem->regions[i];
         /*
          * If the region was in both the shadow and device state we don't
          * need to send a VHOST_USER_ADD_MEM_REG message for it.
@@ -876,7 +873,7 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev)
             continue;
         }
 
-        add_reg[add_idx].region = reg;
+        add_reg[add_idx].region = &dev->mem->regions[i];
         add_reg[add_idx].reg_idx = i;
         add_idx++;
     }
