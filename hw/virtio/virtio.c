@@ -198,6 +198,7 @@ const char *virtio_device_names[] = {
     [VIRTIO_ID_AUDIO_POLICY] = "virtio-audio-pol",
     [VIRTIO_ID_BT] = "virtio-bluetooth",
     [VIRTIO_ID_GPIO] = "virtio-gpio",
+    [VIRTIO_ID_CPUFREQ] = "virtio-cpufreq",
     [VIRTIO_ID_SPI] = "virtio-spi",
     [VIRTIO_ID_MEDIA] = "virtio-media",
 };

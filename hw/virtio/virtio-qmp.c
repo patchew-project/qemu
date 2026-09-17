@@ -653,6 +653,7 @@ VirtioDeviceFeatures *qmp_decode_features(uint16_t device_id,
     case VIRTIO_ID_DMABUF:
     case VIRTIO_ID_PARAM_SERV:
     case VIRTIO_ID_AUDIO_POLICY:
+    case VIRTIO_ID_CPUFREQ:
         break;
     default:
         g_assert_not_reached();

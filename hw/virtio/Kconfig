@@ -146,3 +146,8 @@ config VHOST_USER_RTC
     bool
     default y
     depends on VIRTIO && VHOST_USER
+
+config VIRTIO_CPUFREQ
+    bool
+    default y
+    depends on VIRTIO && XEN

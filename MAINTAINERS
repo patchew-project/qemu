@@ -2756,6 +2756,13 @@ F: hw/virtio/virtio-crypto.c
 F: hw/virtio/virtio-crypto-pci.c
 F: include/hw/virtio/virtio-crypto.h
 
+virtio-cpufreq
+M: Baorui Liu <baorliu@amd.com>
+S: Maintained
+F: hw/virtio/virtio-cpufreq.c
+F: hw/virtio/virtio-cpufreq-pci.c
+F: include/hw/virtio/virtio-cpufreq.h
+
 virtio based memory device
 M: David Hildenbrand <david@kernel.org>
 S: Supported
