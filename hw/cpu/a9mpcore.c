@@ -14,6 +14,8 @@
 #include "hw/cpu/a9mpcore.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-clock.h"
+#include "hw/core/clock.h"
 #include "hw/core/cpu.h"
 #include "target/arm/cpu-qom.h"
 
@@ -42,6 +44,13 @@ static void a9mp_priv_initfn(Object *obj)
     object_initialize_child(obj, "mptimer", &s->mptimer, TYPE_ARM_MPTIMER);
 
     object_initialize_child(obj, "wdt", &s->wdt, TYPE_ARM_MPTIMER);
+
+    /*
+     * Register a clock input. If no clock is connected the
+     * frequency falls back to 100 MHz for backward compatibility.
+     */
+    s->clk = qdev_init_clock_in(DEVICE(obj), "clk", NULL, NULL, 0);
+    clock_set_ns(s->clk, 10);
 }
 
 static void a9mp_priv_realize(DeviceState *dev, Error **errp)
@@ -103,6 +112,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 
     gtimerdev = DEVICE(&s->gtimer);
     qdev_prop_set_uint32(gtimerdev, "num-cpu", s->num_cpu);
+    qdev_connect_clock_in(gtimerdev, "clk", s->clk);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gtimer), errp)) {
         return;
     }
@@ -110,6 +120,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 
     mptimerdev = DEVICE(&s->mptimer);
     qdev_prop_set_uint32(mptimerdev, "num-cpu", s->num_cpu);
+    qdev_connect_clock_in(mptimerdev, "clk", s->clk);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->mptimer), errp)) {
         return;
     }
@@ -117,6 +128,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 
     wdtdev = DEVICE(&s->wdt);
     qdev_prop_set_uint32(wdtdev, "num-cpu", s->num_cpu);
+    qdev_connect_clock_in(wdtdev, "clk", s->clk);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->wdt), errp)) {
         return;
     }
