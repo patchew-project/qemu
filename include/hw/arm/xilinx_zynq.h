@@ -33,6 +33,7 @@ struct ZynqMachineState {
 struct ZynqMachineClass {
     MachineClass parent_class;
     const char *qspi_flash_type;
+    uint64_t ps_clk_freq;
 };
 
 #endif /* QEMU_ARM_ZYNQ_H */
