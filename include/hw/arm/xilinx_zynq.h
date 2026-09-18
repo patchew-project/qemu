@@ -12,12 +12,13 @@
 #ifndef QEMU_ARM_ZYNQ_H
 #define QEMU_ARM_ZYNQ_H
 
+#include "hw/core/boards.h"
 #include "target/arm/cpu-qom.h"
 #include "hw/core/qdev-clock.h"
 #include "hw/arm/boot.h"
 
 #define TYPE_ZYNQ_MACHINE MACHINE_TYPE_NAME("xilinx-zynq-a9")
-OBJECT_DECLARE_SIMPLE_TYPE(ZynqMachineState, ZYNQ_MACHINE)
+OBJECT_DECLARE_TYPE(ZynqMachineState, ZynqMachineClass, ZYNQ_MACHINE)
 
 #define ZYNQ_MAX_CPUS 2
 
@@ -27,6 +28,11 @@ struct ZynqMachineState {
     ARMCPU *cpu[ZYNQ_MAX_CPUS];
     uint8_t boot_mode;
     struct arm_boot_info bootinfo;
+};
+
+struct ZynqMachineClass {
+    MachineClass parent_class;
+    const char *qspi_flash_type;
 };
 
 #endif /* QEMU_ARM_ZYNQ_H */
