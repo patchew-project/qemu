@@ -189,6 +189,11 @@ static void canokey_handle_data(USBDevice *dev, USBPacket *p)
 {
     CanoKeyState *key = CANOKEY(dev);
 
+    if (p->ep->nr >= CANOKEY_EP_NUM) {
+        p->status = USB_RET_STALL;
+        return;
+    }
+
     uint8_t ep_in = CANOKEY_EP_IN(p->ep->nr);
     uint8_t ep_out = p->ep->nr;
     uint32_t in_len;
