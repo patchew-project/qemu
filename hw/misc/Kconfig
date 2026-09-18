@@ -294,6 +294,8 @@ config AXIADO_CLK
     bool
 
 config K230_DECOMP_GZIP
+
+config BECKHOFF_CCAT
     bool
 
 config SOPHGO_CV1800B_CLK
