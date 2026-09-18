@@ -307,7 +307,9 @@ enum {
 #define TTE_SET_USED(tte)   ((tte) |= TTE_USED_BIT)
 #define TTE_SET_UNUSED(tte) ((tte) &= ~TTE_USED_BIT)
 
-#define TTE_PGSIZE(tte)     (((tte) >> 61) & 3ULL)
+#define TTE_PGSIZE_HI_BIT   (1ULL << 48)
+#define TTE_PGSIZE(tte)     ((((tte) >> 61) & 3ULL) | \
+                             (((tte) & TTE_PGSIZE_HI_BIT) >> 46))
 #define TTE_PGSIZE_UA2005(tte)     ((tte) & 7ULL)
 #define TTE_PA(tte)         ((tte) & 0x1ffffffe000ULL)
 

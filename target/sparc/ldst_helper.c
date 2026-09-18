@@ -186,7 +186,7 @@ static void demap_tlb(SparcTLBEntry *tlb, target_ulong demap_addr,
                 /* demap page
                    will remove any entry matching VA */
                 mask = 0xffffffffffffe000ULL;
-                mask <<= 3 * ((tlb[i].tte >> 61) & 3);
+                mask <<= 3 * TTE_PGSIZE(tlb[i].tte);
 
                 if (!compare_masked(demap_addr, tlb[i].tag, mask)) {
                     continue;
@@ -217,7 +217,12 @@ static uint64_t sun4v_tte_to_sun4u(CPUSPARCState *env, uint64_t tag,
         return sun4v_tte;
     }
     sun4u_tte = TTE_PA(sun4v_tte) | (sun4v_tte & TTE_VALID_BIT);
-    sun4u_tte |= (sun4v_tte & 3ULL) << 61; /* TTE_PGSIZE */
+    {
+        uint64_t pgsz = TTE_PGSIZE_UA2005(sun4v_tte);
+        sun4u_tte |= (pgsz & 3ULL) << 61; /* TTE_PGSIZE bits 61-62 */
+        sun4u_tte |= (pgsz & 4ULL) ?
+            TTE_PGSIZE_HI_BIT : 0; /* TTE_PGSIZE bit 48 */
+    }
     sun4u_tte |= CONVERT_BIT(sun4v_tte, TTE_NFO_BIT_UA2005, TTE_NFO_BIT);
     sun4u_tte |= CONVERT_BIT(sun4v_tte, TTE_USED_BIT_UA2005, TTE_USED_BIT);
     sun4u_tte |= CONVERT_BIT(sun4v_tte, TTE_W_OK_BIT_UA2005, TTE_W_OK_BIT);
