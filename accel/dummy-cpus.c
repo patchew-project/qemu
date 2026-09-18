@@ -43,7 +43,6 @@ static void *dummy_cpu_thread_fn(void *arg)
     qemu_guest_random_seed_thread_part2(cpu->random_seed);
 
     do {
-        qemu_process_cpu_events(cpu);
         bql_unlock();
 #ifndef _WIN32
         do {
@@ -58,6 +57,7 @@ static void *dummy_cpu_thread_fn(void *arg)
         qemu_sem_wait(&cpu->sem);
 #endif
         bql_lock();
+        qemu_process_cpu_events(cpu);
     } while (!cpu->unplug);
 
     bql_unlock();
