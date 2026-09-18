@@ -68,7 +68,7 @@ foreach driver, speed: qemu_iotests_drivers
   endif
 
   # Every driver gets put in the driver specific suite
-  suites = ['block-' + driver + '-optional']
+  suites = ['block-' + driver + '-optional', 'optional']
   # Any driver tagged quick or slow also gets added to slow
   # otherwise its tagged thorough
   if speed != 'thorough'

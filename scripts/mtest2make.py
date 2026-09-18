@@ -26,6 +26,11 @@ SPEED = quick
 .speed.slow = $(sort $(filter-out %-thorough, $1))
 .speed.thorough = $(sort $1)
 
+.speed_exclude_suites.quick = --no-suite slow --no-suite thorough \
+                              --no-suite optional
+.speed_exclude_suites.slow = --no-suite thorough
+.speed_exclude_suites.thorough =
+
 TIMEOUT_MULTIPLIER ?= 1
 .mtestargs = --no-rebuild -t $(TIMEOUT_MULTIPLIER)
 ifneq ($(SPEED), quick)
@@ -34,7 +39,8 @@ endif
 .mtestargs += $(subst -j,--num-processes , $(filter-out -j, $(lastword -j1 $(filter -j%, $(MAKEFLAGS)))))
 
 .check.mtestargs = $(MTESTARGS) $(.mtestargs) $(if $(V),--verbose,--print-errorlogs) \
-    $(foreach s, $(sort $(.check.mtest-suites)), --suite $s)
+    $(foreach s, $(sort $(.check.mtest-suites)), --suite $s) \
+    $(.speed_exclude_suites.$(SPEED))
 .bench.mtestargs = $(MTESTARGS) $(.mtestargs) --benchmark --verbose \
     $(foreach s, $(sort $(.bench.mtest-suites)), --suite $s)''')
 
@@ -102,7 +108,8 @@ def emit_suite(name, suite, prefix):
         targets += f' {prefix} {prefix}-report.junit.xml'
     print(f'ifneq ($(filter {targets}, $(MAKECMDGOALS)),)')
     # for the "base" suite possibly add FOO-slow and FOO-thorough
-    print(f".{prefix}.mtest-suites += {name} $(call .speed.$(SPEED), {names})")
+    print(f".{prefix}.mtest-suites += {name} $(call .speed.$(SPEED), {names}) "
+          ".speed_exclude_suites.$(SPEED)")
     print(f'endif')
 
 targets = {t['id']: [os.path.relpath(f) for f in t['filename']]
