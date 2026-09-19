@@ -2,7 +2,7 @@
 #define SUN_NVRAM_H
 
 /* Sun IDPROM structure at the end of NVRAM */
-/* from http://www.squirrel.com/squirrel/sun-nvram-hostid.faq.html */
+/* from https://www.sun3arc.org/FAQ/sun-nvram-hostid.faq.phtml */
 struct Sun_nvram {
     uint8_t type;       /* always 01 */
     uint8_t machine_id; /* first byte of host id (machine type) */
@@ -13,7 +13,8 @@ struct Sun_nvram {
 };
 
 static inline void
-Sun_init_header(struct Sun_nvram *header, const uint8_t *macaddr, int machine_id)
+Sun_init_header(struct Sun_nvram *header, const uint8_t *macaddr,
+                int machine_id, const uint8_t *hostid)
 {
     uint8_t tmp, *tmpptr;
     unsigned int i;
@@ -21,7 +22,11 @@ Sun_init_header(struct Sun_nvram *header, const uint8_t *macaddr, int machine_id
     header->type = 1;
     header->machine_id = machine_id & 0xff;
     memcpy(&header->macaddr, macaddr, 6);
-    memcpy(&header->hostid , &macaddr[3], 3);
+    if (hostid) {
+        memcpy(&header->hostid, hostid, sizeof(header->hostid));
+    } else {
+        memcpy(&header->hostid, &macaddr[3], sizeof(header->hostid));
+    }
 
     /* Calculate checksum */
     tmp = 0;

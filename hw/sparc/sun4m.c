@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
+#include "hw/sparc/sun_hostid.h"
 #include "qemu/datadir.h"
 #include "target/sparc/cpu.h"
 #include "exec/target_page.h"
@@ -107,6 +108,14 @@ struct sun4m_hwdef {
     uint8_t nvram_machine_id;
 };
 
+/* hostid_props carries the optional "hostid"/"machineid" overrides;
+ * see include/hw/sparc/sun_hostid.h. */
+struct Sun4mMachineState {
+    MachineState parent_obj;
+    SunHostIDProps hostid_props;
+};
+typedef struct Sun4mMachineState Sun4mMachineState;
+
 struct Sun4mMachineClass {
     /*< private >*/
     MachineClass parent_obj;
@@ -116,7 +125,13 @@ struct Sun4mMachineClass {
 typedef struct Sun4mMachineClass Sun4mMachineClass;
 
 #define TYPE_SUN4M_MACHINE MACHINE_TYPE_NAME("sun4m-common")
-DECLARE_CLASS_CHECKERS(Sun4mMachineClass, SUN4M_MACHINE, TYPE_SUN4M_MACHINE)
+OBJECT_DECLARE_TYPE(Sun4mMachineState, Sun4mMachineClass, SUN4M_MACHINE)
+
+static void sun4m_machine_instance_init(Object *obj)
+{
+    sun_hostid_instance_init(obj, offsetof(Sun4mMachineState,
+                                           hostid_props));
+}
 
 const char *fw_cfg_arch_key_name(uint16_t key)
 {
@@ -147,7 +162,8 @@ static void nvram_init(Nvram *nvram, uint8_t *macaddr,
                        const char *cmdline, const char *boot_devices,
                        ram_addr_t RAM_size, uint32_t kernel_size,
                        int width, int height, int depth,
-                       int nvram_machine_id, const char *arch)
+                       int machine_id, const uint8_t *hostid,
+                       const char *arch)
 {
     unsigned int i;
     int sysp_end;
@@ -163,7 +179,7 @@ static void nvram_init(Nvram *nvram, uint8_t *macaddr,
     chrp_nvram_create_free_partition(&image[sysp_end], 0x1fd0 - sysp_end);
 
     Sun_init_header((struct Sun_nvram *)&image[0x1fd8], macaddr,
-                    nvram_machine_id);
+                    machine_id, hostid);
 
     for (i = 0; i < sizeof(image); i++) {
         (k->write)(nvram, i, image[i]);
@@ -805,6 +821,7 @@ static void dummy_fdc_tc(void *opaque, int irq, int level)
 static void sun4m_hw_init(MachineState *machine)
 {
     const struct sun4m_hwdef *hwdef = SUN4M_MACHINE_GET_CLASS(machine)->hwdef;
+    Sun4mMachineState *sms = SUN4M_MACHINE(machine);
     DeviceState *slavio_intctl;
     unsigned int i;
     Nvram *nvram;
@@ -820,7 +837,9 @@ static void sun4m_hw_init(MachineState *machine)
     unsigned int smp_cpus = machine->smp.cpus;
     unsigned int max_cpus = machine->smp.max_cpus;
     HostMemoryBackend *ram_memdev = machine->memdev;
-    MACAddr hostid;
+    MACAddr MACid;
+    uint8_t nvram_machine_id = hwdef->nvram_machine_id;
+    uint8_t nvram_hostid[3];
 
     if (machine->ram_size > hwdef->max_mem) {
         error_report("Too much memory for this machine: %" PRId64 ","
@@ -881,7 +900,24 @@ static void sun4m_hw_init(MachineState *machine)
 
     sparc32_dma_init(hwdef->dma_base,
                      hwdef->esp_base, slavio_irq[18],
-                     hwdef->le_base, slavio_irq[16], &hostid);
+                     hwdef->le_base, slavio_irq[16], &MACid);
+
+    /*
+     * sparc32_dma_init() has already programmed the emulated lance
+     * NIC's MAC property from `MACid` above (either the user's
+     * -nic mac=, or an auto-generated one). Overriding hostid here,
+     * *after* that call, only changes what gets written into the
+     * NVRAM/IDPROM hostid field below - it deliberately does not
+     * change the NIC's actual MAC address.
+     */
+    if (sms->hostid_props.hostid_set) {
+        nvram_hostid[0] = (sms->hostid_props.hostid >> 16) & 0xff;
+        nvram_hostid[1] = (sms->hostid_props.hostid >> 8) & 0xff;
+        nvram_hostid[2] = sms->hostid_props.hostid & 0xff;
+    }
+    if (sms->hostid_props.machineid_set) {
+        nvram_machine_id = sms->hostid_props.machineid;
+    }
 
     if (!graphic_width) {
         graphic_width = 1024;
@@ -1042,10 +1078,11 @@ static void sun4m_hw_init(MachineState *machine)
                                     machine->initrd_filename,
                                     machine->ram_size, &initrd_size);
 
-    nvram_init(nvram, hostid.a, machine->kernel_cmdline,
+    nvram_init(nvram, MACid.a, machine->kernel_cmdline,
                machine->boot_config.order, machine->ram_size, kernel_size,
                graphic_width, graphic_height, graphic_depth,
-               hwdef->nvram_machine_id, "Sun4m");
+               nvram_machine_id,
+               sms->hostid_props.hostid_set ? nvram_hostid : NULL, "Sun4m");
 
     if (hwdef->ecc_base)
         ecc_init(hwdef->ecc_base, slavio_irq[28],
@@ -1109,6 +1146,8 @@ static void sun4m_machine_class_init(ObjectClass *oc, const void *data)
     mc->default_boot_order = "c";
     mc->default_display = "tcx";
     mc->default_ram_id = "sun4m.ram";
+
+    sun_hostid_class_init(oc, offsetof(Sun4mMachineState, hostid_props));
 }
 
 static void ss5_class_init(ObjectClass *oc, const void *data)
@@ -1471,6 +1510,8 @@ static const TypeInfo sun4m_machine_types[] = {
         .parent         = TYPE_MACHINE,
         .class_size     = sizeof(Sun4mMachineClass),
         .class_init     = sun4m_machine_class_init,
+        .instance_size  = sizeof(Sun4mMachineState),
+        .instance_init  = sun4m_machine_instance_init,
         .abstract       = true,
     }
 };

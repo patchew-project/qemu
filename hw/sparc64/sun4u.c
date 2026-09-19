@@ -190,7 +190,8 @@ static int sun4u_NVRAM_set_params(Nvram *nvram, uint16_t NVRAM_size,
     /* Free space partition */
     chrp_nvram_create_free_partition(&image[sysp_end], 0x1fd0 - sysp_end);
 
-    Sun_init_header((struct Sun_nvram *)&image[0x1fd8], macaddr, 0x80);
+    Sun_init_header((struct Sun_nvram *)&image[0x1fd8], macaddr,
+                    0x80, NULL);
 
     for (i = 0; i < sizeof(image); i++) {
         (k->write)(nvram, i, image[i]);
