@@ -26,6 +26,7 @@
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "hw/sparc/sun_hostid.h"
 #include "qemu/datadir.h"
 #include "target/sparc/cpu.h"
 #include "exec/target_page.h"
@@ -95,6 +96,39 @@ struct EbusState {
 
 #define TYPE_EBUS "ebus"
 OBJECT_DECLARE_SIMPLE_TYPE(EbusState, EBUS)
+
+/*
+ * Sun4uMachineState/TYPE_SUN4U_MACHINE: common abstract instance/class
+ * pair shared by "sun4u" and "sun4v", giving both the hostid=/
+ * machineid= -machine properties via one sun_hostid_class_init()
+ * (from hw/sparc/sun_hostid.c) call here (property lookup walks up
+ * the class hierarchy, so sun4u_class_init()/sun4v_class_init()
+ * don't need to call it too).
+ */
+struct Sun4uMachineState {
+    MachineState parent_obj;
+    SunHostIDProps hostid_props;
+};
+typedef struct Sun4uMachineState Sun4uMachineState;
+
+struct Sun4uMachineClass {
+    MachineClass parent_obj;
+};
+typedef struct Sun4uMachineClass Sun4uMachineClass;
+
+#define TYPE_SUN4U_MACHINE MACHINE_TYPE_NAME("sun4u-common")
+OBJECT_DECLARE_TYPE(Sun4uMachineState, Sun4uMachineClass, SUN4U_MACHINE)
+
+static void sun4u_machine_instance_init(Object *obj)
+{
+    sun_hostid_instance_init(obj, offsetof(Sun4uMachineState,
+                                            hostid_props));
+}
+
+static void sun4u_common_class_init(ObjectClass *oc, const void *data)
+{
+    sun_hostid_class_init(oc, offsetof(Sun4uMachineState, hostid_props));
+}
 
 const char *fw_cfg_arch_key_name(uint16_t key)
 {
@@ -175,7 +209,9 @@ static int sun4u_NVRAM_set_params(Nvram *nvram, uint16_t NVRAM_size,
                                   uint32_t initrd_image, uint32_t initrd_size,
                                   uint32_t NVRAM_image,
                                   int width, int height, int depth,
-                                  const uint8_t *macaddr)
+                                  const uint8_t *macaddr,
+                                  uint8_t machine_id,
+                                  const uint8_t *hostid)
 {
     unsigned int i;
     int sysp_end;
@@ -191,7 +227,7 @@ static int sun4u_NVRAM_set_params(Nvram *nvram, uint16_t NVRAM_size,
     chrp_nvram_create_free_partition(&image[sysp_end], 0x1fd0 - sysp_end);
 
     Sun_init_header((struct Sun_nvram *)&image[0x1fd8], macaddr,
-                    0x80, NULL);
+                    machine_id, hostid);
 
     for (i = 0; i < sizeof(image); i++) {
         (k->write)(nvram, i, image[i]);
@@ -726,6 +762,19 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                                     machine->ram_size, &initrd_size, &initrd_addr,
                                     &kernel_addr, &kernel_entry);
 
+    Sun4uMachineState *sms = SUN4U_MACHINE(machine);
+    uint8_t nvram_machine_id = 0x80;
+    uint8_t nvram_hostid[3];
+
+    if (sms->hostid_props.machineid_set) {
+        nvram_machine_id = sms->hostid_props.machineid;
+    }
+    if (sms->hostid_props.hostid_set) {
+        nvram_hostid[0] = (sms->hostid_props.hostid >> 16) & 0xff;
+        nvram_hostid[1] = (sms->hostid_props.hostid >> 8) & 0xff;
+        nvram_hostid[2] = sms->hostid_props.hostid & 0xff;
+    }
+
     sun4u_NVRAM_set_params(nvram, NVRAM_SIZE, "Sun4u", machine->ram_size,
                            machine->boot_config.order,
                            kernel_addr, kernel_size,
@@ -734,7 +783,9 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                            /* XXX: need an option to load a NVRAM image */
                            0,
                            graphic_width, graphic_height, graphic_depth,
-                           (uint8_t *)&macaddr);
+                           (uint8_t *)&macaddr,
+                           nvram_machine_id,
+                           sms->hostid_props.hostid_set ? nvram_hostid : NULL);
 
     dev = qdev_new(TYPE_FW_CFG_IO);
     qdev_prop_set_bit(dev, "dma_enabled", false);
@@ -871,7 +922,7 @@ static void sun4u_class_init(ObjectClass *oc, const void *data)
 
 static const TypeInfo sun4u_type = {
     .name = MACHINE_TYPE_NAME("sun4u"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SUN4U_MACHINE,
     .class_init = sun4u_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_FW_PATH_PROVIDER },
@@ -896,17 +947,25 @@ static void sun4v_class_init(ObjectClass *oc, const void *data)
 
 static const TypeInfo sun4v_type = {
     .name = MACHINE_TYPE_NAME("sun4v"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SUN4U_MACHINE,
     .class_init = sun4v_class_init,
 };
-
+static const TypeInfo sun4u_common_type = {
+    .name          = TYPE_SUN4U_MACHINE,
+    .parent        = TYPE_MACHINE,
+    .abstract      = true,
+    .instance_size = sizeof(Sun4uMachineState),
+    .instance_init = sun4u_machine_instance_init,
+    .class_size    = sizeof(Sun4uMachineClass),
+    .class_init    = sun4u_common_class_init,
+};
 static void sun4u_register_types(void)
 {
     type_register_static(&power_info);
     type_register_static(&ebus_info);
     type_register_static(&prom_info);
     type_register_static(&ram_info);
-
+    type_register_static(&sun4u_common_type);
     type_register_static(&sun4u_type);
     type_register_static(&sun4v_type);
 }

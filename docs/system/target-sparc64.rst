@@ -35,3 +35,25 @@ QEMU emulates the following peripherals:
 -  2 PCI IDE interfaces with hard disk and CD-ROM support
 
 -  Floppy disk
+
+Every sun4[uv] machine reports a classic Sun "hostid" to the guest OS,
+historically used by ``hostid(1)``, that some software use for license
+checks. Normally it is built from a fixed machine id (defaults to 0x80)
+byte plus the low 3 bytes of the machine's Ethernet MAC address. However,
+these values can be overridden in the host's NVRAM. Since the current
+emulated NVRAM isn't persistent, both halves can be overridden
+independently using the ``hostid`` and ``machineid`` -machine
+sub-properties::
+
+    qemu-system-sparc64 -machine sun4u,hostid=0x352e09,machineid=0x72
+
+``hostid=VALUE``
+  Override the low 24 bits of the NVRAM/IDPROM hostid (accepts
+  0x000000-0xffffff). Does not affect the emulated Lance NIC's MAC
+  address, which is still set independently via ``-nic``/``-net``.
+
+``machineid=VALUE``
+  Override the machine-type byte (bits 31:24 of the hostid) normally
+  fixed per machine model, e.g. 0x80 for sun4u (accepts 0x00-0xff).
+
+If neither property is given, the behaviour is unchanged.
