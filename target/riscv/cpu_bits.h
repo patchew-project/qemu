@@ -744,6 +744,14 @@ typedef enum {
 #define SATP64_ASID         0x0FFFF00000000000ULL
 #define SATP64_PPN          0x00000FFFFFFFFFFFULL
 
+/* hgatp CSR field masks */
+#define HGATP32_MODE        SATP32_MODE
+#define HGATP32_VMID        0x1FC00000
+#define HGATP32_PPN         SATP32_PPN
+#define HGATP64_MODE        SATP64_MODE
+#define HGATP64_VMID        0x03FFF00000000000ULL
+#define HGATP64_PPN         SATP64_PPN
+
 /* RNMI mnstatus CSR mask */
 #define MNSTATUS_NMIE       0x00000008
 #define MNSTATUS_MNPV       0x00000080

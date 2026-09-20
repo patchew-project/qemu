@@ -5264,17 +5264,56 @@ static RISCVException read_hgeip(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+static target_ulong hgatp_mask(CPURISCVState *env)
+{
+    target_ulong mask;
+
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
+        mask = HGATP32_MODE | HGATP32_VMID | HGATP32_PPN;
+    } else {
+        mask = HGATP64_MODE | HGATP64_VMID | HGATP64_PPN;
+    }
+
+    /* G-stage x4 root page tables are always 16 KiB aligned. */
+    return mask & ~(target_ulong)3;
+}
+
+static target_ulong legalize_hgatp(CPURISCVState *env,
+                                   target_ulong old_hgatp,
+                                   target_ulong val)
+{
+    target_ulong mode_mask = riscv_cpu_mxl(env) == MXL_RV32 ?
+                             HGATP32_MODE : HGATP64_MODE;
+    target_ulong hgatp = val & hgatp_mask(env);
+    target_ulong mode = get_field(hgatp, mode_mask);
+
+    /*
+     * Unlike satp, an unsupported hgatp.MODE does not discard the whole
+     * write.  Keep the old MODE while accepting the other WARL fields.
+     */
+    if (!validate_vm(env, mode)) {
+        hgatp = set_field(hgatp, mode_mask,
+                          get_field(old_hgatp, mode_mask));
+    }
+
+    if (hgatp != old_hgatp) {
+        tlb_flush(env_cpu(env));
+    }
+
+    return hgatp;
+}
+
 static RISCVException read_hgatp(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
-    *val = env->hgatp;
+    *val = env->hgatp & hgatp_mask(env);
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_hgatp(CPURISCVState *env, int csrno,
                                   target_ulong val, uintptr_t ra)
 {
-    env->hgatp = legalize_xatp(env, env->hgatp, val);
+    env->hgatp = legalize_hgatp(env, env->hgatp, val);
     return RISCV_EXCP_NONE;
 }
 
