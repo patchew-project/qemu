@@ -1246,7 +1246,7 @@ static void handle_get_reg(GArray *params, void *user_ctx)
         gdb_put_packet("E14");
         return;
     }
-
+    cpu_synchronize_state(gdbserver_state.g_cpu);
     reg_size = gdb_read_register(gdbserver_state.g_cpu,
                                  gdbserver_state.mem_buf,
                                  gdb_get_cmd_param(params, 0)->val_ull);
