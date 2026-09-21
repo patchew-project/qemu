@@ -22,18 +22,41 @@ class MigrationTest(QemuSystemTest):
     timeout = 10
 
     @staticmethod
-    def migration_finished(vm):
-        return vm.cmd('query-migrate')['status'] in ('completed', 'failed')
+    def migration_finished(query):
+        return query['status'] in ('completed', 'failed')
+
+    def wait_for_vm(self, src_or_dst, vm):
+        "Track the state of one VM in the migration"
+        current_state = last_state = vm.cmd('query-migrate')
+
+        self.log.info(f"waiting for {src_or_dst} to complete")
+
+        end = time.monotonic() + self.timeout
+        while time.monotonic() < end:
+            if self.migration_finished(current_state):
+                break
+            else:
+                last_remain = last_state['remaining']
+                current_remain = current_state['remaining']
+
+                if current_remain > last_remain:
+                    self.log.warning(f"slow migration {current_remain} > {last_remain}")
+
+            time.sleep(0.1)
+            last_state = current_state
+            current_state = vm.cmd('query-migrate')
+
 
     def assert_migration(self, src_vm, dst_vm):
 
-        end = time.monotonic() + self.timeout
-        while time.monotonic() < end and not self.migration_finished(src_vm):
-            time.sleep(0.1)
+        self.wait_for_vm("src", src_vm)
 
-        end = time.monotonic() + self.timeout
-        while time.monotonic() < end and not self.migration_finished(dst_vm):
-            time.sleep(0.1)
+        # if we hit this we never completed...
+        self.assertEqual(src_vm.cmd('query-migrate')['status'], 'completed')
+
+        self.wait_for_vm("dst", dst_vm)
+
+        self.log.info("checking everything is OK")
 
         self.assertEqual(src_vm.cmd('query-migrate')['status'], 'completed')
         self.assertEqual(dst_vm.cmd('query-migrate')['status'], 'completed')
