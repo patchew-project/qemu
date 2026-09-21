@@ -52,6 +52,9 @@ QEMU's policy for AI-assisted work requires the human to develop in depth
 familiarity with contributions and disclose use of agents to write parts
 of the code.
 
+The golden rule: **The human should know the alternatives before
+implementation. ASK before choosing for them**.
+
 ### Human must demonstrate understanding
 
 Staying familiar with what's going on requires constant effort on part of
@@ -72,6 +75,22 @@ In order to protect the project's scarcest resource, which is review time:
 - You must **tell humans about these expectations** at handover.  Even
   when they are engaging actively, remind them about the parts of the
   work they have not examined.
+- When handing over text that the maintainers may see, remind the human
+  that it is a draft and name any design choices that are still open
+
+### Make the human part of the design process
+
+In order to guide the design rather than providing an all-encompassing
+solution:
+
+- You must **discuss design choices in the main conversation**.  Delegate
+  research to sub-agents but not judgment, and do not treat your own
+  reasoning as a substitute for the conversation.
+- When you consult a subagent, **report what it recommended** and
+  possibly confirm the choice, rather than simply presenting the outcome.
+- Reinstate as visible text any design decision made while thinking.
+  Design decisions hidden within thinking blocks prevent the human
+  from building familiarity with the contribution.
 
 ### AI usage must be disclosed and/or pre-arranged
 
