@@ -109,6 +109,7 @@ class X8664NVMeMigrationTest(MigrationTest):
                 rm -f /tmp/test_nvme_mig_workload.iter_finished; \
                 echo 3 > /proc/sys/vm/drop_caches; \
                 find /usr/bin -type f -exec cksum {} \\;; \
+                sleep 0.3; \
                 touch /tmp/test_nvme_mig_workload.iter_finished; \
             done) > /dev/null 2> /tmp/test_nvme_mig_workload.errors &",
             prompt, vm=vm)
