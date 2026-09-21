@@ -314,7 +314,7 @@ static KVMSlot *kvm_alloc_slot(KVMMemoryListener *kml)
         return slot;
     }
 
-    fprintf(stderr, "%s: no free slot available\n", __func__);
+    error_report("%s: no free slot available", __func__);
     abort();
 }
 
@@ -1720,8 +1720,8 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
             mem->flags = 0;
             err = kvm_set_user_memory_region(kml, mem, false);
             if (err) {
-                fprintf(stderr, "%s: error unregistering slot: %s\n",
-                        __func__, strerror(-err));
+                error_report("%s: error unregistering slot: %s",
+                             __func__, strerror(-err));
                 abort();
             }
             start_addr += slot_size;
@@ -1748,8 +1748,8 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
         kvm_slot_init_dirty_bitmap(mem);
         err = kvm_set_user_memory_region(kml, mem, true);
         if (err) {
-            fprintf(stderr, "%s: error registering slot: %s\n", __func__,
-                    strerror(-err));
+            error_report("%s: error registering slot: %s", __func__,
+                         strerror(-err));
             abort();
         }
 
@@ -2042,8 +2042,8 @@ static void kvm_mem_ioeventfd_add(MemoryListener *listener,
                                data, true, int128_get64(section->size),
                                match_data);
     if (r < 0) {
-        fprintf(stderr, "%s: error adding ioeventfd: %s (%d)\n",
-                __func__, strerror(-r), -r);
+        error_report("%s: error adding ioeventfd(%d): %s (%d)",
+                     __func__, fd, strerror(-r), -r);
         abort();
     }
 }
@@ -2060,8 +2060,8 @@ static void kvm_mem_ioeventfd_del(MemoryListener *listener,
                                data, false, int128_get64(section->size),
                                match_data);
     if (r < 0) {
-        fprintf(stderr, "%s: error deleting ioeventfd: %s (%d)\n",
-                __func__, strerror(-r), -r);
+        error_report("%s: error deleting ioeventfd(%d): %s (%d)",
+                     __func__, fd, strerror(-r), -r);
         abort();
     }
 }
@@ -2078,8 +2078,8 @@ static void kvm_io_ioeventfd_add(MemoryListener *listener,
                               data, true, int128_get64(section->size),
                               match_data);
     if (r < 0) {
-        fprintf(stderr, "%s: error adding ioeventfd: %s (%d)\n",
-                __func__, strerror(-r), -r);
+        error_report("%s: error adding ioeventfd(%d): %s (%d)",
+                     __func__, fd, strerror(-r), -r);
         abort();
     }
 }
@@ -2097,8 +2097,8 @@ static void kvm_io_ioeventfd_del(MemoryListener *listener,
                               data, false, int128_get64(section->size),
                               match_data);
     if (r < 0) {
-        fprintf(stderr, "%s: error deleting ioeventfd: %s (%d)\n",
-                __func__, strerror(-r), -r);
+        error_report("%s: error deleting ioeventfd(%d): %s (%d)",
+                     __func__, fd, strerror(-r), -r);
         abort();
     }
 }
@@ -2161,7 +2161,7 @@ int kvm_set_irq(KVMState *s, int irq, int level)
     event.irq = irq;
     ret = kvm_vm_ioctl(s, s->irq_set_ioctl, &event);
     if (ret < 0) {
-        perror("kvm_set_irq");
+        error_report("kvm_set_irq: %s", strerror(-ret));
         abort();
     }
 
@@ -2599,7 +2599,7 @@ static int do_kvm_irqchip_create(KVMState *s)
     } else if (kvm_check_extension(s, KVM_CAP_S390_IRQCHIP)) {
         ret = kvm_vm_enable_cap(s, KVM_CAP_S390_IRQCHIP, 0);
         if (ret < 0) {
-            fprintf(stderr, "Enable kernel irqchip failed: %s\n", strerror(-ret));
+            error_report("Enable kernel irqchip failed: %s", strerror(-ret));
             exit(1);
         }
     } else {
@@ -2607,7 +2607,7 @@ static int do_kvm_irqchip_create(KVMState *s)
     }
 
     if (kvm_check_extension(s, KVM_CAP_IRQFD) <= 0) {
-        fprintf(stderr, "kvm: irqfd not implemented\n");
+        error_report("kvm: irqfd not implemented");
         exit(1);
     }
 
@@ -2623,7 +2623,7 @@ static int do_kvm_irqchip_create(KVMState *s)
         }
     }
     if (ret < 0) {
-        fprintf(stderr, "Create kernel irqchip failed: %s\n", strerror(-ret));
+        error_report("Create kernel irqchip failed: %s", strerror(-ret));
         exit(1);
     }
 
@@ -3156,15 +3156,14 @@ static int kvm_handle_internal_error(CPUState *cpu, struct kvm_run *run)
 {
     int i;
 
-    fprintf(stderr, "KVM internal error. Suberror: %d\n",
-            run->internal.suberror);
+    error_report("KVM internal error. Suberror: %d", run->internal.suberror);
 
     for (i = 0; i < run->internal.ndata; ++i) {
-        fprintf(stderr, "extra data[%d]: 0x%016"PRIx64"\n",
-                i, (uint64_t)run->internal.data[i]);
+        error_printf("extra data[%d]: 0x%016"PRIx64"\n",
+                     i, (uint64_t)run->internal.data[i]);
     }
     if (run->internal.suberror == KVM_INTERNAL_ERROR_EMULATION) {
-        fprintf(stderr, "emulation failure\n");
+        error_printf("emulation failure\n");
         if (!kvm_arch_stop_on_emulation_error(cpu)) {
             cpu_dump_state(cpu, stderr, CPU_DUMP_CODE);
             return EXCP_INTERRUPT;
@@ -3341,13 +3340,13 @@ static void kvm_eat_signals(CPUState *cpu)
     do {
         r = sigtimedwait(&waitset, &siginfo, &ts);
         if (r == -1 && !(errno == EAGAIN || errno == EINTR)) {
-            perror("sigtimedwait");
+            error_report("sigtimedwait: %s", strerror(errno));
             exit(1);
         }
 
         r = sigpending(&chkset);
         if (r == -1) {
-            perror("sigpending");
+            error_report("sigpending: %s", strerror(errno));
             exit(1);
         }
     } while (sigismember(&chkset, SIG_IPI));
@@ -3516,14 +3515,13 @@ int kvm_cpu_exec(CPUState *cpu)
                 break;
             }
             if (!(run_ret == -EFAULT && run->exit_reason == KVM_EXIT_MEMORY_FAULT)) {
-                fprintf(stderr, "error: kvm run failed %s\n",
-                        strerror(-run_ret));
+                error_report("kvm run failed: %s", strerror(-run_ret));
 #ifdef TARGET_PPC
                 if (run_ret == -EBUSY) {
-                    fprintf(stderr,
-                            "This is probably because your SMT is enabled.\n"
-                            "VCPU can only run on primary threads with all "
-                            "secondary threads offline.\n");
+                    error_printf("This is probably because your SMT is "
+                                 "enabled.\n"
+                                 "VCPU can only run on primary threads with all "
+                                 "secondary threads offline.\n");
                 }
 #endif
                 ret = -1;
@@ -3559,8 +3557,8 @@ int kvm_cpu_exec(CPUState *cpu)
             ret = EXCP_INTERRUPT;
             break;
         case KVM_EXIT_UNKNOWN:
-            fprintf(stderr, "KVM: unknown exit, hardware reason %" PRIx64 "\n",
-                    (uint64_t)run->hw.hardware_exit_reason);
+            error_report("KVM: unknown exit, hardware reason %" PRIx64,
+                         (uint64_t)run->hw.hardware_exit_reason);
             ret = -1;
             break;
         case KVM_EXIT_INTERNAL_ERROR:
@@ -4004,7 +4002,7 @@ void kvm_init_cpu_signals(CPUState *cpu)
         r = kvm_set_signal_mask(cpu, &set);
     }
     if (r) {
-        fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(-r));
+        error_report("kvm_set_signal_mask: %s", strerror(-r));
         exit(1);
     }
 }
