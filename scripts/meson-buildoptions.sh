@@ -153,6 +153,7 @@ meson_options_help() {
   printf "%s\n" '  libvduse        build VDUSE Library'
   printf "%s\n" '  linux-aio       Linux AIO support'
   printf "%s\n" '  linux-io-uring  Linux io_uring support'
+  printf "%s\n" '  lz4             lz4 compression support'
   printf "%s\n" '  lzfse           lzfse support for DMG images'
   printf "%s\n" '  lzo             lzo compression support'
   printf "%s\n" '  malloc-trim     enable libc malloc_trim() for memory optimization'
@@ -168,6 +169,7 @@ meson_options_help() {
   printf "%s\n" '  nvmm            NVMM acceleration support'
   printf "%s\n" '  opengl          OpenGL support'
   printf "%s\n" '  oss             OSS sound support'
+  printf "%s\n" '  overlaybd       overlaybd image format support'
   printf "%s\n" '  pa              PulseAudio sound support'
   printf "%s\n" '  parallels       parallels image format support'
   printf "%s\n" '  passt           passt network backend support'
@@ -404,6 +406,8 @@ _meson_option_parse() {
     --disable-linux-io-uring) printf "%s" -Dlinux_io_uring=disabled ;;
     --localedir=*) quote_sh "-Dlocaledir=$2" ;;
     --localstatedir=*) quote_sh "-Dlocalstatedir=$2" ;;
+    --enable-lz4) printf "%s" -Dlz4=enabled ;;
+    --disable-lz4) printf "%s" -Dlz4=disabled ;;
     --enable-lzfse) printf "%s" -Dlzfse=enabled ;;
     --disable-lzfse) printf "%s" -Dlzfse=disabled ;;
     --enable-lzo) printf "%s" -Dlzo=enabled ;;
@@ -438,6 +442,8 @@ _meson_option_parse() {
     --disable-opengl) printf "%s" -Dopengl=disabled ;;
     --enable-oss) printf "%s" -Doss=enabled ;;
     --disable-oss) printf "%s" -Doss=disabled ;;
+    --enable-overlaybd) printf "%s" -Doverlaybd=enabled ;;
+    --disable-overlaybd) printf "%s" -Doverlaybd=disabled ;;
     --enable-pa) printf "%s" -Dpa=enabled ;;
     --disable-pa) printf "%s" -Dpa=disabled ;;
     --enable-parallels) printf "%s" -Dparallels=enabled ;;

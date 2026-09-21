@@ -392,6 +392,43 @@ More disk image file formats are supported in a read-only mode.
   Apple disk image.
 
 .. program:: image-formats
+.. option:: overlaybd
+
+  Overlaybd image, the layered format used by containerd's overlaybd
+  snapshotter.  Each layer holds over-written data blocks, optionally
+  compressed block-wise with LZ4 or ZSTD and optionally wrapped in a
+  single-file tar.  Only sealed layers can be read; compressed layers
+  need QEMU built with lz4 / zstd support respectively.  See
+  https://github.com/containerd/overlaybd for the format specification.
+
+  The layer stack is given by exactly one of:
+
+  - ``manifest=<path>``: an OCI image manifest whose ``layers`` array
+    (bottom-first, of each entry only ``digest`` is used) names the layer
+    blobs, plus an optional ``blob-path=<root>`` saying where they are.
+    The root defaults to the blobs beside the manifest, which covers an
+    OCI image layout and a containerd content store.
+
+  - ``layers.<n>.driver=file,layers.<n>.filename=<path>``: an explicit
+    bottom-first list, the first element the base layer and the last the
+    top layer.
+
+  - a ``file`` child holding a manifest or a single sealed layer, as
+    ``-drive file=<path>`` provides.  A manifest must be named with
+    ``format=overlaybd``, since probing cannot recognise JSON.
+
+  A bare layer is detected by probing; a tar-wrapped one is not, as
+  probing sees only the tar entry header, so it must be named explicitly
+  via ``-f overlaybd``, a ``file`` child, ``layers.<n>`` or a manifest.
+  Tar-wrapped layers are usually shipped gzip-compressed and must be
+  unpacked first, since the driver reads an uncompressed tar.
+
+  For example::
+
+    qemu-img info --image-opts driver=overlaybd,manifest=manifest.json,\
+    blob-path=/var/lib/containerd/io.containerd.content.v1.content/blobs
+
+.. program:: image-formats
 .. option:: parallels
 
   Parallels disk image format.

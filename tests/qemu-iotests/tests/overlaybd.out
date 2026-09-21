@@ -1,0 +1,10 @@
+manifest mode: byte-exact
+blob-path forms: byte-exact
+layers mode: byte-exact
+single plain layer: byte-exact
+header-overwrite zfile: byte-exact
+file child as manifest: byte-exact
+file child as tar layer: byte-exact
+format probing verified
+1 MiB jump table: byte-exact
+error paths verified

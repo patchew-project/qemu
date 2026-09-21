@@ -1,0 +1,795 @@
+#!/usr/bin/env python3
+# group: rw quick
+#
+# Test the read-only overlaybd block driver
+#
+# Builds a 3-layer stack (plain sealed LSMT base, LZ4 zfile middle layer
+# with a zeroed range, ZSTD zfile top layer inside a tar wrapper with
+# dirty header fields) plus a standalone LZ4 zfile of 16-byte blocks
+# whose jump table exceeds 1 MiB, with pure-Python encoders -- LZ4
+# literal-only and match-based blocks and ZSTD Raw_Blocks are valid
+# without any compression library -- and verifies byte-exact reads
+# through all interface forms plus the error paths.
+#
+# Copyright (c) 2026 Huiba Li <huiba.lhb@alibaba-inc.com>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+import hashlib
+import json
+import os
+import shutil
+import struct
+
+import iotests
+from iotests import file_path, log, qemu_img
+
+BLOCK = 4096
+NBLOCKS = 256  # 1 MiB virtual image
+SECTORS_PER_BLOCK = BLOCK // 512
+
+LSMT_MAGIC0 = b'LSMT\x00\x01\x02\x00'
+LSMT_MAGIC1 = bytes([
+    0x65, 0x7e, 0x63, 0xd2, 0x94, 0x44, 0x08, 0x4c,
+    0xa2, 0xd2, 0xc8, 0xec, 0x4f, 0xcf, 0xae, 0x8a
+])
+ZFILE_MAGIC0 = b'ZFile\x00\x01\x00'
+ZFILE_MAGIC1 = b'tuji.yyf@Alibaba'
+
+
+def _crc32c_table() -> list:
+    table = []
+    for i in range(256):
+        c = i
+        for _ in range(8):
+            c = (0x82f63b78 ^ (c >> 1)) if (c & 1) else (c >> 1)
+        table.append(c)
+    return table
+
+
+CRC32C_TABLE = _crc32c_table()
+
+# zfile.cpp's NOI_WELL_KNOWN_PRIME: per-block CRCs are computed with this
+# seed rather than 0
+CRC32C_SALT = 100007
+
+
+def crc32c(data: bytes, crc: int = 0) -> int:
+    """Raw CRC-32C accumulation -- no init inversion and no final xor.
+
+    This is overlaybd's crc32::crc32c_extend(), which is NOT the standard
+    init-0xFFFFFFFF/xorout-0xFFFFFFFF CRC-32C. The two disagree on every
+    input, and a fixture that used the standard form would agree with a
+    driver that made the same mistake, so both would look correct while
+    rejecting every real image.
+    """
+    table = CRC32C_TABLE
+    for b in data:
+        crc = table[(crc ^ b) & 0xff] ^ (crc >> 8)
+    return crc
+
+
+def lz4_block_literals(data: bytes) -> bytes:
+    out = bytearray()
+    n = len(data)
+    if n < 15:
+        out.append(n << 4)
+    else:
+        out.append(15 << 4)
+        rest = n - 15
+        while rest >= 255:
+            out.append(255)
+            rest -= 255
+        out.append(rest)
+    out += data
+    return bytes(out)
+
+
+def lz4_block_zeros(n: int) -> bytes:
+    """LZ4 block decoding to @n zero bytes.
+
+    One literal, one offset-1 match, then the five trailing literals the
+    format requires; a block that ends in a match is rejected by
+    LZ4_decompress_safe, so this only works for n >= 12.
+    """
+    match = n - 6
+    assert match >= 4
+    out = bytearray()
+    ml = match - 4
+    nib = min(ml, 15)
+    out.append((1 << 4) | nib)
+    out.append(0)
+    out += struct.pack('<H', 1)
+    ml -= nib
+    if nib == 15:
+        while ml >= 255:
+            out.append(255)
+            ml -= 255
+        out.append(ml)
+    out.append(5 << 4)
+    out += bytes(5)
+    return bytes(out)
+
+
+def zstd_frame_raw(data: bytes) -> bytes:
+    out = bytearray(b'\x28\xb5\x2f\xfd\xe0')
+    out += struct.pack('<Q', len(data))
+    off = 0
+    while True:
+        chunk = data[off:off + 128 * 1024]
+        last = 1 if off + len(chunk) >= len(data) else 0
+        out += struct.pack('<I', (len(chunk) << 3) | last)[:3]
+        out += chunk
+        off += len(chunk)
+        if last:
+            break
+    return bytes(out)
+
+
+def fill_base(b: int) -> bytes:
+    return bytes((b * 7 + 13 + i) & 0xff for i in range(BLOCK))
+
+
+def fill_mid(b: int) -> bytes:
+    return bytes((b * 11 + 29 + i * 3) & 0xff for i in range(BLOCK))
+
+
+def fill_top(b: int) -> bytes:
+    return bytes((b * 5 + 101 + i * 7) & 0xff for i in range(BLOCK))
+
+
+def lsmt_header(flags: int, index_off: int, index_size: int,
+                virtual_size: int) -> bytes:
+    ht = bytearray(4096)
+    ht[0:8] = LSMT_MAGIC0
+    ht[8:24] = LSMT_MAGIC1
+    struct.pack_into('<I', ht, 24, 390)
+    struct.pack_into('<I', ht, 28, flags)
+    struct.pack_into('<Q', ht, 32, index_off)
+    struct.pack_into('<Q', ht, 40, index_size)
+    struct.pack_into('<Q', ht, 48, virtual_size)
+    return bytes(ht)
+
+
+def build_lsmt(spec: dict, pattern) -> bytes:
+    """spec maps 4K block index -> 1 (data) or 2 (zeroed); missing = hole."""
+    out = bytearray(4096)
+    data = bytearray()
+    slot_of = {}
+    for b in sorted(k for k, v in spec.items() if v == 1):
+        slot_of[b] = (4096 >> 9) + len(data) // BLOCK * SECTORS_PER_BLOCK
+        data += pattern(b)
+    index_off = 4096 + len(data)
+
+    index = bytearray()
+    keys = sorted(spec.keys())
+    i = 0
+    while i < len(keys):
+        j = i
+        while j + 1 < len(keys) and keys[j + 1] == keys[j] + 1 \
+                and spec[keys[j + 1]] == spec[keys[i]]:
+            j += 1
+        first, count = keys[i], keys[j] - keys[i] + 1
+        assert count * SECTORS_PER_BLOCK <= (1 << 14) - 1
+        lba = first * SECTORS_PER_BLOCK
+        length = count * SECTORS_PER_BLOCK
+        if spec[keys[i]] == 2:
+            moffset, zeroed = 8, 1
+        else:
+            moffset, zeroed = slot_of[first], 0
+        lo = lba | (length << 50)
+        hi = moffset | (zeroed << 55)
+        index += struct.pack('<QQ', lo, hi)
+        i = j + 1
+
+    out += data
+    out += index
+
+    for flags in (2 | 4, 1 | 2):  # trailer first, then header
+        ht = lsmt_header(flags, index_off, len(index) // 16, NBLOCKS * BLOCK)
+        if flags & 1:  # header goes over the placeholder
+            out[0:4096] = ht
+        else:
+            out += ht
+    return bytes(out)
+
+
+def wrap_zfile(content: bytes, algo: int, garbage: bool = False,
+               block: int = BLOCK, overwrite: bool = False,
+               bad_block_crc: bool = False) -> bytes:
+    """Wrap into a ZFile blob: algo 1 = LZ4, 2 = ZSTD. With garbage, the
+    digest flag is clear and the digest/crc fields carry junk, like real
+    baselayer files. With overwrite, the header carries the final metadata
+    and the trailer is left out -- upstream's HEADER_OVERWRITE shape, which
+    is what zfile_compress produces when it rewrites the header in place.
+
+    With bad_block_crc the first block's trailing CRC is wrong while its
+    compressed bytes stay valid, so only the driver's per-block checksum
+    can notice; corrupting the compressed stream instead would be caught
+    by the decompressor and would prove nothing about the checksum.
+
+    All-zero blocks use the compact match encoding: the reference jump
+    table stores in-group offsets as uint16, so the compressed blocks of
+    a group must together stay under 64 KiB, which literal-only encoding
+    cannot manage at a small block size."""
+    zero_chunk = bytes(block)
+    zero_c = lz4_block_zeros(block) if algo == 1 else None
+    body = bytearray()
+    jump = bytearray()
+    for off in range(0, len(content), block):
+        chunk = content[off:off + block]
+        if algo == 1:
+            if chunk == zero_chunk:
+                cdata = zero_c
+            else:
+                cdata = lz4_block_literals(chunk)
+        else:
+            cdata = zstd_frame_raw(chunk)
+        body += cdata
+        crc = crc32c(cdata, CRC32C_SALT)
+        if bad_block_crc and off == 0:
+            crc ^= 0xffffffff
+        body += struct.pack('<I', crc)
+        jump += struct.pack('<I', len(cdata) + 4)
+
+    out = bytearray()
+    index_off = 512 + len(body)
+    for is_header in (True, False):
+        if overwrite and not is_header:
+            break  # the header already carries the final metadata
+        ht = bytearray(512)
+        ht[0:8] = ZFILE_MAGIC0
+        ht[8:24] = ZFILE_MAGIC1
+        struct.pack_into('<I', ht, 24, 96)
+        flags = (1 if is_header else 0) | 2 | 4 | (1 << 4)
+        if overwrite:
+            flags |= 1 << 3
+        struct.pack_into('<Q', ht, 32, flags)
+        struct.pack_into('<Q', ht, 40, index_off)
+        struct.pack_into('<Q', ht, 48, len(content) // block
+                         + (1 if len(content) % block else 0))
+        struct.pack_into('<Q', ht, 56, len(content))
+        struct.pack_into('<I', ht, 64, crc32c(bytes(jump)))
+        struct.pack_into('<I', ht, 72, block)
+        ht[76] = algo
+        ht[88] = 1
+        if garbage:
+            struct.pack_into('<Q', ht, 32,
+                             (1 if is_header else 0) | 2 | 4)
+            struct.pack_into('<I', ht, 28,
+                             0xfeedface if is_header else 0xdeadbeef)
+            struct.pack_into('<I', ht, 64, 0xdeadbeef)
+            ht[300:304] = b'\x01\x02\x03\x04'
+        else:
+            struct.pack_into('<I', ht, 28, crc32c(bytes(ht)))
+        out += ht
+        if is_header:
+            out += body
+            out += jump
+    return bytes(out)
+
+
+# tar's default blocking factor: 20 x 512-byte records
+TAR_BLOCKING = 10240
+
+
+def wrap_tar(content: bytes) -> bytes:
+    """Tar wrapper with the padding a real archiver writes, so that the
+    archive ends well past the layer and the driver has to locate the
+    layer trailer from the entry size rather than from the file size."""
+    hdr = bytearray(512)
+    hdr[0:9] = b'layer.bin'
+    hdr[156] = ord('0')
+    # slice assignment lengths must match exactly, or the bytearray
+    # silently shrinks: 11 octal digits into the 12-byte size field
+    # (the 12th byte stays NUL), 6 digits into the 8-byte checksum
+    hdr[124:135] = b'%011o' % len(content)
+    hdr[257:263] = b'ustar\x00'
+    hdr[263:265] = b'00'
+    hdr[148:156] = b' ' * 8
+    hdr[148:154] = b'%06o' % (sum(hdr) & 0o777777)
+    out = bytes(hdr) + content
+    out += bytes(-len(out) % 512)
+    out += bytes(1024)
+    out += bytes(-len(out) % TAR_BLOCKING)
+    return out
+
+
+# A ZFile of 16-byte blocks needs a jump table above 1 MiB (the point
+# where the driver switches to parallel loading) once the content passes
+# 4 MiB. 16 is the smallest block size whose all-zero LZ4 block still
+# fits the uint16 in-group deltas, so the data region is that big.
+BIG_BLOCK = 16
+BIG_DATA = 4259840
+BIG_VIRT_SECTORS = 24
+
+
+def fill_big(tag: int) -> bytes:
+    return bytes((tag * 31 + i * 5 + 7) & 0xff for i in range(4096))
+
+
+def build_big_lsmt() -> tuple:
+    """LSMT blob with two mapped 4K blocks, at the start and at the far
+    end of an otherwise zero data region, plus the expected image.
+
+    The two blocks are 4 MiB apart, so reading them back exercises jump
+    table lookups in two different groups.
+    """
+    index_off = 4096 + BIG_DATA
+    far_moff = (index_off - 4096) // 512
+    index = struct.pack('<QQ', 8 << 50, 8)
+    index += struct.pack('<QQ', 8 | (8 << 50), far_moff)
+
+    blob = bytearray(4096)
+    blob += fill_big(1)
+    blob += bytes(BIG_DATA - 2 * 4096)
+    blob += fill_big(2)
+    blob += index
+    assert len(blob) == index_off + len(index)
+
+    for flags in (2 | 4, 1 | 2):
+        ht = lsmt_header(flags, index_off, len(index) // 16,
+                         BIG_VIRT_SECTORS * 512)
+        if flags & 1:
+            blob[0:4096] = ht
+        else:
+            blob += ht
+
+    expected = fill_big(1) + fill_big(2) + bytes(4096)
+    return bytes(blob), expected
+
+
+def corrupt_jump_table(src: str, dst: str, span: int) -> None:
+    """Copy a ZFile with every jump table entry rewritten to @span, fixing
+    up the index CRC and both header/trailer digests so that only the
+    entry values differ."""
+    with open(src, 'rb') as f:
+        img = bytearray(f.read())
+
+    index_off = struct.unpack_from('<Q', img, 40)[0]
+    index_size = struct.unpack_from('<Q', img, 48)[0]
+    for i in range(index_size):
+        struct.pack_into('<I', img, index_off + i * 4, span)
+
+    crc = crc32c(bytes(img[index_off:index_off + index_size * 4]))
+    for ht_off in (0, len(img) - 512):
+        ht = img[ht_off:ht_off + 512]
+        struct.pack_into('<I', ht, 28, 0)
+        struct.pack_into('<I', ht, 64, crc)
+        struct.pack_into('<I', ht, 28, crc32c(bytes(ht)))
+        img[ht_off:ht_off + 512] = ht
+
+    with open(dst, 'wb') as f:
+        f.write(img)
+
+
+mid_img = file_path('mid_lz4.zfile')
+top_img = file_path('top_zstd.tar')
+top_plain_img = file_path('top_plain.lsmt')
+oci_dir = file_path('oci.d')
+oci_blobs = os.path.join(oci_dir, 'blobs')
+oci_exported = os.path.join(oci_dir, 'manifest.json')
+alg_dir = file_path('algdir.d')
+alg_manifest = os.path.join(alg_dir, 'manifest.json')
+probe_img = file_path('probe.zfile')
+converted = file_path('converted.raw')
+garbage_img = file_path('garbage.bin')
+garbage_zfile = file_path('garbage.zfile')
+big_img = file_path('big_index.zfile')
+small_img = file_path('small_lz4.zfile')
+overwrite_img = file_path('overwrite_lz4.zfile')
+huge_img = file_path('huge_vsize.lsmt')
+overrun_img = file_path('overrun_index.lsmt')
+corrupt_img = file_path('corrupt_index.zfile')
+badcrc_img = file_path('bad_block_crc.zfile')
+junk_tar = file_path('junk.tar')
+badver_json = file_path('bad_schema_version.json')
+nolayers_json = file_path('no_layers.json')
+traverse_json = file_path('digest_traversal.json')
+missing_json = file_path('missing_blob.json')
+
+TOP_BLOCKS = {b: 1 for b in list(range(0, 51)) + list(range(150, 201))}
+MID_BLOCKS = {b: 1 for b in range(60, 161)}
+MID_BLOCKS.update({b: 2 for b in range(210, 221)})
+
+
+def expected_block(b: int) -> bytes:
+    if b in TOP_BLOCKS:
+        return fill_top(b)
+    if b in MID_BLOCKS:
+        return fill_mid(b) if MID_BLOCKS[b] == 1 else bytes(BLOCK)
+    return fill_base(b)
+
+
+def expected_image() -> bytes:
+    return b''.join(expected_block(b) for b in range(NBLOCKS))
+
+
+def top_only_image() -> bytes:
+    return b''.join(fill_top(b) if b in TOP_BLOCKS else bytes(BLOCK)
+                    for b in range(NBLOCKS))
+
+
+OCI_MANIFEST_MEDIA_TYPE = 'application/vnd.oci.image.manifest.v1+json'
+OCI_LAYER_MEDIA_TYPE = 'application/vnd.oci.image.layer.v1.tar'
+OCI_EMPTY_MEDIA_TYPE = 'application/vnd.oci.empty.v1+json'
+
+
+def write_blob(data: bytes) -> str:
+    digest = 'sha256:' + hashlib.sha256(data).hexdigest()
+    alg, hexsum = digest.split(':', 1)
+    d = os.path.join(oci_blobs, alg)
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, hexsum), 'wb') as f:
+        f.write(data)
+    return digest
+
+
+def digest_path(digest: str) -> str:
+    alg, hexsum = digest.split(':', 1)
+    return os.path.join(oci_blobs, alg, hexsum)
+
+
+def build_oci_manifest(layers: list) -> tuple:
+    """Write @layers (bottom-first) as blobs plus a manifest listing them.
+    Returns the manifest blob's path and the layer blob paths.
+
+    The image config blob is written as well, since the driver has to
+    ignore it, but index.json is left out: the tests name the manifest
+    directly instead of resolving it through the index."""
+    cfg = b'{}'
+    digests = [write_blob(data) for data in layers]
+    manifest = json.dumps({
+        'schemaVersion': 2,
+        'mediaType': OCI_MANIFEST_MEDIA_TYPE,
+        'config': {'mediaType': OCI_EMPTY_MEDIA_TYPE,
+                   'digest': write_blob(cfg), 'size': len(cfg)},
+        'layers': [{'mediaType': OCI_LAYER_MEDIA_TYPE,
+                    'digest': d, 'size': len(data)}
+                   for d, data in zip(digests, layers)],
+        'annotations': {'org.opencontainers.image.ref.name': 'latest'},
+    }).encode()
+    return digest_path(write_blob(manifest)), [digest_path(d) for d in digests]
+
+
+def mutated_manifest(src: str, dst: str, mutate) -> str:
+    with open(src) as f:
+        m = json.load(f)
+    mutate(m)
+    with open(dst, 'w') as f:
+        json.dump(m, f)
+    return dst
+
+
+def huge_virtual_size(src: str, dst: str) -> None:
+    """Copy an LSMT with virtual_size set to the value that makes the
+    driver's sectors conversion wrap around to a zero-length image. An
+    LSMT header carries no digest, so both copies can be patched raw."""
+    with open(src, 'rb') as f:
+        img = bytearray(f.read())
+    for off in (48, len(img) - 4096 + 48):
+        struct.pack_into('<Q', img, off, (1 << 64) - 1)
+    with open(dst, 'wb') as f:
+        f.write(img)
+
+
+def overrun_lsmt_index(src: str, dst: str, pad: int = 256) -> None:
+    """Copy a bare LSMT with @pad bytes of trailing junk after its trailer,
+    whose trailer then declares index entries reaching into that junk.
+
+    The padding is what makes the case reachable: the driver's view of the
+    layer ends at the child's length, so a bound taken at view_size - 4096
+    accepts the overrun, while the trailer position the backward scan
+    actually found is @pad bytes earlier. @pad must stay under 512 or the
+    scan window no longer reaches the trailer. An LSMT header carries no
+    digest, so the copy can be patched raw."""
+    assert pad < 512 and pad % 16 == 0
+    with open(src, 'rb') as f:
+        img = bytearray(f.read())
+    for off in (40, len(img) - 4096 + 40):
+        n = struct.unpack_from('<Q', img, off)[0]
+        struct.pack_into('<Q', img, off, n + pad // 16)
+    img += bytes(pad)
+    with open(dst, 'wb') as f:
+        f.write(img)
+
+
+def make_fixtures() -> tuple:
+    base = build_lsmt({b: 1 for b in range(NBLOCKS)}, fill_base)
+    mid = wrap_zfile(build_lsmt(MID_BLOCKS, fill_mid), algo=1)
+    top = wrap_tar(wrap_zfile(build_lsmt(TOP_BLOCKS, fill_top),
+                              algo=2, garbage=True))
+
+    with open(mid_img, 'wb') as f:
+        f.write(mid)
+    with open(top_img, 'wb') as f:
+        f.write(top)
+    with open(top_plain_img, 'wb') as f:
+        f.write(build_lsmt(TOP_BLOCKS, fill_top))
+    with open(garbage_img, 'wb') as f:
+        f.write(os.urandom(32 * 1024))
+    with open(garbage_zfile, 'wb') as f:
+        f.write(wrap_zfile(os.urandom(64 * 1024), algo=1))
+    with open(junk_tar, 'wb') as f:
+        f.write(wrap_tar(os.urandom(64 * 1024)))
+    with open(small_img, 'wb') as f:
+        f.write(wrap_zfile(build_lsmt({0: 1}, fill_base), algo=1))
+    with open(overwrite_img, 'wb') as f:
+        f.write(wrap_zfile(build_lsmt(TOP_BLOCKS, fill_top), algo=1,
+                           overwrite=True))
+    huge_virtual_size(top_plain_img, huge_img)
+    overrun_lsmt_index(top_plain_img, overrun_img)
+
+    os.mkdir(oci_dir)
+    manifest, blobs = build_oci_manifest([base, mid, top])
+    shutil.copyfile(manifest, oci_exported)
+
+    os.mkdir(alg_dir)
+    os.mkdir(os.path.join(alg_dir, 'sha256'))
+    for blob in blobs:
+        shutil.copyfile(blob, os.path.join(alg_dir, 'sha256',
+                                           os.path.basename(blob)))
+    shutil.copyfile(manifest, alg_manifest)
+
+    big_blob, big_expected = build_big_lsmt()
+    with open(big_img, 'wb') as f:
+        f.write(wrap_zfile(big_blob, algo=1, block=BIG_BLOCK))
+    return big_expected, manifest, blobs
+
+
+def codec_supported(algo: int) -> bool:
+    """
+    True unless the driver says this codec was not compiled in.
+
+    Keyed on the driver's own message, not on the exit status: a probe
+    that only checked the status would also report "not compiled in"
+    when the read path is merely broken, turning a real failure into a
+    silent not-run.
+    """
+    name = {1: 'lz4', 2: 'zstd'}[algo]
+    with open(probe_img, 'wb') as f:
+        f.write(wrap_zfile(build_lsmt({0: 1}, fill_base), algo=algo))
+    res = qemu_img('info', '--image-opts',
+                   f'driver=overlaybd,layers.0.driver=file,'
+                   f'layers.0.filename={probe_img}', check=False)
+    return f'without {name} support' not in res.stdout
+
+
+def convert(opts: str, out: str):
+    return qemu_img('convert', '--image-opts', '-O', 'raw', opts, out,
+                    check=False)
+
+
+for algo in (1, 2):
+    if not codec_supported(algo):
+        iotests.notrun(f'zfile algo {algo} not compiled in')
+
+
+def read_converted(path: str) -> bytes:
+    with open(path, 'rb') as f:
+        return f.read()
+
+
+def probed_format(path: str) -> str:
+    res = qemu_img('info', path, check=False)
+    for line in res.stdout.splitlines():
+        if line.startswith('file format:'):
+            return line.split(':', 1)[1].strip()
+    return ''
+
+
+def expect(cond: bool, msg: str) -> None:
+    if not cond:
+        raise AssertionError(msg)
+
+
+def test_overlaybd() -> None:
+    big_expected, manifest, blobs = make_fixtures()
+    # the manifest is itself a blob in blobs/sha256/, so the blob root is
+    # derived from its own path -- the OCI image layout and containerd
+    # content store shapes
+    cfg = f'driver=overlaybd,manifest={manifest}'
+
+    res = qemu_img('info', '--image-opts', cfg)
+    expect('virtual size: 1 MiB' in res.stdout, 'unexpected info output')
+
+    ret = convert(cfg, converted)
+    expect(ret.returncode == 0, ret.stderr or 'convert failed')
+    expect(read_converted(converted) == expected_image(),
+           'manifest mode: content mismatch')
+    log('manifest mode: byte-exact')
+
+    for name, opts in (
+            ('explicit blob-path',
+             f'driver=overlaybd,manifest={manifest},blob-path={oci_blobs}'),
+            ('exported manifest',
+             f'driver=overlaybd,manifest={oci_exported},'
+             f'blob-path={oci_blobs}'),
+            ('exported manifest, derived blob-path',
+             f'driver=overlaybd,manifest={oci_exported}'),
+            ('manifest beside an <alg> directory',
+             f'driver=overlaybd,manifest={alg_manifest}')):
+        ret = convert(opts, converted)
+        expect(ret.returncode == 0, ret.stderr or f'{name}: convert failed')
+        expect(read_converted(converted) == expected_image(),
+               f'{name}: content mismatch')
+    log('blob-path forms: byte-exact')
+
+    layers = (f'driver=overlaybd,'
+              f'layers.0.driver=file,layers.0.filename={blobs[0]},'
+              f'layers.1.driver=file,layers.1.filename={blobs[1]},'
+              f'layers.2.driver=file,layers.2.filename={blobs[2]}')
+    ret = convert(layers, converted)
+    expect(ret.returncode == 0, ret.stderr or 'convert failed')
+    expect(read_converted(converted) == expected_image(),
+           'layers mode: content mismatch')
+    log('layers mode: byte-exact')
+
+    single = f'driver=overlaybd,layers.0.driver=file,' \
+             f'layers.0.filename={top_plain_img}'
+    ret = convert(single, converted)
+    expect(ret.returncode == 0, ret.stderr or 'convert failed')
+    expect(read_converted(converted) == top_only_image(),
+           'single layer: content mismatch')
+    log('single plain layer: byte-exact')
+
+    single = f'driver=overlaybd,layers.0.driver=file,' \
+             f'layers.0.filename={overwrite_img}'
+    ret = convert(single, converted)
+    expect(ret.returncode == 0, ret.stderr or 'convert failed')
+    expect(read_converted(converted) == top_only_image(),
+           'overwrite header: content mismatch')
+    log('header-overwrite zfile: byte-exact')
+
+    # the file child given as a dict reference carries the manifest
+    # (a bare string "file" would be a node-name reference, which is
+    # why -drive file=... passes the filename as a parameter); the blob
+    # root has to be derived from the child's own filename
+    ret = convert(f'driver=overlaybd,file.driver=file,'
+                  f'file.filename={manifest}', converted)
+    expect(ret.returncode == 0, ret.stderr or 'convert failed')
+    expect(read_converted(converted) == expected_image(),
+           'file-manifest mode: content mismatch')
+    log('file child as manifest: byte-exact')
+
+    ret = convert(f'driver=overlaybd,file.driver=file,'
+                  f'file.filename={top_img}', converted)
+    expect(ret.returncode == 0, ret.stderr or 'convert failed')
+    expect(read_converted(converted) == top_only_image(),
+           'file layer mode: content mismatch')
+    log('file child as tar layer: byte-exact')
+
+    # probing sees only the first 512 bytes: a bare LSMT and a bare ZFile
+    # match on their magic, but a tar shell shows nothing there except a
+    # generic entry header, so tars are deliberately not claimed -- every
+    # unrelated tar would then fail to open, and probing has no fallback
+    expect(probed_format(top_plain_img) == 'overlaybd', 'LSMT not probed')
+    expect(probed_format(mid_img) == 'overlaybd', 'ZFile not probed')
+    expect(probed_format(top_img) == 'raw', 'tar layer claimed by probing')
+    expect(probed_format(garbage_img) == 'raw', 'garbage not probed as raw')
+    log('format probing verified')
+
+    big = f'driver=overlaybd,layers.0.driver=file,' \
+          f'layers.0.filename={big_img}'
+    res = qemu_img('info', '--image-opts', big)
+    expect('virtual size: 12 KiB' in res.stdout, 'unexpected info output')
+    ret = convert(big, converted)
+    expect(ret.returncode == 0, ret.stderr or 'convert failed')
+    expect(read_converted(converted) == big_expected,
+           'big jump table: content mismatch')
+    log('1 MiB jump table: byte-exact')
+
+    # error paths (qemu_img() merges stdout and stderr)
+    res = qemu_img('info', '--image-opts', 'driver=overlaybd', check=False)
+    expect('either manifest, file or layers is required' in res.stdout,
+           'missing options: wrong error')
+    res = qemu_img('info', '--image-opts',
+                   'driver=overlaybd,manifest=/nonexistent.json', check=False)
+    expect('could not read overlaybd manifest' in res.stdout,
+           'missing manifest: wrong error')
+    res = qemu_img('info', '--image-opts',
+                   f'driver=overlaybd,manifest={manifest},'
+                   f'layers.0.driver=file,'
+                   f'layers.0.filename={mid_img}', check=False)
+    expect('only one of manifest, file or layers may be given' in res.stdout,
+           'conflicting options: wrong error')
+    res = qemu_img('info', '--image-opts',
+                   f'driver=overlaybd,blob-path={oci_blobs},'
+                   f'layers.0.driver=file,'
+                   f'layers.0.filename={mid_img}', check=False)
+    expect('blob-path requires a manifest' in res.stdout,
+           'blob-path without manifest: wrong error')
+    res = qemu_img('info', '--image-opts',
+                   f'driver=overlaybd,manifest={manifest},blob-path=/',
+                   check=False)
+    expect('blob-path is empty' in res.stdout,
+           'empty blob-path: wrong error')
+    res = qemu_img('info', '--image-opts',
+                   f'driver=overlaybd,layers.0.driver=file,'
+                   f'layers.0.filename={garbage_img}', check=False)
+    expect('invalid LSMT header' in res.stdout,
+           'garbage layer: wrong error')
+    res = qemu_img('info', '-f', 'overlaybd', junk_tar, check=False)
+    expect('invalid LSMT header' in res.stdout,
+           'tar of garbage: wrong error')
+    # probing cannot see past a shell: it claims this on the ZFile magic,
+    # so the payload is only verified once the ZFile is open
+    res = qemu_img('info', garbage_zfile, check=False)
+    expect('invalid LSMT header' in res.stdout,
+           'ZFile of garbage: wrong error')
+
+    mutated_manifest(manifest, badver_json,
+                     lambda m: m.update(schemaVersion=1))
+    mutated_manifest(manifest, nolayers_json, lambda m: m.pop('layers'))
+    mutated_manifest(manifest, traverse_json,
+                     lambda m: m['layers'][0].update(
+                         digest='sha256:../../../../../../../etc/passwd'))
+    mutated_manifest(manifest, missing_json,
+                     lambda m: m['layers'][0].update(
+                         digest='sha256:' + '0' * 64))
+    for name, path, want in (
+            ('schemaVersion', badver_json, 'unsupported OCI schemaVersion'),
+            ('no layers', nolayers_json, 'has no "layers" array'),
+            ('digest traversal', traverse_json, 'invalid layer digest')):
+        res = qemu_img('info', '--image-opts',
+                       f'driver=overlaybd,manifest={path},'
+                       f'blob-path={oci_blobs}', check=False)
+        expect(want in res.stdout, f'{name}: wrong error: {res.stdout}')
+    res = qemu_img('info', '--image-opts',
+                   f'driver=overlaybd,manifest={missing_json},'
+                   f'blob-path={oci_blobs}', check=False)
+    expect(f'{oci_blobs}/sha256/' + '0' * 64 in res.stdout,
+           f'missing blob: wrong error: {res.stdout}')
+
+    for name, opts in (
+            ('manifest URL',
+             'driver=overlaybd,manifest=http://127.0.0.1:1/manifest.json'),
+            ('blob-path URL',
+             f'driver=overlaybd,manifest={manifest},'
+             'blob-path=http://127.0.0.1:1/blobs'),
+            ('layer URL',
+             'driver=overlaybd,layers.0=http://127.0.0.1:1/blobs/sha256/0')):
+        res = qemu_img('info', '--image-opts', opts, check=False)
+        expect('only local files are supported' in res.stdout,
+               f'{name}: wrong error: {res.stdout[-200:]}')
+
+    # 30000-byte blocks: the running in-group offset no longer fits u16
+    corrupt_jump_table(small_img, corrupt_img, 30000)
+    res = qemu_img('info', '--image-opts',
+                   f'driver=overlaybd,layers.0.driver=file,'
+                   f'layers.0.filename={corrupt_img}', check=False)
+    expect('jump table group exceed' in res.stdout,
+           'oversized jump table group: wrong error')
+    # A valid compressed block whose trailing CRC is wrong. Opening the LSMT
+    # layer reads its header, which is ZFile block 0, so only the driver's
+    # per-block checksum can turn this into an error; without it the block
+    # decodes fine and the corruption is never noticed.
+    with open(badcrc_img, 'wb') as f:
+        f.write(wrap_zfile(build_lsmt({0: 1}, fill_base), algo=1,
+                           bad_block_crc=True))
+    res = qemu_img('info', '--image-opts',
+                   f'driver=overlaybd,layers.0.driver=file,'
+                   f'layers.0.filename={badcrc_img}', check=False)
+    expect(res.returncode != 0 and 'Input/output error' in res.stdout,
+           f'corrupt block CRC: rc={res.returncode} {res.stdout[-200:]}')
+    res = qemu_img('info', '--image-opts',
+                   f'driver=overlaybd,layers.0.driver=file,'
+                   f'layers.0.filename={huge_img}', check=False)
+    expect('virtual size 18446744073709551615 is too large' in res.stdout,
+           f'huge virtual size: wrong error: {res.stdout}')
+    res = qemu_img('info', '--image-opts',
+                   f'driver=overlaybd,layers.0.driver=file,'
+                   f'layers.0.filename={overrun_img}', check=False)
+    expect('invalid LSMT index location' in res.stdout,
+           f'overrunning LSMT index: wrong error: {res.stdout[-200:]}')
+    log('error paths verified')
+
+    # file_path() only removes plain files, so the layout directories go
+    # explicitly (as tests/vvfat does)
+    shutil.rmtree(oci_dir)
+    shutil.rmtree(alg_dir)
+
+
+if __name__ == '__main__':
+    iotests.script_main(test_overlaybd, supported_fmts=['raw'],
+                        supported_protocols=['file'])

@@ -39,7 +39,7 @@ block_ss.add(files(
   'throttle.c',
   'throttle-groups.c',
   'write-threshold.c',
-), zstd, zlib)
+), zstd, zlib, lz4)
 
 system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
 system_ss.add(files('block-ram-registrar.c'))
@@ -68,6 +68,9 @@ if get_option('cloop').allowed()
 endif
 if get_option('bochs').allowed()
   block_ss.add(files('bochs.c'))
+endif
+if get_option('overlaybd').allowed()
+  block_ss.add(files('overlaybd.c'))
 endif
 if get_option('vvfat').allowed()
   block_ss.add(files('vvfat.c'))

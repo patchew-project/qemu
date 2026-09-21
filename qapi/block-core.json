@@ -3324,6 +3324,7 @@
             'iscsi',
             'luks', 'nbd', 'nfs', 'null-aio', 'null-co', 'nvme',
             { 'name': 'nvme-io_uring', 'if': 'CONFIG_BLKIO' },
+            'overlaybd',
             'parallels', 'preallocate', 'qcow', 'qcow2', 'qed', 'quorum',
             'raw', 'rbd',
             { 'name': 'replication', 'if': 'CONFIG_REPLICATION' },
@@ -4111,6 +4112,43 @@
   'if': 'CONFIG_BLKIO' }
 
 ##
+# @BlockdevOptionsOverlaybd:
+#
+# Driver specific block device options for overlaybd (read-only).
+#
+# @manifest: an OCI image manifest naming the layer stack.  Its
+#     "layers" array is read bottom-first and only the "digest" of
+#     each entry is used; the image config blob is never fetched.
+#
+# @blob-path: directory the layer digests are resolved against.
+#     Optional, and derived from @manifest when absent.  Blobs are
+#     looked up as BLOB-PATH/<alg>/<hex>, i.e. the blobs/ of an OCI
+#     image layout.  A derived root is the blobs/ directory beside
+#     the manifest, except when the manifest is itself a blob, as in
+#     an OCI image layout addressed by digest or a containerd content
+#     store, in which case the layers are its siblings,
+#     BLOB-PATH/<hex>.
+#
+# @layers: explicit layer list, bottom-first: the first element is the
+#     base layer, the last element is the top layer (the same order as
+#     the "layers" array of an OCI image manifest)
+#
+# @file: the image to open, which may be either an OCI image manifest
+#     or a bare sealed layer file, i.e. a single-layer image
+#
+# Exactly one of @manifest, @layers and @file must be given, and
+# @blob-path only with a manifest.  Every reference is a local file;
+# a URL is rejected.
+#
+# Since: 11.2
+##
+{ 'struct': 'BlockdevOptionsOverlaybd',
+  'data': { '*manifest': 'str',
+            '*blob-path': 'str',
+            '*layers': [ 'BlockdevRef' ],
+            '*file': 'BlockdevRef' } }
+
+##
 # @BlockdevOptionsVirtioBlkVfioPci:
 #     Driver specific block device options for the virtio-blk-vfio-pci
 #     backend.
@@ -4811,6 +4849,7 @@
       'nvme':       'BlockdevOptionsNVMe',
       'nvme-io_uring': { 'type': 'BlockdevOptionsNvmeIoUring',
                          'if': 'CONFIG_BLKIO' },
+      'overlaybd':  'BlockdevOptionsOverlaybd',
       'parallels':  'BlockdevOptionsGenericFormat',
       'preallocate':'BlockdevOptionsPreallocate',
       'qcow2':      'BlockdevOptionsQcow2',

@@ -4494,6 +4494,13 @@ L: qemu-block@nongnu.org
 S: Supported
 F: block/dmg.c
 
+overlaybd
+M: Huiba Li <huiba.lhb@alibaba-inc.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/overlaybd.c
+F: tests/qemu-iotests/tests/overlaybd*
+
 parallels
 M: Stefan Hajnoczi <stefanha@redhat.com>
 M: Denis V. Lunev <den@openvz.org>
