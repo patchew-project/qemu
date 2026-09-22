@@ -1176,6 +1176,7 @@ vmdk_parse_extents(const char *desc, BlockDriverState *bs, QDict *options,
          * RW [size in sectors] VMFS "file-name.vmdk"
          * RW [size in sectors] VMFSSPARSE "file-name.vmdk"
          * RW [size in sectors] SESPARSE "file-name.vmdk"
+         * RW [size in sectors] VMFSRDM "file-name.vmdk"
          */
         flat_offset = -1;
         matches = sscanf(p, "%10s %" SCNd64 " %10s \"%511[^\n\r\"]\" %" SCNd64,
@@ -1186,7 +1187,7 @@ vmdk_parse_extents(const char *desc, BlockDriverState *bs, QDict *options,
             if (matches != 5 || flat_offset < 0) {
                 goto invalid;
             }
-        } else if (!strcmp(type, "VMFS")) {
+        } else if (!strcmp(type, "VMFS") || !strcmp(type, "VMFSRDM")) {
             if (matches == 4) {
                 flat_offset = 0;
             } else {
@@ -1199,7 +1200,7 @@ vmdk_parse_extents(const char *desc, BlockDriverState *bs, QDict *options,
         if (sectors <= 0 ||
             (strcmp(type, "FLAT") && strcmp(type, "SPARSE") &&
              strcmp(type, "VMFS") && strcmp(type, "VMFSSPARSE") &&
-             strcmp(type, "SESPARSE")) ||
+             strcmp(type, "SESPARSE") && strcmp(type, "VMFSRDM")) ||
             (strcmp(access, "RW"))) {
             continue;
         }
@@ -1226,7 +1227,7 @@ vmdk_parse_extents(const char *desc, BlockDriverState *bs, QDict *options,
         assert(ret < 32);
 
         extent_role = BDRV_CHILD_DATA;
-        if (strcmp(type, "FLAT") != 0 && strcmp(type, "VMFS") != 0) {
+        if (strcmp(type, "FLAT") != 0 && strcmp(type, "VMFS") != 0 && strcmp(type, "VMFSRDM")) {
             /* non-flat extents have metadata */
             extent_role |= BDRV_CHILD_METADATA;
         }
@@ -1244,7 +1245,7 @@ vmdk_parse_extents(const char *desc, BlockDriverState *bs, QDict *options,
         }
 
         /* save to extents array */
-        if (!strcmp(type, "FLAT") || !strcmp(type, "VMFS")) {
+        if (!strcmp(type, "FLAT") || !strcmp(type, "VMFS") || !strcmp(type, "VMFSRDM")) {
             /* FLAT extent */
 
             ret = vmdk_add_extent(bs, extent_file, true, sectors,
@@ -1336,7 +1337,9 @@ vmdk_open_desc_file(BlockDriverState *bs, int flags, char *buf, QDict *options,
         strcmp(ct, "vmfsSparse") &&
         strcmp(ct, "seSparse") &&
         strcmp(ct, "twoGbMaxExtentSparse") &&
-        strcmp(ct, "twoGbMaxExtentFlat")) {
+        strcmp(ct, "twoGbMaxExtentFlat") &&
+        strcmp(ct, "vmfsRawDeviceMap") &&
+        strcmp(ct, "vmfsPassthroughRawDeviceMap")) {
         error_setg(errp, "Unsupported image type '%s'", ct);
         ret = -ENOTSUP;
         goto exit;
