@@ -1930,19 +1930,11 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
                                     "auto");
 }
 
-void kvm_riscv_aia_create(MachineState *machine, uint64_t group_shift,
-                          uint64_t aia_irq_num, uint64_t aia_msi_num,
-                          uint64_t aplic_base, uint64_t imsic_base,
-                          uint64_t guest_num)
+int kvm_riscv_aia_create(uint64_t aia_irq_num, uint32_t *aia_msi_num)
 {
-    int ret, i;
-    int aia_fd = -1;
+    int ret;
+    int aia_fd;
     uint64_t default_aia_mode;
-    uint64_t socket_count = riscv_socket_count(machine);
-    uint64_t max_hart_per_socket = 0;
-    uint64_t socket, base_hart, hart_count, socket_imsic_base, imsic_addr;
-    uint64_t socket_bits, hart_bits, guest_bits;
-    uint64_t max_group_id;
 
     aia_fd = kvm_create_device(kvm_state, KVM_DEV_TYPE_RISCV_AIA, false);
 
@@ -1975,6 +1967,41 @@ void kvm_riscv_aia_create(MachineState *machine, uint64_t group_shift,
     }
 
     /*
+     * Get the maximum MSI ID supported by the host from the CONFIG_IDS
+     * attribute and use it for the guest-visible interrupt controller
+     * configuration.
+     */
+    ret = kvm_device_access(aia_fd, KVM_DEV_RISCV_AIA_GRP_CONFIG,
+                            KVM_DEV_RISCV_AIA_CONFIG_IDS,
+                            aia_msi_num, false, NULL);
+    if (ret < 0) {
+        error_report("KVM AIA: failed to get number of MSI IDs");
+        exit(1);
+    }
+
+    if (!kvm_kernel_irqchip_split() && *aia_msi_num < aia_irq_num) {
+        error_report("KVM AIA: host supports only %" PRIu32 " MSI IDs, "
+                     "but the virt machine requires at least %" PRIu64,
+                     *aia_msi_num, aia_irq_num);
+        exit(1);
+    }
+
+    return aia_fd;
+}
+
+void kvm_riscv_aia_init(MachineState *machine, int aia_fd,
+                        uint64_t group_shift, uint64_t aia_irq_num,
+                        uint64_t aplic_base, uint64_t imsic_base,
+                        uint64_t guest_num)
+{
+    int ret, i;
+    uint64_t socket_count = riscv_socket_count(machine);
+    uint64_t max_hart_per_socket = 0;
+    uint64_t socket, base_hart, hart_count, socket_imsic_base, imsic_addr;
+    uint64_t socket_bits, hart_bits, guest_bits;
+    uint64_t max_group_id;
+
+    /*
      * Skip APLIC creation in KVM if we're running split mode.
      * This is done by leaving KVM_DEV_RISCV_AIA_CONFIG_SRCS
      * unset. We can also skip KVM_DEV_RISCV_AIA_ADDR_APLIC
@@ -1997,15 +2024,6 @@ void kvm_riscv_aia_create(MachineState *machine, uint64_t group_shift,
             exit(1);
         }
      }
-
-    ret = kvm_device_access(aia_fd, KVM_DEV_RISCV_AIA_GRP_CONFIG,
-                            KVM_DEV_RISCV_AIA_CONFIG_IDS,
-                            &aia_msi_num, true, NULL);
-    if (ret < 0) {
-        error_report("KVM AIA: failed to set number of msi");
-        exit(1);
-    }
-
 
     if (socket_count > 1) {
         max_group_id = socket_count - 1;
@@ -2057,7 +2075,6 @@ void kvm_riscv_aia_create(MachineState *machine, uint64_t group_shift,
             }
         }
     }
-
 
     if (max_hart_per_socket > 1) {
         max_hart_per_socket--;

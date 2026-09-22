@@ -283,7 +283,7 @@ static void create_fdt_sockets(RISCVVirtState *s,
             .imsic_m_base = !kvm_enabled() ? s->memmap[VIRT_IMSIC_M].base : 0,
             .imsic_s_base = s->memmap[VIRT_IMSIC_S].base,
             .imsic_group_max_size = VIRT_IMSIC_GROUP_MAX_SIZE,
-            .irqchip_num_msis = VIRT_IRQCHIP_NUM_MSIS,
+            .irqchip_num_msis = s->num_msis,
             .aia_guests = s->aia_guests
         };
 
@@ -724,6 +724,7 @@ static void virt_machine_init(MachineState *machine)
     DeviceState *mmio_irqchip, *virtio_irqchip, *pcie_irqchip;
     int i, base_hartid, hart_count;
     int socket_count = riscv_socket_count(machine);
+    int aia_fd = -1;
 
     s->memmap = virt_memmap;
 
@@ -737,6 +738,16 @@ static void virt_machine_init(MachineState *machine)
     if (!virt_aclint_allowed() && s->have_aclint) {
         error_report("'aclint' is only available with TCG acceleration");
         exit(1);
+    }
+
+    /*
+     * Create the KVM AIA device and query the host MSI ID count before
+     * realizing the per-socket IMSICs. Complete AIA initialization after
+     * all vCPUs have been created.
+     */
+    if (kvm_enabled() && virt_use_kvm_aia_aplic_imsic(s->aia_type)) {
+        aia_fd = kvm_riscv_aia_create(VIRT_IRQCHIP_NUM_SOURCES,
+                                      &s->num_msis);
     }
 
     /* Initialize sockets */
@@ -832,7 +843,7 @@ static void virt_machine_init(MachineState *machine)
                                              &s->memmap[VIRT_IMSIC_M],
                                              &s->memmap[VIRT_IMSIC_S],
                                              i, base_hartid, hart_count,
-                                             VIRT_IRQCHIP_NUM_MSIS,
+                                             s->num_msis,
                                              VIRT_IRQCHIP_NUM_PRIO_BITS);
         }
 
@@ -851,12 +862,12 @@ static void virt_machine_init(MachineState *machine)
         }
     }
 
-    if (kvm_enabled() && virt_use_kvm_aia_aplic_imsic(s->aia_type)) {
-        kvm_riscv_aia_create(machine, IMSIC_MMIO_GROUP_MIN_SHIFT,
-                             VIRT_IRQCHIP_NUM_SOURCES, VIRT_IRQCHIP_NUM_MSIS,
-                             s->memmap[VIRT_APLIC_S].base,
-                             s->memmap[VIRT_IMSIC_S].base,
-                             s->aia_guests);
+    if (aia_fd >= 0) {
+        kvm_riscv_aia_init(machine, aia_fd, IMSIC_MMIO_GROUP_MIN_SHIFT,
+                           VIRT_IRQCHIP_NUM_SOURCES,
+                           s->memmap[VIRT_APLIC_S].base,
+                           s->memmap[VIRT_IMSIC_S].base,
+                           s->aia_guests);
     }
 
     if (riscv_is_32bit(&s->soc[0])) {
@@ -978,6 +989,7 @@ static void virt_machine_instance_init(Object *obj)
     s->acpi = ON_OFF_AUTO_AUTO;
     s->iommu_sys = ON_OFF_AUTO_AUTO;
     s->num_sources = VIRT_IRQCHIP_NUM_SOURCES;
+    s->num_msis = VIRT_IRQCHIP_NUM_MSIS;
 }
 
 static char *virt_get_aia_guests(Object *obj, Error **errp)
