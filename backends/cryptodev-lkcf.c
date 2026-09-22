@@ -264,10 +264,11 @@ static void cryptodev_lkcf_cleanup(CryptoDevBackend *backend, Error **errp)
     qemu_mutex_unlock(&lkcf->mutex);
     qemu_cond_broadcast(&lkcf->cond);
 
-    close(lkcf->eventfd);
+    qemu_set_fd_handler(lkcf->eventfd, NULL, NULL, NULL);
     for (i = 0; i < NR_WORKER_THREAD; i++) {
         qemu_thread_join(&lkcf->worker_threads[i]);
     }
+    close(lkcf->eventfd);
 
     QSIMPLEQ_FOREACH_SAFE(task, &lkcf->requests, queue, next) {
         if (task->cb) {
