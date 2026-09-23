@@ -3109,7 +3109,7 @@ static bool validate_vex(DisasContext *s, X86DecodedInsn *decode)
             }
             assert(e->op2 == X86_TYPE_W && e->s2 == X86_SIZE_x);
             if ((s->modrm >> 6) != 3) {
-                e->s2 = s->prefix & PREFIX_REPNZ ? X86_SIZE_sd : X86_SIZE_ss;
+                decode->op[2].ot = s->prefix & PREFIX_REPNZ ? MO_64 : MO_32;
             }
         }
         break;
