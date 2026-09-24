@@ -1370,6 +1370,20 @@ static bool arm_get_pmu(Object *obj, Error **errp)
     return cpu->has_pmu;
 }
 
+static bool arm_get_pmu_partition(Object *obj, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    return cpu->kvm_pmu_partition;
+}
+
+static void arm_set_pmu_partition(Object *obj, bool value, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->kvm_pmu_partition = value;
+}
+
 static void arm_set_pmu(Object *obj, bool value, Error **errp)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1623,6 +1637,12 @@ static void arm_cpu_post_init(Object *obj)
     if (arm_feature(&cpu->env, ARM_FEATURE_PMU)) {
         cpu->has_pmu = true;
         object_property_add_bool(obj, "pmu", arm_get_pmu, arm_set_pmu);
+        object_property_add_bool(obj, "pmu-partition",
+                                 arm_get_pmu_partition,
+                                 arm_set_pmu_partition);
+        object_property_add_uint32_ptr(obj, "pmu-num-counters",
+                                       &cpu->kvm_pmu_nr_counters,
+                                       OBJ_PROP_FLAG_READWRITE);
     }
 
     /*
