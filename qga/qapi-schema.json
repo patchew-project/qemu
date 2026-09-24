@@ -1542,6 +1542,95 @@
   'if': 'CONFIG_WIN32' }
 
 ##
+# @GuestDriverServiceStatus:
+#
+# @stopped: the service is stopped
+#
+# @start-pending: the service is starting
+#
+# @stop-pending: the service is stopping
+#
+# @running: the service is running
+#
+# @continue-pending: the service is resuming
+#
+# @pause-pending: the service is pausing
+#
+# @paused: the service is paused
+#
+# Since: 11.2
+##
+{ 'enum': 'GuestDriverServiceStatus',
+  'data': [ 'stopped', 'start-pending', 'stop-pending', 'running',
+            'continue-pending', 'pause-pending', 'paused' ],
+  'if': 'CONFIG_WIN32' }
+
+##
+# @GuestDriverPackage:
+#
+# An out-of-box driver package installed in the guest.
+#
+# @name: published INF name
+#
+# @original-name: base name of the original INF file
+#
+# @version: four-part version from the package INF DriverVer entry
+#
+# @vendor: package provider from the INF metadata
+#
+# Since: 11.2
+##
+{ 'struct': 'GuestDriverPackage',
+  'data': { 'name': 'str', '*original-name': 'str', 'version': 'str',
+            '*vendor': 'str' },
+  'if': 'CONFIG_WIN32' }
+
+##
+# @GuestDriverService:
+#
+# @name: service name
+#
+# @driver-path: driver binary path configured in the service database
+#
+# @version: four-part FileVersion from the driver binary
+#
+# @vendor: CompanyName from the driver binary
+#
+# @status: current service status
+#
+# Since: 11.2
+##
+{ 'struct': 'GuestDriverService',
+  'data': { 'name': 'str', '*driver-path': 'str', '*version': 'str',
+            '*vendor': 'str', 'status': 'GuestDriverServiceStatus' },
+  'if': 'CONFIG_WIN32' }
+
+##
+# @GuestDriverInfo:
+#
+# @packages: out-of-box driver packages installed in the guest
+#
+# @services: registered driver services
+#
+# Since: 11.2
+##
+{ 'struct': 'GuestDriverInfo',
+  'data': { 'packages': ['GuestDriverPackage'],
+            'services': ['GuestDriverService'] },
+  'if': 'CONFIG_WIN32' }
+
+##
+# @guest-get-drivers:
+#
+# Retrieve information about Windows driver packages and services.
+#
+# Since: 11.2
+##
+{ 'command': 'guest-get-drivers',
+  'returns': 'GuestDriverInfo',
+  'if': 'CONFIG_WIN32' }
+
+##
 # @GuestAuthorizedKeys:
 #
 # @keys: public keys (in OpenSSH/sshd(8) authorized_keys format)
