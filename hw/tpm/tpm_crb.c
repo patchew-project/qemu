@@ -226,6 +226,8 @@ static void tpm_crb_mmio_write(void *opaque, hwaddr addr,
         if (val == CRB_CANCEL_INVOKE) {
             if (s->regs[R_CRB_CTRL_START] & CRB_START_INVOKE) {
                 tpm_backend_cancel_cmd(s->tpmbe);
+            } else {
+                tpm_crb_clear_internal_buffers(s);
             }
         }
         break;
