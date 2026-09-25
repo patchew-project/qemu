@@ -2523,6 +2523,34 @@ static RDMAContext *qemu_rdma_data_init(InetSocketAddress *saddr, Error **errp)
  * SEND messages for control only.
  * VM's ram is handled with regular RDMA messages.
  */
+static ssize_t qemu_rdma_write_file(RDMAContext *rdma, const struct iovec *iov,
+                                    size_t niov, Error **errp)
+{
+    ssize_t done = 0;
+
+    for (size_t i = 0; i < niov; i++) {
+        size_t remaining = iov[i].iov_len;
+        uint8_t *data = iov[i].iov_base;
+
+        while (remaining) {
+            RDMAControlHeader head = {};
+            size_t len = MIN(remaining, RDMA_SEND_INCREMENT);
+
+            remaining -= len;
+            head.len = len;
+            head.type = RDMA_CONTROL_QEMU_FILE;
+
+            if (qemu_rdma_exchange_send(rdma, &head, data,
+                                        NULL, NULL, NULL, errp) < 0) {
+                return -1;
+            }
+            data += len;
+            done += len;
+        }
+    }
+    return done;
+}
+
 static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
                                        const struct iovec *iov,
                                        size_t niov,
@@ -2535,7 +2563,6 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
     RDMAContext *rdma;
     int ret;
     ssize_t done = 0;
-    size_t len;
 
     RCU_READ_LOCK_GUARD();
     rdma = qatomic_rcu_read(&rioc->rdmaout);
@@ -2561,29 +2588,10 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
         return -1;
     }
 
-    for (int i = 0; i < niov; i++) {
-        size_t remaining = iov[i].iov_len;
-        uint8_t * data = (void *)iov[i].iov_base;
-        while (remaining) {
-            RDMAControlHeader head = {};
-
-            len = MIN(remaining, RDMA_SEND_INCREMENT);
-            remaining -= len;
-
-            head.len = len;
-            head.type = RDMA_CONTROL_QEMU_FILE;
-
-            ret = qemu_rdma_exchange_send(rdma, &head,
-                                          data, NULL, NULL, NULL, errp);
-
-            if (ret < 0) {
-                rdma->errored = true;
-                return -1;
-            }
-
-            data += len;
-            done += len;
-        }
+    done = qemu_rdma_write_file(rdma, iov, niov, errp);
+    if (done < 0) {
+        rdma->errored = true;
+        return -1;
     }
 
     return done;
@@ -2928,11 +2936,13 @@ static int rdma_consumer_dispatch(RDMAContext *rdma, const RDMACmd *cmd,
     case RDMA_CMD_REG_STOP:
         ret = rdma_consumer_reg_stop(rdma, cmd->flags, &err);
         break;
+    case RDMA_CMD_FILE:
+        ret = qemu_rdma_write_file(rdma, cmd->iov, cmd->niov, &err) < 0 ?
+              -1 : 0;
+        break;
     case RDMA_CMD_FINISH:
         ret = qemu_rdma_drain_cq(rdma, &err);
         *stop = true;
-        break;
-    default:
         break;
     }
     if (ret < 0 && err) {
