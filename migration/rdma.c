@@ -75,12 +75,15 @@ static inline uint64_t rdma_merge_max(void)
  * Capabilities for negotiation.
  */
 #define RDMA_CAPABILITY_PIN_ALL 0x01
+/* Peer replies to a batched REGISTER_REQUEST with one result per chunk. */
+#define RDMA_CAPABILITY_REG_BATCH 0x02
 
 /*
  * Add the other flags above to this list of known capabilities
  * as they are introduced.
  */
-static uint32_t known_capabilities = RDMA_CAPABILITY_PIN_ALL;
+static uint32_t known_capabilities = RDMA_CAPABILITY_PIN_ALL |
+                                     RDMA_CAPABILITY_REG_BATCH;
 
 /*
  * A work request ID is 64-bits and we split up these bits
@@ -352,6 +355,7 @@ typedef struct RDMAContext {
     uint64_t pend_length;         /* span length in bytes (within one chunk) */
 
     bool pin_all;
+    bool reg_batch;   /* peer negotiated RDMA_CAPABILITY_REG_BATCH */
 
     /*
      * infiniband-specific variables for opening the device
@@ -1947,6 +1951,14 @@ static int qemu_rdma_write_register(RDMAContext *rdma, RDMARegister *regs,
         return -1;
     }
 
+    /* resp.repeat is echoed back unchanged by old peers; resp.len is not. */
+    if (resp.len != count * sizeof(RDMARegisterResult)) {
+        error_setg(errp, "rdma: REGISTER_RESULT size mismatch: "
+                   "requested %u chunks (%zu bytes), peer returned %u bytes",
+                   count, count * sizeof(RDMARegisterResult), resp.len);
+        return -1;
+    }
+
     results = (RDMARegisterResult *)rdma->wr_data[reg_result_idx].control_curr;
     for (i = 0; i < count; i++) {
         RDMALocalBlock *block =
@@ -2172,6 +2184,8 @@ static int qemu_rdma_connect(RDMAContext *rdma, bool return_path,
         cap.flags |= RDMA_CAPABILITY_PIN_ALL;
     }
 
+    cap.flags |= RDMA_CAPABILITY_REG_BATCH;
+
     caps_to_network(&cap);
 
     ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY, errp);
@@ -2218,6 +2232,13 @@ static int qemu_rdma_connect(RDMAContext *rdma, bool return_path,
                     "Will register memory dynamically.");
         rdma->pin_all = false;
     }
+
+    rdma->reg_batch = !!(cap.flags & RDMA_CAPABILITY_REG_BATCH);
+    if (!rdma->reg_batch) {
+        warn_report("RDMA: Server does not support batched chunk "
+                    "registration. Will register one chunk per request.");
+    }
+    trace_rdma_connect_reg_batch_outcome(rdma->reg_batch);
 
     trace_rdma_connect_pin_all_outcome(rdma->pin_all);
 
@@ -2952,6 +2973,14 @@ static int qemu_rdma_write_run(RDMAContext *rdma, RDMASendRing *r,
                 return -1;
             }
         } else {
+            bool new_chunk = (int)cmd->block_index != last_bidx ||
+                             (int64_t)cmd->chunk_index != last_cidx;
+
+            /* Cap at one never-seen chunk per request without REG_BATCH. */
+            if (new_chunk && nreg == 1 && !rdma->reg_batch) {
+                break;
+            }
+
             /* Defer: record every span for a post-registration write. */
             reg_ring_idx[regn++] = pos + n;
             /*
@@ -2959,8 +2988,7 @@ static int qemu_rdma_write_run(RDMAContext *rdma, RDMASendRing *r,
              * non-decreasing within a run, so a repeat chunk is the last one
              * queued; add each chunk to the REGISTER batch only once.
              */
-            if ((int)cmd->block_index != last_bidx ||
-                (int64_t)cmd->chunk_index != last_cidx) {
+            if (new_chunk) {
                 regs[nreg].current_index = cmd->block_index;
                 regs[nreg].current_addr = addr;
                 nreg++;
@@ -3662,6 +3690,9 @@ static int qemu_rdma_accept(RDMAContext *rdma)
      */
     if (cap.flags & RDMA_CAPABILITY_PIN_ALL) {
         rdma->pin_all = true;
+    }
+    if (cap.flags & RDMA_CAPABILITY_REG_BATCH) {
+        rdma->reg_batch = true;
     }
 
     rdma->cm_id = cm_event->id;
