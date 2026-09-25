@@ -1208,6 +1208,7 @@ static uint64_t qemu_rdma_make_wrid(uint64_t wr_id, uint64_t index,
 static void rdma_nbsent_inc(RDMAContext *rdma, uint64_t nb_sent);
 static void rdma_nbsent_full(RDMAContext *rdma);
 static void rdma_nbsent_zero(RDMAContext *rdma);
+static void rdma_reg_batch_record(RDMASendRing *r, unsigned count);
 
 static void rdma_consumer_start(RDMAContext *rdma);
 static void rdma_consumer_stop(RDMAContext *rdma);
@@ -1806,149 +1807,41 @@ static int qemu_rdma_exchange_recv(RDMAContext *rdma, RDMAControlHeader *head,
     return 0;
 }
 
-/*
- * Write an actual chunk of memory using RDMA.
- *
- * If we're using dynamic registration on the dest-side, we have to
- * send a registration command first.
- */
-static int qemu_rdma_write_one(RDMAContext *rdma,
-                               int current_index, uint64_t current_addr,
-                               uint64_t length, Error **errp)
+/* Post one dirty span of an already-registered chunk (both pin modes). */
+static int qemu_rdma_write_one(RDMAContext *rdma, int current_index,
+                               uint64_t current_addr, uint64_t length,
+                               Error **errp)
 {
     struct ibv_sge sge;
     struct ibv_send_wr send_wr = { 0 };
-    int reg_result_idx, ret;
-    uint64_t chunk, chunks;
-    uint64_t chunk_size = migrate_rdma_chunk_size();
+    RDMALocalBlock *block = &rdma->local_ram_blocks.block[current_index];
+    uint64_t chunk;
     uint8_t *chunk_start, *chunk_end;
-    RDMALocalBlock *block = &(rdma->local_ram_blocks.block[current_index]);
-    RDMARegister reg;
-    RDMARegisterResult *reg_result;
-    RDMAControlHeader resp = { .type = RDMA_CONTROL_REGISTER_RESULT };
-    RDMAControlHeader head = { .len = sizeof(RDMARegister),
-                               .type = RDMA_CONTROL_REGISTER_REQUEST,
-                               .repeat = 1,
-                             };
 
     sge.addr = (uintptr_t)(block->local_host_addr +
-                            (current_addr - block->offset));
+                           (current_addr - block->offset));
     sge.length = length;
 
-    chunk = ram_chunk_index(block->local_host_addr,
-                            (uint8_t *)(uintptr_t)sge.addr);
+    chunk = ram_chunk_index(block->local_host_addr, (uint8_t *)sge.addr);
     chunk_start = ram_chunk_start(block, chunk);
-    chunks = length / chunk_size;
+    chunk_end = ram_chunk_end(block, chunk);
 
-    if (chunks && ((length % chunk_size) == 0)) {
-        chunks--;
-    }
-
-    trace_rdma_write_one_top(chunks + 1,
-                                  (chunks + 1) * chunk_size / 1024 / 1024);
-
-    chunk_end = ram_chunk_end(block, chunk + chunks);
-
-    if (!rdma->pin_all) {
-        if (!block->remote_keys[chunk]) {
-            /*
-             * This chunk has not yet been registered, so first check to see
-             * if the entire chunk is zero. If so, tell the other size to
-             * memset() + madvise() the entire chunk without RDMA.
-             */
-
-            if (buffer_is_zero((void *)(uintptr_t)sge.addr, length)) {
-                RDMACompress comp = {
-                                        .offset = current_addr,
-                                        .value = 0,
-                                        .block_idx = current_index,
-                                        .length = length,
-                                    };
-
-                head.len = sizeof(comp);
-                head.type = RDMA_CONTROL_COMPRESS;
-
-                trace_rdma_write_one_zero(chunk, sge.length,
-                                               current_index, current_addr);
-
-                compress_to_network(rdma, &comp);
-                ret = qemu_rdma_exchange_send(rdma, &head,
-                                (uint8_t *) &comp, NULL, NULL, NULL, errp);
-
-                if (ret < 0) {
-                    return -1;
-                }
-
-                /*
-                 * TODO: Here we are sending something, but we are not
-                 * accounting for anything transferred.  The following is wrong:
-                 *
-                 * stat64_add(&mig_stats.rdma_bytes, sge.length);
-                 *
-                 * because we are using some kind of compression.  I
-                 * would think that head.len would be the more similar
-                 * thing to a correct value.
-                 */
-                qatomic_add(&mig_stats.zero_pages,
-                            sge.length / qemu_target_page_size());
-                return 1;
-            }
-
-            /*
-             * Otherwise, tell other side to register.
-             */
-            reg.current_index = current_index;
-            reg.current_addr = current_addr;
-            reg.chunks = chunks;
-
-            trace_rdma_write_one_sendreg(chunk, sge.length, current_index,
-                                              current_addr);
-
-            register_to_network(rdma, &reg);
-            ret = qemu_rdma_exchange_send(rdma, &head, (uint8_t *) &reg,
-                                    &resp, &reg_result_idx, NULL, errp);
-            if (ret < 0) {
-                return -1;
-            }
-
-            /* try to overlap this single registration with the one we sent. */
-            if (qemu_rdma_register_and_get_keys(rdma, block, sge.addr,
-                                                &sge.lkey, NULL, chunk,
-                                                chunk_start, chunk_end)) {
-                error_setg(errp, "cannot get lkey");
-                return -1;
-            }
-
-            reg_result = (RDMARegisterResult *)
-                    rdma->wr_data[reg_result_idx].control_curr;
-
-            network_to_result(reg_result);
-
-            trace_rdma_write_one_recvregres(block->remote_keys[chunk],
-                                                 reg_result->rkey, chunk);
-
-            block->remote_keys[chunk] = reg_result->rkey;
-            block->remote_host_addr = reg_result->host_addr;
-        } else {
-            /* already registered before */
-            if (qemu_rdma_register_and_get_keys(rdma, block, sge.addr,
-                                                &sge.lkey, NULL, chunk,
-                                                chunk_start, chunk_end)) {
-                error_setg(errp, "cannot get lkey!");
-                return -1;
-            }
-        }
-
-        send_wr.wr.rdma.rkey = block->remote_keys[chunk];
-    } else {
+    if (rdma->pin_all) {
         send_wr.wr.rdma.rkey = block->remote_rkey;
-
-        if (qemu_rdma_register_and_get_keys(rdma, block, sge.addr,
-                                                     &sge.lkey, NULL, chunk,
-                                                     chunk_start, chunk_end)) {
-            error_setg(errp, "cannot get lkey!");
+    } else {
+        if (!block->remote_keys[chunk]) {
+            error_setg(errp, "rdma: write_one on unregistered chunk %" PRIu64,
+                       chunk);
             return -1;
         }
+        send_wr.wr.rdma.rkey = block->remote_keys[chunk];
+    }
+
+    /* Local MR (idempotent): pins our own memory so the NIC can read it. */
+    if (qemu_rdma_register_and_get_keys(rdma, block, sge.addr, &sge.lkey,
+                                        NULL, chunk, chunk_start, chunk_end)) {
+        error_setg(errp, "cannot get lkey");
+        return -1;
     }
 
     /*
@@ -1956,18 +1849,17 @@ static int qemu_rdma_write_one(RDMAContext *rdma,
      * We will use this information at the time of completion
      * to identify the completed write in trace output.
      */
-    send_wr.wr_id = qemu_rdma_make_wrid(RDMA_WRID_RDMA_WRITE,
-                                        current_index, chunk);
-
+    send_wr.wr_id = qemu_rdma_make_wrid(RDMA_WRID_RDMA_WRITE, current_index,
+                                        chunk);
     send_wr.opcode = IBV_WR_RDMA_WRITE;
     send_wr.send_flags = IBV_SEND_SIGNALED;
     send_wr.sg_list = &sge;
     send_wr.num_sge = 1;
     send_wr.wr.rdma.remote_addr = block->remote_host_addr +
-                                (current_addr - block->offset);
+                                  (current_addr - block->offset);
 
     trace_rdma_write_one_post(chunk, sge.addr, send_wr.wr.rdma.remote_addr,
-                                   sge.length);
+                              sge.length);
 
     if (!qemu_rdma_post_send(rdma, &send_wr, errp)) {
         return -1;
@@ -1986,27 +1878,86 @@ static int qemu_rdma_write_one(RDMAContext *rdma,
     qatomic_add(&mig_stats.rdma_bytes, sge.length);
     ram_transferred_add(sge.length);
     rdma->total_writes++;
-
+    rdma->nb_sent++;
+    trace_rdma_write_flush(rdma->nb_sent);
+    rdma_nbsent_inc(rdma, rdma->nb_sent);
     return 0;
 }
 
-/* Consumer: write one dirty span (offset/length are block-relative bytes) */
-static int qemu_rdma_write_chunk(RDMAContext *rdma, uint32_t block_index,
-                                 uint64_t offset, uint64_t length, Error **errp)
+/* Zero an all-zero span on the destination without RDMA (pin_all=off). */
+static int qemu_rdma_write_compress(RDMAContext *rdma, int current_index,
+                                    uint64_t current_addr, uint64_t length,
+                                    Error **errp)
 {
-    RDMALocalBlock *block = &rdma->local_ram_blocks.block[block_index];
-    int ret;
+    RDMALocalBlock *block = &rdma->local_ram_blocks.block[current_index];
+    uint64_t chunk = (current_addr - block->offset) / migrate_rdma_chunk_size();
+    RDMACompress comp = {
+        .offset = current_addr,
+        .value = 0,
+        .block_idx = current_index,
+        .length = length,
+    };
+    RDMAControlHeader head = { .len = sizeof(comp),
+                               .type = RDMA_CONTROL_COMPRESS,
+                               .repeat = 1 };
 
-    /* write_one wants current_addr in ram_addr_t space (block->offset based) */
-    ret = qemu_rdma_write_one(rdma, block_index, block->offset + offset,
-                              length, errp);
-    if (ret < 0) {
+    trace_rdma_write_one_zero(chunk, length, current_index, current_addr);
+
+    compress_to_network(rdma, &comp);
+    if (qemu_rdma_exchange_send(rdma, &head, (uint8_t *)&comp,
+                                NULL, NULL, NULL, errp) < 0) {
         return -1;
     }
-    if (ret == 0) {
-        rdma->nb_sent++;
-        trace_rdma_write_flush(rdma->nb_sent);
-        rdma_nbsent_inc(rdma, rdma->nb_sent);
+    qatomic_add(&mig_stats.zero_pages, length / qemu_target_page_size());
+    return 0;
+}
+
+/*
+ * Register a batch of never-seen non-zero chunks in one REGISTER_REQUEST
+ * (pin_all=off); regs[] carry current_index/current_addr in host order.  One
+ * control round-trip, then cache each chunk's remote rkey/host_addr so the
+ * following write_one() calls can post.
+ */
+static int qemu_rdma_write_register(RDMAContext *rdma, RDMARegister *regs,
+                                    unsigned count, Error **errp)
+{
+    RDMARegister net[RDMA_CONSUMER_BATCH_MAX];
+    RDMARegisterResult *results;
+    RDMAControlHeader resp = { .type = RDMA_CONTROL_REGISTER_RESULT };
+    RDMAControlHeader head = { .type = RDMA_CONTROL_REGISTER_REQUEST };
+    int reg_result_idx;
+    unsigned i;
+
+    assert(count >= 1 && count <= RDMA_CONSUMER_BATCH_MAX);
+
+    /* network-order copy to send; regs[] stays host-order for caching below */
+    for (i = 0; i < count; i++) {
+        net[i] = regs[i];
+        net[i].chunks = 0;              /* exactly one chunk per entry */
+        register_to_network(rdma, &net[i]);
+    }
+    head.len = count * sizeof(RDMARegister);
+    head.repeat = count;
+
+    rdma_reg_batch_record(rdma->send_ring, count);
+
+    if (qemu_rdma_exchange_send(rdma, &head, (uint8_t *)net,
+                                &resp, &reg_result_idx, NULL, errp) < 0) {
+        return -1;
+    }
+
+    results = (RDMARegisterResult *)rdma->wr_data[reg_result_idx].control_curr;
+    for (i = 0; i < count; i++) {
+        RDMALocalBlock *block =
+            &rdma->local_ram_blocks.block[regs[i].current_index];
+        uint64_t chunk =
+            (regs[i].current_addr - block->offset) / migrate_rdma_chunk_size();
+
+        network_to_result(&results[i]);
+        trace_rdma_write_one_recvregres(block->remote_keys[chunk],
+                                        results[i].rkey, chunk);
+        block->remote_keys[chunk] = results[i].rkey;
+        block->remote_host_addr = results[i].host_addr;
     }
     return 0;
 }
@@ -2679,6 +2630,7 @@ struct RDMASendRing {
     uint64_t pushwait_total_ns;  /* total producer wait on a full ring */
     uint64_t occupancy_max;      /* peak queued commands */
     uint64_t idle_max_ns;        /* longest consumer wait on an empty ring */
+    uint64_t reg_batch_max;      /* largest batched REGISTER_REQUEST */
 };
 
 static bool ring_full(RDMASendRing *r)
@@ -2942,6 +2894,105 @@ static int rdma_consumer_reg_stop(RDMAContext *rdma, uint64_t flags,
     return qemu_rdma_exchange_send(rdma, &head, NULL, NULL, NULL, NULL, errp);
 }
 
+/*
+ * Dirty-span parameters for a ring WRITE command: block, block-relative
+ * offset, migration address and length.  The span is the actually-dirtied
+ * byte range (within one chunk), not the whole chunk.
+ */
+static void rdma_get_chunk_args(RDMAContext *rdma, const RDMACmd *cmd,
+                                RDMALocalBlock **block, uint64_t *off,
+                                uint64_t *addr, uint64_t *len)
+{
+    RDMALocalBlock *b = &rdma->local_ram_blocks.block[cmd->block_index];
+
+    *block = b;
+    *off = cmd->offset;
+    *addr = b->offset + cmd->offset;
+    *len = cmd->length;
+}
+
+/*
+ * Consumer: process the maximal run of consecutive RDMA_CMD_WRITE commands at
+ * ring position 'pos' (at most 'max'), stopping at the first barrier.  Each
+ * command carries one dirty span.  Post ready (already registered / pin_all)
+ * and zero spans as they are met; defer spans whose chunk needs registering,
+ * register those chunks in one batched REGISTER_REQUEST, then post the spans.
+ * Returns the WRITE commands consumed, or -1.
+ */
+static int qemu_rdma_write_run(RDMAContext *rdma, RDMASendRing *r,
+                               unsigned pos, unsigned max, Error **errp)
+{
+    unsigned reg_ring_idx[RDMA_CONSUMER_BATCH_MAX]; /* deferred span writes */
+    RDMARegister regs[RDMA_CONSUMER_BATCH_MAX];     /* distinct chunks to reg */
+    unsigned n = 0, regn = 0, nreg = 0, i;
+    int last_bidx = -1;             /* last chunk queued into regs[] */
+    int64_t last_cidx = -1;
+
+    /* Phase 1: scan the run; post ready/zero now, defer never-registered. */
+    while (n < max) {
+        RDMACmd *cmd = &r->ring[(pos + n) & RDMA_SEND_RING_MASK];
+        RDMALocalBlock *block;
+        uint64_t off, addr, len;
+
+        if (cmd->type != RDMA_CMD_WRITE) {
+            break;
+        }
+        rdma_get_chunk_args(rdma, cmd, &block, &off, &addr, &len);
+
+        if (rdma->pin_all || block->remote_keys[cmd->chunk_index]) {
+            if (qemu_rdma_write_one(rdma, cmd->block_index, addr, len,
+                                    errp) < 0) {
+                return -1;
+            }
+        } else if (buffer_is_zero((void *)(uintptr_t)
+                       (block->local_host_addr + off), len)) {
+            if (qemu_rdma_write_compress(rdma, cmd->block_index, addr, len,
+                                         errp) < 0) {
+                return -1;
+            }
+        } else {
+            /* Defer: record every span for a post-registration write. */
+            reg_ring_idx[regn++] = pos + n;
+            /*
+             * Registration is per whole chunk.  Chunk indices arrive
+             * non-decreasing within a run, so a repeat chunk is the last one
+             * queued; add each chunk to the REGISTER batch only once.
+             */
+            if ((int)cmd->block_index != last_bidx ||
+                (int64_t)cmd->chunk_index != last_cidx) {
+                regs[nreg].current_index = cmd->block_index;
+                regs[nreg].current_addr = addr;
+                nreg++;
+                last_bidx = cmd->block_index;
+                last_cidx = cmd->chunk_index;
+            }
+        }
+        n++;
+    }
+
+    if (regn == 0) {
+        return (int)n;
+    }
+
+    /* Phase 2: one REGISTER_REQUEST for the deduped deferred chunks. */
+    if (qemu_rdma_write_register(rdma, regs, nreg, errp) < 0) {
+        return -1;
+    }
+
+    /* Phase 3: post every deferred span (chunks are now registered). */
+    for (i = 0; i < regn; i++) {
+        RDMACmd *cmd = &r->ring[reg_ring_idx[i] & RDMA_SEND_RING_MASK];
+        RDMALocalBlock *block;
+        uint64_t off, addr, len;
+
+        rdma_get_chunk_args(rdma, cmd, &block, &off, &addr, &len);
+        if (qemu_rdma_write_one(rdma, cmd->block_index, addr, len, errp) < 0) {
+            return -1;
+        }
+    }
+    return (int)n;
+}
+
 static int rdma_consumer_dispatch(RDMAContext *rdma, const RDMACmd *cmd,
                                   bool *stop)
 {
@@ -2953,8 +3004,8 @@ static int rdma_consumer_dispatch(RDMAContext *rdma, const RDMACmd *cmd,
 
     switch (cmd->type) {
     case RDMA_CMD_WRITE:
-        ret = qemu_rdma_write_chunk(rdma, cmd->block_index,
-                                    cmd->offset, cmd->length, &err);
+        /* WRITE runs are handled in bulk by qemu_rdma_write_run(). */
+        g_assert_not_reached();
         break;
     case RDMA_CMD_FLUSH:
         ret = qemu_rdma_drain_cq(rdma, &err);
@@ -2981,6 +3032,7 @@ static void *rdma_consumer_thread(void *opaque)
 {
     RDMAContext *rdma = opaque;
     RDMASendRing *r = rdma->send_ring;
+    Error *err = NULL;
     bool stop = false;
 
     rcu_register_thread();
@@ -3024,6 +3076,21 @@ static void *rdma_consumer_thread(void *opaque)
         while (processed < batch) {
             unsigned idx = r->tail + processed;
             RDMACmd cmd = r->ring[idx & RDMA_SEND_RING_MASK];
+
+            /* WRITE runs are drained in bulk with batched registration. */
+            if (cmd.type == RDMA_CMD_WRITE) {
+                int n = qemu_rdma_write_run(rdma, r, idx,
+                                            batch - processed, &err);
+                if (n < 0) {
+                    if (err) {
+                        error_report_err(err);
+                    }
+                    ring_set_abort(rdma);
+                    break;
+                }
+                processed += (unsigned)n;
+                continue;
+            }
 
             if (rdma_consumer_dispatch(rdma, &cmd, &stop) < 0) {
                 ring_set_abort(rdma);
@@ -3445,6 +3512,13 @@ static void rdma_nbsent_full(RDMAContext *rdma)
 static void rdma_nbsent_zero(RDMAContext *rdma)
 {
     rdma->nbsent_zero_hits++;
+}
+
+static void rdma_reg_batch_record(RDMASendRing *r, unsigned count)
+{
+    if (count > r->reg_batch_max) {
+        r->reg_batch_max = count;
+    }
 }
 
 static void rdma_stats_reset(RDMAContext *rdma)
