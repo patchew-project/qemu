@@ -1214,6 +1214,9 @@ static void rdma_nbsent_inc(RDMAContext *rdma, uint64_t nb_sent);
 static void rdma_nbsent_full(RDMAContext *rdma);
 static void rdma_nbsent_zero(RDMAContext *rdma);
 
+static void rdma_consumer_start(RDMAContext *rdma);
+static void rdma_consumer_stop(RDMAContext *rdma);
+
 /*
  * Consult the connection manager to see a work request
  * (of any kind) has completed.
@@ -2108,6 +2111,9 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
 {
     Error *err = NULL;
 
+    /* Free the send ring before touching the QP. */
+    rdma_consumer_stop(rdma);
+
     if (rdma->cm_id && rdma->connected) {
         if ((rdma->errored ||
              migrate_get_current()->state == MIGRATION_STATUS_CANCELLING) &&
@@ -2752,6 +2758,91 @@ struct RDMASendRing {
     uint64_t occupancy_max;      /* peak queued commands */
     uint64_t idle_max_ns;        /* longest consumer wait on an empty ring */
 };
+
+static bool ring_full(RDMASendRing *r)
+{
+    return (r->head - qatomic_load_acquire(&r->tail)) >= RDMA_SEND_RING_SIZE;
+}
+
+/* Producer -> wake the consumer if it is idle on an empty ring. */
+static void ring_wake_consumer(RDMASendRing *r)
+{
+    smp_mb();   /* order the *_waiting load below vs the sleeper's store */
+    if (qatomic_read(&r->consumer_waiting)) {
+        qemu_mutex_lock(&r->wait_lock);
+        qemu_cond_signal(&r->not_empty);
+        qemu_mutex_unlock(&r->wait_lock);
+    }
+}
+
+static int ring_push(RDMAContext *rdma, const RDMACmd *cmd)
+{
+    RDMASendRing *r = rdma->send_ring;
+
+    assert(r);
+
+    if (ring_full(r)) {
+        qemu_mutex_lock(&r->wait_lock);
+        r->producer_waiting = true;
+        smp_mb();                       /* pair with ring_wake_producer() */
+        while (ring_full(r) && !r->abort) {
+            qemu_cond_wait(&r->not_full, &r->wait_lock);
+        }
+        r->producer_waiting = false;
+        qemu_mutex_unlock(&r->wait_lock);
+    }
+    if (qatomic_read(&r->abort)) {
+        return -1;
+    }
+    r->ring[r->head & RDMA_SEND_RING_MASK] = *cmd;
+    qatomic_store_release(&r->head, r->head + 1);   /* publish payload+slot */
+    ring_wake_consumer(r);
+    return 0;
+}
+
+/*
+ * Producer: allocate the send ring once (idempotent).  The consumer
+ * thread that drains it is created in a later change.
+ */
+static void rdma_consumer_start(RDMAContext *rdma)
+{
+    RDMASendRing *r;
+
+    if (rdma->consumer_started) {
+        return;
+    }
+    r = g_new0(RDMASendRing, 1);
+    qemu_mutex_init(&r->wait_lock);
+    qemu_cond_init(&r->not_full);
+    qemu_cond_init(&r->not_empty);
+    qemu_cond_init(&r->barrier_cv);
+    rdma->send_ring = r;
+    rdma->pend_block = -1;        /* no pending WRITE span yet */
+    /* Producer-only flag (migration thread + cleanup, never concurrent). */
+    rdma->consumer_started = true;
+}
+
+/* Producer: tear down the send ring. */
+static void rdma_consumer_stop(RDMAContext *rdma)
+{
+    RDMASendRing *r = rdma->send_ring;
+    RDMACmd cmd = { .type = RDMA_CMD_FINISH };
+
+    if (!rdma->consumer_started) {
+        return;
+    }
+    /* Ask the consumer to drain and exit; if it already aborted, just join. */
+    if (!qatomic_read(&r->abort)) {
+        ring_push(rdma, &cmd);
+    }
+    qemu_mutex_destroy(&r->wait_lock);
+    qemu_cond_destroy(&r->not_full);
+    qemu_cond_destroy(&r->not_empty);
+    qemu_cond_destroy(&r->barrier_cv);
+    g_free(r);
+    rdma->send_ring = NULL;
+    rdma->consumer_started = false;
+}
 
 static int qio_channel_rdma_set_blocking(QIOChannel *ioc,
                                          bool blocking,
@@ -3808,6 +3899,11 @@ int rdma_registration_stop(QEMUFile *f, uint64_t flags)
     if (ret < 0) {
         error_report_err(err);
         goto err;
+    }
+
+    if (flags == RAM_CONTROL_SETUP) {
+        /* Setup complete: allocate the send ring (consumer added later). */
+        rdma_consumer_start(rdma);
     }
 
     return 0;
