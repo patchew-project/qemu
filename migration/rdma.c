@@ -1940,6 +1940,7 @@ static int qemu_rdma_write_register(RDMAContext *rdma, RDMARegister *regs,
     head.repeat = count;
 
     rdma_reg_batch_record(rdma->send_ring, count);
+    trace_rdma_write_register_batch(count);
 
     if (qemu_rdma_exchange_send(rdma, &head, (uint8_t *)net,
                                 &resp, &reg_result_idx, NULL, errp) < 0) {
@@ -2970,6 +2971,7 @@ static int qemu_rdma_write_run(RDMAContext *rdma, RDMASendRing *r,
         n++;
     }
 
+    trace_rdma_write_run(n);
     if (regn == 0) {
         return (int)n;
     }
@@ -3072,6 +3074,7 @@ static void *rdma_consumer_thread(void *opaque)
          */
         batch = avail < RDMA_CONSUMER_BATCH_MAX ? avail
                                                 : RDMA_CONSUMER_BATCH_MAX;
+        trace_rdma_consumer_batch(batch, avail);
 
         while (processed < batch) {
             unsigned idx = r->tail + processed;
@@ -3542,7 +3545,8 @@ static void rdma_nbsent_stats_dump(RDMAContext *rdma)
 static void rdma_prodcons_stats_dump(RDMASendRing *r)
 {
     trace_rdma_prodcons_stats(r->idle_max_ns, r->pushwait_max_ns,
-                              r->pushwait_total_ns, r->occupancy_max);
+                              r->pushwait_total_ns, r->occupancy_max,
+                              r->reg_batch_max);
 }
 
 int rdma_control_save_page(QEMUFile *f, ram_addr_t block_offset,
