@@ -97,6 +97,7 @@ typedef struct DisasContext {
     uint16_t prefix;
     int8_t override; /* -1 if no override, else R_CS, R_DS, etc */
 
+    bool pc_save_valid;
     bool has_modrm;
     uint8_t modrm;
 
@@ -491,7 +492,7 @@ static void gen_add_A0_im(DisasContext *s, int val)
 static inline void gen_op_jmp_v(DisasContext *s, TCGv dest)
 {
     tcg_gen_mov_tl(cpu_eip, dest);
-    s->pc_save = -1;
+    s->pc_save_valid = false;
 }
 
 static inline void gen_op_add_reg(DisasContext *s, MemOp size, int reg, TCGv val)
@@ -526,7 +527,7 @@ static inline void gen_op_st_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
 
 static void gen_update_eip_next(DisasContext *s)
 {
-    assert(s->pc_save != -1);
+    assert(s->pc_save_valid);
     if (tb_cflags(s->base.tb) & CF_PCREL) {
         tcg_gen_addi_tl(cpu_eip, cpu_eip, s->pc - s->pc_save);
     } else if (CODE64(s)) {
@@ -539,7 +540,7 @@ static void gen_update_eip_next(DisasContext *s)
 
 static void gen_update_eip_cur(DisasContext *s)
 {
-    assert(s->pc_save != -1);
+    assert(s->pc_save_valid);
     if (tb_cflags(s->base.tb) & CF_PCREL) {
         tcg_gen_addi_tl(cpu_eip, cpu_eip, s->base.pc_next - s->pc_save);
     } else if (CODE64(s)) {
@@ -562,7 +563,7 @@ static TCGv_i32 cur_insn_len_i32(DisasContext *s)
 
 static TCGv_i32 eip_next_i32(DisasContext *s)
 {
-    assert(s->pc_save != -1);
+    assert(s->pc_save_valid);
     /*
      * This function has two users: lcall_real (always 16-bit mode), and
      * iret_protected (16, 32, or 64-bit mode).  IRET only uses the value
@@ -586,7 +587,7 @@ static TCGv_i32 eip_next_i32(DisasContext *s)
 
 static TCGv eip_next_tl(DisasContext *s)
 {
-    assert(s->pc_save != -1);
+    assert(s->pc_save_valid);
     if (tb_cflags(s->base.tb) & CF_PCREL) {
         TCGv ret = tcg_temp_new();
         tcg_gen_addi_tl(ret, cpu_eip, s->pc - s->pc_save);
@@ -600,7 +601,7 @@ static TCGv eip_next_tl(DisasContext *s)
 
 static TCGv eip_cur_tl(DisasContext *s)
 {
-    assert(s->pc_save != -1);
+    assert(s->pc_save_valid);
     if (tb_cflags(s->base.tb) & CF_PCREL) {
         TCGv ret = tcg_temp_new();
         tcg_gen_addi_tl(ret, cpu_eip, s->base.pc_next - s->pc_save);
@@ -3524,6 +3525,7 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
 
     dc->cs_base = dc->base.tb->cs_base;
     dc->pc_save = dc->base.pc_next;
+    dc->pc_save_valid = true;
     dc->flags = flags;
 #ifndef CONFIG_USER_ONLY
     dc->cpl = cpl;
