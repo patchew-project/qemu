@@ -2090,9 +2090,6 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
     if (!CODE64(s)) {
         if (ot == MO_16) {
             mask = 0xffff;
-            if (tb_cflags(s->base.tb) & CF_PCREL && CODE32(s)) {
-                use_goto_tb = false;
-            }
         } else {
             mask = 0xffffffff;
         }
@@ -2100,15 +2097,20 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
     new_eip &= mask;
 
     if (tb_cflags(s->base.tb) & CF_PCREL) {
+        assert(s->pc_save_valid);
         tcg_gen_addi_tl(cpu_eip, cpu_eip, new_pc - s->pc_save);
-        /*
-         * If we can prove the branch does not leave the page and we have
-         * no extra masking to apply (data16 branch in code32, see above),
-         * then we have also proven that the addition does not wrap.
-         */
-        if (!use_goto_tb || !translator_is_same_page(&s->base, new_pc)) {
-            tcg_gen_andi_tl(cpu_eip, cpu_eip, mask);
-            use_goto_tb = false;
+
+        if (mask != -1) {
+            /*
+             * If eip "page" doesn't change, then the addition cannot
+             * leave [0, mask] on any rerun of this TB, which only
+             * ever shifts EIP by whole pages.
+             */
+            target_ulong old_eip = s->pc_save - s->cs_base;
+            if ((old_eip ^ new_eip) & TARGET_PAGE_MASK) {
+                tcg_gen_andi_tl(cpu_eip, cpu_eip, mask);
+                use_goto_tb = false;
+            }
         }
     } else if (!CODE64(s)) {
         new_pc = (uint32_t)(new_eip + s->cs_base);
