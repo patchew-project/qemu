@@ -35,7 +35,8 @@ foreach t: tcg_tests['multiarch-softmmu']['tests']
 endforeach
 
 tests += {
-  'wraparound.S': { 'cflags': cflags, 'qemu_args': ['-m', '4G'] + qemu_def_args }
+  'test-branch-wrap16.S': { 'cflags': cflags, 'qemu_args': qemu_def_args },
+  'wraparound.S': { 'cflags': cflags, 'qemu_args': ['-m', '4G'] + qemu_def_args },
 }
 
 if 'qemu-system-i386' in emulators
