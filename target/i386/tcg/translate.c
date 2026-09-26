@@ -620,12 +620,15 @@ static void gen_lea_v_seg_dest(DisasContext *s, MemOp aflag, TCGv dest, TCGv a0,
 {
     int easize;
     bool has_base;
+    bool addseg = ADDSEG(s);
 
     if (ovr_seg < 0) {
         ovr_seg = def_seg;
+    } else if (!CODE64(s)) {
+        addseg = true;
     }
 
-    has_base = ovr_seg >= R_FS || (ovr_seg >= 0 && ADDSEG(s));
+    has_base = ovr_seg >= R_FS || (ovr_seg >= 0 && addseg);
     easize = CODE64(s) ? MO_64 : MO_32;
 
     if (has_base) {
