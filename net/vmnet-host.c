@@ -41,6 +41,26 @@ static bool validate_options(const Netdev *netdev, Error **errp)
         return false;
     }
 
+    if ((options->host_ip_address || options->host_subnet_mask) &&
+        !(options->host_ip_address && options->host_subnet_mask)) {
+        error_setg(errp,
+                   "'host-ip-address' and 'host-subnet-mask' "
+                   "should be provided together");
+        return false;
+    }
+
+    if (options->host_ip_address && !options->net_uuid) {
+        error_setg(errp,
+                   "'host-ip-address' requires 'net-uuid' to be specified");
+        return false;
+    }
+
+    if (options->host_ipv6_address && !options->net_uuid) {
+        error_setg(errp,
+                   "'host-ipv6-address' requires 'net-uuid' to be specified");
+        return false;
+    }
+
     return true;
 }
 
@@ -75,6 +95,21 @@ static xpc_object_t build_if_desc(const Netdev *netdev)
         xpc_dictionary_set_string(if_desc,
                                   vmnet_subnet_mask_key,
                                   options->subnet_mask);
+    }
+
+    if (options->host_ip_address) {
+        xpc_dictionary_set_string(if_desc,
+                                  vmnet_host_ip_address_key,
+                                  options->host_ip_address);
+        xpc_dictionary_set_string(if_desc,
+                                  vmnet_host_subnet_mask_key,
+                                  options->host_subnet_mask);
+    }
+
+    if (options->host_ipv6_address) {
+        xpc_dictionary_set_string(if_desc,
+                                  vmnet_host_ipv6_address_key,
+                                  options->host_ipv6_address);
     }
 
     return if_desc;

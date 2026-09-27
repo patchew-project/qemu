@@ -778,6 +778,16 @@
 #     is allowed only with other interfaces added to this network
 #     identified by the UUID.  Requires at least macOS Big Sur 11.0.
 #
+# @host-ip-address: The IPv4 address to set on the host side of the
+#     interface.  Only applicable when @net-uuid is also specified.
+#     Must be specified along with @host-subnet-mask.
+#
+# @host-subnet-mask: The IPv4 subnet mask to set on the host side of
+#     the interface.  Must be specified along with @host-ip-address.
+#
+# @host-ipv6-address: The IPv6 address to set on the host side of the
+#     interface.  Only applicable when @net-uuid is also specified.
+#
 # Since: 7.1
 ##
 { 'struct': 'NetdevVmnetHostOptions',
@@ -786,7 +796,10 @@
     '*end-address':   'str',
     '*subnet-mask':   'str',
     '*isolated':      'bool',
-    '*net-uuid':      'str' },
+    '*net-uuid':      'str',
+    '*host-ip-address': 'str',
+    '*host-subnet-mask': 'str',
+    '*host-ipv6-address': 'str' },
   'if': 'CONFIG_VMNET' }
 
 ##
