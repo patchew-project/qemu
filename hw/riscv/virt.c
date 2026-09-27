@@ -171,14 +171,23 @@ static void create_fdt_socket_plic(RISCVVirtState *s,
             plic_cells[cpu * 2 + 1] = cpu_to_be32(IRQ_S_EXT);
         }
    } else {
-        cells_length = s->soc[socket].num_harts * 4;
-        plic_cells = g_new0(uint32_t, cells_length);
+        plic_cells = g_new0(uint32_t, s->soc[socket].num_harts * 4);
+        cells_length = 0;
 
         for (cpu = 0; cpu < s->soc[socket].num_harts; cpu++) {
-            plic_cells[cpu * 4 + 0] = cpu_to_be32(intc_phandles[cpu]);
-            plic_cells[cpu * 4 + 1] = cpu_to_be32(IRQ_M_EXT);
-            plic_cells[cpu * 4 + 2] = cpu_to_be32(intc_phandles[cpu]);
-            plic_cells[cpu * 4 + 3] = cpu_to_be32(IRQ_S_EXT);
+            CPURISCVState *env = &s->soc[socket].harts[cpu].env;
+
+            plic_cells[cells_length++] = cpu_to_be32(intc_phandles[cpu]);
+            plic_cells[cells_length++] = cpu_to_be32(IRQ_M_EXT);
+
+            /*
+             * The PLIC implements a supervisor context only for harts that
+             * have supervisor mode, see riscv_plic_hart_config_string().
+             */
+            if (riscv_has_ext(env, RVS)) {
+                plic_cells[cells_length++] = cpu_to_be32(intc_phandles[cpu]);
+                plic_cells[cells_length++] = cpu_to_be32(IRQ_S_EXT);
+            }
         }
     }
 
