@@ -243,6 +243,8 @@ static const FlashPartInfo known_devices[] = {
     { INFO6("mx25l25635f", 0xc22019,     0xc22019,  64 << 10, 512,
             ER_4K | ER_32K), .sfdp_read = m25p80_sfdp_mx25l25635f },
     { INFO("mx25l25655e", 0xc22619,      0,  64 << 10, 512, 0) },
+    { INFO("mx25r6435",   0xc22817,      0,  64 << 10, 128, ER_4K | ER_32K),
+      .sfdp_read = m25p80_sfdp_mx25r6435 },
     { INFO("mx66l51235f", 0xc2201a,      0,  64 << 10, 1024, ER_4K | ER_32K) },
     { INFO("mx66u51235f", 0xc2253a,      0,  64 << 10, 1024, ER_4K | ER_32K) },
     { INFO("mx66u1g45g",  0xc2253b,      0,  64 << 10, 2048, ER_4K | ER_32K) },
@@ -405,6 +407,7 @@ typedef enum {
     PP = 0x02,
     PP4 = 0x12,
     PP4_4 = 0x3e,
+    QPP_1_4_4 = 0x38,
     DPP = 0xa2,
     QPP = 0x32,
     QPP_4 = 0x34,
@@ -759,6 +762,7 @@ static void complete_collecting_data(Flash *s)
 
     switch (s->cmd_in_progress) {
     case DPP:
+    case QPP_1_4_4:
     case QPP:
     case QPP_4:
     case PP:
@@ -1255,6 +1259,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
                           "QIO mode\n", s->cmd_in_progress);
         }
         break;
+    case QPP_1_4_4:
     case QPP:
     case QPP_4:
     case PP4_4:
