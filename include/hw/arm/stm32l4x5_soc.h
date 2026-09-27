@@ -32,6 +32,7 @@
 #include "hw/misc/stm32l4x5_rcc.h"
 #include "hw/gpio/stm32l4x5_gpio.h"
 #include "hw/char/stm32l4x5_usart.h"
+#include "hw/ssi/stm32l4x5_quadspi.h"
 #include "qom/object.h"
 
 #define TYPE_STM32L4X5_SOC "stm32l4x5-soc"
@@ -56,6 +57,7 @@ struct Stm32l4x5SocState {
     Stm32l4x5RccState rcc;
     Stm32l4x5GpioState gpio[NUM_GPIOS];
     Stm32l4x5UsartBaseState usart[STM_NUM_USARTS];
+    Stm32l4x5QuadSpiState quadspi;
     Stm32l4x5UsartBaseState uart[STM_NUM_UARTS];
     Stm32l4x5UsartBaseState lpuart;
 

@@ -81,6 +81,9 @@ static const int exti_irq[NUM_EXTI_IRQ] = {
 #define RCC_BASE_ADDRESS 0x40021000
 #define RCC_IRQ 5
 
+#define QUADSPI_BASE_ADDRESS 0xa0001000
+#define QUADSPI_IRQ 71
+
 #define EXTI_USART1_IRQ 26
 #define EXTI_UART4_IRQ 29
 #define EXTI_LPUART1_IRQ 31
@@ -144,6 +147,8 @@ static void stm32l4x5_soc_initfn(Object *obj)
     }
     object_initialize_child(obj, "syscfg", &s->syscfg, TYPE_STM32L4X5_SYSCFG);
     object_initialize_child(obj, "rcc", &s->rcc, TYPE_STM32L4X5_RCC);
+    object_initialize_child(obj, "quadspi", &s->quadspi,
+                            TYPE_STM32L4X5_QUADSPI);
 
     for (unsigned i = 0; i < NUM_GPIOS; i++) {
         g_autofree char *name = g_strdup_printf("gpio%c", 'a' + i);
@@ -312,6 +317,18 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
     }
     sysbus_mmio_map(busdev, 0, RCC_BASE_ADDRESS);
     sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, RCC_IRQ));
+
+    /* QuadSPI controller */
+    dev = DEVICE(&s->quadspi);
+    qdev_connect_clock_in(dev, "clk",
+        qdev_get_clock_out(DEVICE(&s->rcc), "qspi-out"));
+    busdev = SYS_BUS_DEVICE(dev);
+    if (!sysbus_realize(busdev, errp)) {
+        return;
+    }
+    sysbus_mmio_map(busdev, 0, QUADSPI_BASE_ADDRESS);
+    sysbus_connect_irq(busdev, 0,
+                       qdev_get_gpio_in(armv7m, QUADSPI_IRQ));
 
     /* USART devices */
     for (int i = 0; i < STM_NUM_USARTS; i++) {
