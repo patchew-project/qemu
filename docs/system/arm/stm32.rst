@@ -23,6 +23,7 @@ The following machines are based on this Arm Cortex-M4F chip :
 - ``netduinoplus2``     Netduino Plus 2 board with STM32F405RGT6 microcontroller
 - ``olimex-stm32-h405`` Olimex STM32 H405 board with STM32F405RGT6 microcontroller
 - ``b-l475e-iot01a``     :doc:`B-L475E-IOT01A IoT Node </system/arm/b-l475e-iot01a>` board with STM32L475VG microcontroller
+- ``stm32l496g-disco``   :doc:`STM32L496G-DISCO Discovery Kit </system/arm/stm32l496g-disco>` board with STM32L496AG microcontroller
 
 There are many other STM32 series that are currently not supported by QEMU.
 

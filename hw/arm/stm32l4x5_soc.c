@@ -35,9 +35,7 @@
 
 #define FLASH_BASE_ADDRESS 0x08000000
 #define SRAM1_BASE_ADDRESS 0x20000000
-#define SRAM1_SIZE (96 * KiB)
 #define SRAM2_BASE_ADDRESS 0x10000000
-#define SRAM2_SIZE (32 * KiB)
 
 #define EXTI_ADDR 0x40010400
 #define SYSCFG_ADDR 0x40010000
@@ -189,13 +187,15 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
     memory_region_add_subregion(system_memory, FLASH_BASE_ADDRESS, &s->flash);
     memory_region_add_subregion(system_memory, 0, &s->flash_alias);
 
-    if (!memory_region_init_ram(&s->sram1, OBJECT(dev_soc), "SRAM1", SRAM1_SIZE,
+    if (!memory_region_init_ram(&s->sram1, OBJECT(dev_soc), "SRAM1",
+                                sc->sram1_size,
                                 errp)) {
         return;
     }
     memory_region_add_subregion(system_memory, SRAM1_BASE_ADDRESS, &s->sram1);
 
-    if (!memory_region_init_ram(&s->sram2, OBJECT(dev_soc), "SRAM2", SRAM2_SIZE,
+    if (!memory_region_init_ram(&s->sram2, OBJECT(dev_soc), "SRAM2",
+                                sc->sram2_size,
                                 errp)) {
         return;
     }
@@ -456,11 +456,15 @@ static void stm32l4x5_soc_class_init(ObjectClass *klass, const void *data)
 {
 
     DeviceClass *dc = DEVICE_CLASS(klass);
+    Stm32l4x5SocClass *ssc = STM32L4X5_SOC_CLASS(klass);
 
     dc->realize = stm32l4x5_soc_realize;
     /* Reason: Mapped at fixed location on the system bus */
     dc->user_creatable = false;
     /* No vmstate or reset required: device has no internal state */
+
+    ssc->sram1_size = 96 * KiB;
+    ssc->sram2_size = 32 * KiB;
 }
 
 static void stm32l4x5xc_soc_class_init(ObjectClass *oc, const void *data)
@@ -484,6 +488,15 @@ static void stm32l4x5xg_soc_class_init(ObjectClass *oc, const void *data)
     ssc->flash_size = 1 * MiB;
 }
 
+static void stm32l496xg_soc_class_init(ObjectClass *oc, const void *data)
+{
+    Stm32l4x5SocClass *ssc = STM32L4X5_SOC_CLASS(oc);
+
+    ssc->flash_size = 1 * MiB;
+    ssc->sram1_size = 256 * KiB;
+    ssc->sram2_size = 64 * KiB;
+}
+
 static const TypeInfo stm32l4x5_soc_types[] = {
     {
         .name           = TYPE_STM32L4X5XC_SOC,
@@ -497,6 +510,10 @@ static const TypeInfo stm32l4x5_soc_types[] = {
         .name           = TYPE_STM32L4X5XG_SOC,
         .parent         = TYPE_STM32L4X5_SOC,
         .class_init     = stm32l4x5xg_soc_class_init,
+    }, {
+        .name           = TYPE_STM32L496XG_SOC,
+        .parent         = TYPE_STM32L4X5_SOC,
+        .class_init     = stm32l496xg_soc_class_init,
     }, {
         .name           = TYPE_STM32L4X5_SOC,
         .parent         = TYPE_SYS_BUS_DEVICE,

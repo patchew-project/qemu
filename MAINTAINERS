@@ -1123,6 +1123,14 @@ F: hw/ssi/stm32l4x5_quadspi.c
 F: include/hw/*/stm32l4x5_*.h
 F: tests/qtest/stm32l4x5*
 
+STM32L496G-DISCO
+M: Mohammad Odeh <zephyr@exalt.ps>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/stm32l496g-disco.c
+F: docs/system/arm/stm32l496g-disco.rst
+F: tests/qtest/stm32l496g-disco-test.c
+
 STM32VLDISCOVERY
 M: Alexandre Iooss <erdnaxe@crans.org>
 L: qemu-arm@nongnu.org

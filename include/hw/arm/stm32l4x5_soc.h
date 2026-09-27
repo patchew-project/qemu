@@ -39,6 +39,7 @@
 #define TYPE_STM32L4X5XC_SOC "stm32l4x5xc-soc"
 #define TYPE_STM32L4X5XE_SOC "stm32l4x5xe-soc"
 #define TYPE_STM32L4X5XG_SOC "stm32l4x5xg-soc"
+#define TYPE_STM32L496XG_SOC "stm32l496xg-soc"
 OBJECT_DECLARE_TYPE(Stm32l4x5SocState, Stm32l4x5SocClass, STM32L4X5_SOC)
 
 #define NUM_EXTI_OR_GATES 4
@@ -71,6 +72,8 @@ struct Stm32l4x5SocClass {
     SysBusDeviceClass parent_class;
 
     size_t flash_size;
+    size_t sram1_size;
+    size_t sram2_size;
 };
 
 #endif

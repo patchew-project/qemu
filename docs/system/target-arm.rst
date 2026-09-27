@@ -82,6 +82,7 @@ Board-specific documentation
    arm/aspeed
    arm/bananapi_m2u.rst
    arm/b-l475e-iot01a.rst
+   arm/stm32l496g-disco.rst
    arm/sabrelite
    arm/digic
    arm/cubieboard
