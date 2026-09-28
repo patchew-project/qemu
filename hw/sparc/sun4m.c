@@ -840,10 +840,13 @@ static void sun4m_hw_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0);
 
-    /* models without ECC don't trap when missing ram is accessed */
+    /*
+     * models without ECC don't trap when missing ram is accessed,
+     * up to the end of memory decode at iommu_base
+     */
     if (!hwdef->ecc_base) {
         empty_slot_init("ecc", machine->ram_size,
-                        hwdef->max_mem - machine->ram_size);
+                        hwdef->iommu_base - machine->ram_size);
     }
 
     prom_init(hwdef->slavio_base, machine->firmware);
@@ -1174,7 +1177,7 @@ static void ss10_class_init(ObjectClass *oc, const void *data)
         .nvram_machine_id = 0x72,
         .machine_id = ss10_id,
         .iommu_version = 0x03000000,
-        .max_mem = 0xf00000000ULL,
+        .max_mem = 0x20000000, /* 512M: EMC has 29 DRAM address bits */
     };
 
     mc->desc = "Sun4m platform, SPARCstation 10";
@@ -1207,7 +1210,7 @@ static void ss600mp_class_init(ObjectClass *oc, const void *data)
         .nvram_machine_id = 0x71,
         .machine_id = ss600mp_id,
         .iommu_version = 0x01000000,
-        .max_mem = 0xf00000000ULL,
+        .max_mem = 0x40000000, /* 1G: onboard plus expansion boards */
     };
 
     mc->desc = "Sun4m platform, SPARCserver 600MP";
@@ -1258,7 +1261,7 @@ static void ss20_class_init(ObjectClass *oc, const void *data)
         .nvram_machine_id = 0x72,
         .machine_id = ss20_id,
         .iommu_version = 0x13000000,
-        .max_mem = 0xf00000000ULL,
+        .max_mem = 0x20000000, /* 512M: SMC has 29 DRAM address bits */
     };
 
     mc->desc = "Sun4m platform, SPARCstation 20";
@@ -1291,11 +1294,12 @@ static void voyager_class_init(ObjectClass *oc, const void *data)
         .nvram_machine_id = 0x80,
         .machine_id = vger_id,
         .iommu_version = 0x05000000,
-        .max_mem = 0x10000000,
+        .max_mem = 0x05000000, /* 80M: 16M onboard plus two 32M cards */
     };
 
     mc->desc = "Sun4m platform, SPARCstation Voyager";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
+    mc->default_ram_size = 80 * MiB;
     smc->hwdef = &voyager_hwdef;
 }
 
@@ -1324,7 +1328,7 @@ static void ss_lx_class_init(ObjectClass *oc, const void *data)
         .nvram_machine_id = 0x80,
         .machine_id = lx_id,
         .iommu_version = 0x04000000,
-        .max_mem = 0x10000000,
+        .max_mem = 0x08000000, /* 128M: microSPARC-I on-chip controller */
     };
 
     mc->desc = "Sun4m platform, SPARCstation LX";
@@ -1357,7 +1361,7 @@ static void ss4_class_init(ObjectClass *oc, const void *data)
         .nvram_machine_id = 0x80,
         .machine_id = ss4_id,
         .iommu_version = 0x05000000,
-        .max_mem = 0x10000000,
+        .max_mem = 0x0a000000, /* 160M: 5 SIMM slots */
     };
 
     mc->desc = "Sun4m platform, SPARCstation 4";
@@ -1389,7 +1393,7 @@ static void scls_class_init(ObjectClass *oc, const void *data)
         .nvram_machine_id = 0x80,
         .machine_id = scls_id,
         .iommu_version = 0x05000000,
-        .max_mem = 0x10000000,
+        .max_mem = 0x08000000, /* 128M: microSPARC-I on-chip controller */
     };
 
     mc->desc = "Sun4m platform, SPARCClassic";
@@ -1421,7 +1425,7 @@ static void sbook_class_init(ObjectClass *oc, const void *data)
         .nvram_machine_id = 0x80,
         .machine_id = sbook_id,
         .iommu_version = 0x05000000,
-        .max_mem = 0x10000000,
+        .max_mem = 0x08000000, /* 128M: microSPARC-I on-chip controller */
     };
 
     mc->desc = "Sun4m platform, SPARCbook";
