@@ -158,6 +158,20 @@ static void discard_throttle_data(VirtIOSerialPort *port)
     }
 }
 
+/*
+ * Return a partial element held back by throttling to the guest via
+ * the used ring, so the guest driver can reclaim the descriptor.
+ * Unlike discard_throttle_data() this must be used when the virtqueue
+ * stays live (port close) rather than being reset.
+ */
+static void return_throttle_data(VirtIOSerialPort *port)
+{
+    if (port->elem) {
+        virtqueue_push(port->ovq, port->elem, 0);
+        g_clear_pointer(&port->elem, g_free);
+    }
+}
+
 static void do_flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
                                  VirtIODevice *vdev)
 {
@@ -345,7 +359,7 @@ int virtio_serial_close(VirtIOSerialPort *port)
      * consume, reset the throttling flag and discard the data.
      */
     port->throttled = false;
-    discard_throttle_data(port);
+    return_throttle_data(port);
     discard_vq_data(port->ovq, VIRTIO_DEVICE(port->vser));
 
     send_control_event(port->vser, port->id, VIRTIO_CONSOLE_PORT_OPEN, 0);
