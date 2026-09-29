@@ -150,8 +150,8 @@
 
 ##
 # @DummyBootCertificates:
-#
-# Not used by QMP; hack to let us use BootCertificatesList internally.
+#     Not used by QMP; hack to let us use BootCertificatesList
+#     internally.
 #
 # Since: 11.2
 ##
