@@ -22,6 +22,8 @@
 #include "qemu/timer.h"
 #include "qemu/cutils.h"
 #include "qemu/memalign.h"
+#include "system/iothread.h"
+#include "qemu/aio-wait.h"
 
 #define CMD_NOFILE_OK   0x01
 
@@ -1367,7 +1369,83 @@ struct aio_ctx {
     int pattern;
     BdrvRequestFlags flags;
     struct timespec t1;
+    AioContext *aio_context;
 };
+
+enum aio_submit_type {
+    AIO_SUBMIT_READ,
+    AIO_SUBMIT_WRITE,
+    AIO_SUBMIT_WRITE_ZEROES,
+};
+
+struct aio_submit {
+    struct aio_ctx *ctx;
+    enum aio_submit_type type;
+    int64_t bytes;
+    BlockCompletionFunc *cb;
+    bool submitted;
+};
+
+static AioContext *aio_context_by_iothread_id(const char *id)
+{
+    IOThread *iothread = iothread_by_id(id);
+
+    if (!iothread) {
+        printf("iothread \"%s\" not found\n", id);
+        return NULL;
+    }
+
+    return iothread_get_aio_context(iothread);
+}
+
+static void aio_submit_bh(void *opaque)
+{
+    struct aio_submit *s = opaque;
+    struct aio_ctx *ctx = s->ctx;
+
+    switch (s->type) {
+    case AIO_SUBMIT_READ:
+        blk_aio_preadv(ctx->blk, ctx->offset, &ctx->qiov, ctx->flags,
+                       s->cb, ctx);
+        break;
+    case AIO_SUBMIT_WRITE:
+        blk_aio_pwritev(ctx->blk, ctx->offset, &ctx->qiov, ctx->flags,
+                        s->cb, ctx);
+        break;
+    case AIO_SUBMIT_WRITE_ZEROES:
+        blk_aio_pwrite_zeroes(ctx->blk, ctx->offset, s->bytes, ctx->flags,
+                              s->cb, ctx);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    qatomic_set(&s->submitted, true);
+    aio_wait_kick();
+}
+
+/*
+ * blk_aio_*() runs the request in the caller's AioContext, so submitting from
+ * a bottom half is what puts it on another thread.
+ */
+static void aio_submit(struct aio_ctx *ctx, enum aio_submit_type type,
+                       int64_t bytes, BlockCompletionFunc *cb)
+{
+    struct aio_submit s = {
+        .ctx = ctx,
+        .type = type,
+        .bytes = bytes,
+        .cb = cb,
+    };
+
+    if (!ctx->aio_context) {
+        aio_submit_bh(&s);
+        return;
+    }
+
+    aio_bh_schedule_oneshot(ctx->aio_context, aio_submit_bh, &s);
+    AIO_WAIT_WHILE_UNLOCKED(NULL, !qatomic_read(&s.submitted));
+}
 
 static void aio_write_done(void *opaque, int ret)
 {
@@ -1468,6 +1546,7 @@ static void aio_read_help(void)
 " -P, -- use a pattern to verify read data\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
 " -r, -- register I/O buffer\n"
+" -t, -- run the request in the named iothread\n"
 " -v, -- dump buffer to standard output\n"
 "\n");
 }
@@ -1479,7 +1558,7 @@ static const cmdinfo_t aio_read_cmd = {
     .cfunc      = aio_read_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-Ciqrv] [-P pattern] off len [len..]",
+    .args       = "[-Ciqrv] [-P pattern] [-t iothread] off len [len..]",
     .oneline    = "asynchronously reads a number of bytes",
     .help       = aio_read_help,
 };
@@ -1490,7 +1569,7 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv, Error **errp)
     struct aio_ctx *ctx = g_new0(struct aio_ctx, 1);
 
     ctx->blk = blk;
-    while ((c = getopt(argc, argv, "CiP:qrv")) != -1) {
+    while ((c = getopt(argc, argv, "CiP:qrt:v")) != -1) {
         switch (c) {
         case 'C':
             ctx->Cflag = true;
@@ -1513,6 +1592,13 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv, Error **errp)
             break;
         case 'r':
             ctx->flags |= BDRV_REQ_REGISTERED_BUF;
+            break;
+        case 't':
+            ctx->aio_context = aio_context_by_iothread_id(optarg);
+            if (!ctx->aio_context) {
+                g_free(ctx);
+                return -EINVAL;
+            }
             break;
         case 'v':
             ctx->vflag = true;
@@ -1551,8 +1637,7 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv, Error **errp)
     clock_gettime(CLOCK_MONOTONIC, &ctx->t1);
     block_acct_start(blk_get_stats(blk), &ctx->acct, ctx->qiov.size,
                      BLOCK_ACCT_READ);
-    blk_aio_preadv(blk, ctx->offset, &ctx->qiov, ctx->flags, aio_read_done,
-                   ctx);
+    aio_submit(ctx, AIO_SUBMIT_READ, 0, aio_read_done);
     return 0;
 }
 
@@ -1579,6 +1664,7 @@ static void aio_write_help(void)
 " -P, -- use different pattern to fill file\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
 " -r, -- register I/O buffer\n"
+" -t, -- run the request in the named iothread\n"
 " -u, -- with -z, allow unmapping\n"
 " -z, -- write zeroes using blk_aio_pwrite_zeroes\n"
 "\n");
@@ -1592,7 +1678,7 @@ static const cmdinfo_t aio_write_cmd = {
     .perm       = BLK_PERM_WRITE,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-Cfiqruz] [-P pattern] off len [len..]",
+    .args       = "[-Cfiqruz] [-P pattern] [-t iothread] off len [len..]",
     .oneline    = "asynchronously writes a number of bytes",
     .help       = aio_write_help,
 };
@@ -1604,7 +1690,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv, Error **errp)
     struct aio_ctx *ctx = g_new0(struct aio_ctx, 1);
 
     ctx->blk = blk;
-    while ((c = getopt(argc, argv, "CfiP:qruz")) != -1) {
+    while ((c = getopt(argc, argv, "CfiP:qrt:uz")) != -1) {
         switch (c) {
         case 'C':
             ctx->Cflag = true;
@@ -1617,6 +1703,13 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv, Error **errp)
             break;
         case 'r':
             ctx->flags |= BDRV_REQ_REGISTERED_BUF;
+            break;
+        case 't':
+            ctx->aio_context = aio_context_by_iothread_id(optarg);
+            if (!ctx->aio_context) {
+                g_free(ctx);
+                return -EINVAL;
+            }
             break;
         case 'u':
             ctx->flags |= BDRV_REQ_MAY_UNMAP;
@@ -1692,8 +1785,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv, Error **errp)
         }
 
         ctx->qiov.size = count;
-        blk_aio_pwrite_zeroes(blk, ctx->offset, count, ctx->flags,
-                              aio_write_done, ctx);
+        aio_submit(ctx, AIO_SUBMIT_WRITE_ZEROES, count, aio_write_done);
     } else {
         nr_iov = argc - optind;
         ctx->buf = create_iovec(blk, &ctx->qiov, &argv[optind], nr_iov,
@@ -1709,8 +1801,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv, Error **errp)
         block_acct_start(blk_get_stats(blk), &ctx->acct, ctx->qiov.size,
                          BLOCK_ACCT_WRITE);
 
-        blk_aio_pwritev(blk, ctx->offset, &ctx->qiov, ctx->flags,
-                        aio_write_done, ctx);
+        aio_submit(ctx, AIO_SUBMIT_WRITE, 0, aio_write_done);
     }
 
     return 0;
