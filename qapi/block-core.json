@@ -3835,6 +3835,13 @@
 #
 # @none: triggers once at creation of the blkdebug node (since 4.1)
 #
+# @pwritev_untracked: a write, before it joins the list of tracked
+#     requests and so before it is ordered against any other request
+#     (since 11.2)
+#
+# @pwritev_zero_untracked: the same for a write zeroes request
+#     (since 11.2)
+#
 # Since: 2.9
 ##
 { 'enum': 'BlkdebugEvent', 'prefix': 'BLKDBG',
@@ -3853,7 +3860,8 @@
             'pwritev_rmw_tail', 'pwritev_rmw_after_tail', 'pwritev',
             'pwritev_zero', 'pwritev_done', 'empty_image_prepare',
             'l1_shrink_write_table', 'l1_shrink_free_l2_clusters',
-            'cor_write', 'cluster_alloc_space', 'none'] }
+            'cor_write', 'cluster_alloc_space', 'none',
+            'pwritev_untracked', 'pwritev_zero_untracked'] }
 
 ##
 # @BlkdebugIOType:

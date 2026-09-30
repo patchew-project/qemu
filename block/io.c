@@ -2312,6 +2312,9 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
     }
 
     bdrv_inc_in_flight(bs);
+    bdrv_co_debug_event(bs, (flags & BDRV_REQ_ZERO_WRITE) ?
+                        BLKDBG_PWRITEV_ZERO_UNTRACKED :
+                        BLKDBG_PWRITEV_UNTRACKED);
     tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_WRITE);
 
     if (flags & BDRV_REQ_ZERO_WRITE) {
