@@ -1138,8 +1138,8 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
                                          CPUID_24_0_EBX_AVX10_256 | \
                                          CPUID_24_0_EBX_AVX10_512)
 
-/* AVX10_VNNI_INT instruction */
-#define CPUID_24_1_ECX_AVX10_VNNI_INT         (1U << 2)
+/* AVX10_V1_AUX instruction */
+#define CPUID_24_1_ECX_AVX10_V1_AUX           (1U << 2)
 
 /*
  * New Conditional Instructions (NCIs), explicit New Data Destination (NDD)

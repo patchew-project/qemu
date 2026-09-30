@@ -2398,7 +2398,7 @@ static const AVX10VersionDefinition builtin_avx10_defs[] = {
         .version = 2,
         .max_subleaf = 1,
         .features = (FeatureMask[]) {
-            { FEAT_24_1_ECX,         CPUID_24_1_ECX_AVX10_VNNI_INT },
+            { FEAT_24_1_ECX,         CPUID_24_1_ECX_AVX10_V1_AUX },
             { /* end of list */ }
         }
     },
@@ -5736,7 +5736,7 @@ static const X86CPUDefinition builtin_x86_defs[] = {
          * Though this bit will be set by avx_version=2, it's better to
          * explicitly enumerate this feature here.
          */
-        .features[FEAT_24_1_ECX] = CPUID_24_1_ECX_AVX10_VNNI_INT,
+        .features[FEAT_24_1_ECX] = CPUID_24_1_ECX_AVX10_V1_AUX,
         .features[FEAT_8000_0001_ECX] =
             CPUID_EXT3_LAHF_LM | CPUID_EXT3_ABM | CPUID_EXT3_3DNOWPREFETCH,
         .features[FEAT_8000_0001_EDX] =
