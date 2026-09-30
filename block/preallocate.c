@@ -76,6 +76,8 @@ typedef struct BDRVPreallocateState {
      * BLK_PERM_WRITE permissions on file child.
      */
 
+    CoMutex lock;
+
     /* Gives up the resize permission on children when parents don't need it */
     QEMUBH *drop_resize_bh;
 } BDRVPreallocateState;
@@ -155,6 +157,7 @@ static int preallocate_open(BlockDriverState *bs, QDict *options, int flags,
      * For this to work, mark them invalid.
      */
     preallocate_set_state(s, -EINVAL);
+    qemu_co_mutex_init(&s->lock);
     s->drop_resize_bh = qemu_bh_new(preallocate_drop_resize_bh, bs);
 
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
@@ -324,8 +327,8 @@ static bool GRAPH_RDLOCK has_prealloc_perms(BlockDriverState *bs)
  * one bdrv_co_pwrite_zeroes() call.
  */
 static bool coroutine_fn GRAPH_RDLOCK
-handle_write(BlockDriverState *bs, int64_t offset, int64_t bytes,
-             bool want_merge_zero)
+handle_write_locked(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                    bool want_merge_zero)
 {
     BDRVPreallocateState *s = bs->opaque;
     int64_t end = offset + bytes;
@@ -402,6 +405,20 @@ handle_write(BlockDriverState *bs, int64_t offset, int64_t bytes,
 
     s->file_end = prealloc_end;
     return want_merge_zero;
+}
+
+static bool coroutine_fn GRAPH_RDLOCK
+handle_write(BlockDriverState *bs, int64_t offset, int64_t bytes,
+             bool want_merge_zero)
+{
+    BDRVPreallocateState *s = bs->opaque;
+    bool ret;
+
+    qemu_co_mutex_lock(&s->lock);
+    ret = handle_write_locked(bs, offset, bytes, want_merge_zero);
+    qemu_co_mutex_unlock(&s->lock);
+
+    return ret;
 }
 
 static int coroutine_fn GRAPH_RDLOCK
@@ -506,8 +523,11 @@ preallocate_co_getlength(BlockDriverState *bs)
     int64_t ret;
     BDRVPreallocateState *s = bs->opaque;
 
+    qemu_co_mutex_lock(&s->lock);
     if (s->data_end >= 0) {
-        return s->data_end;
+        ret = s->data_end;
+        qemu_co_mutex_unlock(&s->lock);
+        return ret;
     }
 
     ret = bdrv_co_getlength(bs->file->bs);
@@ -515,6 +535,7 @@ preallocate_co_getlength(BlockDriverState *bs)
     if (has_prealloc_perms(bs)) {
         preallocate_set_state(s, ret);
     }
+    qemu_co_mutex_unlock(&s->lock);
 
     return ret;
 }
