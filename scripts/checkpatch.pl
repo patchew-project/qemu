@@ -1885,8 +1885,9 @@ sub process {
 		      $1 =~ /\bcopilot\b | \bchatgpt\b | \bcodex\b | \bcursor\b |
 			     \bgemini\b | \bllama\b | \bnoreply\b | \[bot\] |
 			     \bclaude\b.*(?:opus|sonnet|fable|haiku|anthropic\.com)/xi))) {
-			ERROR("QEMU does not allow using AI for contributions, " .
-				"see docs/devel/code-provenance.rst\n" . $herecurr);
+			ERROR("do not use \"$line\" to credit an AI agent, " .
+				"use the \"AI-used-for\" trailer instead; " .
+				"see docs/devel/llm-usage.rst\n" . $herecurr);
 		}
 
 # Check for duplicate trailers and self-review
