@@ -465,8 +465,8 @@ const SyncOpTest sync_op_tests[] = {
 static void test_sync_op(const void *opaque)
 {
     const SyncOpTest *t = opaque;
-    IOThread *iothread = iothread_new();
-    AioContext *ctx = iothread_get_aio_context(iothread);
+    TestIOThread *iothread = test_iothread_new();
+    AioContext *ctx = test_iothread_get_aio_context(iothread);
     BlockBackend *blk;
     BlockDriverState *bs;
     BdrvChild *c;
@@ -548,8 +548,8 @@ BlockJobDriver test_job_driver = {
 
 static void test_attach_blockjob(void)
 {
-    IOThread *iothread = iothread_new();
-    AioContext *ctx = iothread_get_aio_context(iothread);
+    TestIOThread *iothread = test_iothread_new();
+    AioContext *ctx = test_iothread_get_aio_context(iothread);
     BlockBackend *blk;
     BlockDriverState *bs;
     TestBlockJob *tjob;
@@ -611,8 +611,8 @@ static void test_attach_blockjob(void)
  */
 static void test_propagate_basic(void)
 {
-    IOThread *iothread = iothread_new();
-    AioContext *ctx = iothread_get_aio_context(iothread);
+    TestIOThread *iothread = test_iothread_new();
+    AioContext *ctx = test_iothread_get_aio_context(iothread);
     AioContext *main_ctx;
     BlockBackend *blk;
     BlockDriverState *bs_a, *bs_b, *bs_verify;
@@ -675,8 +675,8 @@ static void test_propagate_basic(void)
  */
 static void test_propagate_diamond(void)
 {
-    IOThread *iothread = iothread_new();
-    AioContext *ctx = iothread_get_aio_context(iothread);
+    TestIOThread *iothread = test_iothread_new();
+    AioContext *ctx = test_iothread_get_aio_context(iothread);
     AioContext *main_ctx;
     BlockBackend *blk;
     BlockDriverState *bs_a, *bs_b, *bs_c, *bs_verify;
@@ -740,8 +740,8 @@ static void test_propagate_diamond(void)
 
 static void test_propagate_mirror(void)
 {
-    IOThread *iothread = iothread_new();
-    AioContext *ctx = iothread_get_aio_context(iothread);
+    TestIOThread *iothread = test_iothread_new();
+    AioContext *ctx = test_iothread_get_aio_context(iothread);
     AioContext *main_ctx = qemu_get_aio_context();
     BlockDriverState *src, *target, *filter;
     BlockBackend *blk;
@@ -811,8 +811,8 @@ static void test_propagate_mirror(void)
 
 static void test_attach_second_node(void)
 {
-    IOThread *iothread = iothread_new();
-    AioContext *ctx = iothread_get_aio_context(iothread);
+    TestIOThread *iothread = test_iothread_new();
+    AioContext *ctx = test_iothread_get_aio_context(iothread);
     AioContext *main_ctx = qemu_get_aio_context();
     BlockBackend *blk;
     BlockDriverState *bs, *filter;
@@ -844,8 +844,8 @@ static void test_attach_second_node(void)
 
 static void test_attach_preserve_blk_ctx(void)
 {
-    IOThread *iothread = iothread_new();
-    AioContext *ctx = iothread_get_aio_context(iothread);
+    TestIOThread *iothread = test_iothread_new();
+    AioContext *ctx = test_iothread_get_aio_context(iothread);
     BlockBackend *blk;
     BlockDriverState *bs;
 

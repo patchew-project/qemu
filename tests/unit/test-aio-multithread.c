@@ -21,7 +21,7 @@
 
 #define NUM_CONTEXTS 5
 
-static IOThread *threads[NUM_CONTEXTS];
+static TestIOThread *threads[NUM_CONTEXTS];
 static AioContext *ctx[NUM_CONTEXTS];
 static __thread int id = -1;
 
@@ -68,8 +68,8 @@ static void create_aio_contexts(void)
     int i;
 
     for (i = 0; i < NUM_CONTEXTS; i++) {
-        threads[i] = iothread_new();
-        ctx[i] = iothread_get_aio_context(threads[i]);
+        threads[i] = test_iothread_new();
+        ctx[i] = test_iothread_get_aio_context(threads[i]);
     }
 
     qemu_event_init(&done_event, false);
@@ -88,7 +88,7 @@ static void join_aio_contexts(void)
         aio_context_ref(ctx[i]);
     }
     for (i = 0; i < NUM_CONTEXTS; i++) {
-        iothread_join(threads[i]);
+        test_iothread_join(threads[i]);
     }
     for (i = 0; i < NUM_CONTEXTS; i++) {
         aio_context_unref(ctx[i]);

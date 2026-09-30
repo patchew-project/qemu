@@ -19,7 +19,7 @@
 #include "qemu/rcu.h"
 #include "iothread.h"
 
-struct IOThread {
+struct TestIOThread {
     AioContext *ctx;
     GMainContext *worker_context;
     GMainLoop *main_loop;
@@ -30,20 +30,20 @@ struct IOThread {
     bool stopping;
 };
 
-static void iothread_init_gcontext(IOThread *iothread)
+static void test_iothread_init_gcontext(TestIOThread *iothread)
 {
     GSource *source;
 
     iothread->worker_context = g_main_context_new();
-    source = aio_get_g_source(iothread_get_aio_context(iothread));
+    source = aio_get_g_source(test_iothread_get_aio_context(iothread));
     g_source_attach(source, iothread->worker_context);
     g_source_unref(source);
     iothread->main_loop = g_main_loop_new(iothread->worker_context, TRUE);
 }
 
-static void *iothread_run(void *opaque)
+static void *test_iothread_run(void *opaque)
 {
-    IOThread *iothread = opaque;
+    TestIOThread *iothread = opaque;
 
     rcu_register_thread();
 
@@ -56,7 +56,7 @@ static void *iothread_run(void *opaque)
      * of glib the g_source_ref()/unref() functions are not threadsafe
      * on sources without a context.
      */
-    iothread_init_gcontext(iothread);
+    test_iothread_init_gcontext(iothread);
 
     /*
      * g_main_context_push_thread_default() must be called before anything
@@ -76,16 +76,16 @@ static void *iothread_run(void *opaque)
     return NULL;
 }
 
-static void iothread_stop_bh(void *opaque)
+static void test_iothread_stop_bh(void *opaque)
 {
-    IOThread *iothread = opaque;
+    TestIOThread *iothread = opaque;
 
     iothread->stopping = true;
 }
 
-void iothread_join(IOThread *iothread)
+void test_iothread_join(TestIOThread *iothread)
 {
-    aio_bh_schedule_oneshot(iothread->ctx, iothread_stop_bh, iothread);
+    aio_bh_schedule_oneshot(iothread->ctx, test_iothread_stop_bh, iothread);
     qemu_thread_join(&iothread->thread);
     g_main_context_unref(iothread->worker_context);
     g_main_loop_unref(iothread->main_loop);
@@ -95,13 +95,13 @@ void iothread_join(IOThread *iothread)
     g_free(iothread);
 }
 
-IOThread *iothread_new(void)
+TestIOThread *test_iothread_new(void)
 {
-    IOThread *iothread = g_new0(IOThread, 1);
+    TestIOThread *iothread = g_new0(TestIOThread, 1);
 
     qemu_mutex_init(&iothread->init_done_lock);
     qemu_cond_init(&iothread->init_done_cond);
-    qemu_thread_create(&iothread->thread, NULL, iothread_run,
+    qemu_thread_create(&iothread->thread, NULL, test_iothread_run,
                        iothread, QEMU_THREAD_JOINABLE);
 
     /* Wait for initialization to complete */
@@ -114,7 +114,7 @@ IOThread *iothread_new(void)
     return iothread;
 }
 
-AioContext *iothread_get_aio_context(IOThread *iothread)
+AioContext *test_iothread_get_aio_context(TestIOThread *iothread)
 {
     return iothread->ctx;
 }

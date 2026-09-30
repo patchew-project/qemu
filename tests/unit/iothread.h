@@ -16,10 +16,10 @@
 #include "qemu/aio.h"
 #include "qemu/thread.h"
 
-typedef struct IOThread IOThread;
+typedef struct TestIOThread TestIOThread;
 
-IOThread *iothread_new(void);
-void iothread_join(IOThread *iothread);
-AioContext *iothread_get_aio_context(IOThread *iothread);
+TestIOThread *test_iothread_new(void);
+void test_iothread_join(TestIOThread *iothread);
+AioContext *test_iothread_get_aio_context(TestIOThread *iothread);
 
 #endif

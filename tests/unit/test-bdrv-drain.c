@@ -535,10 +535,10 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
     int aio_ret;
     struct test_iothread_data data;
 
-    IOThread *a = iothread_new();
-    IOThread *b = iothread_new();
-    AioContext *ctx_a = iothread_get_aio_context(a);
-    AioContext *ctx_b = iothread_get_aio_context(b);
+    TestIOThread *a = test_iothread_new();
+    TestIOThread *b = test_iothread_new();
+    AioContext *ctx_a = test_iothread_get_aio_context(a);
+    AioContext *ctx_b = test_iothread_get_aio_context(b);
 
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, NULL, 0);
 
@@ -614,8 +614,8 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
     blk_unref(blk);
 
 out:
-    iothread_join(a);
-    iothread_join(b);
+    test_iothread_join(a);
+    test_iothread_join(b);
 }
 
 static void test_iothread_drain_all(void)
@@ -727,7 +727,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     BlockDriverState *src, *src_backing, *src_overlay, *target, *drain_bs;
     BlockJob *job;
     TestBlockJob *tjob;
-    IOThread *iothread = NULL;
+    TestIOThread *iothread = NULL;
     int ret = -1;
 
     src = bdrv_new_open_driver(&bdrv_test, "source", BDRV_O_RDWR,
@@ -761,8 +761,8 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     if (use_iothread) {
         AioContext *ctx;
 
-        iothread = iothread_new();
-        ctx = iothread_get_aio_context(iothread);
+        iothread = test_iothread_new();
+        ctx = test_iothread_get_aio_context(iothread);
         blk_set_aio_context(blk_src, ctx, &error_abort);
     }
 
@@ -893,7 +893,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     bdrv_unref(target);
 
     if (iothread) {
-        iothread_join(iothread);
+        test_iothread_join(iothread);
     }
 }
 
@@ -1396,10 +1396,10 @@ static void test_append_to_drained(void)
 static void test_set_aio_context(void)
 {
     BlockDriverState *bs;
-    IOThread *a = iothread_new();
-    IOThread *b = iothread_new();
-    AioContext *ctx_a = iothread_get_aio_context(a);
-    AioContext *ctx_b = iothread_get_aio_context(b);
+    TestIOThread *a = test_iothread_new();
+    TestIOThread *b = test_iothread_new();
+    AioContext *ctx_a = test_iothread_get_aio_context(a);
+    AioContext *ctx_b = test_iothread_get_aio_context(b);
 
     bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
                               &error_abort);
@@ -1410,8 +1410,8 @@ static void test_set_aio_context(void)
     bdrv_try_change_aio_context(bs, qemu_get_aio_context(), NULL, &error_abort);
 
     bdrv_unref(bs);
-    iothread_join(a);
-    iothread_join(b);
+    test_iothread_join(a);
+    test_iothread_join(b);
 }
 
 
