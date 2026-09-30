@@ -104,6 +104,11 @@ static QemuOptsList runtime_opts = {
     },
 };
 
+static void preallocate_set_state(BDRVPreallocateState *s, int64_t v)
+{
+    s->file_end = s->zero_start = s->data_end = v;
+}
+
 static bool preallocate_absorb_opts(PreallocateOpts *dest, QDict *options,
                                     BlockDriverState *child_bs, Error **errp)
 {
@@ -149,7 +154,7 @@ static int preallocate_open(BlockDriverState *bs, QDict *options, int flags,
      * s->data_end and friends should be initialized on permission update.
      * For this to work, mark them invalid.
      */
-    s->file_end = s->zero_start = s->data_end = -EINVAL;
+    preallocate_set_state(s, -EINVAL);
     s->drop_resize_bh = qemu_bh_new(preallocate_drop_resize_bh, bs);
 
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
@@ -480,12 +485,12 @@ preallocate_co_truncate(BlockDriverState *bs, int64_t offset,
 
     ret = bdrv_co_truncate(bs->file, offset, exact, prealloc, flags, errp);
     if (ret < 0) {
-        s->file_end = s->zero_start = s->data_end = ret;
+        preallocate_set_state(s, ret);
         return ret;
     }
 
     if (has_prealloc_perms(bs)) {
-        s->file_end = s->zero_start = s->data_end = offset;
+        preallocate_set_state(s, offset);
     }
     return 0;
 }
@@ -508,7 +513,7 @@ preallocate_co_getlength(BlockDriverState *bs)
     ret = bdrv_co_getlength(bs->file->bs);
 
     if (has_prealloc_perms(bs)) {
-        s->file_end = s->zero_start = s->data_end = ret;
+        preallocate_set_state(s, ret);
     }
 
     return ret;
@@ -539,7 +544,7 @@ preallocate_drop_resize(BlockDriverState *bs, Error **errp)
      * change the child, so mark all states invalid. We'll regain control if a
      * parent requests write access again.
      */
-    s->data_end = s->file_end = s->zero_start = -EINVAL;
+    preallocate_set_state(s, -EINVAL);
 
     bdrv_child_refresh_perms(bs, bs->file, NULL);
 
@@ -566,8 +571,8 @@ preallocate_set_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared)
     if (can_write_resize(perm)) {
         qemu_bh_cancel(s->drop_resize_bh);
         if (s->data_end < 0) {
-            s->data_end = s->file_end = s->zero_start =
-                bs->file->bs->total_sectors * BDRV_SECTOR_SIZE;
+            preallocate_set_state(s,
+                    bs->file->bs->total_sectors * BDRV_SECTOR_SIZE);
         }
     } else {
         qemu_bh_schedule(s->drop_resize_bh);
