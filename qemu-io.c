@@ -45,6 +45,7 @@ static bool quit_qemu_io;
 static int ncmdline;
 static char **cmdline;
 static bool imageOpts;
+static bool write_beyond_eof;
 
 static ReadLineState *readline_state;
 
@@ -114,6 +115,21 @@ static int openfile(char *name, int flags, bool writethrough, bool force_share,
 
     blk_set_enable_write_cache(qemuio_blk, !writethrough);
 
+    if (write_beyond_eof) {
+        uint64_t perm, shared;
+
+        blk_set_allow_write_beyond_eof(qemuio_blk, true);
+
+        blk_get_perm(qemuio_blk, &perm, &shared);
+        if (blk_set_perm(qemuio_blk, perm | BLK_PERM_RESIZE, shared,
+                         &local_err) < 0) {
+            error_reportf_err(local_err, "can't take the resize permission: ");
+            blk_unref(qemuio_blk);
+            qemuio_blk = NULL;
+            return 1;
+        }
+    }
+
     return 0;
 }
 
@@ -129,6 +145,7 @@ static void open_help(void)
 " Opens a file for subsequent use by all of the other qemu-io commands.\n"
 " -r, -- open file read-only\n"
 " -s, -- use snapshot file\n"
+" -g, -- let writes extend the image past its end\n"
 " -C, -- use copy-on-read\n"
 " -n, -- disable host cache, short for -t none\n"
 " -U, -- force shared permissions\n"
@@ -149,7 +166,7 @@ static const cmdinfo_t open_cmd = {
     .argmin     = 1,
     .argmax     = -1,
     .flags      = CMD_NOFILE_OK,
-    .args       = "[-rsCnkU] [-t cache] [-d discard] [-o options] [path]",
+    .args       = "[-grsCnkU] [-t cache] [-d discard] [-o options] [path]",
     .oneline    = "open the file specified by path",
     .help       = open_help,
 };
@@ -175,7 +192,7 @@ static int open_f(BlockBackend *blk, int argc, char **argv, Error **errp)
     QDict *opts;
     bool force_share = false;
 
-    while ((c = getopt(argc, argv, "snCro:ki:t:d:U")) != -1) {
+    while ((c = getopt(argc, argv, "gsnCro:ki:t:d:U")) != -1) {
         switch (c) {
         case 's':
             flags |= BDRV_O_SNAPSHOT;
@@ -227,6 +244,9 @@ static int open_f(BlockBackend *blk, int argc, char **argv, Error **errp)
             break;
         case 'U':
             force_share = true;
+            break;
+        case 'g':
+            write_beyond_eof = true;
             break;
         default:
             qemu_opts_reset(&empty_opts);
@@ -310,6 +330,8 @@ static void usage(const char *name)
 "                       specify tracing options\n"
 "                       see qemu-img(1) man page for full description\n"
 "  -U, --force-share    force shared permissions\n"
+"  -g, --grow           let writes extend the image past its end,\n"
+"                       as a format driver does to its file\n"
 "  -h, --help           display this help and exit\n"
 "  -V, --version        output version information and exit\n"
 "\n"
@@ -503,7 +525,7 @@ static QemuOptsList file_opts = {
 int main(int argc, char **argv)
 {
     int readonly = 0;
-    const char *sopt = "hVc:d:f:rsnCmki:t:T:U";
+    const char *sopt = "hVc:d:f:grsnCmki:t:T:U";
     const struct option lopt[] = {
         { "help", no_argument, NULL, 'h' },
         { "version", no_argument, NULL, 'V' },
@@ -522,6 +544,7 @@ int main(int argc, char **argv)
         { "object", required_argument, NULL, OPTION_OBJECT },
         { "image-opts", no_argument, NULL, OPTION_IMAGE_OPTS },
         { "force-share", no_argument, 0, 'U'},
+        { "grow", no_argument, NULL, 'g' },
         { NULL, 0, NULL, 0 }
     };
     int c;
@@ -606,6 +629,9 @@ int main(int argc, char **argv)
             exit(0);
         case 'U':
             force_share = true;
+            break;
+        case 'g':
+            write_beyond_eof = true;
             break;
         case OPTION_OBJECT:
             g_ptr_array_add(objects, optarg);
