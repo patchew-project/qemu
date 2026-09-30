@@ -1373,7 +1373,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     [FEAT_24_1_ECX] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
-            [2] = "avx10-vnni-int",
+            [2] = "avx10-v1-aux",
         },
         .cpuid = {
             .eax = 0x24,
@@ -10615,6 +10615,7 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add_alias(obj, "hv-apicv", obj, "hv-avic");
     cpu->lbr_fmt = ~PERF_CAP_LBR_FMT;
     object_property_add_alias(obj, "lbr_fmt", obj, "lbr-fmt");
+    object_property_add_alias(obj, "avx10-vnni-int", obj, "avx10-v1-aux");
 
     if (xcc->model) {
         x86_cpu_load_model(cpu, xcc->model);
