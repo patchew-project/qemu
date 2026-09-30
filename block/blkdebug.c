@@ -813,6 +813,7 @@ static void suspend_request(BlockDriverState *bs, BlkdebugRule *rule)
 
     remove_rule(rule);
     QLIST_INSERT_HEAD(&s->suspended_reqs, r, next);
+    aio_wait_kick();
 
     if (!qtest_enabled()) {
         printf("blkdebug: Suspended request '%s'\n", r->tag);
@@ -925,7 +926,7 @@ retry:
             g_free(r);
 
             qemu_mutex_unlock(&s->lock);
-            qemu_coroutine_enter(co);
+            aio_co_wake(co);
             qemu_mutex_lock(&s->lock);
 
             if (all) {
