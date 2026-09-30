@@ -3703,40 +3703,6 @@ raw_do_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
     RawPosixAIOData acb;
     ThreadPoolFunc *handler;
 
-#ifdef CONFIG_FALLOCATE
-    if (offset + bytes > bs->total_sectors * BDRV_SECTOR_SIZE) {
-        BdrvTrackedRequest *req;
-
-        /*
-         * This is a workaround for a bug in the Linux XFS driver,
-         * where writes submitted through the AIO interface will be
-         * discarded if they happen beyond a concurrently running
-         * fallocate() that increases the file length (i.e., both the
-         * write and the fallocate() happen beyond the EOF).
-         *
-         * To work around it, we extend the tracked request for this
-         * zero write until INT64_MAX (effectively infinity), and mark
-         * it as serializing.
-         *
-         * We have to enable this workaround for all filesystems and
-         * AIO modes (not just XFS with aio=native), because for
-         * remote filesystems we do not know the host configuration.
-         */
-
-        req = bdrv_co_get_self_request(bs);
-        assert(req);
-        assert(req->type == BDRV_TRACKED_WRITE);
-        assert(req->offset <= offset);
-        assert(req->offset + req->bytes >= offset + bytes);
-
-        req->bytes = BDRV_MAX_LENGTH - req->offset;
-
-        bdrv_check_request(req->offset, req->bytes, &error_abort);
-
-        bdrv_make_request_serialising(req, bs->bl.request_alignment);
-    }
-#endif
-
     acb = (RawPosixAIOData) {
         .bs             = bs,
         .aio_fildes     = s->fd,
