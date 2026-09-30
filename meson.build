@@ -3850,6 +3850,7 @@ if have_block
   block_ss.add(files(
     'block.c',
     'blockjob.c',
+    'iothread.c',
     'job.c',
     'qemu-io-cmds.c',
   ))
@@ -3864,7 +3865,6 @@ if have_block
   blockdev_ss.add(files(
     'blockdev.c',
     'blockdev-nbd.c',
-    'iothread.c',
     'job-qmp.c',
   ))
 

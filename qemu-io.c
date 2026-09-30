@@ -532,6 +532,7 @@ int main(int argc, char **argv)
     QDict *opts = NULL;
     const char *format = NULL;
     bool force_share = false;
+    g_autoptr(GPtrArray) objects = g_ptr_array_new();
 
 #ifdef CONFIG_POSIX
     signal(SIGPIPE, SIG_IGN);
@@ -607,7 +608,7 @@ int main(int argc, char **argv)
             force_share = true;
             break;
         case OPTION_OBJECT:
-            user_creatable_process_cmdline(optarg);
+            g_ptr_array_add(objects, optarg);
             break;
         case OPTION_IMAGE_OPTS:
             imageOpts = true;
@@ -629,6 +630,11 @@ int main(int argc, char **argv)
     }
 
     qemu_init_main_loop(&error_fatal);
+
+    /* An iothread object cannot be created before the main loop exists. */
+    for (guint i = 0; i < objects->len; i++) {
+        user_creatable_process_cmdline(g_ptr_array_index(objects, i));
+    }
 
     if (!trace_init_backends()) {
         exit(1);
@@ -686,6 +692,7 @@ int main(int argc, char **argv)
     bdrv_drain_all();
 
     blk_unref(qemuio_blk);
+    user_creatable_cleanup();
     g_free(readline_state);
 
     if (ret < 0) {
