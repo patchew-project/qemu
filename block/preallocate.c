@@ -347,6 +347,10 @@ handle_write(BlockDriverState *bs, int64_t offset, int64_t bytes,
         }
     }
 
+    if (!want_merge_zero && s->zero_start >= 0 && end > s->zero_start) {
+        s->zero_start = end;
+    }
+
     if (end <= s->data_end) {
         return false;
     }
