@@ -32,6 +32,7 @@
 #include "qemu/units.h"
 #include "block/block-io.h"
 #include "block/block_int.h"
+#include "qemu/atomic.h"
 
 
 typedef struct PreallocateOpts {
@@ -76,6 +77,21 @@ typedef struct BDRVPreallocateState {
      * BLK_PERM_WRITE permissions on file child.
      */
 
+    /*
+     * @file_end is reserved as soon as a preallocation is decided on, so
+     * that the next one starts above it. @safe_end is the lowest start of
+     * a preallocation in flight, or @file_end when there is none: nothing
+     * below it can still be zeroed, so a write ending below it does not
+     * queue.
+     */
+    int64_t safe_end;
+    int prealloc_in_flight;
+    CoQueue prealloc_waiters;
+
+    /*
+     * Nothing done while this is held may wait for a request that has already
+     * passed the filter: that request can need it back.
+     */
     CoMutex lock;
 
     /* Gives up the resize permission on children when parents don't need it */
@@ -106,9 +122,17 @@ static QemuOptsList runtime_opts = {
     },
 };
 
+static void preallocate_set_file_end(BDRVPreallocateState *s, int64_t v)
+{
+    s->file_end = v;
+    qatomic_set(&s->safe_end, v);
+}
+
 static void preallocate_set_state(BDRVPreallocateState *s, int64_t v)
 {
-    s->file_end = s->zero_start = s->data_end = v;
+    preallocate_set_file_end(s, v);
+    qatomic_set(&s->data_end, v);
+    qatomic_set(&s->zero_start, v);
 }
 
 static bool preallocate_absorb_opts(PreallocateOpts *dest, QDict *options,
@@ -158,6 +182,7 @@ static int preallocate_open(BlockDriverState *bs, QDict *options, int flags,
      */
     preallocate_set_state(s, -EINVAL);
     qemu_co_mutex_init(&s->lock);
+    qemu_co_queue_init(&s->prealloc_waiters);
     s->drop_resize_bh = qemu_bh_new(preallocate_drop_resize_bh, bs);
 
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
@@ -188,7 +213,7 @@ preallocate_truncate_to_real_size(BlockDriverState *bs, Error **errp)
     int ret;
 
     if (s->file_end < 0) {
-        s->file_end = bdrv_getlength(bs->file->bs);
+        preallocate_set_file_end(s, bdrv_getlength(bs->file->bs));
         if (s->file_end < 0) {
             error_setg_errno(errp, -s->file_end, "Failed to get file length");
             return s->file_end;
@@ -200,10 +225,10 @@ preallocate_truncate_to_real_size(BlockDriverState *bs, Error **errp)
                             NULL);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Failed to drop preallocation");
-            s->file_end = ret;
+            preallocate_set_file_end(s, ret);
             return ret;
         }
-        s->file_end = s->data_end;
+        preallocate_set_file_end(s, s->data_end);
     }
 
     return 0;
@@ -345,18 +370,21 @@ handle_write_locked(BlockDriverState *bs, int64_t offset, int64_t bytes,
     }
 
     if (s->data_end < 0) {
-        s->data_end = bdrv_co_getlength(bs->file->bs);
-        if (s->data_end < 0) {
+        int64_t len = bdrv_co_getlength(bs->file->bs);
+
+        if (len < 0) {
+            s->data_end = len;
             return false;
         }
+        qatomic_set(&s->data_end, len);
 
         if (s->file_end < 0) {
-            s->file_end = s->data_end;
+            preallocate_set_file_end(s, len);
         }
     }
 
     if (!want_merge_zero && s->zero_start >= 0 && end > s->zero_start) {
-        s->zero_start = end;
+        qatomic_set(&s->zero_start, end);
     }
 
     if (end <= s->data_end) {
@@ -365,13 +393,13 @@ handle_write_locked(BlockDriverState *bs, int64_t offset, int64_t bytes,
 
     /* We have valid s->data_end, and request writes beyond it. */
 
-    s->data_end = end;
+    qatomic_set(&s->data_end, end);
     if (s->zero_start < 0 || !want_merge_zero) {
-        s->zero_start = end;
+        qatomic_set(&s->zero_start, end);
     }
 
     if (s->file_end < 0) {
-        s->file_end = bdrv_co_getlength(bs->file->bs);
+        preallocate_set_file_end(s, bdrv_co_getlength(bs->file->bs));
         if (s->file_end < 0) {
             return false;
         }
@@ -395,16 +423,27 @@ handle_write_locked(BlockDriverState *bs, int64_t offset, int64_t bytes,
 
     want_merge_zero = want_merge_zero && (prealloc_start <= offset);
 
+    /* Reserve the range; safe_end keeps writers out of it until it is zero. */
+    s->file_end = prealloc_end;
+    if (s->prealloc_in_flight++ == 0 || prealloc_start < s->safe_end) {
+        qatomic_set(&s->safe_end, prealloc_start);
+    }
+    qemu_co_mutex_unlock(&s->lock);
+
     ret = bdrv_co_pwrite_zeroes(
             bs->file, prealloc_start, prealloc_end - prealloc_start,
             BDRV_REQ_NO_FALLBACK | BDRV_REQ_SERIALISING | BDRV_REQ_NO_WAIT);
+
+    qemu_co_mutex_lock(&s->lock);
     if (ret < 0) {
         s->file_end = ret;
-        return false;
     }
+    if (--s->prealloc_in_flight == 0) {
+        qatomic_set(&s->safe_end, s->file_end);
+    }
+    qemu_co_queue_restart_all(&s->prealloc_waiters);
 
-    s->file_end = prealloc_end;
-    return want_merge_zero;
+    return ret < 0 ? false : want_merge_zero;
 }
 
 static bool coroutine_fn GRAPH_RDLOCK
@@ -412,9 +451,22 @@ handle_write(BlockDriverState *bs, int64_t offset, int64_t bytes,
              bool want_merge_zero)
 {
     BDRVPreallocateState *s = bs->opaque;
+    int64_t zero_start = qatomic_read(&s->zero_start);
+    int64_t end = offset + bytes;
     bool ret;
 
+    /*
+     * Below zero_start there is nothing to record: data_end covers it, and
+     * only a write zeroes that already covers it can preallocate over it.
+     */
+    if (zero_start >= 0 && end <= zero_start) {
+        return false;
+    }
+
     qemu_co_mutex_lock(&s->lock);
+    while (s->prealloc_in_flight && (s->safe_end < 0 || end > s->safe_end)) {
+        qemu_co_queue_wait(&s->prealloc_waiters, &s->lock);
+    }
     ret = handle_write_locked(bs, offset, bytes, want_merge_zero);
     qemu_co_mutex_unlock(&s->lock);
 
@@ -456,7 +508,7 @@ preallocate_co_truncate(BlockDriverState *bs, int64_t offset,
 
     if (s->data_end >= 0 && offset > s->data_end) {
         if (s->file_end < 0) {
-            s->file_end = bdrv_co_getlength(bs->file->bs);
+            preallocate_set_file_end(s, bdrv_co_getlength(bs->file->bs));
             if (s->file_end < 0) {
                 error_setg(errp, "failed to get file length");
                 return s->file_end;
@@ -471,7 +523,7 @@ preallocate_co_truncate(BlockDriverState *bs, int64_t offset,
              * Otherwise just proceed to preallocate missing part.
              */
             if (offset <= s->file_end) {
-                s->data_end = offset;
+                qatomic_set(&s->data_end, offset);
                 return 0;
             }
         } else {
@@ -488,16 +540,16 @@ preallocate_co_truncate(BlockDriverState *bs, int64_t offset,
                 ret = bdrv_co_truncate(bs->file, s->data_end, true,
                                        PREALLOC_MODE_OFF, 0, errp);
                 if (ret < 0) {
-                    s->file_end = ret;
+                    preallocate_set_file_end(s, ret);
                     error_prepend(errp, "preallocate-filter: failed to drop "
                                   "write-zero preallocation: ");
                     return ret;
                 }
-                s->file_end = s->data_end;
+                preallocate_set_file_end(s, s->data_end);
             }
         }
 
-        s->data_end = offset;
+        qatomic_set(&s->data_end, offset);
     }
 
     ret = bdrv_co_truncate(bs->file, offset, exact, prealloc, flags, errp);
@@ -522,6 +574,11 @@ preallocate_co_getlength(BlockDriverState *bs)
 {
     int64_t ret;
     BDRVPreallocateState *s = bs->opaque;
+    int64_t data_end = qatomic_read(&s->data_end);
+
+    if (data_end >= 0) {
+        return data_end;
+    }
 
     qemu_co_mutex_lock(&s->lock);
     if (s->data_end >= 0) {
