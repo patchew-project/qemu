@@ -45,7 +45,8 @@ void _simple_trace_test_wibble(void *context, int value);
 #define TRACE_TEST_BLAH_BACKEND_DSTATE() ( \
     QEMU_TEST_BLAH_ENABLED() || \
     trace_event_get_state_dynamic_by_id(TRACE_TEST_BLAH) || \
-    trace_event_get_state_dynamic_by_id(TRACE_TEST_BLAH) || \
+    (trace_event_get_state_dynamic_by_id(TRACE_TEST_BLAH) && \
+     qemu_loglevel_mask(LOG_TRACE)) || \
     trace_event_get_state_dynamic_by_id(TRACE_TEST_BLAH) || \
     trace_event_get_state_dynamic_by_id(TRACE_TEST_BLAH) || \
     tracepoint_enabled(qemu, test_blah) || \
@@ -74,7 +75,8 @@ static inline void trace_test_blah(void *context, const char *filename)
 #define TRACE_TEST_WIBBLE_BACKEND_DSTATE() ( \
     QEMU_TEST_WIBBLE_ENABLED() || \
     trace_event_get_state_dynamic_by_id(TRACE_TEST_WIBBLE) || \
-    trace_event_get_state_dynamic_by_id(TRACE_TEST_WIBBLE) || \
+    (trace_event_get_state_dynamic_by_id(TRACE_TEST_WIBBLE) && \
+     qemu_loglevel_mask(LOG_TRACE)) || \
     trace_event_get_state_dynamic_by_id(TRACE_TEST_WIBBLE) || \
     trace_event_get_state_dynamic_by_id(TRACE_TEST_WIBBLE) || \
     tracepoint_enabled(qemu, test_wibble) || \
