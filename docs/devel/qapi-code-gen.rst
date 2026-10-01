@@ -985,12 +985,29 @@ When documentation is required (see pragma_ 'doc-required'), every
 definition must have documentation.
 
 Definition documentation starts with a description naming the
-definition with an optional indented overview, :ref:`descriptions
-<doc-descrip>` of each argument (for commands and events), member (for
-structs and unions), branch (for alternates), or value (for enums),
-:ref:`feature descriptions <doc-feat>` of each feature (if any), and
-finally optional tagged sections.
+definition with an optional indented overview (the :ref:`doc-intro`),
+:ref:`descriptions <doc-descrip>` of each argument (for commands and
+events), member (for structs and unions), branch (for alternates), or
+value (for enums), :ref:`feature descriptions <doc-feat>` of each
+feature (if any), and finally optional tagged sections.
 
+
+.. _doc-intro:
+
+Intro
+^^^^^
+
+The Intro section names the symbol being defined and is optionally
+followed by an indented brief summary or overview of the definition.
+
+The intro section *may* consist of multiple indented paragraphs, but
+is ideally a single summary line that does not repeat type
+information or reference individual arguments/members/et al::
+
+  ##
+  # @query-block-jobs:
+  #     Return information about long-running block device operations.
+  #
 
 
 .. _doc-descrip:
