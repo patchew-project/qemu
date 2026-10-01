@@ -985,13 +985,23 @@ When documentation is required (see pragma_ 'doc-required'), every
 definition must have documentation.
 
 Definition documentation starts with a description naming the
-definition with an optional indented overview, a description of each
-argument (for commands and events), member (for structs and unions),
-branch (for alternates), or value (for enums), a description of each
-feature (if any), and finally optional tagged sections.
+definition with an optional indented overview, :ref:`descriptions
+<doc-descrip>` of each argument (for commands and events), member (for
+structs and unions), branch (for alternates), or value (for enums), a
+description of each feature (if any), and finally optional tagged
+sections.
 
-Descriptions start with '\@name:'.  The description text must be
-indented like this::
+
+.. _doc-descrip:
+
+Descriptions
+^^^^^^^^^^^^
+
+Descriptions start with '\@name:'.  These are used to document
+arguments (for commands and events), members (for structs and unions),
+branches (for alternates), or values (for enums).
+
+The description text must be indented like this::
 
  # @name: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
  #     do eiusmod tempor incididunt ut labore et dolore magna aliqua.
