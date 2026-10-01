@@ -1037,8 +1037,7 @@ detailing a relevant error condition.  For example::
 A "Since: x.y" tagged section lists the release that introduced the
 definition.
 
-"TODO" sections are not rendered (they are for developers, not users of
-QMP).  In other sections, the text is formatted, and rST markup can be
+In other sections, the text is formatted, and rST markup can be
 used.
 
 QMP Examples can be added by using the ``.. qmp-example::`` directive.
@@ -1087,6 +1086,17 @@ For example::
 Highlighting in non-QMP languages can be accomplished by using the
 ``.. code-block:: lang`` directive, and non-highlighted text can be
 achieved by omitting the language argument.
+
+
+TODO
+^^^^
+
+"TODO" tagged sections are not rendered (they are for developers, not users of
+QMP). They can appear anywhere after the introductory section::
+
+  #
+  ## TODO: This is not rendered in the documentation.
+  #
 
 
 Putting it all together
