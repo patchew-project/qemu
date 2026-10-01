@@ -1011,6 +1011,12 @@ line "Features:", like this::
   #
   # @feature: Description text
 
+
+.. _doc-tagged:
+
+Tagged sections
+^^^^^^^^^^^^^^^
+
 A tagged section begins with a paragraph that starts with one of the
 following words: "Since:", "Returns:", "Errors:", "TODO:".  It ends with
 the start of a new section.
