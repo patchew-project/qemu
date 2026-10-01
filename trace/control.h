@@ -98,18 +98,6 @@ static uint32_t trace_event_get_id(TraceEvent *ev);
 static const char * trace_event_get_name(TraceEvent *ev);
 
 /**
- * trace_event_get_state:
- * @id: Event identifier name.
- *
- * Get the tracing state of an event, both static and the QEMU dynamic state.
- *
- * If the event has the disabled property, the check will have no performance
- * impact.
- */
-#define trace_event_get_state(id)                       \
-    (trace_event_get_state_dynamic_by_id(id))
-
-/**
  * trace_event_get_state_backends:
  * @id: Event identifier name.
  *
