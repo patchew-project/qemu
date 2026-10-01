@@ -1089,6 +1089,9 @@ Highlighting in non-QMP languages can be accomplished by using the
 achieved by omitting the language argument.
 
 
+Putting it all together
+^^^^^^^^^^^^^^^^^^^^^^^
+
 Examples of complete definition documentation::
 
  ##
