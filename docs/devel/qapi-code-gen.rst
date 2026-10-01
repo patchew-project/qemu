@@ -989,7 +989,8 @@ definition with an optional indented overview (the :ref:`doc-intro`),
 :ref:`descriptions <doc-descrip>` of each argument (for commands and
 events), member (for structs and unions), branch (for alternates), or
 value (for enums), :ref:`feature descriptions <doc-feat>` of each
-feature (if any), and finally optional tagged sections.
+feature (if any), and finally optional :ref:`tagged sections
+<doc-tagged>`.
 
 
 .. _doc-intro:
@@ -1054,7 +1055,7 @@ like this::
 Returns
 ^^^^^^^
 
-"Returns" sections are only valid for commands.  They document the
+"Returns" :ref:`doc-tagged` are only valid for commands.  They document the
 success response of the command. If there is some nuance to capture
 with the return value, it may be documented as::
 
@@ -1073,8 +1074,8 @@ this section may be omitted.
 Errors
 ^^^^^^
 
-"Errors" sections are only valid for commands.  They document
-the error response(s) for a command.
+"Errors" :ref:`doc-tagged` are only valid for commands.  They document
+the error responses.
 
 "Errors" sections should be formatted as an rST list, each entry
 detailing a relevant error condition.  For example::
@@ -1162,7 +1163,7 @@ achieved by omitting the language argument.
 Since
 ^^^^^
 
-A "Since: x.y" section lists the release that introduced the
+A "Since: x.y" :ref:`doc-tagged` lists the release that introduced the
 definition::
 
   #
