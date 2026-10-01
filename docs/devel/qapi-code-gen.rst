@@ -1035,8 +1035,15 @@ detailing a relevant error condition.  For example::
  #     - Any other error returns a GenericError.
 
 
-In other sections, the text is formatted, and rST markup can be
-used.
+Details
+^^^^^^^
+
+Details sections are comprised of one or more paragraphs of rST
+formatted text, but otherwise are not marked up with any QAPI-specific
+syntax. In general, this text contains in-depth explanations of the
+definition being documented and may include various rST admonitions
+like ``.. seealso::``, ``.. note::``, etc. This is also the section
+where QMP usage examples should be placed.
 
 QMP Examples can be added by using the ``.. qmp-example::`` directive.
 In its simplest form, this can be used to contain a single QMP code
