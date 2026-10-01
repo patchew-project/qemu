@@ -332,12 +332,22 @@ static int null_chr_write(Chardev *chr, const uint8_t *buf, int len)
     return len;
 }
 
+static void chr_set_fe_open(Chardev *chr, int fe_open)
+{
+    ChardevClass *cc = CHARDEV_GET_CLASS(chr);
+
+    if (!fe_open && cc->chr_disconnect) {
+        cc->chr_disconnect(chr);
+    }
+}
+
 static void char_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
     cc->chr_write = null_chr_write;
     cc->chr_be_event = chr_be_event;
+    cc->chr_set_fe_open = chr_set_fe_open;
 }
 
 static void char_finalize(Object *obj)
