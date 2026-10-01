@@ -1024,8 +1024,31 @@ like this::
  #     Duis aute irure dolor in reprehenderit in voluptate velit esse
  #     cillum dolore eu fugiat nulla pariatur.
 
-"Returns" and "Errors" sections are only valid for commands.  They
-document the success and the error response, respectively.
+
+Returns
+^^^^^^^
+
+"Returns" sections are only valid for commands.  They document the
+success response of the command. If there is some nuance to capture
+with the return value, it may be documented as::
+
+  #
+  # Returns: a list describing each virtual block device.  Filter nodes
+  #     that were created implicitly are skipped over.
+  #
+
+Long descriptions are written as a block, with additional lines indented.
+
+The type of the return value will be added to the documentation
+automatically. If there is nothing relevant to add apart from type,
+this section may be omitted.
+
+
+Errors
+^^^^^^
+
+"Errors" sections are only valid for commands.  They document
+the error response(s) for a command.
 
 "Errors" sections should be formatted as an rST list, each entry
 detailing a relevant error condition.  For example::
