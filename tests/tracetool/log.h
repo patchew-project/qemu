@@ -10,8 +10,6 @@ extern TraceEvent _TRACE_TEST_BLAH_EVENT;
 extern TraceEvent _TRACE_TEST_WIBBLE_EVENT;
 extern uint8_t _TRACE_TEST_BLAH_DSTATE;
 extern uint8_t _TRACE_TEST_WIBBLE_DSTATE;
-#define TRACE_TEST_BLAH_ENABLED 1
-#define TRACE_TEST_WIBBLE_ENABLED 1
 #include "qemu/log-for-trace.h"
 
 
@@ -26,7 +24,7 @@ static inline void trace_test_blah(void *context, const char *filename)
         if (qemu_loglevel_mask(LOG_TRACE)) {
 #line 4 "trace-events"
             qemu_log("test_blah " "Blah context=%p filename=%s" "\n", context, filename);
-#line 29 "log.h"
+#line 27 "log.h"
         }
     }
 }
@@ -42,7 +40,7 @@ static inline void trace_test_wibble(void *context, int value)
         if (qemu_loglevel_mask(LOG_TRACE)) {
 #line 5 "trace-events"
             qemu_log("test_wibble " "Wibble context=%p value=%d" "\n", context, value);
-#line 44 "log.h"
+#line 42 "log.h"
         }
     }
 }
