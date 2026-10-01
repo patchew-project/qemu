@@ -987,9 +987,10 @@ definition must have documentation.
 Definition documentation starts with a description naming the
 definition with an optional indented overview, :ref:`descriptions
 <doc-descrip>` of each argument (for commands and events), member (for
-structs and unions), branch (for alternates), or value (for enums), a
-description of each feature (if any), and finally optional tagged
-sections.
+structs and unions), branch (for alternates), or value (for enums),
+:ref:`feature descriptions <doc-feat>` of each feature (if any), and
+finally optional tagged sections.
+
 
 
 .. _doc-descrip:
@@ -1012,14 +1013,6 @@ The description text must be indented like this::
 
 Extensions added after the definition was first released carry a
 "(since x.y)" comment.
-
-The feature descriptions must be preceded by a blank line and then a
-line "Features:", like this::
-
-  #
-  # Features:
-  #
-  # @feature: Description text
 
 
 .. _doc-tagged:
@@ -1072,6 +1065,23 @@ detailing a relevant error condition.  For example::
  # Errors:
  #     - If @device does not exist, DeviceNotFound
  #     - Any other error returns a GenericError.
+
+
+.. _doc-feat:
+
+Feature Descriptions
+^^^^^^^^^^^^^^^^^^^^
+
+Feature descriptions are a :ref:`doc-descrip` section that document features
+that apply to this definition.
+
+The feature descriptions must be preceded by a blank line and then a
+line "Features:", like this::
+
+  #
+  # Features:
+  #
+  # @feature: Description text
 
 
 Details
