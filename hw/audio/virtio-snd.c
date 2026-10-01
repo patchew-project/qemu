@@ -271,13 +271,12 @@ static void virtio_snd_handle_pcm_info(VirtIOSound *s,
         memset(&pcm_info[i].padding, 0, 5);
     }
 
-    cmd->payload_size = sizeof(virtio_snd_pcm_info) * count;
     cmd->resp.code = cpu_to_le32(VIRTIO_SND_S_OK);
-    iov_from_buf(cmd->elem->in_sg,
-                 cmd->elem->in_num,
-                 sizeof(virtio_snd_hdr),
-                 pcm_info,
-                 cmd->payload_size);
+    cmd->payload_size = iov_from_buf(cmd->elem->in_sg,
+                                     cmd->elem->in_num,
+                                     sizeof(virtio_snd_hdr),
+                                     pcm_info,
+                                     sizeof(virtio_snd_pcm_info) * count);
 }
 
 /*
@@ -774,6 +773,7 @@ static inline void
 process_cmd(VirtIOSound *s, virtio_snd_ctrl_command *cmd)
 {
     uint32_t code;
+    size_t written;
     size_t msg_sz = iov_to_buf(cmd->elem->out_sg,
                                cmd->elem->out_num,
                                0,
@@ -828,13 +828,12 @@ process_cmd(VirtIOSound *s, virtio_snd_ctrl_command *cmd)
         cmd->resp.code = cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
     }
 
-    iov_from_buf(cmd->elem->in_sg,
-                 cmd->elem->in_num,
-                 0,
-                 &cmd->resp,
-                 sizeof(virtio_snd_hdr));
-    virtqueue_push(cmd->vq, cmd->elem,
-                   sizeof(virtio_snd_hdr) + cmd->payload_size);
+    written = iov_from_buf(cmd->elem->in_sg,
+                           cmd->elem->in_num,
+                           0,
+                           &cmd->resp,
+                           sizeof(virtio_snd_hdr));
+    virtqueue_push(cmd->vq, cmd->elem, written + cmd->payload_size);
     g_assert(s->queue_inuse[VIRTIO_SND_VQ_CONTROL] > 0);
     s->queue_inuse[VIRTIO_SND_VQ_CONTROL] -= 1;
     virtio_notify(VIRTIO_DEVICE(s), cmd->vq);
@@ -917,6 +916,7 @@ static inline void empty_invalid_queue(VirtIODevice *vdev, VirtQueue *vq)
     VirtIOSoundPCMBuffer *buffer = NULL;
     virtio_snd_pcm_status resp = { 0 };
     VirtIOSound *vsnd = VIRTIO_SND(vdev);
+    size_t written;
 
     g_assert(!QSIMPLEQ_EMPTY(&vsnd->invalid));
 
@@ -926,14 +926,12 @@ static inline void empty_invalid_queue(VirtIODevice *vdev, VirtQueue *vq)
         g_assert(buffer->vq == vq);
 
         resp.status = cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
-        iov_from_buf(buffer->elem->in_sg,
-                     buffer->elem->in_num,
-                     0,
-                     &resp,
-                     sizeof(virtio_snd_pcm_status));
-        virtqueue_push(vq,
-                       buffer->elem,
-                       sizeof(virtio_snd_pcm_status));
+        written = iov_from_buf(buffer->elem->in_sg,
+                               buffer->elem->in_num,
+                               0,
+                               &resp,
+                               sizeof(virtio_snd_pcm_status));
+        virtqueue_push(vq, buffer->elem, written);
         QSIMPLEQ_REMOVE_HEAD(&vsnd->invalid, entry);
         virtio_snd_pcm_buffer_free(buffer);
     }
@@ -1216,17 +1214,17 @@ static inline void return_tx_buffer(VirtIOSoundPCMStream *stream,
                                     VirtIOSoundPCMBuffer *buffer)
 {
     virtio_snd_pcm_status resp = { 0 };
+    size_t written;
+
     resp.status = cpu_to_le32(VIRTIO_SND_S_OK);
     update_latency(stream, buffer->size);
     resp.latency_bytes = cpu_to_le32(stream->latency_bytes);
-    iov_from_buf(buffer->elem->in_sg,
-                 buffer->elem->in_num,
-                 0,
-                 &resp,
-                 sizeof(virtio_snd_pcm_status));
-    virtqueue_push(buffer->vq,
-                   buffer->elem,
-                   sizeof(virtio_snd_pcm_status));
+    written = iov_from_buf(buffer->elem->in_sg,
+                           buffer->elem->in_num,
+                           0,
+                           &resp,
+                           sizeof(virtio_snd_pcm_status));
+    virtqueue_push(buffer->vq, buffer->elem, written);
     g_assert(stream->s->queue_inuse[VIRTIO_SND_VQ_TX] > 0);
     stream->s->queue_inuse[VIRTIO_SND_VQ_TX] -= 1;
     virtio_notify(VIRTIO_DEVICE(stream->s), buffer->vq);
@@ -1306,22 +1304,22 @@ static inline void return_rx_buffer(VirtIOSoundPCMStream *stream,
                                     VirtIOSoundPCMBuffer *buffer)
 {
     virtio_snd_pcm_status resp = { 0 };
+    size_t written;
+
     resp.status = cpu_to_le32(VIRTIO_SND_S_OK);
     resp.latency_bytes = 0;
     /* Copy data -if any- to guest */
-    iov_from_buf(buffer->elem->in_sg,
-                 buffer->elem->in_num,
-                 0,
-                 buffer->data,
-                 buffer->size);
-    iov_from_buf(buffer->elem->in_sg,
-                 buffer->elem->in_num,
-                 buffer->size,
-                 &resp,
-                 sizeof(virtio_snd_pcm_status));
-    virtqueue_push(buffer->vq,
-                   buffer->elem,
-                   sizeof(virtio_snd_pcm_status) + buffer->size);
+    written = iov_from_buf(buffer->elem->in_sg,
+                           buffer->elem->in_num,
+                           0,
+                           buffer->data,
+                           buffer->size);
+    written += iov_from_buf(buffer->elem->in_sg,
+                            buffer->elem->in_num,
+                            buffer->size,
+                            &resp,
+                            sizeof(virtio_snd_pcm_status));
+    virtqueue_push(buffer->vq, buffer->elem, written);
     g_assert(stream->s->queue_inuse[VIRTIO_SND_VQ_RX] > 0);
     stream->s->queue_inuse[VIRTIO_SND_VQ_RX] -= 1;
     virtio_notify(VIRTIO_DEVICE(stream->s), buffer->vq);
