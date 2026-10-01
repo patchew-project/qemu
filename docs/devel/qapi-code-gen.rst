@@ -1034,8 +1034,6 @@ detailing a relevant error condition.  For example::
  #     - If @device does not exist, DeviceNotFound
  #     - Any other error returns a GenericError.
 
-A "Since: x.y" tagged section lists the release that introduced the
-definition.
 
 In other sections, the text is formatted, and rST markup can be
 used.
@@ -1086,6 +1084,17 @@ For example::
 Highlighting in non-QMP languages can be accomplished by using the
 ``.. code-block:: lang`` directive, and non-highlighted text can be
 achieved by omitting the language argument.
+
+
+Since
+^^^^^
+
+A "Since: x.y" section lists the release that introduced the
+definition::
+
+  #
+  # Since: 11.2
+  #
 
 
 TODO
