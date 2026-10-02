@@ -1042,6 +1042,9 @@ void vof_cleanup(Vof *vof)
     vof->of_instances = NULL;
     vof->of_instance_last = 0;
     vof->claimed_base = 0;
+    g_free(vof->bootpath);
+    vof->bootpath = NULL;
+    vof->disk_boot = false;
 }
 
 void vof_build_dt(void *fdt, Vof *vof)

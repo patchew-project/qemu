@@ -18,6 +18,8 @@ typedef struct Vof {
     GHashTable *of_instances; /* ihandle -> SpaprOfInstance */
     uint32_t of_instance_last;
     char *bootargs;
+    char *bootpath;
+    bool disk_boot;
     long fw_size;
 } Vof;
 
