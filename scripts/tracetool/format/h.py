@@ -46,8 +46,7 @@ def generate(events, backend, group):
             '#define %(api)s() ( \\',
             api=e.api(e.QEMU_BACKEND_DSTATE))
 
-        if "disable" not in e.properties:
-            backend.generate_backend_dstate(e, group)
+        backend.generate_backend_dstate(e, group)
 
         out('    false)')
 
@@ -57,16 +56,15 @@ def generate(events, backend, group):
             api=e.api(),
             args=e.args)
 
-        if "disable" not in e.properties:
-            backend.generate(e, group, check_trace_event_get_state=False)
+        backend.generate(e, group, check_trace_event_get_state=False)
 
-            if backend.check_trace_event_get_state:
-                event_id = 'TRACE_' + e.name.upper()
-                cond = "trace_event_get_state(%s)" % event_id
-                out('    if (%(cond)s) {',
-                        cond=cond)
-                backend.generate(e, group, check_trace_event_get_state=True)
-                out('    }')
+        if backend.check_trace_event_get_state:
+            event_id = 'TRACE_' + e.name.upper()
+            cond = "trace_event_get_state(%s)" % event_id
+            out('    if (%(cond)s) {',
+                cond=cond)
+            backend.generate(e, group, check_trace_event_get_state=True)
+            out('    }')
         out('}')
 
     backend.generate_end(events, group)
