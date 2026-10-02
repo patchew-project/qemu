@@ -9,6 +9,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+#include CONFIG_DEVICES /* CONFIG_PSERIES */
 #include "qemu/osdep.h"
 #include "qemu/ctype.h"
 #include "qemu/timer.h"
@@ -23,6 +24,7 @@
 #include "qom/qom-qobject.h"
 #include "trace.h"
 
+#include "hw/ppc/spapr_vio.h"
 #include <libfdt.h>
 
 /*
@@ -45,6 +47,7 @@ typedef struct {
 typedef struct {
     char *path; /* the path used to open the instance */
     uint32_t phandle;
+    void *vty;
 } OfInstance;
 
 static int readstr(hwaddr pa, char *buf, int size)
@@ -459,6 +462,28 @@ static uint32_t vof_do_open(void *fdt, Vof *vof, int offset, const char *path)
     ++vof->of_instance_last;
 
     inst->path = g_strdup(path);
+    inst->vty = NULL;
+
+#ifdef CONFIG_PSERIES
+    const char *node_name = fdt_get_name(fdt, offset, NULL);
+    if (node_name && strncmp(node_name, "vty", 3) == 0) {
+        uint8_t discard_buf[VOF_VTY_BUF_SIZE];
+        MachineState *ms = MACHINE(qdev_get_machine());
+        SpaprMachineState *spapr = SPAPR_MACHINE(ms);
+
+        if (spapr && spapr->vio_bus) {
+            inst->vty = spapr_vty_get_default(spapr->vio_bus);
+            if (inst->vty) {
+                /* Flush any stale data from the VTY input buffer */
+                while (vty_getchars(inst->vty, discard_buf,
+                                    sizeof(discard_buf)) > 0) {
+                    /* discard */
+                }
+            }
+        }
+    }
+#endif
+
     g_hash_table_insert(vof->of_instances,
                         GINT_TO_POINTER(vof->of_instance_last),
                         inst);
@@ -577,6 +602,23 @@ static uint32_t vof_write(Vof *vof, uint32_t ihandle, uint32_t buf,
         return PROM_ERROR;
     }
 
+#ifdef CONFIG_PSERIES
+    if (inst->vty) {
+        uint32_t total_written = 0;
+
+        for ( ; len > 0; len -= cb) {
+            cb = MIN(len, sizeof(tmp));
+            if (VOF_MEM_READ(buf, tmp, cb) != MEMTX_OK) {
+                return PROM_ERROR;
+            }
+            vty_putchars(inst->vty, (uint8_t *)tmp, cb);
+            buf += cb;
+            total_written += cb;
+        }
+        return total_written;
+    }
+#endif
+
     for ( ; len > 0; len -= cb) {
         cb = MIN(len, sizeof(tmp) - 1);
         if (VOF_MEM_READ(buf, tmp, cb) != MEMTX_OK) {
@@ -592,6 +634,46 @@ static uint32_t vof_write(Vof *vof, uint32_t ihandle, uint32_t buf,
     }
 
     return len;
+}
+
+static uint32_t vof_read(Vof *vof, uint32_t ihandle, uint32_t buf,
+                         uint32_t len)
+{
+    OfInstance *inst = (OfInstance *)
+        g_hash_table_lookup(vof->of_instances, GINT_TO_POINTER(ihandle));
+
+    if (!inst) {
+        trace_vof_error_read(ihandle);
+        return PROM_ERROR;
+    }
+
+#ifdef CONFIG_PSERIES
+    if (inst->vty) {
+        uint8_t tmp[VOF_VTY_BUF_SIZE];
+        unsigned cb = MIN(len, sizeof(tmp));
+        uint32_t bytes_read = vty_getchars(inst->vty, tmp, cb);
+        if (bytes_read > 0) {
+            if (VOF_MEM_WRITE(buf, tmp, bytes_read) != MEMTX_OK) {
+                trace_vof_error_read(ihandle);
+                return PROM_ERROR;
+            }
+        }
+        if (trace_event_get_state(TRACE_VOF_READ) &&
+            qemu_loglevel_mask(LOG_TRACE)) {
+            char trace_buf[VOF_VTY_BUF_SIZE + 1];
+            memcpy(trace_buf, tmp, bytes_read);
+            trace_buf[bytes_read] = '\0';
+            trace_vof_read(ihandle, bytes_read, trace_buf);
+        }
+        return bytes_read;
+    }
+#endif
+
+    /*
+     * For other devices, return 0 to indicate no data available.
+     * This allows GRUB to continue without blocking on input.
+     */
+    return 0;
 }
 
 static void vof_claimed_dump(GArray *claimed)
@@ -906,6 +988,8 @@ static uint32_t vof_client_handle(MachineState *ms, void *fdt, Vof *vof,
         ret = vof_instance_to_path(fdt, vof, args[0], args[1], args[2]);
     } else if (cmpserv("write", 3, 1)) {
         ret = vof_write(vof, args[0], args[1], args[2]);
+    } else if (cmpserv("read", 3, 1)) {
+        ret = vof_read(vof, args[0], args[1], args[2]);
     } else if (cmpserv("claim", 3, 1)) {
         uint64_t ret64 = vof_claim(vof, args[0], args[1], args[2]);
 

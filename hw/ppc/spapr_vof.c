@@ -76,6 +76,8 @@ void spapr_vof_client_dt_finalize(SpaprMachineState *spapr, void *fdt)
     if (stdout_path) {
         _FDT(vof_client_open_store(fdt, spapr->vof, "/chosen", "stdout",
                                    stdout_path));
+        _FDT(vof_client_open_store(fdt, spapr->vof, "/chosen", "stdin",
+                                   stdout_path));
     }
 }
 
