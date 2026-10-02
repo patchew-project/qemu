@@ -510,16 +510,93 @@ ssize_t load_elf_ram_sym(const char *filename,
         ret = load_elf64(filename, fd, elf_note_fn,
                          translate_fn, translate_opaque, must_swab,
                          pentry, lowaddr, highaddr, pflags, elf_machine,
-                         clear_lsb, data_swab, as, load_rom, sym_cb);
+                         clear_lsb, data_swab, as, load_rom, sym_cb,
+                         NULL, NULL);
     } else {
         ret = load_elf32(filename, fd, elf_note_fn,
                          translate_fn, translate_opaque, must_swab,
                          pentry, lowaddr, highaddr, pflags, elf_machine,
-                         clear_lsb, data_swab, as, load_rom, sym_cb);
+                         clear_lsb, data_swab, as, load_rom, sym_cb,
+                         NULL, NULL);
     }
 
     if (ret > 0) {
         debuginfo_report_elf(filename, fd, 0);
+    }
+
+ fail:
+    close(fd);
+    return ret;
+}
+
+ssize_t load_elf_ram_sym_buf(const uint8_t *buf, size_t buflen,
+                              uint64_t (*elf_note_fn)(void *, void *, bool),
+                              uint64_t (*translate_fn)(void *, uint64_t),
+                              void *translate_opaque, uint64_t *pentry,
+                              uint64_t *lowaddr, uint64_t *highaddr,
+                              uint32_t *pflags, int elf_data_order,
+                              int elf_machine, int clear_lsb, int data_swab,
+                              AddressSpace *as, bool load_rom,
+                              symbol_fn_t sym_cb,
+                              segment_fn_t segment_fn, void *segment_opaque)
+{
+    const int host_data_order = HOST_BIG_ENDIAN ? ELFDATA2MSB : ELFDATA2LSB;
+    int fd, must_swab;
+    ssize_t ret = ELF_LOAD_FAILED;
+    uint8_t e_ident[EI_NIDENT];
+    gchar *tmp_path = NULL;
+    GError *gerr = NULL;
+
+    fd = g_file_open_tmp("qemu-elf-buf-XXXXXX", &tmp_path, &gerr);
+    if (fd < 0) {
+        error_report("load_elf_ram_sym_buf: %s", gerr->message);
+        g_error_free(gerr);
+        return ELF_LOAD_FAILED;
+    }
+    g_unlink(tmp_path);
+    g_free(tmp_path);
+
+    if (qemu_write_full(fd, buf, buflen) != buflen) {
+        error_report("load_elf_ram_sym_buf: write: %s", strerror(errno));
+        goto fail;
+    }
+
+    lseek(fd, 0, SEEK_SET);
+    if (read(fd, e_ident, sizeof(e_ident)) != sizeof(e_ident)) {
+        goto fail;
+    }
+    if (e_ident[0] != ELFMAG0 ||
+        e_ident[1] != ELFMAG1 ||
+        e_ident[2] != ELFMAG2 ||
+        e_ident[3] != ELFMAG3) {
+        ret = ELF_LOAD_NOT_ELF;
+        goto fail;
+    }
+
+    if (elf_data_order != ELFDATANONE && elf_data_order != e_ident[EI_DATA]) {
+        ret = ELF_LOAD_WRONG_ENDIAN;
+        goto fail;
+    }
+
+    must_swab = host_data_order != e_ident[EI_DATA];
+
+    lseek(fd, 0, SEEK_SET);
+    if (e_ident[EI_CLASS] == ELFCLASS64) {
+        ret = load_elf64("(buffer)", fd, elf_note_fn,
+                         translate_fn, translate_opaque, must_swab,
+                         pentry, lowaddr, highaddr, pflags, elf_machine,
+                         clear_lsb, data_swab, as, load_rom, sym_cb,
+                         segment_fn, segment_opaque);
+    } else {
+        ret = load_elf32("(buffer)", fd, elf_note_fn,
+                         translate_fn, translate_opaque, must_swab,
+                         pentry, lowaddr, highaddr, pflags, elf_machine,
+                         clear_lsb, data_swab, as, load_rom, sym_cb,
+                         segment_fn, segment_opaque);
+    }
+
+    if (ret > 0) {
+        debuginfo_report_elf("(buffer)", fd, 0);
     }
 
  fail:

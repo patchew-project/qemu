@@ -336,7 +336,9 @@ static ssize_t glue(load_elf, SZ)(const char *name, int fd,
                                   uint32_t *pflags, int elf_machine,
                                   int clear_lsb, int data_swab,
                                   AddressSpace *as, bool load_rom,
-                                  symbol_fn_t sym_cb)
+                                  symbol_fn_t sym_cb,
+                                  segment_fn_t segment_fn,
+                                  void *segment_opaque)
 {
     struct elfhdr ehdr;
     struct elf_phdr *phdr = NULL, *ph;
@@ -517,6 +519,14 @@ static ssize_t glue(load_elf, SZ)(const char *name, int fd,
                                     translate_opaque, data, ph, elf_machine);
             } else {
                 addr = ph->p_paddr;
+            }
+
+            if (segment_fn) {
+                if (!segment_fn(segment_opaque, addr, ph->p_vaddr,
+                                file_size, mem_size)) {
+                    ret = ELF_LOAD_FAILED;
+                    goto fail;
+                }
             }
 
             if (data_swab) {

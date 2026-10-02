@@ -156,6 +156,36 @@ ssize_t load_elf_ram_sym(const char *filename,
                          int clear_lsb, int data_swab,
                          AddressSpace *as, bool load_rom, symbol_fn_t sym_cb);
 
+/*
+ * segment_fn_t:
+ * Per-PT_LOAD segment callback for load_elf_ram_sym_buf().
+ */
+typedef bool (*segment_fn_t)(void *opaque,
+                             uint64_t paddr, uint64_t vaddr,
+                             uint64_t filesz, uint64_t memsz);
+
+/*
+ * load_elf_ram_sym_buf:
+ * @buf: pointer to an in-memory ELF image
+ * @buflen: size of @buf in bytes
+ * @segment_fn: optional per-PT_LOAD callback
+ * @segment_opaque: opaque data passed to @segment_fn
+ *
+ * Identical to load_elf_ram_sym() but loads from a caller-supplied
+ * memory buffer instead of a file.  All other parameters have the
+ * same meaning as load_elf_ram_sym().
+ */
+ssize_t load_elf_ram_sym_buf(const uint8_t *buf, size_t buflen,
+                             uint64_t (*elf_note_fn)(void *, void *, bool),
+                             uint64_t (*translate_fn)(void *, uint64_t),
+                             void *translate_opaque, uint64_t *pentry,
+                             uint64_t *lowaddr, uint64_t *highaddr,
+                             uint32_t *pflags, int elf_data_order,
+                             int elf_machine, int clear_lsb, int data_swab,
+                             AddressSpace *as, bool load_rom,
+                             symbol_fn_t sym_cb,
+                             segment_fn_t segment_fn, void *segment_opaque);
+
 /** load_elf_as:
  * Same as load_elf_ram_sym(), but always loads the elf as ROM
  */
