@@ -78,6 +78,7 @@ vof_error_unknown_service(const char *service, int nargs, int nret) "\"%s\" args
 vof_error_unknown_method(const char *method) "\"%s\""
 vof_error_unknown_ihandle_close(uint32_t ih) "ih=0x%x"
 vof_error_unknown_path(const char *path) "\"%s\""
+vof_error_seek(uint32_t ih) "ih=0x%x"
 vof_error_write(uint32_t ih) "ih=0x%x"
 vof_error_read(uint32_t ih) "ih=0x%x"
 vof_finddevice(const char *path, uint32_t ph) "\"%s\" => ph=0x%x"
@@ -92,6 +93,7 @@ vof_interpret(const char *cmd, uint32_t param1, uint32_t param2, uint32_t ret, u
 vof_package_to_path(uint32_t ph, const char *tmp, int ret) "ph=0x%x => %s len=%d"
 vof_instance_to_path(uint32_t ih, uint32_t ph, const char *tmp, int ret) "ih=0x%x ph=0x%x => %s len=%d"
 vof_instance_to_package(uint32_t ih, uint32_t ph) "ih=0x%x => ph=0x%x"
+vof_seek(uint32_t ih, uint64_t pos) "ih=0x%x pos=0x%"PRIx64
 vof_write(uint32_t ih, unsigned cb, const char *msg) "ih=0x%x [%u] \"%s\""
 vof_read(uint32_t ih, unsigned cb, const char *msg) "ih=0x%x [%u] \"%s\""
 vof_avail(uint64_t start, uint64_t end, uint64_t size) "0x%"PRIx64"..0x%"PRIx64" size=0x%"PRIx64

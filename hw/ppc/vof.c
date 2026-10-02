@@ -11,6 +11,7 @@
 
 #include CONFIG_DEVICES /* CONFIG_PSERIES */
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "qemu/ctype.h"
 #include "qemu/timer.h"
 #include "qemu/range.h"
@@ -25,6 +26,9 @@
 #include "trace.h"
 
 #include "hw/ppc/spapr_vio.h"
+#include "hw/scsi/scsi.h"
+#include "system/block-backend.h"
+#include "block/block-io.h"
 #include <libfdt.h>
 
 /*
@@ -38,6 +42,7 @@
 #define VOF_MAX_METHODLEN   256
 #define VOF_MAX_FORTHCODE   256
 #define VOF_VTY_BUF_SIZE    256
+#define VOF_BLK_BUF_SIZE    (64 * 1024)
 
 typedef struct {
     uint64_t start;
@@ -47,6 +52,8 @@ typedef struct {
 typedef struct {
     char *path; /* the path used to open the instance */
     uint32_t phandle;
+    BlockBackend *blk;
+    uint64_t pos; /* current position for seek operations */
     void *vty;
 } OfInstance;
 
@@ -138,6 +145,8 @@ static int path_offset(const void *fdt, const char *path)
 {
     g_autofree char *p = NULL;
     char *at;
+    char *last_slash;
+    int offset;
 
     /*
      * https://www.devicetree.org/open-firmware/bindings/ppc/release/ppc-2_1.html#HDR16
@@ -156,7 +165,76 @@ static int path_offset(const void *fdt, const char *path)
             }
     }
 
-    return fdt_path_offset(fdt, p);
+    offset = fdt_path_offset(fdt, p);
+    if (offset >= 0) {
+        return offset;
+    }
+
+    /*
+     * Apply the OF wildcard rule for vSCSI disk paths. A path ending in
+     * disk@<srp-lun> has no per-LUN FDT node, instead the FDT contains a single
+     * generic "disk" child (no srp-lun appended to the path). The phandle is
+     * shared by all LUNs on the adapter, matching the Open Firmware behaviour.
+     */
+    last_slash = strrchr(p, '/');
+    if (last_slash && strncmp(last_slash + 1, "disk@", 5) == 0) {
+        int parent_off;
+
+        *last_slash = '\0';
+        parent_off = fdt_path_offset(fdt, p);
+        if (parent_off >= 0) {
+            int child_off = fdt_subnode_offset(fdt, parent_off, "disk");
+            if (child_off >= 0) {
+                return child_off;
+            }
+        }
+    }
+
+    return offset;
+}
+
+/*
+ * Return the SCSIBus for a v-scsi@<reg> path, or NULL if not found.
+ */
+static SCSIBus *vof_find_vscsi_bus(MachineState *ms, const char *path)
+{
+#ifdef CONFIG_PSERIES
+    SpaprMachineState *spapr = SPAPR_MACHINE(ms);
+    const char *at;
+    const char *endptr;
+    unsigned long reg;
+    SpaprVioDevice *vdev;
+    BusState *bus;
+
+    if (!spapr || !spapr->vio_bus) {
+        return NULL;
+    }
+
+    at = strstr(path, "v-scsi@");
+    if (!at) {
+        return NULL;
+    }
+    at = strchr(at, '@');
+    if (!at) {
+        return NULL;
+    }
+
+    if (qemu_strtoul(at + 1, &endptr, 16, &reg) || endptr == at + 1) {
+        return NULL;
+    }
+
+    vdev = spapr_vio_find_by_reg(spapr->vio_bus, (uint32_t)reg);
+    if (!vdev) {
+        return NULL;
+    }
+
+    QLIST_FOREACH(bus, &vdev->qdev.child_bus, sibling) {
+        if (object_dynamic_cast(OBJECT(bus), TYPE_SCSI_BUS)) {
+            return SCSI_BUS(bus);
+        }
+    }
+#endif /* CONFIG_PSERIES */
+    return NULL;
 }
 
 static uint32_t vof_finddevice(const void *fdt, uint32_t nodeaddr)
@@ -450,6 +528,8 @@ static uint32_t vof_do_open(void *fdt, Vof *vof, int offset, const char *path)
 {
     uint32_t ret = PROM_ERROR;
     OfInstance *inst = NULL;
+    const char *node_name;
+    MachineState *ms = MACHINE(qdev_get_machine());
 
     if (vof->of_instance_last == 0xFFFFFFFF) {
         /* We do not recycle ihandles yet */
@@ -462,13 +542,43 @@ static uint32_t vof_do_open(void *fdt, Vof *vof, int offset, const char *path)
     ++vof->of_instance_last;
 
     inst->path = g_strdup(path);
+    inst->blk = NULL;
+    inst->pos = 0;
     inst->vty = NULL;
 
+    node_name = fdt_get_name(fdt, offset, NULL);
+
+    /*
+     * vSCSI disk open.  The FDT contains only a generic "disk" child node (no
+     * srp-lun appended to the path), matching Open Firmware behaviour.
+     * Extract the LUN from the "disk@<hex>" component of the path string
+     * and use it to find the corresponding QEMU block backend.
+     */
+    if (node_name && strcmp(node_name, "disk") == 0) {
+        const char *disk_at = strstr(path, "/disk@");
+        const char *endptr;
+        uint64_t srp_lun;
+
+        if (disk_at &&
+            qemu_strtou64(disk_at + 6, &endptr, 16, &srp_lun) == 0) {
+            SCSIBus *sbus = vof_find_vscsi_bus(ms, path);
+
+            if (sbus) {
+                uint32_t target  = (srp_lun >> 56) & 0x3f;
+                uint32_t channel = (srp_lun >> 53) & 0x7;
+                uint32_t lun     = (srp_lun >> 48) & 0x1f;
+                SCSIDevice *sdev = scsi_device_find(sbus, (int)channel,
+                                                    (int)target, (int)lun);
+                if (sdev) {
+                    inst->blk = blk_by_dev(sdev);
+                }
+            }
+        }
+    }
+
 #ifdef CONFIG_PSERIES
-    const char *node_name = fdt_get_name(fdt, offset, NULL);
     if (node_name && strncmp(node_name, "vty", 3) == 0) {
         uint8_t discard_buf[VOF_VTY_BUF_SIZE];
-        MachineState *ms = MACHINE(qdev_get_machine());
         SpaprMachineState *spapr = SPAPR_MACHINE(ms);
 
         if (spapr && spapr->vio_bus) {
@@ -602,6 +712,38 @@ static uint32_t vof_write(Vof *vof, uint32_t ihandle, uint32_t buf,
         return PROM_ERROR;
     }
 
+    if (inst->blk) {
+        if (bdrv_is_read_only(blk_bs(inst->blk))) {
+            trace_vof_error_write(ihandle);
+            return PROM_ERROR;
+        }
+
+        g_autofree uint8_t *blkbuf = g_malloc(MIN(len, (uint32_t)VOF_BLK_BUF_SIZE));
+        uint32_t total = 0;
+
+        while (len > 0) {
+            cb = MIN(len, (uint32_t)VOF_BLK_BUF_SIZE);
+            if (VOF_MEM_READ(buf, blkbuf, cb) != MEMTX_OK) {
+                trace_vof_error_write(ihandle);
+                return PROM_ERROR;
+            }
+            if (blk_pwrite(inst->blk, inst->pos, cb, blkbuf, 0) < 0) {
+                trace_vof_error_write(ihandle);
+                return PROM_ERROR;
+            }
+            inst->pos += cb;
+            buf += cb;
+            len -= cb;
+            total += cb;
+        }
+        if (blk_flush(inst->blk) < 0) {
+            trace_vof_error_write(ihandle);
+            return PROM_ERROR;
+        }
+        trace_vof_write(ihandle, total, "(disk)");
+        return total;
+    }
+
 #ifdef CONFIG_PSERIES
     if (inst->vty) {
         uint32_t total_written = 0;
@@ -619,6 +761,7 @@ static uint32_t vof_write(Vof *vof, uint32_t ihandle, uint32_t buf,
     }
 #endif
 
+    uint32_t total_traced = 0;
     for ( ; len > 0; len -= cb) {
         cb = MIN(len, sizeof(tmp) - 1);
         if (VOF_MEM_READ(buf, tmp, cb) != MEMTX_OK) {
@@ -631,9 +774,11 @@ static uint32_t vof_write(Vof *vof, uint32_t ihandle, uint32_t buf,
             tmp[cb] = '\0';
             trace_vof_write(ihandle, cb, tmp);
         }
+        buf += cb;
+        total_traced += cb;
     }
 
-    return len;
+    return total_traced;
 }
 
 static uint32_t vof_read(Vof *vof, uint32_t ihandle, uint32_t buf,
@@ -645,6 +790,33 @@ static uint32_t vof_read(Vof *vof, uint32_t ihandle, uint32_t buf,
     if (!inst) {
         trace_vof_error_read(ihandle);
         return PROM_ERROR;
+    }
+
+    if (inst->blk) {
+        g_autofree uint8_t *tmp = g_malloc(MIN(len, (uint32_t)VOF_BLK_BUF_SIZE));
+        uint32_t total = 0;
+
+        while (len > 0) {
+            unsigned cb = MIN(len, (uint32_t)VOF_BLK_BUF_SIZE);
+            int ret = blk_pread(inst->blk, inst->pos, cb, tmp, 0);
+            if (ret < 0) {
+                trace_vof_error_read(ihandle);
+                return PROM_ERROR;
+            }
+
+            if (VOF_MEM_WRITE(buf, tmp, cb) != MEMTX_OK) {
+                trace_vof_error_read(ihandle);
+                return PROM_ERROR;
+            }
+
+            inst->pos += cb;
+            buf += cb;
+            len -= cb;
+            total += cb;
+        }
+
+        trace_vof_read(ihandle, total, "(disk)");
+        return total;
     }
 
 #ifdef CONFIG_PSERIES
@@ -674,6 +846,41 @@ static uint32_t vof_read(Vof *vof, uint32_t ihandle, uint32_t buf,
      * This allows GRUB to continue without blocking on input.
      */
     return 0;
+}
+
+static uint32_t vof_seek(Vof *vof, uint32_t ihandle, uint32_t pos_hi,
+                         uint32_t pos_lo)
+{
+    OfInstance *inst = (OfInstance *)
+        g_hash_table_lookup(vof->of_instances, GINT_TO_POINTER(ihandle));
+    uint64_t pos = ((uint64_t)pos_hi << 32) | pos_lo;
+
+    if (!inst) {
+        trace_vof_error_seek(ihandle);
+        return PROM_ERROR;
+    }
+
+    if (inst->blk) {
+        int64_t size = blk_getlength(inst->blk);
+
+        if (size < 0) {
+            trace_vof_error_seek(ihandle);
+            return PROM_ERROR;
+        }
+
+        if (pos > (uint64_t)size) {
+            trace_vof_error_seek(ihandle);
+            return PROM_ERROR;
+        }
+
+        inst->pos = pos;
+        trace_vof_seek(ihandle, pos);
+        return 0;
+    }
+
+    /* VTY and other devices don't support seek */
+    trace_vof_error_seek(ihandle);
+    return PROM_ERROR;
 }
 
 static void vof_claimed_dump(GArray *claimed)
@@ -986,6 +1193,8 @@ static uint32_t vof_client_handle(MachineState *ms, void *fdt, Vof *vof,
         ret = vof_package_to_path(fdt, args[0], args[1], args[2]);
     } else if (cmpserv("instance-to-path", 3, 1)) {
         ret = vof_instance_to_path(fdt, vof, args[0], args[1], args[2]);
+    } else if (cmpserv("seek", 3, 1)) {
+        ret = vof_seek(vof, args[0], args[1], args[2]);
     } else if (cmpserv("write", 3, 1)) {
         ret = vof_write(vof, args[0], args[1], args[2]);
     } else if (cmpserv("read", 3, 1)) {
