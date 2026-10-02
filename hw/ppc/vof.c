@@ -31,6 +31,9 @@
 #include "block/block-io.h"
 #include <libfdt.h>
 
+#define VSCSI_TABLE_BASE   0x10000U
+#define VSCSI_TABLE_MAXSZ  0x10000U
+
 /*
  * OF 1275 "nextprop" description suggests is it 32 bytes max but
  * LoPAPR defines "ibm,query-interrupt-source-number" which is 33 chars long.
@@ -1086,6 +1089,143 @@ static void vof_instantiate_rtas(Error **errp)
     error_setg(errp, "The firmware should have instantiated RTAS");
 }
 
+#ifdef CONFIG_PSERIES
+/* Combined (channel<<6)|id index space, matches SLOF dev-max-target. */
+#define VSCSI_MAX_TARGETS 512
+
+/*
+ * Build the vscsi-report-luns response in guest memory.
+ *
+ * Returns catch_result (0 = success). On success, *nentries_out and
+ * *table_addr_out describe the result table written into the free gap
+ * between the stack top (0x10000) and KERNEL_LOAD_ADDR (0x400000).
+ *
+ * Table layout (big-endian, 8 bytes per entry):
+ *   [table_addr + 8*i + 0..3] : 0x00000000
+ *   [table_addr + 8*i + 4..7] : guest pointer to null-terminated SRP LUN list
+ *
+ * GRUB reads each pointer as: *(uint32_t *)(table + 4 + 8 * i)
+ */
+static uint32_t vof_vscsi_report_luns(SCSIBus *sbus,
+                                       uint32_t *nentries_out,
+                                       uint32_t *table_addr_out)
+{
+    uint64_t *lun_lists[VSCSI_MAX_TARGETS];
+    int lun_counts[VSCSI_MAX_TARGETS];
+    uint32_t ptr_table_size;
+    uint32_t lun_data_size;
+    uint32_t total_size;
+    uint32_t base_addr;
+    uint32_t lun_data_base;
+    uint32_t lun_data_off;
+    uint32_t table_idx;
+    uint32_t table_addr;
+    BusChild *kid;
+    int nentries = 0;
+    int t;
+
+    memset(lun_lists, 0, sizeof(lun_lists));
+    memset(lun_counts, 0, sizeof(lun_counts));
+
+    QTAILQ_FOREACH(kid, &sbus->qbus.children, sibling) {
+        SCSIDevice *dev = SCSI_DEVICE(kid->child);
+        int combined_target;
+        uint64_t srplun;
+        int cnt;
+
+        combined_target = ((dev->channel & 0x7) << 6) | (dev->id & 0x3f);
+
+        /* SRP LUN: 0x8000 | (id << 8) | (channel << 5) | lun, in top 16 bits */
+        srplun = (0x8000ULL | ((dev->id & 0x3fULL) << 8)
+                             | ((dev->channel & 0x7ULL) << 5)
+                             | (dev->lun & 0x1fULL)) << 48;
+
+        cnt = lun_counts[combined_target];
+        lun_lists[combined_target] = g_realloc(lun_lists[combined_target],
+                                               (cnt + 2) * sizeof(uint64_t));
+        lun_lists[combined_target][cnt] = cpu_to_be64(srplun);
+        lun_lists[combined_target][cnt + 1] = 0;
+        lun_counts[combined_target]++;
+        if (cnt == 0) {
+            nentries++;
+        }
+    }
+
+    if (nentries == 0) {
+        *nentries_out   = 0;
+        *table_addr_out = 0;
+        return 0;
+    }
+
+    ptr_table_size = nentries * sizeof(uint64_t);
+    lun_data_size  = 0;
+    for (t = 0; t < VSCSI_MAX_TARGETS; t++) {
+        if (lun_lists[t]) {
+            lun_data_size += (lun_counts[t] + 1) * sizeof(uint64_t);
+        }
+    }
+    total_size = ptr_table_size + lun_data_size;
+
+    /*
+     * Max table size capped at 64 KB, which comfortably covers
+     * 512 targets × ~16 LUNs each.
+     */
+    if (total_size > VSCSI_TABLE_MAXSZ) {
+        for (t = 0; t < VSCSI_MAX_TARGETS; t++) {
+            g_free(lun_lists[t]);
+        }
+        return PROM_ERROR;
+    }
+    base_addr = VSCSI_TABLE_BASE;
+
+    table_addr    = base_addr;
+    lun_data_base = base_addr + ptr_table_size;
+    lun_data_off  = 0;
+    table_idx     = 0;
+
+    for (t = 0; t < VSCSI_MAX_TARGETS; t++) {
+        uint32_t lun_buf_size;
+        uint32_t lun_buf_addr;
+        uint64_t cell_be64;
+
+        if (!lun_lists[t]) {
+            continue;
+        }
+
+        lun_buf_size = (lun_counts[t] + 1) * sizeof(uint64_t);
+        lun_buf_addr = lun_data_base + lun_data_off;
+
+        if (VOF_MEM_WRITE(lun_buf_addr, lun_lists[t], lun_buf_size)
+                != MEMTX_OK) {
+            goto write_err;
+        }
+
+        cell_be64 = cpu_to_be64((uint64_t)lun_buf_addr);
+        if (VOF_MEM_WRITE(table_addr + table_idx * sizeof(uint64_t),
+                          &cell_be64, sizeof(cell_be64)) != MEMTX_OK) {
+            goto write_err;
+        }
+
+        lun_data_off += lun_buf_size;
+        table_idx++;
+    }
+
+    *nentries_out   = table_idx;
+    *table_addr_out = table_addr;
+
+    for (t = 0; t < VSCSI_MAX_TARGETS; t++) {
+        g_free(lun_lists[t]);
+    }
+    return 0;
+
+write_err:
+    for (t = 0; t < VSCSI_MAX_TARGETS; t++) {
+        g_free(lun_lists[t]);
+    }
+    return PROM_ERROR;
+}
+#endif /* CONFIG_PSERIES */
+
 static uint32_t vof_call_method(MachineState *ms, Vof *vof, uint32_t methodaddr,
                                 uint32_t ihandle, uint32_t param1,
                                 uint32_t param2, uint32_t param3,
@@ -1108,6 +1248,26 @@ static uint32_t vof_call_method(MachineState *ms, Vof *vof, uint32_t methodaddr,
     if (readstr(methodaddr, method, sizeof(method))) {
         goto trace_exit;
     }
+
+#ifdef CONFIG_PSERIES
+    /* vscsi-report-luns: enumerate LUNs for GRUB */
+    if (strcmp(method, "vscsi-report-luns") == 0) {
+        SCSIBus *sbus = vof_find_vscsi_bus(ms, inst->path);
+
+        if (sbus) {
+            uint32_t nentries = 0, table_addr = 0;
+            ret = vof_vscsi_report_luns(sbus, &nentries, &table_addr);
+            ret2[0] = nentries;
+            ret2[1] = table_addr;
+        } else {
+            ret = 1;
+            ret2[0] = 0;
+            ret2[1] = 0;
+        }
+        trace_vof_method(ihandle, method, param1, ret, ret2[0]);
+        goto trace_exit;
+    }
+#endif /* CONFIG_PSERIES */
 
     if (strcmp(inst->path, "/") == 0) {
         if (strcmp(method, "ibm,client-architecture-support") == 0) {
