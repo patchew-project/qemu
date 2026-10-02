@@ -1269,6 +1269,29 @@ static int spapr_vscsi_devnode(SpaprVioDevice *dev, void *fdt, int node_off)
         return ret;
     }
 
+    /*
+     * In VOF mode add a generic "disk" wildcard child node without appending
+     * srp-lun to it's path name, matching the actual Open Firmware behaviour.
+     * Its phandle and device_type covers any disk@<srp-lun> path.
+     */
+    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    if (spapr->vof) {
+        int disk_off = fdt_add_subnode(fdt, node_off, "disk");
+        if (disk_off < 0) {
+            return disk_off;
+        }
+
+        ret = fdt_setprop_string(fdt, disk_off, "name", "disk");
+        if (ret < 0) {
+            return ret;
+        }
+
+        ret = fdt_setprop_string(fdt, disk_off, "device_type", "block");
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     return 0;
 }
 
