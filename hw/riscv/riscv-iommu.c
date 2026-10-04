@@ -1688,6 +1688,7 @@ static RISCVIOMMUEntry *riscv_iommu_iot_lookup(RISCVIOMMUContext *ctx,
 static void riscv_iommu_iot_update(RISCVIOMMUState *s, RISCVIOMMUEntry *iot)
 {
     if (!s->iot_limit) {
+        g_free(iot);
         return;
     }
 
