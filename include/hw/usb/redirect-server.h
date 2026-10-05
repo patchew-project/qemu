@@ -9,6 +9,7 @@
 #ifndef HW_USB_REDIRECT_SERVER_H
 #define HW_USB_REDIRECT_SERVER_H
 
+#include "qemu/units.h"
 #include "hw/core/sysbus.h"
 #include "hw/usb/usb.h"
 #include "chardev/char-fe.h"
@@ -27,8 +28,16 @@ OBJECT_DECLARE_SIMPLE_TYPE(USBRedirServer, USB_REDIR_SERVER)
 #define USBREDIR_SERVER_MAX_EP 32
 #define USBREDIR_SERVER_EP_IN_BASE 16
 
+/*
+ * The bulk length field is 32 bits, so the host can ask for up to 4 GB.
+ * This is the largest transfer accepted.
+ */
+#define USBREDIR_SERVER_MAX_BULK (1 * MiB)
+
 #define USBREDIR_SERVER_CTRL_SETUP 0
 #define USBREDIR_SERVER_CTRL_STATUS 1
+#define USBREDIR_SERVER_BULK 2
+#define USBREDIR_SERVER_INTR 3
 
 /* Which message answers the host when a control transfer ends. */
 typedef enum {
@@ -41,7 +50,9 @@ typedef struct USBRedirServerPkt {
     USBPacket pkt;
 
     /* Saved headers for the usbredir response */
+    struct usb_redir_interrupt_packet_header intr_hdr;
     struct usb_redir_control_packet_header ctrl_hdr;
+    struct usb_redir_bulk_packet_header bulk_hdr;
 
     /*
      * The IOV points here. IN data lands in it, OUT data is copied in.

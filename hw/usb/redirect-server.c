@@ -356,6 +356,52 @@ static void usbredir_server_ctrl_status_complete(USBRedirServer *s,
     }
 }
 
+static void usbredir_server_bulk_complete(USBRedirServer *s,
+                                          USBRedirServerPkt *rp)
+{
+    struct usb_redir_bulk_packet_header resp = rp->bulk_hdr;
+    bool is_in = !!(rp->bulk_hdr.endpoint & USB_DIR_IN);
+    int actual = rp->pkt.actual_length;
+    int len;
+
+    resp.status = usbredir_server_status(rp->pkt.status);
+
+    /* Only an IN transfer carries data back. */
+    len = is_in ? actual : 0;
+    resp.length = len;
+    resp.length_high = len >> 16;
+
+    trace_usbredir_server_bulk_complete(rp->redir_id, resp.endpoint,
+                                        resp.status, actual);
+
+    usbredirparser_send_bulk_packet(s->parser, rp->redir_id, &resp,
+                                    len > 0 ? rp->data : NULL, len);
+    usbredirparser_do_write(s->parser);
+}
+
+static void usbredir_server_intr_complete(USBRedirServer *s,
+                                          USBRedirServerPkt *rp)
+{
+    struct usb_redir_interrupt_packet_header resp = rp->intr_hdr;
+    bool is_in = !!(rp->intr_hdr.endpoint & USB_DIR_IN);
+    int actual = rp->pkt.actual_length;
+    int len;
+
+    resp.status = usbredir_server_status(rp->pkt.status);
+
+    /* Only an IN transfer carries data back. */
+    len = is_in ? actual : 0;
+    resp.length = len;
+
+    trace_usbredir_server_intr_complete(rp->redir_id, resp.endpoint,
+                                        resp.status, actual);
+
+    usbredirparser_send_interrupt_packet(s->parser, rp->redir_id, &resp,
+                                         len > 0 ? rp->data : NULL,
+                                         len);
+    usbredirparser_do_write(s->parser);
+}
+
 /*
  * USB port ops
  */
@@ -451,6 +497,12 @@ static void usbredir_server_packet_complete(USBPort *port, USBPacket *p)
         break;
     case USBREDIR_SERVER_CTRL_STATUS:
         usbredir_server_ctrl_status_complete(s, rp);
+        break;
+    case USBREDIR_SERVER_BULK:
+        usbredir_server_bulk_complete(s, rp);
+        break;
+    case USBREDIR_SERVER_INTR:
+        usbredir_server_intr_complete(s, rp);
         break;
     }
 
@@ -828,6 +880,105 @@ static void usbredir_server_get_alt_setting(void *priv, uint64_t id,
                                USBREDIR_SERVER_REPLY_ALT);
 }
 
+static void usbredir_server_bulk_packet(void *priv, uint64_t id,
+    struct usb_redir_bulk_packet_header *hdr,
+    uint8_t *data, int data_len)
+{
+    USBRedirServer *s = priv;
+    USBDevice *device = usbredir_server_device(s);
+    bool is_in = !!(hdr->endpoint & USB_DIR_IN);
+    int pid = is_in ? USB_TOKEN_IN : USB_TOKEN_OUT;
+    struct usb_redir_bulk_packet_header resp;
+    int ep_nr = hdr->endpoint & 0x0f;
+    USBRedirServerPkt *rp;
+    USBEndpoint *ep;
+    uint32_t len;
+
+    if (!s->host_connected || !device || !device->attached) {
+        return;
+    }
+
+    /* IN: what the host asked for. OUT: what the host sent. */
+    len = is_in ? (((uint32_t)hdr->length_high << 16) | hdr->length)
+                : (uint32_t)data_len;
+
+    /*
+     * Too big. Tell the host the transfer failed.
+     * Do not send back less data instead. The host would see the
+     * missing bytes as an error and reset the device.
+     */
+    if (len > USBREDIR_SERVER_MAX_BULK) {
+        resp = *hdr;
+        resp.status = usb_redir_inval;
+        resp.length = 0;
+        resp.length_high = 0;
+
+        trace_usbredir_server_bulk_too_big(id, hdr->endpoint, len);
+        usbredirparser_send_bulk_packet(s->parser, id, &resp, NULL, 0);
+        usbredirparser_do_write(s->parser);
+        return;
+    }
+
+    ep = usb_ep_get(device, pid, ep_nr);
+    rp = usbredir_server_pkt_alloc(len);
+    rp->redir_id = id;
+    rp->type = USBREDIR_SERVER_BULK;
+    rp->bulk_hdr = *hdr;
+
+    usb_packet_setup(&rp->pkt, pid, ep, 0, s->next_id++, false, false);
+
+    /* OUT data comes from the host. IN data is written by the device. */
+    if (!is_in && len > 0) {
+        memcpy(rp->data, data, len);
+    }
+    usb_packet_addbuf(&rp->pkt, rp->data, len);
+
+    trace_usbredir_server_bulk(id, hdr->endpoint, len);
+    usbredir_server_submit_to_device(s, rp);
+}
+
+/*
+ * The host sends an interrupt_packet. It is a request: interrupt OUT
+ * data to write, or a single IN request to answer.
+ */
+static void usbredir_server_interrupt_packet(void *priv, uint64_t id,
+    struct usb_redir_interrupt_packet_header *hdr,
+    uint8_t *data, int data_len)
+{
+    USBRedirServer *s = priv;
+    USBDevice *device = usbredir_server_device(s);
+    bool is_in = !!(hdr->endpoint & USB_DIR_IN);
+    int pid = is_in ? USB_TOKEN_IN : USB_TOKEN_OUT;
+    int ep_nr = hdr->endpoint & 0x0f;
+    USBRedirServerPkt *rp;
+    USBEndpoint *ep;
+    int len;
+
+    if (!s->host_connected || !device || !device->attached) {
+        return;
+    }
+
+    /* IN: what the host asked for. OUT: what the host sent. */
+    len = is_in ? hdr->length : data_len;
+
+    ep = usb_ep_get(device, pid, ep_nr);
+    rp = usbredir_server_pkt_alloc(len);
+    rp->redir_id = id;
+    rp->type = USBREDIR_SERVER_INTR;
+    rp->intr_hdr = *hdr;
+
+    usb_packet_setup(&rp->pkt, pid, ep, 0, s->next_id++, false, false);
+
+    /* OUT data comes from the host. IN data is written by the device. */
+    if (!is_in && len > 0) {
+        memcpy(rp->data, data, len);
+    }
+    usb_packet_addbuf(&rp->pkt, rp->data, len);
+
+    trace_usbredir_server_interrupt(id, hdr->endpoint, len);
+    usbredir_server_submit_to_device(s, rp);
+}
+
 static void usbredir_server_filter_reject(void *priv)
 {
     trace_usbredir_server_filter_reject();
@@ -849,6 +1000,24 @@ static void usbredir_server_interface_info(void *priv,
     struct usb_redir_interface_info_header *hdr)
 {
     /* The host should not send this to a device. Nothing to do. */
+}
+
+static void usbredir_server_alloc_bulk_streams(void *priv, uint64_t id,
+    struct usb_redir_alloc_bulk_streams_header *hdr)
+{
+    /* We do not advertise bulk streams. Nothing to do. */
+}
+
+static void usbredir_server_start_bulk_receiving(void *priv, uint64_t id,
+    struct usb_redir_start_bulk_receiving_header *hdr)
+{
+    /* We do not advertise this. Nothing to do. */
+}
+
+static void usbredir_server_stop_bulk_receiving(void *priv, uint64_t id,
+    struct usb_redir_stop_bulk_receiving_header *hdr)
+{
+    /* We do not advertise this. Nothing to do. */
 }
 
 static void usbredir_server_cancel_data_packet(void *priv, uint64_t id)
@@ -899,7 +1068,9 @@ static void usbredir_server_cancel_data_packet(void *priv, uint64_t id)
 static void usbredir_server_send_cancelled(USBRedirServer *s,
                                            USBRedirServerPkt *rp)
 {
+    struct usb_redir_interrupt_packet_header intr;
     struct usb_redir_control_packet_header ctrl;
+    struct usb_redir_bulk_packet_header bulk;
 
     switch (rp->type) {
     case USBREDIR_SERVER_CTRL_SETUP:
@@ -909,6 +1080,21 @@ static void usbredir_server_send_cancelled(USBRedirServer *s,
         ctrl.length = 0;
         usbredirparser_send_control_packet(s->parser, rp->redir_id,
                                            &ctrl, NULL, 0);
+        break;
+    case USBREDIR_SERVER_BULK:
+        bulk = rp->bulk_hdr;
+        bulk.status = usb_redir_cancelled;
+        bulk.length = 0;
+        bulk.length_high = 0;
+        usbredirparser_send_bulk_packet(s->parser, rp->redir_id,
+                                        &bulk, NULL, 0);
+        break;
+    case USBREDIR_SERVER_INTR:
+        intr = rp->intr_hdr;
+        intr.status = usb_redir_cancelled;
+        intr.length = 0;
+        usbredirparser_send_interrupt_packet(s->parser, rp->redir_id,
+                                             &intr, NULL, 0);
         break;
     default:
         return;
@@ -952,6 +1138,8 @@ static void usbredir_server_create_parser(USBRedirServer *s)
     s->parser->hello_func = usbredir_server_hello;
     s->parser->reset_func = usbredir_server_reset;
     s->parser->control_packet_func = usbredir_server_control_packet;
+    s->parser->bulk_packet_func = usbredir_server_bulk_packet;
+    s->parser->interrupt_packet_func = usbredir_server_interrupt_packet;
     s->parser->set_configuration_func = usbredir_server_set_configuration;
 
     /* The parser calls these directly, so they must not be NULL. */
@@ -963,7 +1151,12 @@ static void usbredir_server_create_parser(USBRedirServer *s)
     s->parser->device_disconnect_ack_func =
         usbredir_server_device_disconnect_ack;
     s->parser->interface_info_func = usbredir_server_interface_info;
+    s->parser->alloc_bulk_streams_func = usbredir_server_alloc_bulk_streams;
     s->parser->cancel_data_packet_func = usbredir_server_cancel_data_packet;
+    s->parser->start_bulk_receiving_func =
+        usbredir_server_start_bulk_receiving;
+    s->parser->stop_bulk_receiving_func =
+        usbredir_server_stop_bulk_receiving;
 
     /* Capabilities: 64-bit IDs, connect_device_version, ep_info sizes */
     usbredirparser_caps_set_cap(caps, usb_redir_cap_connect_device_version);
