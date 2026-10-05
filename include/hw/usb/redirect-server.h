@@ -31,12 +31,14 @@ struct USBRedirServer {
 
     /* usbredir over the chardev */
     struct usbredirparser *parser;
+    QEMUTimer *announce_timer;
     QEMUBH *chardev_close_bh;
     const uint8_t *read_buf;
     int read_buf_size;
     bool in_write;
     guint watch;
     bool host_connected;
+    bool device_announced;
 };
 
 #endif /* HW_USB_REDIRECT_SERVER_H */

@@ -56,6 +56,8 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "migration/vmstate.h"
+#include "qemu/timer.h"
+#include "qemu/cutils.h"
 #include "hw/usb/redirect-server.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-properties-system.h"
@@ -63,9 +65,114 @@
 
 #define USBREDIR_SERVER_VERSION "qemu " TYPE_USB_REDIR_SERVER " " QEMU_VERSION
 
+/* Wait this long after attach before we announce the device. */
+#define USBREDIR_SERVER_ANNOUNCE_DEBOUNCE_MS 10
+
+/*
+ * The device is whatever USBDevice the user plugged into our port with
+ * "-device <device>,bus=<id>.0". NULL until then.
+ */
+static USBDevice *usbredir_server_device(USBRedirServer *s)
+{
+    return s->port.dev;
+}
+
+/*
+ * Device announcement
+ */
+
+static uint8_t usbredir_server_speed(USBDevice *device)
+{
+    switch (device->speed) {
+    case USB_SPEED_LOW:
+        return usb_redir_speed_low;
+    case USB_SPEED_FULL:
+        return usb_redir_speed_full;
+    default:
+        return usb_redir_speed_high;
+    }
+}
+
+static void usbredir_server_announce_device(USBRedirServer *s)
+{
+    USBDevice *device = usbredir_server_device(s);
+    struct usb_redir_interface_info_header iface_info = {
+        .interface_count = 0,
+    };
+    struct usb_redir_device_connect_header conn = {
+        .speed = usbredir_server_speed(device),
+    };
+
+    if (s->device_announced) {
+        return;
+    }
+    s->device_announced = true;
+
+    /* Put the device in DEFAULT state. The host may not reset the bus. */
+    device->addr = 0;
+    device->state = USB_STATE_DEFAULT;
+
+    /* Send this before device_connect. The peer needs it to accept us. */
+    usbredirparser_send_interface_info(s->parser, &iface_info);
+    usbredirparser_do_write(s->parser);
+
+    trace_usbredir_server_announce(conn.speed);
+    usbredirparser_send_device_connect(s->parser, &conn);
+    usbredirparser_do_write(s->parser);
+}
+
 /*
  * USB port ops
  */
+
+static void usbredir_server_schedule_announce(USBRedirServer *s)
+{
+    USBDevice *device = usbredir_server_device(s);
+
+    if (!s->host_connected || s->device_announced || !device ||
+        !device->attached) {
+        return;
+    }
+
+    timer_mod(s->announce_timer,
+              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+              USBREDIR_SERVER_ANNOUNCE_DEBOUNCE_MS);
+}
+
+static void usbredir_server_do_announce(void *opaque)
+{
+    USBRedirServer *s = opaque;
+    USBDevice *device = usbredir_server_device(s);
+
+    /* Only announce if the device is still attached and the host is here. */
+    if (s->host_connected && s->parser && device && device->attached) {
+        usbredir_server_announce_device(s);
+    }
+}
+
+static void usbredir_server_port_attach(USBPort *port)
+{
+    USBRedirServer *s = port->opaque;
+
+    trace_usbredir_server_attach();
+    usbredir_server_schedule_announce(s);
+}
+
+static void usbredir_server_port_detach(USBPort *port)
+{
+    USBRedirServer *s = port->opaque;
+
+    trace_usbredir_server_detach(s->device_announced);
+
+    timer_del(s->announce_timer);
+
+    if (s->host_connected && s->parser && s->device_announced) {
+        trace_usbredir_server_disconnect();
+        usbredirparser_send_device_disconnect(s->parser);
+        usbredirparser_do_write(s->parser);
+    }
+    s->device_announced = false;
+}
 
 static void usbredir_server_port_child_detach(USBPort *port, USBDevice *child)
 {
@@ -78,6 +185,8 @@ static void usbredir_server_port_wakeup(USBPort *port)
 }
 
 static USBPortOps usbredir_server_port_ops = {
+    .attach = usbredir_server_port_attach,
+    .detach = usbredir_server_port_detach,
     .child_detach = usbredir_server_port_child_detach,
     .wakeup = usbredir_server_port_wakeup,
 };
@@ -181,13 +290,53 @@ static int usbredir_server_write(void *priv, uint8_t *data, int count)
     return ret;
 }
 
-/* The remote host greets us once the socket is up. */
+/*
+ * usbredirparser message callbacks
+ */
+
 static void usbredir_server_hello(void *priv,
                                   struct usb_redir_hello_header *hello)
 {
     USBRedirServer *s = priv;
+    char version[sizeof(hello->version) + 1];
+
+    pstrcpy(version, sizeof(version), hello->version);
+    trace_usbredir_server_hello(version);
 
     s->host_connected = true;
+    usbredir_server_schedule_announce(s);
+}
+
+static void usbredir_server_reset(void *priv)
+{
+    USBRedirServer *s = priv;
+    USBDevice *device = usbredir_server_device(s);
+
+    trace_usbredir_server_bus_reset(device && device->attached);
+    usb_device_reset(device);
+}
+
+static void usbredir_server_filter_reject(void *priv)
+{
+    trace_usbredir_server_filter_reject();
+}
+
+static void usbredir_server_filter_filter(void *priv,
+    struct usbredirfilter_rule *rules, int rules_count)
+{
+    /* We accept any host. The callback owns the rules, so free them. */
+    free(rules);
+}
+
+static void usbredir_server_device_disconnect_ack(void *priv)
+{
+    /* The host saw our device_disconnect. Nothing to do. */
+}
+
+static void usbredir_server_interface_info(void *priv,
+    struct usb_redir_interface_info_header *hdr)
+{
+    /* The host should not send this to a device. Nothing to do. */
 }
 
 /*
@@ -211,6 +360,14 @@ static void usbredir_server_create_parser(USBRedirServer *s)
 
     /* Callbacks for messages the remote host sends to us */
     s->parser->hello_func = usbredir_server_hello;
+    s->parser->reset_func = usbredir_server_reset;
+
+    /* The parser calls these directly, so they must not be NULL. */
+    s->parser->filter_reject_func = usbredir_server_filter_reject;
+    s->parser->filter_filter_func = usbredir_server_filter_filter;
+    s->parser->device_disconnect_ack_func =
+        usbredir_server_device_disconnect_ack;
+    s->parser->interface_info_func = usbredir_server_interface_info;
 
     /* Capabilities: 64-bit IDs, connect_device_version, ep_info sizes */
     usbredirparser_caps_set_cap(caps, usb_redir_cap_connect_device_version);
@@ -238,7 +395,10 @@ static void usbredir_server_create_parser(USBRedirServer *s)
 static void usbredir_server_destroy_parser(USBRedirServer *s)
 {
     s->host_connected = false;
+    s->device_announced = false;
 
+    /* The announce timer may still be pending. */
+    timer_del(s->announce_timer);
     g_clear_handle_id(&s->watch, g_source_remove);
 
     if (s->parser) {
@@ -336,6 +496,8 @@ static void usbredir_server_realize(DeviceState *dev, Error **errp)
                       USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL |
                       USB_SPEED_MASK_HIGH);
 
+    s->announce_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+                                     usbredir_server_do_announce, s);
     s->chardev_close_bh = qemu_bh_new_guarded(usbredir_server_chardev_close_bh,
                                               s, &dev->mem_reentrancy_guard);
 
@@ -352,6 +514,8 @@ static void usbredir_server_unrealize(DeviceState *dev)
 
     qemu_chr_fe_deinit(&s->cs, true);
     usbredir_server_destroy_parser(s);
+
+    timer_free(s->announce_timer);
 
     if (s->chardev_close_bh) {
         qemu_bh_delete(s->chardev_close_bh);
