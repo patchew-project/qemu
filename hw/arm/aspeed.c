@@ -409,6 +409,12 @@ static void aspeed_machine_class_init(ObjectClass *oc, const void *data)
     mc->no_cdrom = 1;
     mc->no_parallel = 1;
     mc->default_ram_id = "ram";
+    /*
+     * Lets a UDC gadget be exported to another QEMU instance over usbredir.
+     * The type name is spelled out rather than used through its macro so
+     * that this still builds when the usbredir library is absent.
+     */
+    machine_class_allow_dynamic_sysbus_dev(mc, "usb-redir-server");
     amc->macs_mask = ASPEED_MAC0_ON;
     amc->uart_default = ASPEED_DEV_UART5;
 
