@@ -28,16 +28,23 @@ OBJECT_DECLARE_SIMPLE_TYPE(USBRedirServer, USB_REDIR_SERVER)
 #define USBREDIR_SERVER_MAX_EP 32
 #define USBREDIR_SERVER_EP_IN_BASE 16
 
+/* An endpoint number is 4 bits, so 0 to 15. */
+#define USBREDIR_SERVER_MAX_EP_NR 16
+
 /*
  * The bulk length field is 32 bits, so the host can ask for up to 4 GB.
  * This is the largest transfer accepted.
  */
 #define USBREDIR_SERVER_MAX_BULK (1 * MiB)
 
+/* Buffer size for an interrupt IN endpoint before its descriptor is seen. */
+#define USBREDIR_SERVER_INTR_DEFAULT_LEN 64
+
 #define USBREDIR_SERVER_CTRL_SETUP 0
 #define USBREDIR_SERVER_CTRL_STATUS 1
 #define USBREDIR_SERVER_BULK 2
 #define USBREDIR_SERVER_INTR 3
+#define USBREDIR_SERVER_INTR_STREAM 4
 
 /* Which message answers the host when a control transfer ends. */
 typedef enum {
@@ -86,6 +93,14 @@ struct USBRedirServer {
     guint watch;
     bool host_connected;
     bool device_announced;
+
+    /*
+     * Interrupt IN streaming, indexed by endpoint number. intr_bh asks the
+     * device again; intr_retry does the same after a delay on NAK.
+     */
+    bool intr_in_started[USBREDIR_SERVER_MAX_EP_NR];
+    QEMUBH *intr_bh;
+    QEMUTimer *intr_retry;
 
     /* In-flight packet tracking */
     QTAILQ_HEAD(, USBRedirServerPkt) inflight;

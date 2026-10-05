@@ -69,6 +69,13 @@
 /* Wait this long after attach before we announce the device. */
 #define USBREDIR_SERVER_ANNOUNCE_DEBOUNCE_MS 10
 
+/*
+ * Ask again this often after an endpoint answered NAK. Most devices wake
+ * the bus when data arrives, and then the next ask happens at once. This
+ * timer is for the devices that do not wake the bus.
+ */
+#define USBREDIR_SERVER_INTR_RETRY_MS 1000
+
 static void usbredir_server_pkt_free(USBRedirServerPkt *rp);
 static void usbredir_server_stop_transfers(USBRedirServer *s);
 static void usbredir_server_send_cancelled(USBRedirServer *s,
@@ -403,6 +410,63 @@ static void usbredir_server_intr_complete(USBRedirServer *s,
 }
 
 /*
+ * The device answered a parked request. Send the answer to the host, then
+ * ask again, because the host still wants more. Do not ask from here: the
+ * device may answer at once, and this function would call itself over and
+ * over. Let the BH ask, or the retry timer after a NAK.
+ */
+static void usbredir_server_intr_stream_complete(USBRedirServer *s,
+                                                 USBRedirServerPkt *rp)
+{
+    struct usb_redir_interrupt_packet_header resp = rp->intr_hdr;
+    struct usb_redir_interrupt_receiving_status_header st;
+    int ep_nr = resp.endpoint & 0x0f;
+    USBPacket *p = &rp->pkt;
+    int actual = p->actual_length;
+    bool retry = false;
+
+    trace_usbredir_server_intr_stream_complete(ep_nr, p->status, actual);
+
+    switch (p->status) {
+    case USB_RET_SUCCESS:
+        resp.status = usb_redir_success;
+        resp.length = actual;
+        usbredirparser_send_interrupt_packet(s->parser, 0, &resp,
+                                             actual ? rp->data : NULL,
+                                             actual);
+        usbredirparser_do_write(s->parser);
+        break;
+    case USB_RET_NAK:
+        /* nothing to report yet; ask again shortly */
+        retry = true;
+        break;
+    default:
+        /*
+         * The endpoint stalled or failed. There is no data to send, so
+         * send a status message. The host keeps that status and gives it
+         * to its guest. On a stall the host also ends the stream, so end
+         * it here too. A later request from the guest starts a new one.
+         */
+        st.endpoint = resp.endpoint;
+        st.status = usbredir_server_status(p->status);
+        usbredirparser_send_interrupt_receiving_status(s->parser, 0, &st);
+        usbredirparser_do_write(s->parser);
+        s->intr_in_started[ep_nr] = false;
+        break;
+    }
+
+    if (s->intr_in_started[ep_nr]) {
+        if (retry) {
+            timer_mod(s->intr_retry,
+                      qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                      (int64_t)USBREDIR_SERVER_INTR_RETRY_MS * SCALE_MS);
+        } else {
+            qemu_bh_schedule(s->intr_bh);
+        }
+    }
+}
+
+/*
  * USB port ops
  */
 
@@ -504,6 +568,9 @@ static void usbredir_server_packet_complete(USBPort *port, USBPacket *p)
     case USBREDIR_SERVER_INTR:
         usbredir_server_intr_complete(s, rp);
         break;
+    case USBREDIR_SERVER_INTR_STREAM:
+        usbredir_server_intr_stream_complete(s, rp);
+        break;
     }
 
     usbredir_server_pkt_free(rp);
@@ -521,7 +588,25 @@ static USBPortOps usbredir_server_port_ops = {
  * USB bus ops
  */
 
+static void usbredir_server_wakeup_ep(USBBus *bus, USBEndpoint *ep,
+                                      unsigned int stream)
+{
+    USBRedirServer *s = container_of(bus, USBRedirServer, bus);
+    int ep_nr = ep->nr;
+
+    /*
+     * The device has data. A streaming interrupt IN endpoint may have
+     * answered NAK. Ask now instead of waiting for the retry timer.
+     * Every other transfer already has its request on the device.
+     */
+    if (ep->pid == USB_TOKEN_IN && ep_nr < USBREDIR_SERVER_MAX_EP_NR &&
+        s->intr_in_started[ep_nr]) {
+        qemu_bh_schedule(s->intr_bh);
+    }
+}
+
 static USBBusOps usbredir_server_bus_ops = {
+    .wakeup_endpoint = usbredir_server_wakeup_ep,
 };
 
 /*
@@ -570,6 +655,91 @@ static void usbredir_server_drop_pkt(USBRedirServer *s,
     }
     usb_packet_cleanup(&rp->pkt);
     usbredir_server_pkt_free(rp);
+}
+
+/*
+ * Interrupt IN streaming
+ */
+
+static bool usbredir_server_intr_inflight(USBRedirServer *s, int ep_nr)
+{
+    USBRedirServerPkt *rp;
+
+    QTAILQ_FOREACH(rp, &s->inflight, next) {
+        if (rp->type == USBREDIR_SERVER_INTR_STREAM &&
+            (rp->intr_hdr.endpoint & 0x0f) == ep_nr) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/*
+ * Ask the device for data on @ep_nr and leave the request waiting. A device
+ * sends data only when asked. Do nothing if a request on @ep_nr is still
+ * unanswered.
+ */
+static void usbredir_server_intr_park(USBRedirServer *s, int ep_nr)
+{
+    USBDevice *device = usbredir_server_device(s);
+    USBRedirServerPkt *rp;
+    USBEndpoint *ep;
+    int len;
+
+    /* No device to ask. */
+    if (!device || !device->attached) {
+        return;
+    }
+
+    /* The host did not ask for this endpoint, or a request is unanswered. */
+    if (!s->intr_in_started[ep_nr] ||
+        usbredir_server_intr_inflight(s, ep_nr)) {
+        return;
+    }
+
+    len = s->ep_max_packet[ep_nr + USBREDIR_SERVER_EP_IN_BASE];
+    if (len == 0) {
+        len = USBREDIR_SERVER_INTR_DEFAULT_LEN;
+    }
+    ep = usb_ep_get(device, USB_TOKEN_IN, ep_nr);
+    rp = usbredir_server_pkt_alloc(len);
+    rp->type = USBREDIR_SERVER_INTR_STREAM;
+    /* streamed data carries no host id */
+    rp->redir_id = 0;
+    rp->intr_hdr.endpoint = ep_nr | USB_DIR_IN;
+
+    usb_packet_setup(&rp->pkt, USB_TOKEN_IN, ep, 0, s->next_id++,
+                     false, false);
+    usb_packet_addbuf(&rp->pkt, rp->data, len);
+
+    trace_usbredir_server_intr_park(ep_nr, len);
+    usbredir_server_submit_to_device(s, rp);
+}
+
+/* BH and timer callback: ask again on every streaming endpoint. */
+static void usbredir_server_intr_kick(void *opaque)
+{
+    USBRedirServer *s = opaque;
+    int i;
+
+    /* Endpoint 0 is the control endpoint. It never streams. */
+    for (i = 1; i < USBREDIR_SERVER_MAX_EP_NR; i++) {
+        usbredir_server_intr_park(s, i);
+    }
+}
+
+static void usbredir_server_intr_cancel(USBRedirServer *s, int ep_nr)
+{
+    USBRedirServerPkt *tmp;
+    USBRedirServerPkt *rp;
+
+    QTAILQ_FOREACH_SAFE(rp, &s->inflight, next, tmp) {
+        if (rp->type != USBREDIR_SERVER_INTR_STREAM ||
+            (rp->intr_hdr.endpoint & 0x0f) != ep_nr) {
+            continue;
+        }
+        usbredir_server_drop_pkt(s, rp);
+    }
 }
 
 /*
@@ -1002,6 +1172,58 @@ static void usbredir_server_interface_info(void *priv,
     /* The host should not send this to a device. Nothing to do. */
 }
 
+/*
+ * The host asks to stream an interrupt IN endpoint. Send the receiving
+ * status first. Without that status the host throws the interrupt
+ * packet away. Then ask the device once.
+ */
+static void usbredir_server_start_interrupt_receiving(void *priv,
+    uint64_t id, struct usb_redir_start_interrupt_receiving_header *hdr)
+{
+    struct usb_redir_interrupt_receiving_status_header st = {
+        .endpoint = hdr->endpoint,
+        .status = usb_redir_success,
+    };
+    USBRedirServer *s = priv;
+    USBDevice *device = usbredir_server_device(s);
+    int ep_nr = hdr->endpoint & 0x0f;
+
+    /*
+     * Endpoint 0 is control and an OUT endpoint never streams. There also
+     * has to be a host to send to and a device to ask.
+     */
+    if (ep_nr == 0 || !(hdr->endpoint & USB_DIR_IN) ||
+        !s->host_connected || !device || !device->attached) {
+        st.status = usb_redir_ioerror;
+    } else {
+        s->intr_in_started[ep_nr] = true;
+    }
+
+    trace_usbredir_server_intr_start(hdr->endpoint, st.status);
+    usbredirparser_send_interrupt_receiving_status(s->parser, id, &st);
+    usbredirparser_do_write(s->parser);
+
+    if (st.status == usb_redir_success) {
+        usbredir_server_intr_park(s, ep_nr);
+    }
+}
+
+static void usbredir_server_stop_interrupt_receiving(void *priv, uint64_t id,
+    struct usb_redir_stop_interrupt_receiving_header *hdr)
+{
+    int ep_nr = hdr->endpoint & 0x0f;
+    USBRedirServer *s = priv;
+
+    /* Endpoint 0 is control, and an OUT endpoint never streams. */
+    if (ep_nr == 0 || !(hdr->endpoint & USB_DIR_IN)) {
+        return;
+    }
+
+    trace_usbredir_server_intr_stop(hdr->endpoint);
+    s->intr_in_started[ep_nr] = false;
+    usbredir_server_intr_cancel(s, ep_nr);
+}
+
 static void usbredir_server_alloc_bulk_streams(void *priv, uint64_t id,
     struct usb_redir_alloc_bulk_streams_header *hdr)
 {
@@ -1106,6 +1328,14 @@ static void usbredir_server_stop_transfers(USBRedirServer *s)
 {
     USBRedirServerPkt *rp;
 
+    memset(s->intr_in_started, 0, sizeof(s->intr_in_started));
+    if (s->intr_bh) {
+        qemu_bh_cancel(s->intr_bh);
+    }
+    if (s->intr_retry) {
+        timer_del(s->intr_retry);
+    }
+
     /*
      * No "cancelled" response here. This runs on a bus reset, a detach or
      * a closed chardev, and the host has dropped its own queues already.
@@ -1151,6 +1381,10 @@ static void usbredir_server_create_parser(USBRedirServer *s)
     s->parser->device_disconnect_ack_func =
         usbredir_server_device_disconnect_ack;
     s->parser->interface_info_func = usbredir_server_interface_info;
+    s->parser->start_interrupt_receiving_func =
+        usbredir_server_start_interrupt_receiving;
+    s->parser->stop_interrupt_receiving_func =
+        usbredir_server_stop_interrupt_receiving;
     s->parser->alloc_bulk_streams_func = usbredir_server_alloc_bulk_streams;
     s->parser->cancel_data_packet_func = usbredir_server_cancel_data_packet;
     s->parser->start_bulk_receiving_func =
@@ -1292,6 +1526,10 @@ static void usbredir_server_realize(DeviceState *dev, Error **errp)
 
     s->announce_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                      usbredir_server_do_announce, s);
+    s->intr_retry = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                 usbredir_server_intr_kick, s);
+    s->intr_bh = qemu_bh_new_guarded(usbredir_server_intr_kick, s,
+                                     &dev->mem_reentrancy_guard);
     s->chardev_close_bh = qemu_bh_new_guarded(usbredir_server_chardev_close_bh,
                                               s, &dev->mem_reentrancy_guard);
 
@@ -1310,6 +1548,16 @@ static void usbredir_server_unrealize(DeviceState *dev)
     usbredir_server_destroy_parser(s);
 
     timer_free(s->announce_timer);
+
+    if (s->intr_retry) {
+        timer_free(s->intr_retry);
+        s->intr_retry = NULL;
+    }
+
+    if (s->intr_bh) {
+        qemu_bh_delete(s->intr_bh);
+        s->intr_bh = NULL;
+    }
 
     if (s->chardev_close_bh) {
         qemu_bh_delete(s->chardev_close_bh);
