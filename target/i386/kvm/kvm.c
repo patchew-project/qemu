@@ -1139,6 +1139,14 @@ static struct {
         },
         .dependencies = BIT(HYPERV_FEAT_VAPIC)
     },
+    [HYPERV_FEAT_RESTORE_TIME_ON_RESUME] = {
+        .desc = "partition time restore (hv-restore-time-on-resume)",
+        .flags = {
+            {.func = HV_CPUID_ENLIGHTMENT_INFO, .reg = R_EAX,
+             .bits = HV_RESTORE_TIME_ON_RESUME}
+        },
+        .dependencies = BIT(HYPERV_FEAT_FREQUENCIES)
+    },
 };
 
 static struct kvm_cpuid2 *try_get_hv_cpuid(CPUState *cs, int max,

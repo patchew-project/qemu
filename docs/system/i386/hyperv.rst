@@ -259,6 +259,15 @@ Existing enlightenments
 
   Recommended: ``hv-evmcs`` (Intel)
 
+``hv-restore-time-on-resume``
+  The enlightenment is nested specific, it targets Hyper-V on KVM guests. When
+  enabled, Hyper-V lets L0 (KVM) own the partition reference time and issues
+  HvCallRestorePartitionTime after a resume from hibernation so that the TSC
+  and the reference counter continue from the values it saved. Hyper-V offers
+  hibernation to its root partition only when this enlightenment is present.
+
+  Requires: ``hv-frequencies``
+
 Supplementary features
 ----------------------
 
