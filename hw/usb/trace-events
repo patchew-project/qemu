@@ -395,3 +395,9 @@ aspeed_udc_handle_data(int ep_nr, const char *dir, uint32_t iov, int ep_idx) "ep
 aspeed_udc_ep_data_in(unsigned ep, uint32_t rptr, uint32_t wptr, uint32_t iov) "ep %u, rptr %u, wptr %u, iov %u"
 aspeed_udc_ep_data_out(unsigned ep, uint32_t wptr, uint32_t avail, uint32_t iov) "ep %u, wptr %u, avail %u, iov %u"
 aspeed_udc_ep_ack(unsigned ep) "ep %u"
+
+# redirect-server.c
+usbredir_server_chardev_open(void) "chardev opened"
+usbredir_server_chardev_close(void) "chardev closed"
+usbredir_server_write_recursion(void) "recursive write, leaving it queued"
+usbredir_server_log(const char *msg) "%s"

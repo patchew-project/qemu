@@ -11,7 +11,10 @@
 
 #include "hw/core/sysbus.h"
 #include "hw/usb/usb.h"
+#include "chardev/char-fe.h"
 #include "qom/object.h"
+
+#include <usbredirparser.h>
 
 #define TYPE_USB_REDIR_SERVER "usb-redir-server"
 OBJECT_DECLARE_SIMPLE_TYPE(USBRedirServer, USB_REDIR_SERVER)
@@ -22,6 +25,18 @@ struct USBRedirServer {
     /* USB bus */
     USBBus bus;
     USBPort port;
+
+    /* Properties */
+    CharFrontend cs;
+
+    /* usbredir over the chardev */
+    struct usbredirparser *parser;
+    QEMUBH *chardev_close_bh;
+    const uint8_t *read_buf;
+    int read_buf_size;
+    bool in_write;
+    guint watch;
+    bool host_connected;
 };
 
 #endif /* HW_USB_REDIRECT_SERVER_H */
