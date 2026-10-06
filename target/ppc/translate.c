@@ -3992,6 +3992,15 @@ static int64_t dw_compose_ea(DisasContext *ctx, int x)
         }                                               \
     } while (0)
 
+#define REQUIRE_DM(CTX)                                 \
+    do {                                                \
+        if (unlikely(!(CTX)->dm_enabled)) {             \
+            gen_exception_err((CTX), POWERPC_EXCP_FU,   \
+                               FSCR_IC_DM);             \
+            return true;                                \
+        }                                               \
+    } while (0)
+
 #define REQUIRE_FPU(ctx)                                \
     do {                                                \
         if (unlikely(!(ctx)->fpu_enabled)) {            \
@@ -4383,6 +4392,8 @@ static bool trans_ICBIEP(DisasContext *ctx, arg_X_ea *a)
 #include "translate/vmx-impl.c.inc"
 
 #include "translate/vsx-impl.c.inc"
+
+#include "translate/dmf-impl.c.inc"
 
 #include "translate/dfp-impl.c.inc"
 

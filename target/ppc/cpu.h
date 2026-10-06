@@ -3057,6 +3057,11 @@ static inline ppc_avr_t *cpu_avr_ptr(CPUPPCState *env, int i)
     return (ppc_avr_t *)((uintptr_t)env + avr_full_offset(i));
 }
 
+static inline int dmr_row_offset(int reg, int row)
+{
+    return offsetof(CPUPPCState, dmr[reg].row[row]);
+}
+
 static inline bool ppc_has_spr(PowerPCCPU *cpu, int spr)
 {
     /* We can test whether the SPR is defined by checking for a valid name */

@@ -274,11 +274,19 @@
 &MMIRR_XX3      xa xb xt pmsk xmsk ymsk
 %xx_at          23:3
 %xx_xa_pair     2:1 17:4 !function=times_2
+%xx_xb_pair     1:1 12:4 !function=times_2
 @XX3_at         ...... ... .. ..... ..... ........ ...          &MMIRR_XX3 xt=%xx_at xb=%xx_xb \
                                                                 pmsk=255 xmsk=15 ymsk=15
 
 &XX3_dm         xt xa xb dm
 @XX3_dm         ...... ..... ..... ..... . dm:2 ..... ...       &XX3_dm xt=%xx_xt xa=%xx_xa xb=%xx_xb
+
+&XX3_abp_as_p   xap xbp as p
+@XX3_abp_as_p   ...... as:3 .. .... p:1 .... . ........ ...     &XX3_abp_as_p xap=%xx_xa_pair xbp=%xx_xb_pair
+
+%p0p1           16:1 11:1
+&XX2_bp_as_p    xbp as p
+@XX2_bp_as_p    ...... as:3 ...... . .... . ......... ..        &XX2_bp_as_p xbp=%xx_xb_pair p=%p0p1
 
 &XX4            xt xa xb xc
 @XX4            ...... ..... ..... ..... ..... .. ....          &XX4 xt=%xx_xt xa=%xx_xa xb=%xx_xb xc=%xx_xc
@@ -1533,6 +1541,16 @@ VMODSD          000100 ..... ..... ..... 11111001011    @VX
 VMODUD          000100 ..... ..... ..... 11011001011    @VX
 VMODSQ          000100 ..... ..... ..... 11100001011    @VX
 VMODUQ          000100 ..... ..... ..... 11000001011    @VX
+
+## DMF Instructions
+
+DMSETDMRZ       011111 ... -- 00010 ----- 0010110001 -      @X_a
+
+DMXXEXTFDMR512  111100 ... -- .... . .... - 11100010 ..-    @XX3_abp_as_p
+DMXXINSTDMR512  111100 ... -- .... . .... - 11101010 ..-    @XX3_abp_as_p
+
+DMXXEXTFDMR256  111100 ... ------ . .... . 111100100 .-     @XX2_bp_as_p
+DMXXINSTDMR256  111100 ... ------ . .... . 111100101 .-     @XX2_bp_as_p
 
 ## SLB Management Instructions
 
