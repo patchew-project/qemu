@@ -357,6 +357,11 @@ typedef union _ppc_vsr_t {
 typedef ppc_vsr_t ppc_avr_t;
 typedef ppc_vsr_t ppc_fprp_t;
 typedef ppc_vsr_t ppc_acc_t;
+typedef ppc_vsr_t ppc_dmr_row_t;
+
+typedef struct ppc_dmr_t {
+    ppc_dmr_row_t row[8];
+} ppc_dmr_t;
 
 #if !defined(CONFIG_USER_ONLY)
 /* Software TLB cache */
@@ -451,6 +456,7 @@ typedef enum {
 #define MSR_SEM5 PPC_BIT_NR(38) /* SIB Error Mask Bit 5 (PPE42)              */
 #define MSR_SEM6 PPC_BIT_NR(39) /* SIB Error Mask Bit 6 (PPE42)              */
 #define MSR_VSX  PPC_BIT_NR(40) /* Vector Scalar Extension (>= 2.06)x hflags */
+#define MSR_DM   PPC_BIT_NR(39) /* Dense Math Facility (>= 3.2)     x hflags */
 #define MSR_IS0  PPC_BIT_NR(40) /* Instance Specific Bit 0 (PPE42)           */
 #define MSR_S    PPC_BIT_NR(41) /* Secure state                              */
 #define MSR_SIBRC0 PPC_BIT_NR(41) /* Last SIB return code Bit 0 (PPE42)      */
@@ -745,6 +751,7 @@ FIELD(MSR, SIBRCA, MSR_SIBRCA7, 8)
 #define FSCR_IC_EBB         7
 #define FSCR_IC_TAR         8
 #define FSCR_IC_SCV        12
+#define FSCR_IC_DM         14
 
 /* Exception state register bits definition                                  */
 #define ESR_PIL   PPC_BIT(36) /* Illegal Instruction                    */
@@ -846,6 +853,8 @@ enum {
     POWERPC_FLAG_BHRB      = 0x01000000,
     /* Use PPE42-specific behavior                                           */
     POWERPC_FLAG_PPE42     = 0x02000000,
+    /* Has DMF                                                               */
+    POWERPC_FLAG_DM        = 0x04000000,
 };
 
 /*
@@ -875,6 +884,7 @@ enum {
     HFLAGS_INSN_CNT = 19, /* PMU instruction count enabled */
     HFLAGS_BHRB_ENABLE = 20, /* Summary flag for enabling BHRB */
     HFLAGS_VSX = 23, /* MSR_VSX if cpu has VSX */
+    HFLAGS_DM = 24, /* MSR_DM */
     HFLAGS_VR = 25,  /* MSR_VR if cpu has VRE */
 
     HFLAGS_IMMU_IDX = 26, /* 26..28 -- the composite immu_idx */
@@ -1365,6 +1375,9 @@ struct CPUArchState {
     float_status vec_status;
     float_status fp_status; /* Floating point execution context */
     target_ulong fpscr;     /* Floating point status and control register */
+
+    /* DMF registers */
+    ppc_dmr_t dmr[8] QEMU_ALIGNED(16);
 
     /* Internal devices resources */
     ppc_tb_t *tb_env;      /* Time base and decrementer */

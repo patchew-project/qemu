@@ -189,6 +189,10 @@ static uint32_t hreg_compute_hflags_value(CPUPPCState *env)
         /* PPE42 has a single address space and no problem state */
         msr = 0;
     }
+    if (ppc_flags & POWERPC_FLAG_DM) {
+        QEMU_BUILD_BUG_ON(MSR_DM != HFLAGS_DM);
+        msr_mask |= 1 << MSR_DM;
+    }
 
 #ifndef CONFIG_USER_ONLY
     if (!env->has_hv_mode || (msr & (1ull << MSR_HV))) {

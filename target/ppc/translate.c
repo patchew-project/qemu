@@ -187,6 +187,7 @@ struct DisasContext {
     bool fpu_enabled;
     bool altivec_enabled;
     bool vsx_enabled;
+    bool dm_enabled;
     bool spe_enabled;
     bool tm_enabled;
     bool gtse;
@@ -5023,6 +5024,7 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->spe_enabled = (hflags >> HFLAGS_SPE) & 1;
     ctx->altivec_enabled = (hflags >> HFLAGS_VR) & 1;
     ctx->vsx_enabled = (hflags >> HFLAGS_VSX) & 1;
+    ctx->dm_enabled = (hflags >> HFLAGS_DM) & 1;
     ctx->tm_enabled = (hflags >> HFLAGS_TM) & 1;
     ctx->gtse = (hflags >> HFLAGS_GTSE) & 1;
     ctx->hr = (hflags >> HFLAGS_HR) & 1;
