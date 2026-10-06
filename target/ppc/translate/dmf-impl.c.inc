@@ -78,3 +78,30 @@ TRANS_FLAGS2(ISA320, DMXXEXTFDMR512, do_ext_inst_512, true)
 TRANS_FLAGS2(ISA320, DMXXINSTDMR512, do_ext_inst_512, false)
 TRANS_FLAGS2(ISA320, DMXXEXTFDMR256, do_ext_inst_256, true)
 TRANS_FLAGS2(ISA320, DMXXINSTDMR256, do_ext_inst_256, false)
+
+static bool trans_DMMR(DisasContext *ctx, arg_DMMR *a)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA320);
+    REQUIRE_DM(ctx);
+
+    TCGv_i128 temp;
+    temp = tcg_temp_new_i128();
+    for (int row = 0; row < 8; row++) {
+        get_dmr_row(temp, a->rb, row);
+        set_dmr_row(a->ra, row, temp);
+    }
+    return true;
+}
+
+static bool trans_DMXOR(DisasContext *ctx, arg_DMXOR *a)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA320);
+    REQUIRE_DM(ctx);
+
+    for (int row = 0; row < 8; row++) {
+        tcg_gen_gvec_xor(MO_64, dmr_row_offset(a->ra, row),
+                         dmr_row_offset(a->ra, row), dmr_row_offset(a->rb, row),
+                         16, 16);
+    }
+    return true;
+}
