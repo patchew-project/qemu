@@ -783,6 +783,11 @@ static int64_t ger_rank2(uint32_t a, uint32_t b, uint32_t mask)
     return psum;
 }
 
+/*
+ * ISA 3.2 onwards accumulators are assigned in DMRs instead of VSRs.
+ * However both ppc_acc_t and ppc_dmr_row_t are essentially ppc_vsr_t,
+ * hence this helpers works for either.
+ */
 static void xviger(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b, ppc_acc_t  *at,
                    uint32_t mask, bool sat, bool acc, do_ger ger)
 {

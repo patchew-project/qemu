@@ -1440,41 +1440,128 @@ XXLEQV          111100 ..... ..... ..... 10111010 ...   @XX3
 XXLNAND         111100 ..... ..... ..... 10110010 ...   @XX3
 XXLORC          111100 ..... ..... ..... 10101010 ...   @XX3
 
-## VSX GER instruction
+## DMF and VSX GER instruction
 
-XVI4GER8        111011 ... -- ..... ..... 00100011 ..-  @XX3_at xa=%xx_xa
-XVI4GER8PP      111011 ... -- ..... ..... 00100010 ..-  @XX3_at xa=%xx_xa
-XVI8GER4        111011 ... -- ..... ..... 00000011 ..-  @XX3_at xa=%xx_xa
-XVI8GER4PP      111011 ... -- ..... ..... 00000010 ..-  @XX3_at xa=%xx_xa
-XVI16GER2       111011 ... -- ..... ..... 01001011 ..-  @XX3_at xa=%xx_xa
-XVI16GER2PP     111011 ... -- ..... ..... 01101011 ..-  @XX3_at xa=%xx_xa
-XVI8GER4SPP     111011 ... -- ..... ..... 01100011 ..-  @XX3_at xa=%xx_xa
-XVI16GER2S      111011 ... -- ..... ..... 00101011 ..-  @XX3_at xa=%xx_xa
-XVI16GER2SPP    111011 ... -- ..... ..... 00101010 ..-  @XX3_at xa=%xx_xa
+{
+  DMXVI4GER8      111011 ... -- ..... ..... 00100011 ..-  @XX3_at xa=%xx_xa
+  XVI4GER8        111011 ... -- ..... ..... 00100011 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVI4GER8PP    111011 ... -- ..... ..... 00100010 ..-  @XX3_at xa=%xx_xa
+  XVI4GER8PP      111011 ... -- ..... ..... 00100010 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVI8GER4      111011 ... -- ..... ..... 00000011 ..-  @XX3_at xa=%xx_xa
+  XVI8GER4        111011 ... -- ..... ..... 00000011 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVI8GER4PP    111011 ... -- ..... ..... 00000010 ..-  @XX3_at xa=%xx_xa
+  XVI8GER4PP      111011 ... -- ..... ..... 00000010 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVI16GER2     111011 ... -- ..... ..... 01001011 ..-  @XX3_at xa=%xx_xa
+  XVI16GER2       111011 ... -- ..... ..... 01001011 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVI16GER2PP   111011 ... -- ..... ..... 01101011 ..-  @XX3_at xa=%xx_xa
+  XVI16GER2PP     111011 ... -- ..... ..... 01101011 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVI8GER4SPP   111011 ... -- ..... ..... 01100011 ..-  @XX3_at xa=%xx_xa
+  XVI8GER4SPP     111011 ... -- ..... ..... 01100011 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVI16GER2S    111011 ... -- ..... ..... 00101011 ..-  @XX3_at xa=%xx_xa
+  XVI16GER2S      111011 ... -- ..... ..... 00101011 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVI16GER2SPP  111011 ... -- ..... ..... 00101010 ..-  @XX3_at xa=%xx_xa
+  XVI16GER2SPP    111011 ... -- ..... ..... 00101010 ..-  @XX3_at xa=%xx_xa
+}
 
-XVBF16GER2      111011 ... -- ..... ..... 00110011 ..-  @XX3_at xa=%xx_xa
-XVBF16GER2PP    111011 ... -- ..... ..... 00110010 ..-  @XX3_at xa=%xx_xa
-XVBF16GER2PN    111011 ... -- ..... ..... 10110010 ..-  @XX3_at xa=%xx_xa
-XVBF16GER2NP    111011 ... -- ..... ..... 01110010 ..-  @XX3_at xa=%xx_xa
-XVBF16GER2NN    111011 ... -- ..... ..... 11110010 ..-  @XX3_at xa=%xx_xa
+{
+  DMXVBF16GER2    111011 ... -- ..... ..... 00110011 ..-  @XX3_at xa=%xx_xa
+  XVBF16GER2      111011 ... -- ..... ..... 00110011 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVBF16GER2PP  111011 ... -- ..... ..... 00110010 ..-  @XX3_at xa=%xx_xa
+  XVBF16GER2PP    111011 ... -- ..... ..... 00110010 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVBF16GER2PN  111011 ... -- ..... ..... 10110010 ..-  @XX3_at xa=%xx_xa
+  XVBF16GER2PN    111011 ... -- ..... ..... 10110010 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVBF16GER2NP  111011 ... -- ..... ..... 01110010 ..-  @XX3_at xa=%xx_xa
+  XVBF16GER2NP    111011 ... -- ..... ..... 01110010 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVBF16GER2NN  111011 ... -- ..... ..... 11110010 ..-  @XX3_at xa=%xx_xa
+  XVBF16GER2NN    111011 ... -- ..... ..... 11110010 ..-  @XX3_at xa=%xx_xa
+}
 
-XVF16GER2       111011 ... -- ..... ..... 00010011 ..-  @XX3_at xa=%xx_xa
-XVF16GER2PP     111011 ... -- ..... ..... 00010010 ..-  @XX3_at xa=%xx_xa
-XVF16GER2PN     111011 ... -- ..... ..... 10010010 ..-  @XX3_at xa=%xx_xa
-XVF16GER2NP     111011 ... -- ..... ..... 01010010 ..-  @XX3_at xa=%xx_xa
-XVF16GER2NN     111011 ... -- ..... ..... 11010010 ..-  @XX3_at xa=%xx_xa
+{
+  DMXVF16GER2     111011 ... -- ..... ..... 00010011 ..-  @XX3_at xa=%xx_xa
+  XVF16GER2       111011 ... -- ..... ..... 00010011 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVF16GER2PP   111011 ... -- ..... ..... 00010010 ..-  @XX3_at xa=%xx_xa
+  XVF16GER2PP     111011 ... -- ..... ..... 00010010 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVF16GER2PN   111011 ... -- ..... ..... 10010010 ..-  @XX3_at xa=%xx_xa
+  XVF16GER2PN     111011 ... -- ..... ..... 10010010 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVF16GER2NP   111011 ... -- ..... ..... 01010010 ..-  @XX3_at xa=%xx_xa
+  XVF16GER2NP     111011 ... -- ..... ..... 01010010 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVF16GER2NN   111011 ... -- ..... ..... 11010010 ..-  @XX3_at xa=%xx_xa
+  XVF16GER2NN     111011 ... -- ..... ..... 11010010 ..-  @XX3_at xa=%xx_xa
+}
 
-XVF32GER        111011 ... -- ..... ..... 00011011 ..-  @XX3_at xa=%xx_xa
-XVF32GERPP      111011 ... -- ..... ..... 00011010 ..-  @XX3_at xa=%xx_xa
-XVF32GERPN      111011 ... -- ..... ..... 10011010 ..-  @XX3_at xa=%xx_xa
-XVF32GERNP      111011 ... -- ..... ..... 01011010 ..-  @XX3_at xa=%xx_xa
-XVF32GERNN      111011 ... -- ..... ..... 11011010 ..-  @XX3_at xa=%xx_xa
+{
+  DMXVF32GER      111011 ... -- ..... ..... 00011011 ..-  @XX3_at xa=%xx_xa
+  XVF32GER        111011 ... -- ..... ..... 00011011 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVF32GERPP    111011 ... -- ..... ..... 00011010 ..-  @XX3_at xa=%xx_xa
+  XVF32GERPP      111011 ... -- ..... ..... 00011010 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVF32GERPN    111011 ... -- ..... ..... 10011010 ..-  @XX3_at xa=%xx_xa
+  XVF32GERPN      111011 ... -- ..... ..... 10011010 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVF32GERNP    111011 ... -- ..... ..... 01011010 ..-  @XX3_at xa=%xx_xa
+  XVF32GERNP      111011 ... -- ..... ..... 01011010 ..-  @XX3_at xa=%xx_xa
+}
+{
+  DMXVF32GERNN    111011 ... -- ..... ..... 11011010 ..-  @XX3_at xa=%xx_xa
+  XVF32GERNN      111011 ... -- ..... ..... 11011010 ..-  @XX3_at xa=%xx_xa
+}
 
-XVF64GER        111011 ... -- .... 0 ..... 00111011 ..-  @XX3_at xa=%xx_xa_pair
-XVF64GERPP      111011 ... -- .... 0 ..... 00111010 ..-  @XX3_at xa=%xx_xa_pair
-XVF64GERPN      111011 ... -- .... 0 ..... 10111010 ..-  @XX3_at xa=%xx_xa_pair
-XVF64GERNP      111011 ... -- .... 0 ..... 01111010 ..-  @XX3_at xa=%xx_xa_pair
-XVF64GERNN      111011 ... -- .... 0 ..... 11111010 ..-  @XX3_at xa=%xx_xa_pair
+{
+  DMXVF64GER      111011 ... -- .... 0 ..... 00111011 ..-  @XX3_at xa=%xx_xa_pair
+  XVF64GER        111011 ... -- .... 0 ..... 00111011 ..-  @XX3_at xa=%xx_xa_pair
+}
+{
+  DMXVF64GERPP    111011 ... -- .... 0 ..... 00111010 ..-  @XX3_at xa=%xx_xa_pair
+  XVF64GERPP      111011 ... -- .... 0 ..... 00111010 ..-  @XX3_at xa=%xx_xa_pair
+}
+{
+  DMXVF64GERPN    111011 ... -- .... 0 ..... 10111010 ..-  @XX3_at xa=%xx_xa_pair
+  XVF64GERPN      111011 ... -- .... 0 ..... 10111010 ..-  @XX3_at xa=%xx_xa_pair
+}
+{
+  DMXVF64GERNP    111011 ... -- .... 0 ..... 01111010 ..-  @XX3_at xa=%xx_xa_pair
+  XVF64GERNP      111011 ... -- .... 0 ..... 01111010 ..-  @XX3_at xa=%xx_xa_pair
+}
+{
+  DMXVF64GERNN    111011 ... -- .... 0 ..... 11111010 ..-  @XX3_at xa=%xx_xa_pair
+  XVF64GERNN      111011 ... -- .... 0 ..... 11111010 ..-  @XX3_at xa=%xx_xa_pair
+}
 
 ## Cache Management Instructions
 

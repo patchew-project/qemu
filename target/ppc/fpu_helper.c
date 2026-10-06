@@ -3386,6 +3386,11 @@ static float64 extract_bf16(bfloat16 in, float_status *fp_status)
     return bfloat16_to_float64(in, fp_status);
 }
 
+/*
+ * ISA 3.2 onwards accumulators are assigned in DMRs instead of VSRs.
+ * However both ppc_acc_t and ppc_dmr_row_t are essentially ppc_vsr_t,
+ * hence the below helpers work for either.
+ */
 static void vsxger16(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
                      ppc_acc_t  *at, uint32_t mask, bool acc,
                      bool neg_mul, bool neg_acc, extract_f16 extract)
