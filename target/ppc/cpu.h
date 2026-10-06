@@ -2181,6 +2181,7 @@ void ppc_compat_add_property(Object *obj, const char *name,
 #define SPR_UDEXCR            (0x32C)
 #define SPR_TAR               (0x32F)
 #define SPR_ASDR              (0x330)
+#define SPR_FSSIR             (0x33B)
 #define SPR_DEXCR             (0x33C)
 #define SPR_IC                (0x350)
 #define SPR_VTB               (0x351)
