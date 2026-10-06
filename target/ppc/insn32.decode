@@ -1429,12 +1429,6 @@ XVTLSBB         111100 ... -- 00010 ..... 111011011 . - @XX2_bf_xb
 @XL_s           ......-------------- s:1 .......... -   &XL_s
 RFEBB           010011-------------- .   0010010010 -   @XL_s
 
-## Accumulator Instructions
-
-XXMFACC         011111 ... -- 00000 ----- 0010110001 -   @X_a
-XXMTACC         011111 ... -- 00001 ----- 0010110001 -   @X_a
-XXSETACCZ       011111 ... -- 00011 ----- 0010110001 -   @X_a
-
 ## VSX Vector Logical instructions
 
 XXLAND          111100 ..... ..... ..... 10000010 ...   @XX3
@@ -1546,6 +1540,20 @@ VMODSQ          000100 ..... ..... ..... 11100001011    @VX
 VMODUQ          000100 ..... ..... ..... 11000001011    @VX
 
 ## DMF Instructions
+
+## DMF accumulator instructions overlap with the existing accumulator ones.
+{
+  DMXXMFACC       011111 ... -- 00000 ----- 0010110001 -   @X_a
+  XXMFACC         011111 ... -- 00000 ----- 0010110001 -   @X_a
+}
+{
+  DMXXMTACC       011111 ... -- 00001 ----- 0010110001 -   @X_a
+  XXMTACC         011111 ... -- 00001 ----- 0010110001 -   @X_a
+}
+{
+  DMSETACCZ       011111 ... -- 00011 ----- 0010110001 -   @X_a
+  XXSETACCZ       011111 ... -- 00011 ----- 0010110001 -   @X_a
+}
 
 DMSETDMRZ       011111 ... -- 00010 ----- 0010110001 -      @X_a
 

@@ -105,3 +105,58 @@ static bool trans_DMXOR(DisasContext *ctx, arg_DMXOR *a)
     }
     return true;
 }
+
+static bool trans_DMXXMFACC(DisasContext *ctx, arg_DMXXMFACC *a)
+{
+    TCGv_i128 temp;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA320);
+    REQUIRE_DM(ctx);
+    REQUIRE_VSX(ctx);
+
+    temp = tcg_temp_new_i128();
+    for (int i = 0; i < 4; i++) {
+        get_dmr_row(temp, a->ra, i);
+        set_vsr_full((4 * a->ra) + i, temp);
+    }
+    return true;
+}
+
+static bool trans_DMXXMTACC(DisasContext *ctx, arg_DMXXMTACC *a)
+{
+    TCGv_i128 temp;
+    TCGv_i64 hi, lo;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA320);
+    REQUIRE_DM(ctx);
+    REQUIRE_VSX(ctx);
+
+    temp = tcg_temp_new_i128();
+    for (int i = 0; i < 4; i++) {
+        get_vsr_full(temp, (4 * a->ra) + i);
+        set_dmr_row(a->ra, i, temp);
+    }
+
+    /*
+     * As per ISA 3.2, the last four rows of the DMR corresponding
+     * to the target ACC are set to zero.
+     */
+    hi = tcg_constant_i64(0);
+    lo = tcg_constant_i64(0);
+    tcg_gen_concat_i64_i128(temp, lo, hi);
+    for (int i = 4; i < 8; i++) {
+        set_dmr_row(a->ra, i, temp);
+    }
+    return true;
+}
+
+static bool trans_DMSETACCZ(DisasContext *ctx, arg_DMSETACCZ *a)
+{
+    /*
+     * As per ISA 3.2, the last four rows of the DMR corresponding
+     * to the target ACC are set to zero.
+     * So essentially, all rows are set to zero.
+     * This makes this instruction equivalent to DMSETDMRZ.
+     */
+    return trans_DMSETDMRZ(ctx, a);
+}
