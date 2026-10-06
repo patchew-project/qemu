@@ -10,6 +10,13 @@ static inline void get_dmr_row(TCGv_i128 dst, int reg, int row)
     tcg_gen_ld_i128(dst, tcg_env, dmr_row_offset(reg, row));
 }
 
+static inline TCGv_ptr gen_dmr_ptr(int reg)
+{
+    TCGv_ptr r = tcg_temp_new_ptr();
+    tcg_gen_addi_ptr(r, tcg_env, offsetof(CPUPPCState, dmr[reg]));
+    return r;
+}
+
 static bool trans_DMSETDMRZ(DisasContext *ctx, arg_DMSETDMRZ *a)
 {
     TCGv_i128 zero;
