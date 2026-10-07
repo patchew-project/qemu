@@ -284,6 +284,14 @@ The bbv plugin allows you to generate basic block vectors for use with the
 
   * - Option
     - Description
+  * - begin=A
+    - The virtual address of the instruction that starts basic block vector
+      generation. Generation starts from the beginning of the execution if
+      not specified.
+  * - end=A
+    - The virtual address of the instruction that ends basic block vector
+      generation. Generation continues until the endo of the execution if
+      not specified.
   * - interval=N
     - The interval to generate a basic block vector specified by the number of
       instructions (Default: N = 100000000)
