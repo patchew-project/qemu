@@ -26,7 +26,7 @@ static GHashTable *bbs;
 static GRWLock bbs_lock;
 static char *filename;
 static struct qemu_plugin_scoreboard *vcpus;
-static uint64_t interval = 100000000;
+static int64_t interval = 100000000;
 
 static void plugin_exit(void *p)
 {
@@ -138,7 +138,16 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         char *opt = argv[i];
         g_auto(GStrv) tokens = g_strsplit(opt, "=", 2);
         if (g_strcmp0(tokens[0], "interval") == 0) {
-            interval = g_ascii_strtoull(tokens[1], NULL, 10);
+            char *endptr;
+            interval = g_ascii_strtoll(tokens[1], &endptr, 10);
+            if (*endptr) {
+                fprintf(stderr, "malformed integer: %s\n", opt);
+                return -1;
+            }
+            if (interval <= 0) {
+                fprintf(stderr, "unexpected non-positive value: %s\n", opt);
+                return -1;
+            }
         } else if (g_strcmp0(tokens[0], "outfile") == 0) {
             filename = tokens[1];
             tokens[1] = NULL;
