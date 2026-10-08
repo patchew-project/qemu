@@ -260,6 +260,8 @@ typedef struct NvmeNamespace {
     int          attached;
     uint8_t      pif;
 
+    QemuUUID     uuid;
+
     struct {
         uint16_t zrwas;
         uint16_t zrwafg;
@@ -410,7 +412,8 @@ static inline void nvme_fdp_stat_inc(uint64_t *a, uint64_t b)
 }
 
 void nvme_ns_init_format(NvmeNamespace *ns);
-int nvme_ns_setup(NvmeNamespace *ns, Error **errp);
+int nvme_ns_setup(NvmeNamespace *ns, NvmeCtrl *n, Error **errp);
+void nvme_ns_uuid_init(NvmeNamespace *ns, NvmeCtrl *n);
 void nvme_ns_drain(NvmeNamespace *ns);
 void nvme_ns_shutdown(NvmeNamespace *ns);
 void nvme_ns_cleanup(NvmeNamespace *ns);

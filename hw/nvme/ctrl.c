@@ -6146,10 +6146,10 @@ static uint16_t nvme_identify_ns_descr_list(NvmeCtrl *n, NvmeRequest *req)
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
-    if (!qemu_uuid_is_null(&ns->params.uuid)) {
+    if (!qemu_uuid_is_null(&ns->uuid)) {
         uuid.hdr.nidt = NVME_NIDT_UUID;
         uuid.hdr.nidl = NVME_NIDL_UUID;
-        memcpy(uuid.v, ns->params.uuid.data, NVME_NIDL_UUID);
+        memcpy(uuid.v, ns->uuid.data, NVME_NIDL_UUID);
         memcpy(pos, &uuid, sizeof(uuid));
         pos += sizeof(uuid);
     }
@@ -9706,7 +9706,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         ns->ctrl = n;
         ns->subsys = n->subsys;
 
-        if (nvme_ns_setup(ns, errp)) {
+        if (nvme_ns_setup(ns, n, errp)) {
             return;
         }
 

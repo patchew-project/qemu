@@ -18,6 +18,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu/bitops.h"
+#include "qemu/xxhash.h"
 #include "system/system.h"
 #include "system/block-backend.h"
 #include "migration/vmstate.h"
@@ -61,6 +62,66 @@ void nvme_ns_init_format(NvmeNamespace *ns)
     id_ns->npda = id_ns->npdg = npdg - 1;
     id_ns_nvm->npdal = npdg;
     id_ns_nvm->npdgl = npdg;
+}
+
+static uint64_t nvme_ns_hash_field(const uint8_t *field, size_t len)
+{
+    uint64_t h = QEMU_XXHASH_SEED;
+
+    /* fold `field` of `len` bytes into a 64bit hash value */
+    while (len >= 8) {
+        h = qemu_xxhash64_4(h, ldq_le_p(field), 0, 0);
+        field += 8;
+        len -= 8;
+    }
+
+    while (len >= 4) {
+        h = qemu_xxhash64_4(h, ldl_le_p(field), 0, 0);
+        field += 4;
+        len -= 4;
+    }
+
+    while (len) {
+        h = qemu_xxhash64_4(h, *field++, 0, 0);
+        len--;
+    }
+
+    return h;
+}
+
+void nvme_ns_uuid_init(NvmeNamespace *ns, NvmeCtrl *n)
+{
+    uint64_t sn_hash, mn_hash, lo, hi;
+    uint32_t tmp[4];
+
+    /* user-provided value is preferred */
+    if (!qemu_uuid_is_null(&ns->params.uuid)) {
+        ns->uuid = ns->params.uuid;
+        return;
+    }
+
+    /*
+     * No uuid= given: derive one from the controller identity (VID/SN/MN)
+     * and the namespace id.  This is deterministic, so an OS can use it
+     * as a persistent disk identity across power cycles and resets.
+     */
+    sn_hash = nvme_ns_hash_field(n->id_ctrl.sn, sizeof(n->id_ctrl.sn));
+    mn_hash = nvme_ns_hash_field(n->id_ctrl.mn, sizeof(n->id_ctrl.mn));
+
+    lo = qemu_xxhash64_4(le16_to_cpu(n->id_ctrl.vid), ns->params.nsid,
+                         sn_hash, mn_hash);
+    hi = qemu_xxhash64_4(ns->params.nsid, le16_to_cpu(n->id_ctrl.vid),
+                         mn_hash, sn_hash);
+
+    tmp[0] = (uint32_t)(lo >> 32);
+    tmp[1] = (uint32_t)lo;
+    tmp[2] = (uint32_t)(hi >> 32);
+    tmp[3] = (uint32_t)hi;
+    memcpy(&ns->uuid, tmp, sizeof(tmp));
+
+    ns->uuid.data[8] = (ns->uuid.data[8] & 0x3f) | 0x80;
+    /* RFC 9562 - version 8 UUID (custom) */
+    ns->uuid.data[6] = (ns->uuid.data[6] & 0xf) | 0x80;
 }
 
 static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
@@ -727,7 +788,7 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
     return 0;
 }
 
-int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
+int nvme_ns_setup(NvmeNamespace *ns, NvmeCtrl *n, Error **errp)
 {
     if (nvme_ns_check_constraints(ns, errp)) {
         return -1;
@@ -752,6 +813,8 @@ int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
             return -1;
         }
     }
+
+    nvme_ns_uuid_init(ns, n);
 
     return 0;
 }
@@ -922,18 +985,10 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
     ns->subsys = subsys;
     ns->endgrp = &subsys->endgrp;
 
-    if (!nvme_ns_set_nsabp(n, ns, errp)) {
-        return;
-    }
-
-    if (!nvme_ns_set_nab(n, ns, errp)) {
-        return;
-    }
-
-    if (nvme_ns_setup(ns, errp)) {
-        return;
-    }
-
+    /*
+     * Resolve the namespace id before nvme_ns_setup(): the namespace UUID is
+     * derived from it, so it has to be final by then.
+     */
     if (!nsid) {
         for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
             if (nvme_subsys_ns(subsys, i)) {
@@ -950,6 +1005,18 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
         }
     } else if (nvme_subsys_ns(subsys, nsid)) {
         error_setg(errp, "namespace id '%d' already allocated", nsid);
+        return;
+    }
+
+    if (!nvme_ns_set_nsabp(n, ns, errp)) {
+        return;
+    }
+
+    if (!nvme_ns_set_nab(n, ns, errp)) {
+        return;
+    }
+
+    if (nvme_ns_setup(ns, n, errp)) {
         return;
     }
 
