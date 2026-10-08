@@ -59,6 +59,7 @@ static testdef_t ppc64_tests_slow[] = {
     { NULL },
 };
 
+#ifndef _WIN32
 static const char *s390_bios_load(gsize *len)
 {
     static char *cached_contents;
@@ -106,9 +107,18 @@ out:
     *len = cached_len;
     return cached_contents;
 }
+#endif
 
 static bool s390_bios_has_string(const char *needle)
 {
+#ifdef _WIN32
+    /*
+     * memmem() is not available on win32; assume the string is present.
+     * If it is not, the test will timeout instead of detecting missing support.
+     */
+    g_test_message("\"%s\" assumed in bios", needle);
+    return true;
+#else
     const char *contents;
     gsize len;
     size_t needle_len = strlen(needle);
@@ -126,6 +136,7 @@ static bool s390_bios_has_string(const char *needle)
 
     g_test_message("\"%s\" %s in bios", needle, found ? "found" : "not found");
     return found;
+#endif
 }
 
 static bool s390_bios_has_net_ccw(void)
