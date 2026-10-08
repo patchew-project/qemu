@@ -323,6 +323,7 @@ enum {
     PTE_FOW   = 0x0004,  /* used for page protection (fault on write) */
     PTE_FOE   = 0x0008,  /* used for page protection (fault on exec) */
     PTE_ASM   = 0x0010,
+    PTE_GH    = 0x0060,  /* granularity hint */
     PTE_KRE   = 0x0100,
     PTE_URE   = 0x0200,
     PTE_KWE   = 0x1000,

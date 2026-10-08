@@ -287,6 +287,13 @@ static int get_physical_address(CPUAlphaState *env, vaddr addr,
         goto exit;
     }
 
+    /* A granularity hint of N maps a block of 8^N pages with one entry. */
+    if (L3pte & PTE_GH) {
+        hwaddr mask = (TARGET_PAGE_SIZE << (3 * ((L3pte & PTE_GH) >> 5))) - 1;
+
+        phys = (phys & ~mask) | (addr & mask & TARGET_PAGE_MASK);
+    }
+
 #if PAGE_READ != 1 || PAGE_WRITE != 2 || PAGE_EXEC != 4
 # error page bits out of date
 #endif
