@@ -62,7 +62,7 @@ int cpacf_aes_ecb(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 {
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
-    uint64_t len = *src_len_reg, done = 0;
+    uint64_t len = *src_len_reg;
     int i, keysize, addr_reg_size;
     uint8_t key[32];
     AES_KEY exkey;
@@ -116,22 +116,20 @@ int cpacf_aes_ecb(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
-        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
+        aes_read_block(env, mmu_idx, ra, *src_ptr_reg, in);
         if (mod) {
             AES_decrypt(in, out, &exkey);
         } else {
             AES_encrypt(in, out, &exkey);
         }
-        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
+        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg, out);
+        *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
+                                 *src_ptr_reg + AES_BLOCK_SIZE);
+        *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
+                                 *dst_ptr_reg + AES_BLOCK_SIZE);
+        *src_len_reg -= AES_BLOCK_SIZE;
         len -= AES_BLOCK_SIZE;
-        done += AES_BLOCK_SIZE;
     }
-
-    *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
-                             *src_ptr_reg + done);
-    *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
-                             *dst_ptr_reg + done);
-    *src_len_reg -= done;
 
     return !len ? 0 : 3;
 }
