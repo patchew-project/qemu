@@ -393,8 +393,15 @@ static bool tcg_target_const_match(int64_t val, int ct,
         return 1;
     }
     if (type >= TCG_TYPE_V64) {
-        /* Val is replicated by VECE; extract the highest element. */
-        val >>= (-8 << vece) & 63;
+        /*
+         * For vector logical operations, VECE is unused and equals to 0, so
+         * we need to check that the constant can properly be represented after
+         * replication.
+         */
+        if ((vece != MO_8) || (val == (uint8_t)val * 0x0101010101010101ull)) {
+            /* Val is replicated by VECE; extract the highest element. */
+            val >>= (-8 << vece) & 63;
+        }
     }
     /*
      * Sign extended from 12 bits: [-0x800, 0x7ff].
