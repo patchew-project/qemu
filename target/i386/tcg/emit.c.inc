@@ -4924,6 +4924,7 @@ static void gen_VUCOMI(DisasContext *s, X86DecodedInsn *decode)
     fn = s->prefix & PREFIX_DATA ? gen_helper_ucomisd : gen_helper_ucomiss;
     fn(tcg_env, OP_PTR1, OP_PTR2);
     assume_cc_op(s, CC_OP_EFLAGS);
+    s->cc_op_dirty = false;
 }
 
 static void gen_VZEROALL(DisasContext *s, X86DecodedInsn *decode)
