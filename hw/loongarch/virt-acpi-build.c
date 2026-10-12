@@ -336,8 +336,8 @@ static void build_uart_device_aml(Aml *table, int index)
                                   AML_SHARED, &uart_irq, 1));
     aml_append(dev, aml_name_decl("_CRS", crs));
     pkg0 = aml_package(0x2);
+    aml_append(pkg0, aml_string("clock-frequency"));
     aml_append(pkg0, aml_int(0x05F5E100));
-    aml_append(pkg0, aml_string("clock-frenquency"));
     pkg1 = aml_package(0x1);
     aml_append(pkg1, pkg0);
     pkg2 = aml_package(0x2);
