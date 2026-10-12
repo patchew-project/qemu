@@ -261,12 +261,18 @@ static int qio_channel_file_close(QIOChannel *ioc,
 {
     QIOChannelFile *fioc = QIO_CHANNEL_FILE(ioc);
 
-    if (qemu_close(fioc->fd) < 0) {
+    int ret = qemu_close(fioc->fd);
+    /*
+     * The fd should now have been closed even if we got an error. There are
+     * obscure systems where this isn't always the case, but an fd leak on
+     * obscure systems is less bad than double close on common systems.
+     */
+    fioc->fd = -1;
+    if (ret < 0) {
         error_setg_errno(errp, errno,
-                         "Unable to close file");
+                         "Got an error while closing file");
         return -1;
     }
-    fioc->fd = -1;
     return 0;
 }
 
