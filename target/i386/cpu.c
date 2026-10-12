@@ -9911,6 +9911,11 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         x86_cpu_adjust_level(cpu, &env->cpuid_min_xlevel, 0x8000000A);
     }
 
+    /* TOPOEXT requires CPUID[0x8000001D] and CPUID[0x8000001E] */
+    if (env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_TOPOEXT) {
+        x86_cpu_adjust_level(cpu, &env->cpuid_min_xlevel, 0x8000001E);
+    }
+
     /* SEV requires CPUID[0x8000001F] */
     if (sev_enabled()) {
         x86_cpu_adjust_level(cpu, &env->cpuid_min_xlevel, 0x8000001F);
