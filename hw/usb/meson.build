@@ -78,7 +78,8 @@ endif
 if usbredir.found()
   usbredir_ss = ss.source_set()
   usbredir_ss.add(when: 'CONFIG_USB',
-                  if_true: [usbredir, files('redirect.c', 'quirks.c')])
+                  if_true: [usbredir, files('redirect.c', 'quirks.c',
+                                            'redirect-server.c')])
   hw_usb_modules += {'redirect': usbredir_ss}
 endif
 
