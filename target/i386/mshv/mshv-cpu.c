@@ -1093,6 +1093,21 @@ static void collect_cpuid_entries(const CPUState *cpu, GList **cpuid_entries)
     /* Collect basic leaves (0x0 to max_basic_leaf) */
     for (leaf = 0; leaf <= max_basic_leaf; leaf++) {
         bool has_subleaves = false;
+
+        if (leaf == 0x0b || leaf == 0x1f) {
+            for (subleaf = 0; subleaf < max_subleaf; subleaf++) {
+                cpu_x86_cpuid(env, leaf, subleaf,
+                              &eax, &ebx, &ecx, &edx);
+                add_cpuid_entry(cpuid_entries, leaf, subleaf,
+                                eax, ebx, ecx, edx);
+
+                if (!(ecx & 0xff00)) {
+                    break;
+                }
+            }
+            continue;
+        }
+
         for (int i = 0; i < n_subleaf_leaves; i++) {
             if (leaf == leaves_with_subleaves[i]) {
                 has_subleaves = true;
@@ -1150,6 +1165,20 @@ static void collect_cpuid_entries(const CPUState *cpu, GList **cpuid_entries)
 
     /* Collect extended leaves (0x80000000 to max_extended_leaf) */
     for (leaf = 0x80000000; leaf <= max_extended_leaf; leaf++) {
+        if (leaf == 0x8000001d) {
+            for (subleaf = 0; subleaf < max_subleaf; subleaf++) {
+                cpu_x86_cpuid(env, leaf, subleaf,
+                              &eax, &ebx, &ecx, &edx);
+
+                add_cpuid_entry(cpuid_entries, leaf, subleaf,
+                                eax, ebx, ecx, edx);
+                if ((eax & 0x1f) == 0) {
+                    break;
+                }
+            }
+            continue;
+        }
+
         cpu_x86_cpuid(env, leaf, 0, &eax, &ebx, &ecx, &edx);
         add_cpuid_entry(cpuid_entries, leaf, 0, eax, ebx, ecx, edx);
     }
@@ -1229,12 +1258,10 @@ static int register_intercept_result_cpuid(const CPUState *cpu,
          * 0xb - Extended Topology Enumeration Leaf
          * 0x1f - V2 Extended Topology Enumeration Leaf
          * AMD
-         * 0x8000_001e - Processor Topology Information
          * 0x8000_0026 - Extended CPU Topology
          */
         if (entry->function == 0xb ||
             entry->function == 0x1f ||
-            entry->function == 0x8000001e ||
             entry->function == 0x80000026) {
             subleaf_specific = 1;
             always_override = 1;
@@ -1245,12 +1272,14 @@ static int register_intercept_result_cpuid(const CPUState *cpu,
          * 0x0D: Processor Extended State Enumeration
          * 0x0F: Platform QoS Monitoring
          * 0x10: Platform QoS Enforcement
+         * 0x8000_001D: AMD Cache Topology
          */
         } else if (entry->function == 0x04 ||
                    entry->function == 0x07 ||
                    entry->function == 0x0d ||
                    entry->function == 0x0f ||
-                   entry->function == 0x10) {
+                   entry->function == 0x10 ||
+                   entry->function == 0x8000001d) {
             subleaf_specific = 1;
             always_override = 1;
         /* Basic feature leaves (no subleaves) */
@@ -2339,11 +2368,6 @@ void mshv_arch_init_vcpu(CPUState *cpu)
     header = (X86XSaveHeader *)(env->xsave_buf + sizeof(X86LegacyXSaveArea));
     header->xcomp_bv = header->xstate_bv | (1ULL << 63);
 
-    /*
-     * TODO: populate topology info:
-     * X86CPUTopoInfo *topo_info = &env->topo_info;
-     */
-
     ret = init_cpuid2(cpu);
     assert(ret == 0);
 
@@ -2394,6 +2418,7 @@ uint32_t mshv_get_supported_cpuid(uint32_t func, uint32_t idx, int reg)
     /* Disable nested virtualization features not yet supported by MSHV */
     if (func == 0x80000001 && reg == R_ECX) {
         ret &= ~CPUID_EXT3_SVM;
+        ret |= CPUID_EXT3_TOPOEXT;
     }
     if (func == 0x01       && reg == R_ECX) {
         ret &= ~CPUID_EXT_VMX;
