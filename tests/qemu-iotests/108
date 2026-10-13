@@ -53,7 +53,8 @@ _supported_os Linux
 _unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)' data_file
 
 # This test either needs sudo -n losetup or FUSE exports to work
-if sudo -n losetup &>/dev/null; then
+if probe_dev=$(sudo -n losetup -r --show -f "$0" 2>/dev/null); then
+    sudo -n losetup -d "$probe_dev"
     loopdev=true
 else
     loopdev=false
