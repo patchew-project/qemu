@@ -6,7 +6,7 @@ use std::{
     ffi::CStr,
     mem::MaybeUninit,
     pin::Pin,
-    ptr::{addr_of_mut, null_mut, NonNull},
+    ptr::{null_mut, NonNull},
     slice::from_ref,
 };
 
@@ -331,7 +331,7 @@ impl HPETTimer {
                 // the parameters are valid.
                 unsafe {
                     address_space_stl_le(
-                        addr_of_mut!(address_space_memory),
+                        &raw mut address_space_memory,
                         tn_regs.fsb >> 32,  // Timer N FSB int addr
                         tn_regs.fsb as u32, // Timer N FSB int value, truncate!
                         MEMTXATTRS_UNSPECIFIED,

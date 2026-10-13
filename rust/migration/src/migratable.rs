@@ -5,7 +5,7 @@
 use std::{
     fmt,
     mem::size_of,
-    ptr::{self, addr_of, NonNull},
+    ptr::{self, NonNull},
     sync::{Arc, Mutex},
 };
 
@@ -469,7 +469,7 @@ impl<T: 'static + ToMigrationStateShared> Migratable<T> {
 unsafe impl<T: 'static + ToMigrationStateShared> VMState for Migratable<T> {
     const BASE: bindings::VMStateField = {
         bindings::VMStateField {
-            vmsd: addr_of!(*Self::VMSD),
+            vmsd: &raw const *Self::VMSD,
             size: size_of::<Self>(),
             flags: bindings::VMStateFlags::VMS_STRUCT,
             ..Zeroable::ZERO

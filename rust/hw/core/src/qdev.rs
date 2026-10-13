@@ -6,7 +6,7 @@
 
 use std::{
     ffi::{c_int, c_void, CStr, CString},
-    ptr::{addr_of, NonNull},
+    ptr::NonNull,
 };
 
 use chardev::Chardev;
@@ -142,9 +142,9 @@ macro_rules! impl_qdev_prop {
     ($type:ty,$info:ident$(, $bit_info:ident)?) => {
         unsafe impl $crate::qdev::QDevProp for $type {
             const BASE_INFO: *const $crate::bindings::PropertyInfo =
-                addr_of!($crate::bindings::$info);
+                &raw const $crate::bindings::$info;
             $(const BIT_INFO: *const $crate::bindings::PropertyInfo =
-                addr_of!($crate::bindings::$bit_info);)?
+                &raw const $crate::bindings::$bit_info;)?
         }
     };
 }

@@ -38,8 +38,7 @@ use std::{
     ffi::{c_char, c_int, c_void, CStr},
     fmt::{self, Display},
     ops::Deref,
-    panic,
-    ptr::{self, addr_of_mut},
+    panic, ptr,
 };
 
 use foreign::{prelude::*, OwnedPointer};
@@ -253,10 +252,8 @@ where
 
     fn unwrap_fatal(self) -> T {
         // SAFETY: errp is valid
-        self.map_err(|err| unsafe {
-            Error::from(err).propagate(addr_of_mut!(bindings::error_fatal))
-        })
-        .unwrap()
+        self.map_err(|err| unsafe { Error::from(err).propagate(&raw mut bindings::error_fatal) })
+            .unwrap()
     }
 }
 

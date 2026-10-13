@@ -255,7 +255,7 @@ fn test_vmstate_struct_varray_uint8_wrapper() {
     let foo_fields: &[VMStateField] =
         unsafe { slice::from_raw_parts(VMSTATE_FOOB.as_ref().fields, 7) };
     let mut foo_b: FooB = Default::default();
-    let foo_b_p = std::ptr::addr_of_mut!(foo_b).cast::<c_void>();
+    let foo_b_p = (&raw mut foo_b).cast::<c_void>();
 
     // 6th VMStateField ("arr_a_wrap") in VMSTATE_FOOB (corresponding to
     // VMSTATE_STRUCT_VARRAY_UINT8). Other fields are checked in
@@ -446,7 +446,7 @@ fn test_vmstate_validate() {
     let foo_fields: &[VMStateField] =
         unsafe { slice::from_raw_parts(VMSTATE_FOOD.as_ref().fields, 4) };
     let mut foo_d = FooD;
-    let foo_d_p = std::ptr::addr_of_mut!(foo_d).cast::<c_void>();
+    let foo_d_p = (&raw mut foo_d).cast::<c_void>();
 
     // 1st VMStateField in VMSTATE_FOOD
     assert_eq!(

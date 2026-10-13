@@ -79,7 +79,7 @@ macro_rules! uninit_field_mut {
         // SAFETY: the container is not used directly, only through a MaybeUninit<>,
         // so the safety is delegated to the caller and to final invocation of
         // assume_init()
-        let target__ = unsafe { std::ptr::addr_of_mut!((*container_ptr__).$($field)+) };
+        let target__ = unsafe { &raw mut ((*container_ptr__).$($field)+) };
         $crate::uninit::MaybeUninitField::new(container__, target__)
     }};
 }

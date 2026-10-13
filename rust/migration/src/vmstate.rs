@@ -31,7 +31,7 @@ use std::{
     fmt, io,
     marker::PhantomData,
     mem,
-    ptr::{addr_of, NonNull},
+    ptr::NonNull,
 };
 
 use common::{
@@ -129,7 +129,7 @@ pub const fn size_of_ptr_type<T>(_: *const T) -> usize {
 macro_rules! size_of_field_type {
     ($struct_name:ty, $($field_name:ident).+) => {
         $crate::vmstate::size_of_ptr_type(unsafe {
-            ::core::ptr::addr_of!(
+            &raw const (
                 (*$crate::vmstate::OPAQUE.as_ptr().cast::<$struct_name>()).$($field_name).+
             )
         })
@@ -235,7 +235,7 @@ macro_rules! impl_vmstate_scalar {
     ($info:ident, $type:ty$(, $varray_flag:ident)?) => {
         unsafe impl $crate::vmstate::VMState for $type {
             const BASE: $crate::vmstate::VMStateField = $crate::vmstate::VMStateField {
-                info: addr_of!(bindings::$info),
+                info: &raw const bindings::$info,
                 size: mem::size_of::<$type>(),
                 flags: $crate::vmstate::VMStateFlags::VMS_SINGLE,
                 ..::common::zeroable::Zeroable::ZERO
@@ -261,7 +261,7 @@ macro_rules! impl_vmstate_c_struct {
     ($type:ty, $vmsd:expr) => {
         unsafe impl $crate::vmstate::VMState for $type {
             const BASE: $crate::bindings::VMStateField = $crate::bindings::VMStateField {
-                vmsd: ::std::ptr::addr_of!($vmsd),
+                vmsd: &raw const $vmsd,
                 size: ::std::mem::size_of::<$type>(),
                 flags: $crate::bindings::VMStateFlags::VMS_STRUCT,
                 ..::common::zeroable::Zeroable::ZERO
@@ -305,7 +305,7 @@ macro_rules! vmstate_unused {
         $crate::bindings::VMStateField {
             name: c"unused".as_ptr(),
             size: $size,
-            info: unsafe { ::core::ptr::addr_of!($crate::bindings::vmstate_info_unused_buffer) },
+            info: unsafe { &raw const ($crate::bindings::vmstate_info_unused_buffer) },
             flags: $crate::bindings::VMStateFlags::VMS_BUFFER,
             ..::common::Zeroable::ZERO
         }
@@ -403,7 +403,7 @@ macro_rules! impl_vmstate_struct {
                 static VMSD: &$crate::bindings::VMStateDescription = $vmsd.as_ref();
 
                 $crate::bindings::VMStateField {
-                    vmsd: ::core::ptr::addr_of!(*VMSD),
+                    vmsd: &raw const (*VMSD),
                     size: ::core::mem::size_of::<$type>(),
                     flags: $crate::bindings::VMStateFlags::VMS_STRUCT,
                     ..common::Zeroable::ZERO

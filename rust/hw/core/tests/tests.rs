@@ -2,7 +2,7 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::{ffi::CStr, ptr::addr_of};
+use std::ffi::CStr;
 
 use bql::prelude::*;
 use hwcore::prelude::*;
@@ -140,17 +140,17 @@ fn test_cast() {
     let p_ref: &mut DummyState = unsafe { &mut *p_ptr };
 
     let obj_ref: &Object = p_ref.upcast();
-    assert_eq!(addr_of!(*obj_ref), p_ptr.cast());
+    assert_eq!(&raw const (*obj_ref), p_ptr.cast());
 
     let sbd_ref: Option<&DummyChildState> = obj_ref.dynamic_cast();
     assert!(sbd_ref.is_none());
 
     let dev_ref: Option<&DeviceState> = obj_ref.downcast();
-    assert_eq!(addr_of!(*dev_ref.unwrap()), p_ptr.cast());
+    assert_eq!(&raw const (*dev_ref.unwrap()), p_ptr.cast());
 
     // SAFETY: the cast is wrong, but the value is only used for comparison
     unsafe {
         let sbd_ref: &DummyChildState = obj_ref.unsafe_cast();
-        assert_eq!(addr_of!(*sbd_ref), p_ptr.cast());
+        assert_eq!(&raw const (*sbd_ref), p_ptr.cast());
     }
 }

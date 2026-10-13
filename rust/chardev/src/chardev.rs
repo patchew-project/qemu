@@ -14,7 +14,6 @@ use std::{
     fmt::{self, Debug},
     io::{self, ErrorKind, Write},
     marker::PhantomPinned,
-    ptr::addr_of_mut,
     slice,
 };
 
@@ -53,7 +52,7 @@ impl Write for CharFrontendMut<'_> {
         let chr: &mut bindings::CharFrontend = &mut self.0;
 
         let len = buf.len().try_into().unwrap();
-        let r = unsafe { bindings::qemu_chr_fe_write(addr_of_mut!(*chr), buf.as_ptr(), len) };
+        let r = unsafe { bindings::qemu_chr_fe_write(&raw mut *chr, buf.as_ptr(), len) };
         errno::into_io_result(r).map(|cnt| cnt as usize)
     }
 
@@ -61,7 +60,7 @@ impl Write for CharFrontendMut<'_> {
         let chr: &mut bindings::CharFrontend = &mut self.0;
 
         let len = buf.len().try_into().unwrap();
-        let r = unsafe { bindings::qemu_chr_fe_write_all(addr_of_mut!(*chr), buf.as_ptr(), len) };
+        let r = unsafe { bindings::qemu_chr_fe_write_all(&raw mut *chr, buf.as_ptr(), len) };
         errno::into_io_result(r).and_then(|cnt| {
             if cnt as usize == buf.len() {
                 Ok(())
@@ -156,7 +155,7 @@ impl CharFrontend {
         // SAFETY: the borrow promises that the BQL is taken
         unsafe {
             bindings::qemu_chr_fe_set_handlers(
-                addr_of_mut!(*chr),
+                &raw mut *chr,
                 Some(rust_can_receive_cb::<T, CanReceiveFn>),
                 receive_cb,
                 event_cb,
@@ -174,7 +173,7 @@ impl CharFrontend {
         // SAFETY: the borrow promises that the BQL is taken
         unsafe {
             bindings::qemu_chr_fe_set_handlers(
-                addr_of_mut!(*chr),
+                &raw mut *chr,
                 None,
                 None,
                 None,
@@ -190,7 +189,7 @@ impl CharFrontend {
     pub fn accept_input(&self) {
         let mut chr = self.inner.borrow_mut();
         // SAFETY: the borrow promises that the BQL is taken
-        unsafe { bindings::qemu_chr_fe_accept_input(addr_of_mut!(*chr)) }
+        unsafe { bindings::qemu_chr_fe_accept_input(&raw mut *chr) }
     }
 
     /// Temporarily borrow the character device, allowing it to be used
@@ -209,9 +208,9 @@ impl CharFrontend {
         // SAFETY: the borrow promises that the BQL is taken
         let r = unsafe {
             bindings::qemu_chr_fe_ioctl(
-                addr_of_mut!(*chr),
+                &raw mut *chr,
                 bindings::CHR_IOCTL_SERIAL_SET_BREAK as i32,
-                addr_of_mut!(duration).cast::<c_void>(),
+                (&raw mut duration).cast::<c_void>(),
             )
         };
 
