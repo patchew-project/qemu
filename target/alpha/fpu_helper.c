@@ -86,9 +86,17 @@ void HELPER(fp_exc_raise)(CPUAlphaState *env, uint32_t ignore, uint32_t regno)
 /* Raise exceptions for ieee fp insns with software completion.  */
 void HELPER(fp_exc_raise_s)(CPUAlphaState *env, uint32_t ignore, uint32_t regno)
 {
-    uint32_t exc = env->error_code & ~ignore;
+    uint32_t exc = env->error_code;
     if (exc) {
+        /*
+         * The qualifiers can suppress the raising of exceptions,
+         * but real hardware still records that they occurred.
+         */
         env->fpcr |= exc;
+        exc &= ~ignore;
+        if (!exc) {
+            return;
+        }
         exc &= env->fpcr_exc_enable;
         /*
          * In system mode, the software handler gets invoked
