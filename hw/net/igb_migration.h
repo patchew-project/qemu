@@ -66,6 +66,7 @@
 #define IGB_MIG_CMD_DIRTY_ENABLE        4
 #define IGB_MIG_CMD_DIRTY_DISABLE       5
 #define IGB_MIG_CMD_DIRTY_QUERY         6
+#define IGB_MIG_CMD_GET_STATS           7
 
 /* STATUS register: state in [7:0], error code [15:8] */
 #define IGB_MIG_STATUS_STATE_MASK       0xFF
@@ -100,6 +101,15 @@
 
 /* Shared buffer constants */
 #define IGB_VF_STATE_MAX_SIZE           4096
+
+typedef struct IgbVfMigStats {
+    uint64_t dma_writes;
+    uint64_t dma_bytes;
+    uint32_t dirty_pages_set;
+    uint32_t dirty_pages_cleared;
+    uint32_t dirty_page_count;
+    uint32_t dirty_query_count;
+} IgbVfMigStats;
 
 typedef struct IgbVfMigState {
     uint32_t mig_state;
@@ -155,6 +165,18 @@ struct igb_mig_dirty_query {
     uint64_t dma_writes;
     uint32_t reserved[6];
     uint8_t bitmap[];
+};
+
+/*
+ * GET_STATS:    device writes igb_mig_stats_resp to buffer.
+ */
+struct igb_mig_stats_resp {
+    uint64_t dma_writes;
+    uint64_t dma_bytes;
+    uint32_t dirty_pages_set;
+    uint32_t dirty_pages_cleared;
+    uint32_t dirty_page_count;
+    uint32_t dirty_query_count;
 };
 
 typedef struct IGBCore IGBCore;
