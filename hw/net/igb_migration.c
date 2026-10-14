@@ -19,9 +19,36 @@
  * Per-VF state serialization / deserialization
  */
 
+#define IGB_MIG_BLOB_MAGIC        0x4D494742  /* "MIGB" */
+#define IGB_MIG_BLOB_VERSION      1
+
+typedef struct IgbMigBlob {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t vfn;
+} IgbMigBlob;
+
+#define IGB_MIG_BLOB_SIZE            sizeof(IgbMigBlob)
+
+QEMU_BUILD_BUG_ON(IGB_MIG_BLOB_SIZE > IGB_VF_STATE_MAX_SIZE);
+
+
 static int igb_core_vf_save_state(IgbVfState *s, void *buf, size_t buf_size)
 {
-    int size = 0;
+    int size = IGB_MIG_BLOB_SIZE;
+    IgbMigBlob *blob = buf;
+
+    if (!buf) {
+        return size;
+    }
+
+    if (size > buf_size) {
+        return -IGB_MIG_ERR_BAD_SIZE;
+    }
+
+    blob->magic = cpu_to_le32(IGB_MIG_BLOB_MAGIC);
+    blob->version = cpu_to_le32(IGB_MIG_BLOB_VERSION);
+    blob->vfn = cpu_to_le32(s->vfn);
 
     trace_igbvf_mig_save_state(s->vfn, size);
     return size;
@@ -29,11 +56,35 @@ static int igb_core_vf_save_state(IgbVfState *s, void *buf, size_t buf_size)
 
 static int igb_core_vf_max_data_size(IgbVfState *s)
 {
-    return sizeof(s->mig.mig_data);
+    int size = igb_core_vf_save_state(s, NULL, 0);
+
+    g_assert(size > 0 && size <= IGB_VF_STATE_MAX_SIZE);
+    return size;
 }
 
 static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
 {
+    const IgbMigBlob *blob = buf;
+    uint32_t magic, version, saved_vfn;
+
+    /* Validate blob header */
+    if (size < IGB_MIG_BLOB_SIZE) {
+        return -IGB_MIG_ERR_BAD_SIZE;
+    }
+
+    magic = le32_to_cpu(blob->magic);
+    version = le32_to_cpu(blob->version);
+    saved_vfn = le32_to_cpu(blob->vfn);
+    if (magic != IGB_MIG_BLOB_MAGIC) {
+        return -IGB_MIG_ERR_BAD_MAGIC;
+    }
+    if (version != IGB_MIG_BLOB_VERSION) {
+        return -IGB_MIG_ERR_BAD_VERSION;
+    }
+    if (saved_vfn != s->vfn) {
+        return -IGB_MIG_ERR_BAD_VFN;
+    }
+
     trace_igbvf_mig_load_state(s->vfn, (uint32_t)size);
     return 0;
 }
