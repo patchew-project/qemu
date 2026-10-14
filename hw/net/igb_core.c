@@ -4603,3 +4603,17 @@ void igb_core_vf_propagate_ivar(IGBCore *core, uint16_t vfn)
         core->mac[IVAR0 + n / 4] &= ~mask;
     }
 }
+
+/*
+ * Raise pending VF interrupt causes without re-propagating masks.
+ */
+void igb_core_vf_raise_causes(IGBCore *core, uint16_t vfn)
+{
+    uint32_t shift = 22 - vfn * IGBVF_MSIX_VEC_NUM;
+    uint32_t pvt_idx = PVTEICR0 + vfn * 0x40;
+    uint32_t causes = (core->mac[pvt_idx] & 0x7) << shift;
+
+    if (causes) {
+        igb_set_eics(core, EICS, causes);
+    }
+}

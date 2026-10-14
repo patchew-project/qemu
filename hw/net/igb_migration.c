@@ -1291,6 +1291,11 @@ static void igb_core_vf_unquiesce(IgbVfState *s)
     igb_core_vf_restore_irqs(core, s->vfn,
                              ms->mig_saved_eims, ms->mig_saved_eiac,
                              ms->mig_saved_eiam);
+
+    /* Re-inject pending VF interrupt causes to resume RX/TX ring polling */
+    if (re || te) {
+        igb_core_vf_raise_causes(core, s->vfn);
+    }
 }
 
 static uint8_t igbvf_mig_set_state(IgbVfState *s, uint32_t new_state)
