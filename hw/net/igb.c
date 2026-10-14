@@ -79,6 +79,7 @@ struct IGBState {
 
     IGBCore core;
     bool has_flr;
+    bool vf_migration;
 };
 
 #define IGB_CAP_SRIOV_OFFSET    (0x160)
@@ -597,6 +598,7 @@ static const VMStateDescription igb_vmstate = {
 static const Property igb_properties[] = {
     DEFINE_NIC_PROPERTIES(IGBState, conf),
     DEFINE_PROP_BOOL("x-pcie-flr-init", IGBState, has_flr, true),
+    DEFINE_PROP_BOOL("x-vf-migration", IGBState, vf_migration, false),
 };
 
 static void igb_class_init(ObjectClass *class, const void *data)

@@ -26,7 +26,9 @@
 #ifndef HW_NET_IGB_COMMON_H
 #define HW_NET_IGB_COMMON_H
 
+#include "hw/pci/pci_device.h"
 #include "igb_regs.h"
+#include "igb_migration.h"
 
 #define TYPE_IGBVF "igbvf"
 
@@ -153,5 +155,19 @@ enum {
 uint64_t igb_mmio_read(void *opaque, hwaddr addr, unsigned size);
 void igb_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size);
 void igb_vf_reset(void *opaque, uint16_t vfn);
+
+OBJECT_DECLARE_SIMPLE_TYPE(IgbVfState, IGBVF)
+
+struct IgbVfState {
+    PCIDevice parent_obj;
+
+    uint16_t vfn;
+    bool migration_enabled;
+
+    MemoryRegion mmio;
+    MemoryRegion msix;
+
+    IgbVfMigState mig;
+};
 
 #endif
