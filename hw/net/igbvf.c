@@ -50,6 +50,7 @@
 #include "igb_common.h"
 #include "igb_core.h"
 #include "igb_migration.h"
+#include "migration/blocker.h"
 #include "trace.h"
 #include "qapi/error.h"
 
@@ -309,6 +310,13 @@ static void igbvf_pci_realize(PCIDevice *dev, Error **errp)
         if (!igbvf_add_migration_dvsec(s, errp)) {
             return;
         }
+
+        error_setg(&s->migration_blocker,
+                   "igbvf: VF migration via DVSEC is enabled (x-vf-migration);"
+                   " L0 migration is not supported");
+        if (migrate_add_blocker(&s->migration_blocker, errp) < 0) {
+            return;
+        }
     }
 }
 
@@ -323,6 +331,7 @@ static void igbvf_pci_uninit(PCIDevice *dev)
 {
     IgbVfState *s = IGBVF(dev);
 
+    migrate_del_blocker(&s->migration_blocker);
     pcie_aer_exit(dev);
     pcie_cap_exit(dev);
     msix_unuse_all_vectors(dev);

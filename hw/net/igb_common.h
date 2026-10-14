@@ -163,6 +163,7 @@ struct IgbVfState {
 
     uint16_t vfn;
     bool migration_enabled;
+    Error *migration_blocker;
 
     MemoryRegion mmio;
     MemoryRegion msix;
