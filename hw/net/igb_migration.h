@@ -108,6 +108,9 @@ typedef struct IgbVfMigState {
     uint64_t mig_data_buf_addr;
     bool mig_saved_vfre;
     bool mig_saved_vfte;
+    uint32_t mig_saved_eims;
+    uint32_t mig_saved_eiac;
+    uint32_t mig_saved_eiam;
 } IgbVfMigState;
 
 #define IGB_MIG_DIRTY_DEFAULT_PGSIZE        4096

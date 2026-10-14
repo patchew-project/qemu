@@ -66,6 +66,9 @@ typedef struct IgbMigBlob {
     uint32_t uta[E1000_MC_TBL_SIZE];
     uint32_t vfre;
     uint32_t vfte;
+    uint32_t eims_bits;
+    uint32_t eiac_bits;
+    uint32_t eiam_bits;
 } IgbMigBlob;
 
 #define IGB_MIG_BLOB_SIZE            sizeof(IgbMigBlob)
@@ -574,6 +577,14 @@ static int igb_core_vf_save_state(IgbVfState *s, void *buf, size_t buf_size)
     blob->vfre = cpu_to_le32(ms->mig_saved_vfre);
     blob->vfte = cpu_to_le32(ms->mig_saved_vfte);
 
+    /*
+     * Save VF's effective interrupt mask bits captured at quiesce
+     * entry, before VFRE/VFTE were disabled.
+     */
+    blob->eims_bits = cpu_to_le32(ms->mig_saved_eims);
+    blob->eiac_bits = cpu_to_le32(ms->mig_saved_eiac);
+    blob->eiam_bits = cpu_to_le32(ms->mig_saved_eiam);
+
     trace_igbvf_mig_save_state(s->vfn, size, ms->mig_saved_vfre,
                                ms->mig_saved_vfte,
                                core->mac[VFRE]);
@@ -798,6 +809,9 @@ static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
 
     ms->mig_saved_vfre = !!le32_to_cpu(blob->vfre);
     ms->mig_saved_vfte = !!le32_to_cpu(blob->vfte);
+    ms->mig_saved_eims = le32_to_cpu(blob->eims_bits) & 0x7;
+    ms->mig_saved_eiac = le32_to_cpu(blob->eiac_bits) & 0x7;
+    ms->mig_saved_eiam = le32_to_cpu(blob->eiam_bits) & 0x7;
 
     trace_igbvf_mig_load_state(s->vfn, (uint32_t)size,
                                ms->mig_saved_vfre,
@@ -1190,11 +1204,57 @@ static uint8_t igbvf_mig_cmd_load(IgbVfState *s, uint32_t data_size)
     return 0;
 }
 
+/*
+ * Extended Interrupt registers
+ *
+ * EIMS Mask Set       enable interrupt vectors (unmasked)
+ * EIAC Auto Clear     auto-clear vectors in EICR on delivery
+ * EIAM Auto Mask      auto-mask vectors (clear EIMS) on delivery
+ *
+ * All three are PF-wide aggregate registers. Each VF owns 3 bits (one
+ * per MSI-X vector) at position (22 - vfn*3). The VF writes to PVT
+ * shadows (PVTEIMS etc.) which the register handler ORs into the
+ * aggregates but EIMC clears the aggregate without updating the
+ * shadow.
+ */
+static void igb_core_vf_save_irqs(IGBCore *core, uint16_t vfn,
+                                  uint32_t *eims, uint32_t *eiac,
+                                  uint32_t *eiam)
+{
+    uint32_t shift = 22 - vfn * IGBVF_MSIX_VEC_NUM;
+
+    *eims = (core->mac[EIMS] >> shift) & 0x7;
+    *eiac = (core->mac[EIAC] >> shift) & 0x7;
+    *eiam = (core->mac[EIAM] >> shift) & 0x7;
+}
+
+static void igb_core_vf_restore_irqs(IGBCore *core, uint16_t vfn,
+                                     uint32_t eims, uint32_t eiac,
+                                     uint32_t eiam)
+{
+    uint32_t shift = 22 - vfn * IGBVF_MSIX_VEC_NUM;
+    uint32_t vf_mask = 0x7u << shift;
+
+    core->mac[EIMS] = (core->mac[EIMS] & ~vf_mask) | ((eims & 0x7) << shift);
+    core->mac[EIAC] = (core->mac[EIAC] & ~vf_mask) | ((eiac & 0x7) << shift);
+    core->mac[EIAM] = (core->mac[EIAM] & ~vf_mask) | ((eiam & 0x7) << shift);
+    core->mac[EICR] &= ~vf_mask;
+}
+
 /* Quiesce a VF by disabling its RX and TX at the PF level. */
 static void igb_core_vf_quiesce(IgbVfState *s)
 {
     IgbVfMigState *ms = &s->mig;
     IGBCore *core = igbvf_get_core(s);
+
+    /*
+     * Capture effective interrupt mask bits from PF aggregates before
+     * quiescing.  PVT shadows only record the last write, not the
+     * accumulated state.
+     */
+    igb_core_vf_save_irqs(core, s->vfn,
+                          &ms->mig_saved_eims, &ms->mig_saved_eiac,
+                          &ms->mig_saved_eiam);
 
     ms->mig_saved_vfre = !!(core->mac[VFRE] & BIT(s->vfn));
     ms->mig_saved_vfte = !!(core->mac[VFTE] & BIT(s->vfn));
@@ -1224,7 +1284,13 @@ static void igb_core_vf_unquiesce(IgbVfState *s)
 
     trace_igbvf_mig_unquiesce(s->vfn, core->mac[VFRE], core->mac[VFTE]);
 
-    /* Interrupt mask restore and pending cause re-raise added later. */
+    /*
+     * Restore VF's effective interrupt mask bits into PF aggregate
+     * registers.
+     */
+    igb_core_vf_restore_irqs(core, s->vfn,
+                             ms->mig_saved_eims, ms->mig_saved_eiac,
+                             ms->mig_saved_eiam);
 }
 
 static uint8_t igbvf_mig_set_state(IgbVfState *s, uint32_t new_state)
