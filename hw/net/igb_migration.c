@@ -253,6 +253,9 @@ static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
         }
     }
 
+    /* Propagate VTIVAR to IVAR0, skipped by direct core->mac[] write */
+    igb_core_vf_propagate_ivar(core, s->vfn);
+
     trace_igbvf_mig_load_state(s->vfn, (uint32_t)size);
     return 0;
 }

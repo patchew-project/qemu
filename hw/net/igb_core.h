@@ -145,4 +145,6 @@ igb_start_recv(IGBCore *core);
 
 IGBCore *igb_pf_get_core(void *pf);
 
+void igb_core_vf_propagate_ivar(IGBCore *core, uint16_t vfn);
+
 #endif
