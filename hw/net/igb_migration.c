@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pcie.h"
 #include "net/eth.h"
@@ -36,6 +37,7 @@ typedef struct IgbMigRegPair {
 } IgbMigRegPair;
 
 #define IGB_VF_MAX_FIXED_REGS     64
+#define IGB_VF_MAX_RA_REGS        48  /* (16 + 8) RA entries * 2 (RAL+RAH) */
 
 typedef struct IgbMigTxCtx {
     uint32_t ctx_desc[8];         /* 2 * adv_tx_context_desc (4 dwords each) */
@@ -51,6 +53,8 @@ typedef struct IgbMigBlob {
     uint32_t vfn;
     uint32_t num_regs;
     IgbMigRegPair regs[IGB_VF_MAX_FIXED_REGS];
+    uint32_t num_ra;
+    IgbMigRegPair ra[IGB_VF_MAX_RA_REGS];
     uint32_t num_tx_ctx;
     IgbMigTxCtx tx_ctx[2];
 } IgbMigBlob;
@@ -150,6 +154,201 @@ static int igb_vf_reg_list(uint16_t vfn, uint32_t *offsets)
     return n;
 }
 
+static const struct {
+    uint32_t base;
+    int count;
+} ra_banks[] = {
+    { RA,  16 },
+    { RA2,  8 },
+};
+
+static int igb_core_vf_save_ra(IGBCore *core, uint16_t vfn,
+                               IgbMigRegPair *regs)
+{
+    uint32_t vf_pool_bit = E1000_RAH_POOL_1 << vfn;
+    int n = 0;
+
+    for (int i = 0; i < ARRAY_SIZE(ra_banks); i++) {
+        for (int j = 0; j < ra_banks[i].count; j++) {
+            uint32_t ral_off = ra_banks[i].base + j * 2;
+            uint32_t rah_off = ra_banks[i].base + j * 2 + 1;
+            uint32_t rah_val = core->mac[rah_off];
+
+            if ((rah_val & E1000_RAH_AV) && (rah_val & vf_pool_bit)) {
+                regs[n].offset = cpu_to_le32(ral_off);
+                regs[n].value = cpu_to_le32(core->mac[ral_off]);
+                n++;
+                regs[n].offset = cpu_to_le32(rah_off);
+                regs[n].value = cpu_to_le32(rah_val);
+                n++;
+            }
+        }
+    }
+    return n;
+}
+
+/*
+ * Remove this VF's pool bit from all RA entries. If no pool bits
+ * remain the entry is unused; clear it entirely. This preserves other
+ * VFs' entries that may share the same RA slot (e.g. a multicast
+ * address used by multiple VFs).
+ */
+static void igb_core_vf_clear_ra(IGBCore *core, uint16_t vfn)
+{
+    uint32_t vf_pool_bit = E1000_RAH_POOL_1 << vfn;
+
+    for (int i = 0; i < ARRAY_SIZE(ra_banks); i++) {
+        for (int j = 0; j < ra_banks[i].count; j++) {
+            uint32_t ral_off = ra_banks[i].base + j * 2;
+            uint32_t rah_off = ra_banks[i].base + j * 2 + 1;
+            uint32_t rah_val = core->mac[rah_off];
+
+            if (!(rah_val & E1000_RAH_AV) || !(rah_val & vf_pool_bit)) {
+                continue;
+            }
+
+            rah_val &= ~vf_pool_bit;
+            if (!(rah_val & E1000_RAH_POOL_MASK)) {
+                core->mac[ral_off] = 0;
+                core->mac[rah_off] = 0;
+            } else {
+                core->mac[rah_off] = rah_val;
+            }
+        }
+    }
+}
+
+/*
+ * The hardware scans all RA/RA2 entries during RX filtering and
+ * the VF driver has no awareness of which slot is used, so the L1
+ * PF driver picks the slot.  So the slot index is meaningless
+ * across migration; only the MAC + pool bit matters.
+ *
+ * For each saved entry:
+ *   1. Find a destination slot with the same MAC and add this VF's
+ *      pool bit (preserves other VFs sharing the address).
+ *   2. Otherwise allocate a free slot.
+ *   3. Reject if the RA table is full.
+ */
+static int igb_core_vf_load_ra(IGBCore *core, uint16_t vfn,
+                                const IgbMigRegPair *ra_pairs,
+                                uint32_t num_ra)
+{
+    uint32_t vf_pool_bit = E1000_RAH_POOL_1 << vfn;
+
+    /* RA entries are saved as (RAL, RAH) pairs */
+    for (uint32_t p = 0; p + 1 < num_ra; p += 2) {
+        uint32_t saved_ral = le32_to_cpu(ra_pairs[p].value);
+        uint32_t saved_rah = le32_to_cpu(ra_pairs[p + 1].value);
+        uint16_t saved_mac_hi = saved_rah & 0xFFFF;
+        int match = -1;
+        int free_slot_bank = -1;
+        int free_slot_idx = -1;
+
+        for (int i = 0; i < ARRAY_SIZE(ra_banks); i++) {
+            for (int j = 0; j < ra_banks[i].count; j++) {
+                uint32_t ral_off = ra_banks[i].base + j * 2;
+                uint32_t rah_off = ra_banks[i].base + j * 2 + 1;
+                uint32_t rah_val = core->mac[rah_off];
+
+                if (rah_val & E1000_RAH_AV) {
+                    if (core->mac[ral_off] == saved_ral &&
+                        (rah_val & 0xFFFF) == saved_mac_hi) {
+                        match = rah_off;
+                        break;
+                    }
+                } else if (free_slot_bank < 0) {
+                    free_slot_bank = i;
+                    free_slot_idx = j;
+                }
+            }
+            if (match >= 0) {
+                break;
+            }
+        }
+
+        if (match >= 0) {
+            core->mac[match] |= vf_pool_bit;
+        } else if (free_slot_bank >= 0) {
+            uint32_t ral_off = ra_banks[free_slot_bank].base +
+                               free_slot_idx * 2;
+            uint32_t rah_off = ral_off + 1;
+            core->mac[ral_off] = saved_ral;
+            core->mac[rah_off] = (saved_rah & 0xFFFF) |
+                                 E1000_RAH_AV | vf_pool_bit;
+        } else {
+            return -IGB_MIG_ERR_BAD_DATA;
+        }
+    }
+    return 0;
+}
+
+/*
+ * Dry-run check: can all saved RA entries be placed after clearing
+ * this VF's pool bits?  Simulates the clear+load without writing.
+ *
+ * After clear, sole-owner entries are zeroed (becoming free slots)
+ * and shared entries just lose this VF's pool bit but keep their MAC.
+ * For each saved entry we check whether a MAC match survives in the
+ * post-clear state; entries that do not match need a free slot.
+ */
+static int igb_core_vf_can_load_ra(IGBCore *core, uint16_t vfn,
+                                   const IgbMigRegPair *ra_pairs,
+                                   uint32_t num_ra)
+{
+    uint32_t vf_pool_bit = E1000_RAH_POOL_1 << vfn;
+    int free_slots = 0;
+
+    for (int i = 0; i < ARRAY_SIZE(ra_banks); i++) {
+        for (int j = 0; j < ra_banks[i].count; j++) {
+            uint32_t rah_off = ra_banks[i].base + j * 2 + 1;
+            uint32_t rah_val = core->mac[rah_off];
+
+            if (!(rah_val & E1000_RAH_AV)) {
+                free_slots++;
+            } else if ((rah_val & vf_pool_bit) &&
+                       !(rah_val & ~vf_pool_bit & E1000_RAH_POOL_MASK)) {
+                free_slots++;
+            }
+        }
+    }
+
+    for (uint32_t p = 0; p + 1 < num_ra; p += 2) {
+        uint32_t saved_ral = le32_to_cpu(ra_pairs[p].value);
+        uint16_t saved_mac_hi = le32_to_cpu(ra_pairs[p + 1].value) & 0xFFFF;
+        bool found = false;
+
+        for (int i = 0; i < ARRAY_SIZE(ra_banks) && !found; i++) {
+            for (int j = 0; j < ra_banks[i].count; j++) {
+                uint32_t ral_off = ra_banks[i].base + j * 2;
+                uint32_t rah_off = ra_banks[i].base + j * 2 + 1;
+                uint32_t rah_val = core->mac[rah_off];
+
+                if (!(rah_val & E1000_RAH_AV)) {
+                    continue;
+                }
+                /* Sole-owner entries will be zeroed by clear */
+                if ((rah_val & vf_pool_bit) &&
+                    !(rah_val & ~vf_pool_bit & E1000_RAH_POOL_MASK)) {
+                    continue;
+                }
+                if (core->mac[ral_off] == saved_ral &&
+                    (rah_val & 0xFFFF) == saved_mac_hi) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        if (!found) {
+            if (--free_slots < 0) {
+                return -IGB_MIG_ERR_UNSUPPORTED;
+            }
+        }
+    }
+    return 0;
+}
+
 static void igb_core_vf_save_tx_ctx(IGBCore *core, int queue,
                                     IgbMigTxCtx *tx)
 {
@@ -200,6 +399,8 @@ static int igb_core_vf_save_state(IgbVfState *s, void *buf, size_t buf_size)
     blob->num_tx_ctx = cpu_to_le32(2);
     igb_core_vf_save_tx_ctx(core, q0, &blob->tx_ctx[0]);
     igb_core_vf_save_tx_ctx(core, q1, &blob->tx_ctx[1]);
+
+    blob->num_ra = cpu_to_le32(igb_core_vf_save_ra(core, s->vfn, blob->ra));
 
     trace_igbvf_mig_save_state(s->vfn, size);
     return size;
@@ -297,6 +498,17 @@ static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
         return -IGB_MIG_ERR_BAD_DATA;
     }
 
+    uint32_t num_ra = le32_to_cpu(blob->num_ra);
+    if (num_ra > IGB_VF_MAX_RA_REGS || (num_ra & 1)) {
+        return -IGB_MIG_ERR_BAD_DATA;
+    }
+    if (num_ra > 0) {
+        int ret = igb_core_vf_can_load_ra(core, s->vfn, blob->ra, num_ra);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     /*
      * Phase 2: Apply state.  All offsets and placements are
      * validated; writes cannot fail.
@@ -316,6 +528,16 @@ static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
 
     igb_core_vf_load_tx_ctx(core, q0, &blob->tx_ctx[0]);
     igb_core_vf_load_tx_ctx(core, q1, &blob->tx_ctx[1]);
+
+    igb_core_vf_clear_ra(core, s->vfn);
+    if (num_ra > 0) {
+        int ret = igb_core_vf_load_ra(core, s->vfn, blob->ra, num_ra);
+        if (ret < 0) {
+            error_report("igb: VF%u: RA load failed after pre-validation",
+                         s->vfn);
+            return ret;
+        }
+    }
 
     /* Propagate VTIVAR to IVAR0, skipped by direct core->mac[] write */
     igb_core_vf_propagate_ivar(core, s->vfn);

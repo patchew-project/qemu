@@ -77,6 +77,7 @@
 #define IGB_MIG_ERR_BAD_VERSION         7
 #define IGB_MIG_ERR_BAD_VFN             8
 #define IGB_MIG_ERR_BAD_DATA            9
+#define IGB_MIG_ERR_UNSUPPORTED         10
 
 /* Shared buffer constants */
 #define IGB_VF_STATE_MAX_SIZE           4096
