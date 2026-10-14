@@ -10,10 +10,18 @@
 #include "qemu/log.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pcie.h"
+#include "net/eth.h"
+#include "net/net.h"
 #include "igb_common.h"
+#include "igb_core.h"
 #include "igb_migration.h"
 #include "system/address-spaces.h"
 #include "trace.h"
+
+static IGBCore *igbvf_get_core(IgbVfState *s)
+{
+    return igb_pf_get_core(pcie_sriov_get_pf(PCI_DEVICE(s)));
+}
 
 /*
  * Per-VF state serialization / deserialization
@@ -22,21 +30,125 @@
 #define IGB_MIG_BLOB_MAGIC        0x4D494742  /* "MIGB" */
 #define IGB_MIG_BLOB_VERSION      1
 
+typedef struct IgbMigRegPair {
+    uint32_t offset;
+    uint32_t value;
+} IgbMigRegPair;
+
+#define IGB_VF_MAX_FIXED_REGS     64
+
 typedef struct IgbMigBlob {
     uint32_t magic;
     uint32_t version;
     uint32_t vfn;
+    uint32_t num_regs;
+    IgbMigRegPair regs[IGB_VF_MAX_FIXED_REGS];
 } IgbMigBlob;
 
 #define IGB_MIG_BLOB_SIZE            sizeof(IgbMigBlob)
 
 QEMU_BUILD_BUG_ON(IGB_MIG_BLOB_SIZE > IGB_VF_STATE_MAX_SIZE);
 
+/* Register offsets that constitute a VF's state slice */
+static int igb_vf_reg_list(uint16_t vfn, uint32_t *offsets)
+{
+    int n = 0;
+    int q0 = vfn;
+    int q1 = vfn + IGB_NUM_VM_POOLS;
+
+    /* Per-VF control and interrupt registers */
+    offsets[n++] = E1000_PVTCTRL(vfn) >> 2;
+    offsets[n++] = E1000_PVTEICS(vfn) >> 2;
+    offsets[n++] = E1000_PVTEIMC(vfn) >> 2;
+    offsets[n++] = E1000_PVTEICR(vfn) >> 2;
+
+    /* Per-VF statistics */
+    offsets[n++] = E1000_PVFGPRC(vfn) >> 2;
+    offsets[n++] = E1000_PVFGPTC(vfn) >> 2;
+    offsets[n++] = E1000_PVFGORC(vfn) >> 2;
+    offsets[n++] = E1000_PVFGOTC(vfn) >> 2;
+    offsets[n++] = E1000_PVFMPRC(vfn) >> 2;
+    offsets[n++] = E1000_PVFGPRLBC(vfn) >> 2;
+    offsets[n++] = E1000_PVFGPTLBC(vfn) >> 2;
+    offsets[n++] = E1000_PVFGORLBC(vfn) >> 2;
+    offsets[n++] = E1000_PVFGOTLBC(vfn) >> 2;
+
+    /*
+     * Mailbox control registers only - the 16-dword payload buffer
+     * (VMBMEM) is transient and drained on quiesce.
+     */
+    offsets[n++] = E1000_V2PMAILBOX(vfn) >> 2;
+    offsets[n++] = E1000_P2VMAILBOX(vfn) >> 2;
+
+    /* Per-VF config */
+    offsets[n++] = E1000_VMOLR(vfn) >> 2;
+    offsets[n++] = E1000_VMVIR(vfn) >> 2;
+    offsets[n++] = E1000_PSRTYPE(vfn) >> 2;
+
+    /*
+     * VF receive addresses (RA/RA2) are saved dynamically in
+     * igb_core_vf_save_state by scanning for entries whose pool
+     * bits match this VF - the PF driver chooses the RA slot.
+     */
+
+    /* Interrupt routing */
+    offsets[n++] = (E1000_VTIVAR + vfn * 4) >> 2;
+    offsets[n++] = (E1000_VTIVAR_MISC + vfn * 4) >> 2;
+
+    /*
+     * EITR (Extended Interrupt Throttle Register) - 3 vectors per VF.
+     * Each VF has 3 MSI-X vectors, each with its own EITR controlling
+     * interrupt coalescing. Without saving these, interrupt
+     * throttling resets to zero after migration which can cause
+     * interrupt storms or latency changes. VF N uses PF EITR indices
+     * (22 - N*3) .. (24 - N*3).
+     */
+    {
+        int eitr_base = 22 - vfn * 3;
+        offsets[n++] = E1000_EITR(eitr_base) >> 2;
+        offsets[n++] = E1000_EITR(eitr_base + 1) >> 2;
+        offsets[n++] = E1000_EITR(eitr_base + 2) >> 2;
+    }
+
+    /* RX and TX queue registers for queues q0 and q1 */
+#define ADD_QUEUE_REGS(q) do { \
+    offsets[n++] = E1000_RDBAL(q) >> 2; \
+    offsets[n++] = E1000_RDBAH(q) >> 2; \
+    offsets[n++] = E1000_RDLEN(q) >> 2; \
+    offsets[n++] = E1000_SRRCTL(q) >> 2; \
+    offsets[n++] = E1000_RDH(q) >> 2; \
+    offsets[n++] = E1000_RDT(q) >> 2; \
+    offsets[n++] = E1000_RXDCTL(q) >> 2; \
+    offsets[n++] = E1000_RXCTL(q) >> 2; \
+    offsets[n++] = E1000_RQDPC(q) >> 2; \
+    offsets[n++] = E1000_TDBAL(q) >> 2; \
+    offsets[n++] = E1000_TDBAH(q) >> 2; \
+    offsets[n++] = E1000_TDLEN(q) >> 2; \
+    offsets[n++] = E1000_TDH(q) >> 2; \
+    offsets[n++] = E1000_TDT(q) >> 2; \
+    offsets[n++] = E1000_TXDCTL(q) >> 2; \
+    offsets[n++] = E1000_TXCTL(q) >> 2; \
+    offsets[n++] = E1000_TDWBAL(q) >> 2; \
+    offsets[n++] = E1000_TDWBAH(q) >> 2; \
+} while (0)
+
+    ADD_QUEUE_REGS(q0);
+    ADD_QUEUE_REGS(q1);
+#undef ADD_QUEUE_REGS
+
+    g_assert(n <= IGB_VF_MAX_FIXED_REGS);
+    return n;
+}
 
 static int igb_core_vf_save_state(IgbVfState *s, void *buf, size_t buf_size)
 {
     int size = IGB_MIG_BLOB_SIZE;
+    IGBCore *core = igbvf_get_core(s);
     IgbMigBlob *blob = buf;
+    uint32_t offsets[IGB_VF_MAX_FIXED_REGS];
+    int num_regs;
+
+    num_regs = igb_vf_reg_list(s->vfn, offsets);
 
     if (!buf) {
         return size;
@@ -50,6 +162,12 @@ static int igb_core_vf_save_state(IgbVfState *s, void *buf, size_t buf_size)
     blob->version = cpu_to_le32(IGB_MIG_BLOB_VERSION);
     blob->vfn = cpu_to_le32(s->vfn);
 
+    blob->num_regs = cpu_to_le32(num_regs);
+    for (int i = 0; i < num_regs; i++) {
+        blob->regs[i].offset = cpu_to_le32(offsets[i]);
+        blob->regs[i].value = cpu_to_le32(core->mac[offsets[i]]);
+    }
+
     trace_igbvf_mig_save_state(s->vfn, size);
     return size;
 }
@@ -62,10 +180,34 @@ static int igb_core_vf_max_data_size(IgbVfState *s)
     return size;
 }
 
+static bool igb_core_vf_validate_regs(uint16_t vfn,
+                                      const IgbMigRegPair *regs,
+                                      uint32_t num_regs)
+{
+    uint32_t expected[IGB_VF_MAX_FIXED_REGS];
+    int num_expected;
+
+    if (num_regs > IGB_VF_MAX_FIXED_REGS) {
+        return false;
+    }
+
+    num_expected = igb_vf_reg_list(vfn, expected);
+    if (num_regs != num_expected) {
+        return false;
+    }
+    for (int i = 0; i < num_regs; i++) {
+        if (le32_to_cpu(regs[i].offset) != expected[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
 {
+    IGBCore *core = igbvf_get_core(s);
     const IgbMigBlob *blob = buf;
-    uint32_t magic, version, saved_vfn;
+    uint32_t magic, version, saved_vfn, num_regs;
 
     /* Validate blob header */
     if (size < IGB_MIG_BLOB_SIZE) {
@@ -83,6 +225,32 @@ static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
     }
     if (saved_vfn != s->vfn) {
         return -IGB_MIG_ERR_BAD_VFN;
+    }
+
+    /*
+     * Phase 1: Validate blob state before modifying any core state.
+     * A malformed blob must not leave the device partially updated.
+     */
+    num_regs = le32_to_cpu(blob->num_regs);
+    if (!igb_core_vf_validate_regs(s->vfn, blob->regs, num_regs)) {
+        return -IGB_MIG_ERR_BAD_DATA;
+    }
+
+    /*
+     * Phase 2: Apply state.  All offsets and placements are
+     * validated; writes cannot fail.
+     */
+    for (int i = 0; i < num_regs; i++) {
+        uint32_t offset = le32_to_cpu(blob->regs[i].offset);
+        uint32_t value = le32_to_cpu(blob->regs[i].value);
+
+        core->mac[offset] = value;
+
+        /* Replicate igb_set_eitr() side effect bypassed by direct write */
+        if (offset >= EITR0 && offset < EITR0 + IGB_INTR_NUM) {
+            core->eitr_guest_value[offset - EITR0] =
+                value & ~E1000_EITR_CNT_IGNR;
+        }
     }
 
     trace_igbvf_mig_load_state(s->vfn, (uint32_t)size);
