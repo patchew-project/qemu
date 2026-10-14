@@ -60,6 +60,8 @@ typedef struct IgbMigBlob {
     IgbMigTxCtx tx_ctx[2];
     uint32_t num_vlvf;
     uint32_t vlvf[IGB_VF_MAX_VLVF_REGS];
+    uint32_t mta[E1000_MC_TBL_SIZE];
+    uint32_t uta[E1000_MC_TBL_SIZE];
 } IgbMigBlob;
 
 #define IGB_MIG_BLOB_SIZE            sizeof(IgbMigBlob)
@@ -490,6 +492,22 @@ static int igb_core_vf_can_load_vlvf(IGBCore *core, uint16_t vfn,
     return 0;
 }
 
+static void igb_core_vf_save_hash_tables(IGBCore *core, uint16_t vfn,
+                                         IgbMigBlob *blob)
+{
+    for (int i = 0; i < E1000_MC_TBL_SIZE; i++) {
+        blob->mta[i] = cpu_to_le32(core->mac[MTA + i]);
+        blob->uta[i] = cpu_to_le32(core->mac[UTA + i]);
+
+        if (core->mac[MTA + i]) {
+            trace_igbvf_mig_save_hash_tables(vfn, "MTA", i, core->mac[MTA + i]);
+        }
+        if (core->mac[UTA + i]) {
+            trace_igbvf_mig_save_hash_tables(vfn, "UTA", i, core->mac[UTA + i]);
+        }
+    }
+}
+
 static void igb_core_vf_save_tx_ctx(IGBCore *core, int queue,
                                     IgbMigTxCtx *tx)
 {
@@ -546,6 +564,8 @@ static int igb_core_vf_save_state(IgbVfState *s, void *buf, size_t buf_size)
     blob->num_vlvf = cpu_to_le32(igb_core_vf_save_vlvf(core, s->vfn,
                                                         blob->vlvf));
 
+    igb_core_vf_save_hash_tables(core, s->vfn, blob);
+
     trace_igbvf_mig_save_state(s->vfn, size);
     return size;
 }
@@ -579,6 +599,61 @@ static bool igb_core_vf_validate_regs(uint16_t vfn,
         }
     }
     return true;
+}
+
+/*
+ * Extract a register from the incoming blob. Used in Phase 1
+ * validation where core->mac[] still holds the destination's state,
+ * not the source's.
+ */
+static uint32_t igb_core_vf_blob_get_reg(const IgbMigBlob *blob,
+                                         uint32_t offset)
+{
+    uint32_t num_regs = le32_to_cpu(blob->num_regs);
+
+    for (int i = 0; i < num_regs; i++) {
+        if (le32_to_cpu(blob->regs[i].offset) == offset) {
+            return le32_to_cpu(blob->regs[i].value);
+        }
+    }
+    return 0;
+}
+
+/*
+ * OR missing hash table entries from the source into the destination.
+ * MTA/UTA are PF-wide shared tables with no per-VF ownership, so
+ * entries present on the source may be absent on the destination.
+ */
+static bool igb_core_vf_fixup_hash_tables(IGBCore *core, uint16_t vfn,
+                                           const IgbMigBlob *blob)
+{
+    uint32_t vmolr = igb_core_vf_blob_get_reg(blob, VMOLR0 + vfn);
+    bool check_mta = vmolr & E1000_VMOLR_ROMPE;
+    bool check_uta = vmolr & E1000_VMOLR_ROPE;
+    bool fixed_up = false;
+
+    for (int i = 0; i < E1000_MC_TBL_SIZE; i++) {
+        uint32_t src_mta = le32_to_cpu(blob->mta[i]);
+        uint32_t src_uta = le32_to_cpu(blob->uta[i]);
+        uint32_t missing_mta = src_mta & ~core->mac[MTA + i];
+        uint32_t missing_uta = src_uta & ~core->mac[UTA + i];
+
+        if (missing_mta && check_mta) {
+            warn_report("igb: VF%u: MTA[%d] source 0x%x destination 0x%x"
+                        " (missing 0x%x, merged)",
+                        vfn, i, src_mta, core->mac[MTA + i], missing_mta);
+            core->mac[MTA + i] |= missing_mta;
+            fixed_up = true;
+        }
+        if (missing_uta && check_uta) {
+            warn_report("igb: VF%u: UTA[%d] source 0x%x destination 0x%x"
+                        " (missing 0x%x, merged)",
+                        vfn, i, src_uta, core->mac[UTA + i], missing_uta);
+            core->mac[UTA + i] |= missing_uta;
+            fixed_up = true;
+        }
+    }
+    return fixed_up;
 }
 
 static void igb_core_vf_load_tx_ctx(IGBCore *core, int queue,
@@ -704,6 +779,8 @@ static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
             return ret;
         }
     }
+
+    igb_core_vf_fixup_hash_tables(core, s->vfn, blob);
 
     /* Propagate VTIVAR to IVAR0, skipped by direct core->mac[] write */
     igb_core_vf_propagate_ivar(core, s->vfn);

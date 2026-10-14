@@ -302,6 +302,7 @@ igbvf_mig_status(uint16_t vfn, uint32_t status) "VF%u: status 0x%x"
 igbvf_mig_set_state(uint16_t vfn, uint32_t old_state, uint32_t new_state) "VF%u: state %u -> %u"
 igbvf_mig_save_state(uint16_t vfn, uint32_t size) "VF%u: saved %u bytes of device state"
 igbvf_mig_load_state(uint16_t vfn, uint32_t size) "VF%u: loaded %u bytes of device state"
+igbvf_mig_save_hash_tables(uint16_t vfn, const char *name, int index, uint32_t value) "VF%u: %s[%d]=0x%x"
 igbvf_mig_reset(uint16_t vfn) "VF%u: migration state reset"
 
 # spapr_llan.c
