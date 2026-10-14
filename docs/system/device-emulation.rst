@@ -90,6 +90,7 @@ Emulated Devices
    devices/cxl.rst
    devices/emmc.rst
    devices/igb.rst
+   devices/igb-migration.rst
    devices/ivshmem-flat.rst
    devices/ivshmem.rst
    devices/keyboard.rst
