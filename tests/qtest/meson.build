@@ -365,6 +365,7 @@ qos_test_ss.add(
   'virtio-iommu-test.c',
   'vmxnet3-test.c',
   'igb-test.c',
+  'igb-migration-test.c',
   'ufs-test.c',
   'riscv-iommu-test.c',
 )
