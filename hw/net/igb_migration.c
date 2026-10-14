@@ -38,6 +38,7 @@ typedef struct IgbMigRegPair {
 
 #define IGB_VF_MAX_FIXED_REGS     64
 #define IGB_VF_MAX_RA_REGS        48  /* (16 + 8) RA entries * 2 (RAL+RAH) */
+#define IGB_VF_MAX_VLVF_REGS      E1000_VLVF_ARRAY_SIZE
 
 typedef struct IgbMigTxCtx {
     uint32_t ctx_desc[8];         /* 2 * adv_tx_context_desc (4 dwords each) */
@@ -57,6 +58,8 @@ typedef struct IgbMigBlob {
     IgbMigRegPair ra[IGB_VF_MAX_RA_REGS];
     uint32_t num_tx_ctx;
     IgbMigTxCtx tx_ctx[2];
+    uint32_t num_vlvf;
+    uint32_t vlvf[IGB_VF_MAX_VLVF_REGS];
 } IgbMigBlob;
 
 #define IGB_MIG_BLOB_SIZE            sizeof(IgbMigBlob)
@@ -284,6 +287,93 @@ static int igb_core_vf_load_ra(IGBCore *core, uint16_t vfn,
 }
 
 /*
+ * Scan VLVF entries for VLAN memberships assigned to this VF.
+ * Each VLVF entry has a per-pool bitmask (POOLSEL); save entries
+ * where this VF's pool bit is set.
+ */
+static int igb_core_vf_save_vlvf(IGBCore *core, uint16_t vfn,
+                                 uint32_t *vlvf_out)
+{
+    uint32_t vf_pool_bit = BIT(vfn) << E1000_VLVF_POOLSEL_SHIFT;
+    int n = 0;
+
+    for (int i = 0; i < E1000_VLVF_ARRAY_SIZE; i++) {
+        uint32_t vlvf = core->mac[VLVF0 + i];
+
+        if ((vlvf & E1000_VLVF_VLANID_ENABLE) && (vlvf & vf_pool_bit)) {
+            vlvf_out[n++] = cpu_to_le32(vlvf);
+        }
+    }
+    return n;
+}
+
+/*
+ * Clear this VF's pool bit from all destination VLVF entries.
+ * If no pools remain after clearing, disable the entry entirely.
+ */
+static void igb_core_vf_clear_vlvf(IGBCore *core, uint16_t vfn)
+{
+    uint32_t vf_pool_bit = BIT(vfn) << E1000_VLVF_POOLSEL_SHIFT;
+
+    for (int i = 0; i < E1000_VLVF_ARRAY_SIZE; i++) {
+        uint32_t vlvf = core->mac[VLVF0 + i];
+
+        if (!(vlvf & E1000_VLVF_VLANID_ENABLE)) {
+            continue;
+        }
+
+        vlvf &= ~vf_pool_bit;
+        if (!(vlvf & E1000_VLVF_POOLSEL_MASK)) {
+            vlvf &= ~E1000_VLVF_VLANID_ENABLE;
+        }
+        core->mac[VLVF0 + i] = vlvf;
+    }
+}
+
+/*
+ * Restore VLVF entries by matching VLAN ID on the destination.
+ * Preserves other VFs' memberships and sets the VFTA bit so the
+ * global VLAN filter accepts frames for this VLAN.
+ */
+static int igb_core_vf_load_vlvf(IGBCore *core, uint16_t vfn,
+                                 const uint32_t *vlvf_in, uint32_t num)
+{
+    uint32_t vf_pool_bit = BIT(vfn) << E1000_VLVF_POOLSEL_SHIFT;
+
+    for (uint32_t i = 0; i < num; i++) {
+        uint32_t saved = le32_to_cpu(vlvf_in[i]);
+        uint16_t vlan_id = saved & E1000_VLVF_VLANID_MASK;
+        int match = -1;
+        int free_slot = -1;
+
+        for (int j = 0; j < E1000_VLVF_ARRAY_SIZE; j++) {
+            uint32_t vlvf = core->mac[VLVF0 + j];
+
+            if (vlvf & E1000_VLVF_VLANID_ENABLE) {
+                if ((vlvf & E1000_VLVF_VLANID_MASK) == vlan_id) {
+                    match = j;
+                    break;
+                }
+            } else if (free_slot < 0) {
+                free_slot = j;
+            }
+        }
+
+        if (match >= 0) {
+            core->mac[VLVF0 + match] |= vf_pool_bit;
+        } else if (free_slot >= 0) {
+            core->mac[VLVF0 + free_slot] =
+                E1000_VLVF_VLANID_ENABLE | vf_pool_bit | vlan_id;
+        } else {
+            return -IGB_MIG_ERR_BAD_DATA;
+        }
+
+        core->mac[VFTA + (vlan_id >> 5)] |= BIT(vlan_id & 0x1f);
+    }
+    return 0;
+}
+
+/*
  * Dry-run check: can all saved RA entries be placed after clearing
  * this VF's pool bits?  Simulates the clear+load without writing.
  *
@@ -349,6 +439,57 @@ static int igb_core_vf_can_load_ra(IGBCore *core, uint16_t vfn,
     return 0;
 }
 
+/*
+ * Dry-run check: can all saved VLVF entries be placed after clearing
+ * this VF's pool bits?  Same logic as RA: sole-owner entries become
+ * free, shared entries keep their VLAN ID.
+ */
+static int igb_core_vf_can_load_vlvf(IGBCore *core, uint16_t vfn,
+                                     const uint32_t *vlvf_in, uint32_t num)
+{
+    uint32_t vf_pool_bit = BIT(vfn) << E1000_VLVF_POOLSEL_SHIFT;
+    int free_slots = 0;
+
+    for (int j = 0; j < E1000_VLVF_ARRAY_SIZE; j++) {
+        uint32_t vlvf = core->mac[VLVF0 + j];
+
+        if (!(vlvf & E1000_VLVF_VLANID_ENABLE)) {
+            free_slots++;
+        } else if ((vlvf & vf_pool_bit) &&
+                   !(vlvf & ~vf_pool_bit & E1000_VLVF_POOLSEL_MASK)) {
+            free_slots++;
+        }
+    }
+
+    for (uint32_t i = 0; i < num; i++) {
+        uint16_t vlan_id = le32_to_cpu(vlvf_in[i]) & E1000_VLVF_VLANID_MASK;
+        bool found = false;
+
+        for (int j = 0; j < E1000_VLVF_ARRAY_SIZE; j++) {
+            uint32_t vlvf = core->mac[VLVF0 + j];
+
+            if (!(vlvf & E1000_VLVF_VLANID_ENABLE)) {
+                continue;
+            }
+            if ((vlvf & vf_pool_bit) &&
+                !(vlvf & ~vf_pool_bit & E1000_VLVF_POOLSEL_MASK)) {
+                continue;
+            }
+            if ((vlvf & E1000_VLVF_VLANID_MASK) == vlan_id) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            if (--free_slots < 0) {
+                return -IGB_MIG_ERR_UNSUPPORTED;
+            }
+        }
+    }
+    return 0;
+}
+
 static void igb_core_vf_save_tx_ctx(IGBCore *core, int queue,
                                     IgbMigTxCtx *tx)
 {
@@ -401,6 +542,9 @@ static int igb_core_vf_save_state(IgbVfState *s, void *buf, size_t buf_size)
     igb_core_vf_save_tx_ctx(core, q1, &blob->tx_ctx[1]);
 
     blob->num_ra = cpu_to_le32(igb_core_vf_save_ra(core, s->vfn, blob->ra));
+
+    blob->num_vlvf = cpu_to_le32(igb_core_vf_save_vlvf(core, s->vfn,
+                                                        blob->vlvf));
 
     trace_igbvf_mig_save_state(s->vfn, size);
     return size;
@@ -509,6 +653,18 @@ static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
         }
     }
 
+    uint32_t num_vlvf = le32_to_cpu(blob->num_vlvf);
+    if (num_vlvf > IGB_VF_MAX_VLVF_REGS) {
+        return -IGB_MIG_ERR_BAD_DATA;
+    }
+    if (num_vlvf > 0) {
+        int ret = igb_core_vf_can_load_vlvf(core, s->vfn,
+                                             blob->vlvf, num_vlvf);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     /*
      * Phase 2: Apply state.  All offsets and placements are
      * validated; writes cannot fail.
@@ -534,6 +690,16 @@ static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
         int ret = igb_core_vf_load_ra(core, s->vfn, blob->ra, num_ra);
         if (ret < 0) {
             error_report("igb: VF%u: RA load failed after pre-validation",
+                         s->vfn);
+            return ret;
+        }
+    }
+
+    igb_core_vf_clear_vlvf(core, s->vfn);
+    if (num_vlvf > 0) {
+        int ret = igb_core_vf_load_vlvf(core, s->vfn, blob->vlvf, num_vlvf);
+        if (ret < 0) {
+            error_report("igb: VF%u: VLVF load failed after pre-validation",
                          s->vfn);
             return ret;
         }
