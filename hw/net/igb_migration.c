@@ -37,12 +37,22 @@ typedef struct IgbMigRegPair {
 
 #define IGB_VF_MAX_FIXED_REGS     64
 
+typedef struct IgbMigTxCtx {
+    uint32_t ctx_desc[8];         /* 2 * adv_tx_context_desc (4 dwords each) */
+    uint32_t first_cmd_type_len;
+    uint32_t first_olinfo_status;
+    uint32_t first;
+    uint32_t skip_cp;
+} IgbMigTxCtx;
+
 typedef struct IgbMigBlob {
     uint32_t magic;
     uint32_t version;
     uint32_t vfn;
     uint32_t num_regs;
     IgbMigRegPair regs[IGB_VF_MAX_FIXED_REGS];
+    uint32_t num_tx_ctx;
+    IgbMigTxCtx tx_ctx[2];
 } IgbMigBlob;
 
 #define IGB_MIG_BLOB_SIZE            sizeof(IgbMigBlob)
@@ -140,6 +150,23 @@ static int igb_vf_reg_list(uint16_t vfn, uint32_t *offsets)
     return n;
 }
 
+static void igb_core_vf_save_tx_ctx(IGBCore *core, int queue,
+                                    IgbMigTxCtx *tx)
+{
+    struct igb_tx *src = &core->tx[queue];
+
+    for (int i = 0; i < 2; i++) {
+        tx->ctx_desc[i * 4 + 0] = cpu_to_le32(src->ctx[i].vlan_macip_lens);
+        tx->ctx_desc[i * 4 + 1] = cpu_to_le32(src->ctx[i].seqnum_seed);
+        tx->ctx_desc[i * 4 + 2] = cpu_to_le32(src->ctx[i].type_tucmd_mlhl);
+        tx->ctx_desc[i * 4 + 3] = cpu_to_le32(src->ctx[i].mss_l4len_idx);
+    }
+    tx->first_cmd_type_len = cpu_to_le32(src->first_cmd_type_len);
+    tx->first_olinfo_status = cpu_to_le32(src->first_olinfo_status);
+    tx->first = cpu_to_le32(src->first);
+    tx->skip_cp = cpu_to_le32(src->skip_cp);
+}
+
 static int igb_core_vf_save_state(IgbVfState *s, void *buf, size_t buf_size)
 {
     int size = IGB_MIG_BLOB_SIZE;
@@ -147,6 +174,8 @@ static int igb_core_vf_save_state(IgbVfState *s, void *buf, size_t buf_size)
     IgbMigBlob *blob = buf;
     uint32_t offsets[IGB_VF_MAX_FIXED_REGS];
     int num_regs;
+    int q0 = s->vfn;
+    int q1 = s->vfn + IGB_NUM_VM_POOLS;
 
     num_regs = igb_vf_reg_list(s->vfn, offsets);
 
@@ -167,6 +196,10 @@ static int igb_core_vf_save_state(IgbVfState *s, void *buf, size_t buf_size)
         blob->regs[i].offset = cpu_to_le32(offsets[i]);
         blob->regs[i].value = cpu_to_le32(core->mac[offsets[i]]);
     }
+
+    blob->num_tx_ctx = cpu_to_le32(2);
+    igb_core_vf_save_tx_ctx(core, q0, &blob->tx_ctx[0]);
+    igb_core_vf_save_tx_ctx(core, q1, &blob->tx_ctx[1]);
 
     trace_igbvf_mig_save_state(s->vfn, size);
     return size;
@@ -203,9 +236,32 @@ static bool igb_core_vf_validate_regs(uint16_t vfn,
     return true;
 }
 
+static void igb_core_vf_load_tx_ctx(IGBCore *core, int queue,
+                                    const IgbMigTxCtx *tx)
+{
+    struct igb_tx *dst = &core->tx[queue];
+
+    /*
+     * Preserve the destination's tx_pkt - it's a host-side object,
+     * not guest state
+     */
+    for (int i = 0; i < 2; i++) {
+        dst->ctx[i].vlan_macip_lens = le32_to_cpu(tx->ctx_desc[i * 4 + 0]);
+        dst->ctx[i].seqnum_seed    = le32_to_cpu(tx->ctx_desc[i * 4 + 1]);
+        dst->ctx[i].type_tucmd_mlhl = le32_to_cpu(tx->ctx_desc[i * 4 + 2]);
+        dst->ctx[i].mss_l4len_idx  = le32_to_cpu(tx->ctx_desc[i * 4 + 3]);
+    }
+    dst->first_cmd_type_len = le32_to_cpu(tx->first_cmd_type_len);
+    dst->first_olinfo_status = le32_to_cpu(tx->first_olinfo_status);
+    dst->first = le32_to_cpu(tx->first);
+    dst->skip_cp = le32_to_cpu(tx->skip_cp);
+}
+
 static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
 {
     IGBCore *core = igbvf_get_core(s);
+    int q0 = s->vfn;
+    int q1 = s->vfn + IGB_NUM_VM_POOLS;
     const IgbMigBlob *blob = buf;
     uint32_t magic, version, saved_vfn, num_regs;
 
@@ -236,6 +292,11 @@ static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
         return -IGB_MIG_ERR_BAD_DATA;
     }
 
+    uint32_t num_tx = le32_to_cpu(blob->num_tx_ctx);
+    if (num_tx != 2) {
+        return -IGB_MIG_ERR_BAD_DATA;
+    }
+
     /*
      * Phase 2: Apply state.  All offsets and placements are
      * validated; writes cannot fail.
@@ -252,6 +313,9 @@ static int igb_core_vf_load_state(IgbVfState *s, const void *buf, size_t size)
                 value & ~E1000_EITR_CNT_IGNR;
         }
     }
+
+    igb_core_vf_load_tx_ctx(core, q0, &blob->tx_ctx[0]);
+    igb_core_vf_load_tx_ctx(core, q1, &blob->tx_ctx[1]);
 
     /* Propagate VTIVAR to IVAR0, skipped by direct core->mac[] write */
     igb_core_vf_propagate_ivar(core, s->vfn);
