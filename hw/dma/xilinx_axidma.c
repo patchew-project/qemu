@@ -536,6 +536,10 @@ static uint64_t axidma_read(void *opaque, hwaddr addr, unsigned size)
 
 static void axidma_kick(XilinxAXIDMA *d, struct Stream *s, int sid)
 {
+    if (stream_halted(s) && !stream_running(s)) {
+        return;
+    }
+
     s->regs[R_DMASR] &= ~DMASR_IDLE;
     if (!sid) {
         stream_process_mem2s(s, d->tx_data_dev, d->tx_control_dev);
