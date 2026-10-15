@@ -25,6 +25,7 @@ riscv_system_ss.add(files(
   'pmp.c',
   'pmu.c',
   'th_csr.c',
+  'tt_csr.c',
 ))
 
 
