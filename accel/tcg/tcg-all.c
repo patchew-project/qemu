@@ -127,7 +127,7 @@ static int tcg_init_machine(AccelState *as, MachineState *ms)
          */
         if (mttcg_supported && !icount_enabled()) {
             s->mttcg_enabled = ON_OFF_AUTO_ON;
-            max_threads = ms->smp.max_cpus;
+            max_threads = ms->smp.max_cpus + MACHINE_GET_CLASS(ms)->extra_cpus;
         } else {
             s->mttcg_enabled = ON_OFF_AUTO_OFF;
         }
