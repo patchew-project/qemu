@@ -181,6 +181,11 @@ static void stream_reset(struct Stream *s)
 {
     s->regs[R_DMASR] = DMASR_HALTED;  /* starts up halted.  */
     s->regs[R_DMACR] = 1 << 16; /* Starts with one in compl threshold.  */
+    /* Initialize descriptor registers to zero for both 32 and 64 bit */
+    s->regs[R_CURDESC] = 0;
+    s->regs[R_CURDESC + 1] = 0; /* CURDESC_MSB */
+    s->regs[R_TAILDESC] = 0;
+    s->regs[R_TAILDESC + 1] = 0; /* TAILDESC_MSB */
     s->sof = true;
 }
 
@@ -192,6 +197,16 @@ static inline int streamid_from_addr(hwaddr addr)
     sid = addr / (0x30);
     sid &= 1;
     return sid;
+}
+
+static inline hwaddr stream_desc_addr(struct Stream *s)
+{
+    return s->regs[R_CURDESC] | ((uint64_t)s->regs[R_CURDESC + 1] << 32);
+}
+
+static inline hwaddr stream_tail_addr(struct Stream *s)
+{
+    return s->regs[R_TAILDESC] | ((uint64_t)s->regs[R_TAILDESC + 1] << 32);
 }
 
 static MemTxResult stream_desc_load(struct Stream *s, hwaddr addr)
@@ -290,9 +305,9 @@ static void stream_complete(struct Stream *s)
 static void stream_process_mem2s(struct Stream *s, StreamSink *tx_data_dev,
                                  StreamSink *tx_control_dev)
 {
-    uint32_t prev_d;
-    uint32_t txlen;
+    uint32_t txlen, origin_txlen;
     uint64_t addr;
+    hwaddr curdesc;
     bool eop;
 
     if (!stream_running(s) || stream_idle(s) || stream_halted(s)) {
@@ -300,7 +315,8 @@ static void stream_process_mem2s(struct Stream *s, StreamSink *tx_data_dev,
     }
 
     while (1) {
-        if (MEMTX_OK != stream_desc_load(s, s->regs[R_CURDESC])) {
+        curdesc = stream_desc_addr(s);
+        if (MEMTX_OK != stream_desc_load(s, curdesc)) {
             break;
         }
 
@@ -314,6 +330,7 @@ static void stream_process_mem2s(struct Stream *s, StreamSink *tx_data_dev,
         }
 
         txlen = s->desc.control & SDESC_CTRL_LEN_MASK;
+        origin_txlen = txlen;
 
         eop = stream_desc_eof(&s->desc);
         addr = s->desc.buffer_address;
@@ -334,13 +351,13 @@ static void stream_process_mem2s(struct Stream *s, StreamSink *tx_data_dev,
         }
 
         /* Update the descriptor.  */
-        s->desc.status = txlen | SDESC_STATUS_COMPLETE;
-        stream_desc_store(s, s->regs[R_CURDESC]);
+        s->desc.status = origin_txlen | SDESC_STATUS_COMPLETE;
+        stream_desc_store(s, curdesc);
 
         /* Advance.  */
-        prev_d = s->regs[R_CURDESC];
         s->regs[R_CURDESC] = s->desc.nxtdesc;
-        if (prev_d == s->regs[R_TAILDESC]) {
+        s->regs[R_CURDESC + 1] = s->desc.nxtdesc >> 32;
+        if (curdesc == stream_tail_addr(s)) {
             s->regs[R_DMASR] |= DMASR_IDLE;
             break;
         }
@@ -350,16 +367,17 @@ static void stream_process_mem2s(struct Stream *s, StreamSink *tx_data_dev,
 static size_t stream_process_s2mem(struct Stream *s, unsigned char *buf,
                                    size_t len, bool eop)
 {
-    uint32_t prev_d;
     unsigned int rxlen;
     size_t pos = 0;
+    hwaddr curdesc;
 
     if (!stream_running(s) || stream_idle(s) || stream_halted(s)) {
         return 0;
     }
 
     while (len) {
-        if (MEMTX_OK != stream_desc_load(s, s->regs[R_CURDESC])) {
+        curdesc = stream_desc_addr(s);
+        if (MEMTX_OK != stream_desc_load(s, curdesc)) {
             break;
         }
 
@@ -388,13 +406,13 @@ static size_t stream_process_s2mem(struct Stream *s, unsigned char *buf,
 
         s->desc.status |= s->sof << SDESC_STATUS_SOF_BIT;
         s->desc.status |= SDESC_STATUS_COMPLETE;
-        stream_desc_store(s, s->regs[R_CURDESC]);
+        stream_desc_store(s, curdesc);
         s->sof = eop;
 
         /* Advance.  */
-        prev_d = s->regs[R_CURDESC];
         s->regs[R_CURDESC] = s->desc.nxtdesc;
-        if (prev_d == s->regs[R_TAILDESC]) {
+        s->regs[R_CURDESC + 1] = s->desc.nxtdesc >> 32;
+        if (curdesc == stream_tail_addr(s)) {
             s->regs[R_DMASR] |= DMASR_IDLE;
             break;
         }
