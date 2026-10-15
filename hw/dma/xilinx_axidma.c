@@ -554,10 +554,11 @@ static void axidma_writel(XilinxAXIDMA *d, struct Stream *s, hwaddr addr,
         s->regs[R_DMACR] = value;
 
         if (value & DMACR_RESET) {
-            stream_reset(s);
+            stream_reset(&d->streams[0]);
+            stream_reset(&d->streams[1]);
         }
 
-        if ((value & 1) && !stream_resetting(s)) {
+        if ((value & DMACR_RUNSTOP) && !stream_resetting(s)) {
             /* Start processing.  */
             s->regs[R_DMASR] &= ~DMASR_HALTED;
         }
