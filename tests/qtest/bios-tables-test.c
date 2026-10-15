@@ -529,7 +529,7 @@ static void test_acpi_asl(test_data *data)
                     const char *diff_cmd = diff_env ? diff_env : "diff -U 16";
                     char *diff = g_strdup_printf("%s %s %s", diff_cmd,
                                                  exp_sdt->asl_file, sdt->asl_file);
-                    int out = dup(STDOUT_FILENO);
+                    int out = qemu_dup(STDOUT_FILENO);
                     int ret G_GNUC_UNUSED;
                     int dupret;
 
