@@ -56,7 +56,9 @@ DECLARE_INSTANCE_CHECKER(XilinxAXIDMAStreamSink, XILINX_AXI_DMA_CONTROL_STREAM,
 #define R_DMACR             (0x00 / 4)
 #define R_DMASR             (0x04 / 4)
 #define R_CURDESC           (0x08 / 4)
+#define R_CURDESC_MSB       (0x0C / 4)
 #define R_TAILDESC          (0x10 / 4)
+#define R_TAILDESC_MSB      (0x14 / 4)
 #define R_MAX               (0x30 / 4)
 
 #define CONTROL_PAYLOAD_WORDS 5
@@ -477,12 +479,40 @@ xilinx_axidma_data_stream_push(StreamSink *obj, unsigned char *buf, size_t len,
     return ret;
 }
 
-static uint64_t axidma_read(void *opaque, hwaddr addr,
-                            unsigned size)
+static uint32_t axidma_readl(XilinxAXIDMA *d, struct Stream *s,
+                             hwaddr addr, int sid)
+{
+    switch (addr) {
+    case R_DMACR:
+        /* Simulate one cycle reset delay.  */
+        s->regs[R_DMACR] &= ~DMACR_RESET;
+        return s->regs[R_DMACR];
+    case R_DMASR:
+        s->regs[R_DMASR] &= 0xffff;
+        s->regs[R_DMASR] |= (s->complete_cnt & 0xff) << 16;
+        s->regs[R_DMASR] |= (ptimer_get_count(s->ptimer) & 0xff) << 24;
+        return s->regs[R_DMASR];
+    default:
+        D(qemu_log("%s ch=%d addr=" HWADDR_FMT_plx " v=%x\n",
+                   __func__, sid, addr * 4, s->regs[addr]));
+        return s->regs[addr];
+    }
+}
+
+static uint64_t axidma_readq(XilinxAXIDMA *d, struct Stream *s,
+                             hwaddr addr, int sid)
+{
+    /* Combine two consecutive 32-bit slots into a 64-bit value.  */
+    if (addr + 1 < R_MAX) {
+        return s->regs[addr] | ((uint64_t)s->regs[addr + 1] << 32);
+    }
+    return s->regs[addr];
+}
+
+static uint64_t axidma_read(void *opaque, hwaddr addr, unsigned size)
 {
     XilinxAXIDMA *d = opaque;
     struct Stream *s;
-    uint32_t r = 0;
     int sid;
 
     sid = streamid_from_addr(addr);
@@ -490,26 +520,102 @@ static uint64_t axidma_read(void *opaque, hwaddr addr,
 
     addr = addr % 0x30;
     addr >>= 2;
-    switch (addr) {
-        case R_DMACR:
-            /* Simulate one cycles reset delay.  */
-            s->regs[addr] &= ~DMACR_RESET;
-            r = s->regs[addr];
-            break;
-        case R_DMASR:
-            s->regs[addr] &= 0xffff;
-            s->regs[addr] |= (s->complete_cnt & 0xff) << 16;
-            s->regs[addr] |= (ptimer_get_count(s->ptimer) & 0xff) << 24;
-            r = s->regs[addr];
-            break;
-        default:
-            r = s->regs[addr];
-            D(qemu_log("%s ch=%d addr=" HWADDR_FMT_plx " v=%x\n",
-                           __func__, sid, addr * 4, r));
-            break;
-    }
-    return r;
 
+    switch (size) {
+    case 8:
+        return axidma_readq(d, s, addr, sid);
+    case 4:
+    default:
+        return axidma_readl(d, s, addr, sid);
+    }
+}
+
+static void axidma_kick(XilinxAXIDMA *d, struct Stream *s, int sid)
+{
+    s->regs[R_DMASR] &= ~DMASR_IDLE;
+    if (!sid) {
+        stream_process_mem2s(s, d->tx_data_dev, d->tx_control_dev);
+    }
+}
+
+static void axidma_writel(XilinxAXIDMA *d, struct Stream *s, hwaddr addr,
+                          uint32_t value, int sid)
+{
+    switch (addr) {
+    case R_DMACR:
+        /* Tailptr mode is always on.  */
+        value |= DMACR_TAILPTR_MODE;
+        /* Remember our previous reset state.  */
+        value |= (s->regs[R_DMACR] & DMACR_RESET);
+        s->regs[R_DMACR] = value;
+
+        if (value & DMACR_RESET) {
+            stream_reset(s);
+        }
+
+        if ((value & 1) && !stream_resetting(s)) {
+            /* Start processing.  */
+            s->regs[R_DMASR] &= ~(DMASR_HALTED | DMASR_IDLE);
+        }
+        stream_reload_complete_cnt(s);
+        break;
+
+    case R_DMASR:
+        /* Mask away write to clear irq lines.  */
+        value &= ~(value & DMASR_IRQ_MASK);
+        s->regs[R_DMASR] = value;
+        break;
+
+    case R_CURDESC:
+        s->regs[R_CURDESC] = value;
+        break;
+
+    case R_CURDESC_MSB:
+        s->regs[R_CURDESC_MSB] = value;
+        break;
+
+    case R_TAILDESC:
+        s->regs[R_TAILDESC] = value;
+        axidma_kick(d, s, sid);
+        break;
+
+    case R_TAILDESC_MSB:
+        s->regs[R_TAILDESC_MSB] = value;
+        axidma_kick(d, s, sid);
+        break;
+
+    default:
+        D(qemu_log("%s: ch=%d addr=" HWADDR_FMT_plx " v=%x\n",
+                   __func__, sid, addr * 4, value));
+        s->regs[addr] = value;
+        break;
+    }
+}
+
+static void axidma_writeq(XilinxAXIDMA *d, struct Stream *s, hwaddr addr,
+                          uint64_t value, int sid)
+{
+    switch (addr) {
+    case R_CURDESC:
+        s->regs[R_CURDESC] = (uint32_t)value;
+        s->regs[R_CURDESC_MSB] = (uint32_t)(value >> 32);
+        break;
+
+    case R_TAILDESC:
+        s->regs[R_TAILDESC] = (uint32_t)value;
+        s->regs[R_TAILDESC_MSB] = (uint32_t)(value >> 32);
+        axidma_kick(d, s, sid);
+        break;
+
+    default:
+        D(qemu_log("%s: ch=%d addr=" HWADDR_FMT_plx " v=%x\n",
+                   __func__, sid, addr * 4, (unsigned)value));
+        s->regs[addr] = (uint32_t)value;
+        if (addr + 1 < R_MAX) {
+            s->regs[addr + 1] = (uint32_t)(value >> 32);
+        }
+        break;
+    }
 }
 
 static void axidma_write(void *opaque, hwaddr addr,
@@ -524,44 +630,17 @@ static void axidma_write(void *opaque, hwaddr addr,
 
     addr = addr % 0x30;
     addr >>= 2;
-    switch (addr) {
-        case R_DMACR:
-            /* Tailptr mode is always on.  */
-            value |= DMACR_TAILPTR_MODE;
-            /* Remember our previous reset state.  */
-            value |= (s->regs[addr] & DMACR_RESET);
-            s->regs[addr] = value;
 
-            if (value & DMACR_RESET) {
-                stream_reset(s);
-            }
-
-            if ((value & 1) && !stream_resetting(s)) {
-                /* Start processing.  */
-                s->regs[R_DMASR] &= ~(DMASR_HALTED | DMASR_IDLE);
-            }
-            stream_reload_complete_cnt(s);
-            break;
-
-        case R_DMASR:
-            /* Mask away write to clear irq lines.  */
-            value &= ~(value & DMASR_IRQ_MASK);
-            s->regs[addr] = value;
-            break;
-
-        case R_TAILDESC:
-            s->regs[addr] = value;
-            s->regs[R_DMASR] &= ~DMASR_IDLE; /* Not idle.  */
-            if (!sid) {
-                stream_process_mem2s(s, d->tx_data_dev, d->tx_control_dev);
-            }
-            break;
-        default:
-            D(qemu_log("%s: ch=%d addr=" HWADDR_FMT_plx " v=%x\n",
-                  __func__, sid, addr * 4, (unsigned)value));
-            s->regs[addr] = value;
-            break;
+    switch (size) {
+    case 8:
+        axidma_writeq(d, s, addr, value, sid);
+        break;
+    case 4:
+    default:
+        axidma_writel(d, s, addr, (uint32_t)value, sid);
+        break;
     }
+
     if (sid == 1 && d->notify) {
         StreamCanPushNotifyFn notifytmp = d->notify;
         d->notify = NULL;
@@ -574,6 +653,14 @@ static const MemoryRegionOps axidma_ops = {
     .read = axidma_read,
     .write = axidma_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 8
+    },
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 8
+    }
 };
 
 static void xilinx_axidma_realize(DeviceState *dev, Error **errp)
