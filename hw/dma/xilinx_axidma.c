@@ -385,6 +385,10 @@ static size_t stream_process_s2mem(struct Stream *s, unsigned char *buf,
 
         if (s->desc.status & SDESC_STATUS_COMPLETE) {
             s->regs[R_DMASR] |= DMASR_HALTED;
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "xilinx_axidma: HALT: curdesc=0x%016lx already"
+                          " COMPLETE status=0x%x\n",
+                          (unsigned long)curdesc, s->desc.status);
             break;
         }
 
@@ -555,15 +559,14 @@ static void axidma_writel(XilinxAXIDMA *d, struct Stream *s, hwaddr addr,
 
         if ((value & 1) && !stream_resetting(s)) {
             /* Start processing.  */
-            s->regs[R_DMASR] &= ~(DMASR_HALTED | DMASR_IDLE);
+            s->regs[R_DMASR] &= ~DMASR_HALTED;
         }
         stream_reload_complete_cnt(s);
         break;
 
     case R_DMASR:
-        /* Mask away write to clear irq lines.  */
-        value &= ~(value & DMASR_IRQ_MASK);
-        s->regs[R_DMASR] = value;
+        /* Clear W1C IRQ bits.  */
+        s->regs[R_DMASR] &= ~(value & DMASR_IRQ_MASK);
         break;
 
     case R_CURDESC:
