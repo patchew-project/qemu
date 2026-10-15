@@ -413,7 +413,8 @@ void usb_claim_port(USBDevice *dev, Error **errp)
             return;
         }
     } else {
-        if (bus->nfree == 1 && strcmp(object_get_typename(OBJECT(dev)), "usb-hub") != 0) {
+        if (bus->nfree == 1 && !bus->no_auto_hub &&
+            strcmp(object_get_typename(OBJECT(dev)), "usb-hub") != 0) {
             /* Create a new hub and chain it on */
             hub = USB_DEVICE(qdev_try_new("usb-hub"));
             if (hub) {
