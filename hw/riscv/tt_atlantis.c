@@ -95,18 +95,18 @@ static uint32_t next_phandle(void)
     return fdt_phandle++;
 }
 
-static void create_fdt_memory(void *fdt, TTAtlantisSoCState *s)
+static void create_fdt_memory(void *fdt, const MemMapEntry *memmap,
+                              hwaddr ram_size)
 {
-    hwaddr ram_size = memory_region_size(s->dram);
     hwaddr size_lo = ram_size;
     hwaddr size_hi = 0;
 
-    if (size_lo > s->memmap[TT_ATL_DDR_LO].size) {
-        size_lo = s->memmap[TT_ATL_DDR_LO].size;
+    if (size_lo > memmap[TT_ATL_DDR_LO].size) {
+        size_lo = memmap[TT_ATL_DDR_LO].size;
         size_hi = ram_size - size_lo;
     }
 
-    riscv_create_fdt_socket_memory(fdt, s->memmap[TT_ATL_DDR_LO].base,
+    riscv_create_fdt_socket_memory(fdt, memmap[TT_ATL_DDR_LO].base,
                                    size_lo, 0, false);
     if (size_hi) {
         /*
@@ -115,12 +115,13 @@ static void create_fdt_memory(void *fdt, TTAtlantisSoCState *s)
          * (or good reason) to describe that aliasing 2GB with DT?
          */
         riscv_create_fdt_socket_memory(fdt,
-                                       s->memmap[TT_ATL_DDR_HI].base + size_lo,
+                                       memmap[TT_ATL_DDR_HI].base + size_lo,
                                        size_hi, 0, false);
     }
 }
 
-static void create_fdt_aclint(void *fdt, TTAtlantisSoCState *s,
+static void create_fdt_aclint(void *fdt, RISCVHartArrayState *harts,
+                              const MemMapEntry *memmap,
                               uint32_t *intc_phandles)
 {
     g_autofree char *name = NULL;
@@ -128,15 +129,15 @@ static void create_fdt_aclint(void *fdt, TTAtlantisSoCState *s,
     uint32_t aclint_cells_size;
     hwaddr addr;
 
-    aclint_mtimer_cells = g_new0(uint32_t, s->cpus.num_harts * 2);
+    aclint_mtimer_cells = g_new0(uint32_t, harts->num_harts * 2);
 
-    for (int cpu = 0; cpu < s->cpus.num_harts; cpu++) {
+    for (int cpu = 0; cpu < harts->num_harts; cpu++) {
         aclint_mtimer_cells[cpu * 2 + 0] = cpu_to_be32(intc_phandles[cpu]);
         aclint_mtimer_cells[cpu * 2 + 1] = cpu_to_be32(IRQ_M_TIMER);
     }
-    aclint_cells_size = s->cpus.num_harts * sizeof(uint32_t) * 2;
+    aclint_cells_size = harts->num_harts * sizeof(uint32_t) * 2;
 
-    addr = s->memmap[TT_ATL_ACLINT].base;
+    addr = memmap[TT_ATL_ACLINT].base;
 
     name = g_strdup_printf("/soc/mtimer@%"HWADDR_PRIX, addr);
     qemu_fdt_add_subnode(fdt, name);
@@ -222,52 +223,53 @@ static void create_fdt_one_aplic(void *fdt,
     qemu_fdt_setprop_cell(fdt, name, "phandle", aplic_phandle);
 }
 
-static void create_fdt_pmu(void *fdt, TTAtlantisSoCState *s)
+static void create_fdt_pmu(void *fdt, RISCVHartArrayState *harts)
 {
     char pmu_name[] = "/pmu";
-    RISCVCPU *hart = &s->cpus.harts[0];
+    RISCVCPU *hart = &harts->harts[0];
 
     qemu_fdt_add_subnode(fdt, pmu_name);
     qemu_fdt_setprop_string(fdt, pmu_name, "compatible", "riscv,pmu");
     riscv_pmu_generate_fdt_node(fdt, hart->pmu_avail_ctrs, pmu_name);
 }
 
-static void create_fdt_cpu(void *fdt, TTAtlantisSoCState *s,
+static void create_fdt_cpu(void *fdt, RISCVHartArrayState *harts,
+                           const MemMapEntry *memmap,
                            uint32_t aplic_s_phandle,
                            uint32_t imsic_s_phandle)
 {
-    g_autofree uint32_t *intc_phandles = g_new0(uint32_t, s->cpus.num_harts);
-    int num_harts = s->cpus.num_harts;
+    int num_harts = harts->num_harts;
+    g_autofree uint32_t *intc_phandles = g_new0(uint32_t, num_harts);
 
     riscv_fdt_create_cpu_socket_subnode(fdt, TT_ACLINT_TIMEBASE_FREQ);
 
-    riscv_create_fdt_socket_cpus(fdt, s->cpus.harts, 0, num_harts,
-                                 s->cpus.hartid_base, &fdt_phandle,
+    riscv_create_fdt_socket_cpus(fdt, harts->harts, 0, num_harts,
+                                 harts->hartid_base, &fdt_phandle,
                                  intc_phandles, false, false);
 
-    create_fdt_aclint(fdt, s, intc_phandles);
+    create_fdt_aclint(fdt, harts, memmap, intc_phandles);
 
     /* M-level IMSIC node */
     uint32_t msi_m_phandle = next_phandle();
-    create_fdt_one_imsic(fdt, &s->memmap[TT_ATL_MIMSIC], num_harts,
+    create_fdt_one_imsic(fdt, &memmap[TT_ATL_MIMSIC], num_harts,
                          intc_phandles, msi_m_phandle,
                          IRQ_M_EXT, TT_IMSIC_GUEST_BITS);
 
     /* S-level IMSIC node */
-    create_fdt_one_imsic(fdt, &s->memmap[TT_ATL_SIMSIC], num_harts,
+    create_fdt_one_imsic(fdt, &memmap[TT_ATL_SIMSIC], num_harts,
                          intc_phandles, imsic_s_phandle,
                          IRQ_S_EXT, TT_IMSIC_GUEST_BITS);
 
     uint32_t aplic_m_phandle = next_phandle();
 
     /* M-level APLIC node */
-    create_fdt_one_aplic(fdt, &s->memmap[TT_ATL_MAPLIC],
+    create_fdt_one_aplic(fdt, &memmap[TT_ATL_MAPLIC],
                          msi_m_phandle, intc_phandles,
                          aplic_m_phandle, aplic_s_phandle,
                          IRQ_M_EXT, num_harts);
 
     /* S-level APLIC node */
-    create_fdt_one_aplic(fdt, &s->memmap[TT_ATL_SAPLIC],
+    create_fdt_one_aplic(fdt, &memmap[TT_ATL_SAPLIC],
                          imsic_s_phandle, intc_phandles,
                          aplic_s_phandle, 0,
                          IRQ_S_EXT, num_harts);
@@ -339,10 +341,10 @@ static void create_fdt_i2c(void *fdt, const MemMapEntry *mem, uint32_t irq,
     qemu_fdt_setprop_cell(fdt, name, "#size-cells", 0);
 }
 
-static void create_fdt_i2c_device(void *fdt, TTAtlantisSoCState *s, int bus,
-                                  const char *compat, int addr)
+static void create_fdt_i2c_device(void *fdt, const MemMapEntry *memmap,
+                                  int bus, const char *compat, int addr)
 {
-    hwaddr base = s->memmap[TT_ATL_I2C0 + bus].base;
+    hwaddr base = memmap[TT_ATL_I2C0 + bus].base;
     g_autofree char *name = g_strdup_printf("/soc/i2c@%"HWADDR_PRIX"/sensor@%x",
                                             base, addr);
 
@@ -371,7 +373,8 @@ static char *create_fdt_prcm(void *fdt, const MemMapEntry *mem,
     return name;
 }
 
-static void finalize_fdt(void *fdt, TTAtlantisSoCState *s)
+static void finalize_fdt(void *fdt, RISCVHartArrayState *harts,
+                         const MemMapEntry *memmap, hwaddr ram_size)
 {
     uint32_t aplic_s_phandle = next_phandle();
     uint32_t imsic_s_phandle = next_phandle();
@@ -379,9 +382,9 @@ static void finalize_fdt(void *fdt, TTAtlantisSoCState *s)
     uint32_t prcm_rcpu_phandle;
     g_autofree char *rcpu_name, *hsio_name, *pcie_name, *mm_name;
 
-    create_fdt_cpu(fdt, s, aplic_s_phandle, imsic_s_phandle);
+    create_fdt_cpu(fdt, harts, memmap, aplic_s_phandle, imsic_s_phandle);
 
-    create_fdt_memory(fdt, s);
+    create_fdt_memory(fdt, memmap, ram_size);
 
     /*
      * We want to do this, but the Linux aplic driver was broken before v6.16
@@ -392,7 +395,7 @@ static void finalize_fdt(void *fdt, TTAtlantisSoCState *s)
 
     create_fdt_clk(fdt, "osc-24m", 24000000, osc_24m_phandle);
 
-    rcpu_name = create_fdt_prcm(fdt, &s->memmap[TT_ATL_PRCM_RCPU], "rcpu");
+    rcpu_name = create_fdt_prcm(fdt, &memmap[TT_ATL_PRCM_RCPU], "rcpu");
     prcm_rcpu_phandle = qemu_fdt_get_phandle(fdt, rcpu_name);
     qemu_fdt_setprop_cells(fdt, rcpu_name, "clocks", osc_24m_phandle);
     qemu_fdt_setprop_cells(fdt, rcpu_name, "assigned-clocks",
@@ -402,33 +405,33 @@ static void finalize_fdt(void *fdt, TTAtlantisSoCState *s)
                            prcm_rcpu_phandle, TT_ATL_CLK_RCPU_PLL,
                            prcm_rcpu_phandle, TT_ATL_CLK_NOC_PLL);
 
-    hsio_name = create_fdt_prcm(fdt, &s->memmap[TT_ATL_PRCM_HSIO], "hsio");
+    hsio_name = create_fdt_prcm(fdt, &memmap[TT_ATL_PRCM_HSIO], "hsio");
     qemu_fdt_setprop_cells(fdt, hsio_name, "clocks", osc_24m_phandle,
                            prcm_rcpu_phandle, TT_ATL_CLK_HSIO_PLL);
 
-    pcie_name = create_fdt_prcm(fdt, &s->memmap[TT_ATL_PRCM_PCIE], "pcie");
+    pcie_name = create_fdt_prcm(fdt, &memmap[TT_ATL_PRCM_PCIE], "pcie");
     qemu_fdt_setprop_cells(fdt, pcie_name, "clocks", osc_24m_phandle,
                            prcm_rcpu_phandle, TT_ATL_CLK_PCIE_PLL);
 
-    mm_name = create_fdt_prcm(fdt, &s->memmap[TT_ATL_PRCM_MM], "mm");
+    mm_name = create_fdt_prcm(fdt, &memmap[TT_ATL_PRCM_MM], "mm");
     qemu_fdt_setprop_cells(fdt, mm_name, "clocks", osc_24m_phandle,
                            prcm_rcpu_phandle, TT_ATL_CLK_MM_PLL0,
                            prcm_rcpu_phandle, TT_ATL_CLK_MM_PLL1);
 
-    create_fdt_uart(fdt, &s->memmap[TT_ATL_UART1], TT_ATL_UART1_IRQ,
+    create_fdt_uart(fdt, &memmap[TT_ATL_UART1], TT_ATL_UART1_IRQ,
                     aplic_s_phandle, prcm_rcpu_phandle, TT_ATL_CLK_UART1_PCLK);
 
     for (int i = 0; i < TT_ATL_NUM_I2C; i++) {
         create_fdt_i2c(fdt,
-                       &s->memmap[TT_ATL_I2C0 + i],
+                       &memmap[TT_ATL_I2C0 + i],
                        TT_ATL_I2C0_IRQ + i,
                        aplic_s_phandle, prcm_rcpu_phandle,
                        TT_ATL_CLK_I2C0_PCLK + i);
     }
 
     /* I2C peripherals: qemu specific */
-    create_fdt_i2c_device(fdt, s, 0, "dallas,ds1338", 0x6f);
-    create_fdt_i2c_device(fdt, s, 4, "ti,tmp105", 0x48);
+    create_fdt_i2c_device(fdt, memmap, 0, "dallas,ds1338", 0x6f);
+    create_fdt_i2c_device(fdt, memmap, 4, "ti,tmp105", 0x48);
 }
 
 static void create_fdt(TTAtlantisState *ams)
@@ -445,7 +448,7 @@ static void create_fdt(TTAtlantisState *ams)
 
     qemu_fdt_add_subnode(ms->fdt, "/aliases");
 
-    create_fdt_pmu(ms->fdt, &ams->soc);
+    create_fdt_pmu(ms->fdt, &ams->soc.cpus);
 }
 
 static void load_fdt(TTAtlantisState *ams)
@@ -476,7 +479,7 @@ static void load_fdt(TTAtlantisState *ams)
         g_strfreev(node_path);
     }
 
-    create_fdt_memory(ms->fdt, &ams->soc);
+    create_fdt_memory(ms->fdt, ams->soc.memmap, ms->ram_size);
 }
 
 static void tt_atlantis_machine_done(Notifier *n, void *data)
@@ -497,7 +500,7 @@ static void tt_atlantis_machine_done(Notifier *n, void *data)
      * dynamic sysbus devices. Our FDT needs to be finalized.
      */
     if (machine->dtb == NULL) {
-        finalize_fdt(machine->fdt, s);
+        finalize_fdt(machine->fdt, &s->cpus, s->memmap, machine->ram_size);
     }
 
     mem_size = machine->ram_size;
