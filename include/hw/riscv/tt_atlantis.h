@@ -37,7 +37,7 @@ struct TTAscalonClusterState {
     /*< public >*/
     const MemMapEntry *memmap;
 
-    MemoryRegion *memory;
+    MemoryRegion memory;
 
     RISCVHartArrayState cpus;
     MemoryRegion bootrom;
@@ -70,7 +70,6 @@ struct TTAtlantisState {
     /*< public >*/
     Notifier machine_done;
 
-    MemoryRegion soc_memory;
     TTAtlantisSoCState soc;
 };
 
