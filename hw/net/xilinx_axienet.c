@@ -699,6 +699,12 @@ static void axienet_eth_rx_notify(void *opaque)
             }
         }
     }
+
+    /* Check need_flush outside the loop for an empty RX buffer. */
+    if (!s->rxsize && s->need_flush) {
+        s->need_flush = false;
+        qemu_flush_queued_packets(qemu_get_queue(s->nic));
+    }
     enet_update_irq(s);
 }
 
@@ -718,6 +724,12 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     DENET(qemu_log("%s: %zd bytes\n", __func__, size));
 
     if (!eth_can_rx(s)) {
+        s->need_flush = true;
+        return 0;
+    }
+
+    /* Check if DMA can accept data before processing packet */
+    if (!stream_can_push(s->tx_data_dev, axienet_eth_rx_notify, s)) {
         s->need_flush = true;
         return 0;
     }
