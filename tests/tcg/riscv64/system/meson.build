@@ -89,6 +89,13 @@ tests += {
   }
 }
 
+tests += {
+  'test-jvt-warl.S': {
+    'cflags': cflags + ['-march=rv64gc_zicsr'],
+    'qemu_args': ['-cpu', 'rv64,zcmt=true,zcd=false', qemu_args],
+  }
+}
+
 if 'qemu-system-riscv64' in emulators
   tcg_tests += {
     'riscv64-softmmu': {

@@ -22,6 +22,15 @@ tests += {
   },
 }
 
+tests += {
+  'test-jvt-warl.S': {
+    'cflags': cflags,
+    'qemu_args': [
+      '-cpu', 'rv32i,h=false,zcd=false,zca=true,zcmt=true,zicsr=true', qemu_args,
+    ],
+  },
+}
+
 if 'qemu-system-riscv32' in emulators
   tcg_tests += {
     'riscv32-softmmu': {
