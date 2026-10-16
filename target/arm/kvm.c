@@ -39,6 +39,7 @@
 #include "hw/core/irq.h"
 #include "qapi/visitor.h"
 #include "qemu/log.h"
+#include "qemu/rcu.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/ghes.h"
 #include "target/arm/gtimer.h"
@@ -52,6 +53,8 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
 static bool cap_has_mp_state;
 static bool cap_has_inject_serror_esr;
 static bool cap_has_inject_ext_dabt;
+
+static int kvm_arm_handle_sea(ARMCPU *cpu, struct kvm_run *run);
 
 /**
  * ARMHostCPUFeatures: information about the host CPU (identified
@@ -689,6 +692,21 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
             /* Set status for supporting the external dabt injection */
             cap_has_inject_ext_dabt = kvm_check_extension(s,
                                     KVM_CAP_ARM_INJECT_EXT_DABT);
+        }
+    }
+
+    /*
+     * Ask KVM to return a guest synchronous external abort that the host
+     * could not attribute to a firmware-first (APEI) error record as
+     * KVM_EXIT_ARM_SEA, instead of injecting an SError with an
+     * IMPLEMENTATION DEFINED syndrome into the guest. Linux guests treat
+     * that SError as fatal, so on a host whose HEST has no SEA-notified
+     * GHES source every guest-consumed memory error would otherwise be a
+     * guest kernel panic. See kvm_arm_handle_sea().
+     */
+    if (kvm_check_extension(s, KVM_CAP_ARM_SEA_TO_USER)) {
+        if (kvm_vm_enable_cap(s, KVM_CAP_ARM_SEA_TO_USER, 0)) {
+            warn_report("Failed to enable KVM_CAP_ARM_SEA_TO_USER cap");
         }
     }
 
@@ -1623,6 +1641,10 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
             ret = EXCP_DEBUG;
         } /* otherwise return to guest */
         break;
+    case KVM_EXIT_ARM_SEA:
+        /* Guest SEA that the host could not claim through APEI */
+        ret = kvm_arm_handle_sea(cpu, run);
+        break;
     case KVM_EXIT_ARM_NISV:
         /* External DABT with no valid iss to decode */
         ret = kvm_arm_handle_dabt_nisv(cpu, run->arm_nisv.esr_iss,
@@ -2151,27 +2173,105 @@ int kvm_arch_destroy_vcpu(CPUState *cs)
     return 0;
 }
 
-/* Callers must hold the iothread mutex lock */
-static void kvm_inject_arm_sea(CPUState *c)
+/*
+ * Inject a synchronous external abort into the guest, targeting EL1.
+ *
+ * @esr: the syndrome to present. Its EC selects an instruction or a data
+ *       abort (the same-EL variant is chosen here); IL and the ISS bits
+ *       (FnV, EA, CM, WnR, xFSC, SET) are passed through to the guest.
+ * @far: the faulting virtual address, only meaningful when ISS.FnV is 0.
+ *
+ * Callers must hold the BQL.
+ */
+static void kvm_inject_arm_sea(CPUState *c, uint32_t esr, uint64_t far)
 {
     ARMCPU *cpu = ARM_CPU(c);
     CPUARMState *env = &cpu->env;
-    uint32_t esr;
+    uint32_t ec = syn_get_ec(esr);
+    bool iabt = ec == EC_INSNABORT || ec == EC_INSNABORT_SAME_EL;
     bool same_el;
 
-    c->exception_index = EXCP_DATA_ABORT;
+    c->exception_index = iabt ? EXCP_PREFETCH_ABORT : EXCP_DATA_ABORT;
     env->exception.target_el = 1;
+    env->exception.vaddress = far;
 
-    /*
-     * Set the DFSC to synchronous external abort and set FnV to not valid,
-     * this will tell guest the FAR_ELx is UNKNOWN for this abort.
-     */
     same_el = arm_current_el(env) == env->exception.target_el;
-    esr = syn_data_abort_no_iss(same_el, 1, 0, 0, 0, 0, 0x10);
-
-    env->exception.syndrome = esr;
+    ec = (iabt ? EC_INSNABORT : EC_DATAABORT) + same_el;
+    env->exception.syndrome = syn_set_ec(esr, ec);
 
     arm_cpu_do_interrupt(c);
+}
+
+/*
+ * Handle KVM_EXIT_ARM_SEA: the guest took a synchronous external abort,
+ * typically by consuming a poisoned memory location, and the host kernel
+ * found no APEI error record to claim it with. Without
+ * KVM_CAP_ARM_SEA_TO_USER, KVM would inject a virtual SError here, which a
+ * Linux guest treats as fatal.
+ *
+ * Do what the BUS_MCEERR_AR SIGBUS path does: when the exit carries a guest
+ * physical address that is backed by guest RAM, remember the page so it is
+ * remapped on reset and record a memory error on the synchronous GHES
+ * source (if the machine has one, i.e. ras=on), so the guest's
+ * memory_failure() can isolate the page and kill only the affected task.
+ * Then inject a synchronous external abort that reflects the original one:
+ * the kernel hands us ESR_EL2 sanitised to EC, IL, FnV, EA, CM, WnR, xFSC
+ * and SET, which are exactly the fields that are meaningful at EL1, and the
+ * faulting virtual address when FnV is clear.
+ *
+ * kvm_arch_handle_exit() runs without the BQL; both the GHES update and
+ * arm_cpu_do_interrupt() need it.
+ */
+static int kvm_arm_handle_sea(ARMCPU *cpu, struct kvm_run *run)
+{
+    CPUState *cs = CPU(cpu);
+    uint64_t flags = run->arm_sea.flags;
+    uint64_t esr = run->arm_sea.esr;
+    uint64_t gva = run->arm_sea.gva;
+    hwaddr gpa = run->arm_sea.gpa;
+    ram_addr_t ram_addr = RAM_ADDR_INVALID;
+    AcpiGhesState *ags;
+
+    trace_kvm_arm_handle_sea(flags, esr, gva, gpa);
+
+    if (flags & KVM_EXIT_ARM_SEA_FLAG_GPA_VALID) {
+        MemoryRegion *mr;
+        hwaddr xlat, len = 1;
+
+        WITH_RCU_READ_LOCK_GUARD() {
+            mr = address_space_translate(&address_space_memory, gpa, &xlat,
+                                         &len, false, MEMTXATTRS_UNSPECIFIED);
+            if (memory_region_is_ram(mr)) {
+                ram_addr = memory_region_get_ram_addr(mr) + xlat;
+            }
+        }
+    }
+
+    bql_lock();
+    kvm_cpu_synchronize_state(cs);
+
+    ags = acpi_ghes_get_state();
+    if (ram_addr != RAM_ADDR_INVALID) {
+        kvm_hwpoison_page_add(ram_addr);
+        if (ags) {
+            Error *err = NULL;
+
+            if (!acpi_ghes_memory_errors(ags, ACPI_HEST_SRC_ID_SYNC, gpa,
+                                         &err)) {
+                warn_reportf_err(err, "KVM_EXIT_ARM_SEA at GPA 0x%" HWADDR_PRIx
+                                 ": ", gpa);
+            }
+        } else {
+            warn_report_once("KVM_EXIT_ARM_SEA at GPA 0x%" HWADDR_PRIx
+                             " but the machine has no GHES (ras=off): the "
+                             "guest only gets an external abort", gpa);
+        }
+    }
+
+    kvm_inject_arm_sea(cs, esr, gva);
+    bql_unlock();
+
+    return 0;
 }
 
 #define AARCH64_CORE_REG(x)   (KVM_REG_ARM64 | KVM_REG_SIZE_U64 | \
@@ -2570,19 +2670,45 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
             /*
              * If this is a BUS_MCEERR_AR, we know we have been called
              * synchronously from the vCPU thread, so we can easily
-             * synchronize the state and inject an error.
-             *
-             * TODO: we currently don't tell the guest at all about
-             * BUS_MCEERR_AO. In that case we might either be being
-             * called synchronously from the vCPU thread, or a bit
-             * later from the main thread, so doing the injection of
-             * the error would be more complicated.
+             * synchronize the state and inject an error: a data abort
+             * with DFSC = synchronous external abort and FnV set, which
+             * tells the guest that FAR_ELx is UNKNOWN for this abort.
              */
             if (code == BUS_MCEERR_AR) {
                 kvm_cpu_synchronize_state(c);
                 acpi_ghes_memory_errors(ags, ACPI_HEST_SRC_ID_SYNC,
                                         paddr, &error_fatal);
-                kvm_inject_arm_sea(c);
+                kvm_inject_arm_sea(c, syn_data_abort_no_iss(0, 1, 0, 0, 0, 0,
+                                                            0x10), 0);
+                return;
+            }
+
+            /*
+             * BUS_MCEERR_AO: the host has retired a page of guest RAM that
+             * no vCPU was accessing at the time. We may be on a vCPU thread
+             * or on the main thread, in both cases under the BQL, so there
+             * is no vCPU to inject into. Instead record an action-optional
+             * memory error on the GED-notified GHES source, so the guest
+             * can offline the page as well. That source only exists with
+             * the HEST layout that reports its address to QEMU (virt
+             * machine versions after 10.0); with the older single-block
+             * layout the record would land in the synchronous source's
+             * block, unnoticed by the guest, and block the next
+             * synchronous record.
+             */
+            if (!ags->use_hest_addr) {
+                warn_report_once("BUS_MCEERR_AO at GPA 0x%" HWADDR_PRIx
+                                 ": this machine type has no GED-notified "
+                                 "GHES source, the guest is not told",
+                                 paddr);
+            } else {
+                Error *err = NULL;
+
+                if (!acpi_ghes_memory_errors(ags, ACPI_HEST_SRC_ID_QMP,
+                                             paddr, &err)) {
+                    warn_reportf_err(err, "BUS_MCEERR_AO at GPA 0x%"
+                                     HWADDR_PRIx ": ", paddr);
+                }
             }
             return;
         }
