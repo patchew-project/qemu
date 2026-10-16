@@ -328,6 +328,7 @@ struct X86OpEntry {
     unsigned     vex_class:8;
     X86VEXSpecial vex_special:8;
     unsigned     valid_prefix:16;
+    unsigned     vex_valid_prefix:16;
     unsigned     check:16;
     unsigned     intercept:8;
     bool         has_intercept:1;

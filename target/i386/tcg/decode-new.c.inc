@@ -290,6 +290,8 @@
 #define p_66_f3_f2    .valid_prefix = P_66 | P_F3 | P_F2,
 #define p_00_66_f3_f2 .valid_prefix = P_00 | P_66 | P_F3 | P_F2,
 
+#define vex_p_66 .vex_valid_prefix = P_66,
+
 #define UNKNOWN_OPCODE ((X86OpEntry) {})
 
 #define X86_MAX_INSN_LENGTH 15
@@ -1391,7 +1393,7 @@ static const X86OpEntry opcodes_0F[256] = {
     [0xc1] = X86_OP_ENTRY2(XADD,       E,v, G,v,            lock),
     [0xc2] = X86_OP_ENTRY4(VCMP,       V,x, H,x, W,x,       vex2_rep3 p_00_66_f3_f2),
     [0xc3] = X86_OP_ENTRY3(MOV,        EM,y,G,y, None,None, cpuid(SSE2) p_00), /* MOVNTI */
-    [0xc4] = X86_OP_ENTRY4(PINSRW,     V,dq,H,dq,E,w,       vex5 mmx p_00_66),
+    [0xc4] = X86_OP_ENTRY4(PINSRW,     V,dq,H,dq,E,w,       vex5 mmx p_00_66 vex_p_66),
     [0xc5] = X86_OP_ENTRY3(PEXTRW,     G,d, U,dq,I,b,       vex5 mmx p_00_66),
     [0xc6] = X86_OP_ENTRY4(VSHUF,      V,x, H,x, W,x,       vex4 p_00_66),
     [0xc7] = X86_OP_GROUP0(group9),
@@ -2757,6 +2759,9 @@ static bool validate_sse_prefix(DisasContext *s, X86OpEntry *e)
 
         /* fallthrough */
     default:
+        if ((s->prefix & (PREFIX_VEX | PREFIX_EVEX)) && e->vex_valid_prefix) {
+            break;
+        }
         if (!e->valid_prefix) {
             return true;
         }
@@ -2769,6 +2774,11 @@ static bool validate_sse_prefix(DisasContext *s, X86OpEntry *e)
 
     /* Now, either zero or one bit is set in sse_prefixes.  */
     sse_prefixes = s->prefix & (PREFIX_REPZ | PREFIX_REPNZ | PREFIX_DATA);
+
+    if ((s->prefix & (PREFIX_VEX | PREFIX_EVEX)) && e->vex_valid_prefix) {
+        return e->vex_valid_prefix & (1 << sse_prefixes);
+    }
+
     return e->valid_prefix & (1 << sse_prefixes);
 }
 
