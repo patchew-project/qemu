@@ -419,6 +419,9 @@ static void pflash_update(PFlashCFI02 *pfl, int offset, int size)
 {
     int offset_end;
     int ret;
+
+    memory_region_flush_rom_device(&pfl->orig_mem, offset, size);
+
     if (pfl->blk) {
         offset_end = offset + size;
         /* widen to sector boundaries */

@@ -3163,7 +3163,7 @@ void memory_region_flush_rom_device(MemoryRegion *mr, hwaddr addr, hwaddr size)
      * necessary.  Other memory regions should use the
      * address_space_read/write() APIs.
      */
-    assert(memory_region_is_romd(mr));
+    assert(mr->rom_device);
 
     invalidate_and_set_dirty(mr, addr, size);
 }

@@ -388,12 +388,15 @@ static uint32_t pflash_read(PFlashCFI01 *pfl, hwaddr offset,
     return ret;
 }
 
-/* update flash content on disk */
+/* update flash content on disk and invalidate the guest view of RAM */
 static void pflash_update(PFlashCFI01 *pfl, int offset,
                           int size)
 {
     int offset_end;
     int ret;
+
+    memory_region_flush_rom_device(&pfl->mem, offset, size);
+
     if (pfl->blk) {
         offset_end = offset + size;
         /* widen to sector boundaries */
