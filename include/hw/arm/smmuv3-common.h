@@ -411,6 +411,28 @@ REG32(EVENTQ_IRQ_CFG2,     0xbc)
 
 #define A_IDREGS           0xfd0
 
+#define SMMU_ROOT_REG_START 0x20000
+
+REG32(ROOT_IDR0,            0x0)
+    FIELD(ROOT_IDR0, ROOT_IMPL,   0,  1)
+    FIELD(ROOT_IDR0, BGTPM,       1,  1)
+    FIELD(ROOT_IDR0, RGPTM,       2,  1)
+    FIELD(ROOT_IDR0, REALM_IMPL,  3,  1)
+    FIELD(ROOT_IDR0, BA_REALM,   22, 10)
+
+REG32(ROOT_IIDR,             0x8)
+REG32(ROOT_CR0,             0x20)
+REG32(ROOT_CR0ACK,          0x24)
+REG64(ROOT_GPT_BASE,        0x28)
+REG64(ROOT_GPT_BASE_CFG,    0x30)
+REG64(ROOT_GPF_FAR,         0x38)
+REG64(ROOT_GPT_CFG_FAR,     0x40)
+REG64(ROOT_TLBI,            0x50)
+REG32(ROOT_TLBI_CTRL,       0x58)
+REG64(ROOT_GPT_BASE2,       0x60)
+REG32(ROOT_GPT_BASE_UPDATE, 0x68)
+REG32(ROOT_GPCBW,           0x70)
+
 /* Commands */
 
 typedef enum SMMUCommandType {

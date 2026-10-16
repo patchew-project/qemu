@@ -316,6 +316,11 @@ static void smmuv3_init_id_regs(SMMUv3State *s)
     s->idr[5] = FIELD_DP32(s->idr[5], IDR5, GRAN64K, 1);
     s->aidr = 0x1;
     smmuv3_accel_idr_override(s);
+
+    /* Initialize Root bank */
+    s->root.idr0 = FIELD_DP32(s->root.idr0, ROOT_IDR0, ROOT_IMPL, 1);
+    /* Set this to 1 when SMMU Realms are implemented */
+    s->root.idr0 = FIELD_DP32(s->root.idr0, ROOT_IDR0, REALM_IMPL, 0);
 }
 
 bool smmuv3_ats_enabled(SMMUv3State *s)
@@ -1769,12 +1774,129 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
     return MEMTX_OK;
 }
 
+/*
+ * Check we are from the Root PA space to read from or write to the
+ * SMMU Root register area.
+ */
+static bool smmu_check_root_access(SMMUv3State *s, MemTxAttrs attrs,
+                                     hwaddr offset, bool is_read)
+{
+    /* Check if the access is from Root PA */
+    if (!(attrs.space == ARMSS_Root)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "%s: Non-root %s attempt at offset 0x%" PRIx64 " (%s)\n",
+            __func__, is_read ? "read" : "write", offset,
+            is_read ? "RAZ" : "WI");
+        return false;
+    }
+    return true;
+}
+
+static MemTxResult smmu_root_writel(SMMUv3State *s, hwaddr offset,
+                                    uint64_t data, MemTxAttrs attrs)
+{
+    switch (offset) {
+    case A_ROOT_IDR0:
+    case A_ROOT_IIDR:
+    case A_ROOT_CR0ACK:
+        /* RO registers, write ignored */
+        return MEMTX_OK;
+    case A_ROOT_TLBI_CTRL:
+        /* Optional, not implemented. Present if IDR0.RGPTM == 1 */
+        return MEMTX_OK;
+    case A_ROOT_GPT_BASE_UPDATE:
+        /* Unimplemented at present; has side effects */
+        return MEMTX_OK;
+    case A_ROOT_CR0:
+        s->root.cr0 = data;
+        s->root.cr0ack = s->root.cr0;
+        return MEMTX_OK;
+    default:
+        qemu_log_mask(LOG_UNIMP,
+                      "%s unhandled 32-bit access at 0x%"PRIx64" (WI)\n",
+                      __func__, offset);
+        /*
+         * Locations not associated with a register (including registers that we
+         * have not implemented yet) are RES0, and will follow RAZ/WI behaviour.
+         */
+        return MEMTX_OK;
+    }
+}
+
+static MemTxResult smmu_root_writell(SMMUv3State *s, hwaddr offset,
+                                     uint64_t data, MemTxAttrs attrs)
+{
+    switch (offset) {
+    case A_ROOT_GPT_BASE:
+        s->root.gpt_base = data;
+        return MEMTX_OK;
+    case A_ROOT_GPT_BASE_CFG:
+        s->root.gpt_base_cfg = data;
+        return MEMTX_OK;
+    case A_ROOT_GPF_FAR:
+        s->root.gpf_far = data;
+        return MEMTX_OK;
+    case A_ROOT_GPT_CFG_FAR:
+        s->root.gpt_cfg_far = data;
+        return MEMTX_OK;
+    case A_ROOT_TLBI:
+        /* Optional, not implemented. Present if ROOT_IDR0.RGPTM == 1 */
+        return MEMTX_OK;
+    case A_ROOT_GPT_BASE2:
+        s->root.gpt_base2 = data;
+        return MEMTX_OK;
+    case A_ROOT_GPCBW:
+        /* Optional, not implemented. Present if ROOT_IDR0.GPTS == 1 */
+        return MEMTX_OK;
+    default:
+        qemu_log_mask(LOG_UNIMP,
+                      "%s unhandled 64-bit access at 0x%"PRIx64" (WI)\n",
+                      __func__, offset);
+        /* RES0; See smmu_root_writel */
+        return MEMTX_OK;
+    }
+}
+
+static MemTxResult smmu_write_mmio_root(SMMUv3State *s, hwaddr offset,
+                                        uint64_t data, unsigned size,
+                                        MemTxAttrs attrs)
+{
+    MemTxResult r;
+
+    switch (size) {
+    case 8:
+        r = smmu_root_writell(s, offset, data, attrs);
+        break;
+    case 4:
+        r = smmu_root_writel(s, offset, data, attrs);
+        break;
+    default:
+        r = MEMTX_ERROR;
+        break;
+    }
+
+    trace_smmuv3_write_mmio(offset, data, size, r);
+    return r;
+}
+
 static MemTxResult smmu_write_mmio(void *opaque, hwaddr offset, uint64_t data,
                                    unsigned size, MemTxAttrs attrs)
 {
     SMMUState *sys = opaque;
     SMMUv3State *s = ARM_SMMUV3(sys);
     MemTxResult r;
+
+    if (offset >= SMMU_ROOT_REG_START) {
+        if (!smmu_check_root_access(s, attrs, offset, false)) {
+            /*
+             * As per 6.2.8, accesses in any PA space other
+             * than Root are completed as RAZ/WI.
+             */
+            trace_smmuv3_write_mmio(offset, data, size, MEMTX_OK);
+            return MEMTX_OK;
+        }
+        return smmu_write_mmio_root(s, offset, data, size, attrs);
+    }
 
     /* CONSTRAINED UNPREDICTABLE choice to have page0/1 be exact aliases */
     offset &= ~0x10000;
@@ -1918,12 +2040,119 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
     }
 }
 
+static MemTxResult smmu_root_readl(SMMUv3State *s, hwaddr offset,
+                                   uint64_t *data, MemTxAttrs attrs)
+{
+    switch (offset) {
+    case A_ROOT_IDR0:
+        *data = s->root.idr0;
+        return MEMTX_OK;
+    case A_ROOT_IIDR:
+        *data = s->root.iidr;
+        return MEMTX_OK;
+    case A_ROOT_TLBI_CTRL:
+        /* Optional, not implemented. Present if ROOT_IDR0.RGPTM == 1 */
+        *data = 0;
+        return MEMTX_OK;
+    case A_ROOT_GPT_BASE_UPDATE:
+        /* Not a regular register; reads as 0 once update is complete */
+        *data = 0;
+        return MEMTX_OK;
+    case A_ROOT_CR0:
+        *data = s->root.cr0;
+        return MEMTX_OK;
+    case A_ROOT_CR0ACK:
+        *data = s->root.cr0ack;
+        return MEMTX_OK;
+    default:
+        qemu_log_mask(LOG_UNIMP,
+                      "%s unhandled 32-bit access at 0x%"PRIx64" (RAZ)\n",
+                      __func__, offset);
+        *data = 0;
+        /* RES0; See smmu_root_writel */
+        return MEMTX_OK;
+    }
+}
+
+static MemTxResult smmu_root_readll(SMMUv3State *s, hwaddr offset,
+                                    uint64_t *data, MemTxAttrs attrs)
+{
+    switch (offset) {
+    case A_ROOT_GPT_BASE:
+        *data = s->root.gpt_base;
+        return MEMTX_OK;
+    case A_ROOT_GPT_BASE_CFG:
+        *data = s->root.gpt_base_cfg;
+        return MEMTX_OK;
+    case A_ROOT_GPF_FAR:
+        *data = s->root.gpf_far;
+        return MEMTX_OK;
+    case A_ROOT_GPT_CFG_FAR:
+        *data = s->root.gpt_cfg_far;
+        return MEMTX_OK;
+    case A_ROOT_TLBI:
+        /* Optional, not implemented. Present if ROOT_IDR0.RGPTM == 1 */
+        *data = 0;
+        return MEMTX_OK;
+    case A_ROOT_GPT_BASE2:
+        *data = s->root.gpt_base2;
+        return MEMTX_OK;
+    case A_ROOT_GPCBW:
+        /* Optional, not implemented. Present if ROOT_IDR0.GPTS == 0 */
+        *data = 0;
+        return MEMTX_OK;
+    default:
+        qemu_log_mask(LOG_UNIMP,
+                      "%s unhandled 64-bit access at 0x%"PRIx64" (RAZ)\n",
+                      __func__, offset);
+        *data = 0;
+        /* RES0; See smmu_root_writel */
+        return MEMTX_OK;
+    }
+}
+
+static MemTxResult smmu_read_mmio_root(SMMUv3State *s, hwaddr offset,
+                                       uint64_t *data, unsigned size,
+                                       MemTxAttrs attrs)
+{
+    MemTxResult r;
+
+    switch (size) {
+    case 8:
+        r = smmu_root_readll(s, offset, data, attrs);
+        break;
+    case 4:
+        r = smmu_root_readl(s, offset, data, attrs);
+        break;
+    default:
+        r = MEMTX_ERROR;
+        break;
+    }
+
+    trace_smmuv3_read_mmio(offset, *data, size, r);
+    return r;
+}
+
+
 static MemTxResult smmu_read_mmio(void *opaque, hwaddr offset, uint64_t *data,
                                   unsigned size, MemTxAttrs attrs)
 {
     SMMUState *sys = opaque;
     SMMUv3State *s = ARM_SMMUV3(sys);
     MemTxResult r;
+
+    if (offset >= SMMU_ROOT_REG_START) {
+        if (!smmu_check_root_access(s, attrs, offset, true)) {
+            /*
+             * As per 6.2.8, accesses in any PA space other
+             * than Root are completed as RAZ/WI.
+             */
+            trace_smmuv3_read_mmio(offset, *data, size, MEMTX_OK);
+            return MEMTX_OK;
+        }
+
+        return smmu_read_mmio_root(s, offset, data, size, attrs);
+    }
 
     /* CONSTRAINED UNPREDICTABLE choice to have page0/1 be exact aliases */
     offset &= ~0x10000;
