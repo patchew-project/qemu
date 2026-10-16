@@ -1632,6 +1632,11 @@ static int hyperv_fill_cpuids(CPUState *cs,
             HV_NO_NONARCH_CORESHARING;
     }
 
+    /* Only a hint for a nested Hyper-V: no KVM support is needed */
+    if (cpu->hyperv_nested_sleep) {
+        c->eax |= HV_NESTED_SLEEP_SUPPORTED;
+    }
+
     c = &cpuid_ent[cpuid_i++];
     c->function = HV_CPUID_IMPLEMENT_LIMITS;
     c->eax = cpu->hv_max_vps;

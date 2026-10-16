@@ -187,6 +187,16 @@ Existing enlightenments
   Note: enabling this feature on old hardware (without APICv/AVIC support) may
   have negative effect on guest's performance.
 
+``hv-nested-sleep``
+  Tells a guest that runs its own Hyper-V (Windows with Virtualization-Based
+  Security, or with the Hyper-V role) that sleep states are supported for a
+  nested hypervisor (CPUID 0x40000004.EAX bit 20). Without it, Hyper-V running
+  on top of KVM disables hibernation (S4) for its root partition: Windows
+  reports "The hypervisor does not support hibernation", and an S4 attempt
+  makes the nested hypervisor reset the machine. No KVM support is needed: the
+  bit is a hint only. On resume the nested hypervisor issues a hypercall that
+  KVM does not implement; the nested hypervisor ignores the failure.
+
 ``hv-no-nonarch-coresharing`` = on/off/auto
   This enlightenment tells guest OS that virtual processors will never share a
   physical core unless they are reported as sibling SMT threads. This information
