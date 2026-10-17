@@ -158,6 +158,16 @@ static void flush_or_purge_queued_packets(NetClientState *nc)
  * - we could suppress RX interrupt if we were so inclined.
  */
 
+static void virtio_net_rx_notify(void *opaque)
+{
+    VirtIONetQueue *q = opaque;
+    VirtIONet *n = q->n;
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+
+    q->rx_coal.pkt_cnt = 0;
+    virtio_notify(vdev, q->rx_vq);
+}
+
 static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -1003,6 +1013,90 @@ static void virtio_net_set_features(VirtIODevice *vdev,
     }
 }
 
+static void virtio_net_tx_notification_timer(void *opaque)
+{
+    VirtIONetQueue *q = opaque;
+    VirtIONet *n = q->n;
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+
+    q->tx_coal.pkt_cnt = 0;
+    virtio_notify(vdev, q->tx_vq);
+}
+
+static bool virtio_net_tx_should_notify(VirtIONetQueue *q)
+{
+    if (!q->tx_coal.timer) {
+        return true;
+    }
+
+    q->tx_coal.pkt_cnt++;
+
+    if (q->tx_coal.packets > 0 && q->tx_coal.pkt_cnt >= q->tx_coal.packets) {
+        q->tx_coal.pkt_cnt = 0;
+        timer_del(q->tx_coal.timer);
+        return true;
+    }
+
+    if (!timer_pending(q->tx_coal.timer)) {
+        timer_mod(q->tx_coal.timer,
+                  qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                  q->tx_coal.usecs * 1000);
+    }
+
+    return false;
+}
+
+static int virtio_net_handle_coal(VirtIONet *n, uint8_t cmd,
+                                  struct iovec *iov, unsigned int iov_cnt)
+{
+    struct virtio_net_ctrl_coal coal;
+    VirtIONetQueue *q;
+    size_t s;
+    int i;
+
+    if (n->tx_timer_activate) {
+        return VIRTIO_NET_ERR;
+    }
+
+    s = iov_to_buf(iov, iov_cnt, 0, &coal, sizeof(coal));
+    if (s != sizeof(coal)) {
+        return VIRTIO_NET_ERR;
+    }
+
+    if (cmd == VIRTIO_NET_CTRL_NOTF_COAL_RX_SET) {
+        for (i = 0; i < n->max_queue_pairs; i++) {
+            q = &n->vqs[i];
+            q->rx_coal.usecs = le32_to_cpu(coal.max_usecs);
+            q->rx_coal.packets = le32_to_cpu(coal.max_packets);
+            q->rx_coal.pkt_cnt = 0;
+            if (q->rx_coal.usecs > 0) {
+                g_clear_pointer(&q->rx_coal.timer, timer_free);
+                q->rx_coal.timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                                virtio_net_rx_notify,
+                                                q);
+            } else {
+                g_clear_pointer(&q->rx_coal.timer, timer_free);
+            }
+        }
+    } else if (cmd == VIRTIO_NET_CTRL_NOTF_COAL_TX_SET) {
+        for (i = 0; i < n->max_queue_pairs; i++) {
+            q = &n->vqs[i];
+            q->tx_coal.usecs = le32_to_cpu(coal.max_usecs);
+            q->tx_coal.packets = le32_to_cpu(coal.max_packets);
+            q->tx_coal.pkt_cnt = 0;
+            if (q->tx_coal.usecs > 0) {
+                g_clear_pointer(&q->tx_coal.timer, timer_free);
+                q->tx_coal.timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                                virtio_net_tx_notification_timer,
+                                                q);
+            } else {
+                g_clear_pointer(&q->tx_coal.timer, timer_free);
+            }
+        }
+    }
+    return VIRTIO_NET_OK;
+}
+
 static int virtio_net_handle_rx_mode(VirtIONet *n, uint8_t cmd,
                                      struct iovec *iov, unsigned int iov_cnt)
 {
@@ -1582,6 +1676,8 @@ size_t virtio_net_handle_ctrl_iov(VirtIODevice *vdev,
         status = virtio_net_handle_mq(n, ctrl.cmd, iov, out_num);
     } else if (ctrl.class == VIRTIO_NET_CTRL_GUEST_OFFLOADS) {
         status = virtio_net_handle_offloads(n, ctrl.cmd, iov, out_num);
+    } else if (ctrl.class == VIRTIO_NET_CTRL_NOTF_COAL) {
+        status = virtio_net_handle_coal(n, ctrl.cmd, iov, out_num);
     }
 
     s = iov_from_buf(in_sg, in_num, 0, &status, sizeof(status));
@@ -2056,7 +2152,23 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
     }
 
     virtqueue_flush(q->rx_vq, i);
-    virtio_notify(vdev, q->rx_vq);
+
+    /* rx coalescing */
+    q->rx_coal.pkt_cnt += i;
+    if (q->rx_coal.usecs == 0 || q->rx_coal.pkt_cnt >= q->rx_coal.packets) {
+        if (q->rx_coal.timer) {
+            timer_del(q->rx_coal.timer);
+        }
+        virtio_net_rx_notify(q);
+    } else {
+        if (q->rx_coal.timer) {
+            if (!timer_pending(q->rx_coal.timer)) {
+                timer_mod(q->rx_coal.timer,
+                          qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                          q->rx_coal.usecs * 1000); /* Converted to ns */
+            }
+        }
+    }
 
     return size;
 
@@ -2739,7 +2851,9 @@ static void virtio_net_tx_complete(NetClientState *nc, ssize_t len)
     int ret;
 
     virtqueue_push(q->tx_vq, q->async_tx.elem, 0);
-    virtio_notify(vdev, q->tx_vq);
+    if (virtio_net_tx_should_notify(q)) {
+        virtio_notify(vdev, q->tx_vq);
+    }
 
     g_free(q->async_tx.elem);
     q->async_tx.elem = NULL;
@@ -2851,7 +2965,10 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
 
 drop:
         virtqueue_push(q->tx_vq, elem, 0);
-        virtio_notify(vdev, q->tx_vq);
+        if (virtio_net_tx_should_notify(q)) {
+            virtio_notify(vdev, q->tx_vq);
+        }
+
         g_free(elem);
 
         if (++num_packets >= n->tx_burst) {
@@ -3054,6 +3171,12 @@ static void virtio_net_add_queue(VirtIONet *n, int index)
                             &DEVICE(vdev)->mem_reentrancy_guard);
 
     n->vqs[index].tx_waiting = 0;
+    n->vqs[index].rx_coal.pkt_cnt = 0;
+    n->vqs[index].tx_coal.pkt_cnt = 0;
+    n->vqs[index].rx_coal.usecs = 0;
+    n->vqs[index].tx_coal.usecs = 0;
+    n->vqs[index].rx_coal.packets = 0;
+    n->vqs[index].tx_coal.packets = 0;
     n->vqs[index].n = n;
 }
 
@@ -3066,6 +3189,10 @@ static void virtio_net_del_queue(VirtIONet *n, int index)
     qemu_purge_queued_packets(nc);
 
     virtio_del_queue(vdev, index * 2);
+
+    g_clear_pointer(&q->rx_coal.timer, timer_free);
+    g_clear_pointer(&q->tx_coal.timer, timer_free);
+
     if (q->tx_timer) {
         timer_free(q->tx_timer);
         q->tx_timer = NULL;
@@ -3156,6 +3283,13 @@ static void virtio_net_get_features(VirtIODevice *vdev, uint64_t *features,
     virtio_features_or(features, features, n->host_features_ex);
 
     virtio_add_feature_ex(features, VIRTIO_NET_F_MAC);
+    if (n->tx_timer_activate) {
+        virtio_clear_feature_ex(features, VIRTIO_NET_F_NOTF_COAL);
+    } else {
+        if (!virtio_has_feature(*features, VIRTIO_NET_F_NOTF_COAL)) {
+            *features &= ~(1ULL << VIRTIO_NET_F_NOTF_COAL);
+        }
+    }
 
     if (n->peers_wait_incoming) {
         /*
@@ -3356,13 +3490,49 @@ static int virtio_net_post_load_virtio(VirtIODevice *vdev)
     return 0;
 }
 
+static const VMStateDescription vmstate_virtio_net_coal = {
+    .name = "virtio-net-coal",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(usecs, VirtIONetCoal),
+        VMSTATE_UINT32(packets, VirtIONetCoal),
+        VMSTATE_UINT32(pkt_cnt, VirtIONetCoal),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static bool virtio_net_queue_notf_coal_needed(void *opaque)
+{
+    VirtIONetQueue *q = opaque;
+    return q->rx_coal.usecs > 0 || q->tx_coal.usecs > 0;
+}
+
+static const VMStateDescription vmstate_virtio_net_queue_notf_coal = {
+    .name = "virtio-net-queue-tx_waiting/notf-coal",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = virtio_net_queue_notf_coal_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_STRUCT(rx_coal, VirtIONetQueue, 0,
+                       vmstate_virtio_net_coal, VirtIONetCoal),
+        VMSTATE_STRUCT(tx_coal, VirtIONetQueue, 0,
+                       vmstate_virtio_net_coal, VirtIONetCoal),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 /* tx_waiting field of a VirtIONetQueue */
 static const VMStateDescription vmstate_virtio_net_queue_tx_waiting = {
     .name = "virtio-net-queue-tx_waiting",
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(tx_waiting, VirtIONetQueue),
         VMSTATE_END_OF_LIST()
-   },
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_virtio_net_queue_notf_coal,
+        NULL
+    }
 };
 
 static bool max_queue_pairs_gt_1(void *opaque, int version_id)
@@ -3456,6 +3626,21 @@ static int virtio_net_ufo_post_load(void *opaque, int version_id)
     if (tmp->has_ufo && !peer_has_ufo(tmp->parent)) {
         error_report("virtio-net: saved image requires TUN_F_UFO support");
         return -EINVAL;
+    }
+
+    for (i = 0; i < n->max_queue_pairs; i++) {
+        VirtIONetQueue *q = &n->vqs[i];
+        if (q->rx_coal.usecs > 0 && !q->rx_coal.timer) {
+            q->rx_coal.timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                            virtio_net_rx_notify,
+                                            q);
+        }
+
+        if (q->tx_coal.usecs > 0 && !q->tx_coal.timer) {
+            q->tx_coal.timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                            virtio_net_tx_notification_timer,
+                                            q);
+        }
     }
 
     return 0;
@@ -4120,6 +4305,10 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 
     if (n->net_conf.tx && strcmp(n->net_conf.tx, "timer") == 0) {
         n->tx_timer_activate = true;
+        if (n->host_features & (1ULL << VIRTIO_NET_F_NOTF_COAL)) {
+            warn_report("virtio-net: 'vq_notf_coal' is incompatible with 'tx=timer',"
+                        "disabling notification coalescing");
+        }
     }
 
     n->net_conf.tx_queue_size = MIN(virtio_net_max_tx_queue_size(n),
@@ -4417,6 +4606,8 @@ static const Property virtio_net_properties[] = {
                       VIRTIO_NET_F_GUEST_USO6, true),
     DEFINE_PROP_BIT64("host_uso", VirtIONet, host_features,
                       VIRTIO_NET_F_HOST_USO, true),
+    DEFINE_PROP_BIT64("vq_notf_coal", VirtIONet, host_features,
+                      VIRTIO_NET_F_NOTF_COAL, false),
     DEFINE_PROP_ON_OFF_AUTO_BIT64("hash-ipv4", VirtIONet,
                                   rss_data.specified_hash_types,
                                   VIRTIO_NET_HASH_REPORT_IPv4 - 1,
