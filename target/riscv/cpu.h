@@ -34,6 +34,9 @@
 #include "cpu_cfg.h"
 #include "qapi/qapi-types-common.h"
 #include "cpu-qom.h"
+#ifdef CONFIG_KVM
+#include <linux/kvm.h>
+#endif
 
 typedef struct CPUArchState CPURISCVState;
 
@@ -550,6 +553,9 @@ struct CPUArchState {
     /* KVM multiprocessor state */
     uint32_t kvm_mp_state;
     bool kvm_mp_state_loaded;
+
+    /* kvm sbi state */
+    struct kvm_riscv_sbi_sta kvm_sbi_sta;
 #endif /* CONFIG_KVM */
 };
 
