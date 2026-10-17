@@ -118,6 +118,7 @@ static const uint64_t vdpa_svq_device_features =
     BIT_ULL(VIRTIO_NET_F_MRG_RXBUF) |
     BIT_ULL(VIRTIO_NET_F_STATUS) |
     BIT_ULL(VIRTIO_NET_F_CTRL_VQ) |
+    BIT_ULL(VIRTIO_NET_F_NOTF_COAL) |
     BIT_ULL(VIRTIO_NET_F_GSO) |
     BIT_ULL(VIRTIO_NET_F_CTRL_RX) |
     BIT_ULL(VIRTIO_NET_F_CTRL_VLAN) |
@@ -1233,6 +1234,58 @@ static int vhost_vdpa_net_load_vlan(VhostVDPAState *s,
     return 0;
 }
 
+static int vhost_vdpa_net_load_coal(VhostVDPAState *s,
+                                    const VirtIONet *n,
+                                    struct iovec *out_cursor,
+                                    struct iovec *in_cursor)
+{
+    struct virtio_net_ctrl_coal_rx coal_rx;
+    struct virtio_net_ctrl_coal_tx coal_tx;
+    ssize_t dev_written;
+
+    if (!virtio_vdev_has_feature(VIRTIO_DEVICE(n), VIRTIO_NET_F_NOTF_COAL)) {
+        return 0;
+    }
+
+    coal_rx.rx_max_packets = cpu_to_le32(n->vqs[0].rx_coal.packets);
+    coal_rx.rx_usecs = cpu_to_le32(n->vqs[0].rx_coal.usecs);
+
+    const struct iovec data_rx[] = {
+        {
+            .iov_base = &coal_rx,
+            .iov_len = sizeof(coal_rx),
+        },
+    };
+
+    dev_written = vhost_vdpa_net_load_cmd(s, out_cursor, in_cursor,
+                                          VIRTIO_NET_CTRL_NOTF_COAL,
+                                          VIRTIO_NET_CTRL_NOTF_COAL_RX_SET,
+                                          data_rx, ARRAY_SIZE(data_rx));
+    if (unlikely(dev_written < 0)) {
+        return dev_written;
+    }
+
+    coal_tx.tx_max_packets = cpu_to_le32(n->vqs[0].tx_coal.packets);
+    coal_tx.tx_usecs = cpu_to_le32(n->vqs[0].tx_coal.usecs);
+
+    const struct iovec data_tx[] = {
+        {
+            .iov_base = &coal_tx,
+            .iov_len = sizeof(coal_tx),
+        },
+    };
+
+    dev_written = vhost_vdpa_net_load_cmd(s, out_cursor, in_cursor,
+                                          VIRTIO_NET_CTRL_NOTF_COAL,
+                                          VIRTIO_NET_CTRL_NOTF_COAL_TX_SET,
+                                          data_tx, ARRAY_SIZE(data_tx));
+    if (unlikely(dev_written < 0)) {
+        return dev_written;
+    }
+
+    return 0;
+}
+
 static int vhost_vdpa_net_cvq_load(NetClientState *nc)
 {
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
@@ -1269,6 +1322,10 @@ static int vhost_vdpa_net_cvq_load(NetClientState *nc)
         }
         r = vhost_vdpa_net_load_vlan(s, n, &out_cursor, &in_cursor);
         if (unlikely(r)) {
+            return r;
+        }
+        r = vhost_vdpa_net_load_coal(s, n, &out_cursor, &in_cursor);
+        if (unlikely(r < 0)) {
             return r;
         }
 
