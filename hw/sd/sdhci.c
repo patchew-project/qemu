@@ -361,6 +361,21 @@ static void sdhci_send_command(SDHCIState *s)
 
     s->errintsts = 0;
     s->acmd12errsts = 0;
+    if ((s->trnmod & SDHC_TRNS_ACMD23) &&
+            (s->cmdreg & SDHC_CMD_DATA_PRESENT) &&
+            (s->trnmod & SDHC_TRNS_MULTI)) {
+        if ((s->trnmod & SDHC_TRNS_DMA) &&
+                SDHC_DMA_TYPE(s->hostctl1) == SDHC_CTRL_SDMA) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                    "%s: guest enables Auto CMD23 in SDMA mode\n",
+                    __func__);
+        }
+        request.cmd = 0x17;
+        request.arg = s->sdmasysad;
+        trace_sdhci_send_command(request.cmd, request.arg);
+        sdbus_do_command(&s->sdbus, &request, response, sizeof(response));
+        s->rspreg[3] = ldl_be_p(response);
+    }
     request.cmd = s->cmdreg >> 8;
     request.arg = s->argument;
 
@@ -370,7 +385,7 @@ static void sdhci_send_command(SDHCIState *s)
     if (s->cmdreg & SDHC_CMD_RESPONSE) {
         if (rlen == 4) {
             s->rspreg[0] = ldl_be_p(response);
-            s->rspreg[1] = s->rspreg[2] = s->rspreg[3] = 0;
+            s->rspreg[1] = s->rspreg[2] = 0;
             trace_sdhci_response4(s->rspreg[0]);
         } else if (rlen == 16) {
             s->rspreg[0] = ldl_be_p(&response[11]);
@@ -1324,7 +1339,11 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
             mask |= 0xffff;
         }
 
-        MASKED_WRITE(s->trnmod, mask, value & SDHC_TRNMOD_MASK);
+        if (s->sd_spec_version >= 3) {
+            MASKED_WRITE(s->trnmod, mask, value & SDHC_TRNMOD_CMD23_MASK);
+        } else {
+            MASKED_WRITE(s->trnmod, mask, value & SDHC_TRNMOD_MASK);
+        }
         MASKED_WRITE(s->cmdreg, mask >> 16, value >> 16);
 
         /* Writing to the upper byte of CMDREG triggers SD command generation */
