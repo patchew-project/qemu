@@ -44,6 +44,7 @@
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
 static bool ioeventfd_update_pending;
+static bool coalesced_update_pending;
 unsigned int global_dirty_tracking;
 
 static QTAILQ_HEAD(, MemoryListener) memory_listeners
@@ -886,89 +887,204 @@ static void address_space_update_ioeventfds(AddressSpace *as)
 }
 
 /*
- * Notify the memory listeners about the coalesced IO change events of
- * range `cmr'.  Only the part that has intersection of the specified
- * FlatRange will be sent.
+ * Coalescing has no effect on writable RAM that the accelerator maps,
+ * because accesses to it are not MMIO.  KVM maps RAM only in whole host
+ * pages (kvm_align_section()).
  */
-static void flat_range_coalesced_io_notify(FlatRange *fr,
-                                           const AddressSpace *as,
-                                           CoalescedMemoryRange *cmr, bool add)
+static bool flat_range_ignores_coalescing(const FlatRange *fr)
 {
-    AddrRange tmp;
+    uint64_t page_size = qemu_real_host_page_size();
 
-    tmp = addrrange_shift(cmr->addr,
-                          int128_sub(fr->addr.start,
-                                     int128_make64(fr->offset_in_region)));
-    if (!addrrange_intersects(tmp, fr->addr)) {
-        return;
-    }
-    tmp = addrrange_intersection(tmp, fr->addr);
-
-    if (add) {
-        MEMORY_LISTENER_UPDATE_REGION(fr, as, Forward, coalesced_io_add,
-                                      int128_get64(tmp.start),
-                                      int128_get64(tmp.size));
-    } else {
-        MEMORY_LISTENER_UPDATE_REGION(fr, as, Reverse, coalesced_io_del,
-                                      int128_get64(tmp.start),
-                                      int128_get64(tmp.size));
-    }
+    return memory_region_is_ram(fr->mr) && !fr->readonly &&
+           QEMU_IS_ALIGNED(int128_get64(fr->addr.start), page_size) &&
+           QEMU_IS_ALIGNED(int128_get64(fr->addr.size), page_size);
 }
 
-static void flat_range_coalesced_io_del(FlatRange *fr, const AddressSpace *as)
+/* Does @fr map @mr with the region start at address @base? */
+static bool flat_range_maps_region_at(const FlatRange *fr, MemoryRegion *mr,
+                                      Int128 base)
 {
-    CoalescedMemoryRange *cmr;
-
-    QTAILQ_FOREACH(cmr, &fr->mr->coalesced, link) {
-        flat_range_coalesced_io_notify(fr, as, cmr, false);
-    }
+    return fr->mr == mr &&
+           int128_eq(int128_sub(fr->addr.start,
+                                int128_make64(fr->offset_in_region)), base);
 }
 
-static void flat_range_coalesced_io_add(FlatRange *fr, const AddressSpace *as)
+static int addrrange_cmp(const void *a, const void *b)
 {
-    MemoryRegion *mr = fr->mr;
-    CoalescedMemoryRange *cmr;
+    const AddrRange *r1 = a, *r2 = b;
 
-    if (QTAILQ_EMPTY(&mr->coalesced)) {
-        return;
+    if (!int128_eq(r1->start, r2->start)) {
+        return int128_lt(r1->start, r2->start) ? -1 : 1;
     }
-
-    QTAILQ_FOREACH(cmr, &mr->coalesced, link) {
-        flat_range_coalesced_io_notify(fr, as, cmr, true);
+    if (!int128_eq(r1->size, r2->size)) {
+        return int128_lt(r1->size, r2->size) ? -1 : 1;
     }
+    return 0;
 }
 
-static void
-flat_range_coalesced_io_notify_listener_add_del(FlatRange *fr,
-                                                MemoryRegionSection *mrs,
-                                                MemoryListener *listener,
-                                                const AddressSpace *as,
-                                                bool add)
+/*
+ * Compute the coalesced zones of @view, sorted and without overlaps.
+ *
+ * A coalesced range of a region covers the parts where the region is
+ * visible, and also the flat ranges next to them that ignore coalescing.
+ * So the zones do not change when RAM is mapped over part of a coalesced
+ * region and unmapped again, as the VGA window does with its bank aliases.
+ * Changing a zone is expensive for KVM.
+ */
+static unsigned flatview_get_coalesced(FlatView *view, AddrRange **pzones)
 {
-    CoalescedMemoryRange *cmr;
-    MemoryRegion *mr = fr->mr;
-    AddrRange tmp;
+    AddrRange *zones = NULL;
+    unsigned nb = 0, i, j;
 
-    QTAILQ_FOREACH(cmr, &mr->coalesced, link) {
-        tmp = addrrange_shift(cmr->addr,
-                              int128_sub(fr->addr.start,
-                                         int128_make64(fr->offset_in_region)));
+    for (i = 0; i < view->nr; i++) {
+        FlatRange *fr = &view->ranges[i];
+        CoalescedMemoryRange *cmr;
+        Int128 base;
 
-        if (!addrrange_intersects(tmp, fr->addr)) {
-            return;
+        if (QTAILQ_EMPTY(&fr->mr->coalesced)) {
+            continue;
         }
-        tmp = addrrange_intersection(tmp, fr->addr);
+        base = int128_sub(fr->addr.start, int128_make64(fr->offset_in_region));
+        QTAILQ_FOREACH(cmr, &fr->mr->coalesced, link) {
+            AddrRange tmp = addrrange_shift(cmr->addr, base);
+            Int128 tmp_end = addrrange_end(tmp);
+            Int128 start, end;
+
+            if (!addrrange_intersects(tmp, fr->addr)) {
+                continue;
+            }
+            start = int128_max(tmp.start, fr->addr.start);
+            end = int128_min(tmp_end, addrrange_end(fr->addr));
+
+            for (j = i; j > 0 && int128_gt(start, tmp.start); j--) {
+                FlatRange *prev = &view->ranges[j - 1];
+
+                if (!int128_eq(addrrange_end(prev->addr), start) ||
+                    !(flat_range_maps_region_at(prev, fr->mr, base) ||
+                      flat_range_ignores_coalescing(prev))) {
+                    break;
+                }
+                start = int128_max(prev->addr.start, tmp.start);
+            }
+            for (j = i + 1; j < view->nr && int128_lt(end, tmp_end); j++) {
+                FlatRange *next = &view->ranges[j];
+
+                if (!int128_eq(next->addr.start, end) ||
+                    !(flat_range_maps_region_at(next, fr->mr, base) ||
+                      flat_range_ignores_coalescing(next))) {
+                    break;
+                }
+                end = int128_min(addrrange_end(next->addr), tmp_end);
+            }
+
+            zones = g_renew(AddrRange, zones, nb + 1);
+            zones[nb++] = addrrange_make(start, int128_sub(end, start));
+        }
+    }
+
+    /*
+     * Merge overlapping zones.  KVM_UNREGISTER_COALESCED_MMIO removes every
+     * zone that contains the given range, so a zone must not lie inside
+     * another one.
+     */
+    if (nb > 1) {
+        qsort(zones, nb, sizeof(*zones), addrrange_cmp);
+    }
+    for (i = j = 0; i < nb; i++) {
+        if (j && int128_lt(zones[i].start, addrrange_end(zones[j - 1]))) {
+            Int128 end = int128_max(addrrange_end(zones[i]),
+                                    addrrange_end(zones[j - 1]));
+
+            zones[j - 1].size = int128_sub(end, zones[j - 1].start);
+        } else {
+            zones[j++] = zones[i];
+        }
+    }
+
+    *pzones = zones;
+    return j;
+}
+
+/* Tell @listener about all coalesced zones of @as when it is (un)registered */
+static void listener_notify_coalesced(MemoryListener *listener,
+                                      const AddressSpace *as, FlatView *view,
+                                      bool add)
+{
+    unsigned i;
+
+    for (i = 0; i < as->coalesced_nb; i++) {
+        hwaddr start = int128_get64(as->coalesced[i].start);
+        hwaddr size = int128_get64(as->coalesced[i].size);
+        MemoryRegionSection section = (MemoryRegionSection) {
+            .fv = view,
+            .offset_within_address_space = start,
+            .size = as->coalesced[i].size,
+        };
 
         if (add && listener->coalesced_io_add) {
-            listener->coalesced_io_add(listener, mrs,
-                                       int128_get64(tmp.start),
-                                       int128_get64(tmp.size));
+            listener->coalesced_io_add(listener, &section, start, size);
         } else if (!add && listener->coalesced_io_del) {
-            listener->coalesced_io_del(listener, mrs,
-                                       int128_get64(tmp.start),
-                                       int128_get64(tmp.size));
+            listener->coalesced_io_del(listener, &section, start, size);
         }
     }
+}
+
+/*
+ * Tell the listeners of @as about each zone of @zones that is not in
+ * @other: as added zones if @add, else as dropped zones.
+ */
+static void address_space_notify_coalesced(AddressSpace *as, FlatView *view,
+                                           AddrRange *zones, unsigned nb,
+                                           AddrRange *other, unsigned other_nb,
+                                           bool add)
+{
+    MemoryRegionSection section;
+    unsigned i, j = 0;
+
+    for (i = 0; i < nb; i++) {
+        while (j < other_nb && addrrange_cmp(&other[j], &zones[i]) < 0) {
+            j++;
+        }
+        if (j < other_nb && addrrange_equal(other[j], zones[i])) {
+            continue;
+        }
+        section = (MemoryRegionSection) {
+            .fv = view,
+            .offset_within_address_space = int128_get64(zones[i].start),
+            .size = zones[i].size,
+        };
+        if (add) {
+            MEMORY_LISTENER_CALL(as, coalesced_io_add, Forward, &section,
+                                 int128_get64(zones[i].start),
+                                 int128_get64(zones[i].size));
+        } else {
+            MEMORY_LISTENER_CALL(as, coalesced_io_del, Reverse, &section,
+                                 int128_get64(zones[i].start),
+                                 int128_get64(zones[i].size));
+        }
+    }
+}
+
+static void address_space_update_coalesced(AddressSpace *as)
+{
+    FlatView *view;
+    AddrRange *zones;
+    unsigned nb;
+
+    if (!as->coalesced_notifiers) {
+        return;
+    }
+
+    view = address_space_get_flatview(as);
+    nb = flatview_get_coalesced(view, &zones);
+    address_space_notify_coalesced(as, view, as->coalesced, as->coalesced_nb,
+                                   zones, nb, false);
+    address_space_notify_coalesced(as, view, zones, nb,
+                                   as->coalesced, as->coalesced_nb, true);
+    g_free(as->coalesced);
+    as->coalesced = zones;
+    as->coalesced_nb = nb;
+    flatview_unref(view);
 }
 
 static void address_space_update_topology_pass(AddressSpace *as,
@@ -1003,7 +1119,6 @@ static void address_space_update_topology_pass(AddressSpace *as,
             /* In old but not in new, or in both but attributes changed. */
 
             if (!adding) {
-                flat_range_coalesced_io_del(frold, as);
                 MEMORY_LISTENER_UPDATE_REGION(frold, as, Reverse, region_del);
             }
 
@@ -1032,7 +1147,6 @@ static void address_space_update_topology_pass(AddressSpace *as,
 
             if (adding) {
                 MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, region_add);
-                flat_range_coalesced_io_add(frnew, as);
             }
 
             ++inew;
@@ -1102,12 +1216,27 @@ static void address_space_set_flatview(AddressSpace *as)
 
     if (!QTAILQ_EMPTY(&as->listeners)) {
         FlatView tmpview = { .nr = 0 }, *old_view2 = old_view;
+        AddrRange *zones = NULL;
+        unsigned nb = 0;
 
         if (!old_view2) {
             old_view2 = &tmpview;
         }
+        if (as->coalesced_notifiers) {
+            nb = flatview_get_coalesced(new_view, &zones);
+            address_space_notify_coalesced(as, old_view2, as->coalesced,
+                                           as->coalesced_nb, zones, nb, false);
+        }
         address_space_update_topology_pass(as, old_view2, new_view, false);
         address_space_update_topology_pass(as, old_view2, new_view, true);
+        if (as->coalesced_notifiers) {
+            address_space_notify_coalesced(as, new_view, zones, nb,
+                                           as->coalesced, as->coalesced_nb,
+                                           true);
+            g_free(as->coalesced);
+            as->coalesced = zones;
+            as->coalesced_nb = nb;
+        }
     }
 
     /* Writes are protected by the BQL.  */
@@ -1161,15 +1290,25 @@ void memory_region_transaction_commit(void)
             QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
                 address_space_set_flatview(as);
                 address_space_update_ioeventfds(as);
+                if (coalesced_update_pending) {
+                    address_space_update_coalesced(as);
+                }
             }
             memory_region_update_pending = false;
             ioeventfd_update_pending = false;
+            coalesced_update_pending = false;
             MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
-        } else if (ioeventfd_update_pending) {
+        } else if (ioeventfd_update_pending || coalesced_update_pending) {
             QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-                address_space_update_ioeventfds(as);
+                if (ioeventfd_update_pending) {
+                    address_space_update_ioeventfds(as);
+                }
+                if (coalesced_update_pending) {
+                    address_space_update_coalesced(as);
+                }
             }
             ioeventfd_update_pending = false;
+            coalesced_update_pending = false;
         }
    }
 }
@@ -2331,29 +2470,6 @@ void memory_region_writeback(MemoryRegion *mr, hwaddr addr, hwaddr size)
     }
 }
 
-/*
- * Call proper memory listeners about the change on the newly
- * added/removed CoalescedMemoryRange.
- */
-static void memory_region_update_coalesced_range(MemoryRegion *mr,
-                                                 CoalescedMemoryRange *cmr,
-                                                 bool add)
-{
-    AddressSpace *as;
-    FlatView *view;
-    FlatRange *fr;
-
-    QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-        view = address_space_get_flatview(as);
-        FOR_EACH_FLAT_RANGE(fr, view) {
-            if (fr->mr == mr) {
-                flat_range_coalesced_io_notify(fr, as, cmr, add);
-            }
-        }
-        flatview_unref(view);
-    }
-}
-
 void memory_region_set_coalescing(MemoryRegion *mr)
 {
     memory_region_clear_coalescing(mr);
@@ -2366,10 +2482,12 @@ void memory_region_add_coalescing(MemoryRegion *mr,
 {
     CoalescedMemoryRange *cmr = g_malloc(sizeof(*cmr));
 
+    memory_region_transaction_begin();
     cmr->addr = addrrange_make(int128_make64(offset), int128_make64(size));
     QTAILQ_INSERT_TAIL(&mr->coalesced, cmr, link);
-    memory_region_update_coalesced_range(mr, cmr, true);
     memory_region_set_flush_coalesced(mr);
+    coalesced_update_pending |= mr->enabled;
+    memory_region_transaction_commit();
 }
 
 void memory_region_clear_coalescing(MemoryRegion *mr)
@@ -2383,12 +2501,14 @@ void memory_region_clear_coalescing(MemoryRegion *mr)
     qemu_flush_coalesced_mmio_buffer();
     mr->flush_coalesced_mmio = false;
 
+    memory_region_transaction_begin();
     while (!QTAILQ_EMPTY(&mr->coalesced)) {
         cmr = QTAILQ_FIRST(&mr->coalesced);
         QTAILQ_REMOVE(&mr->coalesced, cmr, link);
-        memory_region_update_coalesced_range(mr, cmr, false);
         g_free(cmr);
     }
+    coalesced_update_pending |= mr->enabled;
+    memory_region_transaction_commit();
 }
 
 void memory_region_set_flush_coalesced(MemoryRegion *mr)
@@ -2937,14 +3057,12 @@ static void listener_add_address_space(MemoryListener *listener,
             listener->region_add(listener, &section);
         }
 
-        /* send coalesced io add notifications */
-        flat_range_coalesced_io_notify_listener_add_del(fr, &section,
-                                                        listener, as, true);
-
         if (fr->dirty_log_mask && listener->log_start) {
             listener->log_start(listener, &section, 0, fr->dirty_log_mask);
         }
     }
+
+    listener_notify_coalesced(listener, as, view, true);
 
     /*
      * register all eventfds for this address space for the newly registered
@@ -2982,6 +3100,7 @@ static void listener_del_address_space(MemoryListener *listener,
         listener->begin(listener);
     }
     view = address_space_get_flatview(as);
+    listener_notify_coalesced(listener, as, view, false);
     FOR_EACH_FLAT_RANGE(fr, view) {
         MemoryRegionSection section = section_from_flat_range(fr, view);
 
@@ -2989,9 +3108,6 @@ static void listener_del_address_space(MemoryListener *listener,
             listener->log_stop(listener, &section, fr->dirty_log_mask, 0);
         }
 
-        /* send coalesced io del notifications */
-        flat_range_coalesced_io_notify_listener_add_del(fr, &section,
-                                                        listener, as, false);
         if (listener->region_del) {
             listener->region_del(listener, &section);
         }
@@ -3053,6 +3169,15 @@ void memory_listener_register(MemoryListener *listener, AddressSpace *as)
         QTAILQ_INSERT_BEFORE(other, listener, link_as);
     }
 
+    if ((listener->coalesced_io_add || listener->coalesced_io_del) &&
+        !as->coalesced_notifiers++) {
+        /* The zones are only kept up to date while somebody needs them */
+        FlatView *view = address_space_get_flatview(as);
+
+        as->coalesced_nb = flatview_get_coalesced(view, &as->coalesced);
+        flatview_unref(view);
+    }
+
     listener_add_address_space(listener, as);
 
     if (listener->eventfd_add || listener->eventfd_del) {
@@ -3071,6 +3196,12 @@ void memory_listener_unregister(MemoryListener *listener)
     }
 
     listener_del_address_space(listener, listener->address_space);
+    if ((listener->coalesced_io_add || listener->coalesced_io_del) &&
+        !--listener->address_space->coalesced_notifiers) {
+        g_free(listener->address_space->coalesced);
+        listener->address_space->coalesced = NULL;
+        listener->address_space->coalesced_nb = 0;
+    }
     QTAILQ_REMOVE(&memory_listeners, listener, link);
     QTAILQ_REMOVE(&listener->address_space->listeners, listener, link_as);
     listener->address_space = NULL;
@@ -3090,6 +3221,9 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
     as->current_map = NULL;
     as->ioeventfd_nb = 0;
     as->ioeventfds = NULL;
+    as->coalesced_nb = 0;
+    as->coalesced_notifiers = 0;
+    as->coalesced = NULL;
     QTAILQ_INIT(&as->listeners);
     QTAILQ_INSERT_TAIL(&address_spaces, as, address_spaces_link);
     as->max_bounce_buffer_size = DEFAULT_MAX_BOUNCE_BUFFER_SIZE;
@@ -3112,6 +3246,7 @@ static void do_address_space_destroy(AddressSpace *as)
     flatview_unref(as->current_map);
     g_free(as->name);
     g_free(as->ioeventfds);
+    g_free(as->coalesced);
     memory_region_unref(as->root);
 }
 
