@@ -3036,6 +3036,7 @@ M: Gerd Hoffmann <kraxel@redhat.com>
 S: Odd Fixes
 W: https://www.kraxel.org/blog/2014/10/qemu-using-cirrus-considered-harmful/
 F: hw/display/cirrus*
+F: tests/qtest/cirrus-test.c
 
 EDID Generator
 M: Gerd Hoffmann <kraxel@redhat.com>
