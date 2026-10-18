@@ -659,25 +659,36 @@ static void cirrus_invalidate_region(CirrusVGAState * s, int off_begin,
 static int cirrus_bitblt_common_patterncopy(CirrusVGAState *s)
 {
     uint32_t patternsize;
+    uint32_t patternaddr = 0;
     bool videosrc = !s->cirrus_srccounter;
 
     if (videosrc) {
-        switch (s->vga.get_bpp(&s->vga)) {
-        case 8:
-            patternsize = 64;
-            break;
-        case 15:
-        case 16:
-            patternsize = 128;
-            break;
-        case 24:
-        case 32:
-        default:
-            patternsize = 256;
-            break;
+        if (s->cirrus_blt_mode & CIRRUS_BLTMODE_COLOREXPAND) {
+            patternsize = 8;
+        } else {
+            switch (s->vga.get_bpp(&s->vga)) {
+            case 8:
+                patternsize = 64;
+                break;
+            case 15:
+            case 16:
+                patternsize = 128;
+                break;
+            case 24:
+            case 32:
+            default:
+                patternsize = 256;
+                break;
+            }
         }
-        s->cirrus_blt_srcaddr &= ~(patternsize - 1);
-        if (s->cirrus_blt_srcaddr + patternsize > s->vga.vram_size) {
+        /*
+         * The pattern starts at a multiple of its size.  The three low
+         * bits of the source address select the first pattern line; the
+         * raster operations take them from cirrus_blt_srcaddr, so the
+         * aligned address goes into patternaddr.
+         */
+        patternaddr = s->cirrus_blt_srcaddr & ~(patternsize - 1);
+        if (patternaddr + patternsize > s->vga.vram_size) {
             return 0;
         }
     }
@@ -686,8 +697,7 @@ static int cirrus_bitblt_common_patterncopy(CirrusVGAState *s)
         return 0;
     }
 
-    (*s->cirrus_rop) (s, s->cirrus_blt_dstaddr,
-                      videosrc ? s->cirrus_blt_srcaddr : 0,
+    (*s->cirrus_rop) (s, s->cirrus_blt_dstaddr, patternaddr,
                       s->cirrus_blt_dstpitch, 0,
                       s->cirrus_blt_width, s->cirrus_blt_height);
     cirrus_invalidate_region(s, s->cirrus_blt_dstaddr,
