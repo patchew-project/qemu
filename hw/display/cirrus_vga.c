@@ -248,6 +248,17 @@ static bool blit_is_unsafe(struct CirrusVGAState *s, bool dst_only)
     if (dst_only) {
         return false;
     }
+    if (s->cirrus_blt_mode & CIRRUS_BLTMODE_COLOREXPAND) {
+        /*
+         * The raster operations read the source of a color expansion as
+         * a linear string of bytes, one bit per pixel, each line starting
+         * with a new byte.  The source pitch is not used.
+         */
+        int64_t len = (int64_t)s->cirrus_blt_height *
+            DIV_ROUND_UP(DIV_ROUND_UP(s->cirrus_blt_width,
+                                      s->cirrus_blt_pixelwidth), 8);
+        return s->cirrus_blt_srcaddr + len > s->vga.vram_size;
+    }
     if (blit_region_is_unsafe(s, s->cirrus_blt_srcpitch,
                               s->cirrus_blt_srcaddr)) {
         return true;
