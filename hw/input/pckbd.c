@@ -139,6 +139,7 @@
 #define KBD_PENDING_CTRL_AUX    0x08
 #define KBD_PENDING_KBD         KBD_MODE_DISABLE_KBD    /* 0x10 */
 #define KBD_PENDING_AUX         KBD_MODE_DISABLE_MOUSE  /* 0x20 */
+#define KBD_PENDING_CTRL_OBUF   0x40
 
 #define KBD_MIGR_TIMER_PENDING  0x1
 
@@ -149,7 +150,10 @@
 
 /*
  * XXX: not generating the irqs if KBD_MODE_DISABLE_KBD is set may be
- * incorrect, but it avoids having to simulate exact delays
+ * incorrect, but it avoids having to simulate exact delays.
+ * A byte from KBD_CCMD_WRITE_OBUF raises the irq also while the keyboard
+ * is disabled: a guest may write a byte with this command and then wait
+ * for the keyboard irq.
  */
 static void kbd_update_irq_lines(KBDState *s)
 {
@@ -165,7 +169,9 @@ static void kbd_update_irq_lines(KBDState *s)
             }
         } else {
             if ((s->mode & KBD_MODE_KBD_INT) &&
-                !(s->mode & KBD_MODE_DISABLE_KBD)) {
+                (!(s->mode & KBD_MODE_DISABLE_KBD) ||
+                 ((s->obsrc & KBD_OBSRC_CTRL) &&
+                  (s->pending & KBD_PENDING_CTRL_OBUF)))) {
                 irq_kbd_level = 1;
             }
         }
@@ -282,7 +288,8 @@ static void kbd_queue(KBDState *s, int b, int aux)
 {
     if (s->extended_state) {
         s->cbdata = b;
-        s->pending &= ~KBD_PENDING_CTRL_KBD & ~KBD_PENDING_CTRL_AUX;
+        s->pending &= ~KBD_PENDING_CTRL_KBD & ~KBD_PENDING_CTRL_AUX &
+                      ~KBD_PENDING_CTRL_OBUF;
         s->pending |= aux ? KBD_PENDING_CTRL_AUX : KBD_PENDING_CTRL_KBD;
         kbd_safe_update_irq(s);
     } else {
@@ -290,11 +297,21 @@ static void kbd_queue(KBDState *s, int b, int aux)
     }
 }
 
+static void kbd_queue_obuf(KBDState *s, int b)
+{
+    kbd_queue(s, b, 0);
+    if (s->extended_state) {
+        s->pending |= KBD_PENDING_CTRL_OBUF;
+        kbd_update_irq_lines(s);
+    }
+}
+
 static uint8_t kbd_dequeue(KBDState *s)
 {
     uint8_t b = s->cbdata;
 
-    s->pending &= ~KBD_PENDING_CTRL_KBD & ~KBD_PENDING_CTRL_AUX;
+    s->pending &= ~KBD_PENDING_CTRL_KBD & ~KBD_PENDING_CTRL_AUX &
+                  ~KBD_PENDING_CTRL_OBUF;
     if (kbd_pending(s)) {
         kbd_update_irq(s);
     }
@@ -450,7 +467,7 @@ static void kbd_write_data(void *opaque, hwaddr addr,
         kbd_safe_update_irq(s);
         break;
     case KBD_CCMD_WRITE_OBUF:
-        kbd_queue(s, val, 0);
+        kbd_queue_obuf(s, val);
         break;
     case KBD_CCMD_WRITE_AUX_OBUF:
         kbd_queue(s, val, 1);
@@ -608,7 +625,7 @@ static int kbd_post_load(void *opaque, int version_id)
     }
     /* clear all unused flags */
     s->pending &= KBD_PENDING_CTRL_KBD | KBD_PENDING_CTRL_AUX |
-                  KBD_PENDING_KBD | KBD_PENDING_AUX;
+                  KBD_PENDING_CTRL_OBUF | KBD_PENDING_KBD | KBD_PENDING_AUX;
     return 0;
 }
 
