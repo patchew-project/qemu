@@ -807,7 +807,7 @@ static QTestState *dirtylimit_start_vm(void)
 
     bootpath = bootfile_create(qtest_get_arch(), tmpfs, false);
     cmd = g_strdup_printf("-accel kvm,dirty-ring-size=4096 "
-                          "-name dirtylimit-test,debug-threads=on "
+                          "-name dirtylimit-test "
                           "-m 150M -smp 1 "
                           "-serial file:%s/vm_serial "
                           "-drive file=%s,format=raw ",

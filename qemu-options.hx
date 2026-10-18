@@ -1376,18 +1376,17 @@ SRST
 ERST
 
 DEF("name", HAS_ARG, QEMU_OPTION_name,
-    "-name string1[,process=string2][,debug-threads=on|off]\n"
+    "-name string1[,process=string2]\n"
     "                set the name of the guest\n"
     "                string1 sets the window title and string2 the process name\n"
-    "                When debug-threads is enabled, individual threads are given a separate name\n"
     "                NOTE: The thread names are for debugging and not a stable API.\n",
     QEMU_ARCH_ALL)
 SRST
 ``-name name``
     Sets the name of the guest. This name will be displayed in the SDL
     window caption. The name will also be used for the VNC server. Also
-    optionally set the top visible process name in Linux. Naming of
-    individual threads can also be enabled on Linux to aid debugging.
+    where supported, set the top visible process name (individual threads
+    are always given a separate name to aid debugging).
 ERST
 
 DEF("uuid", HAS_ARG, QEMU_OPTION_uuid,

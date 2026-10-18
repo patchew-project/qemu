@@ -403,11 +403,6 @@ static QemuOptsList qemu_name_opts = {
             .name = "process",
             .type = QEMU_OPT_STRING,
             .help = "Sets the name of the QEMU process, as shown in top etc",
-        }, {
-            .name = "debug-threads",
-            .type = QEMU_OPT_BOOL,
-            .help = "Enable thread names"
-                    "(deprecated, always enabled where supported)",
         },
         { /* End of list */ }
     },
@@ -555,12 +550,6 @@ static void default_driver_check_json(void)
 static int parse_name(void *opaque, QemuOpts *opts, Error **errp)
 {
     const char *proc_name;
-
-    if (qemu_opt_get(opts, "debug-threads") &&
-        !qemu_opt_get_bool(opts, "debug-threads", false)) {
-        fprintf(stderr, "Ignoring deprecated 'debug-threads=no' option, " \
-                "thread naming is unconditionally enabled\n");
-    }
 
     qemu_name = qemu_opt_get(opts, "guest");
 

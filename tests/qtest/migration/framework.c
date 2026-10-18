@@ -413,7 +413,7 @@ int migrate_args(char **from, char **to, MigrateStart *args)
 
     cmd_source = g_strdup_printf("-accel kvm%s -accel tcg "
                                  "-machine %s,%s "
-                                 "-name source,debug-threads=on "
+                                 "-name source "
                                  "%s "
                                  "-serial file:%s/src_serial "
                                  "%s %s %s",
@@ -433,7 +433,7 @@ int migrate_args(char **from, char **to, MigrateStart *args)
 
     cmd_target = g_strdup_printf("-accel kvm%s -accel tcg "
                                  "-machine %s,%s "
-                                 "-name target,debug-threads=on "
+                                 "-name target "
                                  "%s "
                                  "-serial file:%s/dest_serial "
                                  "-incoming defer "
