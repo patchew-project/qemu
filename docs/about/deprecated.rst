@@ -168,7 +168,7 @@ Use ``job-dismiss`` instead.
 
 Use ``job-finalize`` instead.
 
-``query-kvm`` (since 11.0)
+``query-kvm`` (since 11.1)
 ''''''''''''''''''''''''''
 
 Use ``query-accelerators`` instead.
