@@ -2847,6 +2847,21 @@ static const MemoryRegionOps cirrus_vga_io_ops = {
     },
 };
 
+/*
+ * Coalesce the writes to the legacy window 0xa0000-0xbffff, but not to the
+ * two bytes of the memory-mapped BitBLT registers whose write can start a
+ * BitBLT: GR2A (with autostart) and GR31.
+ */
+static void cirrus_coalesce_low_mem(CirrusVGAState *s)
+{
+    hwaddr gr2a = 0x18000 + CIRRUS_MMIO_BLTDESTADDR + 2;
+    hwaddr gr31 = 0x18000 + CIRRUS_MMIO_BLTSTATUS;
+
+    memory_region_add_coalescing(&s->low_mem, 0, gr2a);
+    memory_region_add_coalescing(&s->low_mem, gr2a + 1, gr31 - gr2a - 1);
+    memory_region_add_coalescing(&s->low_mem, gr31 + 1, 0x20000 - gr31 - 1);
+}
+
 void cirrus_init_common(CirrusVGAState *s, Object *owner,
                         int device_id, int is_pci,
                         MemoryRegion *system_memory, MemoryRegion *system_io)
@@ -2907,7 +2922,7 @@ void cirrus_init_common(CirrusVGAState *s, Object *owner,
                                         0x000a0000,
                                         &s->low_mem_container,
                                         1);
-    memory_region_set_coalescing(&s->low_mem);
+    cirrus_coalesce_low_mem(s);
 
     /* I/O handler for LFB */
     memory_region_init_io(&s->cirrus_linear_io, owner, &cirrus_linear_io_ops, s,
