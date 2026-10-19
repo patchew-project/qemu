@@ -30,12 +30,22 @@
  * limiting DMA requests, false otherwise.  The current available count read
  * from vfio is returned in avail.
  */
-bool s390_pci_update_dma_avail(int fd, unsigned int *avail)
+bool s390_pci_update_dma_avail(S390PCIBusDevice *pbdev, unsigned int *avail)
 {
+    VFIOPCIDevice *vpdev;
     uint32_t argsz = sizeof(struct vfio_iommu_type1_info);
     g_autofree struct vfio_iommu_type1_info *info = g_malloc0(argsz);
+    int fd;
 
+    assert(pbdev);
     assert(avail);
+
+    vpdev = VFIO_PCI_DEVICE(pbdev->pdev);
+    if (!vpdev->vbasedev.group || !vpdev->vbasedev.group->container) {
+        return false;
+    }
+
+    fd = vpdev->vbasedev.group->container->fd;
 
     /*
      * If the specified argsz is not large enough to contain all capabilities
@@ -69,15 +79,11 @@ S390PCIDMACount *s390_pci_start_dma_count(S390pciState *s,
 
     assert(vpdev);
 
-    if (!vpdev->vbasedev.group) {
+    if (!s390_pci_update_dma_avail(pbdev, &avail)) {
         return NULL;
     }
 
     id = vpdev->vbasedev.group->container->fd;
-
-    if (!s390_pci_update_dma_avail(id, &avail)) {
-        return NULL;
-    }
 
     QTAILQ_FOREACH(cnt, &s->zpci_dma_limit, link) {
         if (cnt->id  == id) {

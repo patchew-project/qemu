@@ -826,6 +826,8 @@ void s390_pci_iommu_direct_map_enable(S390PCIBusDevice *pbdev)
 void s390_pci_iommu_disable(S390PCIBusDevice *pbdev)
 {
     S390PCIIOMMU *iommu = pbdev->iommu;
+    unsigned int dma_avail;
+
     pbdev->iommu_enabled = false;
     if (pbdev->dma_limit) {
         /*
@@ -845,6 +847,25 @@ void s390_pci_iommu_disable(S390PCIBusDevice *pbdev)
         memory_region_del_subregion(&iommu->mr,
                                     MEMORY_REGION(&pbdev->iommu_mr));
         object_unparent(OBJECT(&pbdev->iommu_mr));
+    }
+
+    /*
+     * update shadow counter from vfio after having unpinned all host mappings.
+     * if this value mismatches our previous shadow count, then we likely have
+     * DMA remapping, unmapping, or accounting bugs
+     */
+    if (object_dynamic_cast(OBJECT(pbdev->pdev), "vfio-pci")) {
+        if (s390_pci_update_dma_avail(pbdev, &dma_avail)) {
+            if (pbdev->max_dma_limit != dma_avail) {
+                warn_report("DMA limit %u from vfio != %" PRIu64 " shadowed",
+                            dma_avail, pbdev->max_dma_limit);
+                pbdev->max_dma_limit = dma_avail;
+            }
+
+            if (pbdev->dma_limit) {
+                pbdev->dma_limit->avail = dma_avail;
+            }
+        }
     }
 }
 

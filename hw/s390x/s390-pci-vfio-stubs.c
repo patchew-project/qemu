@@ -7,7 +7,7 @@
 #include "qemu/osdep.h"
 #include "hw/s390x/s390-pci-vfio.h"
 
-bool s390_pci_update_dma_avail(int fd, unsigned int *avail)
+bool s390_pci_update_dma_avail(S390PCIBusDevice *pbdev, unsigned int *avail)
 {
     return false;
 }

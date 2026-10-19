@@ -14,7 +14,7 @@
 
 #include "hw/s390x/s390-pci-bus.h"
 
-bool s390_pci_update_dma_avail(int fd, unsigned int *avail);
+bool s390_pci_update_dma_avail(S390PCIBusDevice *pbdev, unsigned int *avail);
 S390PCIDMACount *s390_pci_start_dma_count(S390pciState *s,
                                           S390PCIBusDevice *pbdev);
 void s390_pci_end_dma_count(S390pciState *s, S390PCIDMACount *cnt);
