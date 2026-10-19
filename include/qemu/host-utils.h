@@ -637,6 +637,36 @@ static inline int64_t sadd64_saturate(int64_t x, int64_t y)
 }
 
 /**
+ * uadd32_saturate - 32-bit unsigned addition with saturation
+ * @x, @y: addends
+ *
+ * Computes @x + @y, and saturates rather than truncating the result.
+ */
+static inline uint32_t uadd32_saturate(uint32_t x, uint32_t y)
+{
+    uint32_t ret;
+    if (uadd32_overflow(x, y, &ret)) {
+        ret = UINT32_MAX;
+    }
+    return ret;
+}
+
+/**
+ * uadd64_saturate - 64-bit unsigned addition with saturation
+ * @x, @y: addends
+ *
+ * Computes @x + @y, and saturates rather than truncating the result.
+ */
+static inline uint64_t uadd64_saturate(uint64_t x, uint64_t y)
+{
+    uint64_t ret;
+    if (uadd64_overflow(x, y, &ret)) {
+        ret = UINT64_MAX;
+    }
+    return ret;
+}
+
+/**
  * ssub32_saturate - 32-bit signed subtraction with saturation
  * @x, @y: addends
  *
@@ -662,6 +692,38 @@ static inline int64_t ssub64_saturate(int64_t x, int64_t y)
     int64_t ret;
     if (ssub64_overflow(x, y, &ret)) {
         ret = x < 0 ? INT64_MIN : INT64_MAX;
+    }
+    return ret;
+}
+
+/**
+ * usub32_saturate - 32-bit unsigned subtraction with saturation
+ * @x: Minuend
+ * @y: Subtrahend
+ *
+ * Computes @x - @y, and saturates rather than truncating the result.
+ */
+static inline uint32_t usub32_saturate(uint32_t x, uint32_t y)
+{
+    uint32_t ret;
+    if (usub32_overflow(x, y, &ret)) {
+        ret = 0;
+    }
+    return ret;
+}
+
+/**
+ * usub64_saturate - 64-bit unsigned subtraction with saturation
+ * @x: Minuend
+ * @y: Subtrahend
+ *
+ * Computes @x - @y, and saturates rather than truncating the result.
+ */
+static inline uint64_t usub64_saturate(uint64_t x, uint64_t y)
+{
+    uint64_t ret;
+    if (usub64_overflow(x, y, &ret)) {
+        ret = 0;
     }
     return ret;
 }
