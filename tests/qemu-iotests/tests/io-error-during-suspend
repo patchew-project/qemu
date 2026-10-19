@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+# group: rw
+#
+# Reproduce an I/O error while the guest is entering suspend
+#
+# Copyright (C) 2026 Red Hat, Inc.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Creator/Owner: Hanna Czenczek <hreitz@redhat.com>
+
+import iotests
+from iotests import filter_qmp_event, log
+
+iotests.script_initialize()
+
+# PC machine type required for PIIX4 and IDE
+if iotests.qemu_default_machine != 'pc':
+    iotests.notrun('Requires a PC machine')
+
+def vm_qemu_io(qvm, dev_id, cmd):
+    log(f'[HMP] qemu-io to {dev_id}: {cmd}')
+    command_line=f'qemu-io -d {dev_id} "{cmd}"'
+    log(qvm.qmp('human-monitor-command', command_line=command_line))
+
+def await_event(qvm, match):
+    evt = qvm.event_wait(match, timeout=30.0)
+    assert evt is not None
+    return evt
+
+def find_pci(qvm, vendor, device):
+    """
+    Return bus, slot, function of the device matching vendor and device ID.
+    """
+
+    for bus in qvm.qmp('query-pci')['return']:
+        for dev in bus['devices']:
+            if dev['id']['vendor'] == vendor and dev['id']['device'] == device:
+                return dev['bus'], dev['slot'], dev['function']
+
+    raise RuntimeError(f'PCI device {vendor:04x}:{device:04x} not found')
+
+def enter_s3(qvm):
+    """
+    Enter suspend via the PIIX4 PM device
+    """
+
+    bus, slot, function = find_pci(qvm, 0x8086, 0x7113)
+    pci_pm_addr = 0x80000000 | (bus << 16) | (slot << 11) | (function << 8)
+
+    # Config registers:
+    # - 0x40: Set the power management I/O range base
+    # - 0x80: Bit 0 enables that range
+    # I/O range:
+    # - +4: PM1a_CNT
+    #   - Bits 10..=12: SLEEP_TYPE (1 for suspend, see `acpi_pm_cnt_write()`)
+    #   - Bit 13: SLEEP_ENABLE
+
+    arbitrary_pm_io_base = 0xb000
+    log('Setting up PIIX4 PM I/O range')
+    # Setting the base address
+    qvm.qtest(f'outl 0xcf8 {pci_pm_addr + 0x40:#x}')
+    qvm.qtest(f'outl 0xcfc {arbitrary_pm_io_base:#x}')
+    # Enabling the range
+    qvm.qtest(f'outl 0xcf8 {pci_pm_addr + 0x80:#x}')
+    qvm.qtest('outb 0xcfc 0x1')
+
+    log('Going to sleep')
+    pm1a_cnt = arbitrary_pm_io_base + 4
+    pm1a_value = (1 << 10) | (1 << 13)
+    qvm.qtest(f'outw {pm1a_cnt:#x} {pm1a_value:#x}')
+
+def ide_issue_pio_read(qvm, lba, sectors):
+    """
+    Issue a read request from the master device.
+    Does not read the data through PIO, though.
+    """
+
+    for port, val in (
+            (0x1f6, 0xe0 | ((lba >> 24) & 0xf)), # 0x40 selects LBA
+            (0x1f2, sectors),
+            (0x1f3, lba & 0xff),
+            (0x1f4, (lba >> 8) & 0xff),
+            (0x1f5, (lba >> 16) & 0xff),
+            (0x1f7, 0x20), # WIN_READ
+        ):
+        qvm.qtest(f'outb {port:#x} {val:#x}')
+
+with iotests.VM() as vm:
+    # So we have PIIX4
+    vm.add_args('-machine', 'pc')
+
+    failing_sector = 42
+    vm.add_blockdev(vm.qmp_to_opts({
+        'driver': 'raw',
+        'node-name': 'test',
+        'file': {
+            'driver': 'blkdebug',
+            'inject-error': [{'event': 'read_aio', 'iotype': 'read',
+                              'sector': str(failing_sector), 'once': 'on'}],
+            'image': {
+                'driver': 'null-co',
+            },
+        },
+    }))
+
+    disk = 'ide-disk'
+    vm.add_device(f'ide-hd,id={disk},drive=test,bus=ide.0,unit=0,'
+                   'rerror=stop,werror=stop')
+
+    vm.launch()
+
+    try:
+        # Issue a read request from a guest device (to the failing sector), and
+        # have it pause before it returns
+        vm_qemu_io(vm, disk, 'break read_aio r0')
+        log('Issuing read')
+        ide_issue_pio_read(vm, failing_sector, 1)
+        vm_qemu_io(vm, disk, 'wait_break r0')
+
+        # Read request is paused now, let's suspend the VM
+        log('Entering suspend')
+        enter_s3(vm)
+        log(await_event(vm, 'SUSPEND'), filters=[filter_qmp_event])
+
+        # Should be suspended now
+        log('[QMP] query-status')
+        log(vm.qmp('query-status'))
+    except Exception:
+        # The VM will not be able to quit without this request finished, which
+        # (without this block) would make the test hang instead of exit if
+        # something unexpected goes wrong
+        vm_qemu_io(vm, disk, 'resume r0')
+        raise
+
+    # Resume the request, which should run into an error thanks to our blkdebug
+    # configuration
+    vm_qemu_io(vm, disk, 'resume r0')
+    log(await_event(vm, 'BLOCK_IO_ERROR'), filters=[filter_qmp_event])
+    log(await_event(vm, 'STOP'), filters=[filter_qmp_event])
+
+    # Should be stopped now (not just suspended)
+    log('[QMP] query-status')
+    log(vm.qmp('query-status'))
+
+    log('[QMP] cont')
+    log(vm.qmp('cont'))
+
+    log(await_event(vm, 'RESUME'), filters=[filter_qmp_event])
+
+    # Should be suspended again (error was injected 'once', so should be gone)
+    log('[QMP] query-status')
+    log(vm.qmp('query-status'))
+
+    vm.shutdown()

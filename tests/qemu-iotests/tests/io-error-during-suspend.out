@@ -1,0 +1,22 @@
+[HMP] qemu-io to ide-disk: break read_aio r0
+{"return": ""}
+Issuing read
+[HMP] qemu-io to ide-disk: wait_break r0
+{"return": ""}
+Entering suspend
+Setting up PIIX4 PM I/O range
+Going to sleep
+{"event": "SUSPEND", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+[QMP] query-status
+{"return": {"running": false, "status": "suspended"}}
+[HMP] qemu-io to ide-disk: resume r0
+{"return": ""}
+{"data": {"action": "stop", "device": "", "node-name": "test", "nospace": false, "operation": "read", "qom-path": "/machine/peripheral/ide-disk", "reason": "Input/output error"}, "event": "BLOCK_IO_ERROR", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"event": "STOP", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+[QMP] query-status
+{"return": {"running": false, "status": "io-error"}}
+[QMP] cont
+{"return": {}}
+{"event": "RESUME", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+[QMP] query-status
+{"return": {"running": false, "status": "suspended"}}
