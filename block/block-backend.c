@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "system/block-backend.h"
+#include "block/block-backend-delay.h"
 #include "block/block_int.h"
 #include "block/blockjob.h"
 #include "block/coroutines.h"
@@ -93,6 +94,8 @@ struct BlockBackend {
      * Accessed with atomic ops.
      */
     unsigned int in_flight;
+
+    BlockDelayTracker *delay_tracker;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -377,6 +380,9 @@ BlockBackend *blk_new(AioContext *ctx, uint64_t perm, uint64_t shared_perm)
     notifier_list_init(&blk->insert_bs_notifiers);
     QLIST_INIT(&blk->aio_notifiers);
 
+    blk->delay_tracker = g_new0(BlockDelayTracker, 1);
+    blk_delay_tracker_init(blk);
+
     QTAILQ_INSERT_TAIL(&block_backends, blk, link);
     return blk;
 }
@@ -481,6 +487,9 @@ static void blk_delete(BlockBackend *blk)
     assert(!blk->refcnt);
     assert(!blk->name);
     assert(!blk->dev);
+
+    blk_delay_tracker_destroy(blk->delay_tracker);
+
     if (blk->public.throttle_group_member.throttle_state) {
         blk_io_limits_disable(blk);
     }
@@ -762,6 +771,12 @@ BlockDriverState *blk_bs(BlockBackend *blk)
 {
     IO_CODE();
     return blk->root ? blk->root->bs : NULL;
+}
+
+BlockDelayTracker *blk_delay_tracker(BlockBackend *blk)
+{
+    IO_OR_GS_CODE();
+    return blk->delay_tracker;
 }
 
 static BlockBackend * GRAPH_RDLOCK bdrv_first_blk(BlockDriverState *bs)
@@ -1338,6 +1353,7 @@ blk_co_do_preadv_part(BlockBackend *blk, int64_t offset, int64_t bytes,
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
     int ret;
     BlockDriverState *bs;
+    BlockDelayTrackerRequest request;
     IO_CODE();
 
     blk_wait_while_drained(blk, flags);
@@ -1353,6 +1369,8 @@ blk_co_do_preadv_part(BlockBackend *blk, int64_t offset, int64_t bytes,
     }
 
     bdrv_inc_in_flight(bs);
+    blk_track_delay_begin(blk, &request, offset, bytes,
+                          IO_ACCOUNTING_OPERATION_READ);
 
     /* throttling disk I/O */
     if (qatomic_load_acquire(&tgm->throttle_state)) {
@@ -1361,6 +1379,7 @@ blk_co_do_preadv_part(BlockBackend *blk, int64_t offset, int64_t bytes,
 
     ret = bdrv_co_preadv_part(blk->root, offset, bytes, qiov, qiov_offset,
                               flags);
+    blk_track_delay_end(blk, &request, ret);
     bdrv_dec_in_flight(bs);
     return ret;
 }
@@ -1413,6 +1432,7 @@ blk_co_do_pwritev_part(BlockBackend *blk, int64_t offset, int64_t bytes,
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
     int ret;
     BlockDriverState *bs;
+    BlockDelayTrackerRequest request;
     IO_CODE();
 
     blk_wait_while_drained(blk, flags);
@@ -1428,6 +1448,8 @@ blk_co_do_pwritev_part(BlockBackend *blk, int64_t offset, int64_t bytes,
     }
 
     bdrv_inc_in_flight(bs);
+    blk_track_delay_begin(blk, &request, offset, bytes,
+                          IO_ACCOUNTING_OPERATION_WRITE);
     /* throttling disk I/O */
     if (qatomic_load_acquire(&tgm->throttle_state)) {
         throttle_group_co_io_limits_intercept(tgm, bytes, THROTTLE_WRITE);
@@ -1439,6 +1461,7 @@ blk_co_do_pwritev_part(BlockBackend *blk, int64_t offset, int64_t bytes,
 
     ret = bdrv_co_pwritev_part(blk->root, offset, bytes, qiov, qiov_offset,
                                flags);
+    blk_track_delay_end(blk, &request, ret);
     bdrv_dec_in_flight(bs);
     return ret;
 }
@@ -1803,6 +1826,7 @@ static int coroutine_fn
 blk_co_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes,
                    BdrvRequestFlags flags)
 {
+    BlockDelayTrackerRequest request;
     int ret;
     IO_CODE();
 
@@ -1814,7 +1838,12 @@ blk_co_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes,
         return ret;
     }
 
-    return bdrv_co_pdiscard(blk->root, offset, bytes);
+    blk_track_delay_begin(blk, &request, offset, bytes,
+                          IO_ACCOUNTING_OPERATION_UNMAP);
+    ret = bdrv_co_pdiscard(blk->root, offset, bytes);
+    blk_track_delay_end(blk, &request, ret);
+
+    return ret;
 }
 
 static void coroutine_fn blk_aio_pdiscard_entry(void *opaque)
@@ -1851,6 +1880,8 @@ int coroutine_fn blk_co_pdiscard(BlockBackend *blk, int64_t offset,
 /* To be called between exactly one pair of blk_inc/dec_in_flight() */
 static int coroutine_fn blk_co_do_flush(BlockBackend *blk)
 {
+    BlockDelayTrackerRequest request;
+    int ret;
     IO_CODE();
     blk_wait_while_drained(blk, 0);
     GRAPH_RDLOCK_GUARD();
@@ -1859,7 +1890,12 @@ static int coroutine_fn blk_co_do_flush(BlockBackend *blk)
         return -ENOMEDIUM;
     }
 
-    return bdrv_co_flush(blk_bs(blk));
+    blk_track_delay_begin(blk, &request, -1, 0,
+                          IO_ACCOUNTING_OPERATION_FLUSH);
+    ret = bdrv_co_flush(blk_bs(blk));
+    blk_track_delay_end(blk, &request, ret);
+
+    return ret;
 }
 
 static void coroutine_fn blk_aio_flush_entry(void *opaque)
@@ -2072,6 +2108,7 @@ int coroutine_fn blk_co_zone_mgmt(BlockBackend *blk, BlockZoneOp op,
 int coroutine_fn blk_co_zone_append(BlockBackend *blk, int64_t *offset,
         QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
+    BlockDelayTrackerRequest request;
     int ret;
     IO_CODE();
 
@@ -2083,7 +2120,10 @@ int coroutine_fn blk_co_zone_append(BlockBackend *blk, int64_t *offset,
         return -ENOMEDIUM;
     }
 
+    blk_track_delay_begin(blk, &request, *offset, qiov->size,
+                          IO_ACCOUNTING_OPERATION_ZONE_APPEND);
     ret = bdrv_co_zone_append(blk_bs(blk), offset, qiov, flags);
+    blk_track_delay_end(blk, &request, ret);
     blk_dec_in_flight(blk);
     return ret;
 }

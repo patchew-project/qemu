@@ -8,6 +8,7 @@ block_ss.add(files(
   'blklogwrites.c',
   'blkverify.c',
   'block-backend.c',
+  'block-backend-delay.c',
   'block-copy.c',
   'commit.c',
   'copy-before-write.c',

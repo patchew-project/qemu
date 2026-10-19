@@ -102,6 +102,17 @@ void blk_update_root_state(BlockBackend *blk);
 bool blk_get_detect_zeroes_from_root_state(BlockBackend *blk);
 int blk_get_open_flags_from_root_state(BlockBackend *blk);
 
+/**
+ * Set the nanosecond threshold for per-request latency, when to consider it
+ * sufficient of a delay to report via BLOCK_IO_DELAY QMP event.
+ */
+void blk_set_delay_report_threshold(BlockBackend *blk, uint64_t ns);
+/**
+ * Set the nanosecond threshold for per-request latency, when to consider it
+ * sufficient of a delay to stop the VM.
+ */
+void blk_set_delay_stop_threshold(BlockBackend *blk, uint64_t ns);
+
 int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
                      int64_t pos, int size);
 int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size);
