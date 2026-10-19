@@ -349,11 +349,22 @@ dbus_clipboard_release(
     GDBusMethodInvocation *invocation,
     gint arg_selection)
 {
+    QemuClipboardSelection s = arg_selection;
+
     if (!dbus_clipboard_check_caller(dpy, invocation)) {
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-    qemu_clipboard_peer_release(&dpy->clipboard_peer, arg_selection);
+    if (s >= QEMU_CLIPBOARD_SELECTION__COUNT) {
+        g_dbus_method_invocation_return_error(
+            invocation,
+            DBUS_DISPLAY_ERROR,
+            DBUS_DISPLAY_ERROR_FAILED,
+            "Invalid clipboard selection: %d", arg_selection);
+        return DBUS_METHOD_INVOCATION_HANDLED;
+    }
+
+    qemu_clipboard_peer_release(&dpy->clipboard_peer, s);
 
     qemu_dbus_display1_clipboard_complete_release(dpy->clipboard, invocation);
     return DBUS_METHOD_INVOCATION_HANDLED;
