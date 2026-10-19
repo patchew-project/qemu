@@ -660,6 +660,9 @@
 # Note that delays deliberately incurred by throttling do count
 # towards the operation duration.
 #
+# This event will only be emitted once per request and action.  When
+# the operation does finish, a `BLOCK_IO_DONE` event is emitted.
+#
 # @qom-path: path to the block device object in the QOM tree
 #
 # @operation: I/O operation
@@ -686,3 +689,33 @@
       'action': 'BlockErrorAction',
       '*offset': 'uint64',
       'bytes': 'uint64' } }
+
+##
+# @BLOCK_IO_DONE:
+#
+# Emitted on completion for disk operations that previously emitted a
+# `BLOCK_IO_DELAY` event.
+#
+# @qom-path: path to the block device object in the QOM tree
+#
+# @operation: I/O operation
+#
+# @latency-ns: Full duration of the operation (in nanoseconds)
+#
+# @offset: Request offset in the guest disk (in bytes), if available
+#
+# @bytes: Request length
+#
+# @failed: If true, this request failed for any reason.  If false, the
+#     request succeeded.
+#
+# Since: 11.2
+##
+{ 'event': 'BLOCK_IO_DONE',
+  'data': {
+      'qom-path': 'str',
+      'operation': 'IoAccountingOperation',
+      'latency-ns': 'uint64',
+      '*offset': 'uint64',
+      'bytes': 'uint64',
+      'failed': 'bool' } }
