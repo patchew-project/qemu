@@ -9,7 +9,10 @@
 
 ##
 # @IoOperationType:
-#     An enumeration of the I/O operation types
+#     An enumeration of the I/O operation types, limited to the block
+#     device on-error policy settings we have (rerror and werror).
+#     For reference, the corresponding error policy values are set in
+#     `BlockdevOnError`.
 #
 # @read: read operation
 #
