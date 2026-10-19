@@ -99,6 +99,7 @@ if have_system
     stub_ss.add(files('hmp-cmds-hw-s390x.c'))
     stub_ss.add(files('hmp-cmds-target-i386.c'))
   endif
+  stub_ss.add(files('spapr_phb_vfio-stubs.c'))
 endif
 
 if have_system or have_user
