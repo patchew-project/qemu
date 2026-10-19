@@ -496,6 +496,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     BlockdevDetectZeroesOptions detect_zeroes =
         BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF;
     const char *throttling_group = NULL;
+    uint64_t delay_report_ns, delay_stop_ns;
 
     /* Check common options by copying from bs_opts to opts, all other options
      * stay in bs_opts for processing by bdrv_open(). */
@@ -580,6 +581,9 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     read_only = qemu_opt_get_bool(opts, BDRV_OPT_READ_ONLY, false);
 
+    delay_report_ns = qemu_opt_get_number(opts, "delay-report-ns", 0);
+    delay_stop_ns = qemu_opt_get_number(opts, "delay-stop-ns", 0);
+
     /* init */
     if ((!file || !*file) && !qdict_size(bs_opts)) {
         BlockBackendRootState *blk_rs;
@@ -615,6 +619,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         }
         bs = blk_bs(blk);
 
+        blk_set_delay_report_threshold(blk, delay_report_ns);
+        blk_set_delay_stop_threshold(blk, delay_stop_ns);
         bs->detect_zeroes = detect_zeroes;
 
         block_acct_setup(blk_get_stats(blk), account_invalid, account_failed,
@@ -3767,6 +3773,16 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "whether to account for failed I/O operations "
                     "in the statistics",
+        },{
+            .name = "delay-report-ns",
+            .type = QEMU_OPT_NUMBER,
+            .help = "threshold in ns when to report an I/O operation "
+                    "delay via QMP event",
+        },{
+            .name = "delay-stop-ns",
+            .type = QEMU_OPT_NUMBER,
+            .help = "threshold in ns when to pause the VM because "
+                    "of an I/O operation delay",
         },
         { /* end of list */ }
     },

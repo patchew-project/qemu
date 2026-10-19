@@ -31,6 +31,8 @@ Testing:
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "288"
 
 
@@ -61,6 +63,8 @@ Testing: -fda TEST_DIR/t.qcow2
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/unattached/device[N]
@@ -98,6 +102,8 @@ Testing: -fdb TEST_DIR/t.qcow2
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
               dev: floppy, id ""
                 unit = 0 (0x0)
@@ -113,6 +119,8 @@ Testing: -fdb TEST_DIR/t.qcow2
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "288"
 floppy1 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/unattached/device[N]
@@ -154,6 +162,8 @@ Testing: -fda TEST_DIR/t.qcow2 -fdb TEST_DIR/t.qcow2.2
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
               dev: floppy, id ""
                 unit = 0 (0x0)
@@ -169,6 +179,8 @@ Testing: -fda TEST_DIR/t.qcow2 -fdb TEST_DIR/t.qcow2.2
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/unattached/device[N]
@@ -211,6 +223,8 @@ Testing: -fdb
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "288"
               dev: floppy, id ""
                 unit = 0 (0x0)
@@ -226,6 +240,8 @@ Testing: -fdb
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "288"
 
 
@@ -256,6 +272,8 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/unattached/device[N]
@@ -293,6 +311,8 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2,index=1
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
               dev: floppy, id ""
                 unit = 0 (0x0)
@@ -308,6 +328,8 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2,index=1
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "288"
 floppy1 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/unattached/device[N]
@@ -349,6 +371,8 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=floppy,file=TEST_DIR/t
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
               dev: floppy, id ""
                 unit = 0 (0x0)
@@ -364,6 +388,8 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=floppy,file=TEST_DIR/t
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/unattached/device[N]
@@ -409,6 +435,8 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/peripheral-anon/device[N]
@@ -446,6 +474,8 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0,unit=1
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/peripheral-anon/device[N]
@@ -483,6 +513,8 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qco
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
               dev: floppy, id ""
                 unit = 0 (0x0)
@@ -498,6 +530,8 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qco
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/peripheral-anon/device[N]
@@ -549,6 +583,8 @@ Testing: -fda TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
               dev: floppy, id ""
                 unit = 0 (0x0)
@@ -564,6 +600,8 @@ Testing: -fda TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/unattached/device[N]
@@ -606,6 +644,8 @@ Testing: -fda TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
               dev: floppy, id ""
                 unit = 0 (0x0)
@@ -621,6 +661,8 @@ Testing: -fda TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/unattached/device[N]
@@ -663,6 +705,8 @@ Testing: -fdb TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
               dev: floppy, id ""
                 unit = 1 (0x1)
@@ -678,6 +722,8 @@ Testing: -fdb TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 floppy1 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/unattached/device[N]
@@ -720,6 +766,8 @@ Testing: -fdb TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
               dev: floppy, id ""
                 unit = 1 (0x1)
@@ -735,6 +783,8 @@ Testing: -fdb TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 floppy1 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/unattached/device[N]
@@ -786,6 +836,8 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.q
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
               dev: floppy, id ""
                 unit = 0 (0x0)
@@ -801,6 +853,8 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.q
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/unattached/device[N]
@@ -843,6 +897,8 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.q
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
               dev: floppy, id ""
                 unit = 0 (0x0)
@@ -858,6 +914,8 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.q
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/unattached/device[N]
@@ -906,6 +964,8 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -global floppy.drive=none0 -device
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/peripheral-anon/device[N]
@@ -973,6 +1033,8 @@ Testing: -device floppy
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "288"
 
 Testing: -device floppy,drive-type=120
@@ -1000,6 +1062,8 @@ Testing: -device floppy,drive-type=120
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "120"
 
 Testing: -device floppy,drive-type=144
@@ -1027,6 +1091,8 @@ Testing: -device floppy,drive-type=144
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 
 Testing: -device floppy,drive-type=288
@@ -1054,6 +1120,8 @@ Testing: -device floppy,drive-type=288
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "288"
 
 
@@ -1084,6 +1152,8 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0,drive-t
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "120"
 none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/peripheral-anon/device[N]
@@ -1121,6 +1191,8 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0,drive-t
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "288"
 none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/peripheral-anon/device[N]
@@ -1161,6 +1233,8 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0,logical
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/peripheral-anon/device[N]
@@ -1198,6 +1272,8 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0,physica
                 account-invalid = "auto"
                 account-failed = "auto"
                 stats-intervals = <null>
+                delay-report-ns = 0 (0x0)
+                delay-stop-ns = 0 (0x0)
                 drive-type = "144"
 none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Attached to:      /machine/peripheral-anon/device[N]

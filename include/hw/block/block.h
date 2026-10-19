@@ -36,6 +36,8 @@ typedef struct BlockConf {
     BlockdevOnError werror;
     uint32_t num_stats_intervals;
     uint32_t *stats_intervals;
+    uint64_t delay_report_ns;
+    uint64_t delay_stop_ns;
 } BlockConf;
 
 static inline unsigned int get_physical_block_exp(BlockConf *conf)
@@ -83,7 +85,11 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
                             _conf.account_failed, ON_OFF_AUTO_AUTO),    \
     DEFINE_PROP_ARRAY("stats-intervals", _state,                        \
                      _conf.num_stats_intervals, _conf.stats_intervals,  \
-                     qdev_prop_uint32, uint32_t)
+                     qdev_prop_uint32, uint32_t),                       \
+    DEFINE_PROP_UINT64("delay-report-ns", _state, _conf.delay_report_ns,\
+                       0),                                              \
+    DEFINE_PROP_UINT64("delay-stop-ns", _state, _conf.delay_stop_ns,    \
+                       0)
 
 #define DEFINE_BLOCK_PROPERTIES(_state, _conf)                          \
     DEFINE_PROP_DRIVE("drive", _state, _conf.blk),                      \
