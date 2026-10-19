@@ -573,9 +573,15 @@ typedef enum X86Seg {
 
 #define MSR_AMD64_TSC_RATIO_DEFAULT     0x100000000ULL
 
+#define MSR_AMD64_LBR_SELECT            0xc000010e
+#define MSR_AMD_DBG_EXTN_CFG            0xc000010f
+
 #define MSR_K7_HWCR                     0xc0010015
 
 #define MSR_VM_HSAVE_PA                 0xc0010117
+
+#define MSR_AMD_SAMP_BR_FROM            0xc0010300
+#define AMD_LBR_V2_NR_ENTRIES           16
 
 #define MSR_IA32_XFD                    0x000001c4
 #define MSR_IA32_XFD_ERR                0x000001c5
@@ -1233,6 +1239,7 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 
 /* Performance Monitoring Version 2 */
 #define CPUID_8000_0022_EAX_PERFMON_V2  (1U << 0)
+#define CPUID_8000_0022_EAX_LBREXT_V2   (1U << 1)
 
 #define CPUID_XSAVE_XSAVEOPT   (1U << 0)
 #define CPUID_XSAVE_XSAVEC     (1U << 1)
@@ -2191,6 +2198,11 @@ typedef struct CPUArchState {
     uint64_t msr_lbr_ctl;
     uint64_t msr_lbr_depth;
     LBREntry lbr_records[ARCH_LBR_NR_ENTRIES];
+
+    /* Per-VCPU AMD LbrExtV2 MSRs */
+    uint64_t msr_amd_dbg_extn_cfg;
+    uint64_t msr_amd_lbr_select;
+    uint64_t msr_amd_lbr_stack[AMD_LBR_V2_NR_ENTRIES * 2];
 
     /* AMD MSRC001_0015 Hardware Configuration */
     uint64_t msr_hwcr;

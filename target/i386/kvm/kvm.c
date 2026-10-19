@@ -4521,6 +4521,19 @@ static int kvm_put_msrs(X86CPU *cpu, KvmPutState level)
             }
         }
 
+        if (kvm_enabled() && cpu->enable_pmu &&
+            (env->features[FEAT_8000_0022_EAX] &
+             CPUID_8000_0022_EAX_LBREXT_V2)) {
+            kvm_msr_entry_add(cpu, MSR_AMD_DBG_EXTN_CFG,
+                              env->msr_amd_dbg_extn_cfg);
+            kvm_msr_entry_add(cpu, MSR_AMD64_LBR_SELECT,
+                              env->msr_amd_lbr_select);
+            for (i = 0; i < AMD_LBR_V2_NR_ENTRIES * 2; i++) {
+                kvm_msr_entry_add(cpu, MSR_AMD_SAMP_BR_FROM + i,
+                                  env->msr_amd_lbr_stack[i]);
+            }
+        }
+
         /* Note: MSR_IA32_FEATURE_CONTROL is written separately, see
          *       kvm_put_msr_feature_control. */
     }
@@ -5021,6 +5034,15 @@ static int kvm_get_msrs(X86CPU *cpu)
         }
     }
 
+    if (kvm_enabled() && cpu->enable_pmu &&
+        (env->features[FEAT_8000_0022_EAX] & CPUID_8000_0022_EAX_LBREXT_V2)) {
+        kvm_msr_entry_add(cpu, MSR_AMD_DBG_EXTN_CFG, 0);
+        kvm_msr_entry_add(cpu, MSR_AMD64_LBR_SELECT, 0);
+        for (i = 0; i < AMD_LBR_V2_NR_ENTRIES * 2; i++) {
+            kvm_msr_entry_add(cpu, MSR_AMD_SAMP_BR_FROM + i, 0);
+        }
+    }
+
     if (env->features[FEAT_7_0_ECX] & CPUID_7_0_ECX_CET_SHSTK ||
         env->features[FEAT_7_0_EDX] & CPUID_7_0_EDX_CET_IBT) {
         kvm_msr_entry_add(cpu, MSR_IA32_U_CET, 0);
@@ -5402,6 +5424,15 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_ARCH_LBR_INFO_0 ... MSR_ARCH_LBR_INFO_0 + 31:
             env->lbr_records[index - MSR_ARCH_LBR_INFO_0].info = msrs[i].data;
+            break;
+        case MSR_AMD_DBG_EXTN_CFG:
+            env->msr_amd_dbg_extn_cfg = msrs[i].data;
+            break;
+        case MSR_AMD64_LBR_SELECT:
+            env->msr_amd_lbr_select = msrs[i].data;
+            break;
+        case MSR_AMD_SAMP_BR_FROM ... MSR_AMD_SAMP_BR_FROM + 31:
+            env->msr_amd_lbr_stack[index - MSR_AMD_SAMP_BR_FROM] = msrs[i].data;
             break;
         case MSR_IA32_U_CET:
             env->u_cet = msrs[i].data;
