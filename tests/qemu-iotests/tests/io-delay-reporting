@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+# group: rw
+#
+# Test the I/O delay QMP event.
+#
+# Copyright (C) 2026 Red Hat, Inc.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Creator/Owner: Hanna Czenczek <hreitz@redhat.com>
+
+import asyncio
+import iotests
+from iotests import filter_qmp_event, log
+
+DELAY_REPORT_MS = 5000 # ms
+DELAY_STOP_MS = 10000 # ms
+EPSILON_MS = 50 # ms -- small delta that can safely be added/subtracted
+NS_PER_MS = 1000 * 1000
+DELAY_REPORT_NS = DELAY_REPORT_MS * NS_PER_MS
+DELAY_STOP_NS = DELAY_STOP_MS * NS_PER_MS
+
+qtest_clock = 0 # ms
+
+iotests.script_initialize()
+
+def vm_qemu_io(qvm, virtio_blk_id, cmd):
+    log(f'[HMP] qemu-io to {virtio_blk_id}: {cmd}')
+    command_line=f'qemu-io -d {virtio_blk_id}/virtio-backend "{cmd}"'
+    log(qvm.qmp('human-monitor-command', command_line=command_line))
+
+def advance_clock_to(qvm, clock_ms):
+    """
+    Retain the current absolute clock time so we can step *to* a specific time
+    via `clock_step`.
+    """
+
+    # pylint does not like global much, but this is a test script, and not
+    # using global would just make this more complicated.
+    global qtest_clock # pylint: disable=global-statement
+    msecs = clock_ms - qtest_clock
+    log(f'[qtest] clock_step {msecs}ms to {clock_ms}ms')
+    qvm.qtest(f'clock_step {msecs * NS_PER_MS}')
+    qtest_clock += msecs
+
+def reset_clock():
+    """
+    Reset the internal qtest clock to 0; use before launching a new VM.
+    """
+
+    global qtest_clock # pylint: disable=global-statement
+    qtest_clock = 0
+
+def await_event(qvm, match):
+    evt = qvm.event_wait(match, timeout=30.0)
+    assert evt is not None
+    return evt
+
+def assert_no_event(qvm, event_name):
+    try:
+        evt = qvm.event_wait(event_name, timeout=0.1)
+        assert evt is None, f'Unexpected {event_name} event: {evt}'
+    except asyncio.TimeoutError:
+        pass
+    log(f'(No {event_name} event)')
+
+def run(error):
+    """
+    If @error is False, run both requests normally.
+    If it is True, inject an error into the second one.
+    """
+
+    log('')
+    log(f'=== Running tests with error={error} ===')
+    log('')
+
+    reset_clock()
+    with iotests.VM() as vm:
+        # Cannot use null-co.latency-ns, as that uses realtime (not qtest time)
+        # Need to use raw to get the read_aio event working
+        opts = {
+            'driver': 'raw',
+            'node-name': 'test-node',
+            'file': {
+                'driver': 'blkdebug',
+                'image': {
+                    'driver': 'null-co',
+                },
+            },
+        }
+        if error:
+            opts['file']['inject-error'] = [{
+                'event': 'read_aio',
+                'iotype': 'read',
+                'sector': str(4096 // 512),
+                'once': 'on',
+            }]
+        vm.add_blockdev(vm.qmp_to_opts(opts))
+
+        vm.launch()
+
+        log(f'[QMP] device_add id=vblk delay-report-ns={DELAY_REPORT_NS} '
+            f'delay-stop-ns={DELAY_STOP_NS}')
+        log(vm.qmp('device_add', {
+            'driver': 'virtio-blk',
+            'id': 'vblk',
+            'drive': 'test-node',
+            'delay-report-ns': DELAY_REPORT_NS,
+            'delay-stop-ns': DELAY_STOP_NS,
+        }))
+
+        try:
+            vm_qemu_io(vm, 'vblk', 'break read_aio read_0')
+            vm_qemu_io(vm, 'vblk', 'aio_read 0k 4k')
+            vm_qemu_io(vm, 'vblk', 'wait_break read_0')
+
+            vm_qemu_io(vm, 'vblk', 'break read_aio read_1')
+            vm_qemu_io(vm, 'vblk', 'aio_read 4k 4k')
+            vm_qemu_io(vm, 'vblk', 'wait_break read_1')
+
+            advance_clock_to(vm, DELAY_REPORT_MS - EPSILON_MS)
+
+            # Assert there is no event before the step
+            assert_no_event(vm, 'BLOCK_IO_DELAY')
+
+            advance_clock_to(vm, DELAY_REPORT_MS)
+
+            # But now there should be, right on time
+            events = [await_event(vm, 'BLOCK_IO_DELAY'),
+                      await_event(vm, 'BLOCK_IO_DELAY')]
+            events.sort(key=lambda event: event['data']['offset'])
+            for event in events:
+                log(event, filters=[filter_qmp_event])
+
+            # Have the read_0 request finish -- advance clock to test the
+            # correct duration
+            advance_clock_to(vm, DELAY_REPORT_MS + EPSILON_MS)
+            vm_qemu_io(vm, 'vblk', 'resume read_0')
+            log(await_event(vm, 'BLOCK_IO_DONE'), filters=[filter_qmp_event])
+
+            # Let read_1 hang for longer to trigger a STOP
+            advance_clock_to(vm, DELAY_STOP_MS)
+
+            # Read the pre-STOP notification
+            log(await_event(vm, 'BLOCK_IO_DELAY'), filters=[filter_qmp_event])
+
+            # Then the actual STOP
+            log(await_event(vm, 'STOP'), filters=[filter_qmp_event])
+            log('[QMP] query-status')
+            log(vm.qmp('query-status'))
+
+            # Have the read_1 request finish
+            advance_clock_to(vm, DELAY_STOP_MS + EPSILON_MS)
+            vm_qemu_io(vm, 'vblk', 'resume read_1')
+            log(await_event(vm, 'BLOCK_IO_DONE'), filters=[filter_qmp_event])
+
+            log('[QMP] cont')
+            log(vm.qmp('cont'))
+            log(await_event(vm, 'RESUME'), filters=[filter_qmp_event])
+            log('[QMP] query-status')
+            log(vm.qmp('query-status'))
+        except Exception:
+            # The VM will not be able to quit without these requests finished,
+            # which (without this block) would make the test hang instead of
+            # exit if something unexpected goes wrong
+            vm_qemu_io(vm, 'vblk', 'resume read_0')
+            vm_qemu_io(vm, 'vblk', 'resume read_1')
+            raise
+
+        # Test device unplug to verify that stopping the delay tracking timer
+        # works
+        log('[QMP] device_del id=vblk')
+        log(vm.qmp('device_del', id='vblk'))
+
+        # system_reset forces the device unplug to happen
+        log('[QMP] system_reset')
+        log(vm.qmp('system_reset'))
+
+        event = vm.event_wait('DEVICE_DELETED', 20.0,
+                              {'data': {'device': 'vblk'}})
+        assert event is not None
+        log(event, filters=[filter_qmp_event])
+
+        vm.shutdown()
+
+run(False)
+run(True)

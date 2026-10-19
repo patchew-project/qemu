@@ -1,0 +1,90 @@
+
+=== Running tests with error=False ===
+
+[QMP] device_add id=vblk delay-report-ns=5000000000 delay-stop-ns=10000000000
+{"return": {}}
+[HMP] qemu-io to vblk: break read_aio read_0
+{"return": ""}
+[HMP] qemu-io to vblk: aio_read 0k 4k
+{"return": ""}
+[HMP] qemu-io to vblk: wait_break read_0
+{"return": ""}
+[HMP] qemu-io to vblk: break read_aio read_1
+{"return": ""}
+[HMP] qemu-io to vblk: aio_read 4k 4k
+{"return": ""}
+[HMP] qemu-io to vblk: wait_break read_1
+{"return": ""}
+[qtest] clock_step 4950ms to 4950ms
+(No BLOCK_IO_DELAY event)
+[qtest] clock_step 50ms to 5000ms
+{"data": {"action": "report", "bytes": 4096, "latency-ns": 5000000000, "offset": 0, "operation": "read", "qom-path": "/machine/peripheral/vblk/virtio-backend"}, "event": "BLOCK_IO_DELAY", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"action": "report", "bytes": 4096, "latency-ns": 5000000000, "offset": 4096, "operation": "read", "qom-path": "/machine/peripheral/vblk/virtio-backend"}, "event": "BLOCK_IO_DELAY", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+[qtest] clock_step 50ms to 5050ms
+[HMP] qemu-io to vblk: resume read_0
+{"return": ""}
+{"data": {"bytes": 4096, "failed": false, "latency-ns": 5050000000, "offset": 0, "operation": "read", "qom-path": "/machine/peripheral/vblk/virtio-backend"}, "event": "BLOCK_IO_DONE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+[qtest] clock_step 4950ms to 10000ms
+{"data": {"action": "stop", "bytes": 4096, "latency-ns": 10000000000, "offset": 4096, "operation": "read", "qom-path": "/machine/peripheral/vblk/virtio-backend"}, "event": "BLOCK_IO_DELAY", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"event": "STOP", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+[QMP] query-status
+{"return": {"running": false, "status": "io-hang"}}
+[qtest] clock_step 50ms to 10050ms
+[HMP] qemu-io to vblk: resume read_1
+{"return": ""}
+{"data": {"bytes": 4096, "failed": false, "latency-ns": 10050000000, "offset": 4096, "operation": "read", "qom-path": "/machine/peripheral/vblk/virtio-backend"}, "event": "BLOCK_IO_DONE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+[QMP] cont
+{"return": {}}
+{"event": "RESUME", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+[QMP] query-status
+{"return": {"running": true, "status": "running"}}
+[QMP] device_del id=vblk
+{"return": {}}
+[QMP] system_reset
+{"return": {}}
+{"data": {"device": "vblk", "path": "/machine/peripheral/vblk"}, "event": "DEVICE_DELETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+
+=== Running tests with error=True ===
+
+[QMP] device_add id=vblk delay-report-ns=5000000000 delay-stop-ns=10000000000
+{"return": {}}
+[HMP] qemu-io to vblk: break read_aio read_0
+{"return": ""}
+[HMP] qemu-io to vblk: aio_read 0k 4k
+{"return": ""}
+[HMP] qemu-io to vblk: wait_break read_0
+{"return": ""}
+[HMP] qemu-io to vblk: break read_aio read_1
+{"return": ""}
+[HMP] qemu-io to vblk: aio_read 4k 4k
+{"return": ""}
+[HMP] qemu-io to vblk: wait_break read_1
+{"return": ""}
+[qtest] clock_step 4950ms to 4950ms
+(No BLOCK_IO_DELAY event)
+[qtest] clock_step 50ms to 5000ms
+{"data": {"action": "report", "bytes": 4096, "latency-ns": 5000000000, "offset": 0, "operation": "read", "qom-path": "/machine/peripheral/vblk/virtio-backend"}, "event": "BLOCK_IO_DELAY", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"action": "report", "bytes": 4096, "latency-ns": 5000000000, "offset": 4096, "operation": "read", "qom-path": "/machine/peripheral/vblk/virtio-backend"}, "event": "BLOCK_IO_DELAY", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+[qtest] clock_step 50ms to 5050ms
+[HMP] qemu-io to vblk: resume read_0
+{"return": ""}
+{"data": {"bytes": 4096, "failed": false, "latency-ns": 5050000000, "offset": 0, "operation": "read", "qom-path": "/machine/peripheral/vblk/virtio-backend"}, "event": "BLOCK_IO_DONE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+[qtest] clock_step 4950ms to 10000ms
+{"data": {"action": "stop", "bytes": 4096, "latency-ns": 10000000000, "offset": 4096, "operation": "read", "qom-path": "/machine/peripheral/vblk/virtio-backend"}, "event": "BLOCK_IO_DELAY", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"event": "STOP", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+[QMP] query-status
+{"return": {"running": false, "status": "io-hang"}}
+[qtest] clock_step 50ms to 10050ms
+[HMP] qemu-io to vblk: resume read_1
+{"return": ""}
+{"data": {"bytes": 4096, "failed": true, "latency-ns": 10050000000, "offset": 4096, "operation": "read", "qom-path": "/machine/peripheral/vblk/virtio-backend"}, "event": "BLOCK_IO_DONE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+[QMP] cont
+{"return": {}}
+{"event": "RESUME", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+[QMP] query-status
+{"return": {"running": true, "status": "running"}}
+[QMP] device_del id=vblk
+{"return": {}}
+[QMP] system_reset
+{"return": {}}
+{"data": {"device": "vblk", "path": "/machine/peripheral/vblk"}, "event": "DEVICE_DELETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
