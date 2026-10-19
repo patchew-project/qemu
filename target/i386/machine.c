@@ -1690,6 +1690,29 @@ static const VMStateDescription vmstate_arch_lbr = {
     }
 };
 
+static bool amd_lbr_v2_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return cpu->enable_pmu &&
+           (env->features[FEAT_8000_0022_EAX] & CPUID_8000_0022_EAX_LBREXT_V2);
+}
+
+static const VMStateDescription vmstate_amd_lbr_v2 = {
+    .name = "cpu/amd_lbr_v2",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = amd_lbr_v2_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(env.msr_amd_dbg_extn_cfg, X86CPU),
+        VMSTATE_UINT64(env.msr_amd_lbr_select, X86CPU),
+        VMSTATE_UINT64_ARRAY(env.msr_amd_lbr_stack, X86CPU,
+                             AMD_LBR_V2_NR_ENTRIES * 2),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool triple_fault_needed(void *opaque)
 {
     X86CPU *cpu = opaque;
@@ -1952,6 +1975,7 @@ const VMStateDescription vmstate_x86_cpu = {
         &vmstate_amx_xtile,
 #endif
         &vmstate_arch_lbr,
+        &vmstate_amd_lbr_v2,
         &vmstate_triple_fault,
         &vmstate_pl0_ssp,
         &vmstate_cet,
