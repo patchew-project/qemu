@@ -649,3 +649,40 @@
 ##
 { 'enum': 'IoAccountingOperation',
   'data': [ 'read', 'write', 'flush', 'zone-append', 'unmap' ] }
+
+##
+# @BLOCK_IO_DELAY:
+#
+# Emitted when a disk operation takes longer than the pre-defined
+# threshold (as set via the "delay-report-ns" / "delay-stop-ns"
+# properties on the block device).
+#
+# Note that delays deliberately incurred by throttling do count
+# towards the operation duration.
+#
+# @qom-path: path to the block device object in the QOM tree
+#
+# @operation: I/O operation
+#
+# @latency-ns: Ongoing duration of the operation (in nanoseconds)
+#
+# @action: Action that has been taken ("report" for "delay-report-ns"
+#     or "stop" for "delay-stop-ns").  A "stop" action means the VM
+#     will be stopped with the "io-hang" `RunState`, which does not
+#     drain the block devices attached to the VM, because draining
+#     would be counterproductive in case of a hanging I/O request.
+#
+# @offset: Request offset in the guest disk (in bytes), if available
+#
+# @bytes: Request length
+#
+# Since: 11.2
+##
+{ 'event': 'BLOCK_IO_DELAY',
+  'data': {
+      'qom-path': 'str',
+      'operation': 'IoAccountingOperation',
+      'latency-ns': 'uint64',
+      'action': 'BlockErrorAction',
+      '*offset': 'uint64',
+      'bytes': 'uint64' } }
