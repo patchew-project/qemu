@@ -484,6 +484,7 @@ struct USBBus {
     int busnr;
     int nfree;
     int nused;
+    bool no_auto_hub;
     QTAILQ_HEAD(, USBPort) free;
     QTAILQ_HEAD(, USBPort) used;
     QTAILQ_ENTRY(USBBus) next;
