@@ -629,3 +629,23 @@
             'command': 'str' },
   'features': [ 'unstable' ],
   'allow-preconfig': true }
+
+##
+# @IoAccountingOperation:
+#
+# I/O operation types as they are tracked by block accounting.
+#
+# @read: Reading data
+#
+# @write: Writing data
+#
+# @flush: Flushing data to disk
+#
+# @zone-append: Appending data to a zone of a zoned block device
+#
+# @unmap: Discarding a block of data
+#
+# Since: 11.2
+##
+{ 'enum': 'IoAccountingOperation',
+  'data': [ 'read', 'write', 'flush', 'zone-append', 'unmap' ] }
