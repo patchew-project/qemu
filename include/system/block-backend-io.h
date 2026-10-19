@@ -41,6 +41,15 @@ bool blk_iostatus_is_enabled(const BlockBackend *blk);
  */
 char *blk_get_attached_dev_id(BlockBackend *blk);
 
+/*
+ * Return the QOM path of the block device attached to the
+ * BlockBackend.
+ *
+ * The caller is responsible for releasing the value returned
+ * with g_free() after use.
+ */
+char *blk_get_attached_dev_path(BlockBackend *blk);
+
 BlockAIOCB *blk_aio_pwrite_zeroes(BlockBackend *blk, int64_t offset,
                                   int64_t bytes, BdrvRequestFlags flags,
                                   BlockCompletionFunc *cb, void *opaque);

@@ -1054,11 +1054,7 @@ char *blk_get_attached_dev_id(BlockBackend *blk)
     return blk_get_attached_dev_id_or_path(blk, true);
 }
 
-/*
- * The caller is responsible for releasing the value returned
- * with g_free() after use.
- */
-static char *blk_get_attached_dev_path(BlockBackend *blk)
+char *blk_get_attached_dev_path(BlockBackend *blk)
 {
     return blk_get_attached_dev_id_or_path(blk, false);
 }
