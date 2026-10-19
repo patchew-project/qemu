@@ -53,12 +53,17 @@
 # @colo: guest is paused to save/restore VM state under colo
 #     checkpoint, VM can not get into this state unless colo
 #     capability is enabled for migration.  (since 2.8)
+#
+# @io-hang: An I/O operation has been delayed for too long and the
+#     device is configured to stop the VM when that happens.  In
+#     contrast to other paused states, the VM's block devices will not
+#     be drained when entering this run state.  (since 11.2)
 ##
 { 'enum': 'RunState',
   'data': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
             'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
             'running', 'save-vm', 'shutdown', 'suspended', 'watchdog',
-            'guest-panicked', 'colo' ] }
+            'guest-panicked', 'colo', 'io-hang' ] }
 
 ##
 # @ShutdownCause:

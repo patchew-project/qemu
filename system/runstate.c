@@ -98,6 +98,7 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_INMIGRATE, RUN_STATE_PRELAUNCH },
     { RUN_STATE_INMIGRATE, RUN_STATE_POSTMIGRATE },
     { RUN_STATE_INMIGRATE, RUN_STATE_COLO },
+    { RUN_STATE_INMIGRATE, RUN_STATE_IO_HANG },
 
     { RUN_STATE_INTERNAL_ERROR, RUN_STATE_PAUSED },
     { RUN_STATE_INTERNAL_ERROR, RUN_STATE_FINISH_MIGRATE },
@@ -135,6 +136,7 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_FINISH_MIGRATE, RUN_STATE_SUSPENDED },
     { RUN_STATE_FINISH_MIGRATE, RUN_STATE_WATCHDOG },
     { RUN_STATE_FINISH_MIGRATE, RUN_STATE_GUEST_PANICKED },
+    { RUN_STATE_FINISH_MIGRATE, RUN_STATE_IO_HANG },
 
     { RUN_STATE_RESTORE_VM, RUN_STATE_RUNNING },
     { RUN_STATE_RESTORE_VM, RUN_STATE_PRELAUNCH },
@@ -155,6 +157,7 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_RUNNING, RUN_STATE_WATCHDOG },
     { RUN_STATE_RUNNING, RUN_STATE_GUEST_PANICKED },
     { RUN_STATE_RUNNING, RUN_STATE_COLO},
+    { RUN_STATE_RUNNING, RUN_STATE_IO_HANG },
 
     { RUN_STATE_SAVE_VM, RUN_STATE_RUNNING },
     { RUN_STATE_SAVE_VM, RUN_STATE_SUSPENDED },
@@ -175,6 +178,7 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_SUSPENDED, RUN_STATE_RESTORE_VM },
     { RUN_STATE_SUSPENDED, RUN_STATE_SHUTDOWN },
     { RUN_STATE_SUSPENDED, RUN_STATE_IO_ERROR },
+    { RUN_STATE_SUSPENDED, RUN_STATE_IO_HANG },
 
     { RUN_STATE_WATCHDOG, RUN_STATE_RUNNING },
     { RUN_STATE_WATCHDOG, RUN_STATE_FINISH_MIGRATE },
@@ -184,6 +188,11 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_GUEST_PANICKED, RUN_STATE_RUNNING },
     { RUN_STATE_GUEST_PANICKED, RUN_STATE_FINISH_MIGRATE },
     { RUN_STATE_GUEST_PANICKED, RUN_STATE_PRELAUNCH },
+
+    { RUN_STATE_IO_HANG, RUN_STATE_RUNNING },
+    { RUN_STATE_IO_HANG, RUN_STATE_FINISH_MIGRATE },
+    { RUN_STATE_IO_HANG, RUN_STATE_PRELAUNCH },
+    { RUN_STATE_IO_HANG, RUN_STATE_SUSPENDED },
 
     { RUN_STATE__MAX, RUN_STATE__MAX },
 };
@@ -445,13 +454,15 @@ static int do_vm_stop(RunState state, bool send_stop)
         }
     }
 
-    bdrv_drain_all();
-    /*
-     * Even if vm_state_notify() return failure,
-     * it would be better to flush as before.
-     */
-    ret |= bdrv_flush_all();
-    trace_vm_stop_flush_all(ret);
+    if (state != RUN_STATE_IO_HANG) {
+        bdrv_drain_all();
+        /*
+         * Even if vm_state_notify() return failure,
+         * it would be better to flush as before.
+         */
+        ret |= bdrv_flush_all();
+        trace_vm_stop_flush_all(ret);
+    }
 
     return ret;
 }
