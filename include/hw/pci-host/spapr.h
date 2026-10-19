@@ -127,6 +127,10 @@ int spapr_phb_vfio_eeh_configure(SpaprPhbState *sphb);
 void spapr_phb_vfio_reset(DeviceState *qdev);
 int spapr_phb_vfio_errinjct(SpaprPhbState *sphb, uint32_t type,
                             uint32_t func, uint64_t addr, uint64_t mask);
+int spapr_phb_vfio_translate_errinjct_addr(SpaprPhbState *sphb,
+                                           uint32_t config_addr,
+                                           uint64_t guest_addr,
+                                           uint64_t *host_pci_bus_addr);
 #else
 static inline bool spapr_phb_eeh_available(SpaprPhbState *sphb)
 {
@@ -158,6 +162,13 @@ static inline int spapr_phb_vfio_errinjct(SpaprPhbState *sphb, uint32_t type,
                                           uint64_t mask)
 {
     return RTAS_OUT_NOT_SUPPORTED;
+}
+static inline int spapr_phb_vfio_translate_errinjct_addr(SpaprPhbState *sphb,
+                                                         uint32_t config_addr,
+                                                         uint64_t guest_addr,
+                                                         uint64_t *host_addr)
+{
+    return -ENOTSUP;
 }
 #endif
 

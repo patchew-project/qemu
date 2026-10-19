@@ -704,6 +704,138 @@ param_error_exit:
     rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
 }
 
+static int spapr_errinjct_parse_ioa_bus_error(target_ulong param_buf,
+                                              bool is_64bit,
+                                              uint64_t *addr, uint64_t *mask,
+                                              uint32_t *config_addr,
+                                              uint64_t *buid, uint32_t *func)
+{
+    if (is_64bit) {
+        *addr        = ((uint64_t)rtas_ld(param_buf, 0) << 32) |
+                       rtas_ld(param_buf, 1);
+        *mask        = ((uint64_t)rtas_ld(param_buf, 2) << 32) |
+                       rtas_ld(param_buf, 3);
+        *config_addr = rtas_ld(param_buf, 4);
+        *buid        = ((uint64_t)rtas_ld(param_buf, 5) << 32) |
+                       rtas_ld(param_buf, 6);
+        *func        = rtas_ld(param_buf, 7);
+    } else {
+        *addr        = rtas_ld(param_buf, 0);
+        *mask        = rtas_ld(param_buf, 1);
+        *config_addr = rtas_ld(param_buf, 2);
+        *buid        = ((uint64_t)rtas_ld(param_buf, 3) << 32) |
+                       rtas_ld(param_buf, 4);
+        *func        = rtas_ld(param_buf, 5);
+    }
+    return RTAS_OUT_SUCCESS;
+}
+
+/*
+ * Non-IOA RTAS error types (page corrupt, dcache, icache, tlb, special
+ * event) are validated but not supported for VFIO injection.  VFIO EEH
+ * is PE/PHB-scoped and those work buffers do not carry a BUID, so QEMU
+ * cannot select the right VFIO container safely.
+ */
+static void spapr_errinjct_return_non_ioa_unsupported(target_ulong rets)
+{
+    rtas_st(rets, 0, RTAS_OUT_NOT_SUPPORTED);
+}
+
+static void rtas_ibm_errinjct(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                              uint32_t token, uint32_t nargs,
+                              target_ulong args, uint32_t nret,
+                              target_ulong rets)
+{
+    SpaprPhbState *sphb = NULL;
+    target_ulong param_buf;
+    uint64_t addr = 0, mask = 0, buid = 0;
+    uint64_t inject_addr = 0;
+    uint32_t config_addr = 0;
+    uint32_t func = 0;
+    uint32_t type, o_token;
+    bool is_64bit;
+    int ret;
+
+    if (nargs != 3 || nret != 1) {
+        goto param_error_exit;
+    }
+
+    type    = rtas_ld(args, 0);
+    o_token = rtas_ld(args, 1);
+    param_buf = rtas_ld(args, 2);
+
+    if (!param_buf) {
+        goto param_error_exit;
+    }
+
+    if (!spapr->errinjct_token || o_token != spapr->errinjct_token) {
+        goto param_error_exit;
+    }
+
+    switch (type) {
+    case RTAS_ERR_TYPE_IOA_BUS_ERROR:
+    case RTAS_ERR_TYPE_IOA_BUS_ERROR_64:
+        is_64bit = (type == RTAS_ERR_TYPE_IOA_BUS_ERROR_64);
+        ret = spapr_errinjct_parse_ioa_bus_error(param_buf, is_64bit,
+                                                 &addr, &mask,
+                                                 &config_addr, &buid, &func);
+        if (ret != RTAS_OUT_SUCCESS) {
+            goto param_error_exit;
+        }
+        break;
+
+    case RTAS_ERR_TYPE_RECOVERED_SPECIAL_EVENT:
+    case RTAS_ERR_TYPE_CORRUPTED_PAGE:
+    case RTAS_ERR_TYPE_CORRUPTED_DCACHE_START:
+    case RTAS_ERR_TYPE_CORRUPTED_DCACHE_END:
+    case RTAS_ERR_TYPE_CORRUPTED_ICACHE_START:
+    case RTAS_ERR_TYPE_CORRUPTED_ICACHE_END:
+    case RTAS_ERR_TYPE_CORRUPTED_TLB_START:
+    case RTAS_ERR_TYPE_CORRUPTED_TLB_END:
+        spapr_errinjct_return_non_ioa_unsupported(rets);
+        return;
+
+    default:
+        goto param_error_exit;
+    }
+
+    /* IOA path: BUID selects the target PHB */
+    if (!buid) {
+        goto param_error_exit;
+    }
+
+    sphb = spapr_pci_find_phb(spapr, buid);
+    if (!sphb) {
+        error_report("ibm,errinjct: no PHB for BUID=0x%016" PRIx64, buid);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+        return;
+    }
+
+    inject_addr = addr;
+
+    /*
+     * addr=0, mask=0 means a non-address-scoped IOA injection.  This
+     * matches powerpc-utils errinjct -a 0 -m 0 behaviour; skip translation
+     * and forward addr/mask as zero.
+     */
+    if (addr || mask) {
+        ret = spapr_phb_vfio_translate_errinjct_addr(sphb, config_addr,
+                                                     addr, &inject_addr);
+        if (ret) {
+            rtas_st(rets, 0, ret == -EOPNOTSUPP ? RTAS_OUT_NOT_SUPPORTED
+                                                 : RTAS_OUT_PARAM_ERROR);
+            return;
+        }
+    }
+
+    ret = spapr_phb_vfio_errinjct(sphb, type, func, inject_addr, mask);
+    rtas_st(rets, 0, ret);
+    return;
+
+param_error_exit:
+    rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+}
+
 static void pci_spapr_set_irq(void *opaque, int irq_num, int level)
 {
     /*
@@ -2380,6 +2512,9 @@ void spapr_pci_rtas_init(void)
     spapr_rtas_register(RTAS_IBM_SLOT_ERROR_DETAIL,
                         "ibm,slot-error-detail",
                         rtas_ibm_slot_error_detail);
+    spapr_rtas_register(RTAS_IBM_ERRINJCT,
+                        "ibm,errinjct",
+                        rtas_ibm_errinjct);
 }
 
 static void spapr_pci_register_types(void)
