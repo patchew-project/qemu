@@ -775,8 +775,32 @@ static bool restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc)
     env->eip = tswapl(sc->rip);
 #endif
 
-    cpu_x86_load_seg(env, R_CS, lduw_le_p(&sc->cs) | 3);
-    cpu_x86_load_seg(env, R_SS, lduw_le_p(&sc->ss) | 3);
+    /*
+     * Validate the selectors before loading them.
+     *
+     * In protected mode cpu_x86_load_seg() ends up in helper_load_seg(),
+     * which raises #GP for a bad selector and calls cpu_loop_exit_restore().
+     * That longjmps out of the syscall handler while cpu_exec_longjmp_cleanup()
+     * still expects the CPU it started with, so
+     *
+     *     g_assert(cpu == current_cpu)
+     *
+     * fires and the whole emulator aborts.  A guest that builds its own
+     * signal frame and executes rt_sigreturn (SROP) leaves cs/ss zeroed,
+     * so this is trivial to hit.  Linux treats such a frame as a bad frame
+     * and delivers SIGSEGV, so do the same and take the badframe path.
+     */
+    {
+        uint16_t cs = lduw_le_p(&sc->cs) | 3;
+        uint16_t ss = lduw_le_p(&sc->ss) | 3;
+
+        if (cs != (env->segs[R_CS].selector | 3) ||
+            ss != (env->segs[R_SS].selector | 3)) {
+            return false;
+        }
+        cpu_x86_load_seg(env, R_CS, cs);
+        cpu_x86_load_seg(env, R_SS, ss);
+    }
 
     tmpflags = tswapl(sc->eflags);
     env->eflags = (env->eflags & ~0x40DD5) | (tmpflags & 0x40DD5);
