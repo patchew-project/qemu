@@ -551,6 +551,8 @@ struct CPUArchState {
     uint32_t kvm_mp_state;
     bool kvm_mp_state_loaded;
 #endif /* CONFIG_KVM */
+
+    bool trace_running;
 };
 
 /*
@@ -792,6 +794,7 @@ FIELD(EXT_TB_FLAGS, ALTFMT, 32, 1)
 FIELD(EXT_TB_FLAGS, BIG_ENDIAN, 33, 1)
 /* sdext single-step needs a TB flag to build 1-insn TBs */
 FIELD(EXT_TB_FLAGS, SDEXT_STEP, 34, 1)
+FIELD(EXT_TB_FLAGS, CPU_TRACE_RUNNING, 35, 1)
 
 #ifdef TARGET_RISCV32
 #define riscv_cpu_mxl(env)  ((void)(env), MXL_RV32)

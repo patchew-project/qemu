@@ -10,6 +10,12 @@ riscv_ss.add(files(
   'fpu_helper.c',
   'm128_helper.c',
   'op_helper.c',
+
+  # In theory the RISC-V HW e-trace support is system_ss only,
+  # but we're instrumeting TCG code that is visible to riscv_ss
+  # ae well, ergo the helper needs to be visible in user-mode too.
+  'trace_helper.c',
+
   'translate.c',
   'tcg-cpu.c',
   'vcrypto_helper.c',

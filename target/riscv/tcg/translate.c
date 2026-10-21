@@ -125,6 +125,8 @@ typedef struct DisasContext {
     bool bcfi_enabled;
     /* Data endianness from MSTATUS UBE/SBE/MBE */
     MemOp mo_endianness;
+    /* Detect if we're in the middle of a CPU trace session.   */
+    bool cpu_trace_running;
 } DisasContext;
 
 static inline bool has_ext(DisasContext *ctx, uint32_t ext)
@@ -1368,10 +1370,17 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->decoders = cpu->decoders;
     ctx->mo_endianness = FIELD_EX64(ext_tb_flags, EXT_TB_FLAGS, BIG_ENDIAN)
                          ? MO_BE : MO_LE;
+    ctx->cpu_trace_running = FIELD_EX64(ext_tb_flags, EXT_TB_FLAGS,
+                                        CPU_TRACE_RUNNING);
 }
 
 static void riscv_tr_tb_start(DisasContextBase *db, CPUState *cpu)
 {
+    DisasContext *ctx = container_of(db, DisasContext, base);
+
+    if (ctx->cpu_trace_running) {
+        gen_helper_trace_insn(tcg_env, tcg_constant_i64(db->pc_first));
+    }
 }
 
 static void riscv_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
