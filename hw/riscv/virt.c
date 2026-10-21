@@ -167,15 +167,9 @@ static void create_fdt_socket_plic(RISCVVirtState *s,
     cells_length = 0;
 
     for (cpu = 0; cpu < s->soc[socket].num_harts; cpu++) {
-        if (!kvm_enabled()) {
-            plic_cells[cells_length++] = cpu_to_be32(intc_phandles[cpu]);
-            plic_cells[cells_length++] = cpu_to_be32(IRQ_M_EXT);
-        }
-
-        if (riscv_cpu_has_supervisor_mode(&s->soc[socket].harts[cpu])) {
-            plic_cells[cells_length++] = cpu_to_be32(intc_phandles[cpu]);
-            plic_cells[cells_length++] = cpu_to_be32(IRQ_S_EXT);
-        }
+        cells_length += riscv_plic_hart_fdt_cells(&plic_cells[cells_length],
+                                                  &s->soc[socket].harts[cpu],
+                                                  intc_phandles[cpu]);
     }
 
     plic_phandles[socket] = (*phandle)++;

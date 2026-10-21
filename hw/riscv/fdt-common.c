@@ -10,6 +10,7 @@
 
 #include "qemu/error-report.h"
 #include "system/device_tree.h"
+#include "system/kvm.h"
 #include "hw/core/boards.h"
 #include "hw/core/sysbus-fdt.h"
 #include "hw/riscv/fdt-common.h"
@@ -210,6 +211,25 @@ riscv_create_fdt_socket_cpu_sifive(void *fdt, char *clust_name,
     create_fdt_socket_cpu_internal(fdt, clust_name, NULL, cpu_id,
                                    socket_id, socket_hartid_base,
                                    phandle, intc_phandles, false, false);
+}
+
+uint32_t riscv_plic_hart_fdt_cells(uint32_t *cells, RISCVCPU *hart,
+                                   uint32_t intc_phandle)
+{
+    uint32_t len = 0;
+
+    /* harts running under KVM have no M-mode */
+    if (!kvm_enabled()) {
+        cells[len++] = cpu_to_be32(intc_phandle);
+        cells[len++] = cpu_to_be32(IRQ_M_EXT);
+    }
+
+    if (riscv_cpu_has_supervisor_mode(hart)) {
+        cells[len++] = cpu_to_be32(intc_phandle);
+        cells[len++] = cpu_to_be32(IRQ_S_EXT);
+    }
+
+    return len;
 }
 
 void riscv_create_fdt_plic(void *fdt, hwaddr addr, uint64_t size,
