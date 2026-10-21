@@ -183,6 +183,8 @@ static bool trans_jalr(DisasContext *ctx, arg_jalr *a)
         }
     }
 
+    gen_trace_updiscon(ctx);
+
     lookup_and_goto_ptr(ctx);
 
     if (misaligned) {
