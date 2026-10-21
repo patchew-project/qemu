@@ -99,6 +99,7 @@ struct BaumChardev {
     /* Initialized in baum_deferred_init */
     unsigned int x, y;
     bool deferred_init;
+    bool protocol_on;
 
     bool protocol_on;
     uint8_t in_buf[BUF_SIZE];
