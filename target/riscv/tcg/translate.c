@@ -627,6 +627,13 @@ static void gen_ctr_jal(DisasContext *ctx, int rd, target_ulong imm)
 }
 #endif
 
+static void gen_trace_updiscon(DisasContext *ctx)
+{
+    if (ctx->cpu_trace_running) {
+        gen_helper_trace_updiscon(tcg_env);
+    }
+}
+
 static void gen_jal(DisasContext *ctx, int rd, target_ulong imm)
 {
     TCGv succ_pc = dest_gpr(ctx, rd);
