@@ -3973,7 +3973,12 @@ static RISCVException write_sstateen0(CPURISCVState *env, int csrno,
 static RISCVException write_sstateen_1_3(CPURISCVState *env, int csrno,
                                          target_ulong new_val, uintptr_t ra)
 {
-    return write_sstateen(env, csrno, SMSTATEEN_STATEEN, new_val);
+    /*
+     * sstateen1-3 have no defined bits yet, so they are read only zero.
+     * Bit 63 is the SE bit only in mstateenN/hstateenN, where it gates
+     * access to sstateenN.
+     */
+    return write_sstateen(env, csrno, 0, new_val);
 }
 
 static RISCVException rmw_mip64(CPURISCVState *env, int csrno,
