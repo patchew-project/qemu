@@ -913,16 +913,31 @@ void x86_load_linux(X86MachineState *x86ms,
     }
 
     setup  = g_malloc(setup_size);
-    kernel = g_malloc(kernel_size);
     fseek(f, 0, SEEK_SET);
     if (fread(setup, 1, setup_size, f) != setup_size) {
         fprintf(stderr, "fread() failed\n");
         exit(1);
     }
-    fseek(f, 0, SEEK_SET);
-    if (fread(kernel, 1, kernel_size, f) != kernel_size) {
-        fprintf(stderr, "fread() failed\n");
-        exit(1);
+    if (dtb_filename) {
+        /* read kernel into allocated memory, so we can realloc for the dtb */
+        kernel = g_malloc(kernel_size);
+        fseek(f, 0, SEEK_SET);
+        if (fread(kernel, 1, kernel_size, f) != kernel_size) {
+            fprintf(stderr, "fread() failed\n");
+            exit(1);
+        }
+    } else {
+        /* mmap kernel */
+        GMappedFile *mapped_file;
+        GError *gerr = NULL;
+
+        mapped_file = g_mapped_file_new(kernel_filename, false, &gerr);
+        if (!mapped_file) {
+            fprintf(stderr, "qemu: error reading kernel %s: %s\n",
+                    kernel_filename, gerr->message);
+            exit(1);
+        }
+        kernel = (uint8_t *)g_mapped_file_get_contents(mapped_file);
     }
     fclose(f);
 
