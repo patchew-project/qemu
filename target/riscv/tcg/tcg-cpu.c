@@ -40,6 +40,7 @@
 #include "exec/icount.h"
 #include "target/riscv/tcg/debug.h"
 #include "target/riscv/tcg/csr.h"
+#include "hw/riscv/trace-encoder.h"
 #endif
 
 static GHashTable *multi_ext_implied_rules;
@@ -1371,6 +1372,10 @@ static bool riscv_tcg_cpu_realize(CPUState *cs, Error **errp)
     /* With H-Ext, VSSIP, VSTIP, VSEIP and SGEIP are hardwired to one. */
     if (riscv_has_ext(env, RVH)) {
         env->mideleg = MIP_VSSIP | MIP_VSTIP | MIP_VSEIP | MIP_SGEIP;
+    }
+
+    if (cpu->trencoder) {
+        qdev_realize(DEVICE(cpu->trencoder), NULL, &error_fatal);
     }
 #endif
 

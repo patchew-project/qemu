@@ -593,6 +593,15 @@ struct ArchCPU {
     GHashTable *misa_ext_user_opts;
     GHashTable *multi_ext_user_opts;
     const GPtrArray *decoders;
+
+#ifndef CONFIG_USER_ONLY
+    /*
+     * Associated Trace Encoder. It will not be NULL if
+     * we're running with TCG and initialized manually by
+     * the board.
+     */
+    Object *trencoder;
+#endif
 };
 
 typedef struct RISCVCSR RISCVCSR;
