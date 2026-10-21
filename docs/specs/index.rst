@@ -43,3 +43,4 @@ guest hardware that is specific to QEMU.
    aspeed-intc
    iommu-testdev
    s390x-secure-ipl
+   riscv-hwtrace
