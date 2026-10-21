@@ -485,6 +485,51 @@ static void create_fdt_iommu(RISCVVirtState *s, uint16_t bdf)
     s->pci_iommu_bdf = bdf;
 }
 
+static void create_fdt_rvtrace(RISCVVirtState *s)
+{
+    MachineState *ms = MACHINE(s);
+    int socket_count = riscv_socket_count(ms);
+    hwaddr encoder_addr, ramsink_addr, size = 0x100;
+    RISCVCPU *cpu_ptr;
+    int cpu_id;
+
+    for (int i = 0; i < socket_count; i++) {
+        for (int cpu = 0; cpu < s->soc[i].num_harts; cpu++) {
+            g_autofree char *in_endpoint = NULL;
+            g_autofree char *out_endpoint = NULL;
+
+            cpu_ptr = &s->soc[i].harts[cpu];
+            if (!cpu_ptr->trencoder) {
+                continue;
+            }
+
+            encoder_addr = object_property_get_uint(cpu_ptr->trencoder,
+                                                    "baseaddr",
+                                                    &error_abort);
+            ramsink_addr = object_property_get_uint(cpu_ptr->trencoder,
+                                                    "dest-baseaddr",
+                                                    &error_abort);
+            cpu_id = s->soc[i].hartid_base + cpu;
+
+            in_endpoint = riscv_create_fdt_trace_ramsink(ms->fdt,
+                                                         ramsink_addr,
+                                                         size, cpu_id);
+
+            out_endpoint = riscv_create_fdt_trace_encoder(ms->fdt,
+                                                          encoder_addr,
+                                                          size, cpu_id);
+
+            /* The remote-endpoint property is bidirectional, i.e. the
+               in-ports endpoint must point to the out-ports endpoint
+               and vice-versa.  */
+            qemu_fdt_setprop_phandle(ms->fdt, in_endpoint,
+                                     "remote-endpoint", out_endpoint);
+            qemu_fdt_setprop_phandle(ms->fdt, out_endpoint,
+                                     "remote-endpoint", in_endpoint);
+        }
+    }
+}
+
 static void finalize_fdt(RISCVVirtState *s)
 {
     uint32_t phandle = 1, irq_mmio_phandle = 1, msi_pcie_phandle = 1;
@@ -526,6 +571,8 @@ static void finalize_fdt(RISCVVirtState *s)
 
     riscv_create_fdt_rtc(MACHINE(s)->fdt, &s->memmap[VIRT_RTC], RTC_IRQ,
                          s->aia_type, irq_mmio_phandle);
+
+    create_fdt_rvtrace(s);
 }
 
 static void create_fdt(RISCVVirtState *s)

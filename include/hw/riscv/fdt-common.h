@@ -136,4 +136,8 @@ void riscv_create_fdt_uart(void *fdt, const MemMapEntry *uart_mem,
 void riscv_create_fdt_rtc(void *fdt, const MemMapEntry *rtc_mem,
                           int rtc_irq, int aia_type,
                           uint32_t irq_phandle);
+char *riscv_create_fdt_trace_encoder(void *fdt, hwaddr addr, hwaddr size,
+                                     int cpu_id);
+char *riscv_create_fdt_trace_ramsink(void *fdt, hwaddr addr, hwaddr size,
+                                     int cpu_id);
 #endif

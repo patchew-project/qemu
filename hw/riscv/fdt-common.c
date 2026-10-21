@@ -105,6 +105,12 @@ void riscv_fdt_create_cpu_socket_subnode(void *fdt,
     qemu_fdt_add_subnode(fdt, "/cpus/cpu-map");
 }
 
+/* Caller must free string after use */
+static char* fdt_get_cpu_nodename(int cpu_id)
+{
+    return g_strdup_printf("/cpus/cpu@%d", cpu_id);
+}
+
 static void
 create_fdt_socket_cpu_internal(void *fdt, char *clust_name, RISCVCPU *cpu_ptr,
                                int cpu, int socket_id, int socket_hartid_base,
@@ -848,4 +854,68 @@ void riscv_create_fdt_rtc(void *fdt, const MemMapEntry *rtc_mem,
     } else {
         qemu_fdt_setprop_cells(fdt, name, "interrupts", rtc_irq, 0x4);
     }
+}
+
+/* Returns the 'out-ports/port/endpoint' nodepath.  Caller
+   must free the string after use.  */
+char *riscv_create_fdt_trace_encoder(void *fdt, hwaddr addr, hwaddr size,
+                                     int cpu_id)
+{
+    static const char * const tr_compat[2] = { "qemu,trace-component",
+                                               "riscv,trace-component" };
+    g_autofree char *cpu_nodename = fdt_get_cpu_nodename(cpu_id);
+    g_autofree char *trencoder_name = NULL;
+    char *endpoint = NULL;
+
+    trencoder_name = g_strdup_printf("/soc/encoder@%"HWADDR_PRIx, addr);
+    qemu_fdt_add_subnode(fdt, trencoder_name);
+
+    qemu_fdt_setprop_sized_cells(fdt, trencoder_name, "reg",
+                                 2, addr,
+                                 2, size);
+
+    qemu_fdt_setprop_string_array(fdt, trencoder_name, "compatible",
+                                  (char **)&tr_compat,
+                                  ARRAY_SIZE(tr_compat));
+
+    qemu_fdt_setprop_phandle(fdt, trencoder_name, "cpus", cpu_nodename);
+
+    endpoint = g_strdup_printf("%s/out-ports/port/endpoint", trencoder_name);
+    qemu_fdt_add_path(fdt, endpoint);
+    qemu_fdt_setprop_cell(fdt, endpoint, "phandle",
+                          qemu_fdt_alloc_phandle(fdt));
+
+    return endpoint;
+}
+
+/* Returns the 'in-ports/port/endpoint' nodepath.  Caller
+   must free the string after use.  */
+char *riscv_create_fdt_trace_ramsink(void *fdt, hwaddr addr, hwaddr size,
+                                     int cpu_id)
+{
+    static const char * const tr_compat[2] = { "qemu,trace-component",
+                                               "riscv,trace-component" };
+    g_autofree char *cpu_nodename = fdt_get_cpu_nodename(cpu_id);
+    g_autofree char *ramsink_name = NULL;
+    char *endpoint = NULL;
+
+    ramsink_name = g_strdup_printf("/soc/ramsink@%"HWADDR_PRIx, addr);
+    qemu_fdt_add_subnode(fdt, ramsink_name);
+
+    qemu_fdt_setprop_sized_cells(fdt, ramsink_name, "reg",
+                                 2, addr,
+                                 2, size);
+
+    qemu_fdt_setprop_string_array(fdt, ramsink_name, "compatible",
+                                  (char **)&tr_compat,
+                                  ARRAY_SIZE(tr_compat));
+
+    qemu_fdt_setprop_phandle(fdt, ramsink_name, "cpus", cpu_nodename);
+
+    endpoint = g_strdup_printf("%s/in-ports/port/endpoint", ramsink_name);
+    qemu_fdt_add_path(fdt, endpoint);
+    qemu_fdt_setprop_cell(fdt, endpoint, "phandle",
+                          qemu_fdt_alloc_phandle(fdt));
+
+    return endpoint;
 }
