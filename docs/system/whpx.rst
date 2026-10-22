@@ -66,6 +66,8 @@ expects a linear framebuffer to be available.
 Accelerator options
 --------------------
 
+``-accel whpx,hyperv=off`` disables Hyper-V enlightenments exposure.
+
 x86_64
 ^^^^^^
 
@@ -79,6 +81,10 @@ GPAs.
 as in a BTB flush when entering/exiting the guest. This results in a
 significant MMIO performance increase at the detriment of security
 mitigations.
+
+``-cpu svm=off,vmx=off,x2apic=off`` with the Hyper-V LAPIC being used allows
+for experimental VM save/restore support. Currently, this does not cover MTRRs
+or debug registers.
 
 Known issues on x86_64
 ----------------------
