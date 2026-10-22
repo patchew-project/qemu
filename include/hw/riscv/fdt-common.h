@@ -93,6 +93,9 @@ void riscv_create_fdt_socket_cpu_sifive(void *fdt, char *clust_name,
                                         int socket_hartid_base,
                                         uint32_t *phandle,
                                         uint32_t *intc_phandles);
+/* Describe one hart's PLIC contexts, returns the number of cells written */
+uint32_t riscv_plic_hart_fdt_cells(uint32_t *cells, RISCVCPU *hart,
+                                   uint32_t intc_phandle, bool has_m_mode);
 void riscv_create_fdt_plic(void *fdt, hwaddr addr, uint64_t size,
                            uint32_t plic_phandle, uint32_t int_cells,
                            uint32_t addr_cells, uint32_t *plic_cells,
