@@ -1525,16 +1525,9 @@ static int vhost_user_set_vring_kick(struct vhost_dev *dev,
      * receiving a kick. The spec suggests this to improve compatibility.
      */
     if (file->fd != -1) {
-        uint64_t val = 1;
-        ssize_t nwritten;
+        VirtQueue *vq = virtio_get_queue(dev->vdev, file->index);
 
-        do {
-            nwritten = write(file->fd, &val, sizeof(val));
-        } while (nwritten < 0 && errno == EINTR);
-
-        if (nwritten < 0 && errno != EAGAIN /* back-end can already read */) {
-            return -errno;
-        }
+        return event_notifier_set(virtio_queue_get_host_notifier(vq));
     }
 
     return 0;
