@@ -99,6 +99,7 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
     MachineState *ms = MACHINE(s);
     void *fdt;
     int cpu;
+    RISCVCPU *hart;
     uint32_t *cells, cells_length;
     char *nodename;
     uint32_t plic_phandle, prci_phandle, gpio_phandle, phandle = 1;
@@ -195,18 +196,18 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
     g_free(nodename);
 
     plic_phandle = phandle++;
-    cells_length = ms->smp.cpus * 4 - 2;
-    cells =  g_new0(uint32_t, cells_length);
+    cells = g_new0(uint32_t, ms->smp.cpus * 4 - 2);
+    cells_length = 0;
     for (cpu = 0; cpu < ms->smp.cpus; cpu++) {
         /* cpu 0 is the management hart that does not have S-mode */
-        if (cpu == 0) {
-            cells[0] = cpu_to_be32(intc_phandles[cpu]);
-            cells[1] = cpu_to_be32(IRQ_M_EXT);
-        } else {
-            cells[cpu * 4 - 2] = cpu_to_be32(intc_phandles[cpu]);
-            cells[cpu * 4 - 1] = cpu_to_be32(IRQ_M_EXT);
-            cells[cpu * 4 + 0] = cpu_to_be32(intc_phandles[cpu]);
-            cells[cpu * 4 + 1] = cpu_to_be32(IRQ_S_EXT);
+        hart = cpu ? &s->soc.u_cpus.harts[cpu - 1] : &s->soc.e_cpus.harts[0];
+
+        cells[cells_length++] = cpu_to_be32(intc_phandles[cpu]);
+        cells[cells_length++] = cpu_to_be32(IRQ_M_EXT);
+
+        if (riscv_cpu_has_supervisor_mode(hart)) {
+            cells[cells_length++] = cpu_to_be32(intc_phandles[cpu]);
+            cells[cells_length++] = cpu_to_be32(IRQ_S_EXT);
         }
     }
 
