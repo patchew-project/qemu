@@ -2829,6 +2829,32 @@ static void whpx_cpu_update_state(void *opaque, bool running, RunState state)
     }
 }
 
+static bool whpx_is_migration_allowed(CPUState *cpu) {
+    struct whpx_state *whpx = &whpx_global;
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+
+    if (whpx->hyperv_enlightenments_enabled == true) {
+        return false;
+    }
+
+    if (cpu_has_vmx(env) || cpu_has_svm(env)) {
+        return false;
+    }
+
+    /* We're relying on the LAPIC state save/restore for pending interrupts. */
+    if (!whpx_irqchip_in_kernel()) {
+        return false;
+    }
+
+    /* The state save-restore we have right now is not good enough for x2APIC */
+    if (cpu_has_x2apic_feature(env)) {
+        return false;
+    }
+
+    return true;
+}
+
 int whpx_init_vcpu(CPUState *cpu)
 {
     HRESULT hr;
@@ -2846,10 +2872,11 @@ int whpx_init_vcpu(CPUState *cpu)
     /* Add migration blockers for all unsupported features of the
      * Windows Hypervisor Platform
      */
-    if (whpx_migration_blocker == NULL) {
+    if (whpx_migration_blocker == NULL
+        && !whpx_is_migration_allowed(cpu)) {
         error_setg(&whpx_migration_blocker,
-               "State blocked due to missing dirty memory tracking support,"
-               "And some system register/state save-restore ");
+               "State blocked due to missing Hyper-V enlightenments,"
+               "save-restore and/or nested virtualisation");
 
         if (migrate_add_blocker(&whpx_migration_blocker, &local_error) < 0) {
             error_report_err(local_error);
