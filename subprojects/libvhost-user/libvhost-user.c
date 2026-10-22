@@ -85,7 +85,7 @@ int eventfd_read(int fd, eventfd_t *value)
 }
 #endif
 
-#ifdef MFD_ALLOW_SEALING
+#ifdef CONFIG_MEMFD
 #include <fcntl.h>
 
 #ifndef F_LINUX_SPECIFIC_BASE
@@ -1970,13 +1970,12 @@ vu_get_protocol_features_exec(VuDev *dev, VhostUserMsg *vmsg)
         features |= dev->iface->get_protocol_features(dev);
     }
 
-#ifndef MFD_ALLOW_SEALING
+#ifndef CONFIG_MEMFD
     /*
-     * If MFD_ALLOW_SEALING is not defined, we are not able to handle
-     * VHOST_USER_GET_INFLIGHT_FD messages, since we can't create a memfd.
-     * Those messages are used only if VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD
-     * is negotiated. A device implementation can enable it, so let's mask
-     * it to avoid a runtime panic.
+     * Without memfd we are not able to handle VHOST_USER_GET_INFLIGHT_FD
+     * messages. Those messages are used only if
+     * VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD is negotiated. A device
+     * implementation can enable it, so let's mask it to avoid a runtime panic.
      */
     features &= ~(1ULL << VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD);
 #endif
@@ -2171,7 +2170,7 @@ vu_inflight_queue_size(uint16_t queue_size)
            sizeof(uint16_t), INFLIGHT_ALIGNMENT);
 }
 
-#ifdef MFD_ALLOW_SEALING
+#ifdef CONFIG_MEMFD
 static void *
 memfd_alloc(const char *name, size_t size, unsigned int flags, int *fd)
 {
@@ -2238,7 +2237,7 @@ vu_get_inflight_fd(VuDev *dev, VhostUserMsg *vmsg)
 
     mmap_size = vu_inflight_queue_size(queue_size) * num_queues;
 
-#ifdef MFD_ALLOW_SEALING
+#ifdef CONFIG_MEMFD
     addr = memfd_alloc("vhost-inflight", mmap_size,
                        F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
                        &fd);
