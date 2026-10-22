@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <assert.h>
 #include <inttypes.h>
@@ -40,7 +41,6 @@
 
 #if defined(__linux__)
 #include <sys/syscall.h>
-#include <fcntl.h>
 #include <sys/ioctl.h>
 #include <linux/vhost.h>
 #include <sys/vfs.h>
@@ -1312,6 +1312,7 @@ vu_get_vring_base_exec(VuDev *dev, VhostUserMsg *vmsg)
     vmsg->size = sizeof(vmsg->payload.state);
 
     dev->vq[index].started = false;
+    dev->vq[index].kick_pending = false;
     if (dev->iface->queue_set_started) {
         dev->iface->queue_set_started(dev, index, false);
     }
@@ -1448,6 +1449,121 @@ vu_check_queue_inflights(VuDev *dev, VuVirtq *vq)
 }
 
 static bool
+vu_self_kick_init(VuDev *dev)
+{
+#ifdef CONFIG_EVENTFD
+    int fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+
+    if (fd < 0) {
+        return false;
+    }
+
+    dev->self_kick_rfd = dev->self_kick_wfd = fd;
+#else
+    int fds[2];
+    int i;
+
+    if (pipe(fds) < 0) {
+        return false;
+    }
+
+    for (i = 0; i < 2; i++) {
+        int flags = fcntl(fds[i], F_GETFL);
+
+        if (flags < 0 ||
+            fcntl(fds[i], F_SETFL, flags | O_NONBLOCK) < 0 ||
+            fcntl(fds[i], F_SETFD, FD_CLOEXEC) < 0) {
+            close(fds[0]);
+            close(fds[1]);
+            return false;
+        }
+    }
+
+    dev->self_kick_rfd = fds[0];
+    dev->self_kick_wfd = fds[1];
+#endif
+
+    return true;
+}
+
+static void
+vu_self_kick_deinit(VuDev *dev)
+{
+    if (dev->self_kick_watched) {
+        dev->remove_watch(dev, dev->self_kick_rfd);
+        dev->self_kick_watched = false;
+    }
+
+    if (dev->self_kick_wfd != -1 && dev->self_kick_wfd != dev->self_kick_rfd) {
+        close(dev->self_kick_wfd);
+    }
+
+    if (dev->self_kick_rfd != -1) {
+        close(dev->self_kick_rfd);
+    }
+
+    dev->self_kick_rfd = dev->self_kick_wfd = -1;
+}
+
+static void
+vu_self_kick_cb(VuDev *dev, int condition, void *data)
+{
+    eventfd_t value;
+    unsigned int i;
+
+    while (eventfd_read(dev->self_kick_rfd, &value) == 0) {
+        continue;
+    }
+
+    for (i = 0; i < dev->max_queues; i++) {
+        VuVirtq *vq = &dev->vq[i];
+
+        if (!vq->kick_pending) {
+            continue;
+        }
+        vq->kick_pending = false;
+
+        DPRINT("Running handler for pending requests on vq: %u\n", i);
+        if (vq->handler) {
+            vq->handler(dev, i);
+        }
+    }
+}
+
+static void
+vu_schedule_pending_requests(VuDev *dev, int index)
+{
+    VuVirtq *vq = &dev->vq[index];
+    int ret;
+
+    if (!vq->handler) {
+        return;
+    }
+
+    if (vq->resubmit_num == 0 && vu_queue_empty(dev, vq)) {
+        return;
+    }
+
+    DPRINT("Scheduling pending requests on vq: %d (resubmit: %d)\n",
+           index, vq->resubmit_num);
+    vq->kick_pending = true;
+
+    if (!dev->self_kick_watched) {
+        dev->set_watch(dev, dev->self_kick_rfd, VU_WATCH_IN,
+                       vu_self_kick_cb, NULL);
+        dev->self_kick_watched = true;
+    }
+
+    ret = eventfd_write(dev->self_kick_wfd, 1);
+
+    /* EAGAIN: the notifier is already pending, which is all we need */
+    if (ret < 0 && errno != EAGAIN) {
+        vu_panic(dev, "Failed to kick ourselves for vq: %d: %s\n",
+                 index, strerror(errno));
+    }
+}
+
+static bool
 vu_set_vring_kick_exec(VuDev *dev, VhostUserMsg *vmsg)
 {
     int index = vmsg->payload.u64 & VHOST_USER_VRING_IDX_MASK;
@@ -1485,19 +1601,7 @@ vu_set_vring_kick_exec(VuDev *dev, VhostUserMsg *vmsg)
         vu_panic(dev, "Failed to check inflights for vq: %d\n", index);
     }
 
-    /* Inject a kick to look for available vq buffers */
-    if (dev->vq[index].kick_fd != -1) {
-        int ret;
-
-        do {
-            ret = eventfd_write(dev->vq[index].kick_fd, 1);
-        } while (ret != 0 && errno == EINTR);
-
-        if (ret != 0 && errno != EAGAIN /* already readable */) {
-            vu_panic(dev, "Failed to inject kick during SET_VRING_KICK "
-                     "on vq: %d with error: %m\n", index);
-        }
-    }
+    vu_schedule_pending_requests(dev, index);
 
     return false;
 }
@@ -1515,6 +1619,10 @@ void vu_set_queue_handler(VuDev *dev, VuVirtq *vq,
         } else {
             dev->remove_watch(dev, vq->kick_fd);
         }
+    }
+
+    if (handler && vq->started) {
+        vu_schedule_pending_requests(dev, qidx);
     }
 }
 
@@ -2386,6 +2494,7 @@ vu_deinit(VuDev *dev)
     }
 
     vu_close_log(dev);
+    vu_self_kick_deinit(dev);
     if (dev->backend_fd != -1) {
         close(dev->backend_fd);
         dev->backend_fd = -1;
@@ -2433,10 +2542,17 @@ vu_init(VuDev *dev,
     pthread_mutex_init(&dev->backend_mutex, NULL);
     dev->backend_fd = -1;
     dev->max_queues = max_queues;
+    dev->self_kick_rfd = dev->self_kick_wfd = -1;
+
+    if (!vu_self_kick_init(dev)) {
+        DPRINT("%s: failed to create the self-kick notifier\n", __func__);
+        return false;
+    }
 
     dev->regions = malloc(VHOST_USER_MAX_RAM_SLOTS * sizeof(dev->regions[0]));
     if (!dev->regions) {
         DPRINT("%s: failed to malloc mem regions\n", __func__);
+        vu_self_kick_deinit(dev);
         return false;
     }
 
@@ -2445,6 +2561,7 @@ vu_init(VuDev *dev,
         DPRINT("%s: failed to malloc virtqueues\n", __func__);
         free(dev->regions);
         dev->regions = NULL;
+        vu_self_kick_deinit(dev);
         return false;
     }
 
