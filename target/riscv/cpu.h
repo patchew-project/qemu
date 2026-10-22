@@ -354,10 +354,12 @@ struct CPUArchState {
     uint64_t stvec;
     uint64_t sepc;
     uint64_t scause;
+    uint64_t scauseh;
 
     uint64_t mtvec;
     uint64_t mepc;
     uint64_t mcause;
+    uint64_t mcauseh;
     uint64_t mtval;  /* since: priv-1.10.0 */
 
     uint64_t mctrctl;
