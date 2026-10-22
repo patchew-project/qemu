@@ -242,6 +242,11 @@ void whpx_apic_get(APICCommonState *s)
     whpx_get_apic_state(s, &kapic);
 }
 
+static void whpx_apic_pre_save(APICCommonState *s)
+{
+    whpx_apic_get(s);
+}
+
 static void whpx_apic_post_load(APICCommonState *s)
 {
     run_on_cpu(CPU(s->cpu), whpx_apic_put, RUN_ON_CPU_HOST_PTR(s));
@@ -338,6 +343,7 @@ static void whpx_apic_class_init(ObjectClass *klass, const void *data)
     k->set_base = apic_set_base;
     k->set_tpr = whpx_apic_set_tpr;
     k->get_tpr = whpx_apic_get_tpr;
+    k->pre_save = whpx_apic_pre_save;
     k->post_load = whpx_apic_post_load;
     k->vapic_base_update = whpx_apic_vapic_base_update;
     k->external_nmi = whpx_apic_external_nmi;
