@@ -2902,6 +2902,22 @@ static void gd_vc_free(void *p)
 static GtkDisplayState *gtk_display_state;
 static gboolean gtkinit;
 
+static gboolean gd_window_map_event(GtkWidget *widget, GdkEvent *event, gpointer opaque)
+{
+    GtkDisplayState *s = opaque;
+
+    if (s->opts->has_full_screen &&
+        s->opts->full_screen) {
+        if (!gd_is_full_screen(widget)) {
+            gtk_menu_item_activate(GTK_MENU_ITEM(s->full_screen_item));
+        }
+    }
+
+    /* Disconnect or ensure it runs only once at launch */
+    g_signal_handlers_disconnect_by_func(widget, gd_window_map_event, s);
+    return FALSE;
+}
+
 static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
 {
     VirtualConsole *vc;
@@ -3001,7 +3017,8 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
 
     if (opts->has_full_screen &&
         opts->full_screen) {
-        gtk_menu_item_activate(GTK_MENU_ITEM(s->full_screen_item));
+        g_signal_connect(s->window, "map-event",
+                         G_CALLBACK(gd_window_map_event), s);
     }
     if (opts->u.gtk.has_grab_on_hover &&
         opts->u.gtk.grab_on_hover) {
