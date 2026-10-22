@@ -1017,6 +1017,11 @@ static int kvm_riscv_put_regs_vector(CPUState *cs)
     return ret;
 }
 
+bool kvm_riscv_has_sbi_sta_state(void)
+{
+     return kvm_sbi_sta.supported;
+}
+
 static int kvm_riscv_get_regs_sbi_sta(CPUState *cs)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);

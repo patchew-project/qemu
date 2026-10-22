@@ -318,6 +318,23 @@ static const VMStateDescription vmstate_kvm_mp_state = {
         VMSTATE_END_OF_LIST()
     }
 };
+
+static bool kvm_sbi_state_needed(void *opaque)
+{
+    return kvm_enabled() && kvm_riscv_has_sbi_sta_state();
+}
+
+static const VMStateDescription vmstate_kvm_sbi_state = {
+    .name = "cpu/kvm-sbi-state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = kvm_sbi_state_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT64(env.kvm_sbi_sta.shmem_lo, RISCVCPU),
+        VMSTATE_UINT64(env.kvm_sbi_sta.shmem_hi, RISCVCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
 #endif
 
 static bool debug_needed(void *opaque)
@@ -645,6 +662,7 @@ const VMStateDescription vmstate_riscv_cpu = {
         &vmstate_kvm_timer_frequency,
         &vmstate_kvmtimer,
         &vmstate_kvm_mp_state,
+        &vmstate_kvm_sbi_state,
 #endif
         &vmstate_envcfg,
         &vmstate_debug,
