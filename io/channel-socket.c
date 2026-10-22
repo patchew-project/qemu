@@ -520,8 +520,23 @@ static bool qio_channel_handle_fds(int *fds, size_t nfds,
         }
 
         if (!preserve_blocking) {
-            /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
-            if (!qemu_set_blocking(*fd, true, errp)) {
+            /*
+             * O_NONBLOCK is preserved across SCM_RIGHTS so reset it.
+             *
+             * Some descriptors reject F_SETFL outright, e.g. POSIX
+             * shared memory on macOS.  They are passed in blocking
+             * mode anyway, so only touch descriptors that have it set.
+             */
+            int flags = fcntl(*fd, F_GETFL);
+
+            if (flags < 0) {
+                error_setg_errno(errp, errno,
+                                 "Can't get file descriptor %d flags", *fd);
+                return false;
+            }
+
+            if ((flags & O_NONBLOCK) &&
+                !qemu_set_blocking(*fd, true, errp)) {
                 return false;
             }
         }
