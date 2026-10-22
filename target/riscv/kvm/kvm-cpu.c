@@ -475,6 +475,12 @@ static KVMCPUConfig kvm_sbi_dbcn = {
                   KVM_REG_RISCV_SBI_EXT | KVM_RISCV_SBI_EXT_DBCN
 };
 
+static KVMCPUConfig kvm_sbi_sta = {
+    .name = "sbi_sta",
+    .kvm_reg_id = KVM_REG_RISCV | KVM_REG_SIZE_U64 |
+                  KVM_REG_RISCV_SBI_EXT | KVM_RISCV_SBI_EXT_STA
+};
+
 static void kvm_riscv_update_cpu_cfg_isa_ext(RISCVCPU *cpu, CPUState *cs)
 {
     uint64_t id, reg;
@@ -1235,6 +1241,19 @@ static void kvm_riscv_check_sbi_dbcn_support(RISCVCPU *cpu,
     }
 }
 
+static void kvm_riscv_check_sbi_sta_support(RISCVCPU *cpu,
+                                            struct kvm_reg_list *reglist)
+{
+    struct kvm_reg_list *reg_search;
+
+    reg_search = bsearch(&kvm_sbi_sta.kvm_reg_id, reglist->reg, reglist->n,
+                         sizeof(uint64_t), uint64_cmp);
+
+    if (reg_search) {
+        kvm_sbi_sta.supported = true;
+    }
+}
+
 static void kvm_riscv_read_vlenb(RISCVCPU *cpu, KVMScratchCPU *kvmcpu,
                                  struct kvm_reg_list *reglist)
 {
@@ -1367,6 +1386,7 @@ static void kvm_riscv_init_cfg(RISCVCPU *cpu, KVMScratchCPU *kvmcpu)
     }
 
     kvm_riscv_check_sbi_dbcn_support(cpu, reglist);
+    kvm_riscv_check_sbi_sta_support(cpu, reglist);
     kvm_riscv_read_csr_cfg(reglist);
 }
 
