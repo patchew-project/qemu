@@ -91,6 +91,9 @@ extern const RISCVCSR mips_csr_list[];
 void pmpcfg_csr_write(CPURISCVState *env, uint32_t reg_index,
                       target_ulong val);
 target_ulong pmpcfg_csr_read(CPURISCVState *env, uint32_t reg_index);
+void pmpcfg_csr_write_i128(CPURISCVState *env, uint32_t reg_index,
+                           Int128 val);
+Int128 pmpcfg_csr_read_i128(CPURISCVState *env, uint32_t reg_index);
 
 void mseccfg_csr_write(CPURISCVState *env, uint64_t val);
 uint64_t mseccfg_csr_read(CPURISCVState *env);

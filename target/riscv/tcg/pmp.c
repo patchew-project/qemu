@@ -564,6 +564,28 @@ void pmpcfg_csr_write(CPURISCVState *env, uint32_t reg_index,
     }
 }
 
+void pmpcfg_csr_write_i128(CPURISCVState *env, uint32_t reg_index,
+                           Int128 val)
+{
+    int i;
+    uint8_t cfg_val;
+    int pmpcfg_nums = 2 << riscv_cpu_mxl(env);
+    bool modified = false;
+
+    trace_pmpcfg_csr_write(env->mhartid, reg_index, int128_getlo(val));
+    trace_pmpcfg_csr_write(env->mhartid, reg_index, int128_gethi(val));
+
+    for (i = 0; i < pmpcfg_nums; i++) {
+        cfg_val = int128_getlo(int128_rshift(val, 8 * i)) & 0xff;
+        modified |= pmp_write_cfg(env, (reg_index * 4) + i, cfg_val);
+    }
+
+    /* If PMP permission of any addr has been changed, flush TLB pages. */
+    if (modified) {
+        pmp_update_rule_nums(env);
+        tlb_flush(env_cpu(env));
+    }
+}
 
 /*
  * Handle a read from a pmpcfg CSR
@@ -584,6 +606,22 @@ target_ulong pmpcfg_csr_read(CPURISCVState *env, uint32_t reg_index)
     return cfg_val;
 }
 
+Int128 pmpcfg_csr_read_i128(CPURISCVState *env, uint32_t reg_index)
+{
+    int i;
+    Int128 cfg_val = 0;
+    target_ulong val = 0;
+    int pmpcfg_nums = 2 << riscv_cpu_mxl(env);
+
+    for (i = 0; i < pmpcfg_nums; i++) {
+        val = pmp_read_cfg(env, (reg_index * 4) + i);
+        cfg_val = int128_or(cfg_val, int128_lshift(int128_make64(val), i * 8));
+    }
+    trace_pmpcfg_csr_read(env->mhartid, reg_index, int128_getlo(cfg_val));
+    trace_pmpcfg_csr_read(env->mhartid, reg_index, int128_gethi(cfg_val));
+
+    return cfg_val;
+}
 
 /*
  * Handle a write to a pmpaddr CSR

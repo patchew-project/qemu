@@ -5630,6 +5630,24 @@ static RISCVException write_pmpcfg(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+static RISCVException read_pmpcfg_i128(CPURISCVState *env, int csrno,
+                                       Int128 *val)
+{
+    uint32_t reg_index = csrno - CSR_PMPCFG0;
+
+    *val = pmpcfg_csr_read_i128(env, reg_index);
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_pmpcfg_i128(CPURISCVState *env, int csrno,
+                                        Int128 val)
+{
+    uint32_t reg_index = csrno - CSR_PMPCFG0;
+
+    pmpcfg_csr_write_i128(env, reg_index, val);
+    return RISCV_EXCP_NONE;
+}
+
 static RISCVException read_pmpaddr(CPURISCVState *env, int csrno,
                                    target_ulong *val)
 {
@@ -6508,33 +6526,49 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     /* Physical Memory Protection */
     [CSR_MSECCFG]    = { "mseccfg",   have_mseccfg, read_mseccfg, write_mseccfg,
                          .min_priv_ver = PRIV_VERSION_1_11_0           },
-    [CSR_PMPCFG0]    = { "pmpcfg0",   pmp, read_pmpcfg,  write_pmpcfg  },
-    [CSR_PMPCFG1]    = { "pmpcfg1",   pmp, read_pmpcfg,  write_pmpcfg  },
-    [CSR_PMPCFG2]    = { "pmpcfg2",   pmp, read_pmpcfg,  write_pmpcfg  },
-    [CSR_PMPCFG3]    = { "pmpcfg3",   pmp, read_pmpcfg,  write_pmpcfg  },
-    [CSR_PMPCFG4]    = { "pmpcfg4",   pmp, read_pmpcfg,  write_pmpcfg,
+    [CSR_PMPCFG0]    = { "pmpcfg0",   pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                          read_pmpcfg_i128,  write_pmpcfg_i128 },
+    [CSR_PMPCFG1]    = { "pmpcfg1",   pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                          read_pmpcfg_i128,  write_pmpcfg_i128  },
+    [CSR_PMPCFG2]    = { "pmpcfg2",   pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                          read_pmpcfg_i128,  write_pmpcfg_i128  },
+    [CSR_PMPCFG3]    = { "pmpcfg3",   pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                          read_pmpcfg_i128,  write_pmpcfg_i128  },
+    [CSR_PMPCFG4]    = { "pmpcfg4",   pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                          read_pmpcfg_i128,  write_pmpcfg_i128,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
-    [CSR_PMPCFG5]    = { "pmpcfg5",   pmp, read_pmpcfg,  write_pmpcfg,
+    [CSR_PMPCFG5]    = { "pmpcfg5",   pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                          read_pmpcfg_i128,  write_pmpcfg_i128,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
-    [CSR_PMPCFG6]    = { "pmpcfg6",   pmp, read_pmpcfg,  write_pmpcfg,
+    [CSR_PMPCFG6]    = { "pmpcfg6",   pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                         read_pmpcfg_i128,  write_pmpcfg_i128,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
-    [CSR_PMPCFG7]    = { "pmpcfg7",   pmp, read_pmpcfg,  write_pmpcfg,
+    [CSR_PMPCFG7]    = { "pmpcfg7",   pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                         read_pmpcfg_i128,  write_pmpcfg_i128,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
-    [CSR_PMPCFG8]    = { "pmpcfg8",   pmp, read_pmpcfg,  write_pmpcfg,
+    [CSR_PMPCFG8]    = { "pmpcfg8",   pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                         read_pmpcfg_i128,  write_pmpcfg_i128,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
-    [CSR_PMPCFG9]    = { "pmpcfg9",   pmp, read_pmpcfg,  write_pmpcfg,
+    [CSR_PMPCFG9]    = { "pmpcfg9",   pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                         read_pmpcfg_i128,  write_pmpcfg_i128,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
-    [CSR_PMPCFG10]   = { "pmpcfg10",  pmp, read_pmpcfg,  write_pmpcfg,
+    [CSR_PMPCFG10]   = { "pmpcfg10",  pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                         read_pmpcfg_i128,  write_pmpcfg_i128,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
-    [CSR_PMPCFG11]   = { "pmpcfg11",  pmp, read_pmpcfg,  write_pmpcfg,
+    [CSR_PMPCFG11]   = { "pmpcfg11",  pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                         read_pmpcfg_i128,  write_pmpcfg_i128,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
-    [CSR_PMPCFG12]   = { "pmpcfg12",  pmp, read_pmpcfg,  write_pmpcfg,
+    [CSR_PMPCFG12]   = { "pmpcfg12",  pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                         read_pmpcfg_i128,  write_pmpcfg_i128,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
-    [CSR_PMPCFG13]   = { "pmpcfg13",  pmp, read_pmpcfg,  write_pmpcfg,
+    [CSR_PMPCFG13]   = { "pmpcfg13",  pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                         read_pmpcfg_i128,  write_pmpcfg_i128,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
-    [CSR_PMPCFG14]   = { "pmpcfg14",  pmp, read_pmpcfg,  write_pmpcfg,
+    [CSR_PMPCFG14]   = { "pmpcfg14",  pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                         read_pmpcfg_i128,  write_pmpcfg_i128,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
-    [CSR_PMPCFG15]   = { "pmpcfg15",  pmp, read_pmpcfg,  write_pmpcfg,
+    [CSR_PMPCFG15]   = { "pmpcfg15",  pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                         read_pmpcfg_i128,  write_pmpcfg_i128,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
     [CSR_PMPADDR0]   = { "pmpaddr0",  pmp, read_pmpaddr, write_pmpaddr },
     [CSR_PMPADDR1]   = { "pmpaddr1",  pmp, read_pmpaddr, write_pmpaddr },
