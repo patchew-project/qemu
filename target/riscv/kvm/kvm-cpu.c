@@ -125,6 +125,11 @@ static uint64_t kvm_riscv_vector_reg_id(RISCVCPU *cpu,
     KVM_RISCV_REG_ID_ULONG(KVM_REG_RISCV_VECTOR, \
                            KVM_REG_RISCV_VECTOR_CSR_REG(name))
 
+#define RISCV_SBI_STA_REG(name) \
+    KVM_RISCV_REG_ID_ULONG(KVM_REG_RISCV_SBI_STATE, \
+                           KVM_REG_RISCV_SBI_STA | \
+                           KVM_REG_RISCV_SBI_STA_REG(name))
+
 #define KVM_RISCV_GET_TIMER(cs, name, reg) \
     do { \
         int ret = kvm_get_one_reg(cs, RISCV_TIMER_REG(name), &reg); \
@@ -1012,6 +1017,88 @@ static int kvm_riscv_put_regs_vector(CPUState *cs)
     return ret;
 }
 
+static int kvm_riscv_get_regs_sbi_sta(CPUState *cs)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
+    target_ulong reg;
+    int ret = 0;
+
+    if (!kvm_sbi_sta.supported) {
+        return 0;
+    }
+
+    ret = kvm_get_one_reg(cs, RISCV_SBI_STA_REG(shmem_lo), &reg);
+    if (ret) {
+        return ret;
+    }
+    env->kvm_sbi_sta.shmem_lo = reg;
+
+    ret = kvm_get_one_reg(cs, RISCV_SBI_STA_REG(shmem_hi), &reg);
+    if (ret) {
+        return ret;
+    }
+    env->kvm_sbi_sta.shmem_hi = reg;
+
+    return ret;
+}
+
+static int kvm_riscv_get_regs_sbi_state(CPUState *cs)
+{
+    int ret = 0;
+
+    ret = kvm_riscv_get_regs_sbi_sta(cs);
+    if (ret) {
+        return ret;
+    }
+
+    return 0;
+}
+
+static int kvm_riscv_put_regs_sbi_sta(CPUState *cs)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
+    target_ulong reg;
+    int ret = 0;
+
+    if (!kvm_sbi_sta.supported) {
+        return 0;
+    }
+
+    reg = env->kvm_sbi_sta.shmem_lo;
+    ret = kvm_set_one_reg(cs, RISCV_SBI_STA_REG(shmem_lo), &reg);
+    if (ret) {
+        return ret;
+    }
+
+    reg = env->kvm_sbi_sta.shmem_hi;
+    ret = kvm_set_one_reg(cs, RISCV_SBI_STA_REG(shmem_hi), &reg);
+    if (ret) {
+        return ret;
+    }
+
+    return ret;
+}
+
+static int kvm_riscv_put_regs_sbi_state(CPUState *cs, KvmPutState level)
+{
+    int ret = 0;
+
+    /*
+     * The shmem address of SBI STA is configured by the guest. During reset,
+     * QEMU does not need to perform put reg operations.
+     */
+    if (level != KVM_PUT_RESET_STATE) {
+        ret = kvm_riscv_put_regs_sbi_sta(cs);
+        if (ret) {
+            return ret;
+        }
+    }
+
+    return ret;
+}
+
 typedef struct KVMScratchCPU {
     int kvmfd;
     int vmfd;
@@ -1435,6 +1522,11 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
         return ret;
     }
 
+    ret = kvm_riscv_get_regs_sbi_state(cs);
+    if (ret) {
+        return ret;
+    }
+
     if (cap_has_mp_state) {
         struct kvm_mp_state mp_state;
 
@@ -1518,6 +1610,11 @@ int kvm_arch_put_registers(CPUState *cs, KvmPutState level, Error **errp)
     }
 
     ret = kvm_riscv_put_regs_vector(cs);
+    if (ret) {
+        return ret;
+    }
+
+    ret = kvm_riscv_put_regs_sbi_state(cs, level);
     if (ret) {
         return ret;
     }
