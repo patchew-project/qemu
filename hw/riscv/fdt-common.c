@@ -212,6 +212,24 @@ riscv_create_fdt_socket_cpu_sifive(void *fdt, char *clust_name,
                                    phandle, intc_phandles, false, false);
 }
 
+uint32_t riscv_plic_hart_fdt_cells(uint32_t *cells, RISCVCPU *hart,
+                                   uint32_t intc_phandle, bool has_m_mode)
+{
+    uint32_t len = 0;
+
+    if (has_m_mode) {
+        cells[len++] = cpu_to_be32(intc_phandle);
+        cells[len++] = cpu_to_be32(IRQ_M_EXT);
+    }
+
+    if (riscv_cpu_has_supervisor_mode(hart)) {
+        cells[len++] = cpu_to_be32(intc_phandle);
+        cells[len++] = cpu_to_be32(IRQ_S_EXT);
+    }
+
+    return len;
+}
+
 void riscv_create_fdt_plic(void *fdt, hwaddr addr, uint64_t size,
                            uint32_t plic_phandle, uint32_t int_cells,
                            uint32_t addr_cells, uint32_t *plic_cells,

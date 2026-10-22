@@ -58,6 +58,7 @@
 #include "chardev/char.h"
 #include "net/eth.h"
 #include "system/device_tree.h"
+#include "system/kvm.h"
 #include "system/runstate.h"
 #include "system/system.h"
 
@@ -201,14 +202,9 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
     for (cpu = 0; cpu < ms->smp.cpus; cpu++) {
         /* cpu 0 is the management hart that does not have S-mode */
         hart = cpu ? &s->soc.u_cpus.harts[cpu - 1] : &s->soc.e_cpus.harts[0];
-
-        cells[cells_length++] = cpu_to_be32(intc_phandles[cpu]);
-        cells[cells_length++] = cpu_to_be32(IRQ_M_EXT);
-
-        if (riscv_cpu_has_supervisor_mode(hart)) {
-            cells[cells_length++] = cpu_to_be32(intc_phandles[cpu]);
-            cells[cells_length++] = cpu_to_be32(IRQ_S_EXT);
-        }
+        cells_length += riscv_plic_hart_fdt_cells(&cells[cells_length], hart,
+                                                  intc_phandles[cpu],
+                                                  !kvm_enabled());
     }
 
     riscv_create_fdt_plic(fdt, memmap[SIFIVE_U_DEV_PLIC].base,

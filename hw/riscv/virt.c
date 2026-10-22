@@ -158,24 +158,20 @@ static void create_fdt_socket_plic(RISCVVirtState *s,
     unsigned long plic_addr = s->memmap[VIRT_PLIC].base +
                               (s->memmap[VIRT_PLIC].size * socket);
     bool numa_enabled = riscv_numa_enabled(MACHINE(s));
+    bool has_m_mode = !kvm_enabled();
     uint32_t cells_length;
 
     plic_name = g_strdup_printf("/soc/interrupt-controller@%lx", plic_addr);
 
     plic_cells = g_new0(uint32_t,
-                        s->soc[socket].num_harts * (kvm_enabled() ? 2 : 4));
+                        s->soc[socket].num_harts * (has_m_mode ? 4 : 2));
     cells_length = 0;
 
     for (cpu = 0; cpu < s->soc[socket].num_harts; cpu++) {
-        if (!kvm_enabled()) {
-            plic_cells[cells_length++] = cpu_to_be32(intc_phandles[cpu]);
-            plic_cells[cells_length++] = cpu_to_be32(IRQ_M_EXT);
-        }
-
-        if (riscv_cpu_has_supervisor_mode(&s->soc[socket].harts[cpu])) {
-            plic_cells[cells_length++] = cpu_to_be32(intc_phandles[cpu]);
-            plic_cells[cells_length++] = cpu_to_be32(IRQ_S_EXT);
-        }
+        cells_length += riscv_plic_hart_fdt_cells(&plic_cells[cells_length],
+                                                  &s->soc[socket].harts[cpu],
+                                                  intc_phandles[cpu],
+                                                  has_m_mode);
     }
 
     plic_phandles[socket] = (*phandle)++;
