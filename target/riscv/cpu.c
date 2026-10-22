@@ -341,6 +341,20 @@ bool riscv_cpu_is_vendor(Object *cpu_obj)
     return object_dynamic_cast(cpu_obj, TYPE_RISCV_VENDOR_CPU) != NULL;
 }
 
+bool riscv_cpu_has_supervisor_mode(RISCVCPU *cpu)
+{
+#ifndef CONFIG_USER_ONLY
+    /* KVM always provides supervisor mode, regardless of the ISA string */
+    if (kvm_enabled()) {
+        return true;
+    }
+
+    return riscv_has_ext(&cpu->env, RVS);
+#else
+    return false;
+#endif
+}
+
 const char * const riscv_int_regnames[] = {
     "x0/zero", "x1/ra",  "x2/sp",  "x3/gp",  "x4/tp",  "x5/t0",   "x6/t1",
     "x7/t2",   "x8/s0",  "x9/s1",  "x10/a0", "x11/a1", "x12/a2",  "x13/a3",
