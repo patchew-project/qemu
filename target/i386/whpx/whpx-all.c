@@ -346,6 +346,8 @@ static void whpx_set_xcrs(CPUState *cpu)
     struct whpx_state *whpx = &whpx_global;
     WHV_REGISTER_VALUE xcr0;
     WHV_REGISTER_NAME xcr0_name = WHvX64RegisterXCr0;
+    WHV_REGISTER_VALUE xss;
+    WHV_REGISTER_NAME xss_name = WHvX64RegisterXss;
 
     if (!whpx_has_xsave()) {
         return;
@@ -357,6 +359,17 @@ static void whpx_set_xcrs(CPUState *cpu)
         whpx->partition, cpu->cpu_index, &xcr0_name, 1, &xcr0);
     if (FAILED(hr)) {
         error_report("WHPX: Failed to set register xcr0, hr=%08lx", hr);
+    }
+
+    if (!whpx_has_xsaves()) {
+        return;
+    }
+
+    xss.Reg64 = cpu_env(cpu)->xss;
+    hr = whp_dispatch.WHvSetVirtualProcessorRegisters(
+        whpx->partition, cpu->cpu_index, &xss_name, 1, &xss);
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to set register xss, hr=%08lx", hr);
     }
 }
 
@@ -691,6 +704,8 @@ static void whpx_get_xcrs(CPUState *cpu)
     struct whpx_state *whpx = &whpx_global;
     WHV_REGISTER_VALUE xcr0;
     WHV_REGISTER_NAME xcr0_name = WHvX64RegisterXCr0;
+    WHV_REGISTER_VALUE xss;
+    WHV_REGISTER_NAME xss_name = WHvX64RegisterXss;
 
     if (!whpx_has_xsave()) {
         return;
@@ -705,6 +720,19 @@ static void whpx_get_xcrs(CPUState *cpu)
     }
 
     cpu_env(cpu)->xcr0 = xcr0.Reg64;
+
+    if (!whpx_has_xsaves()) {
+        return;
+    }
+
+    hr = whp_dispatch.WHvGetVirtualProcessorRegisters(
+        whpx->partition, cpu->cpu_index, &xss_name, 1, &xss);
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to get register xss, hr=%08lx", hr);
+        return;
+    }
+
+    cpu_env(cpu)->xss = xss.Reg64;
 }
 
 static void whpx_get_registers_for_vmexit(CPUState *cpu, WHPXStateLevel level)
