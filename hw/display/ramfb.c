@@ -17,8 +17,10 @@
 #include "hw/display/ramfb.h"
 #include "hw/display/bochs-vbe.h" /* for limits */
 #include "ui/console.h"
+#include "system/memory.h"
 #include "system/physmem.h"
 #include "system/reset.h"
+#include "trace.h"
 #include "exec/cpu-common.h"
 
 struct QEMU_PACKED RAMFBCfg {
@@ -46,6 +48,31 @@ static void ramfb_unmap_display_surface(pixman_image_t *image, void *unused)
     physical_memory_unmap(data, size, 0, 0);
 }
 
+/*
+ * A framebuffer must live in directly mappable host memory. Reject
+ * addresses backed by unrelated regions (MMIO, unassigned holes, ...)
+ */
+static bool ramfb_range_is_direct_access(hwaddr addr, hwaddr size)
+{
+    WITH_RCU_READ_LOCK_GUARD() {
+        while (size > 0) {
+            MemoryRegion *mr;
+            hwaddr len = size, xlat;
+
+            mr = address_space_translate(&address_space_memory, addr,
+                                         &xlat, &len, false,
+                                         MEMTXATTRS_UNSPECIFIED);
+            if (len == 0 || !memory_region_supports_direct_access(mr)) {
+                return false;
+            }
+            addr += len;
+            size -= len;
+        }
+    }
+
+    return true;
+}
+
 static DisplaySurface *ramfb_create_display_surface(int width, int height,
                                                     pixman_format_code_t format,
                                                     hwaddr stride, hwaddr addr)
@@ -65,9 +92,16 @@ static DisplaySurface *ramfb_create_display_surface(int width, int height,
     }
 
     mapsize = size = stride * (height - 1) + linesize;
+    if (!ramfb_range_is_direct_access(addr, size)) {
+        trace_ramfb_bad_range(addr, size);
+        return NULL;
+    }
     data = physical_memory_map(addr, &mapsize, false);
-    if (size != mapsize) {
-        physical_memory_unmap(data, mapsize, 0, 0);
+    if (!data || size != mapsize) {
+        trace_ramfb_map_failed(addr, size, mapsize);
+        if (data) {
+            physical_memory_unmap(data, mapsize, 0, 0);
+        }
         return NULL;
     }
 

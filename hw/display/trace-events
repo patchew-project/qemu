@@ -184,6 +184,10 @@ macfb_sense_read(uint32_t value) "video sense: 0x%"PRIx32
 macfb_sense_write(uint32_t value) "video sense: 0x%"PRIx32
 macfb_update_mode(uint32_t width, uint32_t height, uint8_t depth) "setting mode to width %"PRId32 " height %"PRId32 " size %d"
 
+# ramfb.c
+ramfb_bad_range(uint64_t addr, uint64_t size) "addr=0x%"PRIx64" size=0x%"PRIx64
+ramfb_map_failed(uint64_t addr, uint64_t size, uint64_t mapsize) "addr=0x%"PRIx64" size=0x%"PRIx64" mapped=0x%"PRIx64
+
 # dm163.c
 dm163_redraw(uint8_t redraw) "0x%02x"
 dm163_dck(unsigned new_state) "dck : %u"
