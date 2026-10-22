@@ -2375,7 +2375,12 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         }
         env->mstatus = s;
         sxlen = 16 << riscv_cpu_sxl(env);
-        env->scause = cause | ((target_ulong)async << (sxlen - 1));
+        if (riscv_cpu_sxl(env) != MXL_RV128) {
+            env->scause = cause | ((target_ulong)async << (sxlen - 1));
+        } else {
+            env->scause = cause;
+            env->scauseh = (target_ulong)async << 63;
+        }
         env->sepc = env->pc;
         env->stval = tval;
         env->htval = htval;
@@ -2447,7 +2452,12 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             s = set_field(s, MSTATUS_MDT, 1);
         }
         env->mstatus = s;
-        env->mcause = cause | ((target_ulong)async << (mxlen - 1));
+        if (riscv_cpu_mxl(env) != MXL_RV128) {
+            env->mcause = cause | ((target_ulong)async << (mxlen - 1));
+        } else {
+            env->mcause = cause;
+            env->mcauseh = (target_ulong)async << 63;
+        }
         if (smode_double_trap) {
             env->mtval2 = env->mcause;
             env->mcause = RISCV_EXCP_DOUBLE_TRAP;
