@@ -481,7 +481,8 @@ F: include/hw/xtensa/xtensa-isa.h
 F: configs/devices/xtensa*/default.mak
 
 TriCore TCG CPUs
-S: Orphan
+M: Parthiban Nallathambi <parthiban@linumiz.com>
+S: Maintained
 F: target/tricore/
 F: hw/tricore/
 F: include/hw/tricore/
