@@ -64,6 +64,20 @@ static void triboard_machine_init(MachineState *machine)
     }
 }
 
+static void triboard_machine_tc397b_init(MachineState *machine)
+{
+    TriBoardMachineState *ms = TRIBOARD_MACHINE(machine);
+    TriBoardMachineClass *amc = TRIBOARD_MACHINE_GET_CLASS(machine);
+
+    object_initialize_child(OBJECT(machine), "soc", &ms->tc39xb_soc,
+                            amc->soc_name);
+    sysbus_realize(SYS_BUS_DEVICE(&ms->tc39xb_soc), &error_fatal);
+
+    if (machine->kernel_filename) {
+        tricore_load_kernel(&ms->tc39xb_soc.cpu, machine->kernel_filename);
+    }
+}
+
 static void triboard_machine_tc277d_class_init(ObjectClass *oc,
                                                const void *data)
 {
@@ -74,13 +88,29 @@ static void triboard_machine_tc277d_class_init(ObjectClass *oc,
     mc->desc        = "Infineon AURIX TriBoard TC277 (D-Step)";
     mc->max_cpus    = 1;
     amc->soc_name   = "tc277d-soc";
-};
+}
+
+static void triboard_machine_tc397b_class_init(ObjectClass *oc,
+                                               const void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    TriBoardMachineClass *amc = TRIBOARD_MACHINE_CLASS(oc);
+
+    mc->init        = triboard_machine_tc397b_init;
+    mc->desc        = "Infineon AURIX TriBoard TC397 (B-Step)";
+    mc->max_cpus    = 1;
+    amc->soc_name   = "tc397b-soc";
+}
 
 static const TypeInfo triboard_machine_types[] = {
     {
         .name           = MACHINE_TYPE_NAME("KIT_AURIX_TC277_TRB"),
         .parent         = TYPE_TRIBOARD_MACHINE,
         .class_init     = triboard_machine_tc277d_class_init,
+    }, {
+        .name           = MACHINE_TYPE_NAME("KIT_AURIX_TC397_TRB"),
+        .parent         = TYPE_TRIBOARD_MACHINE,
+        .class_init     = triboard_machine_tc397b_class_init,
     }, {
         .name           = TYPE_TRIBOARD_MACHINE,
         .parent         = TYPE_MACHINE,
