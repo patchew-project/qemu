@@ -1151,6 +1151,29 @@ static void virtio_scsi_pre_hotplug(const HotplugHandler *hotplug_dev,
     sd->hba_supports_iothread = true;
 }
 
+static void virtio_scsi_hotplug_notify_bh(void *opaque)
+{
+    SCSIDevice *sd = opaque;
+    DeviceState *dev = DEVICE(sd);
+
+    /* Nothing orders us against a following device_del */
+    if (qdev_is_realized(dev)) {
+        VirtIOSCSI *s = VIRTIO_SCSI(dev->parent_bus->parent);
+        VirtIOSCSIEventInfo info = {
+            .event   = VIRTIO_SCSI_T_TRANSPORT_RESET,
+            .reason  = VIRTIO_SCSI_EVT_RESET_RESCAN,
+            .address = {
+                .id  = sd->id,
+                .lun = sd->lun,
+            },
+        };
+
+        virtio_scsi_push_event(s, &info);
+        scsi_bus_set_ua(&s->bus, SENSE_CODE(REPORTED_LUNS_CHANGED));
+    }
+    object_unref(OBJECT(sd));
+}
+
 static void virtio_scsi_hotplug(const HotplugHandler *hotplug_dev, DeviceState *dev,
                                 Error **errp)
 {
@@ -1169,17 +1192,10 @@ static void virtio_scsi_hotplug(const HotplugHandler *hotplug_dev, DeviceState *
     }
 
     if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG)) {
-        VirtIOSCSIEventInfo info = {
-            .event   = VIRTIO_SCSI_T_TRANSPORT_RESET,
-            .reason  = VIRTIO_SCSI_EVT_RESET_RESCAN,
-            .address = {
-                .id  = sd->id,
-                .lun = sd->lun,
-            },
-        };
-
-        virtio_scsi_push_event(s, &info);
-        scsi_bus_set_ua(&s->bus, SENSE_CODE(REPORTED_LUNS_CHANGED));
+        /* The request path ignores @sd until it is realized, so notify after */
+        object_ref(OBJECT(sd));
+        aio_bh_schedule_oneshot(qemu_get_aio_context(),
+                                virtio_scsi_hotplug_notify_bh, sd);
     }
 }
 
