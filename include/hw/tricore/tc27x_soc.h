@@ -22,6 +22,9 @@
 #define TC27X_SOC_H
 
 #include "hw/core/sysbus.h"
+#include "hw/char/tricore_asclin.h"
+#include "hw/timer/tricore_stm.h"
+#include "hw/tricore/tricore_scu.h"
 #include "target/tricore/cpu.h"
 #include "qom/object.h"
 
@@ -65,6 +68,9 @@ typedef struct TC27XSoCState {
 
     /*< public >*/
     TriCoreCPU cpu;
+    TriCoreSTMState stm;
+    TriCoreASCLINState asclin;
+    TriCoreSCUState scu;
 
     MemoryRegion dsprX;
     MemoryRegion psprX;
@@ -124,6 +130,9 @@ enum {
     TC27XD_EMEM_U,
     TC27XD_PSPRX,
     TC27XD_DSPRX,
+    TC27XD_STM0,
+    TC27XD_ASCLIN0,
+    TC27XD_SCU,
 };
 
 #endif

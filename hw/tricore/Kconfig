@@ -11,6 +11,9 @@ config TRIBOARD
 
 config TC27X_SOC
     bool
+    select TRICORE_ASCLIN
+    select TRICORE_SCU
+    select TRICORE_STM
 
 config TRICORE_SCU
     bool
