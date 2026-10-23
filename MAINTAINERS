@@ -485,6 +485,8 @@ S: Orphan
 F: target/tricore/
 F: hw/tricore/
 F: include/hw/tricore/
+F: hw/char/tricore_asclin.c
+F: include/hw/char/tricore_asclin.h
 F: tests/docker/dockerfiles/debian-tricore-cross.docker
 F: tests/tcg/tricore/
 
