@@ -1152,22 +1152,29 @@ qcrypto_block_luks_erase_key(QCryptoBlock *block,
 
     if (ret < 0) {
         error_propagate(errp, local_err);
+        local_err = NULL;
     }
+
     /*
      * Now try to erase the key material, even if the header
      * update failed
      */
     for (i = 0; i < QCRYPTO_BLOCK_LUKS_ERASE_ITERATIONS; i++) {
         if (qcrypto_random_bytes(garbagesplitkey,
-                                 splitkeylen, &local_err) < 0) {
+                                 splitkeylen,
+                                 errp && *errp ? NULL : &local_err) < 0) {
             /*
              * If we failed to get the random data, still write
              * at least zeros to the key slot at least once
              */
-            error_propagate(errp, local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+            }
 
             if (i > 0) {
                 return -1;
+            } else {
+                local_err = NULL;
             }
         }
         if (writefunc(block,
@@ -1175,8 +1182,10 @@ qcrypto_block_luks_erase_key(QCryptoBlock *block,
                       garbagesplitkey,
                       splitkeylen,
                       opaque,
-                      &local_err) < 0) {
-            error_propagate(errp, local_err);
+                      errp && *errp ? NULL : &local_err) < 0) {
+            if (local_err) {
+                error_propagate(errp, local_err);
+            }
             return -1;
         }
     }
