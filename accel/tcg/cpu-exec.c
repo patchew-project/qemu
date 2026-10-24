@@ -975,10 +975,16 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
             if (tb == NULL) {
                 CPUJumpCache *jc;
                 uint32_t h;
+                unsigned flush_count = qatomic_read(&tb_ctx.tb_flush_count);
 
                 mmap_lock();
                 tb = tb_gen_code(cpu, s);
                 mmap_unlock();
+
+                /* tb_gen_code may have flushed, freeing last_tb. */
+                if (flush_count != qatomic_read(&tb_ctx.tb_flush_count)) {
+                    last_tb = NULL;
+                }
 
                 /*
                  * We add the TB in the virtual pc hash table
