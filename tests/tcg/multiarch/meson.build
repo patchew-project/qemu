@@ -61,6 +61,8 @@ tests += {
   multiarch/'linux/linux-shmat-null.c': {},
   multiarch/'linux/linux-sigrtminmax.c': {},
   multiarch/'linux/linux-test.c': {},
+  multiarch/'linux/proc-openat.c': {},
+  multiarch/'linux/proc-openat2.c': {},
   multiarch/'linux/test-vma.c': {},
 }
 

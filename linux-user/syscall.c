@@ -8832,12 +8832,132 @@ static int open_net_route(CPUArchState *cpu_env, int fd)
 }
 #endif
 
-static int maybe_do_fake_open(CPUArchState *cpu_env, int dirfd,
-                              const char *fname, int flags, mode_t mode,
-                              int openat2_resolve, bool safe)
+static char *proc_entry_path(int dirfd, const char *name)
+{
+    g_autofree char *base = NULL;
+    g_autofree char *absolute = NULL;
+    g_autofree char *parent = NULL;
+    g_autofree char *resolved = NULL;
+    g_autofree char *entry = NULL;
+    char fd_path[64];
+
+    if (!name[0]) {
+        snprintf(fd_path, sizeof(fd_path), "/proc/self/fd/%d", dirfd);
+        return g_file_read_link(fd_path, NULL);
+    }
+    if (name[0] == '/') {
+        absolute = g_strdup(name);
+    } else {
+        if (dirfd == AT_FDCWD) {
+            base = getcwd(NULL, 0);
+        } else {
+            snprintf(fd_path, sizeof(fd_path), "/proc/self/fd/%d", dirfd);
+            base = g_file_read_link(fd_path, NULL);
+        }
+        if (!base) {
+            return NULL;
+        }
+        absolute = g_build_filename(base, name, NULL);
+    }
+    parent = g_path_get_dirname(absolute);
+    resolved = realpath(parent, NULL);
+    if (!resolved) {
+        return NULL;
+    }
+    entry = g_path_get_basename(absolute);
+    return g_build_filename(resolved, entry, NULL);
+}
+
+static int fake_open_contents(CPUArchState *cpu_env,
+                              int (*fill)(CPUArchState *, int),
+                              int status_flags, bool safe)
+{
+    g_autofree char *filename = NULL;
+    const char *tmpdir = g_get_tmp_dir();
+    const char *reader_path;
+    char fd_path[64];
+    bool named = status_flags & O_NOFOLLOW;
+    int fd, reader = -1, result = -1, saved_errno;
+
+retry:
+    if (named) {
+        g_free(filename);
+        filename = g_build_filename(tmpdir, "qemu-open.XXXXXX", NULL);
+        fd = g_mkstemp_full(filename, O_RDWR | O_CLOEXEC, 0600);
+        if (fd < 0 && strcmp(tmpdir, P_tmpdir) &&
+            errno != EMFILE && errno != ENFILE &&
+            errno != ENOMEM && errno != EINTR) {
+            tmpdir = P_tmpdir;
+            goto retry;
+        }
+    } else {
+        fd = memfd_create("qemu-open", MFD_CLOEXEC);
+    }
+    if (fd < 0) {
+        if (!named && (errno == ENOSYS || errno == EPERM)) {
+            named = true;
+            goto retry;
+        }
+        return -1;
+    }
+    if (fill(cpu_env, fd)) {
+        goto out;
+    }
+    if (named) {
+        int closed = close(fd);
+
+        fd = -1;
+        if (closed < 0) {
+            goto out;
+        }
+        reader_path = filename;
+    } else {
+        snprintf(fd_path, sizeof(fd_path), "/proc/self/fd/%d", fd);
+        reader_path = fd_path;
+    }
+    reader = safe ? safe_openat(AT_FDCWD, reader_path, status_flags, 0) :
+                    openat(AT_FDCWD, reader_path, status_flags, 0);
+    if (reader < 0) {
+        if (!named && errno == EMFILE) {
+            close(fd);
+            named = true;
+            goto retry;
+        }
+        goto out;
+    }
+    result = named ? reader : dup3(reader, fd, status_flags & O_CLOEXEC);
+    if (result >= 0) {
+        if (named) {
+            reader = -1;
+        } else {
+            fd = -1;
+        }
+    }
+out:
+    saved_errno = errno;
+    if (reader >= 0) {
+        close(reader);
+    }
+    if (fd >= 0) {
+        close(fd);
+    }
+    if (named) {
+        unlink(filename);
+    }
+    errno = saved_errno;
+    return result;
+}
+
+static int maybe_do_fake_open(CPUArchState *cpu_env, int opened_fd, int dirfd,
+                              const char *fname,
+                              const struct open_how_ver0 *how,
+                              bool safe)
 {
     g_autofree char *proc_name = NULL;
+    char fd_path[64];
     const char *pathname;
+    int flags = how->flags;
+    int original_errno = errno;
     struct fake_open {
         const char *filename;
         int (*fill)(CPUArchState *cpu_env, int fd);
@@ -8862,26 +8982,70 @@ static int maybe_do_fake_open(CPUArchState *cpu_env, int dirfd,
         { NULL, NULL, NULL }
     };
 
-    /* if this is a file from /proc/ filesystem, expand full name */
-    proc_name = realpath(fname, NULL);
-    if (proc_name && strncmp(proc_name, "/proc/", 6) == 0) {
-        pathname = proc_name;
-    } else {
-        pathname = fname;
+    if (opened_fd >= 0 &&
+        ((flags & (O_PATH | O_NOFOLLOW)) == (O_PATH | O_NOFOLLOW))) {
+        return opened_fd;
+    }
+    if (opened_fd < 0 && original_errno != ENOENT) {
+        return opened_fd;
     }
 
-    if (is_proc_myself(pathname, "exe")) {
-        /* Honor openat2 resolve flags */
-        if ((openat2_resolve & RESOLVE_NO_MAGICLINKS) ||
-            (openat2_resolve & RESOLVE_NO_SYMLINKS)) {
-            errno = ELOOP;
-            return -1;
+    if (opened_fd >= 0 && !(flags & O_NOFOLLOW) &&
+        !(how->resolve & (RESOLVE_IN_ROOT | RESOLVE_BENEATH |
+                           RESOLVE_NO_SYMLINKS | RESOLVE_NO_MAGICLINKS))) {
+        struct stat opened, executable;
+
+        if (fstat(opened_fd, &opened) == 0 &&
+            stat("/proc/self/exe", &executable) == 0 &&
+            opened.st_dev == executable.st_dev &&
+            opened.st_ino == executable.st_ino) {
+            g_autofree char *entry = proc_entry_path(dirfd, fname);
+
+            if (entry && is_proc_myself(entry, "exe")) {
+                close(opened_fd);
+                if (how->resolve) {
+                    return safe_openat2(AT_FDCWD, real_exec_path,
+                                        how, sizeof(*how));
+                }
+                return safe ? safe_openat(AT_FDCWD, real_exec_path,
+                                          flags, how->mode) :
+                       openat(AT_FDCWD, real_exec_path, flags, how->mode);
+            }
         }
-        if (safe) {
-            return safe_openat(dirfd, real_exec_path, flags, mode);
-        } else {
-            return openat(dirfd, real_exec_path, flags, mode);
+    }
+
+    if (opened_fd < 0) {
+        g_autofree char *parent = g_path_get_dirname(fname);
+        g_autofree char *entry = g_path_get_basename(fname);
+        g_autofree char *directory = NULL;
+        struct open_how_ver0 parent_how = {
+            .flags = O_PATH | O_DIRECTORY | O_CLOEXEC,
+            .resolve = how->resolve,
+        };
+        int fd;
+
+        fd = how->resolve ?
+             safe_openat2(dirfd, parent, &parent_how, sizeof(parent_how)) :
+             safe ? safe_openat(dirfd, parent, parent_how.flags, 0) :
+                    openat(dirfd, parent, parent_how.flags, 0);
+        if (fd >= 0) {
+            snprintf(fd_path, sizeof(fd_path), "/proc/self/fd/%d", fd);
+            directory = g_file_read_link(fd_path, NULL);
+            close(fd);
+            if (directory) {
+                proc_name = g_build_filename(directory, entry, NULL);
+            }
         }
+    } else {
+        snprintf(fd_path, sizeof(fd_path), "/proc/self/fd/%d", opened_fd);
+        proc_name = g_file_read_link(fd_path, NULL);
+    }
+    pathname = proc_name;
+
+    if ((opened_fd >= 0 && (flags & O_PATH)) ||
+        !pathname || strncmp(pathname, "/proc/", 6)) {
+        errno = original_errno;
+        return opened_fd;
     }
 
     for (fake_open = fakes; fake_open->filename; fake_open++) {
@@ -8891,60 +9055,52 @@ static int maybe_do_fake_open(CPUArchState *cpu_env, int dirfd,
     }
 
     if (fake_open->filename) {
-        const char *tmpdir;
-        char filename[PATH_MAX];
-        int fd, r;
+        int saved_errno, status_flags;
 
-        fd = memfd_create("qemu-open", 0);
-        if (fd < 0) {
-            if (errno != ENOSYS) {
-                return fd;
+        status_flags = flags & ~(O_CREAT | O_EXCL | O_TRUNC);
+        if (opened_fd >= 0) {
+            status_flags = fcntl(opened_fd, F_GETFL);
+            saved_errno = errno;
+            close(opened_fd);
+            if (status_flags < 0) {
+                errno = saved_errno;
+                return -1;
             }
-            /* create temporary file to map stat to */
-            tmpdir = getenv("TMPDIR");
-            if (!tmpdir)
-                tmpdir = "/tmp";
-            snprintf(filename, sizeof(filename), "%s/qemu-open.XXXXXX", tmpdir);
-            fd = mkstemp(filename);
-            if (fd < 0) {
-                return fd;
-            }
-            unlink(filename);
+        } else if (flags & O_DIRECTORY) {
+            errno = ENOTDIR;
+            return -1;
+        } else if ((flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL)) {
+            errno = EEXIST;
+            return -1;
         }
 
-        if ((r = fake_open->fill(cpu_env, fd))) {
-            int e = errno;
-            close(fd);
-            errno = e;
-            return r;
-        }
-        lseek(fd, 0, SEEK_SET);
-
-        return fd;
+        status_flags |= flags & O_CLOEXEC;
+        return fake_open_contents(cpu_env, fake_open->fill, status_flags, safe);
     }
 
-    return -2;
+    errno = original_errno;
+    return opened_fd;
 }
 
 int do_guest_openat(CPUArchState *cpu_env, int dirfd, const char *pathname,
                     int flags, mode_t mode, bool safe)
 {
-    int fd = maybe_do_fake_open(cpu_env, dirfd, pathname, flags, mode, 0, safe);
-    if (fd > -2) {
-        return fd;
-    }
+    struct open_how_ver0 how = { .flags = flags, .mode = mode };
+    const char *host_name = path(pathname);
+    int fd;
 
     if (safe) {
-        return safe_openat(dirfd, path(pathname), flags, mode);
+        fd = safe_openat(dirfd, host_name, flags, mode);
     } else {
-        return openat(dirfd, path(pathname), flags, mode);
+        fd = openat(dirfd, host_name, flags, mode);
     }
+    return maybe_do_fake_open(cpu_env, fd, dirfd, host_name, &how,
+                              safe);
 }
 
-
 static int do_openat2(CPUArchState *cpu_env, abi_long dirfd,
-                      abi_ptr guest_pathname, abi_ptr guest_open_how,
-                      abi_ulong guest_size)
+                     abi_ptr guest_pathname, abi_ptr guest_open_how,
+                     abi_ulong guest_size)
 {
     struct open_how_ver0 how = {0};
     char *pathname;
@@ -8974,23 +9130,19 @@ static int do_openat2(CPUArchState *cpu_env, abi_long dirfd,
     how.flags = target_to_host_bitmask(tswap64(how.flags), fcntl_flags_tbl);
     how.mode = tswap64(how.mode);
     how.resolve = tswap64(how.resolve);
-    int fd = maybe_do_fake_open(cpu_env, dirfd, pathname, how.flags, how.mode,
-                                how.resolve, true);
-    if (fd > -2) {
-        ret = get_errno(fd);
-    } else {
-        const char *host_pathname = pathname;
-        if (pathname[0] == '/' &&
-            !(how.resolve & (RESOLVE_IN_ROOT | RESOLVE_BENEATH))) {
-            /*
-             * RESOLVE_BENEATH rejects absolute paths; RESOLVE_IN_ROOT
-             * resolves them relative to dirfd.
-             */
-            host_pathname = path(pathname);
-        }
-        ret = get_errno(safe_openat2(dirfd, host_pathname, &how,
-                                     sizeof(struct open_how_ver0)));
+    const char *host_pathname = pathname;
+    if (pathname[0] == '/' &&
+        !(how.resolve & (RESOLVE_IN_ROOT | RESOLVE_BENEATH))) {
+        /*
+         * RESOLVE_BENEATH rejects absolute paths; RESOLVE_IN_ROOT
+         * resolves them relative to dirfd.
+         */
+        host_pathname = path(pathname);
     }
+    int fd = safe_openat2(dirfd, host_pathname, &how,
+                         sizeof(struct open_how_ver0));
+    ret = get_errno(maybe_do_fake_open(cpu_env, fd, dirfd, host_pathname, &how,
+                                      true));
 
     fd_trans_unregister(ret);
     unlock_user(pathname, guest_pathname, 0);
@@ -9024,6 +9176,19 @@ ssize_t do_guest_readlink(const char *pathname, char *buf, size_t bufsiz)
         ret = readlink(path(pathname), buf, bufsiz);
     }
 
+    return ret;
+}
+
+static ssize_t do_guest_readlinkat(int dirfd, const char *pathname,
+                                  char *buf, size_t bufsiz)
+{
+    const char *host_name = path(pathname);
+    g_autofree char *entry_path = proc_entry_path(dirfd, host_name);
+    ssize_t ret = readlinkat(dirfd, host_name, buf, bufsiz);
+
+    if (ret >= 0 && entry_path && is_proc_myself(entry_path, "exe")) {
+        return do_guest_readlink(entry_path, buf, bufsiz);
+    }
     return ret;
 }
 
@@ -11136,16 +11301,8 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             } else if (!arg4) {
                 /* Short circuit this for the magic exe check. */
                 ret = -TARGET_EINVAL;
-            } else if (is_proc_myself((const char *)p, "exe")) {
-                /*
-                 * Don't worry about sign mismatch as earlier mapping
-                 * logic would have thrown a bad address error.
-                 */
-                ret = MIN(strlen(real_exec_path), arg4);
-                /* We cannot NUL terminate the string. */
-                memcpy(p2, real_exec_path, ret);
             } else {
-                ret = get_errno(readlinkat(arg1, path(p), p2, arg4));
+                ret = get_errno(do_guest_readlinkat(arg1, p, p2, arg4));
             }
             unlock_user(p2, arg3, ret);
             unlock_user(p, arg2, 0);
