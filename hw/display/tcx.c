@@ -575,6 +575,10 @@ static void tcx_blit_writel(void *opaque, hwaddr addr,
         addr = (addr >> 3) & 0xfffff;
         adsr = val & 0xffffff;
         len = ((val >> 24) & 0x1f) + 1;
+        if (addr + len > s->vram_size ||
+            (adsr != 0xffffff && adsr + len > s->vram_size)) {
+            return;
+        }
         if (adsr == 0xffffff) {
             memset(&s->vram[addr], s->tmpblit, len);
             if (s->depth == 24) {
@@ -607,6 +611,10 @@ static void tcx_rblit_writel(void *opaque, hwaddr addr,
         addr = (addr >> 3) & 0xfffff;
         adsr = val & 0xffffff;
         len = ((val >> 24) & 0x1f) + 1;
+        if (addr + len > s->vram_size ||
+            (adsr != 0xffffff && adsr + len > s->vram_size)) {
+            return;
+        }
         if (adsr == 0xffffff) {
             memset(&s->vram[addr], s->tmpblit, len);
             if (s->depth == 24) {
