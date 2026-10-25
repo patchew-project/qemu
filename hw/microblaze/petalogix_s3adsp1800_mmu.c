@@ -37,6 +37,7 @@
 #include "hw/misc/unimp.h"
 #include "system/address-spaces.h"
 #include "hw/char/xilinx_uartlite.h"
+#include "hw/gpio/xlnx-axi-gpio.h"
 
 #include "boot.h"
 
@@ -55,6 +56,7 @@
 
 #define TIMER_IRQ           0
 #define ETHLITE_IRQ         1
+#define GPIO_IRQ            2
 #define UARTLITE_IRQ        3
 
 #define TYPE_PETALOGIX_S3ADSP1800_MACHINE \
@@ -145,7 +147,11 @@ petalogix_s3adsp1800_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, ETHLITE_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[ETHLITE_IRQ]);
 
-    create_unimplemented_device("xps_gpio", GPIO_BASEADDR, 0x10000);
+    dev = qdev_new(TYPE_XLNX_AXI_GPIO);
+    qdev_prop_set_enum(dev, "endianness", endianness);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, GPIO_BASEADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[GPIO_IRQ]);
 
     microblaze_load_kernel(cpu, endianness == ENDIAN_MODE_LITTLE, ddr_base,
                            ram_size, machine->initrd_filename,
