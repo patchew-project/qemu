@@ -39,3 +39,6 @@ config CADENCE_GPIO
 
 config ALLWINNER_GPIO
     bool
+
+config XLNX_AXI_GPIO
+    bool

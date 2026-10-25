@@ -57,3 +57,10 @@ allwinner_gpio_set(const char *port, int line, int level) "[%s:%d] <- %d"
 allwinner_gpio_read(const char *reg, uint32_t value) "[%s] -> 0x%" PRIx32
 allwinner_gpio_write(const char *reg, uint32_t value) "[%s] <- 0x%" PRIx32
 allwinner_gpio_out_pin(const char *reg, uint32_t pin, uint32_t value) "[%s.%d] <- 0x%" PRIx32
+
+# xlnx-axi-gpio.c
+xlnx_axi_gpio_read(uint64_t addr, uint64_t val) "addr: 0x%" PRIx64 " val: 0x%" PRIx64
+xlnx_axi_gpio_write(uint64_t addr, uint64_t val) "addr: 0x%" PRIx64 " val: 0x%" PRIx64
+xlnx_axi_gpio_set_input(int ch, int line, int level) "ch: %d line: %d level: %d"
+xlnx_axi_gpio_set_output(int ch, int line, int level) "ch: %d line: %d level: %d"
+xlnx_axi_gpio_update_irq(int level) "irq level: %d"
