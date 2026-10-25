@@ -168,6 +168,12 @@ static bool ati_2d_do_blt(const ATI2DCtx *ctx, uint8_t use_pixman)
         qemu_log_mask(LOG_GUEST_ERROR, "Zero dest pitch\n");
         return false;
     }
+    if ((uint64_t)ctx->dst.width * bypp > (unsigned)ctx->dst_stride) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "blt width (%u bytes) exceeds pitch (%d bytes)\n",
+                      ctx->dst.width * bypp, ctx->dst_stride);
+        return false;
+    }
     dst_end = dst_off + (uint64_t)ctx->dst.x * bypp +
               (uint64_t)(ctx->dst.y + ctx->dst.height) * ctx->dst_stride;
     if (ctx->dst.x > 0x3fff || ctx->dst.y > 0x3fff ||
@@ -205,6 +211,10 @@ static bool ati_2d_do_blt(const ATI2DCtx *ctx, uint8_t use_pixman)
         bool fallback = false;
         if (!ctx->src_stride) {
             qemu_log_mask(LOG_GUEST_ERROR, "Zero source pitch\n");
+            return false;
+        }
+        if ((uint64_t)vis_src.width * bypp > (unsigned)ctx->src_stride) {
+            qemu_log_mask(LOG_GUEST_ERROR, "blt src width exceeds pitch\n");
             return false;
         }
         if (!ctx->host_data_active &&
