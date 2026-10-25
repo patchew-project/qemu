@@ -90,9 +90,11 @@ static int i2c_echo_event(I2CSlave *s, enum i2c_event event)
         break;
 
     case I2C_FINISH:
-        state->pos = 0;
-        state->state = I2C_ECHO_STATE_START_SEND;
-        i2c_bus_master(state->bus, state->bh);
+        if (state->pos > 0) {
+            state->pos = 0;
+            state->state = I2C_ECHO_STATE_START_SEND;
+            i2c_bus_master(state->bus, state->bh);
+        }
 
         trace_i2c_echo_event(DEVICE(s)->canonical_path, "I2C_FINISH");
         break;
