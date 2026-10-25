@@ -174,7 +174,8 @@ qtests_m68k = ['boot-serial-test'] + \
   qtests_filter
 
 qtests_microblaze = ['boot-serial-test'] + \
-  qtests_filter
+  qtests_filter + \
+  (config_all_devices.has_key('CONFIG_XLNX_AXI_GPIO') ? ['xlnx-axi-gpio-test'] : [])
 
 qtests_mips = \
   qtests_filter + \

@@ -1497,6 +1497,7 @@ F: include/hw/char/xilinx_uartlite.h
 F: hw/gpio/xlnx-axi-gpio.c
 F: include/hw/gpio/xlnx-axi-gpio.h
 F: tests/functional/microblaze/test_s3adsp1800.py
+F: tests/qtest/xlnx-axi-gpio-test.c
 
 petalogix_ml605
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
