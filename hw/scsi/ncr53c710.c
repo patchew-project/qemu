@@ -51,6 +51,8 @@
 #define NCR710_SCNTL0_ARB0   0x40
 #define NCR710_SCNTL0_ARB1   0x80
 
+#define NCR710_MAX_INSN 500
+
 /* SCNTL1 (0x01) - SCSI Control Register 1 */
 #define NCR710_SCNTL1_RES0   0x01
 #define NCR710_SCNTL1_RES1   0x02
@@ -1319,9 +1321,13 @@ void ncr710_execute_script(NCR710State *s)
     uint32_t insn;
     uint32_t addr;
     int opcode;
+    int insn_processed = 0;
     s->script_active = 1;
 
 again:
+    if (++insn_processed > NCR710_MAX_INSN) {
+        return;
+    }
     insn = ncr710_read_dword(s, s->dsp);
     if (!insn) {
         /*
