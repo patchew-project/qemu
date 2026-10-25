@@ -3082,6 +3082,13 @@ static void target_to_host_low_high(abi_ulong tlow,
     *hhigh = (off >> HOST_LONG_BITS / 2) >> HOST_LONG_BITS / 2;
 }
 
+/*
+ * A zero-length vector is handed to the host so that the syscall is still
+ * issued: the kernel validates the file descriptor before it looks at the
+ * vector.  Nothing is ever written to it.
+ */
+static struct iovec empty_iovec;
+
 static struct iovec *lock_iovec(int type, abi_ulong target_addr,
                                 abi_ulong count, int copy)
 {
@@ -3093,8 +3100,13 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
     bool bad_address = false;
 
     if (count == 0) {
-        errno = 0;
-        return NULL;
+        /*
+         * There is nothing to lock, but returning an error would skip the
+         * syscall: readv(fd, NULL, 0) on a write-only descriptor fails with
+         * EBADF in the kernel, and succeeds when the descriptor is fine, so
+         * only the host syscall can produce the right answer.
+         */
+        return &empty_iovec;
     }
     if (count > IOV_MAX) {
         errno = EINVAL;
@@ -3190,7 +3202,9 @@ static void unlock_iovec(struct iovec *vec, abi_ulong target_addr,
         unlock_user(target_vec, target_addr, 0);
     }
 
-    g_free(vec);
+    if (vec != &empty_iovec) {
+        g_free(vec);
+    }
 }
 
 static inline int target_to_host_sock_type(int *type)
