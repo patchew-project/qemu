@@ -534,6 +534,12 @@ void gus_dma_transferdata(GUSEmuState * state, char *dma_addr, unsigned int coun
 
     if ((GUSregb(GUS41DMACtrl) & 0x80) && (!(GUSregb(GUS41DMACtrl) & 0x02)))
         msbmask = (const char) 0x80;    /* invert MSB */
+
+    /* 16-bit DMA copies 2 bytes per iteration; halve count to stay in bounds */
+    if (state->gusdma >= 4) {
+        count /= 2;
+    }
+
     for (; count > 0; count--)
     {
         if (GUSregb(GUS41DMACtrl) & 0x40)
