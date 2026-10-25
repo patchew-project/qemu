@@ -592,7 +592,12 @@ static void set_new_local_mem_size_index(SM501State *s, uint32_t idx)
 
 static ram_addr_t get_fb_addr(SM501State *s, int crt)
 {
-    return (crt ? s->dc_crt_fb_addr : s->dc_panel_fb_addr) & 0x3FFFFF0;
+    ram_addr_t addr = (crt ? s->dc_crt_fb_addr : s->dc_panel_fb_addr)
+                      & 0x3FFFFF0;
+    if (addr >= get_local_mem_size(s)) {
+        addr = 0;
+    }
+    return addr;
 }
 
 static inline int get_width(SM501State *s, int crt)
@@ -630,7 +635,12 @@ static inline int is_hwc_enabled(SM501State *state, int crt)
 static inline uint8_t *get_hwc_address(SM501State *state, int crt)
 {
     uint32_t addr = crt ? state->dc_crt_hwc_addr : state->dc_panel_hwc_addr;
-    return state->local_mem + (addr & 0x03FFFFF0);
+    uint32_t offset = addr & 0x03FFFFF0;
+
+    if (offset >= get_local_mem_size(state)) {
+        offset = 0;
+    }
+    return state->local_mem + offset;
 }
 
 /**
