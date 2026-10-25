@@ -888,7 +888,7 @@ static uint64_t artist_vram_read(void *opaque, hwaddr addr, unsigned size)
 
     offset = get_vram_offset(s, buf, addr >> 2, 0);
 
-    if (offset > buf->size) {
+    if (offset + sizeof(uint32_t) > buf->size) {
         return 0;
     }
 
