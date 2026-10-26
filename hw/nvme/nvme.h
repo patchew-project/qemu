@@ -232,6 +232,7 @@ typedef struct NvmeNamespaceParams {
         uint16_t nabsn;
         uint16_t nabspf;
         uint16_t nabo;
+        bool mam;
     } atomic;
 } NvmeNamespaceParams;
 
