@@ -175,6 +175,9 @@ static void dma_blk_cb(void *opaque, int ret)
             dbs->sg_cur_byte = 0;
             ++dbs->sg_cur_index;
         }
+        if (dbs->iov.niov >= IOV_MAX) {
+            break;
+        }
     }
 
     if (dbs->iov.size == 0) {
