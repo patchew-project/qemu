@@ -657,6 +657,21 @@ static int vapic_prepare(VAPICROMState *s)
     return 0;
 }
 
+/*
+ * NOP out the option ROM trigger instruction.  Runs in an exclusive
+ * section (queued via async_safe_run_on_cpu()), which holds the other
+ * vCPUs out of guest execution, so none can run the trigger mid-patch.
+ */
+static void do_patch_trigger_nop(CPUState *cs, run_on_cpu_data data)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    target_ulong addr = (target_ulong)data.target_ptr;
+
+    /* Overwrite the trigger with a 2-byte NOP (0x66 prefix + 0x90) */
+    patch_byte(cpu, addr, 0x66);
+    patch_byte(cpu, addr + 1, 0x90);
+}
+
 static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
                         unsigned int size)
 {
@@ -709,16 +724,9 @@ static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
              * Oddly enough, KVM increments EIP _before_ the execution
              * of the instruction is finished.
              */
-            pause_all_vcpus();
-            if (!kvm_enabled()) {
-                patch_byte(cpu, env->eip, 0x66);
-                patch_byte(cpu, env->eip + 1, 0x90);
-            }
-            else {
-                patch_byte(cpu, env->eip - 2, 0x66);
-                patch_byte(cpu, env->eip - 1, 0x90);
-            }
-            resume_all_vcpus();
+            target_ulong ip = kvm_enabled() ? env->eip - 2 : env->eip;
+            async_safe_run_on_cpu(CPU(cpu), do_patch_trigger_nop,
+                                  RUN_ON_CPU_TARGET_PTR(ip));
         }
 
         if (s->state == VAPIC_ACTIVE) {
