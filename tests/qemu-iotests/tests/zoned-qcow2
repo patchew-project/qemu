@@ -316,6 +316,46 @@ zo 3M 1M
 zrp 0 4
 EOF
 
+echo
+echo "case 9: a corrupted write pointer table is rejected"
+$QEMU_IO $IMG -c "zrs 0 768M"
+
+# Walk the header extensions to find the zoned one, and read the offset of
+# the write pointer table out of it, rather than relying on a fixed layout.
+ext_off=$(peek_file_be "$file_name" 100 4)
+while true; do
+    ext_magic=$(peek_file_be "$file_name" $ext_off 4)
+    ext_len=$(peek_file_be "$file_name" $((ext_off + 4)) 4)
+    if [ "$ext_magic" -eq 0 ]; then
+        echo "no zoned header extension found"
+        break
+    fi
+    if [ "$ext_magic" -eq $((0x007a6264)) ]; then
+        # zoned(1) reserved(3) nr_zones(4) zone_size(8) zone_capacity(8)
+        wps=$(peek_file_be "$file_name" $((ext_off + 8 + 24)) 8)
+        break
+    fi
+    ext_off=$((ext_off + 8 + (ext_len + 7) / 8 * 8))
+done
+
+# Zone 3 starts at 0xc000000. A write pointer below the start of its own zone
+# is the dangerous one: an append would be redirected into an earlier zone.
+poke_file_be "$file_name" $((wps + 8 * 3)) 8 0
+$QEMU_IO $IMG -c "zrp 0 1"
+poke_file_be "$file_name" $((wps + 8 * 3)) 8 $((0xc000000))
+
+poke_file_be "$file_name" $((wps + 8 * 1)) 8 $((0x4000200 + 1))
+$QEMU_IO $IMG -c "zrp 0 1"
+poke_file_be "$file_name" $((wps + 8 * 1)) 8 $((0x4000000))
+
+# Set the conventional bit on a zone the header declares sequential
+poke_file_be "$file_name" $((wps + 8 * 2)) 1 $((0x80))
+$QEMU_IO $IMG -c "zrp 0 1"
+poke_file_be "$file_name" $((wps + 8 * 2)) 1 0
+
+echo "after restoring the table:"
+$QEMU_IO $IMG -c "zrp 0 1"
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

@@ -255,4 +255,11 @@ qemu-io> qemu-io> qemu-io> start: 0x0, len 0x800, cap 0x800, wptr 0x800, zcond:1
 start: 0x800, len 0x800, cap 0x800, wptr 0x808, zcond:4, [type: 2]
 start: 0x1000, len 0x800, cap 0x800, wptr 0x1008, zcond:2, [type: 2]
 start: 0x1800, len 0x800, cap 0x800, wptr 0x1800, zcond:3, [type: 2]
-qemu-io> *** done
+qemu-io>
+case 9: a corrupted write pointer table is rejected
+qemu-io: can't open: Zone 3 has write pointer 0x0 outside its writable range 0xc000000..0x10000000
+qemu-io: can't open: Zone 1 has write pointer 0x4000201 that is not sector aligned
+qemu-io: can't open: Zone 2 contradicts the header, which declares the first 0 zones conventional
+after restoring the table:
+start: 0x0, len 0x20000, cap 0x20000, wptr 0x0, zcond:1, [type: 2]
+*** done
