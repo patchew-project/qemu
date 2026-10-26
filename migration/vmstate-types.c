@@ -16,6 +16,7 @@
 #include "migration.h"
 #include "migration/vmstate.h"
 #include "migration/client-options.h"
+#include "qemu/bitops.h"
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "trace.h"
@@ -596,8 +597,6 @@ const VMStateInfo vmstate_info_tmp = {
  * bit words with the bits in big endian order. The in-memory format
  * is an array of 'unsigned long', which may be either 32 or 64 bits.
  */
-/* This is the number of 64 bit words sent over the wire */
-#define BITS_TO_U64S(nr) DIV_ROUND_UP(nr, 64)
 static bool load_bitmap(QEMUFile *f, void *pv, size_t size,
                         const VMStateField *field, Error **errp)
 {
