@@ -1531,6 +1531,60 @@ int kvm_arch_release_virq_post(int virq)
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
                              uint64_t address, uint32_t data, PCIDevice *dev)
 {
+    AddressSpace *as;
+    hwaddr xlat, len = sizeof(uint32_t), translated;
+    MemoryRegionSection section;
+    MemoryRegion *mr;
+    Object *owner;
+
+    if (!dev) {
+        return 0;
+    }
+
+    as = pci_device_iommu_address_space(dev);
+    if (as == &address_space_memory) {
+        return 0;
+    }
+
+    RCU_READ_LOCK_GUARD();
+
+    mr = address_space_translate(as, address, &xlat, &len, true,
+                                 MEMTXATTRS_UNSPECIFIED);
+
+    if (!mr) {
+        trace_kvm_riscv_fixup_msi_route_failed(address,
+                                               "address translation failed",
+                                               "none");
+        return 1;
+    }
+
+    /*
+     * Only direct IMSIC writes can be represented by a KVM MSI route.
+     * MSI page-table translations instead target the RISC-V IOMMU trap
+     * region, which requires further BASIC/MRIF processing.
+     */
+    owner = memory_region_owner(mr);
+    if (!owner || !object_dynamic_cast(owner, TYPE_RISCV_IMSIC)) {
+        trace_kvm_riscv_fixup_msi_route_failed(address,
+                                               "non-IMSIC target",
+                                               memory_region_name(mr));
+        return 1;
+    }
+
+    section = memory_region_find(mr, xlat, 1);
+    if (!section.mr) {
+        trace_kvm_riscv_fixup_msi_route_failed(address,
+                                               "memory region lookup failed",
+                                               memory_region_name(mr));
+        return 1;
+    }
+
+    translated = section.offset_within_address_space;
+    memory_region_unref(section.mr);
+
+    route->u.msi.address_lo = translated;
+    route->u.msi.address_hi = translated >> 32;
+    trace_kvm_riscv_fixup_msi_route_translated(address, translated);
     return 0;
 }
 

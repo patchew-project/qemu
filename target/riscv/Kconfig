@@ -7,3 +7,5 @@ config RISCV64
     bool
     select ARM_COMPATIBLE_SEMIHOSTING if TCG
     select DEVICE_TREE # needed by boot.c
+    # kvm_arch_fixup_msi_route() needs to access PCIDevice
+    select PCI if KVM
