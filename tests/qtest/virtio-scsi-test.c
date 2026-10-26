@@ -316,6 +316,68 @@ static void test_replaced_node_size(void *obj, void *data,
     qvirtio_scsi_pci_free(vs);
 }
 
+static void inactivate_during_command(QVirtioSCSIPCI *scsi_pci,
+                                      QGuestAllocator *t_alloc,
+                                      const uint8_t *cdb,
+                                      uint8_t *data_out, size_t data_out_len)
+{
+    QVirtioSCSIQueues *vs;
+    VirtioSCSICmd cmd;
+    struct virtio_scsi_cmd_resp resp;
+
+    alloc = t_alloc;
+    vs = qvirtio_scsi_init(scsi_pci->scsi.vdev);
+
+    virtio_scsi_submit_command(vs, cdb, NULL, 0, data_out, data_out_len,
+                               &cmd);
+    qtest_qmp_assert_success(scsi_pci->pci_vdev.pdev->bus->qts,
+                             "{'execute': 'blockdev-set-active',"
+                             " 'arguments': {'active': false}}");
+
+    /* The drain must have waited for the whole command */
+    virtio_scsi_wait_command(vs, &cmd, &resp, 0);
+    g_assert_cmphex(resp.response, ==, 0);
+    g_assert_cmphex(resp.status, ==, GOOD);
+
+    qvirtio_scsi_pci_free(vs);
+}
+
+static void test_unmap_inactivate(void *obj, void *data,
+                                  QGuestAllocator *t_alloc)
+{
+    const uint8_t unmap[VIRTIO_SCSI_CDB_SIZE] = {
+        0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x48, 0x00
+    };
+    uint8_t unmap_params[0x48] = {
+        0x00, 0x46, /* unmap data length */
+        0x00, 0x40, /* unmap block descriptor data length */
+    };
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        uint8_t *desc = &unmap_params[8 + i * 16];
+
+        desc[7] = i * 8;    /* LBA */
+        desc[11] = 1;       /* sector count */
+    }
+
+    inactivate_during_command(obj, t_alloc, unmap, unmap_params,
+                              sizeof(unmap_params));
+}
+
+static void test_write_same_inactivate(void *obj, void *data,
+                                       QGuestAllocator *t_alloc)
+{
+    /* 2 MiB of non-zero data is written in 512 KiB chunks */
+    const uint8_t write_same[VIRTIO_SCSI_CDB_SIZE] = {
+        0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00
+    };
+    uint8_t buf[512];
+
+    memset(buf, 0xa5, sizeof(buf));
+    inactivate_during_command(obj, t_alloc, write_same, buf, sizeof(buf));
+}
+
 static void test_write_to_cdrom(void *obj, void *data,
                                 QGuestAllocator *t_alloc)
 {
@@ -457,6 +519,20 @@ static void *virtio_scsi_setup_replace(GString *cmd_line, void *arg)
     return arg;
 }
 
+/* Each request must outlast the kick-to-QMP round trip on a loaded host */
+static void *virtio_scsi_setup_slow(GString *cmd_line, void *arg)
+{
+    g_string_append_printf(cmd_line,
+                           " -blockdev null-co,node-name=null0,read-zeroes=on"
+                           " -blockdev blkdebug,image=null0,node-name=dbg,"
+                           "discard=unmap,inject-error.0.event=none,"
+                           "inject-error.0.iotype=%s,inject-error.0.errno=0,"
+                           "inject-error.0.delay-ns=100000000"
+                           " -device scsi-hd,drive=dbg,lun=0,scsi-id=1",
+                           (const char *)arg);
+    return arg;
+}
+
 static void *virtio_scsi_setup_cd(GString *cmd_line, void *arg)
 {
     g_string_append(cmd_line,
@@ -497,6 +573,18 @@ static void register_virtio_scsi_test(void)
 
     opts.before = virtio_scsi_setup_cd;
     qos_add_test("write-to-cdrom", "virtio-scsi", test_write_to_cdrom, &opts);
+
+    /* ioeventfd=off starts the command before the kick returns */
+    opts.before = virtio_scsi_setup_slow;
+    opts.edge = (QOSGraphEdgeOptions) {
+        .extra_device_opts = "ioeventfd=off",
+    };
+    opts.arg = (void *)"discard";
+    qos_add_test("unmap-inactivate", "virtio-scsi-pci",
+                 test_unmap_inactivate, &opts);
+    opts.arg = (void *)"write";
+    qos_add_test("write-same-inactivate", "virtio-scsi-pci",
+                 test_write_same_inactivate, &opts);
 
     opts.before = virtio_scsi_setup_iothread;
     opts.edge = (QOSGraphEdgeOptions) {
