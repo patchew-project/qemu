@@ -78,11 +78,44 @@ void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status)
     virtio_notify(vdev, req->vq);
 }
 
+/*
+ * Map a zone error (see include/block/block-common.h) to its virtio-blk
+ * status, or return VIRTIO_BLK_S_OK if @error is not one.
+ */
+static uint8_t virtio_blk_zone_status(VirtIOBlock *s, int error)
+{
+    if (!virtio_vdev_has_feature(VIRTIO_DEVICE(s), VIRTIO_BLK_F_ZONED)) {
+        return VIRTIO_BLK_S_OK;
+    }
+
+    switch (error) {
+    case BLK_ZE_UNALIGNED_WRITE:
+        return VIRTIO_BLK_S_ZONE_UNALIGNED_WP;
+    case BLK_ZE_BOUNDARY:
+        return VIRTIO_BLK_S_ZONE_INVALID_CMD;
+    case BLK_ZE_OPEN_RESOURCE:
+        return VIRTIO_BLK_S_ZONE_OPEN_RESOURCE;
+    case BLK_ZE_ACTIVE_RESOURCE:
+        return VIRTIO_BLK_S_ZONE_ACTIVE_RESOURCE;
+    default:
+        return VIRTIO_BLK_S_OK;
+    }
+}
+
 static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
                                       bool is_read)
 {
     VirtIOBlock *s = req->dev;
-    BlockErrorAction action = blk_get_error_action(s->blk, is_read, error);
+    uint8_t zone_status = virtio_blk_zone_status(s, error);
+    /*
+     * Zone errors are the deterministic result of the request, so they are
+     * reported whatever the rerror/werror policy: stopping the VM would only
+     * make the request fail the same way again when it is retried on resume,
+     * and ignoring the error would hide the failure from the guest.
+     */
+    BlockErrorAction action = zone_status != VIRTIO_BLK_S_OK ?
+                              BLOCK_ERROR_ACTION_REPORT :
+                              blk_get_error_action(s->blk, is_read, error);
 
     if (action == BLOCK_ERROR_ACTION_STOP) {
         /* Break the link as the next request is going to be parsed from the
@@ -94,7 +127,8 @@ static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
             s->rq = req;
         }
     } else if (action == BLOCK_ERROR_ACTION_REPORT) {
-        virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
+        virtio_blk_req_complete(req, zone_status != VIRTIO_BLK_S_OK ?
+                                     zone_status : VIRTIO_BLK_S_IOERR);
         block_acct_failed(blk_get_stats(s->blk), &req->acct);
         g_free(req);
     }
@@ -781,7 +815,10 @@ static void virtio_blk_zone_mgmt_complete(void *opaque, int ret)
     trace_virtio_blk_zone_mgmt_complete(vdev, req,ret);
 
     if (ret) {
-        err_status = VIRTIO_BLK_S_ZONE_INVALID_CMD;
+        err_status = virtio_blk_zone_status(s, -ret);
+        if (err_status == VIRTIO_BLK_S_OK) {
+            err_status = VIRTIO_BLK_S_ZONE_INVALID_CMD;
+        }
     }
 
     virtio_blk_req_complete(req, err_status);
@@ -841,7 +878,10 @@ static void virtio_blk_zone_append_complete(void *opaque, int ret)
     uint8_t err_status = VIRTIO_BLK_S_OK;
 
     if (ret) {
-        err_status = VIRTIO_BLK_S_ZONE_INVALID_CMD;
+        err_status = virtio_blk_zone_status(s, -ret);
+        if (err_status == VIRTIO_BLK_S_OK) {
+            err_status = VIRTIO_BLK_S_ZONE_INVALID_CMD;
+        }
         goto out;
     }
 
