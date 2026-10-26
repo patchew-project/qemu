@@ -657,6 +657,15 @@ static int vapic_prepare(VAPICROMState *s)
     return 0;
 }
 
+static void do_vapic_nop_patch(CPUState *cs, run_on_cpu_data data)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    target_ulong addr = (target_ulong)data.target_ptr;
+
+    patch_byte(cpu, addr, 0x66);
+    patch_byte(cpu, addr + 1, 0x90);
+}
+
 static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
                         unsigned int size)
 {
@@ -709,16 +718,9 @@ static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
              * Oddly enough, KVM increments EIP _before_ the execution
              * of the instruction is finished.
              */
-            pause_all_vcpus();
-            if (!kvm_enabled()) {
-                patch_byte(cpu, env->eip, 0x66);
-                patch_byte(cpu, env->eip + 1, 0x90);
-            }
-            else {
-                patch_byte(cpu, env->eip - 2, 0x66);
-                patch_byte(cpu, env->eip - 1, 0x90);
-            }
-            resume_all_vcpus();
+            target_ulong ip = kvm_enabled() ? env->eip - 2 : env->eip;
+            async_safe_run_on_cpu(current_cpu, do_vapic_nop_patch,
+                                  RUN_ON_CPU_TARGET_PTR(ip));
         }
 
         if (s->state == VAPIC_ACTIVE) {
