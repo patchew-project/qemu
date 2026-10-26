@@ -180,8 +180,6 @@ extern RISCVCPUImpliedExtsRule *riscv_multi_ext_implied_rules[];
 
 #define RISCV_IMPLIED_EXTS_RULE_END -1
 
-#define MMU_USER_IDX 3
-
 #if !defined(CONFIG_USER_ONLY)
 #include "tcg/pmp.h"
 #endif
