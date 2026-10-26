@@ -5264,17 +5264,63 @@ static RISCVException read_hgeip(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+/*
+ * Masks must be 64-bit: env->hgatp is a uint64_t and the RV64 field
+ * masks do not fit in target_ulong when built for riscv32.
+ */
+static uint64_t hgatp_mask(CPURISCVState *env)
+{
+    uint64_t mask;
+
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
+        mask = HGATP32_MODE | HGATP32_VMID | HGATP32_PPN;
+    } else {
+        mask = HGATP64_MODE | HGATP64_VMID | HGATP64_PPN;
+    }
+
+    /* G-stage x4 root page tables are always 16 KiB aligned. */
+    return mask & ~(uint64_t)3;
+}
+
+static uint64_t legalize_hgatp(CPURISCVState *env,
+                               uint64_t old_hgatp,
+                               uint64_t val)
+{
+    uint64_t mode_mask = riscv_cpu_mxl(env) == MXL_RV32 ?
+                         HGATP32_MODE : HGATP64_MODE;
+    uint64_t hgatp = val & hgatp_mask(env);
+    uint64_t mode = get_field(hgatp, mode_mask);
+
+    /*
+     * hgatp.MODE is a WARL field, so an unsupported value must be
+     * legalized rather than causing the entire write to be ignored.
+     * The specification does not require a particular legal value,
+     * QEMU here chooses to keep the previous mode while accepting
+     * writes to the remaining WARL fields.
+     */
+    if (!validate_vm(env, mode)) {
+        hgatp = set_field(hgatp, mode_mask,
+                          get_field(old_hgatp, mode_mask));
+    }
+
+    if (hgatp != old_hgatp) {
+        tlb_flush(env_cpu(env));
+    }
+
+    return hgatp;
+}
+
 static RISCVException read_hgatp(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
-    *val = env->hgatp;
+    *val = env->hgatp & hgatp_mask(env);
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_hgatp(CPURISCVState *env, int csrno,
                                   target_ulong val, uintptr_t ra)
 {
-    env->hgatp = legalize_xatp(env, env->hgatp, val);
+    env->hgatp = legalize_hgatp(env, env->hgatp, val);
     return RISCV_EXCP_NONE;
 }
 
