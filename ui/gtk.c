@@ -1971,6 +1971,14 @@ static void gd_menu_grab_input(GtkMenuItem *item, void *opaque)
     }
 }
 
+static gboolean gd_accel_grab_input(void *opaque)
+{
+    GtkDisplayState *s = opaque;
+
+    gtk_menu_item_activate(GTK_MENU_ITEM(s->grab_item));
+    return TRUE;
+}
+
 static void gd_change_page(GtkNotebook *nb, gpointer arg1, guint arg2,
                            gpointer data)
 {
@@ -2684,6 +2692,7 @@ static void gd_create_menu_view(GtkDisplayState *s, DisplayOptions *opts)
 {
     GtkWidget *view_menu;
     GtkWidget *separator;
+    GtkWidget *child;
     QemuConsole *con;
     bool zoom_to_fit = false;
     int vc, i;
@@ -2742,12 +2751,16 @@ static void gd_create_menu_view(GtkDisplayState *s, DisplayOptions *opts)
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->grab_on_hover_item);
 
     s->grab_item = gtk_check_menu_item_new_with_mnemonic(_("_Grab Input"));
-    gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->grab_item),
-                                 "<QEMU>/View/Grab Input");
-    gtk_accel_map_add_entry("<QEMU>/View/Grab Input", GDK_KEY_g,
-                            HOTKEY_MODIFIERS);
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->grab_item);
 
+    gtk_accel_group_connect(s->accel_group, GDK_KEY_g, HOTKEY_MODIFIERS, 0,
+                            g_cclosure_new_swap(G_CALLBACK(gd_accel_grab_input),
+                                                s, NULL));
+    child = gtk_bin_get_child(GTK_BIN(s->grab_item));
+    if (GTK_IS_ACCEL_LABEL(child)) {
+        gtk_accel_label_set_accel(GTK_ACCEL_LABEL(child),
+                                  GDK_KEY_g, HOTKEY_MODIFIERS);
+    }
     separator = gtk_separator_menu_item_new();
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), separator);
 
