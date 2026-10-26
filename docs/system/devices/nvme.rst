@@ -405,6 +405,12 @@ values are in logical block units.
 
 Namespace specific Atomic Boundaries parameters for ``nvme-ns`` devices:
 
+``atomic.mam=BOOL`` (default: ``off``)
+  Set the Multiple Atomicity Mode (``MAM``). ``off`` means the controller
+  works in Single Atomicity Mode ``SAM``. When ``MAM`` is enabled, a write that
+  crosses the Namespace Atomic Boundary is divided into atomic LBA subranges,
+  each written atomically at those boundaries.
+
 ``atomic.nabo=UINT16`` (default: ``0``)
   Set the Namespace Atomic Boundary Offset (``NABO``).
 
