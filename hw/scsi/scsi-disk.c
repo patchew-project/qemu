@@ -1938,52 +1938,52 @@ invalid_field:
     scsi_check_condition(r, SENSE_CODE(INVALID_FIELD));
 }
 
-typedef struct WriteSameCBData {
-    SCSIDiskReq *r;
-    int64_t sector;
-    int nb_sectors;
-    QEMUIOVector qiov;
-    struct iovec iov;
-} WriteSameCBData;
-
-static void scsi_write_same_complete(void *opaque, int ret)
+static int coroutine_fn scsi_write_same_co(SCSIDiskCoAIOCB *iocb)
 {
-    WriteSameCBData *data = opaque;
-    SCSIDiskReq *r = data->r;
+    SCSIDiskReq *r = iocb->r;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+    BlockBackend *blk = s->qdev.conf.blk;
+    uint8_t *inbuf = r->iov.iov_base;
+    uint32_t buflen = MIN(s->qdev.blocksize, r->buflen);
+    int64_t sector = r->req.cmd.lba * (s->qdev.blocksize / BDRV_SECTOR_SIZE);
+    int64_t nb_sectors = (int64_t)scsi_data_cdb_xfer(r->req.cmd.buf) *
+                         (s->qdev.blocksize / BDRV_SECTOR_SIZE);
+    size_t size = MIN(nb_sectors * BDRV_SECTOR_SIZE, SCSI_WRITE_SAME_MAX);
+    uint8_t *buf = blk_blockalign(blk, size);
+    int ret = 0;
+    size_t i, l;
 
-    assert(r->req.aiocb != NULL);
-    r->req.aiocb = NULL;
-
-    if (scsi_disk_req_check_error(r, ret, true)) {
-        goto done;
+    for (i = 0; i < size; i += l) {
+        l = MIN(buflen, size - i);
+        memcpy(&buf[i], inbuf, l);
     }
 
-    block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
+    while (nb_sectors > 0) {
+        size_t chunk = MIN(nb_sectors * BDRV_SECTOR_SIZE, size);
 
-    data->nb_sectors -= data->iov.iov_len / BDRV_SECTOR_SIZE;
-    data->sector += data->iov.iov_len / BDRV_SECTOR_SIZE;
-    data->iov.iov_len = MIN(data->nb_sectors * BDRV_SECTOR_SIZE,
-                            data->iov.iov_len);
-    if (data->iov.iov_len) {
-        block_acct_start(blk_get_stats(s->qdev.conf.blk), &r->acct,
-                         data->iov.iov_len, BLOCK_ACCT_WRITE);
-        /* Reinitialize qiov, to handle unaligned WRITE SAME request
-         * where final qiov may need smaller size */
-        qemu_iovec_init_external(&data->qiov, &data->iov, 1);
-        r->req.aiocb = blk_aio_pwritev(s->qdev.conf.blk,
-                                       data->sector << BDRV_SECTOR_BITS,
-                                       &data->qiov, 0,
-                                       scsi_write_same_complete, data);
-        return;
+        if (iocb->canceled) {
+            ret = -ECANCELED;
+            break;
+        }
+
+        block_acct_start(blk_get_stats(blk), &r->acct, chunk,
+                         BLOCK_ACCT_WRITE);
+        ret = blk_co_pwrite(blk, sector << BDRV_SECTOR_BITS, chunk, buf,
+                            BDRV_REQ_NO_QUEUE);
+        if (ret < 0) {
+            if (!scsi_disk_ignore_error(r, ret)) {
+                break;
+            }
+            ret = 0;
+        }
+        block_acct_done(blk_get_stats(blk), &r->acct);
+
+        sector += chunk / BDRV_SECTOR_SIZE;
+        nb_sectors -= chunk / BDRV_SECTOR_SIZE;
     }
 
-    scsi_req_complete(&r->req, GOOD);
-
-done:
-    scsi_req_unref(&r->req);
-    qemu_vfree(data->iov.iov_base);
-    g_free(data);
+    qemu_vfree(buf);
+    return ret;
 }
 
 static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
@@ -1992,9 +1992,6 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     uint32_t nb_sectors = scsi_data_cdb_xfer(r->req.cmd.buf);
     uint32_t buflen = MIN(s->qdev.blocksize, r->buflen);
-    WriteSameCBData *data;
-    uint8_t *buf;
-    int i, l;
 
     /* Fail if PBDATA=1 or LBDATA=1 or ANCHOR=1.  */
     if (nb_sectors == 0 || (req->cmd.buf[1] & 0x16)) {
@@ -2026,28 +2023,7 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
         return;
     }
 
-    data = g_new0(WriteSameCBData, 1);
-    data->r = r;
-    data->sector = r->req.cmd.lba * (s->qdev.blocksize / BDRV_SECTOR_SIZE);
-    data->nb_sectors = nb_sectors * (s->qdev.blocksize / BDRV_SECTOR_SIZE);
-    data->iov.iov_len = MIN(data->nb_sectors * BDRV_SECTOR_SIZE,
-                            SCSI_WRITE_SAME_MAX);
-    data->iov.iov_base = buf = blk_blockalign(s->qdev.conf.blk,
-                                              data->iov.iov_len);
-    qemu_iovec_init_external(&data->qiov, &data->iov, 1);
-
-    for (i = 0; i < data->iov.iov_len; i += l) {
-        l = MIN(buflen, data->iov.iov_len - i);
-        memcpy(&buf[i], inbuf, l);
-    }
-
-    scsi_req_ref(&r->req);
-    block_acct_start(blk_get_stats(s->qdev.conf.blk), &r->acct,
-                     data->iov.iov_len, BLOCK_ACCT_WRITE);
-    r->req.aiocb = blk_aio_pwritev(s->qdev.conf.blk,
-                                   data->sector << BDRV_SECTOR_BITS,
-                                   &data->qiov, 0,
-                                   scsi_write_same_complete, data);
+    scsi_disk_co_aio_start(r, scsi_write_same_co);
 }
 
 static void scsi_disk_emulate_write_data(SCSIRequest *req)
