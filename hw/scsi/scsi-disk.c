@@ -1773,13 +1773,6 @@ static void scsi_unmap_complete_noio(UnmapCBData *data, int ret)
         r->sector = sector_num * (s->qdev.blocksize / BDRV_SECTOR_SIZE);
         r->sector_count = nb_sectors * (s->qdev.blocksize / BDRV_SECTOR_SIZE);
 
-        if (!check_lba_range(s, sector_num, nb_sectors)) {
-            block_acct_invalid(blk_get_stats(s->qdev.conf.blk),
-                               BLOCK_ACCT_UNMAP);
-            scsi_check_condition(r, SENSE_CODE(LBA_OUT_OF_RANGE));
-            goto done;
-        }
-
         block_acct_start(blk_get_stats(s->qdev.conf.blk), &r->acct,
                          r->sector_count * BDRV_SECTOR_SIZE,
                          BLOCK_ACCT_UNMAP);
@@ -1794,8 +1787,6 @@ static void scsi_unmap_complete_noio(UnmapCBData *data, int ret)
     }
 
     scsi_req_complete(&r->req, GOOD);
-
-done:
     scsi_req_unref(&r->req);
     g_free(data);
 }
@@ -1824,6 +1815,8 @@ static void scsi_disk_emulate_unmap(SCSIDiskReq *r, uint8_t *inbuf)
     uint8_t *p = inbuf;
     int len = r->req.cmd.xfer;
     UnmapCBData *data;
+    int count;
+    int i;
 
     /* Reject ANCHOR=1.  */
     if (r->req.cmd.buf[1] & 0x1) {
@@ -1849,10 +1842,21 @@ static void scsi_disk_emulate_unmap(SCSIDiskReq *r, uint8_t *inbuf)
         return;
     }
 
+    count = lduw_be_p(&p[2]) >> 4;
+    for (i = 0; i < count; i++) {
+        if (!check_lba_range(s, ldq_be_p(&p[8 + i * 16]),
+                             ldl_be_p(&p[8 + i * 16 + 8]))) {
+            block_acct_invalid(blk_get_stats(s->qdev.conf.blk),
+                               BLOCK_ACCT_UNMAP);
+            scsi_check_condition(r, SENSE_CODE(LBA_OUT_OF_RANGE));
+            return;
+        }
+    }
+
     data = g_new0(UnmapCBData, 1);
     data->r = r;
     data->inbuf = &p[8];
-    data->count = lduw_be_p(&p[2]) >> 4;
+    data->count = count;
 
     /* The matching unref is in scsi_unmap_complete, before data is freed.  */
     scsi_req_ref(&r->req);
