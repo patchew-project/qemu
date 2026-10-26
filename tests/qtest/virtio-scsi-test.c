@@ -59,22 +59,28 @@ static uint64_t qvirtio_scsi_alloc(QVirtioSCSIQueues *vs, size_t alloc_size,
     return addr;
 }
 
-static uint8_t virtio_scsi_do_command(QVirtioSCSIQueues *vs,
-                                      const uint8_t *cdb,
-                                      const uint8_t *data_in,
-                                      size_t data_in_len,
-                                      uint8_t *data_out, size_t data_out_len,
-                                      struct virtio_scsi_cmd_resp *resp_out)
+typedef struct {
+    uint32_t free_head;
+    uint64_t req_addr;
+    uint64_t resp_addr;
+    uint64_t data_in_addr;
+    uint64_t data_out_addr;
+} VirtioSCSICmd;
+
+static void virtio_scsi_submit_command(QVirtioSCSIQueues *vs,
+                                       const uint8_t *cdb,
+                                       const uint8_t *data_in,
+                                       size_t data_in_len,
+                                       uint8_t *data_out, size_t data_out_len,
+                                       VirtioSCSICmd *cmd)
 {
     QVirtQueue *vq;
     struct virtio_scsi_cmd_req req = { { 0 } };
     struct virtio_scsi_cmd_resp resp = { .response = 0xff, .status = 0xff };
-    uint64_t req_addr, resp_addr, data_in_addr = 0, data_out_addr = 0;
-    uint8_t response;
-    uint32_t free_head;
     QTestState *qts = global_qtest;
 
     vq = vs->vq[2];
+    *cmd = (VirtioSCSICmd) { 0 };
 
     req.lun[0] = 1; /* Select LUN */
     req.lun[1] = 1; /* Select target 1 */
@@ -83,39 +89,66 @@ static uint8_t virtio_scsi_do_command(QVirtioSCSIQueues *vs,
     /* XXX: Fix endian if any multi-byte field in req/resp is used */
 
     /* Add request header */
-    req_addr = qvirtio_scsi_alloc(vs, sizeof(req), &req);
-    free_head = qvirtqueue_add(qts, vq, req_addr, sizeof(req), false, true);
+    cmd->req_addr = qvirtio_scsi_alloc(vs, sizeof(req), &req);
+    cmd->free_head = qvirtqueue_add(qts, vq, cmd->req_addr, sizeof(req),
+                                    false, true);
 
     if (data_out_len) {
-        data_out_addr = qvirtio_scsi_alloc(vs, data_out_len, data_out);
-        qvirtqueue_add(qts, vq, data_out_addr, data_out_len, false, true);
+        cmd->data_out_addr = qvirtio_scsi_alloc(vs, data_out_len, data_out);
+        qvirtqueue_add(qts, vq, cmd->data_out_addr, data_out_len, false, true);
     }
 
     /* Add response header */
-    resp_addr = qvirtio_scsi_alloc(vs, sizeof(resp), &resp);
-    qvirtqueue_add(qts, vq, resp_addr, sizeof(resp), true, !!data_in_len);
+    cmd->resp_addr = qvirtio_scsi_alloc(vs, sizeof(resp), &resp);
+    qvirtqueue_add(qts, vq, cmd->resp_addr, sizeof(resp), true,
+                   !!data_in_len);
 
     if (data_in_len) {
-        data_in_addr = qvirtio_scsi_alloc(vs, data_in_len, data_in);
-        qvirtqueue_add(qts, vq, data_in_addr, data_in_len, true, false);
+        cmd->data_in_addr = qvirtio_scsi_alloc(vs, data_in_len, data_in);
+        qvirtqueue_add(qts, vq, cmd->data_in_addr, data_in_len, true, false);
     }
 
-    qvirtqueue_kick(qts, vs->dev, vq, free_head);
-    qvirtio_wait_used_elem(qts, vs->dev, vq, free_head, NULL,
-                           QVIRTIO_SCSI_TIMEOUT_US);
+    qvirtqueue_kick(qts, vs->dev, vq, cmd->free_head);
+}
 
-    response = readb(resp_addr +
+static uint8_t virtio_scsi_wait_command(QVirtioSCSIQueues *vs,
+                                        VirtioSCSICmd *cmd,
+                                        struct virtio_scsi_cmd_resp *resp_out,
+                                        gint64 timeout_us)
+{
+    uint8_t response;
+    QTestState *qts = global_qtest;
+
+    qvirtio_wait_used_elem(qts, vs->dev, vs->vq[2], cmd->free_head, NULL,
+                           timeout_us);
+
+    response = readb(cmd->resp_addr +
                      offsetof(struct virtio_scsi_cmd_resp, response));
 
     if (resp_out) {
-        memread(resp_addr, resp_out, sizeof(*resp_out));
+        memread(cmd->resp_addr, resp_out, sizeof(*resp_out));
     }
 
-    guest_free(alloc, req_addr);
-    guest_free(alloc, resp_addr);
-    guest_free(alloc, data_in_addr);
-    guest_free(alloc, data_out_addr);
+    guest_free(alloc, cmd->req_addr);
+    guest_free(alloc, cmd->resp_addr);
+    guest_free(alloc, cmd->data_in_addr);
+    guest_free(alloc, cmd->data_out_addr);
     return response;
+}
+
+static uint8_t virtio_scsi_do_command(QVirtioSCSIQueues *vs,
+                                      const uint8_t *cdb,
+                                      const uint8_t *data_in,
+                                      size_t data_in_len,
+                                      uint8_t *data_out, size_t data_out_len,
+                                      struct virtio_scsi_cmd_resp *resp_out)
+{
+    VirtioSCSICmd cmd;
+
+    virtio_scsi_submit_command(vs, cdb, data_in, data_in_len,
+                               data_out, data_out_len, &cmd);
+    return virtio_scsi_wait_command(vs, &cmd, resp_out,
+                                    QVIRTIO_SCSI_TIMEOUT_US);
 }
 
 static QVirtioSCSIQueues *qvirtio_scsi_init(QVirtioDevice *dev)
