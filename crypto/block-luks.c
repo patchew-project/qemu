@@ -1152,6 +1152,7 @@ qcrypto_block_luks_erase_key(QCryptoBlock *block,
 
     if (ret < 0) {
         error_propagate(errp, local_err);
+        local_err = NULL;
     }
     /*
      * Now try to erase the key material, even if the header
@@ -1169,6 +1170,7 @@ qcrypto_block_luks_erase_key(QCryptoBlock *block,
             if (i > 0) {
                 return -1;
             }
+            local_err = NULL;
         }
         if (writefunc(block,
                       slot->key_offset_sector * QCRYPTO_BLOCK_LUKS_SECTOR_SIZE,
