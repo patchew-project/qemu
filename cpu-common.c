@@ -141,6 +141,23 @@ static void queue_work_on_cpu(CPUState *cpu, struct qemu_work_item *wi)
     cpu_exit(cpu);
 }
 
+/*
+ * Queue work on a CPU to run after the next accelerator exit.
+ *
+ * This helper intentionally leaves the inner loop running rather than forcing
+ * an exit via cpu_exit(), since the intention is to immediately call back into
+ * the accelerator to process pending events, and then upon exiting issue
+ * callbacks/notifications to any CPUs that need to complete any work that is
+ * pending on that accelerator call/exit.
+ */
+static void queue_accel_work_on_cpu(CPUState *cpu, struct qemu_work_item *wi)
+{
+    assert(wi->free);
+    qemu_mutex_lock(&cpu->work_mutex);
+    QSIMPLEQ_INSERT_TAIL(&cpu->accel_work_list, wi, node);
+    qemu_mutex_unlock(&cpu->work_mutex);
+}
+
 void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
                    QemuMutex *mutex)
 {
@@ -176,6 +193,24 @@ void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data)
     wi->free = true;
 
     queue_work_on_cpu(cpu, wi);
+}
+
+void async_run_on_cpu_after_accel(CPUState *cpu, run_on_cpu_func func,
+                                  run_on_cpu_data data)
+{
+    struct qemu_work_item *wi;
+
+    wi = g_new0(struct qemu_work_item, 1);
+
+    /*
+     * Only asynchronous accelerator work items are allowed. I.e. wi->free
+     * must be true. Subsequent code will assert this.
+     */
+    wi->func = func;
+    wi->data = data;
+    wi->free = true;
+
+    queue_accel_work_on_cpu(cpu, wi);
 }
 
 /* Wait for pending exclusive operations to complete.  The CPU list lock
@@ -347,6 +382,37 @@ void free_queued_cpu_work(CPUState *cpu)
             g_free(wi);
         }
     }
+}
+
+void free_queued_cpu_accel_work(CPUState *cpu)
+{
+    while (!QSIMPLEQ_EMPTY(&cpu->accel_work_list)) {
+        struct qemu_work_item *wi = QSIMPLEQ_FIRST(&cpu->accel_work_list);
+        QSIMPLEQ_REMOVE_HEAD(&cpu->accel_work_list, node);
+        assert(wi->free);
+        g_free(wi);
+    }
+}
+
+void process_queued_cpu_accel_work(CPUState *cpu)
+{
+    struct qemu_work_item *wi;
+
+    qemu_mutex_lock(&cpu->work_mutex);
+
+    while (!QSIMPLEQ_EMPTY(&cpu->accel_work_list)) {
+        wi = QSIMPLEQ_FIRST(&cpu->accel_work_list);
+        QSIMPLEQ_REMOVE_HEAD(&cpu->accel_work_list, node);
+
+        qemu_mutex_unlock(&cpu->work_mutex);
+        wi->func(cpu, wi->data);
+        qemu_mutex_lock(&cpu->work_mutex);
+
+        assert(wi->free);
+        g_free(wi);
+    }
+
+    qemu_mutex_unlock(&cpu->work_mutex);
 }
 
 void process_queued_cpu_work(CPUState *cpu)
