@@ -238,6 +238,13 @@ bool blkconf_check_zoned_geometry(BlockConf *conf, Error **errp)
         return false;
     }
 
+    if (!QEMU_IS_ALIGNED(bs->bl.zone_capacity, wg)) {
+        error_setg(errp, "zone capacity %" PRIu64 " is not a multiple of the "
+                   "zone write granularity %" PRIu32,
+                   bs->bl.zone_capacity, wg);
+        return false;
+    }
+
     /*
      * A write pointer that is not a multiple of the write granularity does not
      * fall on a logical block boundary, so the guest can neither read nor write
