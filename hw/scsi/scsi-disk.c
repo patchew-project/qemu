@@ -1752,61 +1752,134 @@ static inline bool check_lba_range(SCSIDiskState *s,
             sector_num + nb_sectors <= s->qdev.max_lba + 1);
 }
 
-typedef struct UnmapCBData {
+typedef struct SCSIDiskCoAIOCB SCSIDiskCoAIOCB;
+
+typedef int coroutine_fn SCSIDiskCoFunc(SCSIDiskCoAIOCB *iocb);
+
+struct SCSIDiskCoAIOCB {
+    BlockAIOCB common;
     SCSIDiskReq *r;
-    uint8_t *inbuf;
-    int count;
-} UnmapCBData;
+    SCSIDiskCoFunc *fn;
+    int ret;
+    bool canceled;
+};
 
-static void scsi_unmap_complete(void *opaque, int ret);
-
-static void scsi_unmap_complete_noio(UnmapCBData *data, int ret)
+static void scsi_disk_co_aio_cancel(BlockAIOCB *acb)
 {
-    SCSIDiskReq *r = data->r;
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+    SCSIDiskCoAIOCB *iocb = container_of(acb, SCSIDiskCoAIOCB, common);
 
-    assert(r->req.aiocb == NULL);
-
-    if (data->count > 0) {
-        uint64_t sector_num = ldq_be_p(&data->inbuf[0]);
-        uint32_t nb_sectors = ldl_be_p(&data->inbuf[8]) & 0xffffffffULL;
-        r->sector = sector_num * (s->qdev.blocksize / BDRV_SECTOR_SIZE);
-        r->sector_count = nb_sectors * (s->qdev.blocksize / BDRV_SECTOR_SIZE);
-
-        block_acct_start(blk_get_stats(s->qdev.conf.blk), &r->acct,
-                         r->sector_count * BDRV_SECTOR_SIZE,
-                         BLOCK_ACCT_UNMAP);
-
-        r->req.aiocb = blk_aio_pdiscard(s->qdev.conf.blk,
-                                        r->sector * BDRV_SECTOR_SIZE,
-                                        r->sector_count * BDRV_SECTOR_SIZE,
-                                        scsi_unmap_complete, data);
-        data->count--;
-        data->inbuf += 16;
-        return;
-    }
-
-    scsi_req_complete(&r->req, GOOD);
-    scsi_req_unref(&r->req);
-    g_free(data);
+    iocb->canceled = true;
 }
 
-static void scsi_unmap_complete(void *opaque, int ret)
-{
-    UnmapCBData *data = opaque;
-    SCSIDiskReq *r = data->r;
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+static const AIOCBInfo scsi_disk_co_aiocb_info = {
+    .aiocb_size         = sizeof(SCSIDiskCoAIOCB),
+    .cancel_async       = scsi_disk_co_aio_cancel,
+};
 
+static void scsi_disk_co_aio_bh(void *opaque)
+{
+    SCSIDiskCoAIOCB *iocb = opaque;
+    BlockBackend *blk = iocb->r->req.dev->conf.blk;
+
+    iocb->common.cb(iocb->common.opaque, iocb->ret);
+    qemu_aio_unref(iocb);
+
+    /* Paired with blk_co_start_request in scsi_disk_co_aio_entry() */
+    blk_end_request(blk);
+}
+
+static void coroutine_fn scsi_disk_co_aio_entry(void *opaque)
+{
+    SCSIDiskCoAIOCB *iocb = opaque;
+
+    /* Paired with blk_end_request in scsi_disk_co_aio_bh() */
+    blk_co_start_request(iocb->r->req.dev->conf.blk);
+    iocb->ret = iocb->fn(iocb);
+    aio_bh_schedule_oneshot(qemu_get_current_aio_context(),
+                            scsi_disk_co_aio_bh, iocb);
+}
+
+static void scsi_disk_co_aio_complete(void *opaque, int ret)
+{
+    SCSIDiskReq *r = opaque;
+
+    assert(r->req.ctx == qemu_get_current_aio_context());
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
 
-    if (scsi_disk_req_check_error(r, ret, true)) {
-        scsi_req_unref(&r->req);
-        g_free(data);
-    } else {
-        block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
-        scsi_unmap_complete_noio(data, ret);
+    if (!scsi_disk_req_check_error(r, ret, true)) {
+        scsi_req_complete(&r->req, GOOD);
     }
+    scsi_req_unref(&r->req);
+}
+
+/* fn must submit with BDRV_REQ_NO_QUEUE and stop once iocb->canceled */
+static void scsi_disk_co_aio_start(SCSIDiskReq *r, SCSIDiskCoFunc *fn)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+    SCSIDiskCoAIOCB *iocb;
+
+    iocb = blk_aio_get(&scsi_disk_co_aiocb_info, s->qdev.conf.blk,
+                       scsi_disk_co_aio_complete, r);
+    iocb->r = r;
+    iocb->fn = fn;
+    iocb->ret = 0;
+    iocb->canceled = false;
+
+    /* The matching unref is in scsi_disk_co_aio_complete */
+    scsi_req_ref(&r->req);
+    r->req.aiocb = &iocb->common;
+    aio_co_enter(qemu_get_current_aio_context(),
+                 qemu_coroutine_create(scsi_disk_co_aio_entry, iocb));
+}
+
+/* Report like scsi_handle_rw_error(), but let werror=ignore go on */
+static bool scsi_disk_ignore_error(SCSIDiskReq *r, int ret)
+{
+    BlockBackend *blk = r->req.dev->conf.blk;
+    BlockErrorAction action = blk_get_error_action(blk, false, -ret);
+
+    if (action != BLOCK_ERROR_ACTION_IGNORE) {
+        return false;
+    }
+    blk_error_action(blk, action, false, -ret);
+    return true;
+}
+
+static int coroutine_fn scsi_unmap_co(SCSIDiskCoAIOCB *iocb)
+{
+    SCSIDiskReq *r = iocb->r;
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+    BlockBackend *blk = s->qdev.conf.blk;
+    uint8_t *p = r->iov.iov_base;
+    int count = lduw_be_p(&p[2]) >> 4;
+    int i, ret;
+
+    for (i = 0; i < count; i++) {
+        uint64_t sector_num = ldq_be_p(&p[8 + i * 16]);
+        uint32_t nb_sectors = ldl_be_p(&p[8 + i * 16 + 8]);
+
+        if (iocb->canceled) {
+            return -ECANCELED;
+        }
+
+        r->sector = sector_num * (s->qdev.blocksize / BDRV_SECTOR_SIZE);
+        r->sector_count = nb_sectors * (s->qdev.blocksize / BDRV_SECTOR_SIZE);
+
+        block_acct_start(blk_get_stats(blk), &r->acct,
+                         r->sector_count * BDRV_SECTOR_SIZE,
+                         BLOCK_ACCT_UNMAP);
+
+        ret = blk_co_pdiscard(blk, r->sector * BDRV_SECTOR_SIZE,
+                              r->sector_count * BDRV_SECTOR_SIZE,
+                              BDRV_REQ_NO_QUEUE);
+        if (ret < 0 && !scsi_disk_ignore_error(r, ret)) {
+            return ret;
+        }
+        block_acct_done(blk_get_stats(blk), &r->acct);
+    }
+
+    return 0;
 }
 
 static void scsi_disk_emulate_unmap(SCSIDiskReq *r, uint8_t *inbuf)
@@ -1814,7 +1887,6 @@ static void scsi_disk_emulate_unmap(SCSIDiskReq *r, uint8_t *inbuf)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     uint8_t *p = inbuf;
     int len = r->req.cmd.xfer;
-    UnmapCBData *data;
     int count;
     int i;
 
@@ -1853,14 +1925,7 @@ static void scsi_disk_emulate_unmap(SCSIDiskReq *r, uint8_t *inbuf)
         }
     }
 
-    data = g_new0(UnmapCBData, 1);
-    data->r = r;
-    data->inbuf = &p[8];
-    data->count = count;
-
-    /* The matching unref is in scsi_unmap_complete, before data is freed.  */
-    scsi_req_ref(&r->req);
-    scsi_unmap_complete_noio(data, 0);
+    scsi_disk_co_aio_start(r, scsi_unmap_co);
     return;
 
 invalid_param_len:
