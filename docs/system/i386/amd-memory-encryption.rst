@@ -228,6 +228,83 @@ schema for the 'sev-snp-guest' object)::
     -machine ...,confidential-guest-support=sev0 \
     -object sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1
 
+Certificate-fetching (SEV-SNP)
+------------------------------
+
+When an SEV-SNP guest requests an attestation report from the host, it may
+optionally request that the host also deliver the certificates (and
+potentially other accompanying data) as part of the response.
+
+QEMU can be configured to provide this certificate data in the following
+manner::
+
+  # ${QEMU} \
+    -machine ...,confidential-guest-support=sev0 \
+    -object sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1,certs-filename=<certs>
+
+where the format of the file is defined in the SEV-ES Guest-Hypervisor
+Communication Block Standardization (GHCB) v2.04, section 4.1.8.1, as::
+
+  Returned certificates are identified in a table starting at offset 0x0 of
+  [the file]. Each entry consists of a 16-byte GUID, a 4-byte offset from
+  [the file] to where the certificate data starts and a 4-byte length
+  representing the length of the certificate data. The table is terminated
+  with an entry containing all zeroes for the GUID, offset and length.
+
+  struct cert_table {
+      struct {
+          unsigned char guid[16];
+          uint32 offset;
+          uint32 length;
+      } cert_table_entry[];
+  };
+
+Because QEMU supplies the certificate to the hypervisor prior to the
+hypervisor actually issuing an attestation request, there is potential for
+the certificate data to becoming stale due to a firmware upgrade or other
+host management activities. The ioctl which enables certificate-fetching
+support via the KVM hypervisor, KVM_SEV_SNP_ENABLE_REQ_CERTS, documents
+the following suggested scheme as part of its linux documentation (v7.3
+at the time of this writing), and it is highly recommended that all software
+interacting with these certificates, or performing operations that may
+affect their validity, adopt this same scheme for interoperability::
+
+  The recommended scheme to do this is to use file locking (e.g. via
+  fcntl()'s F_OFD_SETLK) in the following manner:
+
+    - Prior to obtaining/providing certificate data as part of servicing an
+      exit type of ``KVM_EXIT_SNP_REQ_CERTS``, the VMM should obtain a
+      shared/read or exclusive/write lock on the certificate blob file before
+      reading it and returning it to KVM, and continue to hold the lock until
+      the attestation request is actually sent to firmware. To facilitate
+      this, the VMM can set the ``immediate_exit`` flag of kvm_run just after
+      supplying the certificate data, and just before resuming the vCPU.
+      This will ensure the vCPU will exit again to userspace with ``-EINTR``
+      after it finishes fetching the attestation request from firmware, at
+      which point the VMM can safely drop the file lock.
+
+    - Tools/libraries that perform updates to SNP firmware TCB values or
+      endorsement keys (e.g. via /dev/sev interfaces such as ``SNP_COMMIT``,
+      ``SNP_SET_CONFIG``, or ``SNP_VLEK_LOAD``, see
+      Documentation/virt/coco/sev-guest.rst for more details) in such a way
+      that the certificate blob needs to be updated, should similarly take an
+      exclusive lock on the certificate blob for the duration of any updates
+      to endorsement keys or the certificate blob contents to ensure that
+      VMMs using the above scheme will not return certificate blob data that
+      is out of sync with the endorsement key used by firmware at the time
+      the attestation request is actually issued.
+
+  This scheme is recommended so that tools can use a fairly generic/natural
+  approach to synchronizing firmware/certificate updates via file-locking,
+  which should make it easier to maintain interoperability across
+  tools/VMMs/vendors.
+
+As such, QEMU implements this same scheme by waiting for a read-lock on the
+file containing the certificate data before supplying any data it contains.
+In order to ensure that the lock is not released until after the hypervisor
+is finished fetching the attestation report for the guest, the lock is held
+until a subsequent exit from the hypervisor that indicates the attestation
+report has already been fetched, as which point QEMU will drop the lock.
 
 Debugging
 ---------

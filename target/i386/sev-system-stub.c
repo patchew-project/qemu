@@ -34,3 +34,8 @@ int sev_es_save_reset_vector(void *flash_ptr, uint64_t flash_size)
 void pc_system_parse_sev_metadata(uint8_t *flash_ptr, size_t flash_size)
 {
 }
+
+int kvm_handle_snp_req_certs(CPUState *cpu, struct kvm_run *run)
+{
+    g_assert_not_reached();
+}
