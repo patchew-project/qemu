@@ -551,6 +551,11 @@ void hid_reset(HIDState *hs)
     case HID_MOUSE:
     case HID_TABLET:
         memset(hs->ptr.queue, 0, sizeof(hs->ptr.queue));
+        hs->ptr.mouse_grabbed = 0;
+        hs->ptr.wheel_multiplier = 0;
+        hs->ptr.pan_multiplier = 0;
+        hs->ptr.wheel_residual = 0;
+        hs->ptr.pan_residual = 0;
         break;
     }
     hs->head = 0;
