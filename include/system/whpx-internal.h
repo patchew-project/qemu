@@ -55,6 +55,7 @@ struct whpx_state {
 
 extern struct whpx_state whpx_global;
 void whpx_apic_get(APICCommonState *s);
+int whpx_apic_init_cpu(CPUState *cpu);
 
 #define WHV_E_UNKNOWN_CAPABILITY 0x80370300L
 

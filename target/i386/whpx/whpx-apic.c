@@ -13,12 +13,32 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "cpu.h"
+#include "migration/vmstate.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/i386/apic-msidef.h"
 #include "hw/pci/msi.h"
 #include "system/hw_accel.h"
 #include "system/whpx.h"
 #include "system/whpx-internal.h"
+#include "target/i386/whpx/whpx-i386.h"
+#include "hw/hyperv/hvgdk_mini.h"
+#include "qemu/memalign.h"
+
+typedef struct hv_local_interrupt_controller_state
+               hv_local_interrupt_controller_state;
+
+struct MshvAPICState {
+    APICCommonState parent_obj;
+
+    uint32_t apic_version;
+    uint32_t apic_lvt_cmci;
+    uint32_t apic_error_status;
+    uint32_t apic_counter_value;
+    uint32_t apic_remote_read;
+};
+
+#define TYPE_MSHV_APIC "whpx-apic"
+OBJECT_DECLARE_SIMPLE_TYPE(MshvAPICState, MSHV_APIC)
 
 struct whpx_lapic_state {
     struct {
@@ -27,7 +47,106 @@ struct whpx_lapic_state {
     } fields[256];
 };
 
-static void whpx_put_apic_state(APICCommonState *s,
+static void populate_hv_lapic_state(hv_local_interrupt_controller_state *hv,
+                                    const CPUState *cpu)
+{
+    uint32_t x2apic_id;
+    X86CPU *x86cpu = X86_CPU(cpu);
+    MshvAPICState *ms = MSHV_APIC(x86cpu->apic_state);
+    APICCommonState *s = &ms->parent_obj;
+    size_t i;
+
+    /*
+     * x2APIC:
+     * - APIC ID is the full 32-bit initial_apic_id
+     * - LDR is read-only, architecturally derived from the ID
+     * - DFR does not exist in x2APIC mode
+     */
+    if (is_x2apic_mode(s)) {
+        x2apic_id = s->initial_apic_id;
+
+        hv->apic_id  = x2apic_id;
+        hv->apic_ldr = ((x2apic_id >> 4) << 16) | (1 << (x2apic_id & 0xf));
+        hv->apic_dfr = 0;
+    } else {
+        hv->apic_id  = s->id << 24;
+        hv->apic_ldr = s->log_dest << 24;
+        hv->apic_dfr = s->dest_mode << 28 | 0x0fffffff;
+    }
+    hv->apic_version = ms->apic_version;
+    hv->apic_spurious = s->spurious_vec;
+    for (i = 0; i < 8; i++) {
+        hv->apic_isr[i] = s->isr[i];
+        hv->apic_tmr[i] = s->tmr[i];
+        hv->apic_irr[i] = s->irr[i];
+    }
+    hv->apic_esr      = s->esr;
+    hv->apic_icr_high = s->icr[1];
+    hv->apic_icr_low  = s->icr[0];
+
+    hv->apic_lvt_timer   = s->lvt[APIC_LVT_TIMER];
+    hv->apic_lvt_thermal = s->lvt[APIC_LVT_THERMAL];
+    hv->apic_lvt_perfmon = s->lvt[APIC_LVT_PERFORM];
+    hv->apic_lvt_lint0   = s->lvt[APIC_LVT_LINT0];
+    hv->apic_lvt_lint1   = s->lvt[APIC_LVT_LINT1];
+    hv->apic_lvt_error   = s->lvt[APIC_LVT_ERROR];
+    hv->apic_lvt_cmci    = ms->apic_lvt_cmci;
+
+    hv->apic_error_status         = ms->apic_error_status;
+    hv->apic_initial_count        = s->initial_count;
+    hv->apic_counter_value        = ms->apic_counter_value;
+    hv->apic_divide_configuration = s->divide_conf;
+    hv->apic_remote_read          = ms->apic_remote_read;
+}
+
+static void populate_apic_state(CPUState *cpu,
+                                const hv_local_interrupt_controller_state *hv)
+{
+    X86CPU *x86cpu = X86_CPU(cpu);
+    MshvAPICState *ms = MSHV_APIC(x86cpu->apic_state);
+    APICCommonState *s = &ms->parent_obj;
+    size_t i;
+
+    /*
+     * x2APIC:
+     * - APIC ID is the full 32-bit initial_apic_id
+     * - LDR is read-only, architecturally derived from the ID
+     * - DFR does not exist in x2APIC mode
+     */
+    if (is_x2apic_mode(s)) {
+        s->initial_apic_id = hv->apic_id;
+    } else {
+        s->id        = hv->apic_id  >> 24;
+        s->log_dest  = hv->apic_ldr >> 24;
+        s->dest_mode = hv->apic_dfr >> 28;
+    }
+    ms->apic_version = hv->apic_version;
+    s->spurious_vec = hv->apic_spurious;
+    for (i = 0; i < 8; i++) {
+        s->isr[i] = hv->apic_isr[i];
+        s->tmr[i] = hv->apic_tmr[i];
+        s->irr[i] = hv->apic_irr[i];
+    }
+    s->esr = hv->apic_esr;
+    s->icr[1] = hv->apic_icr_high;
+    s->icr[0] = hv->apic_icr_low;
+
+    s->lvt[APIC_LVT_TIMER]   = hv->apic_lvt_timer;
+    s->lvt[APIC_LVT_THERMAL] = hv->apic_lvt_thermal;
+    s->lvt[APIC_LVT_PERFORM] = hv->apic_lvt_perfmon;
+    s->lvt[APIC_LVT_LINT0]   = hv->apic_lvt_lint0;
+    s->lvt[APIC_LVT_LINT1]   = hv->apic_lvt_lint1;
+    s->lvt[APIC_LVT_ERROR]   = hv->apic_lvt_error;
+    ms->apic_lvt_cmci        = hv->apic_lvt_cmci;
+
+    ms->apic_error_status  = hv->apic_error_status;
+    s->initial_count       = hv->apic_initial_count;
+    ms->apic_counter_value = hv->apic_counter_value;
+    s->divide_conf         = hv->apic_divide_configuration;
+    ms->apic_remote_read   = hv->apic_remote_read;
+}
+
+static void whpx_put_apic_state_legacy(APICCommonState *s,
                                 struct whpx_lapic_state *kapic)
 {
     int i;
@@ -60,7 +179,7 @@ static void whpx_put_apic_state(APICCommonState *s,
     kapic->fields[0x3e].data = s->divide_conf;
 }
 
-static void whpx_get_apic_state(APICCommonState *s,
+static void whpx_get_apic_state_legacy(APICCommonState *s,
                                 struct whpx_lapic_state *kapic)
 {
     int i, v;
@@ -197,14 +316,14 @@ static void whpx_apic_vapic_base_update(APICCommonState *s)
     /* not implemented yet */
 }
 
-static void whpx_apic_put(CPUState *cs, run_on_cpu_data data)
+static void whpx_apic_put_legacy(CPUState *cs, run_on_cpu_data data)
 {
     APICCommonState *s = data.host_ptr;
     struct whpx_lapic_state kapic;
     HRESULT hr;
 
     whpx_put_apic_base(CPU(s->cpu), s->apicbase);
-    whpx_put_apic_state(s, &kapic);
+    whpx_put_apic_state_legacy(s, &kapic);
 
     hr = whp_dispatch.WHvSetVirtualProcessorInterruptControllerState2(
         whpx_global.partition,
@@ -220,7 +339,7 @@ static void whpx_apic_put(CPUState *cs, run_on_cpu_data data)
     }
 }
 
-void whpx_apic_get(APICCommonState *s)
+static void whpx_apic_get_legacy(APICCommonState *s)
 {
     CPUState *cpu = CPU(s->cpu);
     struct whpx_lapic_state kapic;
@@ -239,7 +358,78 @@ void whpx_apic_get(APICCommonState *s)
         abort();
     }
 
-    whpx_get_apic_state(s, &kapic);
+    whpx_get_apic_state_legacy(s, &kapic);
+}
+
+static void whpx_apic_put(CPUState *cs, run_on_cpu_data data)
+{
+    MshvAPICState *s = data.host_ptr;
+    struct hv_local_interrupt_controller_state kapic;
+    HRESULT hr;
+    /* buffer aligned to 4k, as *state requires that */
+    void *buffer;
+    size_t size = 4096;
+
+    if (!whp_dispatch.WHvSetVirtualProcessorState) {
+        return whpx_apic_put_legacy(cs, data);
+    }
+
+    buffer = qemu_memalign(size, size);
+    whpx_put_apic_base(CPU(s->parent_obj.cpu), s->parent_obj.apicbase);
+    populate_hv_lapic_state(&kapic, cs);
+    memcpy(buffer, &kapic, sizeof(kapic));
+
+    hr = whp_dispatch.WHvSetVirtualProcessorState(
+            whpx_global.partition,
+            cs->cpu_index,
+            WHvVirtualProcessorStateTypeInterruptControllerState2,
+            buffer,
+            size);
+
+    qemu_vfree(buffer);
+    if (FAILED(hr)) {
+        fprintf(stderr,
+            "WHvSetVirtualProcessorState failed: %08lx\n",
+             hr);
+
+        abort();
+    }
+}
+
+void whpx_apic_get(APICCommonState *s)
+{
+    CPUState *cpu = CPU(s->cpu);
+    struct hv_local_interrupt_controller_state kapic;
+    HRESULT hr;
+    /* buffer aligned to 4k, as *state requires that */
+    void *buffer;
+    size_t size = 4096;
+
+    if (!whp_dispatch.WHvSetVirtualProcessorState) {
+        return whpx_apic_get_legacy(s);
+    }
+
+    buffer = qemu_memalign(size, size);
+
+    hr = whp_dispatch.WHvGetVirtualProcessorState(
+        whpx_global.partition,
+        cpu->cpu_index,
+        WHvVirtualProcessorStateTypeInterruptControllerState2,
+        buffer,
+        size,
+        NULL);
+
+    if (FAILED(hr)) {
+        fprintf(stderr,
+            "WHvGetVirtualProcessorState failed: %08lx\n",
+            hr);
+
+        abort();
+    }
+
+    memcpy(&kapic, buffer, sizeof(kapic));
+    qemu_vfree(buffer);
+    populate_apic_state(cpu, &kapic);
 }
 
 static void whpx_apic_pre_save(APICCommonState *s)
@@ -306,6 +496,59 @@ static void whpx_apic_mem_write(void *opaque, hwaddr addr,
     whpx_send_msi(&msg);
 }
 
+static uint32_t set_apic_delivery_mode(uint32_t reg, uint32_t mode)
+{
+    return ((reg) & ~0x700) | ((mode) << 8);
+}
+
+int whpx_apic_init_cpu(CPUState *cpu)
+{
+    uint32_t *lvt_lint0, *lvt_lint1;
+    HRESULT hr;
+    struct hv_local_interrupt_controller_state lapic_state = { 0 };
+    /* buffer aligned to 4k, as *state requires that */
+    void *buffer;
+    size_t size = 4096;
+
+    buffer = qemu_memalign(size, size);
+    hr = whp_dispatch.WHvGetVirtualProcessorState(
+        whpx_global.partition,
+        cpu->cpu_index,
+        WHvVirtualProcessorStateTypeInterruptControllerState2,
+        buffer,
+        size,
+        NULL);
+    if (FAILED(hr)) {
+        return hr;
+    }
+
+    memcpy(&lapic_state, buffer, sizeof(lapic_state));
+
+    lvt_lint0 = &lapic_state.apic_lvt_lint0;
+    *lvt_lint0 = set_apic_delivery_mode(*lvt_lint0, APIC_DM_EXTINT);
+
+    lvt_lint1 = &lapic_state.apic_lvt_lint1;
+    *lvt_lint1 = set_apic_delivery_mode(*lvt_lint1, APIC_DM_NMI);
+
+    /* TODO: should we skip setting lapic if the values are the same? */
+
+    memcpy(buffer, &lapic_state, sizeof(lapic_state));
+    hr = whp_dispatch.WHvSetVirtualProcessorState(
+            whpx_global.partition,
+            cpu->cpu_index,
+            WHvVirtualProcessorStateTypeInterruptControllerState2,
+            buffer,
+            size);
+    if (FAILED(hr)) {
+        return hr;
+    }
+
+    qemu_vfree(buffer);
+    populate_apic_state(cpu, &lapic_state);
+
+    return 0;
+}
+
 static const MemoryRegionOps whpx_apic_io_ops = {
     .read = whpx_apic_mem_read,
     .write = whpx_apic_mem_write,
@@ -324,14 +567,51 @@ static void whpx_apic_reset(APICCommonState *s)
     run_on_cpu(CPU(s->cpu), whpx_apic_put, RUN_ON_CPU_HOST_PTR(s));
 }
 
+static const VMStateDescription vmstate_mshv_apic = {
+    .name = "mshv-apic",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(apic_version, MshvAPICState),
+        VMSTATE_UINT32(apic_lvt_cmci, MshvAPICState),
+        VMSTATE_UINT32(apic_error_status, MshvAPICState),
+        VMSTATE_UINT32(apic_counter_value, MshvAPICState),
+        VMSTATE_UINT32(apic_remote_read, MshvAPICState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void whpx_apic_realize(DeviceState *dev, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(dev);
+    MshvAPICState *ms = MSHV_APIC(dev);
 
     memory_region_init_io(&s->io_memory, OBJECT(s), &whpx_apic_io_ops, s,
                           "whpx-apic-msi", APIC_SPACE_SIZE);
 
     msi_nonbroken = true;
+
+    /*
+     * We register this state explicity, rather than going via dc->vmsd.
+     * The auto-wiring would register the state with
+     * instance_id == VMSTATE_INSTANCE_ID_ANY, which for the APIC doesn't
+     * work, b/c the ID carries semantic meaning for restoring the state
+     * on the destination (which vcpu it belongs to).
+     */
+    if (!!whp_dispatch.WHvSetVirtualProcessorState) {
+        vmstate_register_with_alias_id(NULL,
+                                   s->initial_apic_id, &vmstate_mshv_apic, ms,
+                                   -1, 0, NULL);
+    }
+}
+
+static void whpx_apic_unrealize(DeviceState *dev)
+{
+    MshvAPICState *ms = MSHV_APIC(dev);
+
+    if (!!whp_dispatch.WHvSetVirtualProcessorState) {
+        vmstate_unregister(NULL, &vmstate_mshv_apic, ms);
+    }
 }
 
 static void whpx_apic_class_init(ObjectClass *klass, const void *data)
@@ -339,6 +619,7 @@ static void whpx_apic_class_init(ObjectClass *klass, const void *data)
     APICCommonClass *k = APIC_COMMON_CLASS(klass);
 
     k->realize = whpx_apic_realize;
+    k->unrealize = whpx_apic_unrealize;
     k->reset = whpx_apic_reset;
     k->set_base = apic_set_base;
     k->set_tpr = whpx_apic_set_tpr;
@@ -351,9 +632,9 @@ static void whpx_apic_class_init(ObjectClass *klass, const void *data)
 }
 
 static const TypeInfo whpx_apic_info = {
-    .name = "whpx-apic",
+    .name = TYPE_MSHV_APIC,
     .parent = TYPE_APIC_COMMON,
-    .instance_size = sizeof(APICCommonState),
+    .instance_size = sizeof(MshvAPICState),
     .class_init = whpx_apic_class_init,
 };
 

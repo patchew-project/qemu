@@ -2970,6 +2970,8 @@ int whpx_init_vcpu(CPUState *cpu)
     header = (X86XSaveHeader *)(env->xsave_buf + sizeof(X86LegacyXSaveArea));
     header->xcomp_bv = header->xstate_bv | (1ULL << 63);
 
+    whpx_apic_init_cpu(cpu);
+
     return 0;
 
 error:
