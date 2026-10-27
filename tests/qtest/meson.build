@@ -57,6 +57,8 @@ qtests_filter = \
   (get_option('default_devices') and host_os != 'windows' ? ['test-filter-redirector'] : [])
 
 qtests_i386 = \
+  (config_all_devices.has_key('CONFIG_I440FX') and
+   config_all_devices.has_key('CONFIG_FDC_ISA') ? ['icount-x86-test'] : []) +                  \
   (slirp.found() ? ['pxe-test'] : []) + \
   qtests_filter + \
   (config_all_devices.has_key('CONFIG_ACPI_VMGENID') ? ['vmgenid-test'] : []) +             \

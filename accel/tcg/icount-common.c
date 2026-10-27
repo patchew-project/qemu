@@ -106,6 +106,16 @@ void icount_update(CPUState *cpu)
 
 void icount_cpu_reset(CPUState *cpu)
 {
+    if (qemu_cpu_is_self(cpu)
+            && qatomic_read(&cpu->running)
+            && cpu->icount_budget) {
+        /*
+         * Account the instructions executed so far and discard the
+         * unused part of the current budget before the counters are cleared.
+         */
+        icount_update(cpu);
+        cpu->icount_budget = 0;
+    }
     cpu->icount_extra = 0;
     qatomic_set(&cpu->neg.icount_decr.u32, 0);
 }
