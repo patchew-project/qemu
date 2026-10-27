@@ -8,6 +8,7 @@ tests += {
   'hello-i386.c': {
     'cflags': ['-ffreestanding', '-fno-stack-protector', '-nostdlib'],
   },
+  'modify-ldt.c': {},
   'test-aes.c': {'cflags': ['-O1', '-msse2', '-maes']},
   'test-i386-adcox.c': {'cflags': ['-O2']},
   'test-i386-bmi2.c': {'cflags': ['-O2', '-fwrapv']},

@@ -25,6 +25,7 @@ test_mmx_h = custom_target('test_mmx_h',
                            output: 'test-mmx.h')
 
 tests += {
+  '../i386/modify-ldt.c': {},
   '../i386/test-i386-ssse3.c': {},
   '../i386/test-3dnow.c': {
     'cflags': ['-I', meson.current_build_dir(),

@@ -6237,7 +6237,7 @@ static abi_long write_ldt(CPUX86State *env,
     struct target_modify_ldt_ldt_s ldt_info;
     struct target_modify_ldt_ldt_s *target_ldt_info;
     int seg_32bit, contents, read_exec_only, limit_in_pages;
-    int seg_not_present, useable, lm;
+    int seg_not_present, useable;
     uint32_t *lp, entry_1, entry_2;
 
     if (bytecount != sizeof(ldt_info))
@@ -6245,7 +6245,7 @@ static abi_long write_ldt(CPUX86State *env,
     if (!lock_user_struct(VERIFY_READ, target_ldt_info, ptr, 1))
         return -TARGET_EFAULT;
     ldt_info.entry_number = tswap32(target_ldt_info->entry_number);
-    ldt_info.base_addr = tswapal(target_ldt_info->base_addr);
+    ldt_info.base_addr = tswap32(target_ldt_info->base_addr);
     ldt_info.limit = tswap32(target_ldt_info->limit);
     ldt_info.flags = tswap32(target_ldt_info->flags);
     unlock_user_struct(target_ldt_info, ptr, 0);
@@ -6258,11 +6258,6 @@ static abi_long write_ldt(CPUX86State *env,
     limit_in_pages = (ldt_info.flags >> 4) & 1;
     seg_not_present = (ldt_info.flags >> 5) & 1;
     useable = (ldt_info.flags >> 6) & 1;
-#ifdef TARGET_ABI32
-    lm = 0;
-#else
-    lm = (ldt_info.flags >> 7) & 1;
-#endif
     if (contents == 3) {
         if (oldmode)
             return -TARGET_EINVAL;
@@ -6309,7 +6304,6 @@ static abi_long write_ldt(CPUX86State *env,
         ((seg_not_present ^ 1) << 15) |
         (seg_32bit << 22) |
         (limit_in_pages << 23) |
-        (lm << 21) |
         0x7000;
     if (!oldmode)
         entry_2 |= (useable << 20);

@@ -17,7 +17,7 @@
 #if 0 // Redefine this
 struct target_modify_ldt_ldt_s {
 	unsigned int  entry_number;
-        abi_ulong     base_addr;
+        abi_uint      base_addr;
 	unsigned int  limit;
 	unsigned int  seg_32bit:1;
 	unsigned int  contents:2;
@@ -30,7 +30,7 @@ struct target_modify_ldt_ldt_s {
 #else
 struct target_modify_ldt_ldt_s {
 	unsigned int  entry_number;
-        abi_ulong     base_addr;
+        abi_uint      base_addr;
 	unsigned int  limit;
         unsigned int flags;
 };
