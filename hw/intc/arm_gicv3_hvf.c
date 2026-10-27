@@ -257,11 +257,68 @@ static void hvf_gicv3_put_cpu_el2(CPUState *cpu_state, run_on_cpu_data arg)
     }
 }
 
+static void hvf_gicv3_put_cpuif(CPUState *cpu_state, run_on_cpu_data arg)
+{
+    uint64_t reg64;
+    int num_pri_bits;
+    /* Redistributor state */
+    GICv3CPUState *c = arg.host_ptr;
+    hv_vcpu_t vcpu = c->cpu->accel->fd;
+
+    /* CPU interface state */
+    hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_SRE_EL1, c->icc_sre_el1);
+
+    hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_CTLR_EL1,
+                    c->icc_ctlr_el1[GICV3_NS]);
+    hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_IGRPEN0_EL1,
+                    c->icc_igrpen[GICV3_G0]);
+    hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_IGRPEN1_EL1,
+                    c->icc_igrpen[GICV3_G1NS]);
+    hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_PMR_EL1, c->icc_pmr_el1);
+    hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_BPR0_EL1, c->icc_bpr[GICV3_G0]);
+    hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_BPR1_EL1, c->icc_bpr[GICV3_G1NS]);
+
+    num_pri_bits = ((c->icc_ctlr_el1[GICV3_NS] &
+                    ICC_CTLR_EL1_PRIBITS_MASK) >>
+                    ICC_CTLR_EL1_PRIBITS_SHIFT) + 1;
+
+    switch (num_pri_bits) {
+    case 7:
+        reg64 = c->icc_apr[GICV3_G0][3];
+        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP0R0_EL1 + 3, reg64);
+        reg64 = c->icc_apr[GICV3_G0][2];
+        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP0R0_EL1 + 2, reg64);
+        /* fall through */
+    case 6:
+        reg64 = c->icc_apr[GICV3_G0][1];
+        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP0R0_EL1 + 1, reg64);
+        /* fall through */
+    default:
+        reg64 = c->icc_apr[GICV3_G0][0];
+        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP0R0_EL1, reg64);
+    }
+
+    switch (num_pri_bits) {
+    case 7:
+        reg64 = c->icc_apr[GICV3_G1NS][3];
+        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP1R0_EL1 + 3, reg64);
+        reg64 = c->icc_apr[GICV3_G1NS][2];
+        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP1R0_EL1 + 2, reg64);
+        /* fall through */
+    case 6:
+        reg64 = c->icc_apr[GICV3_G1NS][1];
+        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP1R0_EL1 + 1, reg64);
+        /* fall through */
+    default:
+        reg64 = c->icc_apr[GICV3_G1NS][0];
+        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP1R0_EL1, reg64);
+    }
+}
+
 static void hvf_gicv3_put_cpu(CPUState *cpu_state, run_on_cpu_data arg)
 {
     uint32_t reg;
-    uint64_t reg64;
-    int i, num_pri_bits;
+    int i;
 
     /* Redistributor state */
     GICv3CPUState *c = arg.host_ptr;
@@ -302,53 +359,7 @@ static void hvf_gicv3_put_cpu(CPUState *cpu_state, run_on_cpu_data arg)
     }
 
     /* CPU interface state */
-    hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_SRE_EL1, c->icc_sre_el1);
-
-    hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_CTLR_EL1,
-                    c->icc_ctlr_el1[GICV3_NS]);
-    hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_IGRPEN0_EL1,
-                    c->icc_igrpen[GICV3_G0]);
-    hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_IGRPEN1_EL1,
-                    c->icc_igrpen[GICV3_G1NS]);
-    hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_PMR_EL1, c->icc_pmr_el1);
-    hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_BPR0_EL1, c->icc_bpr[GICV3_G0]);
-    hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_BPR1_EL1, c->icc_bpr[GICV3_G1NS]);
-
-    num_pri_bits = ((c->icc_ctlr_el1[GICV3_NS] &
-                    ICC_CTLR_EL1_PRIBITS_MASK) >>
-                    ICC_CTLR_EL1_PRIBITS_SHIFT) + 1;
-
-    switch (num_pri_bits) {
-    case 7:
-           reg64 = c->icc_apr[GICV3_G0][3];
-        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP0R0_EL1 + 3, reg64);
-        reg64 = c->icc_apr[GICV3_G0][2];
-        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP0R0_EL1 + 2, reg64);
-        /* fall through */
-    case 6:
-        reg64 = c->icc_apr[GICV3_G0][1];
-        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP0R0_EL1 + 1, reg64);
-        /* fall through */
-    default:
-        reg64 = c->icc_apr[GICV3_G0][0];
-        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP0R0_EL1, reg64);
-    }
-
-    switch (num_pri_bits) {
-    case 7:
-        reg64 = c->icc_apr[GICV3_G1NS][3];
-        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP1R0_EL1 + 3, reg64);
-        reg64 = c->icc_apr[GICV3_G1NS][2];
-        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP1R0_EL1 + 2, reg64);
-        /* fall through */
-    case 6:
-        reg64 = c->icc_apr[GICV3_G1NS][1];
-        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP1R0_EL1 + 1, reg64);
-        /* fall through */
-    default:
-        reg64 = c->icc_apr[GICV3_G1NS][0];
-        hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP1R0_EL1, reg64);
-    }
+    hvf_gicv3_put_cpuif(cpu_state, arg);
 
     /* Registers beyond this point are with nested virt only */
     if (c->gic->maint_irq) {
@@ -609,6 +620,7 @@ static void hvf_gicv3_set_irq(void *opaque, int irq, int level)
 static void hvf_gicv3_icc_reset(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     GICv3CPUState *c;
+    run_on_cpu_data data;
 
     c = env->gicv3state;
     c->icc_pmr_el1 = 0;
@@ -629,6 +641,9 @@ static void hvf_gicv3_icc_reset(CPUARMState *env, const ARMCPRegInfo *ri)
     c->icc_sre_el1 = 0x7;
     memset(c->icc_apr, 0, sizeof(c->icc_apr));
     memset(c->icc_igrpen, 0, sizeof(c->icc_igrpen));
+
+    data.host_ptr = env->gicv3state;
+    run_on_cpu(env_cpu(env), hvf_gicv3_put_cpu, data);
 }
 
 static void hvf_gicv3_reset_hold(Object *obj, ResetType type)
