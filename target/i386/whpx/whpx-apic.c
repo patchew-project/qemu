@@ -184,12 +184,12 @@ static void whpx_put_apic_base(CPUState *cpu, uint64_t val)
 
 static void whpx_apic_set_tpr(APICCommonState *s, uint8_t val)
 {
-    s->tpr = val;
+    s->tpr = (val & APIC_PR_SUB_CLASS) << APIC_PR_CLASS_SHIFT;
 }
 
 static uint8_t whpx_apic_get_tpr(APICCommonState *s)
 {
-    return s->tpr;
+    return s->tpr >> APIC_PR_CLASS_SHIFT;
 }
 
 static void whpx_apic_vapic_base_update(APICCommonState *s)
