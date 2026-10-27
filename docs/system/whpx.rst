@@ -80,6 +80,8 @@ as in a BTB flush when entering/exiting the guest. This results in a
 significant MMIO performance increase at the detriment of security
 mitigations.
 
+``-cpu host,svm=off,vmx=off`` disables nested virtualisation.
+
 Known issues on x86_64
 ----------------------
 
@@ -113,6 +115,16 @@ disables the PIC. In that configuration, using a UEFI is recommended.
 
 On this release, ``-M kernel-irqchip=`` is not expected to be manually
 set during normal operation. It remains as a debugging option.
+
+VM save-restore
+^^^^^^^^^^^^^^^
+VM save-restore is currently highly experimental.
+
+It's currently blocked when using Hyper-V enlightenments, which can be disabled with
+``-accel whpx,hyperv=off`` and is blocked when nested virtualisation is enabled.
+
+Dirty page tracking is absent and it is currently best used with ``-M kernel-irqchip=off``
+especially for SMP configurations.
 
 Known issues on Windows 11
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
