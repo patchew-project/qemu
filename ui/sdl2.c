@@ -566,12 +566,39 @@ static void handle_mousewheel(SDL_Event *ev)
 {
     struct sdl2_console *scon = get_scon_from_window(ev->wheel.windowID);
     SDL_MouseWheelEvent *wev = &ev->wheel;
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+    static float residual_x, residual_y;
+    float flip;
+    int units;
+#else
     InputButton btn;
+#endif
 
     if (!scon || !qemu_console_is_graphic(scon->dcl.con)) {
         return;
     }
 
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+    flip = wev->direction == SDL_MOUSEWHEEL_FLIPPED ? -1.0f : 1.0f;
+
+    residual_y -= flip * wev->preciseY * INPUT_EVENT_SCROLL_DETENT;
+    units = (int)residual_y;
+    residual_y -= units;
+    if (units) {
+        qemu_input_queue_scroll(scon->dcl.con,
+                                INPUT_SCROLL_AXIS_VERTICAL, units);
+    }
+
+    residual_x += flip * wev->preciseX * INPUT_EVENT_SCROLL_DETENT;
+    units = (int)residual_x;
+    residual_x -= units;
+    if (units) {
+        qemu_input_queue_scroll(scon->dcl.con,
+                                INPUT_SCROLL_AXIS_HORIZONTAL, units);
+    }
+
+    qemu_input_event_sync();
+#else
     if (wev->y > 0) {
         btn = INPUT_BUTTON_WHEEL_UP;
     } else if (wev->y < 0) {
@@ -588,6 +615,7 @@ static void handle_mousewheel(SDL_Event *ev)
     qemu_input_event_sync();
     qemu_input_queue_btn(scon->dcl.con, btn, false);
     qemu_input_event_sync();
+#endif
 }
 
 static void handle_windowevent(SDL_Event *ev)
