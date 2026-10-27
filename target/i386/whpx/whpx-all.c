@@ -101,16 +101,6 @@ static const WHV_REGISTER_NAME whpx_register_names[] = {
     WHvX64RegisterCr3,
     WHvX64RegisterCr4,
 
-    /* X64 Debug Registers */
-    /*
-     * WHvX64RegisterDr0,
-     * WHvX64RegisterDr1,
-     * WHvX64RegisterDr2,
-     * WHvX64RegisterDr3,
-     * WHvX64RegisterDr6,
-     * WHvX64RegisterDr7,
-     */
-
     /* X64 MSRs */
     WHvX64RegisterEfer,
 #ifdef TARGET_X86_64
@@ -126,7 +116,12 @@ static const WHV_REGISTER_NAME whpx_register_names[] = {
     WHvX64RegisterCstar,
     WHvX64RegisterSfmask,
 #endif
-
+    WHvX64RegisterDr0,
+    WHvX64RegisterDr1,
+    WHvX64RegisterDr2,
+    WHvX64RegisterDr3,
+    WHvX64RegisterDr6,
+    WHvX64RegisterDr7
     /* Interrupt / Event Registers */
     /*
      * WHvRegisterPendingInterruption,
@@ -686,6 +681,19 @@ void whpx_set_registers(CPUState *cpu, WHPXStateLevel level)
         vcxt.values[idx++].Reg64 = env->fmask;
 #endif
 
+        assert(whpx_register_names[idx] == WHvX64RegisterDr0);
+        vcxt.values[idx++].Reg64 = env->dr[0];
+        assert(whpx_register_names[idx] == WHvX64RegisterDr1);
+        vcxt.values[idx++].Reg64 = env->dr[1];
+        assert(whpx_register_names[idx] == WHvX64RegisterDr2);
+        vcxt.values[idx++].Reg64 = env->dr[2];
+        assert(whpx_register_names[idx] == WHvX64RegisterDr3);
+        vcxt.values[idx++].Reg64 = env->dr[3];
+        assert(whpx_register_names[idx] == WHvX64RegisterDr6);
+        vcxt.values[idx++].Reg64 = env->dr[6];
+        assert(whpx_register_names[idx] == WHvX64RegisterDr7);
+        vcxt.values[idx++].Reg64 = env->dr[7];
+
         /* Interrupt / Event Registers - Skipped */
 
         assert(idx == RTL_NUMBER_OF(whpx_register_names));
@@ -1069,6 +1077,19 @@ void whpx_get_registers(CPUState *cpu, WHPXStateLevel level)
     assert(whpx_register_names[idx] == WHvX64RegisterSfmask);
     env->fmask = vcxt.values[idx++].Reg64;
 #endif
+
+    assert(whpx_register_names[idx] == WHvX64RegisterDr0);
+    env->dr[0] = vcxt.values[idx++].Reg64;
+    assert(whpx_register_names[idx] == WHvX64RegisterDr1);
+    env->dr[1] = vcxt.values[idx++].Reg64;
+    assert(whpx_register_names[idx] == WHvX64RegisterDr2);
+    env->dr[2] = vcxt.values[idx++].Reg64;
+    assert(whpx_register_names[idx] == WHvX64RegisterDr3);
+    env->dr[3] = vcxt.values[idx++].Reg64;
+    assert(whpx_register_names[idx] == WHvX64RegisterDr6);
+    env->dr[6] = vcxt.values[idx++].Reg64;
+    assert(whpx_register_names[idx] == WHvX64RegisterDr7);
+    env->dr[7] = vcxt.values[idx++].Reg64;
 
     /* Interrupt / Event Registers - Skipped */
 
