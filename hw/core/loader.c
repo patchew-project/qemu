@@ -1529,10 +1529,10 @@ int rom_copy(uint8_t *dest, hwaddr addr, size_t size)
         if (rom->mr) {
             continue;
         }
-        if (rom->addr + rom->romsize < addr) {
+        if (rom->addr + rom->romsize <= addr) {
             continue;
         }
-        if (rom->addr > end || rom->addr < addr) {
+        if (rom->addr >= end || rom->addr < addr) {
             break;
         }
 
@@ -1541,7 +1541,7 @@ int rom_copy(uint8_t *dest, hwaddr addr, size_t size)
         l = rom->datasize;
 
         if ((d + l) > (dest + size)) {
-            l = dest - d;
+            l = dest + size - d;
         }
 
         if (l > 0) {
@@ -1560,7 +1560,7 @@ int rom_copy(uint8_t *dest, hwaddr addr, size_t size)
                 /* Rom size doesn't fit in the destination area. Adjust to avoid
                  * overflow.
                  */
-                l = dest - d;
+                l = dest + size - d;
             }
 
             if (l > 0) {
