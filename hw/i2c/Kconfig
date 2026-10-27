@@ -6,6 +6,11 @@ config I2C_DEVICES
     # to any board's i2c bus
     bool
 
+config I2C_DUMMY_DEVICE
+    bool
+    default y if TEST_DEVICES
+    depends on I2C
+
 config SMBUS
     bool
     select I2C
