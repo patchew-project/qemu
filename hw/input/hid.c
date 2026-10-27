@@ -148,6 +148,10 @@ static void hid_pointer_event(DeviceState *dev, QemuConsole *src,
                 e->dz -= INPUT_EVENT_SCROLL_DETENT;
             } else if (evt->btn.button == INPUT_BUTTON_WHEEL_DOWN) {
                 e->dz += INPUT_EVENT_SCROLL_DETENT;
+            } else if (evt->btn.button == INPUT_BUTTON_WHEEL_LEFT) {
+                e->pan -= INPUT_EVENT_SCROLL_DETENT;
+            } else if (evt->btn.button == INPUT_BUTTON_WHEEL_RIGHT) {
+                e->pan += INPUT_EVENT_SCROLL_DETENT;
             }
         } else {
             e->buttons_state &= ~bmap[evt->btn.button];
@@ -157,6 +161,8 @@ static void hid_pointer_event(DeviceState *dev, QemuConsole *src,
     case INPUT_EVENT_KIND_SCROLL:
         if (evt->scroll.axis == INPUT_SCROLL_AXIS_VERTICAL) {
             e->dz += evt->scroll.value;
+        } else if (evt->scroll.axis == INPUT_SCROLL_AXIS_HORIZONTAL) {
+            e->pan += evt->scroll.value;
         }
         break;
 
@@ -210,6 +216,8 @@ static void hid_pointer_sync(DeviceState *dev)
         }
         prev->dz += curr->dz;
         curr->dz = 0;
+        prev->pan += curr->pan;
+        curr->pan = 0;
     } else {
         /* prepare next (clear rel, copy abs + btns) */
         if (hs->kind == HID_MOUSE) {
@@ -220,6 +228,7 @@ static void hid_pointer_sync(DeviceState *dev)
             next->ydy = curr->ydy;
         }
         next->dz = 0;
+        next->pan = 0;
         next->buttons_state = curr->buttons_state;
         /* make current guest visible, notify guest */
         hs->n++;
@@ -369,7 +378,7 @@ static int hid_scroll_counts(int32_t *pending, int32_t *residual, int mult)
 
 int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
 {
-    int dx, dy, dz, l;
+    int dx, dy, dz, pan, l;
     int index;
     HIDPointerEvent *e;
 
@@ -392,9 +401,11 @@ int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
         dy = e->ydy;
     }
     dz = hid_scroll_counts(&e->dz, &hs->ptr.wheel_residual, 1);
+    pan = hid_scroll_counts(&e->pan, &hs->ptr.pan_residual, 1);
 
     if (hs->n &&
         !e->dz &&
+        !e->pan &&
         (hs->kind == HID_TABLET || (!e->xdx && !e->ydy))) {
         /* that deals with this event */
         QUEUE_INCR(hs->head);
@@ -406,17 +417,40 @@ int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
     l = 0;
     switch (hs->kind) {
     case HID_MOUSE:
-        if (len > l) {
-            buf[l++] = e->buttons_state;
-        }
-        if (len > l) {
-            buf[l++] = dx;
-        }
-        if (len > l) {
-            buf[l++] = dy;
-        }
-        if (len > l) {
-            buf[l++] = dz;
+        if (hs->protocol == 0) {
+            /* boot protocol (0) */
+            if (len > l) {
+                buf[l++] = e->buttons_state;
+            }
+            if (len > l) {
+                buf[l++] = dx;
+            }
+            if (len > l) {
+                buf[l++] = dy;
+            }
+            if (len > l) {
+                buf[l++] = dz;
+            }
+        } else {
+            /* report protocol (1) */
+            if (len > l) {
+                buf[l++] = 0x01;
+            }
+            if (len > l) {
+                buf[l++] = e->buttons_state;
+            }
+            if (len > l) {
+                buf[l++] = dx;
+            }
+            if (len > l) {
+                buf[l++] = dy;
+            }
+            if (len > l) {
+                buf[l++] = dz;
+            }
+            if (len > l) {
+                buf[l++] = pan;
+            }
         }
         break;
 
@@ -603,6 +637,16 @@ static const VMStateDescription vmstate_hid_ptr_queue = {
     }
 };
 
+static const VMStateDescription vmstate_hid_ptr_queue_pan = {
+    .name = "HIDPointerEventQueue/pan",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_INT32(pan, HIDPointerEvent),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 /*
  * Wheel movement used to be queued in whole detents and is now kept in
  * 1/120 detent units.  Without this subsection the source either was an
@@ -613,11 +657,11 @@ static bool hid_ptr_wheel_needed(void *opaque)
     HIDState *s = opaque;
     int i;
 
-    if (s->ptr.wheel_residual) {
+    if (s->ptr.wheel_residual || s->ptr.pan_residual) {
         return true;
     }
     for (i = 0; i < QUEUE_LENGTH; i++) {
-        if (s->ptr.queue[i].dz) {
+        if (s->ptr.queue[i].dz || s->ptr.queue[i].pan) {
             return true;
         }
     }
@@ -660,7 +704,10 @@ static const VMStateDescription vmstate_hid_ptr_wheel = {
     .needed = hid_ptr_wheel_needed,
     .post_load = hid_ptr_wheel_post_load,
     .fields = (const VMStateField[]) {
+        VMSTATE_STRUCT_ARRAY(ptr.queue, HIDState, QUEUE_LENGTH, 0,
+                             vmstate_hid_ptr_queue_pan, HIDPointerEvent),
         VMSTATE_INT32(ptr.wheel_residual, HIDState),
+        VMSTATE_INT32(ptr.pan_residual, HIDState),
         VMSTATE_END_OF_LIST()
     }
 };

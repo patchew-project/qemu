@@ -10,6 +10,7 @@
 typedef struct HIDPointerEvent {
     int32_t xdx, ydy; /* relative iff it's a mouse, otherwise absolute */
     int32_t dz, buttons_state;
+    int32_t pan;
 } HIDPointerEvent;
 
 #define QUEUE_LENGTH    16 /* should be enough for a triple-click */
@@ -23,6 +24,7 @@ typedef struct HIDMouseState {
     HIDPointerEvent queue[QUEUE_LENGTH];
     int mouse_grabbed;
     int32_t wheel_residual;
+    int32_t pan_residual;
     bool wheel_state_loaded;
 } HIDMouseState;
 
