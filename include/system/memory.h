@@ -838,11 +838,14 @@ struct MemoryListener {
      * @coalesced_io_add:
      *
      * Called during an address space update transaction,
-     * for a section of the address space that has had a new coalesced
-     * MMIO range registration since the last transaction.
+     * for a range of the address space that has become coalesced
+     * since the last transaction.  The range can also cover writable
+     * RAM that is mapped over part of a coalesced MMIO region; accesses
+     * to that RAM are not MMIO, so the coalescing does not apply to them.
      *
      * @listener: The #MemoryListener.
-     * @section: The new #MemoryRegionSection.
+     * @section: The #MemoryRegionSection of the range (without a
+     * #MemoryRegion).
      * @addr: The starting address for the coalesced MMIO range.
      * @len: The length of the coalesced MMIO range.
      */
@@ -853,11 +856,12 @@ struct MemoryListener {
      * @coalesced_io_del:
      *
      * Called during an address space update transaction,
-     * for a section of the address space that has dropped a coalesced
-     * MMIO range since the last transaction.
+     * for a range of the address space that is no longer coalesced.
+     * It is always a range that was passed to @coalesced_io_add before.
      *
      * @listener: The #MemoryListener.
-     * @section: The new #MemoryRegionSection.
+     * @section: The #MemoryRegionSection of the range (without a
+     * #MemoryRegion).
      * @addr: The starting address for the coalesced MMIO range.
      * @len: The length of the coalesced MMIO range.
      */
@@ -908,6 +912,9 @@ struct AddressSpace {
     int ioeventfd_nb;
     int ioeventfd_notifiers;
     struct MemoryRegionIoeventfd *ioeventfds;
+    int coalesced_nb;
+    int coalesced_notifiers;
+    struct AddrRange *coalesced;
     QTAILQ_HEAD(, MemoryListener) listeners;
     QTAILQ_ENTRY(AddressSpace) address_spaces_link;
 
