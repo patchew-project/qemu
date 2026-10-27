@@ -385,6 +385,8 @@ static const qmp_virtio_feature_map_t virtio_i2c_feature_map[] = {
 static const qmp_virtio_feature_map_t virtio_vsock_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_VSOCK_F_SEQPACKET, \
             "VIRTIO_VSOCK_F_SEQPACKET: SOCK_SEQPACKET supported"),
+    FEATURE_ENTRY(VIRTIO_VSOCK_F_DGRAM, \
+            "VIRTIO_VSOCK_F_DGRAM: SOCK_DGRAM supported"),
     FEATURE_ENTRY(VHOST_F_LOG_ALL, \
             "VHOST_F_LOG_ALL: Logging write descriptors supported"),
     FEATURE_ENTRY(VHOST_USER_F_PROTOCOL_FEATURES, \

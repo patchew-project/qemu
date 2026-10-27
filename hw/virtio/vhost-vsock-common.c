@@ -21,6 +21,7 @@
 
 const int feature_bits[] = {
     VIRTIO_VSOCK_F_SEQPACKET,
+    VIRTIO_VSOCK_F_DGRAM,
     VIRTIO_F_RING_RESET,
     VIRTIO_F_RING_PACKED,
     VHOST_INVALID_FEATURE_BIT
@@ -35,11 +36,23 @@ uint64_t vhost_vsock_common_get_features(VirtIODevice *vdev, uint64_t features,
         virtio_add_feature(&features, VIRTIO_VSOCK_F_SEQPACKET);
     }
 
+    if (vvc->dgram != ON_OFF_AUTO_OFF) {
+        virtio_add_feature(&features, VIRTIO_VSOCK_F_DGRAM);
+    } else {
+        virtio_clear_feature(&features, VIRTIO_VSOCK_F_DGRAM);
+    }
+
     features = vhost_get_features(&vvc->vhost_dev, feature_bits, features);
 
     if (vvc->seqpacket == ON_OFF_AUTO_ON &&
         !virtio_has_feature(features, VIRTIO_VSOCK_F_SEQPACKET)) {
         error_setg(errp, "vhost-vsock backend doesn't support seqpacket");
+        return features;
+    }
+
+    if (vvc->dgram == ON_OFF_AUTO_ON &&
+        !virtio_has_feature(features, VIRTIO_VSOCK_F_DGRAM)) {
+        error_setg(errp, "vhost-vsock backend doesn't support datagrams");
     }
 
     return features;
@@ -289,6 +302,8 @@ static struct vhost_dev *vhost_vsock_common_get_vhost(VirtIODevice *vdev)
 static const Property vhost_vsock_common_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("seqpacket", VHostVSockCommon, seqpacket,
                             ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO("dgram", VHostVSockCommon, dgram,
+                            ON_OFF_AUTO_OFF),
 };
 
 static void vhost_vsock_common_class_init(ObjectClass *klass, const void *data)
