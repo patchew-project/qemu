@@ -471,8 +471,6 @@ int whpx_vcpu_run(CPUState *cpu)
             if (arm_cpu->power_state != PSCI_OFF) {
                 whpx_psci_cpu_off(arm_cpu);
             }
-            /* Partition-wide reset, to reset state for reboots to succeed. */
-            whp_dispatch.WHvResetPartition(whpx->partition);
             bql_unlock();
             break;
         case WHvRunVpExitReasonNone:
@@ -572,6 +570,14 @@ void whpx_set_registers(CPUState *cpu, WHPXStateLevel level)
     int i;
 
     assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
+
+    /* Assumes that cpu_synchronize_all_post_reset() runs cpu 0 first. */
+    if (level == WHPX_LEVEL_RESET_STATE && cpu->cpu_index == 0) {
+        hr = whp_dispatch.WHvResetPartition(whpx->partition);
+        if (FAILED(hr)) {
+            error_report("WHPX: Failed to reset partition, hr=%08lx", hr);
+        }
+    }
 
     for (i = 0; i < ARRAY_SIZE(whpx_reg_match); i++) {
         val.Reg64 = *(uint64_t *)((char *)env + whpx_reg_match[i].offset);
