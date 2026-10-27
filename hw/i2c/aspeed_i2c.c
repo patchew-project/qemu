@@ -146,7 +146,7 @@ static uint64_t aspeed_i2c_bus_new_read(AspeedI2CBus *bus, hwaddr offset,
     case A_I2CC_POOL_CTRL:
     case A_I2CM_INTR_CTRL:
     case A_I2CM_INTR_STS:
-    case A_I2CC_MS_TXRX_BYTE_BUF:
+    case A_I2CM_CMD:
     case A_I2CM_DMA_LEN:
     case A_I2CM_DMA_TX_ADDR:
     case A_I2CM_DMA_RX_ADDR:
@@ -166,7 +166,8 @@ static uint64_t aspeed_i2c_bus_new_read(AspeedI2CBus *bus, hwaddr offset,
     case A_I2CC_DMA_ADDR:
         value = extract64(bus->dma_dram_offset, 0, 32);
         break;
-    case A_I2CM_CMD:
+    case A_I2CC_MS_TXRX_BYTE_BUF:
+        value = bus->regs[offset / sizeof(*bus->regs)];
         value = SHARED_FIELD_DP32(value, BUS_BUSY_STS, i2c_bus_busy(bus->bus));
         break;
     case A_I2CM_DMA_TX_ADDR_HI:
