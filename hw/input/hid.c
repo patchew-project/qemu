@@ -378,7 +378,7 @@ static int hid_scroll_counts(int32_t *pending, int32_t *residual, int mult)
 
 int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
 {
-    int dx, dy, dz, pan, l;
+    int dx, dy, dz, pan, l, mult;
     int index;
     HIDPointerEvent *e;
 
@@ -400,8 +400,19 @@ int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
         dx = e->xdx;
         dy = e->ydy;
     }
-    dz = hid_scroll_counts(&e->dz, &hs->ptr.wheel_residual, 1);
-    pan = hid_scroll_counts(&e->pan, &hs->ptr.pan_residual, 1);
+    mult = 1;
+    if (hs->kind == HID_MOUSE && hs->protocol == 1 &&
+        hs->ptr.wheel_multiplier) {
+        mult = HID_WHEEL_RESOLUTION_MULTIPLIER;
+    }
+    dz = hid_scroll_counts(&e->dz, &hs->ptr.wheel_residual, mult);
+
+    mult = 1;
+    if (hs->kind == HID_MOUSE && hs->protocol == 1 &&
+        hs->ptr.pan_multiplier) {
+        mult = HID_WHEEL_RESOLUTION_MULTIPLIER;
+    }
+    pan = hid_scroll_counts(&e->pan, &hs->ptr.pan_residual, mult);
 
     if (hs->n &&
         !e->dz &&
@@ -657,7 +668,8 @@ static bool hid_ptr_wheel_needed(void *opaque)
     HIDState *s = opaque;
     int i;
 
-    if (s->ptr.wheel_residual || s->ptr.pan_residual) {
+    if (s->ptr.wheel_multiplier || s->ptr.pan_multiplier ||
+        s->ptr.wheel_residual || s->ptr.pan_residual) {
         return true;
     }
     for (i = 0; i < QUEUE_LENGTH; i++) {
@@ -706,6 +718,8 @@ static const VMStateDescription vmstate_hid_ptr_wheel = {
     .fields = (const VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(ptr.queue, HIDState, QUEUE_LENGTH, 0,
                              vmstate_hid_ptr_queue_pan, HIDPointerEvent),
+        VMSTATE_UINT8(ptr.wheel_multiplier, HIDState),
+        VMSTATE_UINT8(ptr.pan_multiplier, HIDState),
         VMSTATE_INT32(ptr.wheel_residual, HIDState),
         VMSTATE_INT32(ptr.pan_residual, HIDState),
         VMSTATE_END_OF_LIST()

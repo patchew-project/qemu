@@ -7,6 +7,8 @@
 #define HID_TABLET    2
 #define HID_KEYBOARD  3
 
+#define HID_WHEEL_RESOLUTION_MULTIPLIER 120
+
 typedef struct HIDPointerEvent {
     int32_t xdx, ydy; /* relative iff it's a mouse, otherwise absolute */
     int32_t dz, buttons_state;
@@ -23,6 +25,8 @@ typedef void (*HIDEventFunc)(HIDState *s);
 typedef struct HIDMouseState {
     HIDPointerEvent queue[QUEUE_LENGTH];
     int mouse_grabbed;
+    uint8_t wheel_multiplier;
+    uint8_t pan_multiplier;
     int32_t wheel_residual;
     int32_t pan_residual;
     bool wheel_state_loaded;

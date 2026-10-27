@@ -81,6 +81,8 @@ static const USBDescStrings desc_strings = {
  * descriptor.
  * Note: Windows stops recognising the mouse if it does not match
  * exactly.
+ * The enhanced wheel support grew the descriptor from 52 to 144
+ * bytes.
  */
 static const uint8_t qemu_mouse_hid_report_descriptor[] = {
     0x05, 0x01,         /* Usage Page (Generic Desktop) */
@@ -119,7 +121,20 @@ static const uint8_t qemu_mouse_hid_report_descriptor[] = {
     /* Vertical wheel logical collection */
     0xA1, 0x02,         /*  Collection (Logical) */
 
+    0x85, 0x02,         /*  Report ID (0x02) */
+    0x09, 0x48,         /*  Usage (Resolution Multiplier) */
+    0x15, 0x00,         /*  Logical Minimum (0) */
+    0x25, 0x01,         /*  Logical Maximum (1) */
+    0x35, 0x01,         /*  Physical Minimum (1) */
+    0x45, 0x78,         /*  Physical Maximum (120) */
+    0x75, 0x02,         /*  Report Size (2) */
+    0x95, 0x01,         /*  Report Count (1) */
+    0xB1, 0x02,         /*  Feature (Data,Var,Abs) */
+
+    0x85, 0x01,         /*  Report ID (0x01) */
     0x09, 0x38,         /*  Usage (Wheel) */
+    0x35, 0x00,         /*  Physical Minimum (0) */
+    0x45, 0x00,         /*  Physical Maximum (0) */
     0x15, 0x81,         /*  Logical Minimum (-0x7f) */
     0x25, 0x7F,         /*  Logical Maximum (0x7f) */
     0x75, 0x08,         /*  Report Size (8) */
@@ -131,6 +146,23 @@ static const uint8_t qemu_mouse_hid_report_descriptor[] = {
     /* Horizontal wheel logical collection */
     0xA1, 0x02,         /*  Collection (Logical) */
 
+    0x85, 0x02,         /*  Report ID (0x02) */
+    0x09, 0x48,         /*  Usage (Resolution Multiplier) */
+    0x15, 0x00,         /*  Logical Minimum (0) */
+    0x25, 0x01,         /*  Logical Maximum (1) */
+    0x35, 0x01,         /*  Physical Minimum (1) */
+    0x45, 0x78,         /*  Physical Maximum (120) */
+    0x75, 0x02,         /*  Report Size (2) */
+    0x95, 0x01,         /*  Report Count (1) */
+    0xB1, 0x02,         /*  Feature (Data,Var,Abs) */
+
+    0x35, 0x00,         /*  Physical Minimum (0) */
+    0x45, 0x00,         /*  Physical Maximum (0) */
+    0x75, 0x04,         /*  Report Size (4) */
+    0x95, 0x01,         /*  Report Count (1) */
+    0xB1, 0x01,         /*  Feature (Const) */
+
+    0x85, 0x01,         /*  Report ID (0x01) */
     0x05, 0x0C,         /*  Usage Page (Consumer Devices) */
     0x0A, 0x38, 0x02,   /*  Usage (AC Pan) */
     0x15, 0x81,         /*  Logical Minimum (-0x7f) */
@@ -652,17 +684,66 @@ static void usb_hid_handle_control(USBDevice *dev, USBPacket *p,
         }
         break;
     case HID_GET_REPORT:
-        if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
-            p->actual_length = hid_pointer_poll(hs, data, length);
-        } else if (hs->kind == HID_KEYBOARD) {
-            p->actual_length = hid_keyboard_poll(hs, data, length);
+        {
+            uint8_t mult;
+            uint8_t report_type = (value >> 8) & 0xFF;
+            uint8_t report_id = value & 0xFF;
+
+            if (report_type == 0x03 && report_id == 0x02 &&
+                hs->kind == HID_MOUSE) {
+
+                if (length < 1) {
+                    goto fail;
+                }
+
+                mult = ((hs->ptr.pan_multiplier & 0x03) << 2) |
+                       (hs->ptr.wheel_multiplier & 0x03);
+                if (length >= 2) {
+                    data[0] = 0x02;
+                    data[1] = mult;
+                    p->actual_length = 2;
+                } else {
+                    data[0] = mult;
+                    p->actual_length = 1;
+                }
+
+            } else if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
+                p->actual_length = hid_pointer_poll(hs, data, length);
+            } else if (hs->kind == HID_KEYBOARD) {
+                p->actual_length = hid_keyboard_poll(hs, data, length);
+            } else {
+                goto fail;
+            }
         }
         break;
     case HID_SET_REPORT:
-        if (hs->kind == HID_KEYBOARD) {
-            p->actual_length = hid_keyboard_write(hs, data, length);
-        } else {
-            goto fail;
+        {
+            uint8_t mult;
+            uint8_t report_type = (value >> 8) & 0xFF;
+            uint8_t report_id = value & 0xFF;
+
+            if (report_type == 0x03 && report_id == 0x02 &&
+                hs->kind == HID_MOUSE) {
+
+                if (length < 1) {
+                    goto fail;
+                }
+
+                if (length >= 2 && data[0] == 0x02) {
+                    mult = data[1];
+                } else {
+                    mult = data[0];
+                }
+
+                hs->ptr.wheel_multiplier = mult & 0x03;
+                hs->ptr.pan_multiplier = (mult >> 2) & 0x03;
+                p->actual_length = length;
+
+            } else if (hs->kind == HID_KEYBOARD) {
+                p->actual_length = hid_keyboard_write(hs, data, length);
+            } else {
+                goto fail;
+            }
         }
         break;
     case HID_GET_PROTOCOL:
