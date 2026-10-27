@@ -248,7 +248,7 @@ typedef struct cxl_device_state {
             uint16_t mbox_reg_state16[CXL_MAILBOX_REGISTERS_LENGTH / 2];
             uint32_t mbox_reg_state32[CXL_MAILBOX_REGISTERS_LENGTH / 4];
             uint64_t mbox_reg_state64[CXL_MAILBOX_REGISTERS_LENGTH / 8];
-        };
+        } QEMU_ALIGNED(16);
     };
 
     /* Stash the memory device status value */
