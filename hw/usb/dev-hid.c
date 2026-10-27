@@ -76,6 +76,42 @@ static const USBDescStrings desc_strings = {
     [STR_SERIAL_KEYBOARD]  = "68284",
 };
 
+/*
+ * The interface descriptors below advertise the length of this report
+ * descriptor.
+ * Note: Windows stops recognising the mouse if it does not match
+ * exactly.
+ */
+static const uint8_t qemu_mouse_hid_report_descriptor[] = {
+    0x05, 0x01,         /* Usage Page (Generic Desktop) */
+    0x09, 0x02,         /* Usage (Mouse) */
+    0xa1, 0x01,         /* Collection (Application) */
+    0x09, 0x01,         /*   Usage (Pointer) */
+    0xa1, 0x00,         /*   Collection (Physical) */
+    0x05, 0x09,         /*     Usage Page (Button) */
+    0x19, 0x01,         /*     Usage Minimum (1) */
+    0x29, 0x05,         /*     Usage Maximum (5) */
+    0x15, 0x00,         /*     Logical Minimum (0) */
+    0x25, 0x01,         /*     Logical Maximum (1) */
+    0x95, 0x05,         /*     Report Count (5) */
+    0x75, 0x01,         /*     Report Size (1) */
+    0x81, 0x02,         /*     Input (Data, Variable, Absolute) */
+    0x95, 0x01,         /*     Report Count (1) */
+    0x75, 0x03,         /*     Report Size (3) */
+    0x81, 0x01,         /*     Input (Constant) */
+    0x05, 0x01,         /*     Usage Page (Generic Desktop) */
+    0x09, 0x30,         /*     Usage (X) */
+    0x09, 0x31,         /*     Usage (Y) */
+    0x09, 0x38,         /*     Usage (Wheel) */
+    0x15, 0x81,         /*     Logical Minimum (-0x7f) */
+    0x25, 0x7f,         /*     Logical Maximum (0x7f) */
+    0x75, 0x08,         /*     Report Size (8) */
+    0x95, 0x03,         /*     Report Count (3) */
+    0x81, 0x06,         /*     Input (Data, Variable, Relative) */
+    0xc0,               /*   End Collection */
+    0xc0,               /* End Collection */
+};
+
 static const USBDescIface desc_iface_mouse = {
     .bInterfaceNumber              = 0,
     .bNumEndpoints                 = 1,
@@ -93,7 +129,9 @@ static const USBDescIface desc_iface_mouse = {
                 0x00,          /*  u8  country_code */
                 0x01,          /*  u8  num_descriptors */
                 USB_DT_REPORT, /*  u8  type: Report */
-                52, 0,         /*  u16 len */
+                /*  u16 len */
+                sizeof(qemu_mouse_hid_report_descriptor) & 0xff,
+                sizeof(qemu_mouse_hid_report_descriptor) >> 8,
             },
         },
     },
@@ -124,7 +162,9 @@ static const USBDescIface desc_iface_mouse2 = {
                 0x00,          /*  u8  country_code */
                 0x01,          /*  u8  num_descriptors */
                 USB_DT_REPORT, /*  u8  type: Report */
-                52, 0,         /*  u16 len */
+                /*  u16 len */
+                sizeof(qemu_mouse_hid_report_descriptor) & 0xff,
+                sizeof(qemu_mouse_hid_report_descriptor) >> 8,
             },
         },
     },
@@ -451,36 +491,6 @@ static const USBDesc desc_keyboard2 = {
     .high = &desc_device_keyboard2,
     .str  = desc_strings,
     .msos = &desc_msos_suspend,
-};
-
-static const uint8_t qemu_mouse_hid_report_descriptor[] = {
-    0x05, 0x01,		/* Usage Page (Generic Desktop) */
-    0x09, 0x02,		/* Usage (Mouse) */
-    0xa1, 0x01,		/* Collection (Application) */
-    0x09, 0x01,		/*   Usage (Pointer) */
-    0xa1, 0x00,		/*   Collection (Physical) */
-    0x05, 0x09,		/*     Usage Page (Button) */
-    0x19, 0x01,		/*     Usage Minimum (1) */
-    0x29, 0x05,		/*     Usage Maximum (5) */
-    0x15, 0x00,		/*     Logical Minimum (0) */
-    0x25, 0x01,		/*     Logical Maximum (1) */
-    0x95, 0x05,		/*     Report Count (5) */
-    0x75, 0x01,		/*     Report Size (1) */
-    0x81, 0x02,		/*     Input (Data, Variable, Absolute) */
-    0x95, 0x01,		/*     Report Count (1) */
-    0x75, 0x03,		/*     Report Size (3) */
-    0x81, 0x01,		/*     Input (Constant) */
-    0x05, 0x01,		/*     Usage Page (Generic Desktop) */
-    0x09, 0x30,		/*     Usage (X) */
-    0x09, 0x31,		/*     Usage (Y) */
-    0x09, 0x38,		/*     Usage (Wheel) */
-    0x15, 0x81,		/*     Logical Minimum (-0x7f) */
-    0x25, 0x7f,		/*     Logical Maximum (0x7f) */
-    0x75, 0x08,		/*     Report Size (8) */
-    0x95, 0x03,		/*     Report Count (3) */
-    0x81, 0x06,		/*     Input (Data, Variable, Relative) */
-    0xc0,		/*   End Collection */
-    0xc0,		/* End Collection */
 };
 
 static const uint8_t qemu_tablet_hid_report_descriptor[] = {
