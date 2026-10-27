@@ -236,12 +236,14 @@ qtests_aspeed = \
   ['aspeed-acry-test',
    'aspeed_gpio-test',
    'aspeed_hace-test',
+   'aspeed_i2c-test',
    'aspeed-sbc-test',
    'aspeed_scu-test',
    'aspeed_smc-test']
 qtests_aspeed64 = \
   ['ast2700-gpio-test',
    'ast2700-hace-test',
+   'aspeed_i2c-test',
    'ast2700-sgpio-test',
    'ast2700-smc-test']
 
