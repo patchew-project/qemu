@@ -1954,6 +1954,38 @@ static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled)
     }
 }
 
+/*
+ * Prevent a pending INTx mmap timer from restoring BAR mmap while
+ * the PE is undergoing EEH reset.  Keep BAR accesses on the VFIO
+ * region read/write path until PE configuration completes.
+ */
+void vfio_pci_eeh_pre_reset(PCIDevice *pdev)
+{
+    VFIOPCIDevice *vdev = VFIO_PCI_DEVICE(pdev);
+
+    if (vdev->intx.mmap_timer) {
+        timer_del(vdev->intx.mmap_timer);
+    }
+
+    vfio_mmap_set_enabled(vdev, false);
+}
+
+void vfio_pci_eeh_post_configure(PCIDevice *pdev)
+{
+    VFIOPCIDevice *vdev = VFIO_PCI_DEVICE(pdev);
+
+    if (vdev->interrupt == VFIO_INT_INTx && vdev->intx.pending) {
+        if (vdev->intx.mmap_timer && vdev->intx.mmap_timeout) {
+            timer_mod(vdev->intx.mmap_timer,
+                      qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+                      vdev->intx.mmap_timeout);
+        }
+        return;
+    }
+
+    vfio_mmap_set_enabled(vdev, true);
+}
+
 static void vfio_bar_prepare(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];

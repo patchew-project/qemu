@@ -254,8 +254,8 @@ int spapr_phb_vfio_eeh_get_state(SpaprPhbState *sphb, int *state)
  * leaving the shadow intact.
  */
 static void spapr_phb_vfio_eeh_prepare_dev(PCIBus *bus,
-                                            PCIDevice *pdev,
-                                            void *opaque)
+                                           PCIDevice *pdev,
+                                           void *opaque)
 {
     uint16_t flags;
 
@@ -263,13 +263,27 @@ static void spapr_phb_vfio_eeh_prepare_dev(PCIBus *bus,
         return;
     }
 
+    /*
+     * Disable MSI-X through the VFIO config-write path so the
+     * active interrupt routes are released while preserving the
+     * pSeries RTAS-managed MSI-X software shadow.
+     */
     if (msix_enabled(pdev)) {
-        flags = pci_get_word(pdev->config + pdev->msix_cap + PCI_MSIX_FLAGS);
+        flags = pci_get_word(pdev->config +
+                             pdev->msix_cap + PCI_MSIX_FLAGS);
+
         flags &= ~PCI_MSIX_FLAGS_ENABLE;
+
         pci_host_config_write_common(pdev,
                                      pdev->msix_cap + PCI_MSIX_FLAGS,
-                                     pci_config_size(pdev), flags, 2);
+                                     pci_config_size(pdev),
+                                     flags, 2);
     }
+
+    /*
+     * This must be the final preparation step before the PE reset.
+     */
+    vfio_pci_eeh_pre_reset(pdev);
 }
 
 static void spapr_phb_vfio_eeh_prepare_bus(PCIBus *bus, void *opaque)
@@ -286,6 +300,37 @@ static void spapr_phb_vfio_eeh_pre_reset(SpaprPhbState *sphb)
     pci_for_each_bus(phb->bus, spapr_phb_vfio_eeh_prepare_bus, NULL);
 }
 
+/*
+ * Restore normal VFIO mmap policy for a single VFIO PCI device after a
+ * successful EEH PE configure.  Called only on the configure success path;
+ * on failure mmaps remain disabled until the next hot/fundamental reset
+ * attempt.
+ */
+static void spapr_phb_vfio_eeh_post_configure_dev(PCIBus *bus,
+                                                  PCIDevice *pdev,
+                                                  void *opaque)
+{
+    if (!object_dynamic_cast(OBJECT(pdev), TYPE_VFIO_PCI_DEVICE)) {
+        return;
+    }
+
+    vfio_pci_eeh_post_configure(pdev);
+}
+
+static void spapr_phb_vfio_eeh_post_configure_bus(PCIBus *bus, void *opaque)
+{
+    pci_for_each_device_under_bus(bus,
+                                  spapr_phb_vfio_eeh_post_configure_dev,
+                                  NULL);
+}
+
+static void spapr_phb_vfio_eeh_post_configure(SpaprPhbState *sphb)
+{
+    PCIHostState *phb = PCI_HOST_BRIDGE(sphb);
+
+    pci_for_each_bus(phb->bus, spapr_phb_vfio_eeh_post_configure_bus, NULL);
+}
+
 int spapr_phb_vfio_eeh_reset(SpaprPhbState *sphb, int option)
 {
     uint32_t op;
@@ -293,6 +338,11 @@ int spapr_phb_vfio_eeh_reset(SpaprPhbState *sphb, int option)
 
     switch (option) {
     case RTAS_SLOT_RESET_DEACTIVATE:
+        /*
+         * Deactivate does not perform a full PE reset; BAR mmaps were already
+         * disabled by the preceding HOT or FUNDAMENTAL reset call and must not
+         * be re-enabled here.
+         */
         op = VFIO_EEH_PE_RESET_DEACTIVATE;
         break;
     case RTAS_SLOT_RESET_HOT:
@@ -323,6 +373,8 @@ int spapr_phb_vfio_eeh_configure(SpaprPhbState *sphb)
     if (ret < 0) {
         return RTAS_OUT_PARAM_ERROR;
     }
+
+    spapr_phb_vfio_eeh_post_configure(sphb);
 
     return RTAS_OUT_SUCCESS;
 }

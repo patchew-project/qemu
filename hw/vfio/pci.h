@@ -273,6 +273,8 @@ struct vfio_pci_hot_reset_info;
 
 void vfio_pci_pre_reset(VFIOPCIDevice *vdev);
 void vfio_pci_post_reset(VFIOPCIDevice *vdev);
+void vfio_pci_eeh_pre_reset(PCIDevice *pdev);
+void vfio_pci_eeh_post_configure(PCIDevice *pdev);
 bool vfio_pci_host_match(PCIHostDeviceAddress *addr, const char *name);
 int vfio_pci_get_pci_hot_reset_info(VFIOPCIDevice *vdev,
                                     struct vfio_pci_hot_reset_info **info_p);
