@@ -145,12 +145,18 @@ static void hid_pointer_event(DeviceState *dev, QemuConsole *src,
         if (evt->btn.down) {
             e->buttons_state |= bmap[evt->btn.button];
             if (evt->btn.button == INPUT_BUTTON_WHEEL_UP) {
-                e->dz--;
+                e->dz -= INPUT_EVENT_SCROLL_DETENT;
             } else if (evt->btn.button == INPUT_BUTTON_WHEEL_DOWN) {
-                e->dz++;
+                e->dz += INPUT_EVENT_SCROLL_DETENT;
             }
         } else {
             e->buttons_state &= ~bmap[evt->btn.button];
+        }
+        break;
+
+    case INPUT_EVENT_KIND_SCROLL:
+        if (evt->scroll.axis == INPUT_SCROLL_AXIS_VERTICAL) {
+            e->dz += evt->scroll.value;
         }
         break;
 
@@ -349,6 +355,18 @@ void hid_pointer_activate(HIDState *hs)
     }
 }
 
+static int hid_scroll_counts(int32_t *pending, int32_t *residual, int mult)
+{
+    int unit = INPUT_EVENT_SCROLL_DETENT / mult;
+    int32_t acc = *pending + *residual;
+    int counts = int_clamp(acc / unit, -127, 127);
+
+    acc -= counts * unit;
+    *residual = acc % unit;
+    *pending = acc - *residual;
+    return counts;
+}
+
 int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
 {
     int dx, dy, dz, l;
@@ -373,8 +391,7 @@ int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
         dx = e->xdx;
         dy = e->ydy;
     }
-    dz = int_clamp(e->dz, -127, 127);
-    e->dz -= dz;
+    dz = hid_scroll_counts(&e->dz, &hs->ptr.wheel_residual, 1);
 
     if (hs->n &&
         !e->dz &&
@@ -513,7 +530,8 @@ static const QemuInputHandler hid_keyboard_handler = {
 
 static const QemuInputHandler hid_mouse_handler = {
     .name  = "QEMU HID Mouse",
-    .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_REL,
+    .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_REL |
+             INPUT_EVENT_MASK_SCROLL,
     .event = hid_pointer_event,
     .sync  = hid_pointer_sync,
 };
@@ -585,11 +603,74 @@ static const VMStateDescription vmstate_hid_ptr_queue = {
     }
 };
 
+/*
+ * Wheel movement used to be queued in whole detents and is now kept in
+ * 1/120 detent units.  Without this subsection the source either was an
+ * older QEMU or had no wheel state pending, so rescaling dz is safe.
+ */
+static bool hid_ptr_wheel_needed(void *opaque)
+{
+    HIDState *s = opaque;
+    int i;
+
+    if (s->ptr.wheel_residual) {
+        return true;
+    }
+    for (i = 0; i < QUEUE_LENGTH; i++) {
+        if (s->ptr.queue[i].dz) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static int hid_ptr_pre_load(void *opaque)
+{
+    HIDState *s = opaque;
+
+    s->ptr.wheel_state_loaded = false;
+    return 0;
+}
+
+static int hid_ptr_wheel_post_load(void *opaque, int version_id)
+{
+    HIDState *s = opaque;
+
+    s->ptr.wheel_state_loaded = true;
+    return 0;
+}
+
+static int hid_ptr_post_load(void *opaque, int version_id)
+{
+    HIDState *s = opaque;
+    int i;
+
+    if (!s->ptr.wheel_state_loaded) {
+        for (i = 0; i < QUEUE_LENGTH; i++) {
+            s->ptr.queue[i].dz *= INPUT_EVENT_SCROLL_DETENT;
+        }
+    }
+    return hid_post_load(opaque, version_id);
+}
+
+static const VMStateDescription vmstate_hid_ptr_wheel = {
+    .name = "HIDPointerDevice/wheel",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = hid_ptr_wheel_needed,
+    .post_load = hid_ptr_wheel_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_INT32(ptr.wheel_residual, HIDState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_hid_ptr_device = {
     .name = "HIDPointerDevice",
     .version_id = 1,
     .minimum_version_id = 1,
-    .post_load = hid_post_load,
+    .pre_load = hid_ptr_pre_load,
+    .post_load = hid_ptr_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(ptr.queue, HIDState, QUEUE_LENGTH, 0,
                              vmstate_hid_ptr_queue, HIDPointerEvent),
@@ -598,6 +679,10 @@ const VMStateDescription vmstate_hid_ptr_device = {
         VMSTATE_INT32(protocol, HIDState),
         VMSTATE_UINT8(idle, HIDState),
         VMSTATE_END_OF_LIST(),
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_hid_ptr_wheel,
+        NULL
     }
 };
 
