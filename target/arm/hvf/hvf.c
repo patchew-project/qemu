@@ -1652,6 +1652,14 @@ static bool hvf_handle_psci_call(CPUState *cpu, int *excp_ret)
         context_id = param[3];
         ret = arm_set_cpu_on(mpidr, entry, context_id,
                              hvf_psci_get_target_el(), target_aarch64);
+
+        /*
+         * Mark state as dirty for HVF to sync context
+         * when the vCPU runs. arm_set_cpu_on() does not
+         * do it by itself.
+         */
+        arm_get_cpu_by_id(mpidr)->vcpu_dirty = true;
+
         break;
     case QEMU_PSCI_0_1_FN_CPU_OFF:
     case QEMU_PSCI_0_2_FN_CPU_OFF:
