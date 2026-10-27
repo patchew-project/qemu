@@ -1121,6 +1121,34 @@
               'value'      : 'int' } }
 
 ##
+# @InputScrollAxis:
+#     Scroll axis of a pointer input device.
+#
+# @vertical: vertical wheel
+#
+# @horizontal: horizontal wheel (pan)
+#
+# Since: 11.2
+##
+{ 'enum'  : 'InputScrollAxis',
+  'data'  : [ 'vertical', 'horizontal' ] }
+
+##
+# @InputScrollEvent:
+#     High-resolution scroll input event.
+#
+# @axis: Which scroll axis is referenced by @value.
+#
+# @value: Scroll distance in 1/120 of a wheel detent.  Positive
+#     values scroll down (vertical) or right (horizontal).
+#
+# Since: 11.2
+##
+{ 'struct'  : 'InputScrollEvent',
+  'data'  : { 'axis'    : 'InputScrollAxis',
+              'value'   : 'int' } }
+
+##
 # @InputEventKind:
 #
 # @key: a keyboard input event
@@ -1133,10 +1161,12 @@
 #
 # @mtt: a multi-touch input event
 #
+# @scroll: a high-resolution scroll input event (since 11.2)
+#
 # Since: 2.0
 ##
 { 'enum': 'InputEventKind',
-  'data': [ 'key', 'btn', 'rel', 'abs', 'mtt' ] }
+  'data': [ 'key', 'btn', 'rel', 'abs', 'mtt', 'scroll' ] }
 
 ##
 # @InputKeyEventWrapper:
@@ -1179,6 +1209,16 @@
   'data': { 'data': 'InputMultiTouchEvent' } }
 
 ##
+# @InputScrollEventWrapper:
+#
+# @data: High-resolution scroll input event
+#
+# Since: 11.2
+##
+{ 'struct': 'InputScrollEventWrapper',
+  'data': { 'data': 'InputScrollEvent' } }
+
+##
 # @InputEvent:
 #     Input event union.
 #
@@ -1193,7 +1233,8 @@
               'btn'     : 'InputBtnEventWrapper',
               'rel'     : 'InputMoveEventWrapper',
               'abs'     : 'InputMoveEventWrapper',
-              'mtt'     : 'InputMultiTouchEventWrapper' } }
+              'mtt'     : 'InputMultiTouchEventWrapper',
+              'scroll'  : 'InputScrollEventWrapper' } }
 
 ##
 # @input-send-event:

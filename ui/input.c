@@ -181,7 +181,12 @@ void qmp_input_send_event(const char *device,
     for (e = events; e != NULL; e = e->next) {
         InputEvent *event = e->value;
 
-        if (!qemu_input_find_handler(1 << event->type, con)) {
+        uint32_t mask = 1 << event->type;
+
+        if (event->type == INPUT_EVENT_KIND_SCROLL) {
+            mask |= INPUT_EVENT_MASK_BTN;
+        }
+        if (!qemu_input_find_handler(mask, con)) {
             error_setg(errp, "Input handler not found for "
                              "event type %s",
                             InputEventKind_str(event->type));
@@ -217,6 +222,10 @@ void qmp_input_send_event(const char *device,
             evt.mtt = *qapi->u.mtt.data;
             break;
 
+        case INPUT_EVENT_KIND_SCROLL:
+            evt.scroll = *qapi->u.scroll.data;
+            break;
+
         default:
             g_assert_not_reached();
         }
@@ -235,6 +244,7 @@ static void qemu_input_event_trace(QemuConsole *src, QemuInputEvent *evt)
     InputBtnEvent *btn;
     InputMoveEvent *move;
     InputMultiTouchEvent *mtt;
+    InputScrollEvent *scroll;
 
     if (src) {
         idx = qemu_console_get_index(src);
@@ -264,6 +274,12 @@ static void qemu_input_event_trace(QemuConsole *src, QemuInputEvent *evt)
         mtt = &evt->mtt;
         name = mtt->axis < INPUT_AXIS__MAX ? InputAxis_str(mtt->axis) : "invalid";
         trace_input_event_mtt(idx, name, mtt->value);
+        break;
+    case INPUT_EVENT_KIND_SCROLL:
+        scroll = &evt->scroll;
+        name = scroll->axis < INPUT_SCROLL_AXIS__MAX ?
+            InputScrollAxis_str(scroll->axis) : "invalid";
+        trace_input_event_scroll(idx, name, scroll->value);
         break;
     case INPUT_EVENT_KIND__MAX:
         /* keep gcc happy */
@@ -342,11 +358,61 @@ static void qemu_input_queue_sync(QemuInputEventQueueHead *queue)
     queue_count++;
 }
 
+static void qemu_input_scroll_to_btn(QemuInputHandlerState *s,
+                                     QemuConsole *src, QemuInputEvent *evt)
+{
+    static int residual[INPUT_SCROLL_AXIS__MAX];
+    QemuInputEvent btn = { .type = INPUT_EVENT_KIND_BTN };
+    InputScrollAxis axis = evt->scroll.axis;
+
+    if (axis >= INPUT_SCROLL_AXIS__MAX) {
+        return;
+    }
+
+    residual[axis] += evt->scroll.value;
+    while (abs(residual[axis]) >= INPUT_EVENT_SCROLL_DETENT) {
+        bool fwd = residual[axis] > 0;
+
+        if (axis == INPUT_SCROLL_AXIS_VERTICAL) {
+            btn.btn.button = fwd ? INPUT_BUTTON_WHEEL_DOWN
+                                 : INPUT_BUTTON_WHEEL_UP;
+        } else {
+            btn.btn.button = fwd ? INPUT_BUTTON_WHEEL_RIGHT
+                                 : INPUT_BUTTON_WHEEL_LEFT;
+        }
+        residual[axis] -= fwd ? INPUT_EVENT_SCROLL_DETENT
+                              : -INPUT_EVENT_SCROLL_DETENT;
+
+        btn.btn.down = true;
+        qemu_input_event_trace(src, &btn);
+        s->handler->event(s->dev, src, &btn);
+        btn.btn.down = false;
+        qemu_input_event_trace(src, &btn);
+        s->handler->event(s->dev, src, &btn);
+        s->events++;
+    }
+}
+
 void qemu_input_event_send_impl(QemuConsole *src, QemuInputEvent *evt)
 {
     QemuInputHandlerState *s;
 
     qemu_input_event_trace(src, evt);
+
+    if (evt->type == INPUT_EVENT_KIND_SCROLL) {
+        s = qemu_input_find_handler(INPUT_EVENT_MASK_BTN |
+                                    INPUT_EVENT_MASK_SCROLL, src);
+        if (!s) {
+            return;
+        }
+        if (s->handler->mask & INPUT_EVENT_MASK_SCROLL) {
+            s->handler->event(s->dev, src, evt);
+            s->events++;
+        } else {
+            qemu_input_scroll_to_btn(s, src, evt);
+        }
+        return;
+    }
 
     /* send event */
     s = qemu_input_find_handler(1 << evt->type, src);
@@ -510,6 +576,20 @@ void qemu_input_queue_rel(QemuConsole *src, InputAxis axis, int value)
     QemuInputEvent evt = {
         .type = INPUT_EVENT_KIND_REL,
         .rel = {
+            .axis = axis,
+            .value = value,
+        },
+    };
+
+    qemu_input_event_send(src, &evt);
+}
+
+void qemu_input_queue_scroll(QemuConsole *src, InputScrollAxis axis,
+                             int value)
+{
+    QemuInputEvent evt = {
+        .type = INPUT_EVENT_KIND_SCROLL,
+        .scroll = {
             .axis = axis,
             .value = value,
         },

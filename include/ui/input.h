@@ -9,6 +9,9 @@
 #define INPUT_EVENT_MASK_REL   (1<<INPUT_EVENT_KIND_REL)
 #define INPUT_EVENT_MASK_ABS   (1<<INPUT_EVENT_KIND_ABS)
 #define INPUT_EVENT_MASK_MTT   (1<<INPUT_EVENT_KIND_MTT)
+#define INPUT_EVENT_MASK_SCROLL (1 << INPUT_EVENT_KIND_SCROLL)
+
+#define INPUT_EVENT_SCROLL_DETENT 120
 
 #define INPUT_EVENT_ABS_MIN    0x0000
 #define INPUT_EVENT_ABS_MAX    0x7FFF
@@ -31,6 +34,7 @@ typedef struct QemuInputEvent {
         InputMoveEvent rel;
         InputMoveEvent abs;
         InputMultiTouchEvent mtt;
+        InputScrollEvent scroll;
     };
 } QemuInputEvent;
 
@@ -80,6 +84,8 @@ int qemu_input_scale_axis(int value,
 void qemu_input_queue_rel(QemuConsole *src, InputAxis axis, int value);
 void qemu_input_queue_abs(QemuConsole *src, InputAxis axis, int value,
                           int min_in, int max_in);
+void qemu_input_queue_scroll(QemuConsole *src, InputScrollAxis axis,
+                             int value);
 void qemu_input_queue_mtt(QemuConsole *src, InputMultiTouchType type, int slot,
                           int tracking_id);
 void qemu_input_queue_mtt_abs(QemuConsole *src, InputAxis axis, int value,
