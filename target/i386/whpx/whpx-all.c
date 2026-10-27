@@ -121,10 +121,11 @@ static const WHV_REGISTER_NAME whpx_register_names[] = {
     WHvX64RegisterDr2,
     WHvX64RegisterDr3,
     WHvX64RegisterDr6,
-    WHvX64RegisterDr7
+    WHvX64RegisterDr7,
+    WHvRegisterPendingInterruption,
+    WHvRegisterPendingEvent,
     /* Interrupt / Event Registers */
     /*
-     * WHvRegisterPendingInterruption,
      * WHvRegisterInterruptState,
      * WHvRegisterPendingEvent0,
      * WHvRegisterPendingEvent1
@@ -694,7 +695,47 @@ void whpx_set_registers(CPUState *cpu, WHPXStateLevel level)
         assert(whpx_register_names[idx] == WHvX64RegisterDr7);
         vcxt.values[idx++].Reg64 = env->dr[7];
 
-        /* Interrupt / Event Registers - Skipped */
+        /* Interrupt / Event Registers */
+
+        assert(whpx_register_names[idx] == WHvRegisterPendingInterruption);
+        if (!whpx_irqchip_in_kernel() &&
+            env->exception_pending) {
+            vcxt.values[idx].PendingInterruption.InterruptionPending = 1;
+            vcxt.values[idx].PendingInterruption.InterruptionVector = env->exception_nr;
+            vcxt.values[idx].PendingInterruption.DeliverErrorCode = env->has_error_code;
+            vcxt.values[idx].PendingInterruption.ErrorCode = env->error_code;
+            if (env->exception_is_int) {
+                vcxt.values[idx].PendingInterruption.InterruptionType = WHvX64PendingInterrupt;
+            } else if (env->nmi_pending) {
+                vcxt.values[idx].PendingInterruption.InterruptionType = WHvX64PendingNmi;
+            } else {
+                vcxt.values[idx].PendingInterruption.InterruptionType = WHvX64PendingException;
+            }
+        }
+        idx++;
+
+        assert(whpx_register_names[idx] == WHvRegisterPendingEvent);
+        if (whpx_irqchip_in_kernel() &&
+            env->exception_pending) {
+            if (!env->exception_is_int) {
+                vcxt.values[idx].ExceptionEvent.EventPending = 1;
+                vcxt.values[idx].ExceptionEvent.EventType =
+                    WHvX64PendingEventException;
+                vcxt.values[idx].ExceptionEvent.Vector = env->exception_nr;
+                vcxt.values[idx].ExceptionEvent.DeliverErrorCode
+                    = env->has_error_code;
+                vcxt.values[idx].ExceptionEvent.ErrorCode = env->error_code;
+                vcxt.values[idx].ExceptionEvent.ExceptionParameter =
+                    env->exception_payload;
+            } else if (vcxt.values[idx].ExtIntEvent.EventType
+                == WHvX64PendingEventExtInt) {
+                vcxt.values[idx].ExtIntEvent.EventPending = 1;
+                vcxt.values[idx].ExtIntEvent.Vector = env->exception_nr;
+            }  else {
+                abort();
+            }
+        }
+        idx++;
 
         assert(idx == RTL_NUMBER_OF(whpx_register_names));
     }
@@ -1091,7 +1132,64 @@ void whpx_get_registers(CPUState *cpu, WHPXStateLevel level)
     assert(whpx_register_names[idx] == WHvX64RegisterDr7);
     env->dr[7] = vcxt.values[idx++].Reg64;
 
-    /* Interrupt / Event Registers - Skipped */
+    /* Interrupt / Event Registers */
+
+    assert(whpx_register_names[idx] == WHvRegisterPendingInterruption);
+    if (!whpx_irqchip_in_kernel() &&
+        vcxt.values[idx].PendingInterruption.InterruptionPending) {
+        env->exception_pending = 1;
+        env->exception_nr = 
+            vcxt.values[idx].PendingInterruption.InterruptionVector;
+        env->has_error_code =
+            vcxt.values[idx].PendingInterruption.DeliverErrorCode;
+        env->error_code =
+            vcxt.values[idx].PendingInterruption.ErrorCode;
+        if (vcxt.values[idx].PendingInterruption.InterruptionType
+            == WHvX64PendingInterrupt) {
+            env->exception_is_int = 1;
+            env->nmi_pending = 0;
+        } else if (vcxt.values[idx].PendingInterruption.InterruptionType
+            == WHvX64PendingNmi) {
+            env->exception_is_int = 0;
+            env->nmi_pending = 1;
+        } else if (vcxt.values[idx].PendingInterruption.InterruptionType
+            == WHvX64PendingException) {
+            env->exception_is_int = 0;
+            env->nmi_pending = 0;
+        } else {
+            abort();
+        }
+    }
+    idx++;
+
+    assert(whpx_register_names[idx] == WHvRegisterPendingEvent);
+    if (whpx_irqchip_in_kernel() &&
+        vcxt.values[idx].ExceptionEvent.EventPending) {
+        if (vcxt.values[idx].ExceptionEvent.EventType
+            == WHvX64PendingEventException) {
+            env->exception_pending = 1;
+            env->exception_nr =
+                vcxt.values[idx].ExceptionEvent.Vector;
+            env->has_error_code = 
+                vcxt.values[idx].ExceptionEvent.DeliverErrorCode;
+            env->error_code =
+                vcxt.values[idx].ExceptionEvent.ErrorCode;
+            env->exception_payload =
+                vcxt.values[idx].ExceptionEvent.ExceptionParameter;
+            env->exception_is_int = 0;
+            env->nmi_pending = 0;
+        } else if (vcxt.values[idx].ExtIntEvent.EventType
+            == WHvX64PendingEventExtInt) {
+            env->exception_pending = 1;
+            env->exception_is_int = 1;
+            env->nmi_pending = 0;
+            env->exception_nr = 
+                vcxt.values[idx].ExtIntEvent.Vector;
+        } else {
+            abort();
+        }
+    }
+    idx++;
 
     assert(idx == RTL_NUMBER_OF(whpx_register_names));
 
