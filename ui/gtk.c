@@ -1152,27 +1152,33 @@ static gboolean gd_scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
         btn_horizontal = INPUT_BUTTON_WHEEL_RIGHT;
         has_horizontal = true;
     } else if (scroll->direction == GDK_SCROLL_SMOOTH) {
+        static double residual_x, residual_y;
         gdouble delta_x, delta_y;
+        int units;
+
         if (!gdk_event_get_scroll_deltas((GdkEvent *)scroll,
                                          &delta_x, &delta_y)) {
             return TRUE;
         }
 
-        if (delta_y > 0) {
-            btn_vertical = INPUT_BUTTON_WHEEL_DOWN;
-            has_vertical = true;
-        } else if (delta_y < 0) {
-            btn_vertical = INPUT_BUTTON_WHEEL_UP;
-            has_vertical = true;
-        } else if (delta_x > 0) {
-            btn_horizontal = INPUT_BUTTON_WHEEL_RIGHT;
-            has_horizontal = true;
-        } else if (delta_x < 0) {
-            btn_horizontal = INPUT_BUTTON_WHEEL_LEFT;
-            has_horizontal = true;
-        } else {
-            return TRUE;
+        residual_y += delta_y * INPUT_EVENT_SCROLL_DETENT;
+        units = (int)residual_y;
+        residual_y -= units;
+        if (units) {
+            qemu_input_queue_scroll(vc->gfx.dcl.con,
+                                    INPUT_SCROLL_AXIS_VERTICAL, units);
         }
+
+        residual_x += delta_x * INPUT_EVENT_SCROLL_DETENT;
+        units = (int)residual_x;
+        residual_x -= units;
+        if (units) {
+            qemu_input_queue_scroll(vc->gfx.dcl.con,
+                                    INPUT_SCROLL_AXIS_HORIZONTAL, units);
+        }
+
+        qemu_input_event_sync();
+        return TRUE;
     } else {
         return TRUE;
     }
