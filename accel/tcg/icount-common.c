@@ -104,6 +104,12 @@ void icount_update(CPUState *cpu)
                          &timers_state.vm_clock_lock);
 }
 
+void icount_cpu_reset(CPUState *cpu)
+{
+    cpu->icount_extra = 0;
+    qatomic_set(&cpu->neg.icount_decr.u32, 0);
+}
+
 static int64_t icount_get_raw_locked(void)
 {
     CPUState *cpu = current_cpu;

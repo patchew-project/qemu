@@ -30,3 +30,6 @@ void icount_notify_exit(void)
 {
     abort();
 }
+void icount_cpu_reset(CPUState *cpu)
+{
+}

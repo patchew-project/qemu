@@ -43,6 +43,8 @@ extern ICountMode use_icount;
  */
 void icount_update(CPUState *cpu);
 
+void icount_cpu_reset(CPUState *cpu);
+
 /* get raw icount value */
 int64_t icount_get_raw(void);
 

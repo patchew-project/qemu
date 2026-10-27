@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "exec/icount.h"
 #include "exec/cpu-common.h"
 #include "qapi/error.h"
 #include "hw/core/cpu.h"
@@ -110,11 +111,10 @@ static void cpu_common_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cpu = CPU(obj);
 
+    icount_cpu_reset(cpu);
     cpu->interrupt_request = 0;
     cpu->halted = cpu->start_powered_off;
     cpu->mem_io_pc = 0;
-    cpu->icount_extra = 0;
-    qatomic_set(&cpu->neg.icount_decr.u32, 0);
     cpu->neg.can_do_io = true;
     cpu->exception_index = -1;
     cpu->crash_occurred = false;
