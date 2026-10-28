@@ -30,10 +30,11 @@ typedef enum hv_register_name {
     HV_REGISTER_INTERNAL_ACTIVITY_STATE = 0x00000004,
 
     /* Pending Interruption Register */
-    HV_REGISTER_PENDING_INTERRUPTION = 0x00010002,
-    HV_REGISTER_INTERRUPT_STATE      = 0x00010003,
-    HV_REGISTER_PENDING_EVENT0       = 0x00010004,
-    HV_REGISTER_PENDING_EVENT1       = 0x00010005,
+    HV_REGISTER_PENDING_INTERRUPTION         = 0x00010002,
+    HV_REGISTER_INTERRUPT_STATE              = 0x00010003,
+    HV_REGISTER_PENDING_EVENT0               = 0x00010004,
+    HV_REGISTER_PENDING_EVENT1               = 0x00010005,
+    HV_REGISTER_DELIVERABILITY_NOTIFICATIONS = 0x00010006,
 
     /* X64 User-Mode Registers */
     HV_X64_REGISTER_RAX     = 0x00020000,
@@ -313,6 +314,21 @@ union hv_x64_pending_exception_event {
     };
 };
 
+#define HV_X64_PENDING_EVENT_EXCEPTION 0
+#define HV_X64_PENDING_EVENT_EXT_INT   5
+
+union hv_x64_pending_ext_int_event {
+    uint64_t as_uint64[2];
+    struct {
+        uint64_t event_pending:1;
+        uint64_t event_type:3;
+        uint64_t reserved0:4;
+        uint64_t vector:8;
+        uint64_t reserved1:48;
+        uint64_t reserved2;
+    };
+};
+
 union hv_x64_pending_virtualization_fault_event {
     uint64_t as_uint64[2];
     struct {
@@ -443,6 +459,17 @@ union hv_x64_interrupt_state_register {
     };
 };
 
+union hv_x64_deliverability_notifications_register {
+    uint64_t as_uint64;
+    struct {
+        uint64_t nmi_notification:1;
+        uint64_t interrupt_notification:1;
+        uint64_t interrupt_priority:4;
+        uint64_t reserved:42;
+        uint64_t sints:16;
+    };
+};
+
 union hv_intercept_suspend_register {
     uint64_t as_uint64;
     struct {
@@ -469,6 +496,7 @@ typedef union hv_register_value {
     union hv_x64_pending_interruption_register pending_interruption;
     union hv_x64_msr_npiep_config_contents npiep_config;
     union hv_x64_pending_exception_event pending_exception_event;
+    union hv_x64_pending_ext_int_event pending_ext_int_event;
     union hv_x64_pending_virtualization_fault_event
         pending_virtualization_fault_event;
     union hv_x64_register_sev_control sev_control;
@@ -713,6 +741,12 @@ struct hv_x64_intercept_message_header {
     struct hv_x64_segment_register cs_segment;
     uint64_t rip;
     uint64_t rflags;
+} QEMU_PACKED;
+
+struct hv_x64_interruption_deliverable_message {
+    struct hv_x64_intercept_message_header header;
+    uint32_t deliverable_type;
+    uint32_t reserved;
 } QEMU_PACKED;
 
 union hv_x64_io_port_access_info {

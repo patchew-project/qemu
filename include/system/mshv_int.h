@@ -45,6 +45,7 @@ typedef struct MshvHvCallArgs {
 struct AccelCPUState {
     int cpufd;
     MshvHvCallArgs hvcall_args;
+    bool pic_interrupt_window;
 };
 
 typedef struct MshvMemoryListener {

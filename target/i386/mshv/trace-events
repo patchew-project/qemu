@@ -1,0 +1,7 @@
+# Authors: Magnus Kulke <magnuskulke@microsoft.com>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+mshv_run_vcpu_eintr(uint32_t cpu) "cpu_index=%d"
+mshv_set_pic_interrupt_window(uint32_t cpu, bool enabled) "cpu_index=%d enabled=%d"
+mshv_pic_interrupt(uint32_t cpu, uint8_t vector) "cpu_index=%d vector=0x%x"

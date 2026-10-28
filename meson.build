@@ -3719,6 +3719,7 @@ if have_system or have_user
     'target/hppa',
     'target/i386',
     'target/i386/kvm',
+    'target/i386/mshv',
     'target/i386/whpx',
     'target/loongarch',
     'target/mips/tcg',
