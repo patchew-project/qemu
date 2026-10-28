@@ -559,18 +559,19 @@ static void tt_ascalon_cluster_realize(DeviceState *dev, Error **errp)
 {
     TTAscalonClusterState *ac = TT_ASCALON_CLUSTER(dev);
 
-    if (!ac->memory) {
-        error_setg(errp, "'memory' link is not set");
-        return;
-    }
     ac->memmap = tt_atlantis_memmap;
+
+    /* Ascalon's memory view is system memory */
+    memory_region_init(&ac->memory, OBJECT(ac),
+                       "tt-ascalon-memory", UINT64_MAX);
+    memory_region_add_subregion(get_system_memory(), 0, &ac->memory);
 
     /* Boot ROM */
     if (!memory_region_init_rom(&ac->bootrom, OBJECT(ac), "tt-atlantis.bootrom",
                                 ac->memmap[TT_ATL_BOOTROM].size, errp)) {
         return;
     }
-    memory_region_add_subregion(ac->memory, ac->memmap[TT_ATL_BOOTROM].base,
+    memory_region_add_subregion(&ac->memory, ac->memmap[TT_ATL_BOOTROM].base,
                                 &ac->bootrom);
 
     /* CPUs */
@@ -584,7 +585,7 @@ static void tt_ascalon_cluster_realize(DeviceState *dev, Error **errp)
                             ac->memmap[TT_ATL_BOOTROM].base,
                             &error_abort);
     object_property_set_link(OBJECT(&ac->cpus), "memory",
-                             OBJECT(ac->memory),
+                             OBJECT(&ac->memory),
                              &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&ac->cpus), errp)) {
         return;
@@ -594,8 +595,6 @@ static void tt_ascalon_cluster_realize(DeviceState *dev, Error **errp)
 static const Property tt_ascalon_cluster_props[] = {
     DEFINE_PROP_STRING("cpu-type", TTAscalonClusterState, cpu_type),
     DEFINE_PROP_UINT32("num-harts", TTAscalonClusterState, num_harts, 8),
-    DEFINE_PROP_LINK("memory", TTAscalonClusterState, memory,
-                     TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
 static void tt_ascalon_cluster_class_init(ObjectClass *oc, const void *data)
@@ -654,7 +653,7 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
 
     ram_size = memory_region_size(s->dram);
 
-    s->irqchip = riscv_create_aia(ac->memory,
+    s->irqchip = riscv_create_aia(&ac->memory,
                                   true, TT_IMSIC_GUESTS,
                                   TT_IMSIC_STRIDE,
                                   TT_IMSIC_STRIDE,
@@ -667,7 +666,7 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
                                   TT_IRQCHIP_NUM_MSIS,
                                   TT_IRQCHIP_NUM_PRIO_BITS);
 
-    riscv_aclint_mtimer_create(ac->memory,
+    riscv_aclint_mtimer_create(&ac->memory,
             ac->memmap[TT_ATL_ACLINT].base,
             TT_ACLINT_MTIME_SIZE,
             0, hart_count,
@@ -689,13 +688,13 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
 
     memory_region_init_alias(&s->ram_hi, OBJECT(s), "ram.high", s->dram,
                              0, ram_size);
-    memory_region_add_subregion(ac->memory,
+    memory_region_add_subregion(&ac->memory,
                                 ac->memmap[TT_ATL_DDR_HI].base, &s->ram_hi);
 
     lo_ram_size = MIN(ram_size, ac->memmap[TT_ATL_DDR_LO].size);
     memory_region_init_alias(&s->ram_lo, OBJECT(s), "ram.low", s->dram,
                              0, lo_ram_size);
-    memory_region_add_subregion(ac->memory,
+    memory_region_add_subregion(&ac->memory,
                                 ac->memmap[TT_ATL_DDR_LO].base, &s->ram_lo);
 
     /* 4 PRCM blocks */
@@ -704,7 +703,7 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
         return;
     }
     memory_region_add_subregion(
-        ac->memory, ac->memmap[TT_ATL_PRCM_RCPU].base,
+        &ac->memory, ac->memmap[TT_ATL_PRCM_RCPU].base,
         sysbus_mmio_get_region(
             SYS_BUS_DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_RCPU]), 0));
 
@@ -713,7 +712,7 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
         return;
     }
     memory_region_add_subregion(
-        ac->memory, ac->memmap[TT_ATL_PRCM_HSIO].base,
+        &ac->memory, ac->memmap[TT_ATL_PRCM_HSIO].base,
         sysbus_mmio_get_region(
             SYS_BUS_DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_HSIO]), 0));
 
@@ -722,7 +721,7 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
         return;
     }
     memory_region_add_subregion(
-        ac->memory, ac->memmap[TT_ATL_PRCM_PCIE].base,
+        &ac->memory, ac->memmap[TT_ATL_PRCM_PCIE].base,
         sysbus_mmio_get_region(
             SYS_BUS_DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_PCIE]), 0));
 
@@ -731,7 +730,7 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
         return;
     }
     memory_region_add_subregion(
-        ac->memory, ac->memmap[TT_ATL_PRCM_MM].base,
+        &ac->memory, ac->memmap[TT_ATL_PRCM_MM].base,
         sysbus_mmio_get_region(
             SYS_BUS_DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_MM]), 0));
 
@@ -745,7 +744,7 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        memory_region_add_subregion(ac->memory,
+        memory_region_add_subregion(&ac->memory,
                                     ac->memmap[TT_ATL_UART0 + i].base,
                                     sysbus_mmio_get_region(sbd, 0));
         sysbus_connect_irq(sbd, 0,
@@ -759,7 +758,7 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
         if (!sysbus_realize(sbd, errp)) {
             return;
         }
-        memory_region_add_subregion(ac->memory,
+        memory_region_add_subregion(&ac->memory,
                                     ac->memmap[TT_ATL_I2C0 + i].base,
                                     sysbus_mmio_get_region(sbd, 0));
         sysbus_connect_irq(sbd, 0,
@@ -788,10 +787,6 @@ static void tt_atlantis_machine_init(MachineState *machine)
     TTAtlantisSoCState *s = &ams->soc;
     TTAscalonClusterState *ac = &s->ascalon;
 
-    memory_region_init(&ams->soc_memory, OBJECT(machine),
-                       "tt-atlantis.soc-memory", UINT64_MAX);
-    memory_region_add_subregion(get_system_memory(), 0, &ams->soc_memory);
-
     object_initialize_child(OBJECT(machine), "soc", &ams->soc,
                             TYPE_TT_ATLANTIS_SOC);
 
@@ -803,9 +798,7 @@ static void tt_atlantis_machine_init(MachineState *machine)
                             machine->smp.cpus,
                             &error_abort);
 
-    object_property_set_link(OBJECT(ac), "memory",
-                             OBJECT(&ams->soc_memory), &error_abort);
-    object_property_set_link(OBJECT(&ams->soc), "dram", OBJECT(machine->ram),
+    object_property_set_link(OBJECT(s), "dram", OBJECT(machine->ram),
                              &error_abort);
 
     qdev_realize(DEVICE(&ams->soc), NULL, &error_fatal);
