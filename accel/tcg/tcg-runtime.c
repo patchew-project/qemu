@@ -32,20 +32,6 @@
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
-uint64_t HELPER(muluh_i64)(uint64_t arg1, uint64_t arg2)
-{
-    uint64_t l, h;
-    mulu64(&l, &h, arg1, arg2);
-    return h;
-}
-
-int64_t HELPER(mulsh_i64)(int64_t arg1, int64_t arg2)
-{
-    uint64_t l, h;
-    muls64(&l, &h, arg1, arg2);
-    return h;
-}
-
 uint32_t HELPER(clz_i32)(uint32_t arg, uint32_t zero_val)
 {
     return arg ? clz32(arg) : zero_val;
