@@ -69,6 +69,8 @@ struct TTRCPUClusterState {
      * prevent faults on accesses to regions not modeled.
      */
     UnimplementedDeviceState unimp_mem;
+
+    char *bootrom_name;
 };
 
 struct TTAtlantisSoCState {
@@ -89,6 +91,7 @@ struct TTAtlantisSoCState {
     TTAtlantisPRCMState prcm[TT_ATL_NUM_PRCM];
 
     bool has_rcpu;              /* Enable RCPU */
+    char *bootrom;              /* RCPU boot ROM image */
 };
 
 struct TTAtlantisState {
@@ -101,6 +104,7 @@ struct TTAtlantisState {
     TTAtlantisSoCState soc;
 
     bool has_rcpu;              /* Enable RCPU */
+    char *bootrom;              /* RCPU boot ROM image */
 };
 
 enum {
