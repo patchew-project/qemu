@@ -51,6 +51,24 @@ static void test_qom_types_are_unique(const void *data)
     object_class_get_list("", false);
 }
 
+static void test_accel_cpu_parent_per_target(const void *data)
+{
+    const TargetInfo *ti = data;
+    g_autofree char *name = NULL;
+
+    if (!g_test_subprocess()) {
+        g_test_trap_subprocess(NULL, 0, G_TEST_SUBPROCESS_INHERIT_STDERR);
+        g_test_trap_assert_passed();
+        return;
+    }
+
+    target_info_qom_set_target_info(ti);
+    module_call_init(MODULE_INIT_QOM);
+
+    name = g_strconcat("accel-", ti->cpu_type, NULL);
+    g_assert_nonnull(object_class_by_name(name));
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -64,7 +82,11 @@ int main(int argc, char **argv)
         g_autofree char *path =
             g_strdup_printf("/multi-targets/qom-types-are-unique/%s",
                             ti->target_name);
+        g_autofree char *accel_path =
+            g_strdup_printf("/multi-targets/accel-cpu-parent-per-target/%s",
+                            ti->target_name);
         g_test_add_data_func(path, ti, test_qom_types_are_unique);
+        g_test_add_data_func(accel_path, ti, test_accel_cpu_parent_per_target);
     }
 
     return g_test_run();

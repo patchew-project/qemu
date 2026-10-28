@@ -130,9 +130,9 @@ static const TypeInfo accel_types[] = {
 
 DEFINE_TYPES(accel_types)
 
-static void register_accel_target_type(void)
+static void register_accel_target_type(const char *cpu_type)
 {
-    g_autofree char *name = g_strconcat("accel-", target_cpu_type(), NULL);
+    g_autofree char *name = g_strconcat("accel-", cpu_type, NULL);
     const TypeInfo accel_cpu_type = {
         .name = name,
         .parent = TYPE_OBJECT,
@@ -143,4 +143,29 @@ static void register_accel_target_type(void)
     type_register_static(&accel_cpu_type);
 }
 
-type_init(register_accel_target_type);
+void accel_register_cpu_type(SysEmuTarget arch, const char *cpu_type)
+{
+    static bool accel_cpu_registered[SYS_EMU_TARGET__MAX];
+    static const char *accel_cpu_types[SYS_EMU_TARGET__MAX];
+
+    if (accel_cpu_registered[arch]) {
+        return;
+    }
+
+    /*
+     * Keyed by target_arch. Targets that share CPU_RESOLVING_TYPE already
+     * have a parent from an earlier target_arch.
+     */
+    for (int i = 0; i < SYS_EMU_TARGET__MAX; i++) {
+        if (accel_cpu_registered[i] &&
+            g_str_equal(accel_cpu_types[i], cpu_type)) {
+            accel_cpu_registered[arch] = true;
+            accel_cpu_types[arch] = cpu_type;
+            return;
+        }
+    }
+
+    accel_cpu_registered[arch] = true;
+    accel_cpu_types[arch] = cpu_type;
+    register_accel_target_type(cpu_type);
+}
