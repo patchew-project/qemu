@@ -388,7 +388,6 @@ target_ulong HELPER(sret)(CPURISCVState *env)
 }
 
 static void check_ret_from_m_mode(CPURISCVState *env, target_ulong retpc,
-                                  privilege_mode_t prev_priv,
                                   uintptr_t ra)
 {
     if (!(env->priv >= PRV_M)) {
@@ -399,11 +398,6 @@ static void check_ret_from_m_mode(CPURISCVState *env, target_ulong retpc,
                                     env->priv_ver,
                                     env->misa_ext) && (retpc & 0x3)) {
         riscv_raise_exception(env, RISCV_EXCP_INST_ADDR_MIS, ra);
-    }
-
-    if (riscv_cpu_cfg(env)->pmp &&
-        !pmp_get_num_rules(env) && (prev_priv != PRV_M)) {
-        riscv_raise_exception(env, RISCV_EXCP_INST_ACCESS_FAULT, ra);
     }
 }
 static target_ulong ssdbltrp_mxret(CPURISCVState *env, target_ulong mstatus,
@@ -430,7 +424,7 @@ target_ulong HELPER(mret)(CPURISCVState *env)
     privilege_mode_t prev_priv = get_field(mstatus, MSTATUS_MPP);
     uintptr_t ra = GETPC();
 
-    check_ret_from_m_mode(env, retpc, prev_priv, ra);
+    check_ret_from_m_mode(env, retpc, ra);
 
     bool prev_virt = !!(get_field(env->mstatus, MSTATUS_MPV) &&
                      (prev_priv != PRV_M));
@@ -548,7 +542,7 @@ target_ulong HELPER(mnret)(CPURISCVState *env)
     bool prev_virt;
     uintptr_t ra = GETPC();
 
-    check_ret_from_m_mode(env, retpc, prev_priv, ra);
+    check_ret_from_m_mode(env, retpc, ra);
 
     prev_virt = !!(get_field(env->mnstatus, MNSTATUS_MNPV) &&
                 (prev_priv != PRV_M));
