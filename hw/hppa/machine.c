@@ -32,6 +32,7 @@
 #include "hw/misc/lasi.h"
 #include "hw/scsi/ncr53c710.h"
 #include "hw/scsi/lasi_ncr710.h"
+#include "hw/audio/harmony.h"
 #include "hppa_hardware.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
@@ -269,6 +270,21 @@ static LasiState *lasi_init(void)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     return LASI_CHIP(dev);
+}
+
+/* Harmony audio, inside the LASI register block at LASI + 0x4000 */
+static void harmony_create(MachineState *machine, hwaddr addr, qemu_irq irq)
+{
+    DeviceState *dev = qdev_new(TYPE_HARMONY);
+
+    if (machine->audiodev) {
+        qdev_prop_set_string(dev, "audiodev", machine->audiodev);
+    }
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
+    memory_region_add_subregion_overlap(get_system_memory(), addr,
+                                        sysbus_mmio_get_region(
+                                            SYS_BUS_DEVICE(dev), 0), 1);
 }
 
 static DinoState *dino_init(MemoryRegion *addr_space)
@@ -699,6 +715,9 @@ static void machine_HP_715_init(MachineState *machine)
                                     sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
     }
 
+    harmony_create(machine, translate(NULL, LASI_HPA_715 + LASI_AUDIO),
+                   qdev_get_gpio_in(lasi_dev, LASI_IRQ_AUDIO_HPA));
+
     /* Add NICs, graphics & load firmware */
     machine_HP_common_init_tail(machine, NULL, translate, false);
 }
@@ -777,6 +796,9 @@ static void machine_HP_B160L_init(MachineState *machine)
         dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
         lsi53c8xx_handle_legacy_cmdline(dev);
     }
+
+    harmony_create(machine, translate(NULL, LASI_HPA + LASI_AUDIO),
+                   qdev_get_gpio_in(lasi_dev, LASI_IRQ_AUDIO_HPA));
 
     /* Add NICs, graphics & load firmware */
     machine_HP_common_init_tail(machine, pci_bus, translate, false);
@@ -985,6 +1007,7 @@ static void HP_B160L_machine_init_class_init(ObjectClass *oc, const void *data)
     mc->init = machine_HP_B160L_init;
     mc->is_default = true;
     mc->default_ram_size = 512 * MiB;
+    machine_add_audiodev_property(mc);
 }
 
 static void HP_C3700_machine_init_class_init(ObjectClass *oc, const void *data)
@@ -1036,6 +1059,7 @@ static void HP_715_machine_init_class_init(ObjectClass *oc, const void *data)
     mc->default_cpu_type = TYPE_HPPA_CPU_PA_7300LC;
     mc->valid_cpu_types = valid_cpu_types;
     mc->init = machine_HP_715_init;
+    machine_add_audiodev_property(mc);
     /* can only support up to max. 8 CPUs due inventory major numbers */
     mc->max_cpus = MIN_CONST(HPPA_MAX_CPUS, 8);
     mc->default_ram_size = 256 * MiB;

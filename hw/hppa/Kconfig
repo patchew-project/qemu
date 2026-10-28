@@ -19,3 +19,4 @@ config HPPA_B160L
     select LSI_SCSI_PCI
     select PARALLEL
     select ARTIST
+    select HARMONY
