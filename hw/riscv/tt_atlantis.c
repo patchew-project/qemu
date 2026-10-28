@@ -520,6 +520,17 @@ static void load_fdt(TTAtlantisState *ams)
     create_fdt_memory(ms->fdt, ac->memmap, ms->ram_size);
 }
 
+static void mmio_map_unimplemented(MemoryRegion *memory, SysBusDevice *dev,
+                                   const char *name, hwaddr addr, uint64_t size)
+{
+    qdev_prop_set_string(DEVICE(dev), "name", name);
+    qdev_prop_set_uint64(DEVICE(dev), "size", size);
+    sysbus_realize(dev, &error_abort);
+
+    memory_region_add_subregion_overlap(memory, addr,
+                                        sysbus_mmio_get_region(dev, 0), -1000);
+}
+
 static void tt_atlantis_machine_done(Notifier *n, void *data)
 {
     TTAtlantisState *ams = container_of(n, TTAtlantisState, machine_done);
@@ -597,6 +608,8 @@ static void tt_rcpu_cluster_init(Object *obj)
                             TYPE_CPU_CLUSTER);
     object_initialize_child(OBJECT(&rc->cluster), "cpus", &rc->cpus,
                             TYPE_RISCV_HART_ARRAY);
+    object_initialize_child(OBJECT(rc), "tt-rcpu.unimp-mem", &rc->unimp_mem,
+                            TYPE_UNIMPLEMENTED_DEVICE);
 }
 
 static void tt_rcpu_cluster_realize(DeviceState *dev, Error **errp)
@@ -652,6 +665,13 @@ static void tt_rcpu_cluster_realize(DeviceState *dev, Error **errp)
     if (!qdev_realize(DEVICE(&rc->cluster), NULL, errp)) {
         return;
     }
+
+    /*
+     * Map the entire 4G memory view as unimplemented to prevent faults from
+     * devices that have not been modeled yet.
+     */
+    mmio_map_unimplemented(&rc->memory, SYS_BUS_DEVICE(&rc->unimp_mem),
+                           "tt-rcpu.unimp", 0, UINT32_MAX);
 }
 
 static void tt_rcpu_cluster_class_init(ObjectClass *oc, const void *data)

@@ -16,6 +16,7 @@
 #include "hw/misc/tt_atlantis_prcm.h"
 #include "hw/char/dw8250.h"
 #include "hw/cpu/cluster.h"
+#include "hw/misc/unimp.h"
 #include "hw/riscv/riscv_hart.h"
 
 #define TYPE_TT_ATLANTIS_MACHINE MACHINE_TYPE_NAME("tt-atlantis")
@@ -63,6 +64,11 @@ struct TTRCPUClusterState {
     CPUClusterState cluster;
     MemoryRegion bootrom;
     MemoryRegion sram;
+    /*
+     * All device memory is backed by a catch-all unimplemented device to
+     * prevent faults on accesses to regions not modeled.
+     */
+    UnimplementedDeviceState unimp_mem;
 };
 
 struct TTAtlantisSoCState {
