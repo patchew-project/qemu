@@ -21,6 +21,8 @@
 #include "crypto/aes.h"
 #include "crypto/aes-round.h"
 #include "crypto/clmul.h"
+#include "host/vec-pack.h"
+
 
 #if SHIFT == 0
 #define Reg MMXReg
@@ -46,6 +48,26 @@
 
 #define LANE_WIDTH (SHIFT ? 16 : 8)
 #define PACK_WIDTH (LANE_WIDTH / 2)
+
+/*
+ * The routines take the register's bytes in order, which is what B(0) gives
+ * on a little-endian host and not on a big-endian one.
+ */
+QEMU_BUILD_BUG_ON(HAVE_VEC_PACK_ACCEL && HOST_BIG_ENDIAN);
+
+#undef VEC_PACK_OK
+#undef VEC_ACCEL
+#undef VEC_ACCEL_CALL
+#if SHIFT == 0
+#define VEC_PACK_OK     HAVE_VEC_PACK_ACCEL
+#define VEC_ACCEL(op)   glue(glue(vec_, op), _64_accel)
+#else
+/* There are no 256-bit routines, so the compiler drops the call for SHIFT 2. */
+#define VEC_PACK_OK     (HAVE_VEC_PACK_ACCEL && SHIFT == 1)
+#define VEC_ACCEL(op)   glue(glue(vec_, op), _128_accel)
+#endif
+#define VEC_ACCEL_CALL(op, d, v, s)                                     \
+    VEC_ACCEL(op)(&(d)->B(0), &(v)->B(0), &(s)->B(0))
 
 #if SHIFT == 0
 #define FPSRL(x, c) ((x) >> shift)
@@ -1184,6 +1206,11 @@ void HELPER(glue(pack ## name, SUFFIX))(CPUX86State *env,     \
 {                                                             \
     uint8_t r[PACK_WIDTH * 2];                                \
     int j, k;                                                 \
+                                                              \
+    if (VEC_PACK_OK) {                                        \
+        VEC_ACCEL_CALL(pack_ ## name, d, v, s);               \
+        return;                                               \
+    }                                                         \
     for (j = 0; j < 4 << SHIFT; j += PACK_WIDTH) {            \
         for (k = 0; k < PACK_WIDTH; k++) {                    \
             r[k] = F((int16_t)v->W(j + k));                   \
@@ -1204,6 +1231,11 @@ void glue(HELPER(packssdw), SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s)
 {
     uint16_t r[PACK_WIDTH];
     int j, k;
+
+    if (VEC_PACK_OK) {
+        VEC_ACCEL_CALL(pack_ssdw, d, v, s);
+        return;
+    }
 
     for (j = 0; j < 2 << SHIFT; j += PACK_WIDTH / 2) {
         for (k = 0; k < PACK_WIDTH / 2; k++) {
@@ -1226,6 +1258,11 @@ void glue(HELPER(packssdw), SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s)
         uint8_t r[PACK_WIDTH * 2];                                      \
         int j, i;                                                       \
                                                                         \
+        if (VEC_PACK_OK) {                                              \
+            VEC_ACCEL_CALL(unpck_ ## base_name ## bw, d, v, s);         \
+            return;                                                     \
+        }                                                               \
+                                                                        \
         for (j = 0; j < 8 << SHIFT; ) {                                 \
             int k = j + base * PACK_WIDTH;                              \
             for (i = 0; i < PACK_WIDTH; i++) {                          \
@@ -1244,6 +1281,11 @@ void glue(HELPER(packssdw), SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s)
         uint16_t r[PACK_WIDTH];                                         \
         int j, i;                                                       \
                                                                         \
+        if (VEC_PACK_OK) {                                              \
+            VEC_ACCEL_CALL(unpck_ ## base_name ## wd, d, v, s);         \
+            return;                                                     \
+        }                                                               \
+                                                                        \
         for (j = 0; j < 4 << SHIFT; ) {                                 \
             int k = j + base * PACK_WIDTH / 2;                          \
             for (i = 0; i < PACK_WIDTH / 2; i++) {                      \
@@ -1261,6 +1303,11 @@ void glue(HELPER(packssdw), SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s)
     {                                                                   \
         uint32_t r[PACK_WIDTH / 2];                                     \
         int j, i;                                                       \
+                                                                        \
+        if (VEC_PACK_OK) {                                              \
+            VEC_ACCEL_CALL(unpck_ ## base_name ## dq, d, v, s);         \
+            return;                                                     \
+        }                                                               \
                                                                         \
         for (j = 0; j < 2 << SHIFT; ) {                                 \
             int k = j + base * PACK_WIDTH / 4;                          \
