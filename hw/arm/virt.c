@@ -1544,8 +1544,9 @@ static void create_uart(const VirtMachineState *vms, int uart,
                          clocknames, sizeof(clocknames));
 
     if (uart == VIRT_UART0) {
-        qemu_fdt_setprop_string(ms->fdt, "/chosen", "stdout-path", nodename);
         qemu_fdt_setprop_string(ms->fdt, "/aliases", "serial0", nodename);
+        qemu_fdt_setprop_string(ms->fdt, "/chosen", "stdout-path",
+                                "serial0:115200n8");
     } else {
         qemu_fdt_setprop_string(ms->fdt, "/aliases", "serial1", nodename);
     }
@@ -1555,7 +1556,7 @@ static void create_uart(const VirtMachineState *vms, int uart,
         qemu_fdt_setprop_string(ms->fdt, nodename, "secure-status", "okay");
 
         qemu_fdt_setprop_string(ms->fdt, "/secure-chosen", "stdout-path",
-                                nodename);
+                                "serial1:115200n8");
     }
 
     g_free(nodename);
