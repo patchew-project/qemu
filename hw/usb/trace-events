@@ -425,3 +425,7 @@ usbredir_server_bulk_too_big(uint64_t id, uint8_t ep, uint32_t len) "id %" PRIu6
 usbredir_server_refused(uint64_t id, uint8_t ep, int status, uint8_t want, uint8_t got) "id %" PRIu64 " ep 0x%02x status %d, wanted type %u, it is %u"
 usbredir_server_interrupt(uint64_t id, uint8_t ep, size_t len) "id %" PRIu64 " ep 0x%02x len %zu"
 usbredir_server_interrupt_complete(uint64_t id, uint8_t ep, int status, int actual) "id %" PRIu64 " ep 0x%02x status %d actual %d"
+usbredir_server_intr_stream_start(uint8_t ep, int status) "start_interrupt_receiving ep 0x%02x -> status %d"
+usbredir_server_intr_stream_stop(uint8_t ep) "stop_interrupt_receiving ep 0x%02x"
+usbredir_server_intr_stream_park(unsigned ep_nr, int len) "parked IN packet ep %u len %d"
+usbredir_server_intr_stream_complete(unsigned ep_nr, int status, int actual) "ep %u status %d actual %d"
