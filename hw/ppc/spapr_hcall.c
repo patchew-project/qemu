@@ -1151,16 +1151,16 @@ static uint32_t cas_check_pvr(PowerPCCPU *cpu, uint32_t max_compat,
         pvr = ldl_be_phys(&address_space_memory, *addr + 4);
         *addr += 8;
 
-        if (~pvr_mask & pvr) {
-            break; /* Terminator record */
-        }
-
         if ((cpu->env.spr[SPR_PVR] & pvr_mask) == (pvr & pvr_mask)) {
             explicit_match = true;
         } else {
             if (ppc_check_compat(cpu, pvr, best_compat, max_compat)) {
                 best_compat = pvr;
             }
+        }
+
+        if (~pvr_mask & pvr) {
+            break; /* Terminator record */
         }
     }
 
