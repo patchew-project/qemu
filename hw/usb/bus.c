@@ -363,6 +363,9 @@ void usb_register_companion(const char *masterbus, USBPort *ports[],
         return;
     }
 
+    /* Only UHCI and OHCI come in as a companion, and both want the hub. */
+    bus->auto_hub = true;
+
     for (i = 0; i < portcount; i++) {
         usb_fill_port(ports[i], opaque, i, ops, speedmask);
     }
@@ -413,7 +416,8 @@ void usb_claim_port(USBDevice *dev, Error **errp)
             return;
         }
     } else {
-        if (bus->nfree == 1 && strcmp(object_get_typename(OBJECT(dev)), "usb-hub") != 0) {
+        if (bus->nfree == 1 && bus->auto_hub &&
+            strcmp(object_get_typename(OBJECT(dev)), "usb-hub") != 0) {
             /* Create a new hub and chain it on */
             hub = USB_DEVICE(qdev_try_new("usb-hub"));
             if (hub) {

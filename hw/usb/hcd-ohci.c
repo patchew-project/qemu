@@ -2000,6 +2000,7 @@ void usb_ohci_init(OHCIState *ohci, DeviceState *dev, uint32_t num_ports,
         }
     } else {
         usb_bus_new(&ohci->bus, sizeof(ohci->bus), &ohci_bus_ops, dev);
+        ohci->bus.auto_hub = true;
         for (i = 0; i < num_ports; i++) {
             usb_register_port(&ohci->bus, &ohci->rhport[i].port,
                               ohci, i, &ohci_port_ops,
