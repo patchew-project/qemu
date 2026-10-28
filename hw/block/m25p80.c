@@ -451,6 +451,11 @@ typedef enum {
     WEVCR = 0x61,
 
     DIE_ERASE = 0xC4,
+
+    /*
+     * Winbond: 0xC2 - software die select (multi-die devices)
+     */
+    DIE_SELECT = 0xC2,
 } FlashCMD;
 
 typedef enum {
@@ -1477,6 +1482,20 @@ static void decode_new_cmd(Flash *s, uint32_t value)
             s->pos = 0;
             s->len = 0;
             s->state = STATE_COLLECTING_DATA;
+        }
+        break;
+    case DIE_SELECT:
+        /*
+         * The flash array is modelled as a single contiguous storage,
+         * so the die ID is collected and ignored.
+         */
+        if (get_man(s) == MAN_WINBOND) {
+            s->needed_bytes = 1;
+            s->pos = 0;
+            s->len = 0;
+            s->state = STATE_COLLECTING_DATA;
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Unknown cmd %x\n", value);
         }
         break;
     case RNVCR:
