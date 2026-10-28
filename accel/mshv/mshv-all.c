@@ -888,6 +888,24 @@ static void mshv_start_vcpu_thread(CPUState *cpu)
                        QEMU_THREAD_JOINABLE);
 }
 
+static void mshv_kick_vcpu_thread(CPUState *cpu)
+{
+    int err;
+
+    /* don't kick ourselves, we are already running */
+    if (qemu_cpu_is_self(cpu)) {
+        return;
+    }
+
+    err = pthread_kill(cpu->thread->thread, SIG_IPI);
+    /* in case the vcpu thread has been torn down we don't want to abort */
+    if (err && err != ESRCH) {
+        error_report("failed to kick MSHV vCPU %d: %s",
+                     cpu->cpu_index, strerror(err));
+        abort();
+    }
+}
+
 static void do_mshv_cpu_synchronize_post_init(CPUState *cpu,
                                               run_on_cpu_data arg)
 {
@@ -996,6 +1014,7 @@ static void mshv_accel_ops_class_init(ObjectClass *oc, const void *data)
     AccelOpsClass *ops = ACCEL_OPS_CLASS(oc);
 
     ops->create_vcpu_thread = mshv_start_vcpu_thread;
+    ops->kick_vcpu_thread = mshv_kick_vcpu_thread;
     ops->cpu_thread_is_idle = mshv_vcpu_thread_is_idle;
     ops->synchronize_post_init = mshv_cpu_synchronize_post_init;
     ops->synchronize_post_reset = mshv_cpu_synchronize_post_reset;
