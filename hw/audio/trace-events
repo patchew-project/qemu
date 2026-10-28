@@ -61,3 +61,13 @@ virtio_snd_handle_event(void) "event queue callback called"
 virtio_snd_pcm_stream_flush(uint32_t stream) "flushing stream %"PRIu32
 virtio_snd_handle_tx_xfer(void) "tx queue callback called"
 virtio_snd_handle_rx_xfer(void) "rx queue callback called"
+
+# harmony.c
+harmony_reg_read(uint64_t addr, const char *name, uint32_t val) "0x%02"PRIx64" %s -> 0x%08x"
+harmony_reg_write(uint64_t addr, const char *name, uint32_t val) "0x%02"PRIx64" %s <- 0x%08x"
+harmony_irq(int level) "irq %d"
+harmony_page(const char *dir, uint32_t addr) "%s page 0x%08x"
+harmony_starved(int play, int rec) "no next page queued (play %d rec %d)"
+harmony_rec_read(int want, int got, int backlog) "want %d got %d frames, backlog %d"
+harmony_in_cb(int avail) "input voice has %d bytes"
+harmony_config(int freq, int fmt, int channels) "%d Hz format %d channels %d"
