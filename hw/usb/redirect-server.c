@@ -56,6 +56,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "migration/vmstate.h"
+#include "qemu/timer.h"
 #include "qemu/cutils.h"
 #include "hw/core/sysbus.h"
 #include "hw/usb/usb.h"
@@ -63,15 +64,94 @@
 #include "qom/object.h"
 
 #include <usbredirparser.h>
+#include <usbredirproto.h>
 
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-properties-system.h"
+#include "desc.h"
 #include "trace.h"
 
 #define TYPE_USB_REDIR_SERVER "x-usb-redir-server"
 OBJECT_DECLARE_SIMPLE_TYPE(USBRedirServer, USB_REDIR_SERVER)
 
 #define USBREDIR_SERVER_VERSION "qemu " TYPE_USB_REDIR_SERVER " " QEMU_VERSION
+
+/*
+ * The usbredir ep_info message has one slot per endpoint and direction.
+ * Index 0-15 are the OUT endpoints, 16-31 the IN ones.
+ */
+#define USBREDIR_SERVER_MAX_EP 32
+#define USBREDIR_SERVER_EP_IN_BASE 16
+
+/*
+ * Ask again this often after an endpoint answered NAK. Most devices
+ * wake the endpoint when data arrives, and then we ask at once. This
+ * timer is for the devices that do not.
+ */
+#define USBREDIR_SERVER_RETRY_MS 1000
+
+#define USBREDIR_SERVER_CTRL 0
+
+/* Which message answers the host when a control transfer ends. */
+typedef enum {
+    USBREDIR_SERVER_REPLY_CONTROL,
+    USBREDIR_SERVER_REPLY_CONFIG,
+    USBREDIR_SERVER_REPLY_ALT,
+} USBRedirServerReply;
+
+/* What the device said when usbredir_server_ask_device() asked it. */
+typedef enum {
+    /* It took the request and will call back. */
+    USBREDIR_SERVER_ASK_ASYNC,
+    /* It has nothing now, so the request went back on the list. */
+    USBREDIR_SERVER_ASK_NAK,
+    /* It answered, and the request is freed. */
+    USBREDIR_SERVER_ASK_COMPLETE,
+} USBRedirServerAsk;
+
+typedef struct USBRedirServerPkt {
+    USBPacket pkt;
+
+    /* Kept for the usbredir response. */
+    struct usb_redir_control_packet_header ctrl_hdr;
+
+    /*
+     * The IOV points here. IN data lands in it, OUT data is copied in.
+     * Allocated and freed with the packet.
+     */
+    uint8_t *data;
+
+    /* Every request is on this list. */
+    QTAILQ_ENTRY(USBRedirServerPkt) inflight_link;
+
+    /* Only a request that must wait is on this list. */
+    QTAILQ_ENTRY(USBRedirServerPkt) waiting_link;
+
+    USBRedirServerReply reply;
+    uint64_t redir_id;
+    int ep_idx;
+    int type;
+} USBRedirServerPkt;
+
+typedef struct USBRedirServerEp {
+    USBRedirServer *s;
+
+    /*
+     * Requests the device has not taken, oldest first. A new request
+     * goes on the end. We always ask about the first one, and a NAK
+     * puts it back on the front, so the order never changes.
+     */
+    QTAILQ_HEAD(, USBRedirServerPkt) waiting;
+
+    /* Asks again for a device that does not wake the endpoint. */
+    QEMUTimer *retry;
+
+    uint16_t max_packet;
+    uint8_t interval;
+    uint8_t iface;
+    uint8_t type;
+    uint8_t idx;
+} USBRedirServerEp;
 
 struct USBRedirServer {
     SysBusDevice parent_obj;
@@ -92,7 +172,21 @@ struct USBRedirServer {
     guint watch;
     bool host_connected;
     bool device_announced;
+
+    /* Every request the host is still waiting for an answer to. */
+    QTAILQ_HEAD(, USBRedirServerPkt) inflight;
+    uint64_t next_id;
+
+    USBRedirServerEp ep[USBREDIR_SERVER_MAX_EP];
+    uint8_t alt_setting[USB_MAX_INTERFACES];
+    GHashTable *config_descs;
+    uint8_t config_value;
 };
+
+static void usbredir_server_pkt_free(USBRedirServer *s, USBRedirServerPkt *rp);
+static void usbredir_server_stop_transfers(USBRedirServer *s);
+static void usbredir_server_send_cancelled(USBRedirServer *s,
+                                           USBRedirServerPkt *rp);
 
 /*
  * The device is whatever USBDevice the user plugged into our port with
@@ -104,8 +198,211 @@ static USBDevice *usbredir_server_device(USBRedirServer *s)
 }
 
 /*
- * Device announcement
+ * Descriptor snooping and device announcement
  */
+
+static int usbredir_server_ep_index(uint8_t addr)
+{
+    int ep_nr = addr & 0x0f;
+
+    return (addr & USB_DIR_IN) ? ep_nr + USBREDIR_SERVER_EP_IN_BASE : ep_nr;
+}
+
+static void usbredir_server_clear_ep_table(USBRedirServer *s)
+{
+    int i;
+
+    for (i = 0; i < USBREDIR_SERVER_MAX_EP; i++) {
+        s->ep[i].max_packet = 0;
+        s->ep[i].interval = 0;
+        s->ep[i].iface = 0;
+        s->ep[i].type = USB_ENDPOINT_XFER_INVALID;
+    }
+}
+
+static uint8_t usbredir_server_ep_status(USBRedirServer *s, uint8_t addr,
+                                         uint8_t want_type)
+{
+    bool is_ctrl = want_type == USB_ENDPOINT_XFER_CONTROL;
+    USBDevice *device = usbredir_server_device(s);
+    int idx = usbredir_server_ep_index(addr);
+    int ep_nr = addr & 0x0f;
+
+    if (!s->host_connected || !device || !device->attached) {
+        return usb_redir_ioerror;
+    }
+
+    /* Endpoint 0 carries control transfers, and nothing else. */
+    if (ep_nr == 0 && !is_ctrl) {
+        return usb_redir_inval;
+    }
+
+    /* An absent endpoint has type INVALID, which never matches. */
+    if (!is_ctrl && s->ep[idx].type != want_type) {
+        return usb_redir_inval;
+    }
+
+    return usb_redir_success;
+}
+
+static void usbredir_server_record_endpoint(USBRedirServer *s,
+                                            const USBDescriptor *desc,
+                                            uint8_t iface)
+{
+    uint8_t addr;
+    int ep_nr;
+    int idx;
+
+    addr = desc->u.endpoint.bEndpointAddress;
+    ep_nr = addr & 0x0f;
+    idx = usbredir_server_ep_index(addr);
+    if (ep_nr < 1 || idx >= USBREDIR_SERVER_MAX_EP) {
+        trace_usbredir_server_endpoint_dropped(addr);
+        return;
+    }
+
+    s->ep[idx].type = desc->u.endpoint.bmAttributes & 0x03;
+    s->ep[idx].max_packet = (desc->u.endpoint.wMaxPacketSize_hi << 8) |
+                            desc->u.endpoint.wMaxPacketSize_lo;
+    s->ep[idx].interval = desc->u.endpoint.bInterval;
+    s->ep[idx].iface = iface;
+
+    /*
+     * bInterval says how often to poll this endpoint. Pass on what the
+     * descriptor said, but never 0 for an interrupt or isochronous
+     * endpoint: redirect.c throws the whole device away when it sees 0,
+     * so store 1 instead.
+     */
+    if (s->ep[idx].interval == 0 &&
+        (s->ep[idx].type == USB_ENDPOINT_XFER_INT ||
+         s->ep[idx].type == USB_ENDPOINT_XFER_ISOC)) {
+        s->ep[idx].interval = 1;
+    }
+}
+
+static void usbredir_server_save_config_desc(USBRedirServer *s,
+                                             const uint8_t *data, int len)
+{
+    const USBDescriptor *conf = (const USBDescriptor *)data;
+    uint16_t total;
+
+    if (len < 4) {
+        return;
+    }
+    total = lduw_le_p(data + 2);
+
+    /*
+     * The host reads this twice. The first read is a few bytes, just to
+     * learn the length from wTotalLength. The second read has the whole
+     * descriptor.
+     *
+     * A configuration descriptor is 9 bytes, so a shorter one is broken.
+     */
+    if (total < 9 || len < total) {
+        return;
+    }
+
+    g_hash_table_insert(s->config_descs,
+                        GUINT_TO_POINTER(conf->u.config.bConfigurationValue),
+                        g_memdup2(data, total));
+}
+
+/*
+ * Some devices only forward transfers. They never read their own
+ * descriptors, so the USB core leaves their endpoint types at
+ * USB_ENDPOINT_XFER_INVALID. Sending that in ep_info does not work: the
+ * host sees type 255 and will not move data. So read the configuration
+ * descriptor and fill the tables here.
+ *
+ * Only what the host selected counts. A device can offer several
+ * configurations, and an interface several alternate settings. The
+ * endpoints of the ones not chosen are not there.
+ */
+static void usbredir_server_build_ep_table(USBRedirServer *s)
+{
+    const USBDescriptor *desc;
+    const uint8_t *config;
+    bool active = false;
+    uint8_t iface = 0;
+    uint8_t alt;
+    int i = 0;
+    int total;
+
+    usbredir_server_clear_ep_table(s);
+
+    config = g_hash_table_lookup(s->config_descs,
+                                 GUINT_TO_POINTER(s->config_value));
+    if (!config) {
+        trace_usbredir_server_config_not_found(
+            s->config_value, g_hash_table_size(s->config_descs));
+        return;
+    }
+    total = lduw_le_p(config + 2);
+
+    while (i + 2 <= total) {
+        desc = (const USBDescriptor *)(config + i);
+
+        if (desc->bLength < 2) {
+            trace_usbredir_server_bad_descriptor(i, desc->bLength,
+                                                 desc->bDescriptorType);
+            break;
+        }
+        if (i + desc->bLength > total) {
+            trace_usbredir_server_descriptor_overrun(i, desc->bLength, total);
+            break;
+        }
+
+        switch (desc->bDescriptorType) {
+        case USB_DT_INTERFACE:
+            if (desc->bLength < 9) {
+                trace_usbredir_server_bad_descriptor(i, desc->bLength,
+                                                     desc->bDescriptorType);
+                break;
+            }
+            iface = desc->u.interface.bInterfaceNumber;
+            alt = desc->u.interface.bAlternateSetting;
+            active = iface < USB_MAX_INTERFACES &&
+                     alt == s->alt_setting[iface];
+            break;
+        case USB_DT_ENDPOINT:
+            if (desc->bLength < 7) {
+                trace_usbredir_server_bad_descriptor(i, desc->bLength,
+                                                     desc->bDescriptorType);
+                break;
+            }
+            if (active) {
+                usbredir_server_record_endpoint(s, desc, iface);
+            }
+            break;
+        }
+
+        i += desc->bLength;
+    }
+}
+
+static void usbredir_server_send_ep_info(USBRedirServer *s)
+{
+    struct usb_redir_ep_info_header ep_info = {};
+    int i;
+
+    usbredir_server_build_ep_table(s);
+
+    for (i = 0; i < USBREDIR_SERVER_MAX_EP; i++) {
+        ep_info.type[i] = s->ep[i].type;
+        ep_info.max_packet_size[i] = s->ep[i].max_packet;
+        ep_info.interface[i] = s->ep[i].iface;
+        ep_info.interval[i] = s->ep[i].interval;
+        if (s->ep[i].type != USB_ENDPOINT_XFER_INVALID) {
+            trace_usbredir_server_ep_info(i, ep_info.type[i],
+                                          ep_info.max_packet_size[i],
+                                          ep_info.interval[i],
+                                          ep_info.interface[i]);
+        }
+    }
+
+    usbredirparser_send_ep_info(s->parser, &ep_info);
+    usbredirparser_do_write(s->parser);
+}
 
 static uint8_t usbredir_server_speed(USBDevice *device)
 {
@@ -145,6 +442,108 @@ static void usbredir_server_announce_device(USBRedirServer *s)
     trace_usbredir_server_announce(conn.speed);
     usbredirparser_send_device_connect(s->parser, &conn);
     usbredirparser_do_write(s->parser);
+
+    usbredir_server_send_ep_info(s);
+}
+
+/*
+ * Packet completion
+ */
+
+static uint8_t usbredir_server_status(int status)
+{
+    switch (status) {
+    case USB_RET_SUCCESS:
+        return usb_redir_success;
+    case USB_RET_STALL:
+        return usb_redir_stall;
+    case USB_RET_BABBLE:
+        return usb_redir_babble;
+    default:
+        return usb_redir_ioerror;
+    }
+}
+
+static void usbredir_server_ctrl_reply(USBRedirServer *s, uint64_t id,
+    const struct usb_redir_control_packet_header *hdr,
+    USBRedirServerReply reply, uint8_t status, uint8_t *data, int actual)
+{
+    struct usb_redir_configuration_status_header cfg = {};
+    struct usb_redir_control_packet_header resp = *hdr;
+    struct usb_redir_alt_setting_status_header alt = {
+        .interface = hdr->index,
+    };
+    bool is_in = !!(hdr->requesttype & USB_DIR_IN);
+    uint8_t value = hdr->value;
+
+    /* IN reports what the device sent, OUT echoes what the host chose. */
+    if (is_in) {
+        value = actual > 0 ? data[0] : 0;
+    }
+
+    switch (reply) {
+    case USBREDIR_SERVER_REPLY_CONTROL:
+        resp.status = status;
+        resp.length = actual;
+        usbredirparser_send_control_packet(s->parser, id, &resp,
+                                           actual > 0 ? data : NULL, actual);
+        break;
+    case USBREDIR_SERVER_REPLY_CONFIG:
+        cfg.status = status;
+        cfg.configuration = value;
+        usbredirparser_send_configuration_status(s->parser, id, &cfg);
+        break;
+    case USBREDIR_SERVER_REPLY_ALT:
+        alt.status = status;
+        alt.alt = value;
+        usbredirparser_send_alt_setting_status(s->parser, id, &alt);
+        break;
+    }
+    usbredirparser_do_write(s->parser);
+}
+
+/*
+ * The device answered the control transfer. Some requests change the
+ * endpoint list, so save what the host asked for.
+ */
+static void usbredir_server_ctrl_complete(USBRedirServer *s,
+                                          USBRedirServerPkt *rp)
+{
+    uint8_t status = usbredir_server_status(rp->pkt.status);
+    bool is_in = !!(rp->ctrl_hdr.requesttype & USB_DIR_IN);
+    int actual = is_in ? rp->pkt.actual_length : 0;
+
+    trace_usbredir_server_ctrl_complete(rp->redir_id, status, actual);
+    usbredir_server_ctrl_reply(s, rp->redir_id, &rp->ctrl_hdr, rp->reply,
+                               status, rp->data, actual);
+
+    if (status != usb_redir_success) {
+        return;
+    }
+
+    switch ((rp->ctrl_hdr.requesttype << 8) | rp->ctrl_hdr.request) {
+    case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
+        /* Keep the configuration descriptor. It says what endpoints exist. */
+        if ((rp->ctrl_hdr.value >> 8) == USB_DT_CONFIG && actual > 0) {
+            usbredir_server_save_config_desc(s, rp->data, actual);
+        }
+        break;
+    case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
+        /* A new configuration puts every interface back on alternate 0. */
+        s->config_value = rp->ctrl_hdr.value;
+        memset(s->alt_setting, 0, sizeof(s->alt_setting));
+        usbredir_server_send_ep_info(s);
+        break;
+    case InterfaceOutRequest | USB_REQ_SET_INTERFACE:
+        if (rp->ctrl_hdr.index >= USB_MAX_INTERFACES) {
+            return;
+        }
+        s->alt_setting[rp->ctrl_hdr.index] = rp->ctrl_hdr.value;
+        usbredir_server_send_ep_info(s);
+        break;
+    default:
+        break;
+    }
 }
 
 /*
@@ -165,12 +564,20 @@ static void usbredir_server_port_detach(USBPort *port)
 
     trace_usbredir_server_detach(s->device_announced);
 
+    usbredir_server_stop_transfers(s);
+
     if (s->host_connected && s->parser && s->device_announced) {
         trace_usbredir_server_disconnect();
         usbredirparser_send_device_disconnect(s->parser);
         usbredirparser_do_write(s->parser);
     }
     s->device_announced = false;
+
+    /* Clear the endpoint table: it belongs to the device that is leaving. */
+    usbredir_server_clear_ep_table(s);
+    memset(s->alt_setting, 0, sizeof(s->alt_setting));
+    g_hash_table_remove_all(s->config_descs);
+    s->config_value = 0;
 }
 
 static void usbredir_server_port_child_detach(USBPort *port, USBDevice *child)
@@ -183,19 +590,169 @@ static void usbredir_server_port_wakeup(USBPort *port)
     /* We do not pass remote wakeup to the host. Nothing to do. */
 }
 
+/*
+ * The core calls this for a packet the device answered with
+ * USB_RET_ASYNC. usbredir_server_ask_device() calls it for the rest.
+ */
+static void usbredir_server_packet_complete(USBPort *port, USBPacket *p)
+{
+    USBRedirServer *s = port->opaque;
+    USBRedirServerPkt *rp = container_of(p, USBRedirServerPkt, pkt);
+    USBDevice *device = usbredir_server_device(s);
+
+    /* A cancel can arrive while we answer, so it must not find this one. */
+    QTAILQ_REMOVE(&s->inflight, rp, inflight_link);
+
+    if (!s->parser || !device) {
+        usbredir_server_pkt_free(s, rp);
+        return;
+    }
+
+    switch (rp->type) {
+    case USBREDIR_SERVER_CTRL:
+        usbredir_server_ctrl_complete(s, rp);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    usbredir_server_pkt_free(s, rp);
+}
+
 static USBPortOps usbredir_server_port_ops = {
     .attach = usbredir_server_port_attach,
     .detach = usbredir_server_port_detach,
     .child_detach = usbredir_server_port_child_detach,
     .wakeup = usbredir_server_port_wakeup,
+    .complete = usbredir_server_packet_complete,
 };
 
 /*
  * USB bus ops
  */
 
+/*
+ * Hand one request to the device. USB_RET_ASYNC means it answers
+ * later, and the core then calls usbredir_server_packet_complete()
+ * for us. A NAK means it has nothing yet, so keep the request.
+ * Anything else is the answer, and the core calls nothing, so we call
+ * usbredir_server_packet_complete() ourselves.
+ */
+static USBRedirServerAsk usbredir_server_ask_device(USBRedirServer *s,
+                                                    USBRedirServerPkt *rp)
+{
+    USBRedirServerEp *ep = &s->ep[rp->ep_idx];
+
+    usb_handle_packet(usbredir_server_device(s), &rp->pkt);
+
+    if (rp->pkt.status == USB_RET_ASYNC) {
+        return USBREDIR_SERVER_ASK_ASYNC;
+    }
+
+    /*
+     * Keep the request and send it again when the device wakes the
+     * endpoint.
+     */
+    if (rp->pkt.status == USB_RET_NAK) {
+        trace_usbredir_server_nak_park(rp->redir_id, rp->ep_idx);
+        QTAILQ_INSERT_HEAD(&ep->waiting, rp, waiting_link);
+        timer_mod(ep->retry, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                  (int64_t)USBREDIR_SERVER_RETRY_MS * SCALE_MS);
+        return USBREDIR_SERVER_ASK_NAK;
+    }
+
+    usbredir_server_packet_complete(&s->port, &rp->pkt);
+    return USBREDIR_SERVER_ASK_COMPLETE;
+}
+
+/*
+ * Send everything this endpoint is holding, oldest first. The device
+ * answering NAK stops it again, and the next wakeup or the timer picks
+ * it up.
+ */
+static void usbredir_server_kick_ep(USBRedirServer *s, int idx)
+{
+    USBRedirServerEp *ep = &s->ep[idx];
+    USBRedirServerPkt *rp;
+
+    /* We are asking now, so drop the timer. A new NAK sets it again. */
+    timer_del(ep->retry);
+
+    while ((rp = QTAILQ_FIRST(&ep->waiting)) != NULL) {
+        QTAILQ_REMOVE(&ep->waiting, rp, waiting_link);
+        trace_usbredir_server_nak_retry(rp->redir_id, idx);
+        if (usbredir_server_ask_device(s, rp) == USBREDIR_SERVER_ASK_NAK) {
+            return;
+        }
+    }
+}
+
+static void usbredir_server_retry_ep(void *opaque)
+{
+    USBRedirServerEp *ep = opaque;
+
+    usbredir_server_kick_ep(ep->s, ep->idx);
+}
+
+static void usbredir_server_wakeup_ep(USBBus *bus, USBEndpoint *ep,
+                                      unsigned int stream)
+{
+    USBRedirServer *s = container_of(bus, USBRedirServer, bus);
+    uint8_t addr = ep->nr | (ep->pid == USB_TOKEN_IN ? USB_DIR_IN : 0);
+
+    usbredir_server_kick_ep(s, usbredir_server_ep_index(addr));
+}
+
 static USBBusOps usbredir_server_bus_ops = {
+    .wakeup_endpoint = usbredir_server_wakeup_ep,
 };
+
+/* An endpoint answers in order, so this waits behind anything else. */
+static void usbredir_server_submit(USBRedirServer *s, USBRedirServerPkt *rp)
+{
+    USBRedirServerEp *ep = &s->ep[rp->ep_idx];
+
+    QTAILQ_INSERT_TAIL(&s->inflight, rp, inflight_link);
+    if (!QTAILQ_EMPTY(&ep->waiting)) {
+        QTAILQ_INSERT_TAIL(&ep->waiting, rp, waiting_link);
+        return;
+    }
+    usbredir_server_ask_device(s, rp);
+}
+
+static USBRedirServerPkt *usbredir_server_pkt_alloc(int size, int ep_idx)
+{
+    USBRedirServerPkt *rp = g_new0(USBRedirServerPkt, 1);
+
+    qemu_iovec_init(&rp->pkt.iov, 1);
+    rp->data = g_malloc0(size);
+    rp->ep_idx = ep_idx;
+    return rp;
+}
+
+/*
+ * Take @rp off every list and free it. Do not use usb_packet_complete():
+ * it calls back into usbredir_server_packet_complete(), which would free
+ * the request a second time. usb_cancel_packet() only tells the device
+ * to let go.
+ */
+static void usbredir_server_pkt_free(USBRedirServer *s, USBRedirServerPkt *rp)
+{
+    USBRedirServerEp *ep = &s->ep[rp->ep_idx];
+
+    if (QTAILQ_IN_USE(rp, waiting_link)) {
+        QTAILQ_REMOVE(&ep->waiting, rp, waiting_link);
+    }
+    if (QTAILQ_IN_USE(rp, inflight_link)) {
+        QTAILQ_REMOVE(&s->inflight, rp, inflight_link);
+    }
+    if (usb_packet_is_inflight(&rp->pkt)) {
+        usb_cancel_packet(&rp->pkt);
+    }
+    usb_packet_cleanup(&rp->pkt);
+    g_free(rp->data);
+    g_free(rp);
+}
 
 /*
  * usbredirparser I/O and logging callbacks
@@ -312,7 +869,158 @@ static void usbredir_server_reset(void *priv)
     USBDevice *device = usbredir_server_device(s);
 
     trace_usbredir_server_bus_reset(device && device->attached);
+    if (!device || !device->attached) {
+        return;
+    }
+
+    usbredir_server_stop_transfers(s);
     usb_device_reset(device);
+}
+
+/*
+ * Run one control transfer on the device. @reply says which message
+ * answers the host when the transfer finishes.
+ */
+static void usbredir_server_do_control(USBRedirServer *s, uint64_t id,
+    struct usb_redir_control_packet_header *hdr,
+    uint8_t *data, int data_len, USBRedirServerReply reply)
+{
+    USBDevice *device = usbredir_server_device(s);
+    USBRedirServerPkt *rp;
+    USBEndpoint *ep0;
+    uint8_t status;
+    bool is_in;
+    int size;
+
+    trace_usbredir_server_control(id, hdr->requesttype, hdr->request,
+                                  hdr->value, hdr->index, hdr->length);
+
+    /* The host still waits for an answer, even when there is nobody to ask. */
+    status = usbredir_server_ep_status(s, 0, USB_ENDPOINT_XFER_CONTROL);
+    if (status != usb_redir_success) {
+        trace_usbredir_server_ctrl_refused(id, status);
+        usbredir_server_ctrl_reply(s, id, hdr, reply, status, NULL, 0);
+        return;
+    }
+
+    is_in = !!(hdr->requesttype & USB_DIR_IN);
+    ep0 = usb_ep_get(device, USB_TOKEN_SETUP, 0);
+
+    /* Room for the data of either direction. */
+    size = MAX(hdr->length, data_len);
+
+    rp = usbredir_server_pkt_alloc(size, 0);
+    rp->redir_id = id;
+    rp->reply = reply;
+    rp->ctrl_hdr = *hdr;
+    rp->type = USBREDIR_SERVER_CTRL;
+    if (!is_in && data_len > 0) {
+        memcpy(rp->data, data, data_len);
+    }
+
+    usb_packet_setup(&rp->pkt, is_in ? USB_TOKEN_IN : USB_TOKEN_OUT, ep0,
+                     0, s->next_id++, false, false);
+    if (hdr->length > 0) {
+        usb_packet_addbuf(&rp->pkt, rp->data, hdr->length);
+    }
+
+    rp->pkt.parameter = (uint64_t)hdr->requesttype |
+                        (uint64_t)hdr->request << 8 |
+                        (uint64_t)hdr->value << 16 |
+                        (uint64_t)hdr->index << 32 |
+                        (uint64_t)hdr->length << 48;
+
+    usbredir_server_submit(s, rp);
+}
+
+static void usbredir_server_control_packet(void *priv, uint64_t id,
+    struct usb_redir_control_packet_header *hdr,
+    uint8_t *data, int data_len)
+{
+    USBRedirServer *s = priv;
+
+    usbredir_server_do_control(s, id, hdr, data, data_len,
+                               USBREDIR_SERVER_REPLY_CONTROL);
+    usbredirparser_free_packet_data(s->parser, data);
+}
+
+static void usbredir_server_set_configuration(void *priv, uint64_t id,
+    struct usb_redir_set_configuration_header *hdr)
+{
+    struct usb_redir_control_packet_header ctrl = {
+        .endpoint = 0,
+        .request = USB_REQ_SET_CONFIGURATION,
+        /* Host->Device, Standard, Device */
+        .requesttype = 0x00,
+        .status = 0,
+        .value = hdr->configuration,
+        .index = 0,
+        .length = 0,
+    };
+    USBRedirServer *s = priv;
+
+    /* The host gets a configuration_status when the device answers. */
+    usbredir_server_do_control(s, id, &ctrl, NULL, 0,
+                               USBREDIR_SERVER_REPLY_CONFIG);
+}
+
+static void usbredir_server_get_configuration(void *priv, uint64_t id)
+{
+    struct usb_redir_control_packet_header ctrl = {
+        .endpoint = 0,
+        .request = USB_REQ_GET_CONFIGURATION,
+        /* Device->Host, Standard, Device */
+        .requesttype = 0x80,
+        .status = 0,
+        .value = 0,
+        .index = 0,
+        .length = 1,
+    };
+    USBRedirServer *s = priv;
+
+    /* The host gets a configuration_status when the device answers. */
+    usbredir_server_do_control(s, id, &ctrl, NULL, 0,
+                               USBREDIR_SERVER_REPLY_CONFIG);
+}
+
+static void usbredir_server_set_alt_setting(void *priv, uint64_t id,
+    struct usb_redir_set_alt_setting_header *hdr)
+{
+    struct usb_redir_control_packet_header ctrl = {
+        .endpoint = 0,
+        .request = USB_REQ_SET_INTERFACE,
+        /* Host->Device, Standard, Interface */
+        .requesttype = 0x01,
+        .status = 0,
+        .value = hdr->alt,
+        .index = hdr->interface,
+        .length = 0,
+    };
+    USBRedirServer *s = priv;
+
+    /* The host gets an alt_setting_status when the device answers. */
+    usbredir_server_do_control(s, id, &ctrl, NULL, 0,
+                               USBREDIR_SERVER_REPLY_ALT);
+}
+
+static void usbredir_server_get_alt_setting(void *priv, uint64_t id,
+    struct usb_redir_get_alt_setting_header *hdr)
+{
+    struct usb_redir_control_packet_header ctrl = {
+        .endpoint = 0,
+        .request = USB_REQ_GET_INTERFACE,
+        /* Device->Host, Standard, Interface */
+        .requesttype = 0x81,
+        .status = 0,
+        .value = 0,
+        .index = hdr->interface,
+        .length = 1,
+    };
+    USBRedirServer *s = priv;
+
+    /* The host gets an alt_setting_status when the device answers. */
+    usbredir_server_do_control(s, id, &ctrl, NULL, 0,
+                               USBREDIR_SERVER_REPLY_ALT);
 }
 
 static void usbredir_server_filter_reject(void *priv)
@@ -338,6 +1046,80 @@ static void usbredir_server_interface_info(void *priv,
     /* The host should not send this to a device. Nothing to do. */
 }
 
+static void usbredir_server_cancel_data_packet(void *priv, uint64_t id)
+{
+    USBRedirServer *s = priv;
+    USBRedirServerPkt *rp;
+    int idx;
+
+    QTAILQ_FOREACH(rp, &s->inflight, inflight_link) {
+        if (rp->redir_id == id) {
+            idx = rp->ep_idx;
+
+            trace_usbredir_server_cancel(id, true);
+            usbredir_server_send_cancelled(s, rp);
+            usbredir_server_pkt_free(s, rp);
+
+            /* The rest were waiting behind this one, so send them now. */
+            usbredir_server_kick_ep(s, idx);
+            return;
+        }
+    }
+
+    /*
+     * Not on our list means we already answered it. The host uses the
+     * id to find the request, and the same id is used again later. A
+     * second answer could land on the wrong request. Send nothing.
+     */
+    trace_usbredir_server_cancel(id, false);
+}
+
+/*
+ * Cancelled and in-flight packets
+ */
+
+/*
+ * Every request must get one answer carrying its id, even an aborted one.
+ * A dropped id stays in the host's cancelled queue. The host reuses ids,
+ * so a later answer would be thrown away as a stale one.
+ */
+static void usbredir_server_send_cancelled(USBRedirServer *s,
+                                           USBRedirServerPkt *rp)
+{
+    struct usb_redir_control_packet_header ctrl;
+
+    switch (rp->type) {
+    case USBREDIR_SERVER_CTRL:
+        ctrl = rp->ctrl_hdr;
+        ctrl.status = usb_redir_cancelled;
+        ctrl.length = 0;
+        usbredirparser_send_control_packet(s->parser, rp->redir_id,
+                                           &ctrl, NULL, 0);
+        break;
+    default:
+        return;
+    }
+    usbredirparser_do_write(s->parser);
+}
+
+static void usbredir_server_stop_transfers(USBRedirServer *s)
+{
+    USBRedirServerPkt *rp;
+    int i;
+
+    for (i = 0; i < USBREDIR_SERVER_MAX_EP; i++) {
+        timer_del(s->ep[i].retry);
+    }
+
+    /*
+     * No "cancelled" response here. This runs on a bus reset, a detach or
+     * a closed chardev, and the host has dropped its own queues already.
+     */
+    while ((rp = QTAILQ_FIRST(&s->inflight)) != NULL) {
+        usbredir_server_pkt_free(s, rp);
+    }
+}
+
 /*
  * Parser setup and teardown
  */
@@ -360,13 +1142,19 @@ static void usbredir_server_create_parser(USBRedirServer *s)
     /* Callbacks for messages the remote host sends to us */
     s->parser->hello_func = usbredir_server_hello;
     s->parser->reset_func = usbredir_server_reset;
+    s->parser->control_packet_func = usbredir_server_control_packet;
+    s->parser->set_configuration_func = usbredir_server_set_configuration;
 
     /* The parser calls these directly, so they must not be NULL. */
+    s->parser->get_configuration_func = usbredir_server_get_configuration;
+    s->parser->set_alt_setting_func = usbredir_server_set_alt_setting;
+    s->parser->get_alt_setting_func = usbredir_server_get_alt_setting;
     s->parser->filter_reject_func = usbredir_server_filter_reject;
     s->parser->filter_filter_func = usbredir_server_filter_filter;
     s->parser->device_disconnect_ack_func =
         usbredir_server_device_disconnect_ack;
     s->parser->interface_info_func = usbredir_server_interface_info;
+    s->parser->cancel_data_packet_func = usbredir_server_cancel_data_packet;
 
     /* Capabilities: 64-bit IDs, connect_device_version, ep_info sizes */
     usbredirparser_caps_set_cap(caps, usb_redir_cap_connect_device_version);
@@ -397,6 +1185,8 @@ static void usbredir_server_destroy_parser(USBRedirServer *s)
     s->device_announced = false;
 
     g_clear_handle_id(&s->watch, g_source_remove);
+
+    usbredir_server_stop_transfers(s);
 
     if (s->parser) {
         usbredirparser_destroy(s->parser);
@@ -480,12 +1270,25 @@ static void usbredir_server_chardev_event(void *opaque,
 static void usbredir_server_realize(DeviceState *dev, Error **errp)
 {
     USBRedirServer *s = USB_REDIR_SERVER(dev);
+    int i;
 
     if (!qemu_chr_fe_backend_connected(&s->cs)) {
         error_setg(errp,
                    TYPE_USB_REDIR_SERVER ": 'chardev' property must be set");
         return;
     }
+
+    QTAILQ_INIT(&s->inflight);
+    for (i = 0; i < USBREDIR_SERVER_MAX_EP; i++) {
+        QTAILQ_INIT(&s->ep[i].waiting);
+        s->ep[i].s = s;
+        s->ep[i].idx = i;
+        s->ep[i].retry = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                      usbredir_server_retry_ep, &s->ep[i]);
+    }
+    s->config_descs = g_hash_table_new_full(g_direct_hash, g_direct_equal,
+                                            NULL, g_free);
+    usbredir_server_clear_ep_table(s);
 
     /* One port: usbredir carries a single device. */
     usb_bus_new(&s->bus, sizeof(s->bus), &usbredir_server_bus_ops, dev);
@@ -506,13 +1309,21 @@ static void usbredir_server_realize(DeviceState *dev, Error **errp)
 static void usbredir_server_unrealize(DeviceState *dev)
 {
     USBRedirServer *s = USB_REDIR_SERVER(dev);
+    int i;
 
     qemu_chr_fe_deinit(&s->cs, true);
     usbredir_server_destroy_parser(s);
 
+    g_clear_pointer(&s->config_descs, g_hash_table_destroy);
+
     if (s->chardev_close_bh) {
         qemu_bh_delete(s->chardev_close_bh);
         s->chardev_close_bh = NULL;
+    }
+
+    for (i = 0; i < USBREDIR_SERVER_MAX_EP; i++) {
+        timer_free(s->ep[i].retry);
+        s->ep[i].retry = NULL;
     }
 }
 
