@@ -7310,6 +7310,18 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                 },
                 .cache_info = &epyc_turin_cache_info
             },
+            {
+                .version = 3,
+                .props = (PropValue[]) {
+                    { "tsc-adjust", "on" },
+                    { "cet-ss", "on" },
+                    { "eraps", "on" },
+                    { "bus-lock-detect", "on" },
+                    { "model-id",
+                      "AMD EPYC-Turin-v3 Processor" },
+                    { /* end of list */ }
+               },
+            },
             { /* end of list */ }
         }
     },
