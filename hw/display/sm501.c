@@ -630,7 +630,13 @@ static inline int is_hwc_enabled(SM501State *state, int crt)
 static inline uint8_t *get_hwc_address(SM501State *state, int crt)
 {
     uint32_t addr = crt ? state->dc_crt_hwc_addr : state->dc_panel_hwc_addr;
-    return state->local_mem + (addr & 0x03FFFFF0);
+    uint32_t offset = addr & 0x03FFFFF0;
+
+    if (offset + SM501_HWC_WIDTH * SM501_HWC_HEIGHT / 4
+        > get_local_mem_size(state)) {
+        return NULL;
+    }
+    return state->local_mem + offset;
 }
 
 /**
@@ -1815,6 +1821,9 @@ static bool sm501_update_display(void *opaque)
         /* choose cursor draw line function */
         draw_hwc_line = draw_hwc_line_32;
         hwc_src = get_hwc_address(s, crt);
+        if (!hwc_src) {
+            draw_hwc_line = NULL;
+        }
         c_x = get_hwc_x(s, crt);
         c_y = get_hwc_y(s, crt);
         get_hwc_palette(s, crt, hwc_palette);
@@ -1837,6 +1846,9 @@ static bool sm501_update_display(void *opaque)
 
     /* draw each line according to conditions */
     offset = get_fb_addr(s, crt);
+    if (offset + (uint64_t)width * height * src_bpp > get_local_mem_size(s)) {
+        return true;
+    }
     snap = memory_region_snapshot_and_clear_dirty(&s->local_mem_region,
               offset, width * height * src_bpp, DIRTY_MEMORY_VGA);
     for (y = 0; y < height; y++, offset += width * src_bpp) {
