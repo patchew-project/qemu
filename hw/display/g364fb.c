@@ -126,7 +126,11 @@ static void g364fb_draw_graphic8(G364State *s)
     }
 
     vram = memory_region_get_ram_ptr(&s->mem_vram) + s->top_of_screen;
-    /* XXX: out of range in vram? */
+    if ((uint64_t)s->top_of_screen +
+        (uint64_t)s->width * s->height > s->vram_size) {
+        return;
+    }
+
     data_display = dd = surface_data(surface);
     snap = memory_region_snapshot_and_clear_dirty(&s->mem_vram, 0, s->vram_size,
                                                   DIRTY_MEMORY_VGA);
