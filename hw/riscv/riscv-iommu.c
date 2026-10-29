@@ -23,6 +23,7 @@
 #include "hw/pci/pci_device.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/riscv/riscv_hart.h"
+#include "migration/blocker.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
@@ -2731,12 +2732,63 @@ static void riscv_iommu_instance_finalize(Object *obj)
     qemu_mutex_destroy(&s->iot_lock);
 }
 
+static bool riscv_iommu_validate_property(RISCVIOMMUState *s, Error **errp)
+{
+#ifndef CONFIG_RISCV_IOMMU_ACCEL
+    if (s->accel) {
+        error_setg(errp, "accel=on support not compiled in");
+        return false;
+    }
+#endif
+
+    if (!s->accel) {
+        return true;
+    }
+
+    if (!s->enable_s_stage) {
+        error_setg(errp,
+                   "Only stage-1 is supported for RISC-V IOMMU with accel=on");
+        return false;
+    }
+
+    return true;
+}
+
 static void riscv_iommu_realize(DeviceState *dev, Error **errp)
 {
     RISCVIOMMUState *s = RISCV_IOMMU(dev);
 
+    if (!riscv_iommu_validate_property(s, errp)) {
+        return;
+    }
+
     if (s->accel) {
         riscv_iommu_accel_init(s);
+        /*
+        * With accel=on, MSI remapping is done by the host IOMMU. Disable
+        * the emulated MSI capability so the guest's MSI message address
+        * is a plain GPA translated on the host side; the guest then sees
+        * no MSI capability bits and uses the base device context format.
+        */
+        s->enable_msi = false;
+        /* G-stage is managed by the host (VFIO) in accel mode */
+        s->enable_g_stage = false;
+        /*
+         * No ATS.INVAL path exists for the vIOMMU in accel mode now,
+         * vfio-pci devices are not notifiers of the emulated IOMMU and
+         * guest ATS.INVAL commands are not forwarded to the host, so hide
+         * ATS/PRI capabilities.
+         */
+        s->enable_ats = false;
+        /*
+         * Per-PASID contexts and PDT inval for vIOMMU are unimplemented,
+         * hide the process-directory capabilities.
+         */
+        s->cap &= ~(RISCV_IOMMU_CAP_PD8 | RISCV_IOMMU_CAP_PD17 |
+                    RISCV_IOMMU_CAP_PD20);
+        error_setg(&s->migration_blocker, "Migration not supported with "
+                   "RISC-V IOMMU accel=on");
+        migrate_add_blocker(&s->migration_blocker, errp);
     }
 
     /* Report QEMU target physical address space limits. */
@@ -2860,6 +2912,10 @@ static void riscv_iommu_unrealize(DeviceState *dev)
 {
     RISCVIOMMUState *s = RISCV_IOMMU(dev);
 
+    if (s->migration_blocker) {
+        migrate_del_blocker(&s->migration_blocker);
+    }
+
     if (s->cap & RISCV_IOMMU_CAP_HPM) {
         g_hash_table_unref(s->hpm_event_ctr_map);
         timer_free(s->hpm_timer);
@@ -2920,6 +2976,7 @@ static const Property riscv_iommu_properties[] = {
         TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_UINT8("hpm-counters", RISCVIOMMUState, hpm_cntrs,
                       RISCV_IOMMU_IOCOUNT_NUM),
+    DEFINE_PROP_BOOL("accel", RISCVIOMMUState, accel, FALSE),
 };
 
 static void riscv_iommu_class_init(ObjectClass *klass, const void *data)
