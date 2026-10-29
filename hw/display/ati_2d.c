@@ -157,6 +157,7 @@ static bool ati_2d_do_blt(const ATI2DCtx *ctx, uint8_t use_pixman)
     QemuRect vis_src, vis_dst;
     unsigned int x, y, i, j, bypp = ctx->bpp / 8;
     const uint8_t *vram_end = ctx->vga->vram_ptr + ctx->vga->vram_size;
+    uint64_t dst_end;
 
     if (!ctx->bpp) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid bpp\n");
@@ -166,9 +167,11 @@ static bool ati_2d_do_blt(const ATI2DCtx *ctx, uint8_t use_pixman)
         qemu_log_mask(LOG_GUEST_ERROR, "Zero dest pitch\n");
         return false;
     }
+    dst_end = (uint64_t)ctx->dst.x * bypp +
+              (uint64_t)(ctx->dst.y + ctx->dst.height) * ctx->dst_stride;
     if (ctx->dst.x > 0x3fff || ctx->dst.y > 0x3fff ||
-        ctx->dst_bits >= vram_end - bypp || ctx->dst_bits + ctx->dst.x * bypp +
-        (ctx->dst.y + ctx->dst.height) * ctx->dst_stride >= vram_end - bypp) {
+        ctx->dst_bits >= vram_end - bypp ||
+        ctx->dst_bits + dst_end >= vram_end - bypp) {
         qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
         return false;
     }
@@ -203,11 +206,12 @@ static bool ati_2d_do_blt(const ATI2DCtx *ctx, uint8_t use_pixman)
             qemu_log_mask(LOG_GUEST_ERROR, "Zero source pitch\n");
             return false;
         }
+        uint64_t src_end = (uint64_t)vis_src.x * bypp +
+            (uint64_t)(vis_src.y + vis_dst.height) * ctx->src_stride;
         if (!ctx->host_data_active &&
             (vis_src.x > 0x3fff || vis_src.y > 0x3fff ||
             ctx->src_bits >= vram_end - bypp ||
-            ctx->src_bits + vis_src.x * bypp + (vis_src.y + vis_dst.height) *
-            ctx->src_stride >= vram_end - bypp)) {
+            ctx->src_bits + src_end >= vram_end - bypp)) {
             qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
             return false;
         }
