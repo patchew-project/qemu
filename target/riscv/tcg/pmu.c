@@ -178,6 +178,43 @@ void riscv_pmu_decr_instret(CPURISCVState *env)
     env->pmu_ctrs[2].mhpmcounter_prev++;
 }
 
+static void riscv_pmu_sspesa_capture(CPURISCVState *env, uint32_t ctr_idx)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+    target_ulong sdata;
+    bool cde, ctr_enabled;
+
+    if (!cpu->cfg.ext_sspesa) {
+        return;
+    }
+
+    /*
+     * When supervisor counter delegation is enabled only overflows of
+     * delegated counters update the sample CSRs.
+     */
+    cde = get_field(env->menvcfg, MENVCFG_CDE);
+    ctr_enabled = get_field(env->mcounteren, BIT(ctr_idx));
+    if (cde && !ctr_enabled) {
+        return;
+    }
+
+    sdata = ctr_idx;
+    sdata |= env->priv << SHPMSDATA_MODE_SHIFT;
+    if (env->virt_enabled) {
+        sdata |= SHPMSDATA_V;
+    }
+
+    /*
+     * Only the first overflow that raises LCOFIP updates the sample PC and
+     * metadata.  Currently updating CNTRID on simultaneous overflows is
+     * not supported.
+     */
+    if (!(env->mip & MIP_LCOFIP)) {
+        env->shpmspc = env->pc;
+        env->shpmsdata = sdata;
+    }
+}
+
 int riscv_pmu_incr_ctr(RISCVCPU *cpu, enum riscv_pmu_event_idx event_idx)
 {
     uint32_t ctr_idx;
@@ -211,6 +248,7 @@ int riscv_pmu_incr_ctr(RISCVCPU *cpu, enum riscv_pmu_event_idx event_idx)
         /* Generate interrupt only if OF bit is clear */
         if (!(env->mhpmevent_val[ctr_idx] & MHPMEVENT_BIT_OF)) {
             env->mhpmevent_val[ctr_idx] |= MHPMEVENT_BIT_OF;
+            riscv_pmu_sspesa_capture(env, ctr_idx);
             riscv_cpu_update_mip(env, MIP_LCOFIP, BOOL_TO_MASK(1));
         }
     } else {
@@ -411,6 +449,7 @@ static void pmu_timer_trigger_irq(RISCVCPU *cpu,
 
     if (cpu->pmu_avail_ctrs & BIT(ctr_idx)) {
         if (pmu_hpmevent_set_of_if_clear(env, ctr_idx)) {
+            riscv_pmu_sspesa_capture(env, ctr_idx);
             riscv_cpu_update_mip(env, MIP_LCOFIP, BOOL_TO_MASK(1));
         }
     }

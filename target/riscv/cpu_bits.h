@@ -642,9 +642,8 @@
 #define SHPMSDATA_CNTRID    0x1f
 #define SHPMSDATA_MODE      0x60
 #define SHPMSDATA_V         0x80
-#define SHPMSDATA_MODE_U    0x00
-#define SHPMSDATA_MODE_S    0x20
 #define SHPMSDATA_VALID_MASK (SHPMSDATA_CNTRID | SHPMSDATA_MODE | SHPMSDATA_V)
+#define SHPMSDATA_MODE_SHIFT 5
 
 /* Crypto Extension */
 #define CSR_SEED            0x015
