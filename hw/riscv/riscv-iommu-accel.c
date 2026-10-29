@@ -7,6 +7,7 @@
 #include "qemu/osdep.h"
 #include "qemu/bswap.h"
 #include "qemu/error-report.h"
+#include "system/system.h"
 #include "trace.h"
 
 #include "hw/pci/pci_bridge.h"
@@ -24,6 +25,120 @@
  */
 static MemoryRegion root, sysmem;
 static AddressSpace *shared_as_sysmem;
+
+/* All S1 translation modes. */
+#define RISCV_IOMMU_CAP_S1_MODES \
+    (RISCV_IOMMU_CAP_SV32 | RISCV_IOMMU_CAP_SV39 | \
+     RISCV_IOMMU_CAP_SV48 | RISCV_IOMMU_CAP_SV57)
+
+/*
+ * Advertised only if the host IOMMU supports them, since the host
+ * performs the S1 translation. Finalised when the machine initialisation
+ * completes. Currently just the S1 modes.
+ */
+#define RISCV_IOMMU_ACCEL_HOST_CAP_MASK RISCV_IOMMU_CAP_S1_MODES
+
+static bool
+riscv_iommu_accel_check_hw_compatible(RISCVIOMMUState *s,
+                                      struct iommu_hw_info_riscv *info,
+                                      Error **errp)
+{
+    RISCVIOMMUAccelState *accel = s->accel_state;
+
+    /*
+     * S1 translation is required for accelerated mode; reject a host
+     * IOMMU that cannot do any S1 mode.
+     */
+    if (!(info->capabilities & RISCV_IOMMU_CAP_S1_MODES)) {
+        error_setg(errp, "Host RISC-V IOMMU does not support S1 translation");
+        return false;
+    }
+
+    /*
+     * Once the capabilities are finalised the register is read-only from
+     * the guest point of view, a device whose host IOMMU cannot provide
+     * an advertised capability cannot be attached.
+     *
+     * Reachable only by a hotplugged device whose host IOMMU is weaker
+     * than the finalised vIOMMU capabilities; A hotplug sharing the
+     * cold-plug host never hits this.
+     */
+    if (accel->finalised &&
+        (s->cap & RISCV_IOMMU_ACCEL_HOST_CAP_MASK) &
+        ~info->capabilities) {
+        error_setg(errp, "Host RISC-V IOMMU capabilities (0x%"PRIx64") "
+                   "do not provide the advertised capabilities (0x%"PRIx64")",
+                   (uint64_t)info->capabilities,
+                   (uint64_t)(s->cap & RISCV_IOMMU_ACCEL_HOST_CAP_MASK));
+        return false;
+    }
+
+    return true;
+}
+
+static bool riscv_iommu_accel_hw_compatible(RISCVIOMMUState *s,
+                                            HostIOMMUDeviceIOMMUFD *idev,
+                                            uint64_t *host_caps,
+                                            Error **errp)
+{
+    struct iommu_hw_info_riscv info;
+    uint32_t data_type = IOMMU_HW_INFO_TYPE_RISCV;
+    uint64_t caps;
+
+    if (!iommufd_backend_get_device_info(idev->iommufd, idev->devid,
+                                         &data_type, &info, sizeof(info),
+                                         &caps, NULL, errp)) {
+        return false;
+    }
+
+    if (data_type != IOMMU_HW_INFO_TYPE_RISCV) {
+        error_setg(errp, "Wrong data type (%d) for Host RISC-V IOMMU device info",
+                     data_type);
+        return false;
+    }
+
+    if (!riscv_iommu_accel_check_hw_compatible(s, &info, errp)) {
+        return false;
+    }
+
+    *host_caps = info.capabilities;
+    return true;
+}
+
+/*
+ * Finalise the guest-visible capabilities register. Runs at machine init
+ * done and before the guest may observe the register. This is the last
+ * write to the register.
+ */
+static void riscv_iommu_accel_finalize_caps(RISCVIOMMUState *s)
+{
+    RISCVIOMMUAccelState *accel = s->accel_state;
+    RISCVIOMMUAccelDevice *accel_dev;
+    uint64_t host_caps = ~0ULL;
+
+    QLIST_FOREACH(accel_dev, &accel->device_list, next) {
+        host_caps &= accel_dev->host_caps;
+    }
+
+    s->cap &= host_caps | ~RISCV_IOMMU_ACCEL_HOST_CAP_MASK;
+    accel->finalised = true;
+
+    if (!(s->cap & RISCV_IOMMU_CAP_S1_MODES)) {
+        error_report("riscv-iommu: host IOMMUs of accelerated devices do "
+                     "not share a common S1 translation mode");
+        exit(1);
+    }
+
+    stq_le_p(&s->regs[RISCV_IOMMU_REG_CAP], s->cap);
+}
+
+static void riscv_iommu_accel_machine_done(Notifier *notifier, void *data)
+{
+    RISCVIOMMUAccelState *accel = container_of(notifier, RISCVIOMMUAccelState,
+                                               machine_done);
+
+    riscv_iommu_accel_finalize_caps(accel->iommu);
+}
 
 static RISCVIOMMUAccelDevice *riscv_iommu_accel_get_dev(RISCVIOMMUState *s,
                                                         PCIBus *bus, int devfn)
@@ -281,6 +396,7 @@ static bool riscv_iommu_accel_set_iommu_device(PCIBus *bus, void *opaque,
     HostIOMMUDeviceIOMMUFD *idev = HOST_IOMMU_DEVICE_IOMMUFD(hiod);
     RISCVIOMMUState *s = (RISCVIOMMUState *) opaque;
     RISCVIOMMUAccelDevice *accel_dev = riscv_iommu_accel_get_dev(s, bus, devfn);
+    uint64_t host_caps;
 
     if (!idev) {
         return true;
@@ -295,6 +411,16 @@ static bool riscv_iommu_accel_set_iommu_device(PCIBus *bus, void *opaque,
         return true;
     }
 
+    /*
+     * Check the host IOMMU associated with the dev is compatible with the
+     * QEMU RISC-V IOMMU accel. The reported host_caps will be intersected
+     * into the final capabilities register when the machine initialisation
+     * completes.
+     */
+    if (!riscv_iommu_accel_hw_compatible(s, idev, &host_caps, errp)) {
+        return false;
+    }
+
     if (s->accel_state->viommu) {
         goto done;
     }
@@ -306,6 +432,7 @@ static bool riscv_iommu_accel_set_iommu_device(PCIBus *bus, void *opaque,
     }
 
 done:
+    accel_dev->host_caps = host_caps;
     accel_dev->idev = idev;
     accel_dev->accel = s->accel_state;
     QLIST_INSERT_HEAD(&s->accel_state->device_list, accel_dev, next);
@@ -566,7 +693,23 @@ static void riscv_iommu_accel_as_init(RISCVIOMMUState *s)
 
 void riscv_iommu_accel_init(RISCVIOMMUState *s)
 {
-    s->accel_state = g_new0(RISCVIOMMUAccelState, 1);
+    RISCVIOMMUAccelState *accel = g_new0(RISCVIOMMUAccelState, 1);
+
+    accel->iommu = s;
+    s->accel_state = accel;
     s->iommu_ops = &riscv_iommu_accel_ops;
     riscv_iommu_accel_as_init(s);
+}
+
+/*
+ * Register the machine-done notifier. Kept separate from
+ * riscv_iommu_accel_init() so that registration happens only after
+ * riscv_iommu_realize() has done.
+ */
+void riscv_iommu_accel_register_machine_done(RISCVIOMMUState *s)
+{
+    RISCVIOMMUAccelState *accel = s->accel_state;
+
+    accel->machine_done.notify = riscv_iommu_accel_machine_done;
+    qemu_add_machine_init_done_notifier(&accel->machine_done);
 }

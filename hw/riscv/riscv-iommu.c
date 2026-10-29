@@ -2849,6 +2849,11 @@ static void riscv_iommu_realize(DeviceState *dev, Error **errp)
             timer_new_ns(QEMU_CLOCK_VIRTUAL, riscv_iommu_hpm_timer_cb, s);
         s->hpm_event_ctr_map = g_hash_table_new(g_direct_hash, g_direct_equal);
     }
+
+    /* Register the machine-done notifier last. */
+    if (s->accel) {
+        riscv_iommu_accel_register_machine_done(s);
+    }
 }
 
 static void riscv_iommu_unrealize(DeviceState *dev)
