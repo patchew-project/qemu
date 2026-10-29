@@ -31,6 +31,7 @@
 
 #include "cpu_bits.h"
 #include "riscv-iommu.h"
+#include "riscv-iommu-accel.h"
 #include "riscv-iommu-bits.h"
 #include "riscv-iommu-hpm.h"
 #include "trace.h"
@@ -2706,6 +2707,10 @@ static void riscv_iommu_instance_finalize(Object *obj)
 static void riscv_iommu_realize(DeviceState *dev, Error **errp)
 {
     RISCVIOMMUState *s = RISCV_IOMMU(dev);
+
+    if (s->accel) {
+        riscv_iommu_accel_init(s);
+    }
 
     /* Report QEMU target physical address space limits. */
     s->cap = set_field(s->cap, RISCV_IOMMU_CAP_PAS, s->pas_bits);

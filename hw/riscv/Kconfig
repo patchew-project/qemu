@@ -1,5 +1,10 @@
+config RISCV_IOMMU_ACCEL
+    bool
+    depends on RISCV_IOMMU
+
 config RISCV_IOMMU
     bool
+    select RISCV_IOMMU_ACCEL if IOMMUFD
 
 config RISCV_NUMA
     bool

@@ -111,6 +111,9 @@ struct RISCVIOMMUState {
     uint8_t hpm_cntrs;
 
     const PCIIOMMUOps *iommu_ops;
+
+    /* nested iommu support */
+    bool accel;
 };
 
 void riscv_iommu_pci_setup_iommu(RISCVIOMMUState *iommu, PCIBus *bus,
