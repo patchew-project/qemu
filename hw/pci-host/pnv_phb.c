@@ -329,6 +329,7 @@ static const TypeInfo pnv_phb_type_info = {
     .parent        = TYPE_PCIE_HOST_BRIDGE,
     .instance_size = sizeof(PnvPHB),
     .class_init    = pnv_phb_class_init,
+    .secure        = true,
 };
 
 static const TypeInfo pnv_phb_root_port_info = {
@@ -336,6 +337,7 @@ static const TypeInfo pnv_phb_root_port_info = {
     .parent        = TYPE_PCIE_ROOT_PORT,
     .instance_size = sizeof(PnvPHBRootPort),
     .class_init    = pnv_phb_root_port_class_init,
+    .secure        = true,
 };
 
 static void pnv_phb_register_types(void)
