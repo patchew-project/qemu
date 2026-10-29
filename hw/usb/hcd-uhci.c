@@ -1380,6 +1380,7 @@ static void uhci_register_types(void)
     TypeInfo uhci_type_info = {
         .parent        = TYPE_UHCI,
         .class_init    = uhci_data_class_init,
+        .secure        = true,
     };
     int i;
 
