@@ -44,17 +44,6 @@
 
 typedef struct RISCVIOMMUEntry RISCVIOMMUEntry;
 
-/* Device assigned I/O address space */
-struct RISCVIOMMUSpace {
-    IOMMUMemoryRegion iova_mr;  /* IOVA memory region for attached device */
-    AddressSpace iova_as;       /* IOVA address space for attached device */
-    RISCVIOMMUState *iommu;     /* Managing IOMMU device state */
-    PCIBus *bus;                /* PCI bus of the requester */
-    uint8_t devfn;              /* Requester identifier, AKA device_id */
-    bool notifier;              /* IOMMU unmap notifier enabled */
-    QLIST_ENTRY(RISCVIOMMUSpace) list;
-};
-
 typedef enum RISCVIOMMUTransTag {
     RISCV_IOMMU_TRANS_TAG_BY,  /* Bypass */
     RISCV_IOMMU_TRANS_TAG_SS,  /* Single Stage */
@@ -1527,9 +1516,31 @@ static void riscv_iommu_ctx_put(RISCVIOMMUState *s, void *ref)
     }
 }
 
-/* Find or allocate address space for a given device */
-static AddressSpace *riscv_iommu_space(RISCVIOMMUState *s, PCIBus *bus,
-                                            int devfn)
+void riscv_iommu_init_space(RISCVIOMMUState *s, RISCVIOMMUSpace *as,
+                            PCIBus *bus, int devfn)
+{
+    char name[64];
+
+    as->iommu = s;
+    as->bus = bus;
+    as->devfn = devfn;
+
+    snprintf(name, sizeof(name), "riscv-iommu-%04x:%02x.%d-iova",
+        pci_bus_num(bus), PCI_SLOT(devfn), PCI_FUNC(devfn));
+
+    /* IOVA address space, untranslated addresses */
+    memory_region_init_iommu(&as->iova_mr, sizeof(as->iova_mr),
+        TYPE_RISCV_IOMMU_MEMORY_REGION,
+        OBJECT(s), "riscv_iommu", UINT64_MAX);
+    address_space_init(&as->iova_as, MEMORY_REGION(&as->iova_mr), name);
+
+    QLIST_INSERT_HEAD(&s->spaces, as, list);
+
+    trace_riscv_iommu_new(s->parent_obj.id, pci_bus_num(bus),
+            PCI_SLOT(devfn), PCI_FUNC(devfn));
+}
+
+RISCVIOMMUSpace *riscv_iommu_get_space(RISCVIOMMUState *s, PCIBus *bus, int devfn)
 {
     RISCVIOMMUSpace *as;
 
@@ -1539,27 +1550,18 @@ static AddressSpace *riscv_iommu_space(RISCVIOMMUState *s, PCIBus *bus,
         }
     }
 
+    return as;
+}
+
+/* Find or allocate address space for a given device */
+AddressSpace *riscv_iommu_space(RISCVIOMMUState *s, PCIBus *bus, int devfn)
+{
+    RISCVIOMMUSpace *as;
+
+    as = riscv_iommu_get_space(s, bus, devfn);
     if (as == NULL) {
-        char name[64];
         as = g_new0(RISCVIOMMUSpace, 1);
-
-        as->iommu = s;
-        as->bus = bus;
-        as->devfn = devfn;
-
-        snprintf(name, sizeof(name), "riscv-iommu-%04x:%02x.%d-iova",
-            pci_bus_num(bus), PCI_SLOT(devfn), PCI_FUNC(devfn));
-
-        /* IOVA address space, untranslated addresses */
-        memory_region_init_iommu(&as->iova_mr, sizeof(as->iova_mr),
-            TYPE_RISCV_IOMMU_MEMORY_REGION,
-            OBJECT(s), "riscv_iommu", UINT64_MAX);
-        address_space_init(&as->iova_as, MEMORY_REGION(&as->iova_mr), name);
-
-        QLIST_INSERT_HEAD(&s->spaces, as, list);
-
-        trace_riscv_iommu_new(s->parent_obj.id, pci_bus_num(bus),
-                PCI_SLOT(devfn), PCI_FUNC(devfn));
+        riscv_iommu_init_space(s, as, bus, devfn);
     }
     return &as->iova_as;
 }

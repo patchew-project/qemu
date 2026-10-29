@@ -28,6 +28,17 @@
 
 typedef enum riscv_iommu_igs_modes riscv_iommu_igs_mode;
 
+/* Device assigned I/O address space */
+struct RISCVIOMMUSpace {
+    IOMMUMemoryRegion iova_mr;  /* IOVA memory region for attached device */
+    AddressSpace iova_as;       /* IOVA address space for attached device */
+    RISCVIOMMUState *iommu;     /* Managing IOMMU device state */
+    PCIBus *bus;                /* PCI bus of the requester */
+    uint8_t devfn;              /* Requester identifier, AKA device_id */
+    bool notifier;              /* IOMMU unmap notifier enabled */
+    QLIST_ENTRY(RISCVIOMMUSpace) list;
+};
+
 struct RISCVIOMMUState {
     /*< private >*/
     DeviceState parent_obj;
@@ -111,6 +122,11 @@ void riscv_iommu_fault(RISCVIOMMUState *s, struct riscv_iommu_fq_record *ev);
 DeviceState *riscv_create_iommu_sys(DeviceState *mmio_irqchip,
                                     hwaddr addr, int base_irq,
                                     bool is_32_bit);
+
+void riscv_iommu_init_space(RISCVIOMMUState *s, RISCVIOMMUSpace *as,
+                            PCIBus *bus, int devfn);
+AddressSpace *riscv_iommu_space(RISCVIOMMUState *s, PCIBus *bus, int devfn);
+RISCVIOMMUSpace *riscv_iommu_get_space(RISCVIOMMUState *s, PCIBus *bus, int devfn);
 
 typedef struct RISCVIOMMUContext RISCVIOMMUContext;
 /* Device translation context state. */
