@@ -475,6 +475,25 @@ static const VMStateDescription vmstate_pmu_ctr_state = {
     }
 };
 
+static bool sspesa_needed(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+
+    return cpu->cfg.ext_sspesa;
+}
+
+static const VMStateDescription vmstate_sspesa = {
+    .name = "cpu/sspesa",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = sspesa_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINTTL(env.shpmspc, RISCVCPU),
+        VMSTATE_UINTTL(env.shpmsdata, RISCVCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool jvt_needed(void *opaque)
 {
     RISCVCPU *cpu = opaque;
@@ -653,6 +672,7 @@ const VMStateDescription vmstate_riscv_cpu = {
         &vmstate_elp,
         &vmstate_ssp,
         &vmstate_ctr,
+        &vmstate_sspesa,
         &vmstate_sstc,
         &vmstate_mseccfg,
         &vmstate_sdext,
