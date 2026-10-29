@@ -3007,7 +3007,10 @@ void riscv_iommu_pci_setup_iommu(RISCVIOMMUState *iommu, PCIBus *bus,
         RISCVIOMMUState *last = (RISCVIOMMUState *)bus->iommu_opaque;
         QLIST_INSERT_AFTER(last, iommu, iommus);
     } else if (!bus->iommu_ops && !bus->iommu_opaque) {
-        pci_setup_iommu(bus, &riscv_iommu_ops, iommu);
+        if (!iommu->iommu_ops) {
+            iommu->iommu_ops = &riscv_iommu_ops;
+        }
+        pci_setup_iommu(bus, iommu->iommu_ops, iommu);
     } else {
         error_setg(errp, "can't register secondary IOMMU for PCI bus #%d",
             pci_bus_num(bus));

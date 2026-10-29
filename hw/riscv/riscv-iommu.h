@@ -24,6 +24,7 @@
 #include "system/dma.h"
 #include "hw/riscv/iommu.h"
 #include "hw/riscv/riscv-iommu-bits.h"
+#include "hw/pci/pci.h"
 
 typedef enum riscv_iommu_igs_modes riscv_iommu_igs_mode;
 
@@ -97,6 +98,8 @@ struct RISCVIOMMUState {
     /* HPM event counters */
     GHashTable *hpm_event_ctr_map; /* Mapping of events to counters */
     uint8_t hpm_cntrs;
+
+    const PCIIOMMUOps *iommu_ops;
 };
 
 void riscv_iommu_pci_setup_iommu(RISCVIOMMUState *iommu, PCIBus *bus,
