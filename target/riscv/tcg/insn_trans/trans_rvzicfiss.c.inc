@@ -29,6 +29,7 @@ static bool trans_sspopchk(DisasContext *ctx, arg_sspopchk *a)
     }
 
     TCGv addr = tcg_temp_new();
+    TCGv maddr = tcg_temp_new();
     TCGLabel *skip = gen_new_label();
     uint32_t tmp = (get_xl(ctx) == MXL_RV64) ? 8 : 4;
     TCGv data = tcg_temp_new();
@@ -36,8 +37,9 @@ static bool trans_sspopchk(DisasContext *ctx, arg_sspopchk *a)
     TCGv_i64 wide_addr = tcg_temp_new_i64();
     tcg_gen_ld_i64(wide_addr, tcg_env, offsetof(CPURISCVState, ssp));
     tcg_gen_trunc_i64_tl(addr, wide_addr);
+    gen_pm_adjust_addr(ctx, maddr, addr);
     decode_save_opc(ctx, RISCV_UW2_ALWAYS_STORE_AMO);
-    tcg_gen_qemu_ld_tl(data, addr, SS_MMU_INDEX(ctx),
+    tcg_gen_qemu_ld_tl(data, maddr, SS_MMU_INDEX(ctx),
                        mxl_memop(ctx) | MO_ALIGN);
     TCGv rs1 = get_gpr(ctx, a->rs1, EXT_NONE);
     tcg_gen_brcond_tl(TCG_COND_EQ, data, rs1, skip);
@@ -60,6 +62,7 @@ static bool trans_sspush(DisasContext *ctx, arg_sspush *a)
     }
 
     TCGv addr = tcg_temp_new();
+    TCGv maddr = tcg_temp_new();
     int tmp = (get_xl(ctx) == MXL_RV64) ? -8 : -4;
     TCGv data = get_gpr(ctx, a->rs2, EXT_NONE);
     TCGv_i64 wide_addr = tcg_temp_new_i64();
@@ -67,7 +70,8 @@ static bool trans_sspush(DisasContext *ctx, arg_sspush *a)
     tcg_gen_ld_i64(wide_addr, tcg_env, offsetof(CPURISCVState, ssp));
     tcg_gen_trunc_i64_tl(addr, wide_addr);
     tcg_gen_addi_tl(addr, addr, tmp);
-    tcg_gen_qemu_st_tl(data, addr, SS_MMU_INDEX(ctx),
+    gen_pm_adjust_addr(ctx, maddr, addr);
+    tcg_gen_qemu_st_tl(data, maddr, SS_MMU_INDEX(ctx),
                        mxl_memop(ctx) | MO_ALIGN);
     tcg_gen_ext_tl_i64(wide_addr, addr);
     tcg_gen_st_i64(wide_addr, tcg_env, offsetof(CPURISCVState, ssp));
