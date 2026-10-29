@@ -25,18 +25,36 @@ typedef struct RISCVIOMMUAccelState {
     QLIST_HEAD(, RISCVIOMMUAccelDevice) device_list;
 } RISCVIOMMUAccelState;
 
+typedef struct RISCVIOMMUS1Hwpt {
+    uint32_t hwpt_id;
+} RISCVIOMMUS1Hwpt;
+
 typedef struct RISCVIOMMUAccelDevice {
     RISCVIOMMUSpace as;
     HostIOMMUDeviceIOMMUFD *idev;
+    RISCVIOMMUS1Hwpt *s1_hwpt;
+    IOMMUFDVdev *vdev;
     QLIST_ENTRY(RISCVIOMMUAccelDevice) next;
     RISCVIOMMUAccelState *accel;
 } RISCVIOMMUAccelDevice;
 
 #ifdef CONFIG_RISCV_IOMMU_ACCEL
 void riscv_iommu_accel_init(RISCVIOMMUState *s);
+bool riscv_iommu_accel_install_dc(RISCVIOMMUState *s, int devid);
+bool riscv_iommu_accel_install_dc_all(RISCVIOMMUState *s);
 #else
 static inline void riscv_iommu_accel_init(RISCVIOMMUState *s)
 {
+}
+static inline bool
+riscv_iommu_accel_install_dc(RISCVIOMMUState *s, int devid)
+{
+    return true;
+}
+static inline bool
+riscv_iommu_accel_install_dc_all(RISCVIOMMUState *s)
+{
+    return true;
 }
 #endif
 

@@ -65,7 +65,7 @@ struct RISCVIOMMUEntry {
 /* IOMMU index for transactions without process_id specified. */
 #define RISCV_IOMMU_NOPROCID 0
 
-static uint32_t riscv_iommu_space_devid(RISCVIOMMUSpace *as)
+uint32_t riscv_iommu_space_devid(RISCVIOMMUSpace *as)
 {
     uint32_t devid = PCI_BUILD_BDF(pci_bus_num(as->bus), as->devfn);
 
@@ -1555,6 +1555,19 @@ RISCVIOMMUSpace *riscv_iommu_get_space(RISCVIOMMUState *s, PCIBus *bus, int devf
     return as;
 }
 
+RISCVIOMMUSpace *riscv_iommu_get_space_from_devid(RISCVIOMMUState *s,
+                                                  uint32_t devid)
+{
+    RISCVIOMMUSpace *as;
+    QLIST_FOREACH(as, &s->spaces, list) {
+        if (riscv_iommu_space_devid(as) == devid) {
+            break;
+        }
+    }
+
+    return as;
+}
+
 /* Find or allocate address space for a given device */
 AddressSpace *riscv_iommu_space(RISCVIOMMUState *s, PCIBus *bus, int devfn)
 {
@@ -2083,19 +2096,30 @@ static void riscv_iommu_process_cq_tail(RISCVIOMMUState *s)
 
         case RISCV_IOMMU_CMD(RISCV_IOMMU_CMD_IODIR_FUNC_INVAL_DDT,
                              RISCV_IOMMU_CMD_IODIR_OPCODE):
+        {
+            uint32_t devid = get_field(cmd.dword0, RISCV_IOMMU_CMD_IODIR_DID);
+
             if (!(cmd.dword0 & RISCV_IOMMU_CMD_IODIR_DV)) {
-                /* invalidate all device context cache mappings */
+                /* DV=0, invalidate and re-install every accelerated device */
                 ctx_func = riscv_iommu_ctx_inval_all;
+                riscv_iommu_ctx_inval(s, ctx_func, devid, 0);
+                if (!riscv_iommu_accel_install_dc_all(s)) {
+                    goto cmd_ill;
+                }
             } else {
-                /* invalidate all device context matching DID */
+                /* DV=1, invalidate and re-install device matching DID */
                 ctx_func = riscv_iommu_ctx_inval_devid;
+                riscv_iommu_ctx_inval(s, ctx_func, devid, 0);
+                if (!riscv_iommu_accel_install_dc(s, devid)) {
+                    goto cmd_ill;
+                }
             }
-            riscv_iommu_ctx_inval(s, ctx_func,
-                get_field(cmd.dword0, RISCV_IOMMU_CMD_IODIR_DID), 0);
             break;
+        }
 
         case RISCV_IOMMU_CMD(RISCV_IOMMU_CMD_IODIR_FUNC_INVAL_PDT,
                              RISCV_IOMMU_CMD_IODIR_OPCODE):
+            /* FIXME: add support for PDT inval for vIOMMU */
             if (!(cmd.dword0 & RISCV_IOMMU_CMD_IODIR_DV)) {
                 /* illegal command arguments IODIR_PDT & DV == 0 */
                 goto cmd_ill;

@@ -131,6 +131,9 @@ void riscv_iommu_init_space(RISCVIOMMUState *s, RISCVIOMMUSpace *as,
                             PCIBus *bus, int devfn);
 AddressSpace *riscv_iommu_space(RISCVIOMMUState *s, PCIBus *bus, int devfn);
 RISCVIOMMUSpace *riscv_iommu_get_space(RISCVIOMMUState *s, PCIBus *bus, int devfn);
+RISCVIOMMUSpace *riscv_iommu_get_space_from_devid(RISCVIOMMUState *s,
+                                                  uint32_t devid);
+uint32_t riscv_iommu_space_devid(RISCVIOMMUSpace *as);
 
 typedef struct RISCVIOMMUContext RISCVIOMMUContext;
 /* Device translation context state. */

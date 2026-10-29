@@ -276,6 +276,7 @@ static void riscv_iommu_accel_unset_iommu_device(PCIBus *bus, void *opaque,
     HostIOMMUDeviceIOMMUFD *idev;
     RISCVIOMMUAccelDevice *accel_dev;
     RISCVIOMMUAccelState *accel;
+    IOMMUFDVdev *vdev;
     RISCVIOMMUSpace *as;
 
     as = riscv_iommu_get_space(s, bus, devfn);
@@ -293,6 +294,20 @@ static void riscv_iommu_accel_unset_iommu_device(PCIBus *bus, void *opaque,
                      "0x%x", idev->devid);
     }
 
+    if (accel_dev->s1_hwpt) {
+        iommufd_backend_free_id(accel_dev->idev->iommufd,
+                                accel_dev->s1_hwpt->hwpt_id);
+        g_free(accel_dev->s1_hwpt);
+        accel_dev->s1_hwpt = NULL;
+    }
+
+    vdev = accel_dev->vdev;
+    if (vdev) {
+        iommufd_backend_free_id(accel->viommu->iommufd, vdev->vdevice_id);
+        g_free(vdev);
+        accel_dev->vdev = NULL;
+    }
+
     accel_dev->idev = NULL;
     accel_dev->accel = NULL;
     QLIST_REMOVE(accel_dev, next);
@@ -305,6 +320,180 @@ static void riscv_iommu_accel_unset_iommu_device(PCIBus *bus, void *opaque,
         g_free(accel->viommu);
         accel->viommu = NULL;
     }
+}
+
+static bool riscv_iommu_accel_alloc_vdev(RISCVIOMMUAccelDevice *accel_dev,
+                                         int devid, Error **errp)
+{
+    RISCVIOMMUAccelState *accel = accel_dev->accel;
+    HostIOMMUDeviceIOMMUFD *idev = accel_dev->idev;
+    IOMMUFDVdev *vdev = accel_dev->vdev;
+    uint32_t vdevice_id;
+
+    if (!idev || vdev) {
+        return true;
+    }
+
+    if (!iommufd_backend_alloc_vdev(idev->iommufd, idev->devid,
+                                    accel->viommu->viommu_id, devid,
+                                    &vdevice_id, errp)) {
+        return false;
+    }
+
+    vdev = g_new(IOMMUFDVdev, 1);
+    vdev->vdevice_id = vdevice_id;
+    vdev->virt_id = devid;
+    accel_dev->vdev = vdev;
+    return true;
+}
+
+static RISCVIOMMUS1Hwpt *
+riscv_iommu_accel_dev_alloc_translate(RISCVIOMMUAccelDevice *accel_dev,
+                                      RISCVIOMMUContext *ctx, Error **errp)
+{
+    HostIOMMUDeviceIOMMUFD *idev = accel_dev->idev;
+    RISCVIOMMUAccelState *accel = accel_dev->accel;
+    struct iommu_hwpt_riscv nested_data = {
+        .dc[0] = ctx->tc,
+        .dc[1] = ctx->gatp,
+        .dc[2] = ctx->ta,
+        .dc[3] = ctx->satp,
+    };
+    uint32_t hwpt_id = 0, flags = 0;
+    RISCVIOMMUS1Hwpt *s1_hwpt;
+
+    if (!iommufd_backend_alloc_hwpt(idev->iommufd, idev->devid,
+                                    accel->viommu->viommu_id, flags,
+                                    IOMMU_HWPT_DATA_RISCV_S1,
+                                    sizeof(nested_data), &nested_data,
+                                    &hwpt_id, errp)) {
+        return NULL;
+    }
+
+    s1_hwpt = g_new0(RISCVIOMMUS1Hwpt, 1);
+    s1_hwpt->hwpt_id = hwpt_id;
+    trace_riscv_iommu_accel_translate_dc(accel_dev->vdev->virt_id, hwpt_id,
+                                         ctx->tc, ctx->satp);
+    return s1_hwpt;
+}
+
+bool riscv_iommu_accel_install_dc(RISCVIOMMUState *s, int devid)
+{
+    RISCVIOMMUAccelState *accel = s->accel_state;
+    RISCVIOMMUAccelDevice *accel_dev;
+    HostIOMMUDeviceIOMMUFD *idev;
+    uint32_t hwpt_id = 0;
+    RISCVIOMMUS1Hwpt *s1_hwpt = NULL;
+    const char *type;
+    RISCVIOMMUContext ctx;
+    RISCVIOMMUSpace *as;
+    Error *local_err = NULL;
+    Error **errp = &local_err;
+
+    /*
+     * Nothing to install when accelerated mode is inactive, or when no
+     * vIOMMU has been allocated yet.
+     */
+    if (!accel || !accel->viommu) {
+        return true;
+    }
+
+    as = riscv_iommu_get_space_from_devid(s, devid);
+    if (!as) {
+        return true;
+    }
+
+    accel_dev = container_of(as, RISCVIOMMUAccelDevice, as);
+    if (!accel_dev->accel) {
+        return true;
+    }
+
+    idev = accel_dev->idev;
+    if (!riscv_iommu_accel_alloc_vdev(accel_dev, devid, errp)) {
+        goto err;
+    }
+
+    /*
+     * Resolve the DC straight from guest memory so INVAL_DDT sees the
+     * freshly written context. Abort the device's DMA if the DC is
+     * missing or invalid.
+     *
+     * The vdev stays attached even if HWPT alloc/attach fails, since the
+     * Guest-Host DEVID mapping remains valid.
+     */
+    if (riscv_iommu_ctx_fetch(s, devid, 0, &ctx)) {
+        /* DC missing or invalid, abort all device DMA */
+        hwpt_id = accel->abort_hwpt_id;
+    } else if (get_field(ctx.satp, RISCV_IOMMU_DC_FSC_MODE) ==
+               RISCV_IOMMU_DC_FSC_MODE_BARE) {
+        hwpt_id = accel->bypass_hwpt_id;
+    } else {
+        s1_hwpt = riscv_iommu_accel_dev_alloc_translate(accel_dev, &ctx, errp);
+        if (!s1_hwpt) {
+            goto err;
+        }
+        hwpt_id = s1_hwpt->hwpt_id;
+    }
+
+    if (!hwpt_id) {
+        error_setg(errp, "Invalid DC for device 0x%x", devid);
+        goto err;
+    }
+
+    if (!host_iommu_device_iommufd_attach_hwpt(idev, IOMMU_NO_PASID, hwpt_id,
+                                               errp)) {
+        if (s1_hwpt) {
+            iommufd_backend_free_id(idev->iommufd, s1_hwpt->hwpt_id);
+            g_free(s1_hwpt);
+        }
+        error_append_hint(errp, "fail to attach hwpt for device 0x%x", devid);
+        goto err;
+    }
+
+    /* Free the previous s1_hwpt */
+    if (accel_dev->s1_hwpt) {
+        iommufd_backend_free_id(idev->iommufd, accel_dev->s1_hwpt->hwpt_id);
+        g_free(accel_dev->s1_hwpt);
+    }
+
+    accel_dev->s1_hwpt = s1_hwpt;
+    if (hwpt_id == accel->abort_hwpt_id) {
+        type = "abort";
+    } else if (hwpt_id == accel->bypass_hwpt_id) {
+        type = "bypass";
+    } else {
+        type = "translate";
+    }
+
+    trace_riscv_iommu_accel_install_dc(devid, type, hwpt_id);
+    return true;
+
+err:
+    if (local_err) {
+        error_report_err(local_err);
+    }
+    return false;
+}
+
+bool riscv_iommu_accel_install_dc_all(RISCVIOMMUState *s)
+{
+    RISCVIOMMUAccelState *accel = s->accel_state;
+    RISCVIOMMUAccelDevice *accel_dev;
+    bool all_ok = true;
+
+    if (!accel || !accel->viommu) {
+        return true;
+    }
+
+    QLIST_FOREACH(accel_dev, &accel->device_list, next) {
+        uint32_t devid = riscv_iommu_space_devid(&accel_dev->as);
+        if (!riscv_iommu_accel_install_dc(s, devid)) {
+            error_report("Device 0x%x: Failed to install DC", devid);
+            all_ok = false;
+        }
+    }
+
+    return all_ok;
 }
 
 static const PCIIOMMUOps riscv_iommu_accel_ops = {
