@@ -1154,13 +1154,13 @@ out:
 }
 
 /*
- * RISC-V IOMMU Device Context Loopkup - Device Directory Tree Walk
+ * RISC-V IOMMU Device Context Fetch - Device Directory Tree Walk
  *
- * @s         : IOMMU Device State
- * @ctx       : Device Translation Context with devid and process_id set.
- * @return    : success or fault code.
+ * Parse the device context for (devid, process_id) from guest memory
+ * into @ctx. Returns 0 on success or a fault code.
  */
-static int riscv_iommu_ctx_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx)
+int riscv_iommu_ctx_fetch(RISCVIOMMUState *s, unsigned devid,
+                          unsigned process_id, RISCVIOMMUContext *ctx)
 {
     const uint64_t ddtp = s->ddtp;
     unsigned mode = get_field(ddtp, RISCV_IOMMU_DDTP_MODE);
@@ -1171,6 +1171,9 @@ static int riscv_iommu_ctx_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx)
     const size_t dc_len = sizeof(dc) >> dc_fmt;
     int depth;
     uint64_t de;
+
+    ctx->devid = devid;
+    ctx->process_id = process_id;
 
     switch (mode) {
     case RISCV_IOMMU_DDTP_MODE_OFF:
@@ -1425,10 +1428,10 @@ static void riscv_iommu_ctx_inval(RISCVIOMMUState *s, GHFunc func,
 }
 
 /* Find or allocate translation context for a given {device_id, process_id} */
-static RISCVIOMMUContext *riscv_iommu_ctx(RISCVIOMMUState *s,
-                                          unsigned devid, unsigned process_id,
-                                          IOMMUAccessFlags perm, uint64_t iova,
-                                          void **ref)
+static RISCVIOMMUContext *riscv_iommu_ctx_lookup(RISCVIOMMUState *s,
+                                                 unsigned devid, unsigned process_id,
+                                                 IOMMUAccessFlags perm, uint64_t iova,
+                                                 void **ref)
 {
     GHashTable *ctx_cache;
     RISCVIOMMUContext *ctx;
@@ -1452,10 +1455,8 @@ static RISCVIOMMUContext *riscv_iommu_ctx(RISCVIOMMUState *s,
     }
 
     ctx = g_new0(RISCVIOMMUContext, 1);
-    ctx->devid = devid;
-    ctx->process_id = process_id;
 
-    int fault = riscv_iommu_ctx_fetch(s, ctx);
+    int fault = riscv_iommu_ctx_fetch(s, devid, process_id, ctx);
     if (!fault) {
         if (mode != RISCV_IOMMU_DDTP_MODE_BARE) {
             if (g_hash_table_size(ctx_cache) >= LIMIT_CACHE_CTX) {
@@ -2260,7 +2261,7 @@ static void riscv_iommu_process_dbg(RISCVIOMMUState *s)
         return;
     }
 
-    ctx = riscv_iommu_ctx(s, devid, pid, perm, iova, &ref);
+    ctx = riscv_iommu_ctx_lookup(s, devid, pid, perm, iova, &ref);
     if (ctx == NULL) {
         riscv_iommu_reg_set64(s, RISCV_IOMMU_REG_TR_RESPONSE,
                                  RISCV_IOMMU_TR_RESPONSE_FAULT |
@@ -2619,7 +2620,7 @@ static MemTxResult riscv_iommu_trap_write(void *opaque, hwaddr addr,
     /* FIXME: PCIe bus remapping for attached endpoints. */
     devid |= s->bus << 8;
 
-    ctx = riscv_iommu_ctx(s, devid, 0, IOMMU_RW, addr, &ref);
+    ctx = riscv_iommu_ctx_lookup(s, devid, 0, IOMMU_RW, addr, &ref);
     if (ctx == NULL) {
         res = MEMTX_ACCESS_ERROR;
     } else {
@@ -2927,7 +2928,7 @@ static IOMMUTLBEntry riscv_iommu_memory_region_translate(
     };
     uint32_t devid = riscv_iommu_space_devid(as);
 
-    ctx = riscv_iommu_ctx(as->iommu, devid, iommu_idx, flag, addr, &ref);
+    ctx = riscv_iommu_ctx_lookup(as->iommu, devid, iommu_idx, flag, addr, &ref);
     if (ctx == NULL) {
         /* Translation disabled or invalid. */
         iotlb.addr_mask = 0;

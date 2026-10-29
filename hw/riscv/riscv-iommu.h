@@ -142,6 +142,11 @@ struct RISCVIOMMUContext {
     uint64_t msiptp;            /* MSI redirection page table pointer */
 };
 
+/* Resolve {devid, process_id} straight from guest memory. Returns 0 or a
+ * RISCV_IOMMU_FQ_CAUSE_* code. */
+int riscv_iommu_ctx_fetch(RISCVIOMMUState *s, unsigned devid,
+                          unsigned process_id, RISCVIOMMUContext *ctx);
+
 /* private helpers */
 
 /* Register helper functions */
