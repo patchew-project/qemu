@@ -2091,6 +2091,9 @@ static void riscv_iommu_process_cq_tail(RISCVIOMMUState *s)
             }
 
             riscv_iommu_iot_inval(s, iot_func, gscid, pscid, iova, transtag);
+            if (!riscv_iommu_accel_issue_inv_cmd(s, &cmd)) {
+                goto cmd_ill;
+            }
             break;
         }
 

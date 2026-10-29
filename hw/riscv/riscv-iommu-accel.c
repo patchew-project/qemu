@@ -5,6 +5,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bswap.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 
@@ -159,6 +160,49 @@ static uint32_t riscv_iommu_accel_ddtp_hwpt(RISCVIOMMUState *s,
      */
     return (mode == RISCV_IOMMU_DDTP_MODE_OFF) ?
                accel->abort_hwpt_id : accel->bypass_hwpt_id;
+}
+
+/*
+ * Issue the invalidation command to the host RISC-V IOMMU.
+ *
+ * The RISC-V IOTINVAL command carries no device (like ARM's SID)
+ * information, only (addr, gscid, pscid), so no per-device filtering
+ * is needed here.
+ */
+bool riscv_iommu_accel_issue_inv_cmd(RISCVIOMMUState *s,
+                                     const struct riscv_iommu_command *cmd)
+{
+    RISCVIOMMUAccelState *accel = s->accel_state;
+    struct iommu_viommu_riscv_invalidate inv = {
+        .cmd = { cpu_to_le64(cmd->dword0), cpu_to_le64(cmd->dword1) },
+    };
+    uint32_t entry_num = 1;
+    bool ret;
+    Error *local_err = NULL;
+
+    /* The uAPI entry must stay exactly one hardware command word */
+    QEMU_BUILD_BUG_ON(sizeof(inv) != sizeof(*cmd));
+
+    /*
+     * No accel or viommu means no VFIO/IOMMUFD devices, nothing to
+     * invalidate.
+     */
+    if (!accel || !accel->viommu) {
+        return true;
+    }
+
+    /* Single command (entry_num = 1); no need to check returned entry_num */
+    ret = iommufd_backend_invalidate_cache(accel->viommu->iommufd,
+                                           accel->viommu->viommu_id,
+                                           IOMMU_VIOMMU_INVALIDATE_DATA_RISCV,
+                                           sizeof(inv), &entry_num, &inv,
+                                           &local_err);
+
+    if (local_err) {
+        error_report_err(local_err);
+    }
+
+    return ret;
 }
 
 static bool riscv_iommu_accel_alloc_viommu(RISCVIOMMUState *s,
