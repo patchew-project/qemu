@@ -5,6 +5,11 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
+
+#include "hw/pci/pci_bridge.h"
+#include "hw/pci-host/gpex.h"
+#include "hw/vfio/pci.h"
 
 #include "riscv-iommu.h"
 #include "riscv-iommu-accel.h"
@@ -36,18 +41,101 @@ static RISCVIOMMUAccelDevice *riscv_iommu_accel_get_dev(RISCVIOMMUState *s,
     return accel_dev;
 }
 
+/*
+ * Only allow PCIe bridges, pxb-pcie roots, and GPEX roots so vfio-pci
+ * endpoints can sit downstream, and the RISC-V IOMMU PCI device
+ * itself. Unlike ARM, the RISC-V IOMMU can be exposed as a PCI device;
+ * it must stay usable in accelerated mode, but it is never translated
+ * and is handed its target address space directly.
+ * Accelerated IOMMU requires a vfio-pci endpoint using the iommufd
+ * backend; all other device types are rejected. This avoids supporting
+ * emulated endpoints, which would complicate IOTLB invalidation and
+ * hurt performance.
+ */
+static bool riscv_iommu_accel_pdev_allowed(PCIDevice *pdev, bool *vfio_pci)
+{
+    if (object_dynamic_cast(OBJECT(pdev), TYPE_PCI_BRIDGE) ||
+        object_dynamic_cast(OBJECT(pdev), TYPE_PXB_PCIE_DEV) ||
+        object_dynamic_cast(OBJECT(pdev), TYPE_GPEX_ROOT_DEVICE) ||
+        object_dynamic_cast(OBJECT(pdev), TYPE_RISCV_IOMMU_PCI)) {
+        return true;
+    } else if ((object_dynamic_cast(OBJECT(pdev), TYPE_VFIO_PCI))) {
+        *vfio_pci = true;
+        if (object_property_get_link(OBJECT(pdev), "iommufd", NULL)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool riscv_iommu_accel_supports_as(PCIBus *bus, void *opaque, int devfn,
+                                          Error **errp)
+{
+    PCIDevice *pdev = pci_find_device(bus, pci_bus_num(bus), devfn);
+    bool vfio_pci = false;
+
+    if (pdev && !riscv_iommu_accel_pdev_allowed(pdev, &vfio_pci)) {
+        if (vfio_pci) {
+            error_setg(errp, "vfio-pci endpoint devices without an iommufd "
+                       "backend not allowed when using riscv_iommu accel=on");
+        } else {
+            error_setg(errp, "Emulated endpoint devices are not allowed when "
+                       "using riscv_iommu accel=on");
+        }
+        return false;
+    }
+    return true;
+}
+
 static AddressSpace *riscv_iommu_accel_find_as(PCIBus *bus, void *opaque,
                                                int devfn)
 {
     RISCVIOMMUState *s = (RISCVIOMMUState *) opaque;
+    PCIDevice *pdev = pci_find_device(bus, pci_bus_num(bus), devfn);
+
+    /*
+     * The riscv-iommu-pci itself is not a translated endpoint; hand out its
+     * target address space as the default path does.
+     */
+    if (pdev && pci_is_iommu(pdev)) {
+        return s->target_as;
+    }
 
     RISCVIOMMUAccelDevice *accel_dev = riscv_iommu_accel_get_dev(s, bus, devfn);
     RISCVIOMMUSpace *as = &accel_dev->as;
 
-    return &as->iova_as;
+    bool vfio_pci = false;
+
+    if (pdev && !riscv_iommu_accel_pdev_allowed(pdev, &vfio_pci)) {
+        /* Should never be here: supports_address_space() filters these out */
+        g_assert_not_reached();
+    }
+
+    /*
+     * In the accelerated mode, a vfio-pci device attached via the iommufd
+     * backend must remain in the system address space. Such a device is
+     * always translated by its physical IOMMU (using either stage-2-only
+     * or nested S1+S2 translation), where the parent stage-2 page table
+     * is allocated by the VFIO core to back the system address space.
+     *
+     * Return the shared_as_sysmem aliased to the global system memory in
+     * this case. Sharing a single system address space also lets devices
+     * behind different accelerated IOMMU instances in the same VM reuse a
+     * single nesting parent HWPT in the VFIO core.
+     *
+     * For the remaining allowed devices, such as PCIe root ports and
+     * bridges, which use the normal emulated translation path and software
+     * IOTLBs, return the IOMMU address space.
+     */
+    if (vfio_pci) {
+        return shared_as_sysmem;
+    } else {
+        return &as->iova_as;
+    }
 }
 
 static const PCIIOMMUOps riscv_iommu_accel_ops = {
+    .supports_address_space = riscv_iommu_accel_supports_as,
     .get_address_space = riscv_iommu_accel_find_as,
 };
 

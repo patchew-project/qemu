@@ -24,7 +24,7 @@
 #include "system/dma.h"
 #include "hw/riscv/iommu.h"
 #include "hw/riscv/riscv-iommu-bits.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 
 typedef enum riscv_iommu_igs_modes riscv_iommu_igs_mode;
 
@@ -151,6 +151,10 @@ int riscv_iommu_ctx_fetch(RISCVIOMMUState *s, unsigned devid,
                           unsigned process_id, RISCVIOMMUContext *ctx);
 
 /* private helpers */
+static inline bool pci_is_iommu(PCIDevice *pdev)
+{
+    return pci_get_word(pdev->config + PCI_CLASS_DEVICE) == 0x0806;
+}
 
 /* Register helper functions */
 static inline uint32_t riscv_iommu_reg_mod32(RISCVIOMMUState *s,

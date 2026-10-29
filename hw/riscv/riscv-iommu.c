@@ -2973,11 +2973,6 @@ static int riscv_iommu_memory_region_notify(
     return 0;
 }
 
-static inline bool pci_is_iommu(PCIDevice *pdev)
-{
-    return pci_get_word(pdev->config + PCI_CLASS_DEVICE) == 0x0806;
-}
-
 static AddressSpace *riscv_iommu_find_as(PCIBus *bus, void *opaque, int devfn)
 {
     RISCVIOMMUState *s = (RISCVIOMMUState *) opaque;
