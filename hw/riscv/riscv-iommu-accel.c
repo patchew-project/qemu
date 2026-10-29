@@ -10,6 +10,7 @@
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/vfio/pci.h"
+#include "hw/core/iommu.h"
 
 #include "riscv-iommu.h"
 #include "riscv-iommu-accel.h"
@@ -134,9 +135,21 @@ static AddressSpace *riscv_iommu_accel_find_as(PCIBus *bus, void *opaque,
     }
 }
 
+static uint64_t riscv_iommu_accel_get_viommu_flags(void *opaque)
+{
+    /*
+     * We return VIOMMU_FLAG_WANT_NESTING_PARENT to inform VFIO core to create a
+     * nesting parent which is required for accelerated riscv iommu support.
+     * The real HW nested support should be reported from host riscv iommu and if
+     * it doesn't, the nesting parent allocation will fail anyway in VFIO core.
+     */
+    return VIOMMU_FLAG_WANT_NESTING_PARENT;
+}
+
 static const PCIIOMMUOps riscv_iommu_accel_ops = {
     .supports_address_space = riscv_iommu_accel_supports_as,
     .get_address_space = riscv_iommu_accel_find_as,
+    .get_viommu_flags = riscv_iommu_accel_get_viommu_flags,
 };
 
 static void riscv_iommu_accel_as_init(RISCVIOMMUState *s)
