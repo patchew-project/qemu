@@ -114,6 +114,7 @@ struct RISCVIOMMUState {
 
     /* nested iommu support */
     bool accel;
+    struct RISCVIOMMUAccelState *accel_state;
 };
 
 void riscv_iommu_pci_setup_iommu(RISCVIOMMUState *iommu, PCIBus *bus,

@@ -8,10 +8,28 @@
 #define HW_RISCV_RISCV_IOMMU_ACCEL_H
 
 #include "hw/riscv/riscv-iommu.h"
+#include "system/iommufd.h"
+#ifdef CONFIG_LINUX
+#include <linux/iommufd.h>
+#endif
 #include CONFIG_DEVICES
+
+/*
+ * Represents an accelerated IOMMU instance backed by an iommufd vIOMMU object.
+ * Holds bypass and abort proxy HWPT IDs used for device attachment.
+ */
+typedef struct RISCVIOMMUAccelState {
+    IOMMUFDViommu *viommu;
+    uint32_t bypass_hwpt_id;
+    uint32_t abort_hwpt_id;
+    QLIST_HEAD(, RISCVIOMMUAccelDevice) device_list;
+} RISCVIOMMUAccelState;
 
 typedef struct RISCVIOMMUAccelDevice {
     RISCVIOMMUSpace as;
+    HostIOMMUDeviceIOMMUFD *idev;
+    QLIST_ENTRY(RISCVIOMMUAccelDevice) next;
+    RISCVIOMMUAccelState *accel;
 } RISCVIOMMUAccelDevice;
 
 #ifdef CONFIG_RISCV_IOMMU_ACCEL
