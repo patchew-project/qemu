@@ -3450,6 +3450,19 @@ out_unref:
     return ret;
 }
 
+/*
+ * Queue up CPU work to run after the next call to KVM_RUN.
+ *
+ * Requires KVM_CAP_IMMEDIATE_EXIT.
+ */
+void kvm_add_immediate_exit_callback(CPUState *cpu, run_on_cpu_func cb,
+                                     run_on_cpu_data data)
+{
+    assert(kvm_immediate_exit);
+    async_run_on_cpu_after_accel(cpu, cb, data);
+    kvm_cpu_kick(cpu);
+}
+
 int kvm_cpu_exec(CPUState *cpu)
 {
     struct kvm_run *run = cpu->kvm_run;
@@ -3512,6 +3525,14 @@ int kvm_cpu_exec(CPUState *cpu)
             if (run_ret == -EINTR || run_ret == -EAGAIN) {
                 trace_kvm_io_window_exit();
                 kvm_eat_signals(cpu);
+                /*
+                 * This will process any events queued by
+                 * kvm_add_immediate_exit_callback(). This is intentionally run
+                 * after the 'immediate_exit' field is cleared by
+                 * kvm_eat_signals() so that queued accel work can requeue
+                 * itself if needed.
+                 */
+                process_queued_cpu_accel_work(cpu);
                 ret = EXCP_INTERRUPT;
                 break;
             }

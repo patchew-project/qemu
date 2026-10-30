@@ -21,6 +21,7 @@
 #include "qemu/accel.h"
 #include "accel/accel-route.h"
 #include "qom/object.h"
+#include "hw/core/cpu.h"
 
 #ifdef COMPILING_PER_TARGET
 # ifdef CONFIG_KVM
@@ -593,5 +594,15 @@ void kvm_vcpufd_add_change_notifier(NotifierWithReturn *n);
  * @n: notifier that was previously registered.
  */
 void kvm_vcpufd_remove_change_notifier(NotifierWithReturn *n);
+
+/**
+ * kvm_add_immediate_exit_callback - register a callback to be performed after
+ * the next call to KVM_RUN (with immediate_exit set via kvm_cpu_kick()).
+ * @cpu: CPU to run the callback on.
+ * @cb: The callback to run.
+ * @data: The data to pass to the callback.
+ */
+void kvm_add_immediate_exit_callback(CPUState *cpu, run_on_cpu_func cb,
+                                     run_on_cpu_data data);
 
 #endif
