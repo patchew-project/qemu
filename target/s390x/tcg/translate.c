@@ -1025,11 +1025,6 @@ typedef struct {
 
 /* Return values from translate_one, indicating the state of the TB.  */
 
-/* We are not using a goto_tb (for whatever reason), but have updated
-   the PC (for whatever reason), so there's no need to do it again on
-   exiting the TB.  */
-#define DISAS_PC_UPDATED        DISAS_TARGET_0
-
 /* We have updated the PC and CC values.  */
 #define DISAS_PC_CC_UPDATED     DISAS_TARGET_2
 
@@ -6397,10 +6392,6 @@ static void s390x_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         break;
     case DISAS_TOO_MANY:
         update_psw_addr(dc);
-        /* FALLTHRU */
-    case DISAS_PC_UPDATED:
-        /* Next TB starts off with CC_OP_DYNAMIC, so make sure the
-           cc op type is in env */
         update_cc_op(dc);
         /* FALLTHRU */
     case DISAS_PC_CC_UPDATED:
