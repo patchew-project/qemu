@@ -1239,6 +1239,13 @@ int qcow2_write_caches(BlockDriverState *bs)
         }
     }
 
+    if (s->wp_cache) {
+        ret = qcow2_cache_write(bs, s->wp_cache);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     return 0;
 }
 
@@ -2299,6 +2306,17 @@ calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         ret = qcow2_inc_refcounts_imrt(bs, res, refcount_table, nb_clusters,
                                        s->crypto_header.offset,
                                        s->crypto_header.length);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    /* zoned metadata */
+    if (s->zoned_header.zoned != QCOW2_Z_NONE) {
+        ret = qcow2_inc_refcounts_imrt(bs, res, refcount_table, nb_clusters,
+                                       s->zoned_header.zonedmeta_offset,
+                                       (int64_t)s->zoned_header.nr_zones *
+                                       sizeof(uint64_t));
         if (ret < 0) {
             return ret;
         }
