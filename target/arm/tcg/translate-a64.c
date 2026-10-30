@@ -477,7 +477,8 @@ static void gen_load_check_gcs_record(DisasContext *s, TCGv_i64 target,
 
 typedef struct DisasCompare64 {
     TCGCond cond;
-    TCGv_i64 value;
+    TCGv_i64 v1;
+    TCGv_i64 v2;
 } DisasCompare64;
 
 static void a64_test_cc(DisasCompare64 *c64, int cc)
@@ -491,8 +492,9 @@ static void a64_test_cc(DisasCompare64 *c64, int cc)
      * properly.  The NE/EQ comparisons are also fine with this choice.
       */
     c64->cond = c32.cond;
-    c64->value = tcg_temp_new_i64();
-    tcg_gen_ext_i32_i64(c64->value, c32.value);
+    c64->v1 = tcg_temp_new_i64();
+    tcg_gen_ext_i32_i64(c64->v1, c32.value);
+    c64->v2 = tcg_constant_i64(0);
 }
 
 static void gen_rebuild_hflags(DisasContext *s)
@@ -7803,8 +7805,7 @@ static bool trans_FCSEL(DisasContext *s, arg_FCSEL *a)
     read_vec_element(s, t_false, a->rm, 0, a->esz);
 
     a64_test_cc(&c, a->cond);
-    tcg_gen_movcond_i64(c.cond, t_true, c.value, tcg_constant_i64(0),
-                        t_true, t_false);
+    tcg_gen_movcond_i64(c.cond, t_true, c.v1, c.v2, t_true, t_false);
 
     /*
      * Note that sregs & hregs write back zeros to the high bits,
@@ -9485,7 +9486,6 @@ static bool trans_CCMP(DisasContext *s, arg_CCMP *a)
 static bool trans_CSEL(DisasContext *s, arg_CSEL *a)
 {
     TCGv_i64 tcg_rd = cpu_reg(s, a->rd);
-    TCGv_i64 zero = tcg_constant_i64(0);
     DisasCompare64 c;
 
     a64_test_cc(&c, a->cond);
@@ -9493,11 +9493,9 @@ static bool trans_CSEL(DisasContext *s, arg_CSEL *a)
     if (a->rn == 31 && a->rm == 31 && (a->else_inc ^ a->else_inv)) {
         /* CSET & CSETM.  */
         if (a->else_inv) {
-            tcg_gen_negsetcond_i64(tcg_invert_cond(c.cond),
-                                   tcg_rd, c.value, zero);
+            tcg_gen_negsetcond_i64(tcg_invert_cond(c.cond), tcg_rd, c.v1, c.v2);
         } else {
-            tcg_gen_setcond_i64(tcg_invert_cond(c.cond),
-                                tcg_rd, c.value, zero);
+            tcg_gen_setcond_i64(tcg_invert_cond(c.cond), tcg_rd, c.v1, c.v2);
         }
     } else {
         TCGv_i64 t_true = cpu_reg(s, a->rn);
@@ -9510,7 +9508,7 @@ static bool trans_CSEL(DisasContext *s, arg_CSEL *a)
         } else if (a->else_inc) {
             tcg_gen_addi_i64(t_false, t_false, 1);
         }
-        tcg_gen_movcond_i64(c.cond, tcg_rd, c.value, zero, t_true, t_false);
+        tcg_gen_movcond_i64(c.cond, tcg_rd, c.v1, c.v2, t_true, t_false);
     }
 
     if (!a->sf) {
