@@ -952,7 +952,7 @@ static void mshv_cpu_synchronize(CPUState *cpu)
 
 static bool mshv_cpus_are_resettable(void)
 {
-    return false;
+    return true;
 }
 
 static void mshv_accel_class_init(ObjectClass *oc, const void *data)
