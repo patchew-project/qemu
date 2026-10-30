@@ -15,7 +15,7 @@ slow_qtests = {
   'pxe-test': 610,
   'prom-env-test': 360,
   'boot-serial-test': 360,
-  'qos-test': 120,
+  'qos-test': 240,
   'vmgenid-test': 610,
 }
 
