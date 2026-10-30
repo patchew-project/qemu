@@ -624,7 +624,7 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
  */
 void tcg_flush_jmp_cache(CPUState *cpu)
 {
-    CPUJumpCache *jc = cpu->tb_jmp_cache;
+    CPUJumpCache *jc = cpu->neg.tb_jmp_cache;
 
     /* During early initialization, the cache may not yet be allocated. */
     if (unlikely(jc == NULL)) {

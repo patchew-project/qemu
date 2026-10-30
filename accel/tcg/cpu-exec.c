@@ -237,7 +237,7 @@ static inline TranslationBlock *tb_lookup(CPUState *cpu, TCGTBCPUState s)
     tcg_debug_assert(!(s.cflags & CF_INVALID));
 
     hash = tb_jmp_cache_hash_func(s.pc);
-    jc = cpu->tb_jmp_cache;
+    jc = cpu->neg.tb_jmp_cache;
 
     tb = qatomic_read(&jc->array[hash].tb);
     if (likely(tb &&
@@ -1012,7 +1012,7 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
                  * for the fast lookup
                  */
                 h = tb_jmp_cache_hash_func(s.pc);
-                jc = cpu->tb_jmp_cache;
+                jc = cpu->neg.tb_jmp_cache;
                 jc->array[h].pc = s.pc;
                 qatomic_set(&jc->array[h].tb, tb);
             }
@@ -1109,7 +1109,7 @@ bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
     /* Pick up one-insn-per-tb and -d nochain from the command line. */
     tcg_update_cflags(cpu);
 
-    cpu->tb_jmp_cache = g_new0(CPUJumpCache, 1);
+    cpu->neg.tb_jmp_cache = g_new0(CPUJumpCache, 1);
     tlb_init(cpu);
 #ifndef CONFIG_USER_ONLY
     tcg_iommu_init_notifier_list(cpu);
@@ -1127,5 +1127,5 @@ void tcg_exec_unrealizefn(CPUState *cpu)
 #endif /* !CONFIG_USER_ONLY */
 
     tlb_destroy(cpu);
-    g_free_rcu(cpu->tb_jmp_cache, rcu);
+    g_free_rcu(cpu->neg.tb_jmp_cache, rcu);
 }

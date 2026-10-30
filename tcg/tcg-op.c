@@ -1914,7 +1914,7 @@ static void gen_jc_probe(TCGTemp *pc, TCGTemp *cs_base, uint32_t flags)
     /* p = &jc->array[tb_jmp_cache_hash_func(pc)] */
     gen_jc_hash(h, t, pc);
     tcg_gen_ld(TCG_TYPE_I64, t, tcgv_ptr_temp(tcg_env),
-               offsetof(CPUState, tb_jmp_cache) - sizeof(CPUState));
+               offsetof(CPUState, neg.tb_jmp_cache) - sizeof(CPUState));
     tcg_gen_lea(TCG_TYPE_I64, p, t, h, 4, 0);
 
     if (tcg_op_supported(INDEX_op_goto_jc, TCG_TYPE_PTR, 0)) {

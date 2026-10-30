@@ -369,9 +369,11 @@ typedef union IcountDecr {
  * @plugin_mem_cbs: active plugin memory callbacks
  * @plugin_mem_value_low: 64 lower bits of latest accessed mem value.
  * @plugin_mem_value_high: 64 higher bits of latest accessed mem value.
+ * @tb_jmp_cache: Hash table of recently accessed TranslationBlocks.
  */
 typedef struct CPUNegativeOffsetState {
     CPUTLB tlb;
+    struct CPUJumpCache *tb_jmp_cache;
 #ifdef CONFIG_PLUGIN
     /*
      * The callback pointer are accessed via TCG (see gen_empty_mem_helper).
@@ -527,8 +529,6 @@ struct CPUState {
     struct CPUAddressSpace *cpu_ases;
     AddressSpace *as;
     MemoryRegion *memory;
-
-    struct CPUJumpCache *tb_jmp_cache;
 
     GArray *gdb_regs;
     int gdb_num_regs;
