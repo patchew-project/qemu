@@ -93,11 +93,11 @@ struct TranslationBlock {
      * Above fields used for comparing
      */
 
+    struct tb_tc tc;
+
     /* size of target code for this block (1 <= size <= TARGET_PAGE_SIZE) */
     uint16_t size;
     uint16_t icount;
-
-    struct tb_tc tc;
 
     /*
      * Track tb_page_addr_t intervals that intersect this TB.
