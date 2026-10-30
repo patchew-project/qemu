@@ -1679,6 +1679,12 @@ void gdb_extend_qsupported_features(char *qflags)
 
 static void handle_query_supported(GArray *params, void *user_ctx)
 {
+    /*
+     * Reset multiprocess support as a new gdb client may have different support
+     * than a previous one.
+     */
+    gdbserver_state.multiprocess = false;
+
     g_string_printf(gdbserver_state.str_buf, "PacketSize=%x", MAX_PACKET_LENGTH);
     if (gdb_get_core_xml_file(first_cpu)) {
         g_string_append(gdbserver_state.str_buf, ";qXfer:features:read+");
