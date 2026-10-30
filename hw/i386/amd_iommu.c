@@ -66,6 +66,16 @@ typedef struct AMDVIIOTLBEntry {
     uint64_t page_mask;         /* physical page size  */
 } AMDVIIOTLBEntry;
 
+static uint16_t amdvi_get_devid(PCIBus *bus, uint8_t devfn)
+{
+    return PCI_BUILD_BDF(pci_bus_num(bus), devfn);
+}
+
+static uint16_t amdvi_get_as_devid(AMDVIAddressSpace *as)
+{
+    return amdvi_get_devid(as->bus, as->devfn);
+}
+
 /*
  * These 'fault' reasons have an overloaded meaning since they are not only
  * intended for describing reasons that generate an IO_PAGE_FAULT as per the AMD
@@ -460,7 +470,7 @@ static gboolean amdvi_find_as_by_devid(gpointer key, gpointer value,
     const AMDVIAsKey *as = key;
     const uint16_t *devidp = user_data;
 
-    return *devidp == PCI_BUILD_BDF(pci_bus_num(as->bus), as->devfn);
+    return *devidp == amdvi_get_devid(as->bus, as->devfn);
 }
 
 static AMDVIAddressSpace *amdvi_get_as_by_devid(AMDVIState *s, uint16_t devid)
@@ -665,7 +675,7 @@ static inline uint64_t amdvi_get_pte_entry(AMDVIState *s, uint64_t pte_addr,
 
 static int amdvi_as_to_dte(AMDVIAddressSpace *as, uint64_t *dte)
 {
-    uint16_t devid = PCI_BUILD_BDF(pci_bus_num(as->bus), as->devfn);
+    uint16_t devid = amdvi_get_as_devid(as);
     AMDVIState *s = as->iommu_state;
 
     if (!amdvi_get_dte(s, devid, dte)) {
@@ -764,6 +774,7 @@ static int fetch_pte(AMDVIAddressSpace *as, hwaddr address, uint64_t dte,
     uint8_t pt_level, next_pt_level;
     IOMMUAccessFlags perms;
     int ret;
+    uint16_t devid = amdvi_get_as_devid(as);
 
     *page_size = 0;
 
@@ -781,7 +792,7 @@ static int fetch_pte(AMDVIAddressSpace *as, hwaddr address, uint64_t dte,
      * Pointer and indexing the top level table using the IOVA from the request.
      */
     pte_addr = NEXT_PTE_ADDR(dte, pt_level, address);
-    *pte = amdvi_get_pte_entry(as->iommu_state, pte_addr, as->devfn);
+    *pte = amdvi_get_pte_entry(as->iommu_state, pte_addr, devid);
 
     if (*pte == (uint64_t)-1) {
         /*
@@ -837,7 +848,7 @@ static int fetch_pte(AMDVIAddressSpace *as, hwaddr address, uint64_t dte,
         *page_size = PTE_LEVEL_PAGE_SIZE(pt_level);
 
         pte_addr = NEXT_PTE_ADDR(*pte, pt_level, address);
-        *pte = amdvi_get_pte_entry(as->iommu_state, pte_addr, as->devfn);
+        *pte = amdvi_get_pte_entry(as->iommu_state, pte_addr, devid);
 
         if (*pte == (uint64_t)-1) {
             /* Failure to read PTE. Page walk skips a page_size chunk */
@@ -1898,6 +1909,7 @@ static void amdvi_page_walk(AMDVIAddressSpace *as, uint64_t *dte,
     uint8_t mode;
     uint64_t pte;
     int fetch_ret;
+    uint16_t devid = amdvi_get_as_devid(as);
 
     /* make sure the DTE has TV = 1 */
     if (!(dte[0] & AMDVI_DEV_TRANSLATION_VALID)) {
@@ -1931,7 +1943,7 @@ static void amdvi_page_walk(AMDVIAddressSpace *as, uint64_t *dte,
     if (fetch_ret < 0 || !IOMMU_PTE_PRESENT(pte) ||
         perms != (perms & amdvi_get_perms(pte))) {
 
-        amdvi_page_fault(as->iommu_state, as->devfn, addr, perms);
+        amdvi_page_fault(as->iommu_state, devid, addr, perms);
         trace_amdvi_page_fault(addr);
         return;
     }
@@ -1958,7 +1970,7 @@ static void amdvi_do_translate(AMDVIAddressSpace *as, hwaddr addr,
                                bool is_write, IOMMUTLBEntry *ret)
 {
     AMDVIState *s = as->iommu_state;
-    uint16_t devid = PCI_BUILD_BDF(pci_bus_num(as->bus), as->devfn);
+    uint16_t devid = amdvi_get_as_devid(as);
     AMDVIIOTLBEntry *iotlb_entry = amdvi_iotlb_lookup(s, addr, devid);
     uint64_t entry[4];
     int dte_ret;
