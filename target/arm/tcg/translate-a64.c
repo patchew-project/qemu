@@ -541,25 +541,31 @@ static inline bool use_goto_tb(DisasContext *s, uint64_t dest)
     return translator_use_goto_tb(&s->base, dest);
 }
 
+/* We must have already tested use_goto_tb. */
+static void gen_goto_tb_int(DisasContext *s, unsigned tb_slot_idx, int64_t diff)
+{
+    /*
+     * For pcrel, the pc must always be up-to-date on entry to
+     * the linked TB, so that it can use simple additions for all
+     * further adjustments.  For !pcrel, the linked TB is compiled
+     * to know its full virtual address, so we can delay the
+     * update to pc to the unlinked path.  A long chain of links
+     * can thus avoid many updates to the PC.
+     */
+    if (tb_cflags(s->base.tb) & CF_PCREL) {
+        gen_a64_update_pc(s, diff);
+        tcg_gen_goto_tb(tb_slot_idx);
+    } else {
+        tcg_gen_goto_tb(tb_slot_idx);
+        gen_a64_update_pc(s, diff);
+    }
+    tcg_gen_exit_tb(s->base.tb, tb_slot_idx);
+}
+
 static void gen_goto_tb(DisasContext *s, unsigned tb_slot_idx, int64_t diff)
 {
     if (use_goto_tb(s, s->pc_curr + diff)) {
-        /*
-         * For pcrel, the pc must always be up-to-date on entry to
-         * the linked TB, so that it can use simple additions for all
-         * further adjustments.  For !pcrel, the linked TB is compiled
-         * to know its full virtual address, so we can delay the
-         * update to pc to the unlinked path.  A long chain of links
-         * can thus avoid many updates to the PC.
-         */
-        if (tb_cflags(s->base.tb) & CF_PCREL) {
-            gen_a64_update_pc(s, diff);
-            tcg_gen_goto_tb(tb_slot_idx);
-        } else {
-            tcg_gen_goto_tb(tb_slot_idx);
-            gen_a64_update_pc(s, diff);
-        }
-        tcg_gen_exit_tb(s->base.tb, tb_slot_idx);
+        gen_goto_tb_int(s, tb_slot_idx, diff);
         s->base.is_jmp = DISAS_NORETURN;
     } else {
         gen_a64_update_pc(s, diff);
