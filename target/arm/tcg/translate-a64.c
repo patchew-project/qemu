@@ -566,8 +566,11 @@ static bool gen_indirect_branch(DisasContext *s)
 {
     if (s->ss_active) {
         gen_step_complete_exception(s);
-    } else {
+    } else if (s->tbflags_invalid) {
         tcg_gen_lookup_and_goto_ptr();
+    } else {
+        tcg_gen_goto_jc3_i64(cpu_pc, tcg_constant_i64(s->tbflags.flags2),
+                             s->tbflags.flags);
     }
     s->base.is_jmp = DISAS_NORETURN;
     return true;
