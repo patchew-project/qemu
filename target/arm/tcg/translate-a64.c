@@ -173,14 +173,15 @@ static void set_btype(DisasContext *s, int val)
     /* BTYPE is a 2-bit field, and 0 should be done with reset_btype.  */
     tcg_debug_assert(val >= 1 && val <= 3);
     set_btype_raw(val);
-    s->btype = -1;
+    DP_TBFLAG_A64(s->tbflags, BTYPE, val);
+    s->btype_set = true;
 }
 
 static void reset_btype(DisasContext *s)
 {
-    if (s->btype != 0) {
+    if (EX_TBFLAG_A64(s->tbflags, BTYPE) != 0) {
         set_btype_raw(0);
-        s->btype = 0;
+        DP_TBFLAG_A64(s->tbflags, BTYPE, 0);
     }
 }
 
@@ -1894,7 +1895,8 @@ static void set_btype_for_br(DisasContext *s, int rn)
             TCGv_i64 pc = tcg_temp_new_i64();
             gen_pc_plus_diff(s, pc, 0);
             gen_helper_guarded_page_br(tcg_env, pc);
-            s->btype = -1;
+            s->btype_set = true;
+            s->tbflags_invalid = true;
         }
     }
 }
@@ -11044,7 +11046,6 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     dc->max_any_vl = MAX(dc->max_svl, arm_cpu->sve_max_vq * 16);
     dc->pauth_active = EX_TBFLAG_A64(dc->tbflags, PAUTH_ACTIVE);
     dc->bt = EX_TBFLAG_A64(dc->tbflags, BT);
-    dc->btype = EX_TBFLAG_A64(dc->tbflags, BTYPE);
     dc->unpriv = EX_TBFLAG_A64(dc->tbflags, UNPRIV);
     dc->ata[0] = EX_TBFLAG_A64(dc->tbflags, ATA);
     dc->ata[1] = EX_TBFLAG_A64(dc->tbflags, ATA0);
@@ -11182,10 +11183,9 @@ static void aarch64_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     }
 
     if (dc_isar_feature(aa64_bti, s)) {
+        int btype = EX_TBFLAG_A64(s->tbflags, BTYPE);
+        tcg_debug_assert(!s->btype_set);
         if (s->base.num_insns == 1) {
-            /* First insn can have btype set to non-zero.  */
-            tcg_debug_assert(s->btype >= 0);
-
             /*
              * Note that the Branch Target Exception has fairly high
              * priority -- below debugging exceptions but above most
@@ -11195,13 +11195,12 @@ static void aarch64_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
              * We can check all but the guarded page check here;
              * defer the latter to a helper.
              */
-            if (s->btype != 0
-                && !btype_destination_ok(insn, s->bt, s->btype)) {
+            if (btype && !btype_destination_ok(insn, s->bt, btype)) {
                 gen_helper_guarded_page_check(tcg_env);
             }
         } else {
             /* Not the first insn: btype must be 0.  */
-            tcg_debug_assert(s->btype == 0);
+            tcg_debug_assert(btype == 0);
         }
     }
 
@@ -11216,11 +11215,8 @@ static void aarch64_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
         unallocated_encoding(s);
     }
 
-    /*
-     * After execution of most insns, btype is reset to 0.
-     * Note that we set btype == -1 when the insn sets btype.
-     */
-    if (s->btype > 0 && s->base.is_jmp != DISAS_NORETURN) {
+    /* After execution of most insns, btype is reset to 0. */
+    if (!s->btype_set && s->base.is_jmp != DISAS_NORETURN) {
         reset_btype(s);
     }
 }

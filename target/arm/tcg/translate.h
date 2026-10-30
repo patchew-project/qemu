@@ -206,11 +206,8 @@ typedef struct DisasContext {
     bool gcs_rvcen;
     /* GCSSTR exception EL or 0 if enabled */
     uint8_t gcsstr_el;
-    /*
-     * >= 0, a copy of PSTATE.BTYPE, which will be 0 without v8.5-BTI.
-     *  < 0, set by the current instruction.
-     */
-    int8_t btype;
+    /* True if the current insn set PSTATE.BTYPE. */
+    bool btype_set;
     /* A copy of DCZID_EL0.BS. */
     uint8_t dcz_blocksize;
     /* A copy of cpu->gm_blocksize. */
