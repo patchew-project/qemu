@@ -1,0 +1,322 @@
+#!/usr/bin/env bash
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Test zone management operations for qcow2 file.
+#
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+status=1 # failure is the default!
+
+file_name="zbc.qcow2"
+file_name2="zbc2.qcow2"
+_cleanup()
+{
+  _cleanup_test_img
+  _rm_test_img "$file_name"
+  _rm_test_img "$file_name2"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ../common.rc
+. ../common.filter
+. ../common.qemu
+
+# This test only runs on Linux hosts with qcow2 image files.
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+echo
+echo "=== Initial image setup ==="
+echo
+
+$QEMU_IMG create -f qcow2 $file_name -o size=768M -o zone.size=64M -o \
+zone.capacity=64M -o zone.conventional_zones=0 \
+-o zone.max_open_zones=6 -o zone.max_active_zones=8 -o zone.mode=host-managed
+
+IMG="--image-opts -n driver=qcow2,file.driver=file,file.filename=$file_name"
+# A second image, for cases 5 to 7
+IMG2="--image-opts -n driver=qcow2,file.driver=file,file.filename=$file_name2"
+QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
+
+echo
+echo "=== Testing a qcow2 img with zoned format ==="
+echo
+echo "case 1: test zone operations one by one"
+
+echo "(1) report zones[0]:"
+$QEMU_IO $IMG -c "zrp 0 1"
+echo
+echo "report zones[0~9]:"
+$QEMU_IO $IMG -c "zrp 0 10"
+echo
+echo "report zones[-1]:"  # zones[-1] dictates the last zone
+$QEMU_IO $IMG -c "zrp 0x2C000000 2" # 0x2C000000 / 512 = 0x160000
+echo
+echo
+echo "(2) open zones[0], zones[1], zones[-1] then close, finish, reset:"
+$QEMU_IO $IMG << EOF
+zo 0 0x4000000
+zrp 0 1
+zo 0x4000000 0x4000000
+zrp 0x4000000 1
+zo 0x2C000000 0x4000000
+zrp 0x2C000000 2
+zc 0 0x4000000
+zrp 0 1
+zc 0x4000000 0x4000000
+zrp 0x4000000 1
+zc 0x2C000000 0x4000000
+zrp 0x2C000000 2
+zf 0 0x4000000
+zrp 0 1
+zf 64M 64M
+zrp 0x4000000 2
+zf 0x2C000000 0x4000000
+zrp 0x2C000000 2
+zrs 0 0x4000000
+zrp 0 1
+zrs 0x4000000 0x4000000
+zrp 0x4000000 1
+zrs 0x2C000000 0x4000000
+zrp 0x2C000000 2
+EOF
+
+echo
+echo "(3) append write with (4k, 8k) data"
+$QEMU_IO $IMG -c "zrp 0 12" # the physical block size of the device is 4096
+echo "Append write zones[0], zones[1] twice"
+$QEMU_IO $IMG << EOF
+zap -p 0 0x1000 0x2000
+zrp 0 1
+zap -p 0 0x1000 0x2000
+zrp 0 1
+zap -p 0x4000000 0x1000 0x2000
+zrp 0x4000000 1
+zap -p 0x4000000 0x1000 0x2000
+zrp 0x4000000 1
+EOF
+
+echo
+echo "Reset all:"
+$QEMU_IO $IMG -c "zrp 0 12" -c "zrs 0 768M" -c "zrp 0 12"
+echo
+echo
+
+echo "case 2: test a sets of ops that works or not"
+echo "(1) append write (4k, 4k) and then write to full"
+$QEMU_IO $IMG << EOF
+zap -p 0 0x1000 0x1000
+zrp 0 1
+zap -p 0 0x1000 0x1ffd000
+zap -p 0 0x1000000 0x1000000
+zrp 0 1
+EOF
+
+echo "Reset zones[0]:"
+$QEMU_IO $IMG -c "zrs 0 64M" -c "zrp 0 1"
+
+echo "(2) write in zones[0], zones[3], zones[8], and then reset all"
+$QEMU_IO $IMG << EOF
+zap -p 0 0x1000 0x1000
+zap -p 0xc000000 0x1000 0x1000
+zap -p 0x20000000 0x1000 0x1000
+zrp 0 12
+zrs 0 768M
+zrp 0 12
+EOF
+
+echo "case 3: test zone resource management"
+echo "(1) write in zones[0], zones[1], zones[2] and then close it"
+$QEMU_IO $IMG << EOF
+zap -p 0 0x1000 0x1000
+zap -p 0x4000000 0x1000 0x1000
+zap -p 0x8000000 0x1000 0x1000
+zrp 0 12
+zc 0 64M
+zc 0x4000000 64M
+zc 0x8000000 64M
+zrp 0 12
+EOF
+
+echo "(2) reset all after 3(1)"
+$QEMU_IO $IMG << EOF
+zrs 0 768M
+zrp 0 12
+EOF
+
+echo
+echo "case 4: WP cache crash consistency under concurrent appends"
+echo "(1) concurrent writes to the same sequential zone (zone 5 @ 320M)"
+# Three concurrent aio_writes at WP, WP+4K, WP+8K. Data writes are
+# permitted to complete out of order
+$QEMU_IO $IMG <<EOF
+aio_write -q -P 0xa1 0x14000000 4k
+aio_write -q -P 0xa2 0x14001000 4k
+aio_write -q -P 0xa3 0x14002000 4k
+aio_flush
+zrp 0x14000000 1
+read -q -P 0xa1 0x14000000 4k
+read -q -P 0xa2 0x14001000 4k
+read -q -P 0xa3 0x14002000 4k
+EOF
+
+echo "(2) concurrent writes to different sequential zones (zones 6, 7, 9)"
+# Spread across three zones. No per-zone interaction; each zone's WP
+# must advance independently.
+$QEMU_IO $IMG <<EOF
+aio_write -q -P 0xb1 0x18000000 4k
+aio_write -q -P 0xb2 0x1C000000 4k
+aio_write -q -P 0xb3 0x24000000 4k
+aio_flush
+zrp 0x18000000 1
+zrp 0x1C000000 1
+zrp 0x24000000 1
+read -q -P 0xb1 0x18000000 4k
+read -q -P 0xb2 0x1C000000 4k
+read -q -P 0xb3 0x24000000 4k
+EOF
+
+echo "(3) reset zones with no in-flight writes (zones 5, 6)"
+# Reset zones 5 and 6 (which we wrote in (1) and (2)). WP should drop
+# back to zone_start; data reads must return zero (unallocated
+# post-reset).
+$QEMU_IO $IMG -c "zrs 0x14000000 64M" -c "zrs 0x18000000 64M" \
+              -c "zrp 0x14000000 1" -c "zrp 0x18000000 1" \
+              -c "read -q -P 0 0x14000000 4k" \
+              -c "read -q -P 0 0x18000000 4k"
+
+echo "(4) BLKRESETALL after concurrent writes"
+# Reset everything first, refill three zones with concurrent writes,
+# then RESETALL. Each zone's WP must return to its start.
+$QEMU_IO $IMG <<EOF
+zrs 0 768M
+aio_write -q -P 0xc1 0x14000000 4k
+aio_write -q -P 0xc2 0x18000000 4k
+aio_write -q -P 0xc3 0x1C000000 4k
+aio_flush
+zrp 0x14000000 1
+zrp 0x18000000 1
+zrp 0x1C000000 1
+zrs 0 768M
+zrp 0x14000000 1
+zrp 0x18000000 1
+zrp 0x1C000000 1
+EOF
+
+echo
+echo "case 5: zone errors are reported with distinct errnos"
+$QEMU_IMG create -f qcow2 $file_name2 -o size=8M -o zone.size=1M -o \
+zone.capacity=1M -o zone.conventional_zones=0 \
+-o zone.max_open_zones=1 -o zone.max_active_zones=2 \
+-o zone.mode=host-managed > /dev/null
+echo "(1) write not at the write pointer of zones[0]"
+echo "(2) write past the capacity of zones[0]"
+echo "(3) open zone limit: zones[0] explicitly open, write zones[1]"
+echo "(4) active zone limit: zones[0] closed, zones[1] open, open zones[2]"
+$QEMU_IO $IMG2 << EOF
+write -q 4k 4k
+write -q 0 1028k
+zo 0 1M
+write -q 1M 4k
+write -q 0 4k
+zc 0 1M
+write -q 1M 4k
+write -q 2M 4k
+zo 2M 1M
+zrp 0 3
+EOF
+
+echo
+echo "case 6: zone resource accounting (max_open_zones=1, max_active_zones=2)"
+echo "(1) an empty zone is not opened beyond the active zone limit"
+$QEMU_IO $IMG2 << EOF
+zrs 0 8M
+write -q 0 4k
+zc 0 1M
+write -q 1M 4k
+zc 1M 1M
+write -q 2M 4k
+zrp 0 3
+EOF
+echo "(2) an explicit open of an empty zone respects the open zone limit"
+$QEMU_IO $IMG2 << EOF
+zrs 0 8M
+zo 0 1M
+zo 1M 1M
+zrp 0 2
+EOF
+echo "(3) at the active zone limit: open a closed zone, then an empty one"
+$QEMU_IO $IMG2 << EOF
+zrs 0 8M
+write -q 0 4k
+write -q 1M 4k
+write -q 4k 4k
+write -q 2M 4k
+zrp 0 3
+EOF
+echo "(4) finish an empty zone, with zones[0] explicitly, then implicitly open"
+$QEMU_IO $IMG2 << EOF
+zrs 0 8M
+zo 0 1M
+zf 1M 1M
+zrs 0 8M
+write -q 0 4k
+zf 1M 1M
+zrp 0 2
+EOF
+echo "(5) a write past the capacity of zones[1] leaves zones[0] open"
+$QEMU_IO $IMG2 << EOF
+zrs 0 8M
+write -q 0 4k
+write -q 1M 1028k
+zrp 0 2
+EOF
+
+echo
+echo "case 7: zones consist of whole clusters, in a version 3 image"
+echo "(1) a zone smaller than a cluster is refused"
+$QEMU_IMG create -f qcow2 $file_name2 -o size=1M -o cluster_size=64K \
+-o zone.size=16K -o zone.capacity=16K -o zone.mode=host-managed
+echo "(2) a version 2 image is refused"
+$QEMU_IMG create -f qcow2 $file_name2 -o compat=0.10 -o size=1M \
+-o zone.size=64K -o zone.capacity=64K -o zone.mode=host-managed
+echo "(3) resetting zones[1] leaves the data of zones[3] alone"
+$QEMU_IMG create -f qcow2 $file_name2 -o size=1M -o cluster_size=16K \
+-o zone.size=16K -o zone.capacity=16K -o zone.conventional_zones=0 \
+-o zone.mode=host-managed > /dev/null
+$QEMU_IO $IMG2 << EOF
+write -q -P 0x5a 48k 4k
+write -q -P 0xa5 16k 4k
+zf 16k 16k
+zrs 16k 16k
+zrp 16k 1
+read -q -P 0 16k 16k
+read -q -P 0x5a 48k 4k
+EOF
+
+echo
+echo "case 8: a closed zone that a write fills is no longer active"
+$QEMU_IMG create -f qcow2 $file_name2 -o size=8M -o zone.size=1M -o \
+zone.capacity=1M -o zone.conventional_zones=0 \
+-o zone.max_open_zones=2 -o zone.max_active_zones=3 \
+-o zone.mode=host-managed > /dev/null
+echo "(1) writing zones[2] closes zones[0], as only two zones can be open"
+echo "(2) filling zones[0] leaves zones[1] and zones[2] active: zones[3] opens"
+$QEMU_IO $IMG2 << EOF
+write -q 0 4k
+write -q 1M 4k
+write -q 2M 4k
+zrp 0 3
+write -q 4k 1020k
+zo 3M 1M
+zrp 0 4
+EOF
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
