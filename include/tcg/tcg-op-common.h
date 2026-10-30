@@ -100,6 +100,35 @@ void tcg_gen_goto_tb(unsigned idx);
  */
 void tcg_gen_lookup_and_goto_ptr(void);
 
+/**
+ * tcg_gen_goto_jc3_i32() - dispatch to the destination TB via the jump cache
+ * tcg_gen_goto_jc3_i64() - dispatch to the destination TB via the jump cache
+ * @pc: temp holding the destination guest PC
+ * @cs_base: temp holding the destination guest cs_base
+ * @flags: the destination guest flags
+ *
+ * The contract is that the values provided inline are exactly the
+ * cpu state that would be returned by TCGCPUOps::get_tb_cpu_state.
+ * --enable-debug-tcg checks the contract at runtime.
+ *
+ * Using those values, the lookup may be done inline.
+ *
+ * Actually declared and defined via tcg-op-def.h.inc.
+ */
+
+/**
+ * tcg_gen_goto_jc_i32() - dispatch to the destination TB via the jump cache
+ * tcg_gen_goto_jc_i64() - dispatch to the destination TB via the jump cache
+ * @pc: temp holding the destination guest PC
+ *
+ * Similar, but cs_base and flags are taken from the current TB.
+ *
+ * Thus the contract is that no cpu state changes have occurred
+ * that affect the translation block flags.
+ *
+ * Actually declared and defined via tcg-op-def.h.inc.
+ */
+
 void tcg_gen_plugin_cb(unsigned from);
 QEMU_ARG_NONNULL
 void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo);

@@ -1854,6 +1854,41 @@ void tcg_gen_lookup_and_goto_ptr(void)
     tcg_temp_free_ptr(ptr);
 }
 
+void tcg_gen_goto_jc3(TCGType type, TCGTemp *pc,
+                      TCGTemp *cs_base, unsigned flags)
+{
+    /*
+     * Widen @pc to i64 because the jump cache is keyed on a vaddr;
+     * for a 32-bit guest PC that is its zero extension.
+     * Note that cs_base is target-specific, not a vaddr, and always 64-bit.
+     */
+    if (type == TCG_TYPE_I32) {
+        TCGTemp *pc64 = tcg_temp_new_internal(TCG_TYPE_I64, TEMP_EBB);
+        tcg_gen_extu(pc64, pc);
+        pc = pc64;
+    }
+
+#ifdef CONFIG_DEBUG_TCG
+    /*
+     * The caller has asserted that no flags-affecting cpu state changes
+     * happened between this TB and the destination.  Check it.
+     */
+    gen_helper_goto_jc_check(tcg_env, temp_tcgv_i64(pc),
+                             temp_tcgv_i64(cs_base),
+                             tcg_constant_i32(flags));
+#endif
+
+    tcg_gen_lookup_and_goto_ptr();
+}
+
+void tcg_gen_goto_jc(TCGType type, TCGTemp *pc)
+{
+    const TranslationBlock *tb = tcg_ctx->gen_tb;
+    TCGTemp *cs_base = tcg_constant_internal(TCG_TYPE_I64, tb->cs_base);
+
+    tcg_gen_goto_jc3(type, pc, cs_base, tb->flags);
+}
+
 /* Host pointer operations */
 
 void tcg_gen_add_ptr(TCGv_ptr r, TCGv_ptr a, TCGv_ptr b)

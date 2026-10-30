@@ -196,12 +196,14 @@ bool tcg_op_imm_match(TCGOpcode op, TCGType type, tcg_target_ulong imm);
 #define TCGV      TCGTemp *
 #define TINT      int64_t
 #define TCGv_ptr  TCGTemp *
+#define TCGv_i64  TCGTemp *
 
 #include "tcg/tcg-op-def.h.inc"
 
 #undef TINT
 #undef TCGV
 #undef TCGv_ptr
+#undef TCGv_i64
 
 #undef DEF1
 #undef DEF2
