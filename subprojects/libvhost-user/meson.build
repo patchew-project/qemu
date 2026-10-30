@@ -20,6 +20,12 @@ if cc.links('''
   vhost_user_flags += '-DCONFIG_MEMFD'
 endif
 
+if cc.links('''
+    #include <sys/eventfd.h>
+    int main(void) { return eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC); }''')
+  vhost_user_flags += '-DCONFIG_EVENTFD'
+endif
+
 vhost_user = static_library('vhost-user',
                             files('libvhost-user.c'),
                             dependencies: threads,
