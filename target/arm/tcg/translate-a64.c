@@ -584,6 +584,50 @@ static void gen_goto_tb(DisasContext *s, unsigned tb_slot_idx, int64_t diff)
     }
 }
 
+static bool gen_cbranch(DisasContext *s, const DisasCompare64 *c,
+                        int64_t taken_diff)
+{
+    int64_t not_taken_diff = 4;
+    bool may_goto_t = use_goto_tb(s, s->pc_curr + taken_diff);
+    bool may_goto_f = use_goto_tb(s, s->pc_curr + not_taken_diff);
+
+    /*
+     * If there is a choice, place a real goto_tb path first.
+     * If neither path can use goto_tb, convert to an indirect branch.
+     */
+    if (may_goto_f) {
+        DisasLabel l = gen_disas_label(s);
+
+        tcg_gen_brcond_i64(c->cond, c->v1, c->v2, l.label);
+        gen_goto_tb_int(s, 0, not_taken_diff);
+
+        set_disas_label(s, l);
+        if (may_goto_t) {
+            gen_goto_tb_int(s, 1, taken_diff);
+            s->base.is_jmp = DISAS_NORETURN;
+            return true;
+        }
+        gen_a64_update_pc(s, taken_diff);
+    } else if (may_goto_t) {
+        DisasLabel l = gen_disas_label(s);
+
+        tcg_gen_brcond_i64(tcg_invert_cond(c->cond), c->v1, c->v2, l.label);
+        gen_goto_tb_int(s, 1, taken_diff);
+
+        set_disas_label(s, l);
+        gen_a64_update_pc(s, not_taken_diff);
+    } else {
+        TCGv_i64 pc_t = tcg_temp_new_i64();
+        TCGv_i64 pc_f = tcg_temp_new_i64();
+
+        gen_pc_plus_diff(s, pc_t, taken_diff);
+        gen_pc_plus_diff(s, pc_f, not_taken_diff);
+        tcg_gen_movcond_i64(c->cond, cpu_pc, c->v1, c->v2, pc_t, pc_f);
+        s->pc_save = -1;
+    }
+    return gen_indirect_branch(s);
+}
+
 /*
  * Register access functions
  *
@@ -1758,38 +1802,26 @@ static bool trans_BL(DisasContext *s, arg_i *a)
 
 static bool trans_CBZ(DisasContext *s, arg_cbz *a)
 {
-    DisasLabel match;
-    TCGv_i64 tcg_cmp;
+    DisasCompare64 c = {
+        .cond = a->nz ? TCG_COND_NE : TCG_COND_EQ,
+        .v1 = read_cpu_reg(s, a->rt, a->sf),
+        .v2 = tcg_constant_i64(0),
+    };
 
-    tcg_cmp = read_cpu_reg(s, a->rt, a->sf);
     reset_btype(s);
-
-    match = gen_disas_label(s);
-    tcg_gen_brcondi_i64(a->nz ? TCG_COND_NE : TCG_COND_EQ,
-                        tcg_cmp, 0, match.label);
-    gen_goto_tb(s, 0, 4);
-    set_disas_label(s, match);
-    gen_goto_tb(s, 1, a->imm);
-    return true;
+    return gen_cbranch(s, &c, a->imm);
 }
 
 static bool trans_TBZ(DisasContext *s, arg_tbz *a)
 {
-    DisasLabel match;
-    TCGv_i64 tcg_cmp;
-
-    tcg_cmp = tcg_temp_new_i64();
-    tcg_gen_andi_i64(tcg_cmp, cpu_reg(s, a->rt), 1ULL << a->bitpos);
+    DisasCompare64 c = {
+        .cond = a->nz ? TCG_COND_TSTNE : TCG_COND_TSTEQ,
+        .v1 = cpu_reg(s, a->rt),
+        .v2 = tcg_constant_i64(1ULL << a->bitpos),
+    };
 
     reset_btype(s);
-
-    match = gen_disas_label(s);
-    tcg_gen_brcondi_i64(a->nz ? TCG_COND_NE : TCG_COND_EQ,
-                        tcg_cmp, 0, match.label);
-    gen_goto_tb(s, 0, 4);
-    set_disas_label(s, match);
-    gen_goto_tb(s, 1, a->imm);
-    return true;
+    return gen_cbranch(s, &c, a->imm);
 }
 
 static bool trans_B_cond(DisasContext *s, arg_B_cond *a)
@@ -1801,11 +1833,10 @@ static bool trans_B_cond(DisasContext *s, arg_B_cond *a)
     reset_btype(s);
     if (a->cond < 0x0e) {
         /* genuinely conditional branches */
-        DisasLabel match = gen_disas_label(s);
-        arm_gen_test_cc(a->cond, match.label);
-        gen_goto_tb(s, 0, 4);
-        set_disas_label(s, match);
-        gen_goto_tb(s, 1, a->imm);
+        DisasCompare64 c;
+
+        a64_test_cc(&c, a->cond);
+        return gen_cbranch(s, &c, a->imm);
     } else {
         /* 0xe and 0xf are both "always" conditions */
         gen_goto_tb(s, 0, a->imm);
@@ -1825,35 +1856,27 @@ static bool trans_CB_cond(DisasContext *s, arg_CB_cond *a)
         [6] = TCG_COND_EQ,
         [7] = TCG_COND_NE,
     };
-    TCGCond cond = cb_cond[a->cc];
-    TCGv_i64 t, m;
-    DisasLabel match;
+    DisasCompare64 c = { .cond = cb_cond[a->cc] };
 
-    if (!dc_isar_feature(aa64_cmpbr, s) || cond == TCG_COND_NEVER) {
+    if (!dc_isar_feature(aa64_cmpbr, s) || c.cond == TCG_COND_NEVER) {
         return false;
     }
 
-    t = cpu_reg(s, a->rt);
-    m = cpu_reg(s, a->rm);
+    c.v1 = cpu_reg(s, a->rt);
+    c.v1 = cpu_reg(s, a->rm);
     if (a->esz != MO_64) {
-        MemOp mop = a->esz | (is_signed_cond(cond) ? MO_SIGN : 0);
+        MemOp mop = a->esz | (is_signed_cond(c.cond) ? MO_SIGN : 0);
         TCGv_i64 tt = tcg_temp_new_i64();
         TCGv_i64 tm = tcg_temp_new_i64();
 
-        tcg_gen_ext_i64(tt, t, mop);
-        tcg_gen_ext_i64(tm, m, mop);
-        t = tt;
-        m = tm;
+        tcg_gen_ext_i64(tt, c.v1, mop);
+        tcg_gen_ext_i64(tm, c.v1, mop);
+        c.v1 = tt;
+        c.v1 = tm;
     }
 
     reset_btype(s);
-    match = gen_disas_label(s);
-
-    tcg_gen_brcond_i64(cond, t, m, match.label);
-    gen_goto_tb(s, 0, 4);
-    set_disas_label(s, match);
-    gen_goto_tb(s, 1, a->imm);
-    return true;
+    return gen_cbranch(s, &c, a->imm);
 }
 
 static bool trans_CB_cond_imm(DisasContext *s, arg_CB_cond_imm *a)
@@ -1869,34 +1892,27 @@ static bool trans_CB_cond_imm(DisasContext *s, arg_CB_cond_imm *a)
         [6] = TCG_COND_EQ,
         [7] = TCG_COND_NE,
     };
-    TCGCond cond = cb_cond[a->cc];
-    TCGv_i64 t;
-    DisasLabel match;
+    DisasCompare64 c = { .cond = cb_cond[a->cc] };
 
-    if (!dc_isar_feature(aa64_cmpbr, s) || cond == TCG_COND_NEVER) {
+    if (!dc_isar_feature(aa64_cmpbr, s) || c.cond == TCG_COND_NEVER) {
         return false;
     }
 
-    t = cpu_reg(s, a->rt);
+    c.v1 = cpu_reg(s, a->rt);
     if (!a->sf) {
         TCGv_i64 tt = tcg_temp_new_i64();
 
-        if (is_signed_cond(cond)) {
-            tcg_gen_ext32s_i64(tt, t);
+        if (is_signed_cond(c.cond)) {
+            tcg_gen_ext32s_i64(tt, c.v1);
         } else {
-            tcg_gen_ext32u_i64(tt, t);
+            tcg_gen_ext32u_i64(tt, c.v1);
         }
-        t = tt;
+        c.v1 = tt;
     }
+    c.v2 = tcg_constant_i64(a->imm6);
 
     reset_btype(s);
-    match = gen_disas_label(s);
-
-    tcg_gen_brcondi_i64(cond, t, a->imm6, match.label);
-    gen_goto_tb(s, 0, 4);
-    set_disas_label(s, match);
-    gen_goto_tb(s, 1, a->imm9);
-    return true;
+    return gen_cbranch(s, &c, a->imm9);
 }
 
 static void set_btype_for_br(DisasContext *s, int rn)
