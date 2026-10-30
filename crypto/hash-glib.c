@@ -33,6 +33,7 @@ static int qcrypto_hash_alg_map[QCRYPTO_HASH_ALGO__MAX] = {
     [QCRYPTO_HASH_ALGO_SHA384] = G_CHECKSUM_SHA384,
     [QCRYPTO_HASH_ALGO_SHA512] = G_CHECKSUM_SHA512,
     [QCRYPTO_HASH_ALGO_RIPEMD160] = -1,
+    [QCRYPTO_HASH_ALGO_SM3] = -1,
 };
 
 gboolean qcrypto_hash_supports(QCryptoHashAlgo alg)
