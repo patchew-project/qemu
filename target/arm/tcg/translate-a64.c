@@ -562,6 +562,17 @@ static void gen_goto_tb_int(DisasContext *s, unsigned tb_slot_idx, int64_t diff)
     tcg_gen_exit_tb(s->base.tb, tb_slot_idx);
 }
 
+static bool gen_indirect_branch(DisasContext *s)
+{
+    if (s->ss_active) {
+        gen_step_complete_exception(s);
+    } else {
+        tcg_gen_lookup_and_goto_ptr();
+    }
+    s->base.is_jmp = DISAS_NORETURN;
+    return true;
+}
+
 static void gen_goto_tb(DisasContext *s, unsigned tb_slot_idx, int64_t diff)
 {
     if (use_goto_tb(s, s->pc_curr + diff)) {
@@ -569,12 +580,7 @@ static void gen_goto_tb(DisasContext *s, unsigned tb_slot_idx, int64_t diff)
         s->base.is_jmp = DISAS_NORETURN;
     } else {
         gen_a64_update_pc(s, diff);
-        if (s->ss_active) {
-            gen_step_complete_exception(s);
-        } else {
-            tcg_gen_lookup_and_goto_ptr();
-            s->base.is_jmp = DISAS_NORETURN;
-        }
+        gen_indirect_branch(s);
     }
 }
 
@@ -1921,8 +1927,7 @@ static bool trans_BR(DisasContext *s, arg_r *a)
 {
     set_btype_for_br(s, a->rn);
     gen_a64_set_pc(s, cpu_reg(s, a->rn));
-    s->base.is_jmp = DISAS_JUMP;
-    return true;
+    return gen_indirect_branch(s);
 }
 
 static bool trans_BLR(DisasContext *s, arg_r *a)
@@ -1937,8 +1942,7 @@ static bool trans_BLR(DisasContext *s, arg_r *a)
     tcg_gen_mov_i64(cpu_reg(s, 30), link);
 
     set_btype_for_blr(s);
-    s->base.is_jmp = DISAS_JUMP;
-    return true;
+    return gen_indirect_branch(s);
 }
 
 static bool trans_RET(DisasContext *s, arg_r *a)
@@ -1950,8 +1954,7 @@ static bool trans_RET(DisasContext *s, arg_r *a)
     } else {
         gen_a64_set_pc(s, target);
     }
-    s->base.is_jmp = DISAS_JUMP;
-    return true;
+    return gen_indirect_branch(s);
 }
 
 static TCGv_i64 auth_branch_target(DisasContext *s, TCGv_i64 dst,
@@ -1987,8 +1990,7 @@ static bool trans_BRAZ(DisasContext *s, arg_braz *a)
     dst = auth_branch_target(s, cpu_reg(s, a->rn), tcg_constant_i64(0), !a->m);
     set_btype_for_br(s, a->rn);
     gen_a64_set_pc(s, dst);
-    s->base.is_jmp = DISAS_JUMP;
-    return true;
+    return gen_indirect_branch(s);
 }
 
 static bool trans_BLRAZ(DisasContext *s, arg_braz *a)
@@ -2009,8 +2011,7 @@ static bool trans_BLRAZ(DisasContext *s, arg_braz *a)
     tcg_gen_mov_i64(cpu_reg(s, 30), link);
 
     set_btype_for_blr(s);
-    s->base.is_jmp = DISAS_JUMP;
-    return true;
+    return gen_indirect_branch(s);
 }
 
 static bool trans_RETA(DisasContext *s, arg_reta *a)
@@ -2028,8 +2029,7 @@ static bool trans_RETA(DisasContext *s, arg_reta *a)
     } else {
         gen_a64_set_pc(s, dst);
     }
-    s->base.is_jmp = DISAS_JUMP;
-    return true;
+    return gen_indirect_branch(s);
 }
 
 static bool trans_BRA(DisasContext *s, arg_bra *a)
@@ -2042,8 +2042,7 @@ static bool trans_BRA(DisasContext *s, arg_bra *a)
     dst = auth_branch_target(s, cpu_reg(s,a->rn), cpu_reg_sp(s, a->rm), !a->m);
     set_btype_for_br(s, a->rn);
     gen_a64_set_pc(s, dst);
-    s->base.is_jmp = DISAS_JUMP;
-    return true;
+    return gen_indirect_branch(s);
 }
 
 static bool trans_BLRA(DisasContext *s, arg_bra *a)
@@ -2064,8 +2063,7 @@ static bool trans_BLRA(DisasContext *s, arg_bra *a)
     tcg_gen_mov_i64(cpu_reg(s, 30), link);
 
     set_btype_for_blr(s);
-    s->base.is_jmp = DISAS_JUMP;
-    return true;
+    return gen_indirect_branch(s);
 }
 
 static bool trans_ERET(DisasContext *s, arg_ERET *a)
@@ -11240,11 +11238,13 @@ static void aarch64_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
             gen_a64_update_pc(dc, 4);
             /* fall through */
         case DISAS_EXIT:
-        case DISAS_JUMP:
             gen_step_complete_exception(dc);
             break;
         case DISAS_NORETURN:
             break;
+        case DISAS_JUMP:
+            /* Use gen_indirect_branch instead. */
+            g_assert_not_reached();
         }
     } else {
         switch (dc->base.is_jmp) {
@@ -11261,10 +11261,11 @@ static void aarch64_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
             break;
         case DISAS_UPDATE_NOCHAIN:
             gen_a64_update_pc(dc, 4);
-            /* fall through */
-        case DISAS_JUMP:
             tcg_gen_lookup_and_goto_ptr();
             break;
+        case DISAS_JUMP:
+            /* Use gen_indirect_branch instead. */
+            g_assert_not_reached();
         case DISAS_NORETURN:
         case DISAS_SWI:
             break;
