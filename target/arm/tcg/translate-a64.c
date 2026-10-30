@@ -573,15 +573,15 @@ static bool gen_indirect_branch(DisasContext *s)
     return true;
 }
 
-static void gen_goto_tb(DisasContext *s, unsigned tb_slot_idx, int64_t diff)
+static bool gen_direct_branch(DisasContext *s, int64_t diff)
 {
     if (use_goto_tb(s, s->pc_curr + diff)) {
-        gen_goto_tb_int(s, tb_slot_idx, diff);
+        gen_goto_tb_int(s, 0, diff);
         s->base.is_jmp = DISAS_NORETURN;
-    } else {
-        gen_a64_update_pc(s, diff);
-        gen_indirect_branch(s);
+        return true;
     }
+    gen_a64_update_pc(s, diff);
+    return gen_indirect_branch(s);
 }
 
 static bool gen_cbranch(DisasContext *s, const DisasCompare64 *c,
@@ -1780,8 +1780,7 @@ static inline void gen_check_sp_alignment(DisasContext *s)
 static bool trans_B(DisasContext *s, arg_i *a)
 {
     reset_btype(s);
-    gen_goto_tb(s, 0, a->imm);
-    return true;
+    return gen_direct_branch(s, a->imm);
 }
 
 static bool trans_BL(DisasContext *s, arg_i *a)
@@ -1795,8 +1794,7 @@ static bool trans_BL(DisasContext *s, arg_i *a)
     tcg_gen_mov_i64(cpu_reg(s, 30), link);
 
     reset_btype(s);
-    gen_goto_tb(s, 0, a->imm);
-    return true;
+    return gen_direct_branch(s, a->imm);
 }
 
 
@@ -1837,11 +1835,9 @@ static bool trans_B_cond(DisasContext *s, arg_B_cond *a)
 
         a64_test_cc(&c, a->cond);
         return gen_cbranch(s, &c, a->imm);
-    } else {
-        /* 0xe and 0xf are both "always" conditions */
-        gen_goto_tb(s, 0, a->imm);
     }
-    return true;
+    /* 0xe and 0xf are both "always" conditions */
+    return gen_direct_branch(s, a->imm);
 }
 
 static bool trans_CB_cond(DisasContext *s, arg_CB_cond *a)
@@ -11265,7 +11261,7 @@ static void aarch64_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         switch (dc->base.is_jmp) {
         case DISAS_NEXT:
         case DISAS_TOO_MANY:
-            gen_goto_tb(dc, 1, 4);
+            gen_direct_branch(dc, 4);
             break;
         default:
         case DISAS_UPDATE_EXIT:
