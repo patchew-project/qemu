@@ -545,6 +545,8 @@ struct hv_input_assert_virtual_interrupt {
 #define MSHV_IOEVENTFD              _IOW(MSHV_IOCTL, 0x04, struct mshv_user_ioeventfd)
 #define MSHV_SET_MSI_ROUTING        _IOW(MSHV_IOCTL, 0x05, struct mshv_user_irq_table)
 
+#define MSHV_SCRUB_PARTITION        _IO(MSHV_IOCTL, 0x0B)
+
 /*
  ********************************
  * VP APIs for child partitions *
