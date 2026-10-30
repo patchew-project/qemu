@@ -4,6 +4,7 @@ slow_qtests = {
   'bios-tables-test' : 910,
   'cdrom-test' : 610,
   'device-introspect-test' : 720,
+  'device-plug-test': 240,
   'ide-test' : 120,
   'migration-test' : 480,
   'npcm7xx_pwm-test': 300,
