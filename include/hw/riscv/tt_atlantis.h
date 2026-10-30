@@ -23,11 +23,14 @@ OBJECT_DECLARE_SIMPLE_TYPE(TTAtlantisState, TT_ATLANTIS_MACHINE)
 #define TYPE_TT_ATLANTIS_SOC "tt-atlantis-soc"
 OBJECT_DECLARE_SIMPLE_TYPE(TTAtlantisSoCState, TT_ATLANTIS_SOC)
 
+#define TYPE_TT_ASCALON_CLUSTER "riscv.tt-ascalon-cluster"
+OBJECT_DECLARE_SIMPLE_TYPE(TTAscalonClusterState, TT_ASCALON_CLUSTER)
+
 #define TT_ATL_NUM_I2C 5
 #define TT_ATL_NUM_PRCM 4
 #define TT_ATL_NUM_UARTS 5
 
-struct TTAtlantisSoCState {
+struct TTAscalonClusterState {
     /*< private >*/
     DeviceState parent;
 
@@ -35,19 +38,29 @@ struct TTAtlantisSoCState {
     const MemMapEntry *memmap;
 
     MemoryRegion *memory;
+
+    RISCVHartArrayState cpus;
+    MemoryRegion bootrom;
+
+    uint32_t num_harts;
+    char *cpu_type;
+};
+
+struct TTAtlantisSoCState {
+    /*< private >*/
+    DeviceState parent;
+
+    /*< public >*/
+    TTAscalonClusterState ascalon;
+
     MemoryRegion *dram;
     MemoryRegion ram_hi;
     MemoryRegion ram_lo;
 
-    RISCVHartArrayState cpus;
     DeviceState *irqchip;
     DesignWareI2CState i2c[TT_ATL_NUM_I2C];
     DW8250State uart[TT_ATL_NUM_UARTS];
-    MemoryRegion bootrom;
     TTAtlantisPRCMState prcm[TT_ATL_NUM_PRCM];
-
-    uint32_t num_harts;
-    char *cpu_type;
 };
 
 struct TTAtlantisState {
