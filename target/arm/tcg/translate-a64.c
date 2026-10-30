@@ -497,6 +497,7 @@ static void a64_test_cc(DisasCompare64 *c64, int cc)
 static void gen_rebuild_hflags(DisasContext *s)
 {
     gen_helper_rebuild_hflags_a64(tcg_env, tcg_constant_i32(s->current_el));
+    s->tbflags_invalid = true;
 }
 
 static void gen_exception_internal_insn(DisasContext *s, int excp)
@@ -11004,68 +11005,70 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     CPUARMState *env = cpu_env(cpu);
     ARMCPU *arm_cpu = env_archcpu(env);
-    CPUARMTBFlags tb_flags = arm_tbflags_from_tb(dc->base.tb);
     int bound, core_mmu_idx;
 
     dc->isar = &arm_cpu->isar;
     dc->condjmp = 0;
     dc->pc_save = dc->base.pc_first;
     dc->aarch64 = true;
+
+    dc->tbflags = arm_tbflags_from_tb(dc->base.tb);
+
     dc->thumb = false;
     dc->sctlr_b = 0;
-    dc->be_data = EX_TBFLAG_ANY(tb_flags, BE_DATA) ? MO_BE : MO_LE;
+    dc->be_data = EX_TBFLAG_ANY(dc->tbflags, BE_DATA) ? MO_BE : MO_LE;
     dc->condexec_mask = 0;
     dc->condexec_cond = 0;
-    core_mmu_idx = EX_TBFLAG_ANY(tb_flags, MMUIDX);
+    core_mmu_idx = EX_TBFLAG_ANY(dc->tbflags, MMUIDX);
     dc->mmu_idx = core_to_aa64_mmu_idx(core_mmu_idx);
-    dc->tbii = EX_TBFLAG_A64(tb_flags, TBII);
-    dc->tbid = EX_TBFLAG_A64(tb_flags, TBID);
-    dc->tcma = EX_TBFLAG_A64(tb_flags, TCMA);
+    dc->tbii = EX_TBFLAG_A64(dc->tbflags, TBII);
+    dc->tbid = EX_TBFLAG_A64(dc->tbflags, TBID);
+    dc->tcma = EX_TBFLAG_A64(dc->tbflags, TCMA);
     dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx);
 #if !defined(CONFIG_USER_ONLY)
     dc->user = (dc->current_el == 0);
 #endif
-    dc->fp_excp_el = EX_TBFLAG_ANY(tb_flags, FPEXC_EL);
-    dc->align_mem = EX_TBFLAG_ANY(tb_flags, ALIGN_MEM);
-    dc->pstate_il = EX_TBFLAG_ANY(tb_flags, PSTATE__IL);
-    dc->pstate_uinj = EX_TBFLAG_ANY(tb_flags, PSTATE__UINJ);
-    dc->fgt_active = EX_TBFLAG_ANY(tb_flags, FGT_ACTIVE);
-    dc->fgt_svc = EX_TBFLAG_ANY(tb_flags, FGT_SVC);
-    dc->trap_eret = EX_TBFLAG_A64(tb_flags, TRAP_ERET);
-    dc->sve_excp_el = EX_TBFLAG_A64(tb_flags, SVEEXC_EL);
-    dc->sme_excp_el = EX_TBFLAG_A64(tb_flags, SMEEXC_EL);
-    dc->zt0_excp_el = EX_TBFLAG_A64(tb_flags, ZT0EXC_EL);
-    dc->vl = (EX_TBFLAG_A64(tb_flags, VL) + 1) * 16;
-    dc->svl = (EX_TBFLAG_A64(tb_flags, SVL) + 1) * 16;
+    dc->fp_excp_el = EX_TBFLAG_ANY(dc->tbflags, FPEXC_EL);
+    dc->align_mem = EX_TBFLAG_ANY(dc->tbflags, ALIGN_MEM);
+    dc->pstate_il = EX_TBFLAG_ANY(dc->tbflags, PSTATE__IL);
+    dc->pstate_uinj = EX_TBFLAG_ANY(dc->tbflags, PSTATE__UINJ);
+    dc->fgt_active = EX_TBFLAG_ANY(dc->tbflags, FGT_ACTIVE);
+    dc->fgt_svc = EX_TBFLAG_ANY(dc->tbflags, FGT_SVC);
+    dc->trap_eret = EX_TBFLAG_A64(dc->tbflags, TRAP_ERET);
+    dc->sve_excp_el = EX_TBFLAG_A64(dc->tbflags, SVEEXC_EL);
+    dc->sme_excp_el = EX_TBFLAG_A64(dc->tbflags, SMEEXC_EL);
+    dc->zt0_excp_el = EX_TBFLAG_A64(dc->tbflags, ZT0EXC_EL);
+    dc->vl = (EX_TBFLAG_A64(dc->tbflags, VL) + 1) * 16;
+    dc->svl = (EX_TBFLAG_A64(dc->tbflags, SVL) + 1) * 16;
     dc->max_svl = arm_cpu->sme_max_vq * 16;
     dc->max_any_vl = MAX(dc->max_svl, arm_cpu->sve_max_vq * 16);
-    dc->pauth_active = EX_TBFLAG_A64(tb_flags, PAUTH_ACTIVE);
-    dc->bt = EX_TBFLAG_A64(tb_flags, BT);
-    dc->btype = EX_TBFLAG_A64(tb_flags, BTYPE);
-    dc->unpriv = EX_TBFLAG_A64(tb_flags, UNPRIV);
-    dc->ata[0] = EX_TBFLAG_A64(tb_flags, ATA);
-    dc->ata[1] = EX_TBFLAG_A64(tb_flags, ATA0);
-    dc->mte_active[0] = EX_TBFLAG_A64(tb_flags, MTE_ACTIVE);
-    dc->mte_active[1] = EX_TBFLAG_A64(tb_flags, MTE0_ACTIVE);
-    dc->mte_store_only[0] = EX_TBFLAG_A64(tb_flags, MTE_STORE_ONLY);
-    dc->mte_store_only[1] = EX_TBFLAG_A64(tb_flags, MTE0_STORE_ONLY);
-    dc->mtx = EX_TBFLAG_A64(tb_flags, MTX);
-    dc->pstate_sm = EX_TBFLAG_A64(tb_flags, PSTATE_SM);
-    dc->pstate_za = EX_TBFLAG_A64(tb_flags, PSTATE_ZA);
-    dc->sme_trap_nonstreaming = EX_TBFLAG_A64(tb_flags, SME_TRAP_NONSTREAMING);
-    dc->naa = EX_TBFLAG_A64(tb_flags, NAA);
-    dc->e2h = EX_TBFLAG_A64(tb_flags, E2H);
-    dc->nv = EX_TBFLAG_A64(tb_flags, NV);
-    dc->nv1 = EX_TBFLAG_A64(tb_flags, NV1);
-    dc->nv2 = EX_TBFLAG_A64(tb_flags, NV2);
+    dc->pauth_active = EX_TBFLAG_A64(dc->tbflags, PAUTH_ACTIVE);
+    dc->bt = EX_TBFLAG_A64(dc->tbflags, BT);
+    dc->btype = EX_TBFLAG_A64(dc->tbflags, BTYPE);
+    dc->unpriv = EX_TBFLAG_A64(dc->tbflags, UNPRIV);
+    dc->ata[0] = EX_TBFLAG_A64(dc->tbflags, ATA);
+    dc->ata[1] = EX_TBFLAG_A64(dc->tbflags, ATA0);
+    dc->mte_active[0] = EX_TBFLAG_A64(dc->tbflags, MTE_ACTIVE);
+    dc->mte_active[1] = EX_TBFLAG_A64(dc->tbflags, MTE0_ACTIVE);
+    dc->mte_store_only[0] = EX_TBFLAG_A64(dc->tbflags, MTE_STORE_ONLY);
+    dc->mte_store_only[1] = EX_TBFLAG_A64(dc->tbflags, MTE0_STORE_ONLY);
+    dc->mtx = EX_TBFLAG_A64(dc->tbflags, MTX);
+    dc->pstate_sm = EX_TBFLAG_A64(dc->tbflags, PSTATE_SM);
+    dc->pstate_za = EX_TBFLAG_A64(dc->tbflags, PSTATE_ZA);
+    dc->sme_trap_nonstreaming = EX_TBFLAG_A64(dc->tbflags, SME_TRAP_NONSTREAMING);
+    dc->naa = EX_TBFLAG_A64(dc->tbflags, NAA);
+    dc->e2h = EX_TBFLAG_A64(dc->tbflags, E2H);
+    dc->nv = EX_TBFLAG_A64(dc->tbflags, NV);
+    dc->nv1 = EX_TBFLAG_A64(dc->tbflags, NV1);
+    dc->nv2 = EX_TBFLAG_A64(dc->tbflags, NV2);
     dc->nv2_mem_e20 = dc->nv2 && dc->e2h;
-    dc->nv2_mem_be = EX_TBFLAG_A64(tb_flags, NV2_MEM_BE);
-    dc->fpcr_ah = EX_TBFLAG_A64(tb_flags, AH);
-    dc->fpcr_nep = EX_TBFLAG_A64(tb_flags, NEP);
-    dc->gcs_en = EX_TBFLAG_A64(tb_flags, GCS_EN);
-    dc->gcs_rvcen = EX_TBFLAG_A64(tb_flags, GCS_RVCEN);
-    dc->gcsstr_el = EX_TBFLAG_A64(tb_flags, GCSSTR_EL);
-    dc->fpmr_el = EX_TBFLAG_A64(tb_flags, FPMR_EL);
+    dc->nv2_mem_be = EX_TBFLAG_A64(dc->tbflags, NV2_MEM_BE);
+    dc->fpcr_ah = EX_TBFLAG_A64(dc->tbflags, AH);
+    dc->fpcr_nep = EX_TBFLAG_A64(dc->tbflags, NEP);
+    dc->gcs_en = EX_TBFLAG_A64(dc->tbflags, GCS_EN);
+    dc->gcs_rvcen = EX_TBFLAG_A64(dc->tbflags, GCS_RVCEN);
+    dc->gcsstr_el = EX_TBFLAG_A64(dc->tbflags, GCSSTR_EL);
+    dc->fpmr_el = EX_TBFLAG_A64(dc->tbflags, FPMR_EL);
     dc->vec_len = 0;
     dc->vec_stride = 0;
     dc->cp_regs = arm_cpu->cp_regs;
@@ -11095,8 +11098,8 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
      *   emit code to generate a software step exception
      *   end the TB
      */
-    dc->ss_active = EX_TBFLAG_ANY(tb_flags, SS_ACTIVE);
-    dc->pstate_ss = EX_TBFLAG_ANY(tb_flags, PSTATE__SS);
+    dc->ss_active = EX_TBFLAG_ANY(dc->tbflags, SS_ACTIVE);
+    dc->pstate_ss = EX_TBFLAG_ANY(dc->tbflags, PSTATE__SS);
     dc->is_ldex = false;
 
     /* Bound the number of insns to execute to those left on the page.  */

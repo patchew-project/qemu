@@ -6389,7 +6389,6 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     CPUARMState *env = cpu_env(cs);
     ARMCPU *cpu = env_archcpu(env);
-    CPUARMTBFlags tb_flags = arm_tbflags_from_tb(dc->base.tb);
     uint32_t condexec, core_mmu_idx;
     bool d32dis = false;
 
@@ -6397,9 +6396,12 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     dc->condjmp = 0;
     dc->pc_save = dc->base.pc_first;
     dc->aarch64 = false;
-    dc->thumb = EX_TBFLAG_AM32(tb_flags, THUMB);
-    dc->be_data = EX_TBFLAG_ANY(tb_flags, BE_DATA) ? MO_BE : MO_LE;
-    condexec = EX_TBFLAG_AM32(tb_flags, CONDEXEC);
+
+    dc->tbflags = arm_tbflags_from_tb(dc->base.tb);
+
+    dc->thumb = EX_TBFLAG_AM32(dc->tbflags, THUMB);
+    dc->be_data = EX_TBFLAG_ANY(dc->tbflags, BE_DATA) ? MO_BE : MO_LE;
+    condexec = EX_TBFLAG_AM32(dc->tbflags, CONDEXEC);
     /*
      * the CONDEXEC TB flags are CPSR bits [15:10][26:25]. On A-profile this
      * is always the IT bits. On M-profile, some of the reserved encodings
@@ -6422,40 +6424,40 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
         }
     }
 
-    core_mmu_idx = EX_TBFLAG_ANY(tb_flags, MMUIDX);
+    core_mmu_idx = EX_TBFLAG_ANY(dc->tbflags, MMUIDX);
     dc->mmu_idx = core_to_arm_mmu_idx(env, core_mmu_idx);
     dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx);
 #if !defined(CONFIG_USER_ONLY)
     dc->user = (dc->current_el == 0);
 #endif
-    dc->fp_excp_el = EX_TBFLAG_ANY(tb_flags, FPEXC_EL);
-    dc->align_mem = EX_TBFLAG_ANY(tb_flags, ALIGN_MEM);
-    dc->pstate_il = EX_TBFLAG_ANY(tb_flags, PSTATE__IL);
-    dc->pstate_uinj = EX_TBFLAG_ANY(tb_flags, PSTATE__UINJ);
-    dc->fgt_active = EX_TBFLAG_ANY(tb_flags, FGT_ACTIVE);
-    dc->fgt_svc = EX_TBFLAG_ANY(tb_flags, FGT_SVC);
+    dc->fp_excp_el = EX_TBFLAG_ANY(dc->tbflags, FPEXC_EL);
+    dc->align_mem = EX_TBFLAG_ANY(dc->tbflags, ALIGN_MEM);
+    dc->pstate_il = EX_TBFLAG_ANY(dc->tbflags, PSTATE__IL);
+    dc->pstate_uinj = EX_TBFLAG_ANY(dc->tbflags, PSTATE__UINJ);
+    dc->fgt_active = EX_TBFLAG_ANY(dc->tbflags, FGT_ACTIVE);
+    dc->fgt_svc = EX_TBFLAG_ANY(dc->tbflags, FGT_SVC);
 
     if (arm_feature(env, ARM_FEATURE_M)) {
         dc->vfp_enabled = 1;
-        dc->v7m_handler_mode = EX_TBFLAG_M32(tb_flags, HANDLER);
-        dc->v8m_secure = EX_TBFLAG_M32(tb_flags, SECURE);
-        dc->v8m_stackcheck = EX_TBFLAG_M32(tb_flags, STACKCHECK);
-        dc->v8m_fpccr_s_wrong = EX_TBFLAG_M32(tb_flags, FPCCR_S_WRONG);
+        dc->v7m_handler_mode = EX_TBFLAG_M32(dc->tbflags, HANDLER);
+        dc->v8m_secure = EX_TBFLAG_M32(dc->tbflags, SECURE);
+        dc->v8m_stackcheck = EX_TBFLAG_M32(dc->tbflags, STACKCHECK);
+        dc->v8m_fpccr_s_wrong = EX_TBFLAG_M32(dc->tbflags, FPCCR_S_WRONG);
         dc->v7m_new_fp_ctxt_needed =
-            EX_TBFLAG_M32(tb_flags, NEW_FP_CTXT_NEEDED);
-        dc->v7m_lspact = EX_TBFLAG_M32(tb_flags, LSPACT);
-        dc->mve_no_pred = EX_TBFLAG_M32(tb_flags, MVE_NO_PRED);
+            EX_TBFLAG_M32(dc->tbflags, NEW_FP_CTXT_NEEDED);
+        dc->v7m_lspact = EX_TBFLAG_M32(dc->tbflags, LSPACT);
+        dc->mve_no_pred = EX_TBFLAG_M32(dc->tbflags, MVE_NO_PRED);
     } else {
-        dc->sctlr_b = EX_TBFLAG_A32(tb_flags, SCTLR__B);
-        dc->hstr_active = EX_TBFLAG_A32(tb_flags, HSTR_ACTIVE);
-        dc->ns = EX_TBFLAG_A32(tb_flags, NS);
-        dc->vfp_enabled = EX_TBFLAG_A32(tb_flags, VFPEN);
-        dc->vec_len = EX_TBFLAG_A32(tb_flags, VECLEN);
-        dc->vec_stride = EX_TBFLAG_A32(tb_flags, VECSTRIDE);
+        dc->sctlr_b = EX_TBFLAG_A32(dc->tbflags, SCTLR__B);
+        dc->hstr_active = EX_TBFLAG_A32(dc->tbflags, HSTR_ACTIVE);
+        dc->ns = EX_TBFLAG_A32(dc->tbflags, NS);
+        dc->vfp_enabled = EX_TBFLAG_A32(dc->tbflags, VFPEN);
+        dc->vec_len = EX_TBFLAG_A32(dc->tbflags, VECLEN);
+        dc->vec_stride = EX_TBFLAG_A32(dc->tbflags, VECSTRIDE);
         dc->sme_trap_nonstreaming =
-            EX_TBFLAG_A32(tb_flags, SME_TRAP_NONSTREAMING);
-        dc->neon_excp_el = EX_TBFLAG_A32(tb_flags, NEONEXC_EL);
-        d32dis = EX_TBFLAG_A32(tb_flags, D32DIS);
+            EX_TBFLAG_A32(dc->tbflags, SME_TRAP_NONSTREAMING);
+        dc->neon_excp_el = EX_TBFLAG_A32(dc->tbflags, NEONEXC_EL);
+        d32dis = EX_TBFLAG_A32(dc->tbflags, D32DIS);
     }
 
     dc->invalid_vfp_dreg_mask =
@@ -6481,8 +6483,8 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
      *   emit code to generate a software step exception
      *   end the TB
      */
-    dc->ss_active = EX_TBFLAG_ANY(tb_flags, SS_ACTIVE);
-    dc->pstate_ss = EX_TBFLAG_ANY(tb_flags, PSTATE__SS);
+    dc->ss_active = EX_TBFLAG_ANY(dc->tbflags, SS_ACTIVE);
+    dc->pstate_ss = EX_TBFLAG_ANY(dc->tbflags, PSTATE__SS);
     dc->is_ldex = false;
 
     dc->page_start = dc->base.pc_first & TARGET_PAGE_MASK;
