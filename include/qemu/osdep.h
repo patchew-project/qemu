@@ -345,6 +345,12 @@ void QEMU_ERROR("code path is reachable")
 #if !defined(ESHUTDOWN)
 #define ESHUTDOWN 4099
 #endif
+#if !defined(ETOOMANYREFS)
+#define ETOOMANYREFS 4100
+#endif
+#if !defined(EXFULL)
+#define EXFULL 4101
+#endif
 
 #define RETRY_ON_EINTR(expr) \
     (__extension__                                          \
