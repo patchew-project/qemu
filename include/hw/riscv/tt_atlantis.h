@@ -64,6 +64,8 @@ struct TTRCPUClusterState {
     CPUClusterState cluster;
     MemoryRegion bootrom;
     MemoryRegion sram;
+
+    char *bootrom_image;
 };
 
 struct TTAtlantisSoCState {
@@ -84,6 +86,7 @@ struct TTAtlantisSoCState {
     TTAtlantisPRCMState prcm[TT_ATL_NUM_PRCM];
 
     bool has_rcpu;              /* Enable RCPU */
+    char *rcpu_bootrom_image;    /* RCPU boot ROM image */
 };
 
 struct TTAtlantisState {
@@ -96,6 +99,7 @@ struct TTAtlantisState {
     TTAtlantisSoCState soc;
 
     bool has_rcpu;              /* Enable RCPU */
+    char *rcpu_bootrom_image;    /* RCPU boot ROM image */
 };
 
 enum {
