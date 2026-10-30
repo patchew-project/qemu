@@ -75,6 +75,15 @@ typedef struct DisasContext {
     bool eci_handled;
     int sctlr_b;
     MemOp be_data;
+
+    /*
+     * Current tbflags.  During translation, starts as tb->flags
+     * but updated for known changes to cpu state.  If at some
+     * point we encounter some unknowable change, set tbflags_invalid.
+     */
+    CPUARMTBFlags tbflags;
+    bool tbflags_invalid;
+
 #if !defined(CONFIG_USER_ONLY)
     int user;
 #endif
