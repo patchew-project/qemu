@@ -80,9 +80,10 @@ struct DisasContext {
 /* Target-specific return values from translate_one, indicating the
    state of the TB.  Note that DISAS_NEXT indicates that we are not
    exiting the TB.  */
-#define DISAS_PC_UPDATED_NOCHAIN  DISAS_TARGET_0
-#define DISAS_PC_UPDATED          DISAS_TARGET_1
-#define DISAS_PC_STALE            DISAS_TARGET_2
+#define DISAS_PC_UPDATED          DISAS_TARGET_0
+#define DISAS_PC_STALE_NOJC       DISAS_TARGET_1
+#define DISAS_PC_STALE_NOCHAIN    DISAS_TARGET_2
+#define DISAS_PC_UPDATED_NOCHAIN  DISAS_TARGET_3
 
 /* global register indexes */
 static TCGv_i64 cpu_std_ir[31];
@@ -449,7 +450,7 @@ static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_idx, int32_t disp)
         tcg_gen_exit_tb(ctx->base.tb, tb_slot_idx);
     } else {
         gen_pc_disp(ctx, cpu_pc, disp);
-        tcg_gen_lookup_and_goto_ptr();
+        tcg_gen_goto_jc_i64(cpu_pc);
     }
 }
 
@@ -1096,8 +1097,7 @@ static DisasJumpType gen_call_pal(DisasContext *ctx, int palcode)
             }
 
             /* Allow interrupts to be recognized right away.  */
-            gen_pc_disp(ctx, cpu_pc, 0);
-            return DISAS_PC_UPDATED_NOCHAIN;
+            return DISAS_PC_STALE_NOCHAIN;
 
         case 0x36:
             /* RDPS */
@@ -1148,6 +1148,7 @@ static DisasJumpType gen_call_pal(DisasContext *ctx, int palcode)
             tcg_gen_ori_i64(tmp, tmp, 1);
         } else {
             st_flag_byte(tcg_constant_i64(1), ENV_FLAG_PAL_SHIFT);
+            ctx->tbflags = deposit32(ctx->tbflags, ENV_FLAG_PAL_SHIFT, 8, 1);
         }
         tcg_gen_st_i64(tmp, tcg_env, offsetof(CPUAlphaState, exc_addr));
 
@@ -1156,7 +1157,9 @@ static DisasJumpType gen_call_pal(DisasContext *ctx, int palcode)
                          palcode & 0x80
                          ? 0x2000 + (palcode - 0x80) * 64
                          : 0x1000 + palcode * 64);
-        return DISAS_PC_UPDATED;
+
+        tcg_gen_goto_jc3_i64(cpu_pc, load_zero(ctx), ctx->tbflags);
+        return DISAS_NORETURN;
     }
 #endif
 }
@@ -1191,8 +1194,7 @@ static int cpu_pr_data(int pr)
 
 static DisasJumpType gen_mfpr(DisasContext *ctx, TCGv_i64 va, int regno)
 {
-    void (*helper)(TCGv_i64);
-    int data;
+    int data, ret = DISAS_NEXT;
 
     switch (regno) {
     case 32 ... 39:
@@ -1202,17 +1204,16 @@ static DisasJumpType gen_mfpr(DisasContext *ctx, TCGv_i64 va, int regno)
         break;
 
     case 250: /* WALLTIME */
-        helper = gen_helper_get_walltime;
-        goto do_helper;
-    case 249: /* VMTIME */
-        helper = gen_helper_get_vmtime;
-    do_helper:
         if (translator_io_start(&ctx->base)) {
-            helper(va);
-            return DISAS_PC_STALE;
-        } else {
-            helper(va);
+            ret = DISAS_TOO_MANY; /* i/o insns must be last in tb */
         }
+        gen_helper_get_walltime(va);
+        break;
+    case 249: /* VMTIME */
+        if (translator_io_start(&ctx->base)) {
+            ret = DISAS_TOO_MANY; /* i/o insns must be last in tb */
+        }
+        gen_helper_get_vmtime(va);
         break;
 
     case 0: /* PS */
@@ -1236,7 +1237,7 @@ static DisasJumpType gen_mfpr(DisasContext *ctx, TCGv_i64 va, int regno)
         break;
     }
 
-    return DISAS_NEXT;
+    return ret;
 }
 
 static DisasJumpType gen_mtpr(DisasContext *ctx, TCGv_i64 vb, int regno)
@@ -1264,12 +1265,12 @@ static DisasJumpType gen_mtpr(DisasContext *ctx, TCGv_i64 vb, int regno)
     case 252:
         /* HALT */
         gen_helper_halt(vb);
-        return DISAS_PC_STALE;
+        return DISAS_PC_STALE_NOCHAIN;
 
     case 251:
         /* ALARM */
         if (translator_io_start(&ctx->base)) {
-            ret = DISAS_PC_STALE;
+            ret = DISAS_TOO_MANY; /* i/o insns must be last in tb */
         }
         gen_helper_set_alarm(tcg_env, vb);
         break;
@@ -1287,10 +1288,11 @@ static DisasJumpType gen_mtpr(DisasContext *ctx, TCGv_i64 vb, int regno)
 
     case 0: /* PS */
         st_flag_byte(vb, ENV_FLAG_PS_SHIFT);
-        break;
+        return DISAS_PC_STALE_NOJC; /* flags updated */
+
     case 1: /* FEN */
         st_flag_byte(vb, ENV_FLAG_FEN_SHIFT);
-        break;
+        return DISAS_PC_STALE_NOJC; /* flags updated */
 
     default:
         /* The basic registers are data only, and unknown registers
@@ -2289,7 +2291,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             /* RPCC */
             va = dest_gpr(ctx, ra);
             if (translator_io_start(&ctx->base)) {
-                ret = DISAS_PC_STALE;
+                ret = DISAS_TOO_MANY; /* i/o insns must be last in tb */
             }
             gen_helper_load_pcc(va, tcg_env);
             break;
@@ -2905,12 +2907,16 @@ static void alpha_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     case DISAS_TOO_MANY:
         gen_goto_tb(ctx, 0, 0);
         break;
-    case DISAS_PC_STALE:
-        gen_pc_disp(ctx, cpu_pc, 0);
-        /* FALLTHRU */
     case DISAS_PC_UPDATED:
+        tcg_gen_goto_jc_i64(cpu_pc);
+        break;
+    case DISAS_PC_STALE_NOJC:
+        gen_pc_disp(ctx, cpu_pc, 0);
         tcg_gen_lookup_and_goto_ptr();
         break;
+    case DISAS_PC_STALE_NOCHAIN:
+        gen_pc_disp(ctx, cpu_pc, 0);
+        /* fallthru */
     case DISAS_PC_UPDATED_NOCHAIN:
         tcg_gen_exit_tb(NULL, 0);
         break;
