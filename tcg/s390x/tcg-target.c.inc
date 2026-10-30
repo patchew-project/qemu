@@ -3202,8 +3202,66 @@ static const TCGOutOpLea outop_lea = {
     .out = tgen_lea,
 };
 
+static void tgen_goto_jc_cmp_part(TCGContext *s, TCGReg reg,
+                                  TCGArg ref, bool const_ref,
+                                  const uint64_t *tb_slot, TCGLabel *l)
+{
+    if (!const_ref || ref == (int32_t)ref || ref == (uint32_t)ref) {
+        tgen_brcond(s, TCG_TYPE_I64, TCG_COND_NE, reg, ref, const_ref, l);
+    } else {
+        if (ref == *tb_slot) {
+            tcg_out_insn(s, RIL, CGRL, reg, tcg_pcrel_diff(s, tb_slot) >> 1);
+        } else {
+            tcg_out_insn(s, RIL, CGRL, reg, 0);
+            new_pool_label(s, ref, R_390_PC32DBL, s->code_ptr - 2, 2);
+        }
+        tgen_branch(s, S390_CC_NE, l);
+    }
+}
+
+static void tgen_goto_jc(TCGContext *s, TCGReg ptr, TCGReg pc,
+                         TCGArg cs, bool const_cs,
+                         TCGArg fl, bool const_fl, TCGLabel *label)
+{
+    const TranslationBlock *tb = tcg_splitwx_to_rx(s->gen_tb);
+
+    /*
+     * Note that pc, cs, fl are constrained to r3 or higher, r0 and r1
+     * are always reserved as scratch, this is the end of the translation
+     * block so r2 may now be clobbered, and the input ptr * is dead
+     * after the initial LMG.
+     */
+
+    /* ptr is CPUJumpCache */
+
+    QEMU_BUILD_BUG_ON(offsetof(CPUJumpCache, array[0].pc) !=
+                      offsetof(CPUJumpCache, array[0].tb) + 8);
+    /* lmg r1,r2,tb(ptr) */
+    tcg_out_insn(s, RXY, LMG, TCG_REG_R1, ptr, TCG_REG_R2,
+                 offsetof(CPUJumpCache, array[0].tb));
+
+    tgen_brcond(s, TCG_TYPE_I64, TCG_COND_NE, TCG_REG_R2, pc, false, label);
+    tgen_brcond(s, TCG_TYPE_PTR, TCG_COND_EQ, TCG_REG_R1, 0, true, label);
+
+    /* R1 is now TranslationBlock */
+
+    QEMU_BUILD_BUG_ON(offsetof(TranslationBlock, flags) !=
+                      offsetof(TranslationBlock, cs_base) + 8);
+    QEMU_BUILD_BUG_ON(offsetof(TranslationBlock, tc.ptr) !=
+                      offsetof(TranslationBlock, cs_base) + 16);
+    /* lmg r0,r2,cs(r1) */
+    tcg_out_insn(s, RXY, LMG, TCG_REG_R0, TCG_REG_R1, TCG_REG_R2,
+                 offsetof(TranslationBlock, cs_base));
+
+    tgen_goto_jc_cmp_part(s, TCG_REG_R0, cs, const_cs, &tb->cs_base, label);
+    tgen_goto_jc_cmp_part(s, TCG_REG_R1, fl, const_fl,
+                          (const uint64_t *)&tb->flags, label);
+    tcg_out_goto_ptr(s, TCG_REG_R2);
+}
+
 static const TCGOutOpGotoJC outop_goto_jc = {
-    .base.static_constraint = C_NotImplemented,
+    .base.static_constraint = C_O0_I4(r, h, hi, hi),
+    .out = tgen_goto_jc,
 };
 
 static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
