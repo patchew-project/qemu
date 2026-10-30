@@ -28,6 +28,8 @@
 #include "tcg/tcg-op-common.h"
 #include "exec/translation-block.h"
 #include "exec/plugin-gen.h"
+#include "hw/core/cpu.h"
+#include "../accel/tcg/tb-hash.h"
 #include "tcg-internal.h"
 #include "tcg-has.h"
 
@@ -1838,20 +1840,115 @@ void tcg_gen_goto_tb(unsigned idx)
     tcg_gen_op1i(INDEX_op_goto_tb, 0, idx);
 }
 
+static void gen_goto_ptr(TCGTemp *ptr)
+{
+    tcg_gen_op1(INDEX_op_goto_ptr, TCG_TYPE_PTR, temp_arg(ptr));
+}
+
+static void gen_lookup_tb_ptr_and_goto(void)
+{
+    TCGv_ptr ptr = tcg_temp_ebb_new_ptr();
+
+    gen_helper_lookup_tb_ptr(ptr, tcg_env);
+    gen_goto_ptr(tcgv_ptr_temp(ptr));
+    tcg_temp_free_ptr(ptr);
+}
+
 void tcg_gen_lookup_and_goto_ptr(void)
 {
-    TCGv_ptr ptr;
-
     if (tcg_ctx->gen_tb->cflags & CF_NO_GOTO_PTR) {
         tcg_gen_exit_tb(NULL, 0);
-        return;
+    } else {
+        plugin_gen_disable_mem_helpers();
+        gen_lookup_tb_ptr_and_goto();
     }
+}
 
-    plugin_gen_disable_mem_helpers();
-    ptr = tcg_temp_ebb_new_ptr();
-    gen_helper_lookup_tb_ptr(ptr, tcg_env);
-    tcg_gen_op1i(INDEX_op_goto_ptr, TCG_TYPE_PTR, tcgv_ptr_arg(ptr));
-    tcg_temp_free_ptr(ptr);
+static void gen_jc_hash(TCGTemp *h, TCGTemp *t, TCGTemp *pc)
+{
+#ifdef CONFIG_SOFTMMU
+    /*
+     * tb_jmp_cache_hash_func(), softmmu form.  TARGET_PAGE_BITS is a load
+     * from target_page in this translation unit, but it is decided long
+     * before any translation happens, so it is a constant here.
+     */
+    int shift = TARGET_PAGE_BITS - TB_JMP_PAGE_BITS;
+
+    tcg_gen_shri(TCG_TYPE_I64, t, pc, shift);
+    tcg_gen_xor(TCG_TYPE_I64, t, t, pc);
+    tcg_gen_shri(TCG_TYPE_I64, h, t, shift);
+    tcg_gen_andi(TCG_TYPE_I64, h, h, TB_JMP_PAGE_MASK);
+    tcg_gen_andi(TCG_TYPE_I64, t, t, TB_JMP_ADDR_MASK);
+    tcg_gen_or(TCG_TYPE_I64, h, h, t);
+#else
+    /* tb_jmp_cache_hash_func(), user-only form. */
+    tcg_gen_shri(TCG_TYPE_I64, h, pc, TB_JMP_CACHE_BITS);
+    tcg_gen_xor(TCG_TYPE_I64, h, h, pc);
+    tcg_gen_andi(TCG_TYPE_I64, h, h, TB_JMP_CACHE_SIZE - 1);
+#endif
+}
+
+static void gen_jc_probe(TCGTemp *pc, TCGTemp *cs_base, uint32_t flags)
+{
+    const TranslationBlock *tb = tcg_ctx->gen_tb;
+    g_autoptr(TCGTemp) t = tcg_temp_new_ebb(TCG_TYPE_I64);
+    g_autoptr(TCGTemp) h = tcg_temp_new_ebb(TCG_TYPE_I64);
+    g_autoptr(TCGTemp) p = tcg_temp_new_ebb(TCG_TYPE_PTR);
+    TCGLabel *slow = gen_new_label();
+    uint64_t fpair;
+
+    QEMU_BUILD_BUG_ON(sizeof_field(CPUJumpCache, array[0]) != 16);
+    QEMU_BUILD_BUG_ON(offsetof(CPUJumpCache, array[0].pc) % 8 != 0);
+    /* One 64-bit load has to cover both, so they must be adjacent... */
+    QEMU_BUILD_BUG_ON(offsetof(TranslationBlock, cflags) !=
+                      offsetof(TranslationBlock, flags) + 4);
+    /* ...and aligned, which nothing else currently relies on. */
+    QEMU_BUILD_BUG_ON(offsetof(TranslationBlock, flags) % 8 != 0);
+
+    /* p = &jc->array[tb_jmp_cache_hash_func(pc)] */
+    gen_jc_hash(h, t, pc);
+    tcg_gen_ld(TCG_TYPE_I64, t, tcgv_ptr_temp(tcg_env),
+               offsetof(CPUState, tb_jmp_cache) - sizeof(CPUState));
+    tcg_gen_lea(TCG_TYPE_I64, p, t, h, 4, 0);
+
+    /*
+     * The pc first: on a hash miss it is the field most likely to differ,
+     * and an entry whose tb is NULL has a zero pc that only pc 0 matches.
+     */
+    tcg_gen_ld(TCG_TYPE_I64, t, p, offsetof(CPUJumpCache, array[0].pc));
+    tcg_gen_brcond(TCG_TYPE_I64, TCG_COND_NE, t, pc, slow);
+
+    tcg_gen_ld(TCG_TYPE_PTR, p, p, offsetof(CPUJumpCache, array[0].tb));
+    tcg_gen_brcond(TCG_TYPE_PTR, TCG_COND_EQ,
+                   p, tcg_constant_internal(TCG_TYPE_PTR, 0), slow);
+
+    /*
+     * flags and cflags are adjacent uint32_t, so one aligned 64-bit load
+     * and compare covers both.
+     */
+    fpair = (HOST_BIG_ENDIAN
+             ? deposit64(tb->cflags, 32, 32, flags)
+             : deposit64(flags, 32, 32, tb->cflags));
+    tcg_gen_ld(TCG_TYPE_I64, t, p, offsetof(TranslationBlock, flags));
+    tcg_gen_brcond(TCG_TYPE_I64, TCG_COND_NE,
+                   t, tcg_constant_internal(TCG_TYPE_I64, fpair), slow);
+
+    /*
+     * cs_base is a second word of target-specific flags despite the name,
+     * and the pc alone does not imply it on a target that uses it.
+     */
+    tcg_gen_ld(TCG_TYPE_I64, t, p, offsetof(TranslationBlock, cs_base));
+    tcg_gen_brcond(TCG_TYPE_I64, TCG_COND_NE, t, cs_base, slow);
+
+    tcg_gen_ld(TCG_TYPE_PTR, p, p, offsetof(TranslationBlock, tc.ptr));
+    gen_goto_ptr(p);
+
+    /*
+     * Emit a second goto_ptr rather than branching to a shared one: a temp
+     * live across the label would be spilled and reloaded on every dispatch.
+     */
+    gen_set_label(slow);
+    gen_lookup_tb_ptr_and_goto();
 }
 
 void tcg_gen_goto_jc3(TCGType type, TCGTemp *pc,
@@ -1878,7 +1975,17 @@ void tcg_gen_goto_jc3(TCGType type, TCGTemp *pc,
                              tcg_constant_i32(flags));
 #endif
 
-    tcg_gen_lookup_and_goto_ptr();
+    /*
+     * A breakpoint is the one thing the probe cannot check for itself, so
+     * while one is set the flag is set too and every dispatch takes the
+     * helper, which does check.  See tcg_update_cflags().
+     */
+    if (tcg_ctx->gen_tb->cflags & CF_NO_GOTO_JC) {
+        tcg_gen_lookup_and_goto_ptr();
+    } else {
+        plugin_gen_disable_mem_helpers();
+        gen_jc_probe(pc, cs_base, flags);
+    }
 }
 
 void tcg_gen_goto_jc(TCGType type, TCGTemp *pc)
