@@ -2576,11 +2576,6 @@ static void amdvi_pci_realize(PCIDevice *pdev, Error **errp)
     }
     s->capab_offset = ret;
 
-    ret = pci_add_capability(pdev, PCI_CAP_ID_MSI, 0,
-                             AMDVI_CAPAB_REG_SIZE, errp);
-    if (ret < 0) {
-        return;
-    }
     ret = pci_add_capability(pdev, PCI_CAP_ID_HT, 0,
                              AMDVI_CAPAB_REG_SIZE, errp);
     if (ret < 0) {
