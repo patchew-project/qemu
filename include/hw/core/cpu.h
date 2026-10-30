@@ -523,6 +523,7 @@ struct CPUState {
 
     QemuMutex work_mutex;
     QSIMPLEQ_HEAD(, qemu_work_item) work_list;
+    QSIMPLEQ_HEAD(, qemu_work_item) accel_work_list;
 
     struct CPUAddressSpace *cpu_ases;
     AddressSpace *as;
@@ -969,6 +970,24 @@ void run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data);
 void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data);
 
 /**
+ * async_run_on_cpu_after_accel:
+ * @cpu: The vCPU to run on.
+ * @func: The function to be executed.
+ * @data: Data to pass to the function.
+ *
+ * Schedules the function @func for execution on the vCPU @cpu asynchronously,
+ * to be handled only after the next invocation of the configured accelerator.
+ * Unlike async_run_on_cpu(), @func will not be run with the BQL held; taking
+ * the lock is instead left to @func to handle if needed.
+ *
+ * This does not guarantee any sort of expedited exiting from the accelerator
+ * or the inner loop; this aspect is instead left up to
+ * accelerator/arch-specific code.
+ */
+void async_run_on_cpu_after_accel(CPUState *cpu, run_on_cpu_func func,
+                                  run_on_cpu_data data);
+
+/**
  * async_safe_run_on_cpu:
  * @cpu: The vCPU to run on.
  * @func: The function to be executed.
@@ -1116,10 +1135,24 @@ void cpu_remove_sync(CPUState *cpu);
 void free_queued_cpu_work(CPUState *cpu);
 
 /**
+ * free_queued_cpu_accel_work() - free all items on CPU accel work queue
+ * @cpu: The CPU which accel work queue to free.
+ */
+void free_queued_cpu_accel_work(CPUState *cpu);
+
+/**
  * process_queued_cpu_work() - process all items on CPU work queue
  * @cpu: The CPU which work queue to process.
  */
 void process_queued_cpu_work(CPUState *cpu);
+
+/**
+ * process_queued_cpu_accel_work() - process all items on CPU accel work queue
+ * @cpu: The CPU which work queue to process.
+ *
+ * Must be called without the BQL held.
+ */
+void process_queued_cpu_accel_work(CPUState *cpu);
 
 /**
  * cpu_exec_start:
