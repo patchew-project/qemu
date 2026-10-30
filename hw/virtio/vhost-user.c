@@ -1525,16 +1525,17 @@ static int vhost_user_set_vring_kick(struct vhost_dev *dev,
      * receiving a kick. The spec suggests this to improve compatibility.
      */
     if (file->fd != -1) {
-        uint64_t val = 1;
-        ssize_t nwritten;
+        /*
+         * With an eventfd that fd is writable, but when pipes are used it is
+         * the read end and the write fails. Instead, kick via
+         * event_notifier_set() on the queue's host notifier, which writes
+         * to the correct end in both cases.
+         */
+        VirtQueue *vq = virtio_get_queue(dev->vdev, file->index);
+        EventNotifier *n = virtio_queue_get_host_notifier(vq);
 
-        do {
-            nwritten = write(file->fd, &val, sizeof(val));
-        } while (nwritten < 0 && errno == EINTR);
-
-        if (nwritten < 0 && errno != EAGAIN /* back-end can already read */) {
-            return -errno;
-        }
+        assert(file->fd == event_notifier_get_fd(n));
+        return event_notifier_set(n);
     }
 
     return 0;
