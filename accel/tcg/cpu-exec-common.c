@@ -33,7 +33,7 @@ bool tcg_allowed;
  * they are derived from gdb single-step, one-insn-per-tb and -d nochain.
  */
 #define CF_DERIVED  (CF_COUNT_MASK | CF_NO_GOTO_TB | CF_NO_GOTO_PTR | \
-                     CF_SINGLE_STEP)
+                     CF_NO_GOTO_JC | CF_SINGLE_STEP)
 
 bool tcg_cflags_has(CPUState *cpu, uint32_t flags)
 {
@@ -63,6 +63,17 @@ void tcg_update_cflags(CPUState *cpu)
         cflags |= CF_NO_GOTO_TB | 1;
     } else if (qemu_loglevel_mask(CPU_LOG_TB_NOCHAIN)) {
         cflags |= CF_NO_GOTO_TB;
+    }
+
+    /*
+     * A block that dispatches through the jump cache inline does not consult
+     * cpu->breakpoints, and inserting a breakpoint deliberately invalidates
+     * nothing.  Give blocks translated while one is set a distinct cflags, so
+     * that they neither dispatch inline themselves nor are reached by a block
+     * that does, and check_for_breakpoints() gets to run on every dispatch.
+     */
+    if (unlikely(!QTAILQ_EMPTY(&cpu->breakpoints))) {
+        cflags |= CF_NO_GOTO_JC;
     }
 
     cpu->tcg_cflags = cflags;

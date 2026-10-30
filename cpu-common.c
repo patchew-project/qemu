@@ -22,6 +22,7 @@
 #include "exec/cpu-common.h"
 #include "hw/core/cpu.h"
 #include "qemu/lockable.h"
+#include "system/tcg.h"
 #include "trace/trace-root.h"
 
 QemuMutex qemu_cpu_list_lock;
@@ -429,6 +430,11 @@ int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
         *breakpoint = bp;
     }
 
+    /* The first breakpoint takes the CPU off the inline dispatch path. */
+    if (tcg_enabled()) {
+        tcg_update_cflags(cpu);
+    }
+
     trace_breakpoint_insert(cpu->cpu_index, pc, flags);
     return 0;
 }
@@ -452,7 +458,7 @@ int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, int flags)
 }
 
 /* Remove a specific breakpoint by reference.  */
-void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *bp)
+static void cpu_breakpoint_remove_by_ref_int(CPUState *cpu, CPUBreakpoint *bp)
 {
     QTAILQ_REMOVE(&cpu->breakpoints, bp, entry);
 
@@ -460,14 +466,31 @@ void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *bp)
     g_free(bp);
 }
 
+void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *bp)
+{
+    cpu_breakpoint_remove_by_ref_int(cpu, bp);
+
+    /* The last breakpoint puts the CPU back on the inline dispatch path. */
+    if (tcg_enabled()) {
+        tcg_update_cflags(cpu);
+    }
+}
+
 /* Remove all matching breakpoints. */
 void cpu_breakpoint_remove_all(CPUState *cpu, int mask)
 {
     CPUBreakpoint *bp, *next;
+    bool removed = false;
 
     QTAILQ_FOREACH_SAFE(bp, &cpu->breakpoints, entry, next) {
         if (bp->flags & mask) {
-            cpu_breakpoint_remove_by_ref(cpu, bp);
+            cpu_breakpoint_remove_by_ref_int(cpu, bp);
+            removed = true;
         }
+    }
+
+    /* The last breakpoint puts the CPU back on the inline dispatch path. */
+    if (tcg_enabled() && removed) {
+        tcg_update_cflags(cpu);
     }
 }
