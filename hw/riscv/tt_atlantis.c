@@ -52,6 +52,7 @@ QEMU_BUILD_BUG_ON(TT_IMSIC_STRIDE != (0x1000 << TT_IMSIC_GUEST_BITS));
 #define TT_ACLINT_TIMEBASE_FREQ 1000000000
 
 #define ASCALON_CLUSTER_ID     0
+#define RCPU_CLUSTER_ID        1
 
 static const MemMapEntry tt_atlantis_memmap[] = {
     /* Keep sorted with :'<,'>!sort -g -k 4 */
@@ -77,6 +78,53 @@ static const MemMapEntry tt_atlantis_memmap[] = {
     [TT_ATL_PRCM_HSIO] =        { 0xe00c0000,         0x510 },
     [TT_ATL_SAPLIC] =           { 0xe8000000,     0x4000000 },
     [TT_ATL_DDR_HI] =          { 0x100000000,  0x1000000000 },
+};
+
+static const MemMapEntry tt_atlantis_rcpu_memmap[] = {
+    /* Keep sorted with :'<,'>!sort -g -k 4 */
+    [TT_ATL_BOOTROM] =           { 0x00040000,    0x40000 },
+    [TT_ATL_RCPU_SRAM] =         { 0x20100000,   0x100000 },
+    [TT_ATL_PRCM_RCPU] =         { 0x40000000,    0x10000 },
+    [TT_ATL_WDT0] =              { 0x40030000,    0x10000 },
+    [TT_ATL_WDT1] =              { 0x40040000,    0x10000 },
+    [TT_ATL_IO_CTRL] =           { 0x40060000,    0x10000 },
+    [TT_ATL_RCPU_MAILBOX] =      { 0x40100000,    0x10000 },
+    [TT_ATL_RCPU_SMN_FIREWALL] = { 0x41010000,    0x10000 },
+    [TT_ATL_NOCM_FIREWALL] =     { 0x41020000,    0x10000 },
+    [TT_ATL_UART0] =             { 0x48100000,    0x10000 },
+    [TT_ATL_UART1] =             { 0x48110000,    0x10000 },
+    [TT_ATL_UART2] =             { 0x48120000,    0x10000 },
+    [TT_ATL_UART3] =             { 0x48130000,    0x10000 },
+    [TT_ATL_UART4] =             { 0x48140000,    0x10000 },
+    [TT_ATL_GPIO] =              { 0x48150000,    0x10000 },
+    [TT_ATL_QSPI] =              { 0x4a000000,  0x2000000 },
+    [TT_ATL_OTP] =               { 0x50000000,   0x100000 },
+    [TT_ATL_PRCM_TRNG] =         { 0x50600000,    0x10000 },
+    [TT_ATL_SPACC] =             { 0x50800000,   0x100000 },
+    [TT_ATL_DDR_LO] =            { 0x60000000, 0x40000000 },
+    [TT_ATL_MIMSIC] =            { 0xa0000000,  0x8000000 },
+    [TT_ATL_PRCM_PCIE] =         { 0xa8000000,    0x10000 },
+    [TT_ATL_PRCM_MM] =           { 0xb0000000,   0x100000 },
+    [TT_ATL_SDHCI0] =            { 0xb4020000,    0x10000 },
+    [TT_ATL_SDHCI1] =            { 0xb4030000,    0x10000 },
+    [TT_ATL_PRCM_HSIO] =         { 0xb40c0000,    0x10000 },
+    [TT_ATL_PRCM_DDR0] =         { 0xb8000000,    0x10000 },
+    [TT_ATL_PRCM_DDR1] =         { 0xb8800000,    0x10000 },
+    [TT_ATL_DDRC0_CTRL] =        { 0xb9000000,   0x800000 },
+    [TT_ATL_DDRC1_CTRL] =        { 0xb9800000,   0x800000 },
+    [TT_ATL_MAPLIC] =            { 0xbc000000,  0x3000000 },
+    [TT_ATL_PRCM_ASC] =          { 0xbf000000,  0x1000000 },
+    [TT_ATL_RCPU_CLIC] =         { 0xe000e000,     0x2000 },
+    [TT_ATL_RCPU_CLINT] =        { 0xe0020000,     0xc000 },
+};
+
+/*
+ * Map the entire 4G memory view as unimplemented to prevent faults from
+ * devices that have not been modeled yet.
+ */
+static const UnimplementedDeviceConfig rcpu_unimp_dev[] = {
+    {"unimp", "tt-rcpu.unimp", 0x0, UINT32_MAX,  -1000},
+    { }
 };
 
 static I2CBus *i2c_get_bus(TTAtlantisSoCState *s, unsigned busnr)
@@ -550,6 +598,85 @@ static inline int tt_atlantis_uart_index(int uart_dev)
     return uart_dev - TT_ATL_UART0;
 }
 
+static void tt_rcpu_cluster_init(Object *obj)
+{
+    TTRCPUClusterState *rc = TT_RCPU_CLUSTER(obj);
+
+    object_initialize_child(obj, "tt-rcpu.cluster", &rc->cluster,
+                            TYPE_CPU_CLUSTER);
+    object_initialize_child(OBJECT(&rc->cluster), "cpus", &rc->cpus,
+                            TYPE_RISCV_HART_ARRAY);
+}
+
+static void tt_rcpu_cluster_realize(DeviceState *dev, Error **errp)
+{
+    TTRCPUClusterState *rc = TT_RCPU_CLUSTER(dev);
+
+    rc->memmap = tt_atlantis_rcpu_memmap;
+
+    /* The RCPU has its own memory view. Create it here before the CPU uses it */
+    memory_region_init(&rc->memory, OBJECT(rc), "tt-rcpu.memory",
+                       UINT32_MAX);
+
+    /* The RCPU's maskrom which is inaccessible outside of the RCPU */
+    if (!memory_region_init_rom(&rc->bootrom, OBJECT(rc),
+                                "tt-rcpu.bootrom",
+                                rc->memmap[TT_ATL_BOOTROM].size, errp)) {
+        return;
+    }
+    memory_region_add_subregion(&rc->memory,
+                                rc->memmap[TT_ATL_BOOTROM].base,
+                                &rc->bootrom);
+
+    /* RCPU SRAM */
+    if (!memory_region_init_ram(&rc->sram, OBJECT(rc),
+                                "tt-rcpu.sram",
+                                rc->memmap[TT_ATL_RCPU_SRAM].size, errp)) {
+        return;
+    }
+    memory_region_add_subregion(&rc->memory,
+                                rc->memmap[TT_ATL_RCPU_SRAM].base,
+                                &rc->sram);
+
+    /* CPUs */
+    object_property_set_str(OBJECT(&rc->cpus), "cpu-type", TYPE_RISCV_CPU_TT_RCPU,
+                            &error_abort);
+    object_property_set_int(OBJECT(&rc->cpus), "hartid-base", 0,
+                            &error_abort);
+    object_property_set_int(OBJECT(&rc->cpus), "num-harts", 1,
+                            &error_abort);
+    object_property_set_int(OBJECT(&rc->cpus), "resetvec",
+                            rc->memmap[TT_ATL_BOOTROM].base,
+                            &error_abort);
+    object_property_set_link(OBJECT(&rc->cpus), "memory",
+                             OBJECT(&rc->memory),
+                             &error_abort);
+
+    if (!sysbus_realize(SYS_BUS_DEVICE(&rc->cpus), errp)) {
+        return;
+    }
+
+    qdev_prop_set_int32(DEVICE(&rc->cluster), "cluster-id", RCPU_CLUSTER_ID);
+    /* cluster must be realized after the hart array */
+    if (!qdev_realize(DEVICE(&rc->cluster), NULL, errp)) {
+        return;
+    }
+
+    create_unimplemented_devices(OBJECT(rc), &rc->memory, rcpu_unimp_dev);
+
+    /* no bootrom image is provided, don't let the core run */
+    CPU(&rc->cpus.harts[0])->start_powered_off = true;
+}
+
+static void tt_rcpu_cluster_class_init(ObjectClass *oc, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = tt_rcpu_cluster_realize;
+    /* The cluster must be instantiated by a machine or SoC */
+    dc->user_creatable = false;
+}
+
 static void tt_ascalon_cluster_init(Object *obj)
 {
     TTAscalonClusterState *ac = TT_ASCALON_CLUSTER(obj);
@@ -648,11 +775,48 @@ static void tt_atlantis_soc_init(Object *obj)
     }
 }
 
+/*
+ * Create and add a new alias to a memory container
+ * @obj
+ * @m MemoryRegion container for the alias to be added to
+ * @orig MemoryRegion original region to be aliased
+ *    Ascalon memory
+ * @size of the subregion
+ * @base address of the subregion
+ * @name for the alias being added to the RCPU memory
+ */
+static void create_alias(Object *obj, MemoryRegion *m,
+        MemoryRegion *orig, hwaddr size, hwaddr base, const char *name)
+{
+    MemoryRegion *alias = g_new(MemoryRegion, 1);
+
+    memory_region_init_alias(alias, obj, name, orig, 0,
+                             size);
+    memory_region_add_subregion(m, base, alias);
+}
+
+/*
+ * Alias a device to a memory container
+ * @obj
+ * @m MemoryRegion container for the alias to be added to
+ * @dev Device to be added.
+ * @size of the subregion
+ * @base address of the subregion
+ * @name for the alias being added to the RCPU memory
+ */
+static void create_device_alias(Object *obj, MemoryRegion *m, DeviceState *dev,
+        hwaddr size, hwaddr base, const char *name)
+{
+    MemoryRegion *orig = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
+    create_alias(obj, m, orig, size, base, name);
+}
+
 static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
 {
     TTAtlantisSoCState *s = TT_ATLANTIS_SOC(dev);
     TTAscalonClusterState *ac = &s->ascalon;
-    ram_addr_t lo_ram_size, ram_size;
+    TTRCPUClusterState *rc = &s->rcpu;
+    ram_addr_t lo_ram_size, ram_size, rcpu_ram_size;
     int hart_count = ac->num_harts;
 
     if (!s->dram) {
@@ -662,6 +826,14 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
 
     if (!qdev_realize(DEVICE(&s->ascalon), NULL, errp)) {
         return;
+    }
+
+    if (s->has_rcpu) {
+        /* Only create the RCPU if it is enabled */
+        object_initialize_child(OBJECT(s), "rcpu", &s->rcpu, TYPE_TT_RCPU_CLUSTER);
+        if (!qdev_realize(DEVICE(&s->rcpu), NULL, errp)) {
+            return;
+        }
     }
 
     ram_size = memory_region_size(s->dram);
@@ -709,6 +881,23 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
                              0, lo_ram_size);
     memory_region_add_subregion(&ac->memory,
                                 ac->memmap[TT_ATL_DDR_LO].base, &s->ram_lo);
+    if (s->has_rcpu) {
+        /*
+         * The RCPU has a 1G view of lower DDR. DDR low size can be configured by
+         * the command line parameters so pick the minimum between 1G and the user
+         * provided size.
+         */
+        rcpu_ram_size = MIN(rc->memmap[TT_ATL_DDR_LO].size, lo_ram_size);
+        create_alias(OBJECT(s), &rc->memory, &s->ram_lo,
+                     rcpu_ram_size,
+                     rc->memmap[TT_ATL_DDR_LO].base,
+                     "tt-rcpu.ram");
+
+        /* UART0, the RCPU console */
+        qdev_prop_set_chr(DEVICE(&s->uart[tt_atlantis_uart_index(TT_ATL_UART0)]),
+                          "chardev", serial_hd(1));
+    }
+
 
     /* 4 PRCM blocks */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_RCPU]),
@@ -719,6 +908,13 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
         &ac->memory, ac->memmap[TT_ATL_PRCM_RCPU].base,
         sysbus_mmio_get_region(
             SYS_BUS_DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_RCPU]), 0));
+    if (s->has_rcpu) {
+        create_device_alias(OBJECT(s), &rc->memory,
+                            DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_RCPU]),
+                            rc->memmap[TT_ATL_PRCM_RCPU].size,
+                            rc->memmap[TT_ATL_PRCM_RCPU].base,
+                            "tt-rcpu.rcpu-prcm");
+    }
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_HSIO]),
                         errp)) {
@@ -728,6 +924,13 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
         &ac->memory, ac->memmap[TT_ATL_PRCM_HSIO].base,
         sysbus_mmio_get_region(
             SYS_BUS_DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_HSIO]), 0));
+    if (s->has_rcpu) {
+        create_device_alias(OBJECT(s), &rc->memory,
+                            DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_HSIO]),
+                            rc->memmap[TT_ATL_PRCM_HSIO].size,
+                            rc->memmap[TT_ATL_PRCM_HSIO].base,
+                            "tt-rcpu.rcpu-hsio");
+    }
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_PCIE]),
                         errp)) {
@@ -737,6 +940,13 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
         &ac->memory, ac->memmap[TT_ATL_PRCM_PCIE].base,
         sysbus_mmio_get_region(
             SYS_BUS_DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_PCIE]), 0));
+    if (s->has_rcpu) {
+        create_device_alias(OBJECT(s), &rc->memory,
+                            DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_PCIE]),
+                            rc->memmap[TT_ATL_PRCM_PCIE].size,
+                            rc->memmap[TT_ATL_PRCM_PCIE].base,
+                            "tt-rcpu.rcpu-pcie");
+    }
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_MM]),
                         errp)) {
@@ -746,8 +956,15 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
         &ac->memory, ac->memmap[TT_ATL_PRCM_MM].base,
         sysbus_mmio_get_region(
             SYS_BUS_DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_MM]), 0));
+    if (s->has_rcpu) {
+        create_device_alias(OBJECT(s), &rc->memory,
+                            DEVICE(&s->prcm[TT_ATLANTIS_PRCM_DOMAIN_MM]),
+                            rc->memmap[TT_ATL_PRCM_MM].size,
+                            rc->memmap[TT_ATL_PRCM_MM].base,
+                            "tt-rcpu.rcpu-mm");
+    }
 
-    /* UART1, the soc console (UART0 is for the boot microcontroller) */
+    /* UART1, the soc console */
     qdev_prop_set_chr(DEVICE(&s->uart[tt_atlantis_uart_index(TT_ATL_UART1)]),
                       "chardev", serial_hd(0));
 
@@ -762,6 +979,16 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
                                     sysbus_mmio_get_region(sbd, 0));
         sysbus_connect_irq(sbd, 0,
                            qdev_get_gpio_in(s->irqchip, TT_ATL_UART0_IRQ + i));
+
+        if (s->has_rcpu) {
+            /* Alias the devices to the rcpu memory view */
+            g_autofree char *name = g_strdup_printf("tt-rcpu.uart%d", i);
+
+            create_device_alias(OBJECT(s), &rc->memory, DEVICE(&s->uart[i]),
+                                rc->memmap[TT_ATL_UART0 + i].size,
+                                rc->memmap[TT_ATL_UART0 + i].base,
+                                name);
+        }
     }
 
     /* I2C */
@@ -782,6 +1009,7 @@ static void tt_atlantis_soc_realize(DeviceState *dev, Error **errp)
 static const Property tt_atlantis_soc_props[] = {
     DEFINE_PROP_LINK("dram", TTAtlantisSoCState, dram,
                      TYPE_MEMORY_REGION, MemoryRegion *),
+    DEFINE_PROP_BOOL("has-rcpu", TTAtlantisSoCState, has_rcpu, false)
 };
 
 static void tt_atlantis_soc_class_init(ObjectClass *oc, const void *data)
@@ -799,19 +1027,43 @@ static void tt_atlantis_machine_init(MachineState *machine)
     TTAtlantisState *ams = TT_ATLANTIS_MACHINE(machine);
     TTAtlantisSoCState *s = &ams->soc;
     TTAscalonClusterState *ac = &s->ascalon;
+    uint32_t num_asc_harts;
 
     object_initialize_child(OBJECT(machine), "soc", &ams->soc,
                             TYPE_TT_ATLANTIS_SOC);
 
-    /* User input machine properties, cpu_type and smp.cpus apply to Ascalon */
+    /*
+     * The smp must include the RCPU since smp.cpus limits the total number of
+     * CPUs that TCG creates. If RCPU is enabled, remove it from the hart count
+     * passed to Ascalon.
+     */
+    if (ams->has_rcpu) {
+        if (machine->smp.cpus <= 1) {
+            error_report("smp.cpus must be at least 2 when RCPU is enabled. " \
+                         "Run with ,rcpu=off to disable RCPU.");
+            exit(1);
+        }
+        num_asc_harts = machine->smp.cpus - 1;
+    } else {
+        if (machine->smp.cpus > 8) {
+            error_report("smp.cpus must be 8 or less when RCPU is not enabled. " \
+                         "Run with ,rcpu=off -smp cpus=8 for 8 Ascalon cores " \
+                         "and no RCPU.");
+            exit(1);
+        }
+        num_asc_harts = machine->smp.cpus;
+    }
+
     object_property_set_str(OBJECT(ac), "cpu-type",
                             machine->cpu_type,
                             &error_abort);
     object_property_set_int(OBJECT(ac), "num-harts",
-                            machine->smp.cpus,
+                            num_asc_harts,
                             &error_abort);
 
     object_property_set_link(OBJECT(s), "dram", OBJECT(machine->ram),
+                             &error_abort);
+    object_property_set_bool(OBJECT(&ams->soc), "has-rcpu", ams->has_rcpu,
                              &error_abort);
 
     qdev_realize(DEVICE(&ams->soc), NULL, &error_fatal);
@@ -831,19 +1083,47 @@ static void tt_atlantis_machine_init(MachineState *machine)
     qemu_add_machine_init_done_notifier(&ams->machine_done);
 }
 
+static bool tt_atlantis_machine_get_rcpu(Object *obj, Error **errp)
+{
+    TTAtlantisState *s = TT_ATLANTIS_MACHINE(obj);
+
+    return s->has_rcpu;
+}
+
+static void tt_atlantis_machine_set_rcpu(Object *obj, bool value, Error **errp)
+{
+    TTAtlantisState *s = TT_ATLANTIS_MACHINE(obj);
+
+    s->has_rcpu = value;
+}
+
 static void tt_atlantis_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    ObjectProperty *prop;
 
     mc->desc = "Tenstorrent Atlantis RISC-V SoC (Experimental)";
     mc->init = tt_atlantis_machine_init;
-    mc->max_cpus = 8;
-    mc->default_cpus = 8;
+    /*
+     * The smp count must include the RCPU since tcg limits the number of
+     * threads created based on it. When rcpu=on, the number of Ascalon harts
+     * created is smp.cpus - 1. When rcpu=off, the number of Ascalon harts is
+     * smp.cpus.
+     */
+    mc->max_cpus = 9;
+    mc->default_cpus = 8; /* Default to no RCPU */
     mc->default_ram_size = 4 * GiB;
     mc->default_cpu_type = TYPE_RISCV_CPU_TT_ASCALON;
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;
     mc->default_ram_id = "tt_atlantis.ram";
+
+    prop = object_class_property_add_bool(oc, "rcpu", tt_atlantis_machine_get_rcpu,
+                                   tt_atlantis_machine_set_rcpu);
+    object_class_property_set_description(oc, "rcpu",
+                                          "Set to enable/disable modeling the RCPU.");
+    object_property_set_default_bool(prop, false);
+
 }
 
 static const TypeInfo tt_atlantis_types[] = {
@@ -853,6 +1133,12 @@ static const TypeInfo tt_atlantis_types[] = {
         .instance_size = sizeof(TTAscalonClusterState),
         .instance_init = tt_ascalon_cluster_init,
         .class_init = tt_ascalon_cluster_class_init,
+    }, {
+        .name       = TYPE_TT_RCPU_CLUSTER,
+        .parent     = TYPE_DEVICE,
+        .instance_size = sizeof(TTRCPUClusterState),
+        .instance_init = tt_rcpu_cluster_init,
+        .class_init = tt_rcpu_cluster_class_init,
     }, {
         .name       = TYPE_TT_ATLANTIS_SOC,
         .parent     = TYPE_DEVICE,
