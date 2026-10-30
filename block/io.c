@@ -3400,13 +3400,20 @@ bool bdrv_zone_is_conv(BlockDriverState *bs, uint32_t index)
     return BDRV_ZT_IS_CONV(bs->wps->wp[index]);
 }
 
-bool bdrv_zone_is_full(BlockDriverState *bs, uint32_t index)
+uint64_t bdrv_zone_writable_end(BlockDriverState *bs, uint32_t index)
 {
-    uint64_t zone_end = MIN((uint64_t)(index + 1) * bs->bl.zone_size,
-                            (uint64_t)bs->total_sectors << BDRV_SECTOR_BITS);
+    uint64_t writable = MIN_NON_ZERO(bs->bl.zone_capacity, bs->bl.zone_size);
     IO_CODE();
 
-    return bs->wps->wp[index] >= zone_end;
+    return MIN((uint64_t)index * bs->bl.zone_size + writable,
+               (uint64_t)bs->total_sectors << BDRV_SECTOR_BITS);
+}
+
+bool bdrv_zone_is_full(BlockDriverState *bs, uint32_t index)
+{
+    IO_CODE();
+
+    return bs->wps->wp[index] >= bdrv_zone_writable_end(bs, index);
 }
 
 void *qemu_blockalign(BlockDriverState *bs, size_t size)
