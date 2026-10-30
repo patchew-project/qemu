@@ -33,7 +33,6 @@
 #include "standard-headers/linux/virtio_ring.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/virtio-bus.h"
-#include "linux-headers/linux/vhost.h"
 
 void vhost_net_get_features_ex(struct vhost_net *net, uint64_t *features)
 {
@@ -681,7 +680,7 @@ err_start:
     error_report("Error when restarting the queue.");
 
     if (net->nc->info->type == NET_CLIENT_DRIVER_TAP) {
-        file.fd = VHOST_FILE_UNBIND;
+        file.fd = -1;
         file.index = idx;
         int ret = vhost_net_set_backend(&net->dev, &file);
         assert(ret >= 0);
