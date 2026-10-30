@@ -37,11 +37,14 @@
 #include "trace.h"
 
 #include "chardev/char-io.h"
+#include "chardev/char-fe.h"
 #include "chardev/char-socket.h"
 
 static gboolean socket_reconnect_timeout(gpointer opaque);
 static void tcp_chr_telnet_init(Chardev *chr);
 static char *qemu_chr_compute_filename(SocketChardev *s);
+static gboolean tcp_chr_hup(QIOChannel *channel, GIOCondition cond,
+                            void *opaque);
 
 static void tcp_chr_change_state(SocketChardev *s, TCPChardevState state)
 {
@@ -346,6 +349,33 @@ static void remove_hup_source(SocketChardev *s)
     }
 }
 
+static void add_hup_source(SocketChardev *s, GIOCondition cond)
+{
+    Chardev *chr = CHARDEV(s);
+
+    remove_hup_source(s);
+    s->hup_source = qio_channel_create_watch(s->ioc, cond);
+    /*
+     * poll() is liable to return POLLHUP even when there is
+     * still incoming data available to read on the FD. If
+     * we have the hup_source at the same priority as the
+     * main io_add_watch_poll GSource, then we might end up
+     * processing the POLLHUP event first, closing the FD,
+     * and as a result silently discard data we should have
+     * read.
+     *
+     * By setting the hup_source to G_PRIORITY_DEFAULT + 1,
+     * we ensure that io_add_watch_poll GSource will always
+     * be dispatched first, thus guaranteeing we will be
+     * able to process all incoming data before closing the
+     * FD
+     */
+    g_source_set_priority(s->hup_source, G_PRIORITY_DEFAULT + 1);
+    g_source_set_callback(s->hup_source, (GSourceFunc)tcp_chr_hup,
+                          chr, NULL);
+    g_source_attach(s->hup_source, chr->gcontext);
+}
+
 static void char_socket_yank_iochannel(void *opaque)
 {
     QIOChannel *ioc = QIO_CHANNEL(opaque);
@@ -521,6 +551,30 @@ static gboolean tcp_chr_hup(QIOChannel *channel,
                                void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
+    SocketChardev *s = SOCKET_CHARDEV(opaque);
+
+    if (!(cond & G_IO_HUP)) {
+        /* Readable while nobody reads: only EOF counts as a hang-up. */
+        int flags = MSG_PEEK;
+        ssize_t n;
+        char c;
+
+#ifdef MSG_DONTWAIT
+        flags |= MSG_DONTWAIT;
+#endif
+
+        n = recv(s->sioc->fd, &c, 1, flags);
+
+        if (n < 0 && (errno == EAGAIN || errno == EINTR)) {
+            return G_SOURCE_CONTINUE;
+        }
+
+        if (n > 0) {
+            /* Data nobody will read: stop watching for it, or we spin. */
+            add_hup_source(s, G_IO_HUP);
+            return G_SOURCE_REMOVE;
+        }
+    }
     trace_chr_socket_hangup(chr, chr->label);
     tcp_chr_disconnect(chr);
     return G_SOURCE_REMOVE;
@@ -612,27 +666,13 @@ static void update_ioc_handlers(SocketChardev *s)
                                      tcp_chr_read, chr,
                                      chr->gcontext);
 
-    remove_hup_source(s);
-    s->hup_source = qio_channel_create_watch(s->ioc, G_IO_HUP);
     /*
-     * poll() is liable to return POLLHUP even when there is
-     * still incoming data available to read on the FD. If
-     * we have the hup_source at the same priority as the
-     * main io_add_watch_poll GSource, then we might end up
-     * processing the POLLHUP event first, closing the FD,
-     * and as a result silently discard data we should have
-     * read.
-     *
-     * By setting the hup_source to G_PRIORITY_DEFAULT + 1,
-     * we ensure that io_add_watch_poll GSource will always
-     * be dispatched first, thus guaranteeing we will be
-     * able to process all incoming data before closing the
-     * FD
+     * A G_IO_HUP-only poll() is not woken by a peer close on FreeBSD
+     * nor reliably on macOS.  Therefore, while nobody reads, ask for
+     * G_IO_IN too and let tcp_chr_hup tell EOF from data.
      */
-    g_source_set_priority(s->hup_source, G_PRIORITY_DEFAULT + 1);
-    g_source_set_callback(s->hup_source, (GSourceFunc)tcp_chr_hup,
-                          chr, NULL);
-    g_source_attach(s->hup_source, chr->gcontext);
+    add_hup_source(s, G_IO_HUP |
+                   (chr->fe && chr->fe->chr_can_read ? 0 : G_IO_IN));
 }
 
 static void tcp_chr_connect(void *opaque)
