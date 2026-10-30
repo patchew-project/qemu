@@ -1327,6 +1327,7 @@ vu_get_vring_base_exec(VuDev *dev, VhostUserMsg *vmsg)
     vmsg->size = sizeof(vmsg->payload.state);
 
     dev->vq[index].started = false;
+    dev->vq[index].kick_pending = false;
     if (dev->iface->queue_set_started) {
         dev->iface->queue_set_started(dev, index, false);
     }
@@ -1500,19 +1501,12 @@ vu_set_vring_kick_exec(VuDev *dev, VhostUserMsg *vmsg)
         vu_panic(dev, "Failed to check inflights for vq: %d\n", index);
     }
 
-    /* Inject a kick to look for available vq buffers */
-    if (dev->vq[index].kick_fd != -1) {
-        int ret;
-
-        do {
-            ret = eventfd_write(dev->vq[index].kick_fd, 1);
-        } while (ret != 0 && errno == EINTR);
-
-        if (ret != 0 && errno != EAGAIN /* already readable */) {
-            vu_panic(dev, "Failed to inject kick during SET_VRING_KICK "
-                     "on vq: %d with error: %m\n", index);
-        }
-    }
+    /*
+     * The ring may already hold requests: ones the driver queued while the
+     * back-end was away and ones the previous instance left in flight. Run
+     * the handler once the reply to this message has gone out.
+     */
+    dev->vq[index].kick_pending = true;
 
     return false;
 }
@@ -2320,6 +2314,25 @@ vu_process_message(VuDev *dev, VhostUserMsg *vmsg)
     return false;
 }
 
+static void
+vu_run_pending_handlers(VuDev *dev)
+{
+    unsigned int i;
+
+    for (i = 0; i < dev->max_queues && !dev->broken; i++) {
+        VuVirtq *vq = &dev->vq[i];
+
+        /* Without a handler the request stays pending until one is set */
+        if (!vq->kick_pending || !vq->handler) {
+            continue;
+        }
+        vq->kick_pending = false;
+
+        DPRINT("Running handler for pending requests on vq: %u\n", i);
+        vq->handler(dev, i);
+    }
+}
+
 bool
 vu_dispatch(VuDev *dev)
 {
@@ -2352,6 +2365,11 @@ vu_dispatch(VuDev *dev)
 
 end:
     free(vmsg.data);
+
+    if (success) {
+        vu_run_pending_handlers(dev);
+    }
+
     return success;
 }
 

@@ -392,6 +392,7 @@ typedef struct VuVirtq {
     int err_fd;
     unsigned int enable;
     bool started;
+    bool kick_pending;
 
     /* Guest addresses of our ring */
     struct vhost_vring_addr vra;
