@@ -787,6 +787,7 @@ static void test_qga_config(gconstpointer data)
     g_free(env[0]);
 }
 
+#ifdef CONFIG_FSFREEZE
 static void test_qga_fsfreeze_status(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
@@ -800,6 +801,7 @@ static void test_qga_fsfreeze_status(gconstpointer fix)
     status = qdict_get_try_str(ret, "return");
     g_assert_cmpstr(status, ==, "thawed");
 }
+#endif
 
 static QDict *wait_for_guest_exec_completion(int fd, int64_t pid)
 {
@@ -1028,6 +1030,7 @@ static void test_qga_guest_get_timezone(gconstpointer fix)
     g_assert(qdict_haskey(val, "offset"));
 }
 
+#ifdef HAVE_UTMPX
 static void test_qga_guest_get_users(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
@@ -1042,6 +1045,7 @@ static void test_qga_guest_get_users(gconstpointer fix)
     val = qdict_get_qlist(ret, "return");
     g_assert_nonnull(val);
 }
+#endif
 
 static void test_qga_guest_get_osinfo(gconstpointer data)
 {
@@ -1133,8 +1137,10 @@ int main(int argc, char **argv)
     g_test_add_data_func("/qga/invalid-oob", &fix, test_qga_invalid_oob);
     g_test_add_data_func("/qga/invalid-cmd", &fix, test_qga_invalid_cmd);
     g_test_add_data_func("/qga/invalid-args", &fix, test_qga_invalid_args);
+#ifdef CONFIG_FSFREEZE
     g_test_add_data_func("/qga/fsfreeze-status", &fix,
                          test_qga_fsfreeze_status);
+#endif
 
     g_test_add_data_func("/qga/blockedrpcs", NULL, test_qga_blockedrpcs);
     g_test_add_data_func("/qga/allowedrpcs", NULL, test_qga_allowedrpcs);
@@ -1152,8 +1158,10 @@ int main(int argc, char **argv)
                          test_qga_guest_get_host_name);
     g_test_add_data_func("/qga/guest-get-timezone", &fix,
                          test_qga_guest_get_timezone);
+#ifdef HAVE_UTMPX
     g_test_add_data_func("/qga/guest-get-users", &fix,
                          test_qga_guest_get_users);
+#endif
 
     ret = g_test_run();
 
