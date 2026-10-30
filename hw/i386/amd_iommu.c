@@ -294,7 +294,7 @@ static void amdvi_log_event(AMDVIState *s, uint64_t *evt)
 
     /* event logging not enabled */
     if (!s->evtlog_enabled || amdvi_test_mask(s, AMDVI_MMIO_STATUS,
-        AMDVI_MMIO_STATUS_EVT_OVF)) {
+        AMDVI_MMIO_STATUS_EVTLOG_OVF)) {
         return;
     }
 
@@ -304,7 +304,8 @@ static void amdvi_log_event(AMDVIState *s, uint64_t *evt)
     if (evtlog_tail_next == s->evtlog_head) {
         /* generate overflow interrupt */
         if (s->evtlog_intr) {
-            amdvi_assign_orq(s, AMDVI_MMIO_STATUS, AMDVI_MMIO_STATUS_EVT_OVF);
+            amdvi_assign_orq(s, AMDVI_MMIO_STATUS,
+                             AMDVI_MMIO_STATUS_EVTLOG_OVF);
             amdvi_generate_msi_interrupt(s);
         }
         return;
@@ -325,7 +326,7 @@ static void amdvi_log_event(AMDVIState *s, uint64_t *evt)
     amdvi_writeq_raw(s, AMDVI_MMIO_EVENT_TAIL, s->evtlog_tail);
 
     if (s->evtlog_intr) {
-        amdvi_assign_orq(s, AMDVI_MMIO_STATUS, AMDVI_MMIO_STATUS_EVENT_INT);
+        amdvi_assign_orq(s, AMDVI_MMIO_STATUS, AMDVI_MMIO_STATUS_EVTLOG_INT);
         amdvi_generate_msi_interrupt(s);
     }
 }
@@ -1694,9 +1695,9 @@ static void amdvi_handle_control_write(AMDVIState *s)
         amdvi_assign_andq(s, AMDVI_MMIO_STATUS, ~AMDVI_MMIO_STATUS_CMDBUF_RUN);
     }
     if (s->evtlog_enabled) {
-        amdvi_assign_orq(s, AMDVI_MMIO_STATUS, AMDVI_MMIO_STATUS_EVT_RUN);
+        amdvi_assign_orq(s, AMDVI_MMIO_STATUS, AMDVI_MMIO_STATUS_EVTLOG_RUN);
     } else {
-        amdvi_assign_andq(s, AMDVI_MMIO_STATUS, ~AMDVI_MMIO_STATUS_EVT_RUN);
+        amdvi_assign_andq(s, AMDVI_MMIO_STATUS, ~AMDVI_MMIO_STATUS_EVTLOG_RUN);
     }
 
     trace_amdvi_control_status(control);
@@ -1751,7 +1752,7 @@ static inline void amdvi_handle_evtbase_write(AMDVIState *s)
 {
     uint64_t val = amdvi_readq(s, AMDVI_MMIO_EVENT_BASE);
 
-    if (amdvi_readq(s, AMDVI_MMIO_STATUS) & AMDVI_MMIO_STATUS_EVENT_INT)
+    if (amdvi_readq(s, AMDVI_MMIO_STATUS) & AMDVI_MMIO_STATUS_EVTLOG_INT)
         /* Do not reset if eventlog interrupt bit is set*/
         return;
 
@@ -2572,8 +2573,9 @@ static void amdvi_init(AMDVIState *s)
     memset(s->mmior, 0, AMDVI_MMIO_SIZE);
     amdvi_set_quad(s, AMDVI_MMIO_EXT_FEATURES,
                    amdvi_extended_feature_register(s),
-                   0xffffffffffffffef, 0);
-    amdvi_set_quad(s, AMDVI_MMIO_STATUS, 0, 0x98, 0x67);
+                   AMDVI_MMIO_EXT_FEATURE_RO_MASK, 0);
+    amdvi_set_quad(s, AMDVI_MMIO_STATUS, 0, AMDVI_MMIO_STATUS_RO_MASK,
+                   AMDVI_MMIO_STATUS_W1C_MASK);
 }
 
 static void amdvi_pci_realize(PCIDevice *pdev, Error **errp)
