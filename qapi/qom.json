@@ -1101,6 +1101,25 @@
 # @tsc-frequency: set secure TSC frequency.  Only valid if Secure TSC
 #     is enabled (default: zero) (since 11.1)
 #
+# @certs-filename: Certificate data that can be passed to guests as
+#     part of an attestation request.  See the
+#     :doc:`/system/i386/amd-memory-encryption` documentation for more
+#     details on the usage and file format.
+#     (default: none) (since: 11.2)
+#
+# @certs-timeout: Maximum time in milliseconds to wait to obtain a
+#     read lock on the certificate file specified by @certs-filename.
+#     This is not a cumulative value and only affects how long QEMU
+#     waits before returning execution to the vCPU and informing the
+#     guest of the timeout, so the guest can still continue retrying
+#     for as long as it likes, which for Linux guests at the time of
+#     this writing will be about 60 seconds before the guest gives
+#     up and disables further requests.  If this guest-side timeout is
+#     insufficient, set this higher to allow more time to fetch the
+#     certificate.  If the guest-side timeout is sufficient,
+#     set this lower to reduce the likelihood of soft lockups in the
+#     guest.  (default: 100) (since: 11.2)
+#
 # Since: 9.1
 ##
 { 'struct': 'SevSnpGuestProperties',
@@ -1114,7 +1133,9 @@
             '*host-data': 'str',
             '*vcek-disabled': 'bool',
             '*secure-tsc': 'bool',
-            '*tsc-frequency': 'uint32' } }
+            '*tsc-frequency': 'uint32',
+            '*certs-filename': 'str',
+            '*certs-timeout': 'int' } }
 
 ##
 # @TdxGuestProperties:

@@ -6656,6 +6656,16 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         }
         ret = 0;
         break;
+    case KVM_EXIT_SNP_REQ_CERTS:
+        if (!sev_snp_enabled()) {
+            error_report("KVM: Encountered a certificate request exit for a "
+                         "non-SEV-SNP guest.");
+            ret = -1;
+        } else {
+            ret = kvm_handle_snp_req_certs(cs, run);
+        }
+
+        break;
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
         ret = -1;

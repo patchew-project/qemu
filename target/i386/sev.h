@@ -15,6 +15,7 @@
 #define I386_SEV_H
 
 #include "target/i386/svm.h"
+#include "system/kvm.h"
 
 #ifndef CONFIG_USER_ONLY
 #include CONFIG_DEVICES /* CONFIG_SEV */
@@ -198,5 +199,5 @@ void pc_system_parse_sev_metadata(uint8_t *flash_ptr, size_t flash_size);
 
 uint32_t sev_get_cbit_position(void);
 uint32_t sev_get_reduced_phys_bits(void);
-
+int kvm_handle_snp_req_certs(CPUState *cpu, struct kvm_run *run);
 #endif
