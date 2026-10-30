@@ -11,10 +11,19 @@ add_project_arguments(cc.get_supported_arguments('-Wsign-compare',
 threads = dependency('threads')
 glib = dependency('glib-2.0')
 
+vhost_user_flags = ['-D_GNU_SOURCE']
+
+if cc.links('''
+    #define _GNU_SOURCE
+    #include <sys/mman.h>
+    int main(void) { return memfd_create("foo", MFD_ALLOW_SEALING); }''')
+  vhost_user_flags += '-DCONFIG_MEMFD'
+endif
+
 vhost_user = static_library('vhost-user',
                             files('libvhost-user.c'),
                             dependencies: threads,
-                            c_args: '-D_GNU_SOURCE')
+                            c_args: vhost_user_flags)
 
 executable('link-test', files('link-test.c'),
            link_whole: vhost_user)
