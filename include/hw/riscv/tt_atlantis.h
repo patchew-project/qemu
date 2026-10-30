@@ -16,6 +16,7 @@
 #include "hw/misc/tt_atlantis_prcm.h"
 #include "hw/char/dw8250.h"
 #include "hw/cpu/cluster.h"
+#include "hw/misc/unimp.h"
 #include "hw/riscv/riscv_hart.h"
 
 #define TYPE_TT_ATLANTIS_MACHINE MACHINE_TYPE_NAME("tt-atlantis")
@@ -26,6 +27,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(TTAtlantisSoCState, TT_ATLANTIS_SOC)
 
 #define TYPE_TT_ASCALON_CLUSTER "riscv.tt-ascalon-cluster"
 OBJECT_DECLARE_SIMPLE_TYPE(TTAscalonClusterState, TT_ASCALON_CLUSTER)
+
+#define TYPE_TT_RCPU_CLUSTER "riscv.tt-rcpu-cluster"
+OBJECT_DECLARE_SIMPLE_TYPE(TTRCPUClusterState, TT_RCPU_CLUSTER)
 
 #define TT_ATL_NUM_I2C 5
 #define TT_ATL_NUM_PRCM 4
@@ -48,12 +52,27 @@ struct TTAscalonClusterState {
     char *cpu_type;
 };
 
+struct TTRCPUClusterState {
+    /*< private >*/
+    DeviceState parent;
+
+    /*< public >*/
+    const MemMapEntry *memmap;
+    MemoryRegion memory;
+
+    RISCVHartArrayState cpus;
+    CPUClusterState cluster;
+    MemoryRegion bootrom;
+    MemoryRegion sram;
+};
+
 struct TTAtlantisSoCState {
     /*< private >*/
     DeviceState parent;
 
     /*< public >*/
     TTAscalonClusterState ascalon;
+    TTRCPUClusterState rcpu;
 
     MemoryRegion *dram;
     MemoryRegion ram_hi;
@@ -63,6 +82,8 @@ struct TTAtlantisSoCState {
     DesignWareI2CState i2c[TT_ATL_NUM_I2C];
     DW8250State uart[TT_ATL_NUM_UARTS];
     TTAtlantisPRCMState prcm[TT_ATL_NUM_PRCM];
+
+    bool has_rcpu;              /* Enable RCPU */
 };
 
 struct TTAtlantisState {
@@ -73,6 +94,8 @@ struct TTAtlantisState {
     Notifier machine_done;
 
     TTAtlantisSoCState soc;
+
+    bool has_rcpu;              /* Enable RCPU */
 };
 
 enum {
@@ -93,15 +116,28 @@ enum {
     TT_ATL_BOOTROM,
     TT_ATL_DDR_LO,
     TT_ATL_DDR_HI,
+    TT_ATL_GPIO,
     TT_ATL_I2C0,
     TT_ATL_I2C1,
     TT_ATL_I2C2,
     TT_ATL_I2C3,
     TT_ATL_I2C4,
+    TT_ATL_IO_CTRL,
     TT_ATL_MAPLIC,
     TT_ATL_MIMSIC,
+    TT_ATL_NOCM_FIREWALL,
+    TT_ATL_OTP,
+    TT_ATL_QSPI,
+    TT_ATL_RCPU_CLIC,
+    TT_ATL_RCPU_CLINT,
+    TT_ATL_RCPU_MAILBOX,
+    TT_ATL_RCPU_SMN_FIREWALL,
+    TT_ATL_RCPU_SRAM,
     TT_ATL_SAPLIC,
+    TT_ATL_SDHCI0,
+    TT_ATL_SDHCI1,
     TT_ATL_SIMSIC,
+    TT_ATL_SPACC,
     TT_ATL_UART0,
     TT_ATL_UART1,
     TT_ATL_UART2,
@@ -111,6 +147,14 @@ enum {
     TT_ATL_PRCM_HSIO,
     TT_ATL_PRCM_PCIE,
     TT_ATL_PRCM_MM,
+    TT_ATL_PRCM_ASC,
+    TT_ATL_PRCM_DDR0,
+    TT_ATL_PRCM_DDR1,
+    TT_ATL_DDRC0_CTRL,
+    TT_ATL_DDRC1_CTRL,
+    TT_ATL_PRCM_TRNG,
+    TT_ATL_WDT0,
+    TT_ATL_WDT1,
 };
 
 /*
