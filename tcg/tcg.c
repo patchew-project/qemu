@@ -61,6 +61,7 @@
 #ifdef CONFIG_USER_ONLY
 #include "user/guest-base.h"
 #endif
+#include "../accel/tcg/tb-hash.h"
 
 /* Forward declarations for functions declared in tcg-target.c.inc and
    used here. */

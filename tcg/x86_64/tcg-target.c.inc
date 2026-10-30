@@ -1532,6 +1532,12 @@ static int tcg_out_cmp(TCGContext *s, TCGCond cond, TCGArg arg1,
     return jz;
 }
 
+static void tgen_cmp_mem_reg(TCGContext *s, int rexw, TCGReg reg,
+                             TCGReg base, intptr_t ofs)
+{
+    tcg_out_modrm_offset(s, OPC_CMP_GvEv | rexw, reg, base, ofs);
+}
+
 static void tcg_out_brcond(TCGContext *s, int rexw, TCGCond cond,
                            TCGArg arg1, TCGArg arg2, int const_arg2,
                            TCGLabel *label, bool small)
@@ -3374,8 +3380,77 @@ static const TCGOutOpLea outop_lea = {
     .out = tgen_lea,
 };
 
+static void tgen_goto_jc_cmp_part(TCGContext *s, TCGArg val, bool const_val,
+                                  TCGReg scratch, const TranslationBlock *tb,
+                                  TCGReg base, ptrdiff_t ofs)
+{
+    if (!const_val) {
+        /* cmpq ofs(base), %val */
+        tgen_cmp_mem_reg(s, P_REXW, val, base, ofs);
+    } else if (val == (int8_t)val) {
+        tcg_out_modrm_offset(s, OPC_ARITH_EvIb | P_REXW, ARITH_CMP, base, ofs);
+        tcg_out8(s, val);
+    } else if (val == (int32_t)val) {
+        tcg_out_modrm_offset(s, OPC_ARITH_EvIz | P_REXW, ARITH_CMP, base, ofs);
+        tcg_out32(s, val);
+    } else {
+        uintptr_t tb_slot = (uintptr_t)tb + ofs;
+
+        tcg_out_ld(s, TCG_TYPE_I64, scratch, base, ofs);
+        /*
+         * Compare the value vs a rip-relative reference.
+         * If the value is unchanged from the current TB,
+         * we can reuse that.  Otherwise drop it in the pool.
+         */
+        if (val == *(uint64_t *)tb_slot) {
+            tcg_out_modrm_sib_offset(s, OPC_CMP_GvEv | P_REXW, scratch,
+                                     TCG_REG_NONE, TCG_REG_NONE, 0, tb_slot);
+        } else {
+            tcg_out_modrm_pool(s, OPC_CMP_GvEv | P_REXW, scratch);
+            new_pool_label(s, val, R_386_PC32, s->code_ptr - 4, -4);
+        }
+    }
+}
+
+static void tgen_goto_jc(TCGContext *s, TCGReg ptr, TCGReg pc,
+                         TCGArg cs, bool const_cs, TCGArg fl, bool const_fl,
+                         TCGLabel *label)
+{
+    const TranslationBlock *tb = s->gen_tb;
+    unsigned free = (ALL_GENERAL_REGS & ~s->reserved_regs & ~(1 << ptr)
+                     & ~(const_fl ? 0 : 1 << fl));
+    TCGReg scratch = ctz32(free);
+
+    /* ptr is CPUJumpCache */
+
+    /* Validate pc match */
+    tgen_cmp_mem_reg(s, P_REXW, pc, ptr, offsetof(CPUJumpCache, array[0].pc));
+    tcg_out_jxx(s, JCC_JNE, label, true);
+
+    /* Load and validate tb non-null */
+    tcg_out_ld(s, TCG_TYPE_PTR, ptr, ptr, offsetof(CPUJumpCache, array[0].tb));
+    tcg_out_brcond(s, P_REXW, TCG_COND_EQ, ptr, 0, true, label, true);
+
+    /* ptr is now TranslationBlock */
+
+    /* Validate cs_base match */
+    tgen_goto_jc_cmp_part(s, cs, const_cs, scratch, tb, ptr,
+                          offsetof(TranslationBlock, cs_base));
+    tcg_out_jxx(s, JCC_JNE, label, true);
+
+    /* Validate cflags:flags match */
+    tgen_goto_jc_cmp_part(s, fl, const_fl, scratch, tb, ptr,
+                          offsetof(TranslationBlock, flags));
+    tcg_out_jxx(s, JCC_JNE, label, true);
+
+    /* Jump to tb */
+    tcg_out_modrm_offset(s, OPC_GRP5, EXT5_JMPN_Ev,
+                         ptr, offsetof(TranslationBlock, tc.ptr));
+}
+
 static const TCGOutOpGotoJC outop_goto_jc = {
-    .base.static_constraint = C_NotImplemented,
+    .base.static_constraint = C_O0_I4(r, r, ri, ri),
+    .out = tgen_goto_jc,
 };
 
 static int const umin_insn[4] = {
