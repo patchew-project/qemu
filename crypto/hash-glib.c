@@ -25,7 +25,7 @@
 #include "hashpriv.h"
 
 
-static int qcrypto_hash_alg_map[QCRYPTO_HASH_ALGO__MAX] = {
+static int qcrypto_hash_alg_map[] = {
     [QCRYPTO_HASH_ALGO_MD5] = G_CHECKSUM_MD5,
     [QCRYPTO_HASH_ALGO_SHA1] = G_CHECKSUM_SHA1,
     [QCRYPTO_HASH_ALGO_SHA224] = -1,
@@ -35,11 +35,25 @@ static int qcrypto_hash_alg_map[QCRYPTO_HASH_ALGO__MAX] = {
     [QCRYPTO_HASH_ALGO_RIPEMD160] = -1,
     [QCRYPTO_HASH_ALGO_SM3] = -1,
 };
+/*
+ * Prefer the assert over declaring the array with
+ * size QCRYPTO_HASH_ALGO__MAX so we get better
+ * detection of uninitialize elements.
+ */
+G_STATIC_ASSERT(G_N_ELEMENTS(qcrypto_hash_alg_map) ==
+                QCRYPTO_HASH_ALGO__MAX);
 
 gboolean qcrypto_hash_supports(QCryptoHashAlgo alg)
 {
+    /*
+     * The default static initializer value of 0
+     * matches G_CHECKSUM_MD5, so protect against
+     * accidentally uninitialized fields
+     */
     if (alg < G_N_ELEMENTS(qcrypto_hash_alg_map) &&
-        qcrypto_hash_alg_map[alg] != -1) {
+        qcrypto_hash_alg_map[alg] != -1 &&
+        (alg == QCRYPTO_HASH_ALGO_MD5 ||
+         qcrypto_hash_alg_map[alg] != G_CHECKSUM_MD5)) {
         return true;
     }
     return false;

@@ -25,7 +25,7 @@
 #include "crypto/hash.h"
 #include "hashpriv.h"
 
-static size_t qcrypto_hash_alg_size[QCRYPTO_HASH_ALGO__MAX] = {
+static size_t qcrypto_hash_alg_size[] = {
     [QCRYPTO_HASH_ALGO_MD5]       = QCRYPTO_HASH_DIGEST_LEN_MD5,
     [QCRYPTO_HASH_ALGO_SHA1]      = QCRYPTO_HASH_DIGEST_LEN_SHA1,
     [QCRYPTO_HASH_ALGO_SHA224]    = QCRYPTO_HASH_DIGEST_LEN_SHA224,
@@ -35,10 +35,20 @@ static size_t qcrypto_hash_alg_size[QCRYPTO_HASH_ALGO__MAX] = {
     [QCRYPTO_HASH_ALGO_RIPEMD160] = QCRYPTO_HASH_DIGEST_LEN_RIPEMD160,
     [QCRYPTO_HASH_ALGO_SM3]       = QCRYPTO_HASH_DIGEST_LEN_SM3,
 };
+/*
+ * Prefer the assert over declaring the array with
+ * size QCRYPTO_HASH_ALGO__MAX so we get better
+ * detection of uninitialized elements. We don't
+ * want to ever return digest lengths of zero, as
+ * that risks a div-by-zero in callers.
+ */
+G_STATIC_ASSERT(G_N_ELEMENTS(qcrypto_hash_alg_size) ==
+                QCRYPTO_HASH_ALGO__MAX);
 
 size_t qcrypto_hash_digest_len(QCryptoHashAlgo alg)
 {
     assert(alg < G_N_ELEMENTS(qcrypto_hash_alg_size));
+    assert(qcrypto_hash_alg_size[alg] != 0);
     return qcrypto_hash_alg_size[alg];
 }
 
