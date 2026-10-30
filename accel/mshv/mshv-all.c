@@ -84,6 +84,17 @@ static int mshv_load_cleanup(void *opaque)
     return 0;
 }
 
+static int scrub_partition(int vm_fd)
+{
+    int ret = ioctl(vm_fd, MSHV_SCRUB_PARTITION);
+
+    if (ret < 0) {
+        error_report("Failed to scrub partition");
+        return -errno;
+    }
+
+    return 0;
+}
 
 static int get_host_partition_property(int mshv_fd, uint32_t property_code,
                                        uint64_t *value)
@@ -906,7 +917,19 @@ static void mshv_cpu_synchronize_post_init(CPUState *cpu)
 
 static void mshv_cpu_synchronize_post_reset(CPUState *cpu)
 {
-    int ret = mshv_arch_store_vcpu_state(cpu);
+    int ret;
+    bool is_bsp = (cpu == first_cpu);
+
+    if (is_bsp) {
+        ret = scrub_partition(mshv_state->vm);
+        if (ret < 0) {
+            error_report("Failed to scrub partition during reset: %s",
+                         strerror(-ret));
+            vm_stop(RUN_STATE_INTERNAL_ERROR);
+        }
+    }
+
+    ret = mshv_arch_store_vcpu_state(cpu);
     if (ret) {
         error_report("Failed to put registers after reset: %s",
                      strerror(-ret));
