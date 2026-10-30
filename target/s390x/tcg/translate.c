@@ -638,6 +638,15 @@ static bool use_goto_tb(DisasContext *s, uint64_t dest)
     return translator_use_goto_tb(&s->base, dest);
 }
 
+static void gen_goto_jc(DisasContext *s)
+{
+    /*
+     * ex_value, aka cs_base, is only ever live at the start of a TB
+     * and is immediately cleared.  It is only ever set by op_ex().
+     */
+    tcg_gen_goto_jc3_i64(psw_addr, tcg_constant_i64(0), s->base.tb->flags);
+}
+
 static void account_noninline_branch(DisasContext *s, int cc_op)
 {
 #ifdef DEBUG_INLINE_BRANCHES
@@ -1082,11 +1091,11 @@ static DisasJumpType help_goto_direct(DisasContext *s, uint64_t dest)
         tcg_gen_goto_tb(0);
         tcg_gen_movi_i64(psw_addr, dest);
         tcg_gen_exit_tb(s->base.tb, 0);
-        return DISAS_NORETURN;
     } else {
         tcg_gen_movi_i64(psw_addr, dest);
-        return DISAS_PC_CC_UPDATED;
+        gen_goto_jc(s);
     }
+    return DISAS_NORETURN;
 }
 
 static DisasJumpType help_goto_indirect(DisasContext *s, TCGv_i64 dest)
@@ -1095,7 +1104,8 @@ static DisasJumpType help_goto_indirect(DisasContext *s, TCGv_i64 dest)
     per_breaking_event(s);
     tcg_gen_mov_i64(psw_addr, dest);
     per_branch(s, psw_addr);
-    return DISAS_PC_CC_UPDATED;
+    gen_goto_jc(s);
+    return DISAS_NORETURN;
 }
 
 static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
@@ -1157,7 +1167,7 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
         tcg_gen_goto_tb(0);
         tcg_gen_exit_tb(s->base.tb, 0);
     } else {
-        tcg_gen_lookup_and_goto_ptr();
+        gen_goto_jc(s);
     }
 
     gen_set_label(lab);
@@ -1167,9 +1177,10 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
     if (use_goto_tb(s, s->pc_tmp)) {
         tcg_gen_goto_tb(1);
         tcg_gen_exit_tb(s->base.tb, 1);
-        return DISAS_NORETURN;
+    } else {
+        gen_goto_jc(s);
     }
-    return DISAS_PC_CC_UPDATED;
+    return DISAS_NORETURN;
 }
 
 /* ====================================================================== */
