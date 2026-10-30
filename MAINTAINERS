@@ -1899,6 +1899,7 @@ F: include/hw/misc/k230_decomp_gzip.h
 F: include/hw/timer/dw-apb-timer.h
 F: tests/functional/riscv64/test_k230.py
 F: tests/qtest/k230-ddr-test.c
+F: tests/qtest/k230-dwapb-timer-test.c
 F: tests/qtest/k230-wdt-test.c
 F: tests/qtest/k230-gsdma-test.c
 F: tests/qtest/k230-decomp-gzip-test.c
