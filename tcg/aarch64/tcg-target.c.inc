@@ -570,6 +570,10 @@ typedef enum {
     /* Logical shifted register instructions (with a shift).  */
     Iaddsub_realshift_AND_LSR  = Ilogic_shift_AND | (1 << 22),
 
+    /* Conditional compare. */
+    Iccmp_reg_CCMP     = 0x7a400000,
+    Iccmp_imm_CCMP     = 0x7a400800,
+
     /* AdvSIMD copy */
     Isimd_copy_DUP     = 0x0e000400,
     Isimd_copy_INS     = 0x4e001c00,
@@ -711,6 +715,16 @@ static void tcg_out_insn_bcond_imm(TCGContext *s, AArch64Insn insn,
 {
     tcg_out32(s, insn | tcg_cond_to_aarch64[c] | (imm19 & 0x7ffff) << 5);
 }
+
+static void tcg_out_insn_ccmp_reg(TCGContext *s, AArch64Insn insn,
+                                  TCGType ext, TCGCond c, TCGReg rn,
+                                  TCGReg rm, unsigned nzcv)
+{
+    tcg_out32(s, insn | ext << 31 | tcg_cond_to_aarch64[c] << 12
+              | rm << 16 | rn << 5 | nzcv);
+}
+
+#define tcg_out_insn_ccmp_imm tcg_out_insn_ccmp_reg
 
 static void tcg_out_insn_tbz(TCGContext *s, AArch64Insn insn,
                               TCGReg rt, int imm6, int imm14)
@@ -1450,12 +1464,17 @@ static void tcg_out_br(TCGContext *s, TCGLabel *l)
     }
 }
 
+static void tgen_b_c(TCGContext *s, TCGCond c, TCGLabel *l)
+{
+    tcg_out_reloc(s, s->code_ptr, R_AARCH64_CONDBR19, l, 0);
+    tcg_out_insn(s, bcond_imm, B_C, c, 0);
+}
+
 static void tgen_brcond(TCGContext *s, TCGType type, TCGCond c,
                         TCGReg a, TCGReg b, TCGLabel *l)
 {
     tgen_cmp(s, type, c, a, b);
-    tcg_out_reloc(s, s->code_ptr, R_AARCH64_CONDBR19, l, 0);
-    tcg_out_insn(s, bcond_imm, B_C, c, 0);
+    tgen_b_c(s, c, l);
 }
 
 static void tgen_brcondi(TCGContext *s, TCGType ext, TCGCond c,
@@ -1502,8 +1521,7 @@ static void tgen_brcondi(TCGContext *s, TCGType ext, TCGCond c,
 
     if (need_cmp) {
         tgen_cmpi(s, ext, c, a, b);
-        tcg_out_reloc(s, s->code_ptr, R_AARCH64_CONDBR19, l, 0);
-        tcg_out_insn(s, bcond_imm, B_C, c, 0);
+        tgen_b_c(s, c, l);
         return;
     }
 
@@ -2008,8 +2026,109 @@ static const TCGOutOpQemuLdSt2 outop_qemu_st2 = {
     .out = tgen_qemu_st2,
 };
 
+static void tgen_goto_jc_cmp_ccmp(TCGContext *s,
+                                  TCGReg reg1, TCGArg ref1, bool const_ref1,
+                                  const uint64_t *tb_slot1,
+                                  TCGReg reg2, TCGArg ref2, bool const_ref2,
+                                  const uint64_t *tb_slot2,
+                                  TCGCond ccmp_cond, unsigned ccmp_nzcv)
+{
+    if (!const_ref1) {
+        tgen_cmp(s, TCG_TYPE_I64, TCG_COND_NE, reg1, ref1);
+    } else if (tcg_target_const_match(ref1, TCG_CT_CONST_CMP,
+                                      TCG_TYPE_I64, TCG_COND_NE, 0)) {
+        tgen_cmpi(s, TCG_TYPE_I64, TCG_COND_NE, reg1, ref1);
+    } else {
+        if (tb_slot1 && ref1 == *tb_slot1) {
+            tcg_out_insn(s, ldlit, LDR, tcg_pcrel_diff(s, tb_slot1) >> 2,
+                         TCG_REG_TMP2);
+        } else {
+            tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP2, ref1);
+        }
+        tgen_cmp(s, TCG_TYPE_I64, TCG_COND_NE, reg1, TCG_REG_TMP2);
+    }
+
+    if (!const_ref2) {
+        tcg_out_insn(s, ccmp_reg, CCMP, TCG_TYPE_I64, ccmp_cond,
+                     reg2, ref2, ccmp_nzcv);
+    } else if (ref2 <= 0x1f) {
+        tcg_out_insn(s, ccmp_imm, CCMP, TCG_TYPE_I64, ccmp_cond,
+                     reg2, ref2, ccmp_nzcv);
+    } else {
+        if (!is_aimm(ref2) && tb_slot2 && ref2 == *tb_slot2) {
+            tcg_out_insn(s, ldlit, LDR, tcg_pcrel_diff(s, tb_slot2) >> 2,
+                         TCG_REG_TMP2);
+        } else {
+            tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP2, ref2);
+        }
+        tcg_out_insn(s, ccmp_reg, CCMP, TCG_TYPE_I64, ccmp_cond,
+                     reg2, TCG_REG_TMP2, ccmp_nzcv);
+    }
+}
+
+static void tgen_goto_jc(TCGContext *s, TCGReg ptr, TCGReg pc,
+                         TCGArg cs, bool const_cs,
+                         TCGArg fl, bool const_fl, TCGLabel *label)
+{
+    const TranslationBlock *tb = tcg_splitwx_to_rx(s->gen_tb);
+
+    /* ptr is CPUJumpCache */
+
+    QEMU_BUILD_BUG_ON(offsetof(CPUJumpCache, array[0].pc) !=
+                      offsetof(CPUJumpCache, array[0].tb) + 8);
+    tcg_out_insn(s, ldstpair, LDP, ptr, TCG_REG_TMP0, ptr,
+                 offsetof(CPUJumpCache, array[0].tb), 1, 0);
+
+    /*
+     * if (ptr == 0 || pc != tmp) goto label;
+     *
+     * z=cmp(ptr,0)
+     * if !z, z=cmp(pc,tmp), else z=0
+     * if !z, goto label
+     */
+    tgen_goto_jc_cmp_ccmp(s, ptr, 0, true, NULL,
+                          TCG_REG_TMP0, pc, false, NULL,
+                          TCG_COND_NE, 0b0000);
+    tgen_b_c(s, TCG_COND_NE, label);
+
+    /* ptr is now TranslationBlock */
+
+    QEMU_BUILD_BUG_ON(offsetof(TranslationBlock, flags) !=
+                      offsetof(TranslationBlock, cs_base) + 8);
+    tcg_out_insn(s, ldstpair, LDP, TCG_REG_TMP0, TCG_REG_TMP1,
+                 ptr, offsetof(TranslationBlock, cs_base), 1, 0);
+    tcg_out_ld(s, TCG_TYPE_PTR, ptr, ptr, offsetof(TranslationBlock, tc.ptr));
+
+    /*
+     * if (cs != tmp0 || fl != tmp1) goto label;
+     *
+     * z=cmp(cs,tmp0)
+     * if z, z=cmp(fl,tmp1), else z=0
+     * if !z, goto label
+     *
+     * Since both comparisons are logically NE, sort the register or
+     * smaller immediate value second, where it is slightly more likely
+     * to be able to use CCMP (immediate).
+     */
+    if (!const_fl || (const_cs && fl < cs)) {
+        tgen_goto_jc_cmp_ccmp(s, TCG_REG_TMP0, cs, const_cs, &tb->cs_base,
+                              TCG_REG_TMP1, fl, const_fl,
+                              (const uint64_t *)&tb->flags,
+                              TCG_COND_EQ, 0b0000);
+    } else {
+        tgen_goto_jc_cmp_ccmp(s, TCG_REG_TMP1, fl, const_fl,
+                              (const uint64_t *)&tb->flags,
+                              TCG_REG_TMP0, cs, const_cs, &tb->cs_base,
+                              TCG_COND_EQ, 0b0000);
+    }
+    tgen_b_c(s, TCG_COND_NE, label);
+
+    tcg_out_goto_ptr(s, ptr);
+}
+
 static const TCGOutOpGotoJC outop_goto_jc = {
-    .base.static_constraint = C_NotImplemented,
+    .base.static_constraint = C_O0_I4(r, rz, ri, ri),
+    .out = tgen_goto_jc,
 };
 
 static const tcg_insn_unit *tb_ret_addr;
