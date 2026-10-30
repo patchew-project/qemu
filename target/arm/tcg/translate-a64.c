@@ -2420,8 +2420,7 @@ static bool trans_ISB(DisasContext *s, arg_ISB *a)
      * self-modifying code correctly and also to take
      * any pending interrupts immediately.
      */
-    reset_btype(s);
-    gen_goto_tb(s, 0, 4);
+    s->base.is_jmp = DISAS_TOO_MANY;
     return true;
 }
 
@@ -2435,7 +2434,7 @@ static bool trans_SB(DisasContext *s, arg_SB *a)
      * MB and end the TB instead.
      */
     tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
-    gen_goto_tb(s, 0, 4);
+    s->base.is_jmp = DISAS_TOO_MANY;
     return true;
 }
 
