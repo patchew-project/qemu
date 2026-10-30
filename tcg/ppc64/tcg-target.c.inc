@@ -3637,6 +3637,10 @@ static const TCGOutOpLea outop_lea = {
     .base.static_constraint = C_NotImplemented,
 };
 
+static const TCGOutOpGotoJC outop_goto_jc = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
 {
     switch (opc) {

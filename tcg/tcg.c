@@ -1101,6 +1101,12 @@ typedef struct TCGOutOpLea {
                 TCGReg a2, unsigned sh, tcg_target_long imm);
 } TCGOutOpLea;
 
+typedef struct TCGOutOpGotoJC {
+    TCGOutOp base;
+    void (*out)(TCGContext *s, TCGReg jc, TCGReg pc, TCGArg cs, bool const_cs,
+                TCGArg fl, bool const_fl, TCGLabel *l);
+} TCGOutOpGotoJC;
+
 #include "tcg-target.c.inc"
 
 #ifndef CONFIG_TCG_INTERPRETER
@@ -1190,6 +1196,7 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_extrh_i64_i32, TCGOutOpUnary, outop_extrh_i64_i32),
     OUTOP(INDEX_op_extrl_i64_i32, TCGOutOpUnary, outop_extrl_i64_i32),
     OUTOP(INDEX_op_extu_i32_i64, TCGOutOpUnary, outop_extu_i32_i64),
+    OUTOP(INDEX_op_goto_jc, TCGOutOpGotoJC, outop_goto_jc),
     OUTOP(INDEX_op_ld, TCGOutOpLoad, outop_ld),
     OUTOP(INDEX_op_ld8s, TCGOutOpLoad, outop_ld8s),
     OUTOP(INDEX_op_ld8u, TCGOutOpLoad, outop_ld8u),
@@ -3013,6 +3020,7 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
             case INDEX_op_set_label:
             case INDEX_op_br:
             case INDEX_op_brcond:
+            case INDEX_op_goto_jc:
                 col += ne_fprintf(f, "%s$L%d", k ? "," : "",
                                   arg_label(op->args[k])->id);
                 i++, k++;
@@ -3482,6 +3490,9 @@ void tcg_op_remove(TCGContext *s, TCGOp *op)
     case INDEX_op_brcond:
         remove_label_use(op, 3);
         break;
+    case INDEX_op_goto_jc:
+        remove_label_use(op, 4);
+        break;
     default:
         break;
     }
@@ -3580,6 +3591,9 @@ static void move_label_uses(TCGLabel *to, TCGLabel *from)
         case INDEX_op_brcond:
             op->args[3] = label_arg(to);
             break;
+        case INDEX_op_goto_jc:
+            op->args[4] = label_arg(to);
+            break;
         default:
             g_assert_not_reached();
         }
@@ -3654,6 +3668,7 @@ reachable_code_pass(TCGContext *s)
         case INDEX_op_br:
         case INDEX_op_exit_tb:
         case INDEX_op_goto_ptr:
+        case INDEX_op_goto_jc:
             /* Unconditional branches; everything following is dead.  */
             dead = true;
             break;
@@ -5821,6 +5836,13 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     case INDEX_op_goto_ptr:
         tcg_debug_assert(!const_args[0]);
         tcg_out_goto_ptr(s, new_args[0]);
+        break;
+
+    case INDEX_op_goto_jc:
+        tcg_debug_assert(!const_args[0]);
+        tcg_debug_assert(!const_args[1]);
+        outop_goto_jc.out(s, new_args[0], new_args[1], new_args[2], const_args[2],
+                          new_args[3], const_args[3], arg_label(new_args[4]));
         break;
 
     default:

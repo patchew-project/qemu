@@ -2113,6 +2113,10 @@ static const TCGOutOpLea outop_lea = {
     .out = tgen_lea,
 };
 
+static const TCGOutOpGotoJC outop_goto_jc = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
                             TCGReg rd, TCGReg rs)
 {

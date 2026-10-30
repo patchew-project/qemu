@@ -752,6 +752,17 @@ QEMU specific operations
        | This operation is optional. If the TCG backend does not implement the
          goto_ptr opcode, emitting this op is equivalent to emitting exit_tb(0).
 
+   * - goto_jc *jc*, *pc*, *cs_base*, *flags*, *label*
+
+     - | *jc* is a CPUJumpCache pointer.  Generate code for:
+       |
+       | if (jc->pc != pc) goto label;
+       | tb = jc->tb;
+       | if (tb == NULL) goto label;
+       | if (tb->flags != flags) goto label;
+       | if (tb->cs_base != cs_base) goto label;
+       | goto tb->tc.ptr;
+
    * - qemu_ld_i32/i64/i128 *t0*, *t1*, *flags*, *memidx*
 
        qemu_st_i32/i64/i128 *t0*, *t1*, *flags*, *memidx*

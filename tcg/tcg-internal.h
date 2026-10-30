@@ -139,6 +139,14 @@ static inline void tcg_gen_op_tttt(TCGOpcode opc, TCGType type, TCGTemp *t0,
                 temp_arg(t2), temp_arg(t3));
 }
 
+static inline TCGOp *tcg_gen_op_tttti(TCGOpcode opc, TCGType type, TCGTemp *t0,
+                                      TCGTemp *t1, TCGTemp *t2,
+                                      TCGTemp *t3, TCGArg a4)
+{
+    return tcg_gen_op5(opc, type, temp_arg(t0), temp_arg(t1),
+                       temp_arg(t2), temp_arg(t3), a4);
+}
+
 static inline void tcg_gen_op_tttii(TCGOpcode opc, TCGType type,
                                     TCGTemp *t0, TCGTemp *t1, TCGTemp *t2,
                                     TCGArg a3, TCGArg a4)

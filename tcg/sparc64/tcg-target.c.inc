@@ -2124,6 +2124,10 @@ static const TCGOutOpLea outop_lea = {
     .base.static_constraint = C_NotImplemented,
 };
 
+static const TCGOutOpGotoJC outop_goto_jc = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 static TCGConstraintSetIndex
 tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {

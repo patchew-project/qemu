@@ -1895,7 +1895,13 @@ static void gen_jc_probe(TCGTemp *pc, TCGTemp *cs_base, uint32_t flags)
     g_autoptr(TCGTemp) h = tcg_temp_new_ebb(TCG_TYPE_I64);
     g_autoptr(TCGTemp) p = tcg_temp_new_ebb(TCG_TYPE_PTR);
     TCGLabel *slow = gen_new_label();
-    uint64_t fpair;
+    /*
+     * flags and cflags are adjacent uint32_t, so one aligned 64-bit load
+     * and compare covers both.
+     */
+    uint64_t fpair = (HOST_BIG_ENDIAN
+                      ? deposit64(tb->cflags, 32, 32, flags)
+                      : deposit64(flags, 32, 32, tb->cflags));
 
     QEMU_BUILD_BUG_ON(sizeof_field(CPUJumpCache, array[0]) != 16);
     QEMU_BUILD_BUG_ON(offsetof(CPUJumpCache, array[0].pc) % 8 != 0);
@@ -1911,37 +1917,40 @@ static void gen_jc_probe(TCGTemp *pc, TCGTemp *cs_base, uint32_t flags)
                offsetof(CPUState, tb_jmp_cache) - sizeof(CPUState));
     tcg_gen_lea(TCG_TYPE_I64, p, t, h, 4, 0);
 
-    /*
-     * The pc first: on a hash miss it is the field most likely to differ,
-     * and an entry whose tb is NULL has a zero pc that only pc 0 matches.
-     */
-    tcg_gen_ld(TCG_TYPE_I64, t, p, offsetof(CPUJumpCache, array[0].pc));
-    tcg_gen_brcond(TCG_TYPE_I64, TCG_COND_NE, t, pc, slow);
+    if (tcg_op_supported(INDEX_op_goto_jc, TCG_TYPE_PTR, 0)) {
+        TCGOp *op = tcg_gen_op_tttti(INDEX_op_goto_jc, TCG_TYPE_PTR,
+                                     p, pc, cs_base,
+                                     tcg_constant_internal(TCG_TYPE_I64, fpair),
+                                     label_arg(slow));
+        add_as_label_use(slow, op);
+    } else {
+        /*
+         * The pc first: on a hash miss it is the field most likely
+         * to differ, and an entry whose tb is NULL has a zero pc
+         * that only pc 0 matches.
+         */
+        tcg_gen_ld(TCG_TYPE_I64, t, p, offsetof(CPUJumpCache, array[0].pc));
+        tcg_gen_brcond(TCG_TYPE_I64, TCG_COND_NE, t, pc, slow);
 
-    tcg_gen_ld(TCG_TYPE_PTR, p, p, offsetof(CPUJumpCache, array[0].tb));
-    tcg_gen_brcond(TCG_TYPE_PTR, TCG_COND_EQ,
-                   p, tcg_constant_internal(TCG_TYPE_PTR, 0), slow);
+        tcg_gen_ld(TCG_TYPE_PTR, p, p, offsetof(CPUJumpCache, array[0].tb));
+        tcg_gen_brcond(TCG_TYPE_PTR, TCG_COND_EQ,
+                       p, tcg_constant_internal(TCG_TYPE_PTR, 0), slow);
 
-    /*
-     * flags and cflags are adjacent uint32_t, so one aligned 64-bit load
-     * and compare covers both.
-     */
-    fpair = (HOST_BIG_ENDIAN
-             ? deposit64(tb->cflags, 32, 32, flags)
-             : deposit64(flags, 32, 32, tb->cflags));
-    tcg_gen_ld(TCG_TYPE_I64, t, p, offsetof(TranslationBlock, flags));
-    tcg_gen_brcond(TCG_TYPE_I64, TCG_COND_NE,
-                   t, tcg_constant_internal(TCG_TYPE_I64, fpair), slow);
+        tcg_gen_ld(TCG_TYPE_I64, t, p, offsetof(TranslationBlock, flags));
+        tcg_gen_brcond(TCG_TYPE_I64, TCG_COND_NE,
+                       t, tcg_constant_internal(TCG_TYPE_I64, fpair), slow);
 
-    /*
-     * cs_base is a second word of target-specific flags despite the name,
-     * and the pc alone does not imply it on a target that uses it.
-     */
-    tcg_gen_ld(TCG_TYPE_I64, t, p, offsetof(TranslationBlock, cs_base));
-    tcg_gen_brcond(TCG_TYPE_I64, TCG_COND_NE, t, cs_base, slow);
+        /*
+         * cs_base is a second word of target-specific flags despite
+         * the name, and the pc alone does not imply it on a target
+         * that uses it.
+         */
+        tcg_gen_ld(TCG_TYPE_I64, t, p, offsetof(TranslationBlock, cs_base));
+        tcg_gen_brcond(TCG_TYPE_I64, TCG_COND_NE, t, cs_base, slow);
 
-    tcg_gen_ld(TCG_TYPE_PTR, p, p, offsetof(TranslationBlock, tc.ptr));
-    gen_goto_ptr(p);
+        tcg_gen_ld(TCG_TYPE_PTR, p, p, offsetof(TranslationBlock, tc.ptr));
+        gen_goto_ptr(p);
+    }
 
     /*
      * Emit a second goto_ptr rather than branching to a shared one: a temp

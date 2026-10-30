@@ -1224,6 +1224,10 @@ static const TCGOutOpLea outop_lea = {
     .base.static_constraint = C_NotImplemented,
 };
 
+static const TCGOutOpGotoJC outop_goto_jc = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 /* Test if a constant matches the constraint. */
 static bool tcg_target_const_match(int64_t val, int ct,
                                    TCGType type, TCGCond cond, int vece)
