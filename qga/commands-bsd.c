@@ -22,11 +22,9 @@
 #include <sys/mount.h>
 #include <net/if_dl.h>
 #include <sys/statvfs.h>
-#if defined(__FreeBSD__)
 #include <sys/sysctl.h>
 #include <net/route.h>
 #include <net/if.h>
-#endif
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <net/if_arp.h>
 #include <netinet/if_ether.h>
@@ -36,14 +34,27 @@
 #include <paths.h>
 #ifdef __FreeBSD__
 #include <ufs/ffs/fs.h>
+#include <devstat.h>
 #endif
+
 #ifdef __NetBSD__
 typedef struct statvfs bsd_fsinfo_t;
 #else
 typedef struct statfs bsd_fsinfo_t;
 #endif
-#ifdef CONFIG_FREEBSD
-#include <devstat.h>
+
+#if defined(__OpenBSD__)
+#define RT_FIRST_SA(rtm) \
+    ((struct sockaddr *)((char *)(rtm) + (rtm)->rtm_hdrlen))
+#define RT_SA_SIZE(sa) \
+    ((sa)->sa_len > 0 ? 1 + (((sa)->sa_len - 1) | (sizeof(long) - 1)) \
+                      : sizeof(long))
+#elif defined(__NetBSD__)
+#define RT_FIRST_SA(rtm)  ((struct sockaddr *)((rtm) + 1))
+#define RT_SA_SIZE(sa)    RT_ROUNDUP((sa)->sa_len)
+#else /* FreeBSD, DragonFly */
+#define RT_FIRST_SA(rtm)  ((struct sockaddr *)((rtm) + 1))
+#define RT_SA_SIZE(sa)    SA_SIZE(sa)
 #endif
 
 bool build_fs_mount_list(FsMountList *mounts, Error **errp)
@@ -358,22 +369,51 @@ error:
     free(dev_select);
     return NULL;
 }
+#endif
+
+static void sockaddr_in6_normalize(const struct sockaddr *sa,
+                                   struct sockaddr_in6 *sin6)
+{
+    size_t len = MIN(sa->sa_len, sizeof(*sin6));
+
+    memset(sin6, 0, sizeof(*sin6));
+    memcpy(sin6, sa, len);
+
+    sin6->sin6_len = sizeof(*sin6);
+
+    if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) ||
+        (sin6->sin6_addr.s6_addr[0] == 0xff &&
+        ((sin6->sin6_addr.s6_addr[1] & 0x0f) == 1 ||
+        (sin6->sin6_addr.s6_addr[1] & 0x0f) == 2))) {
+        if (sin6->sin6_scope_id == 0) {
+            sin6->sin6_scope_id =
+                (sin6->sin6_addr.s6_addr[2] << 8) |
+                 sin6->sin6_addr.s6_addr[3];
+            sin6->sin6_addr.s6_addr[2] = 0;
+            sin6->sin6_addr.s6_addr[3] = 0;
+        }
+    }
+}
 
 GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
 {
     GuestNetworkRouteList *head = NULL, **tail = &head;
+#ifdef __NetBSD__
+    int mib[] = { CTL_NET, PF_ROUTE, 0, AF_UNSPEC, NET_RT_DUMP, 0 };
+#else
     int mib[] = { CTL_NET, PF_ROUTE, 0, AF_UNSPEC, NET_RT_DUMP, 0, 0 };
+#endif
     g_autofree char *buf = NULL;
     size_t len;
 
-    if (sysctl(mib, nitems(mib), NULL, &len, NULL, 0) == -1) {
+    if (sysctl(mib, ARRAY_SIZE(mib), NULL, &len, NULL, 0) == -1) {
         error_setg_errno(errp, errno, "sysctl size");
         return NULL;
     }
 
     buf = g_malloc0(len);
 
-    if (sysctl(mib, nitems(mib), buf, &len, NULL, 0) == -1) {
+    if (sysctl(mib, ARRAY_SIZE(mib), buf, &len, NULL, 0) == -1) {
         error_setg_errno(errp, errno, "sysctl routes");
         return NULL;
     }
@@ -382,14 +422,17 @@ GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
         struct rt_msghdr *rtm = (struct rt_msghdr *)p;
         struct sockaddr *addresses[RTAX_MAX] = { NULL };
         struct sockaddr *sa;
+        struct sockaddr_in6 sin6;
         char destination[NI_MAXHOST];
         char gateway[NI_MAXHOST];
         char ifname[IFNAMSIZ];
         const struct sockaddr *dst = NULL;
         const struct sockaddr *gw = NULL;
         const struct sockaddr *netmask = NULL;
+        const struct sockaddr *fmt_sa;
         struct sockaddr_in normalized_mask = { 0 };
         char netmask_buf[INET_ADDRSTRLEN];
+        socklen_t salen;
 
         g_autoptr(GuestNetworkRoute) route = g_new0(GuestNetworkRoute, 1);
 
@@ -405,11 +448,23 @@ GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
             continue;
         }
 
-        sa = (struct sockaddr *)(rtm + 1);
+#if defined(RTF_LLINFO)
+        /* OpenBSD: skip ARP/NDP entries */
+        if (rtm->rtm_flags & RTF_LLINFO) {
+            continue;
+        }
+#elif defined(RTF_LLDATA)
+        /* NetBSD: skip ARP/NDP entries */
+        if (rtm->rtm_flags & RTF_LLDATA) {
+            continue;
+        }
+#endif
+
+        sa = RT_FIRST_SA(rtm);
         for (int i = 0; i < RTAX_MAX; i++) {
             if (rtm->rtm_addrs & (1U << i)) {
                 addresses[i] = sa;
-                sa = (struct sockaddr *)((char *)sa + SA_SIZE(sa));
+                sa = (struct sockaddr *)((char *)sa + RT_SA_SIZE(sa));
             }
         }
 
@@ -435,17 +490,33 @@ GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
         } else {
             continue;
         }
-        if (getnameinfo(dst, dst->sa_len,
+
+        fmt_sa = dst;
+        salen = dst->sa_len;
+        if (dst->sa_family == AF_INET6) {
+            sockaddr_in6_normalize(dst, &sin6);
+            fmt_sa = (struct sockaddr *)&sin6;
+            salen = sizeof(sin6);
+        }
+        if (getnameinfo(fmt_sa, salen,
                         destination, NI_MAXHOST,
-                        NULL, 0, NI_NUMERICHOST) != 0)
+                        NULL, 0, NI_NUMERICHOST) != 0) {
             continue;
+        }
         route->destination = g_strdup(destination);
 
         gw = addresses[RTAX_GATEWAY];
         if (gw && (gw->sa_family == AF_INET || gw->sa_family == AF_INET6)) {
-            if (getnameinfo(gw, gw->sa_len,
-                            gateway, NI_MAXHOST,
-                            NULL, 0, NI_NUMERICHOST) != 0) {
+            fmt_sa = gw;
+            salen = gw->sa_len;
+            if (gw->sa_family == AF_INET6) {
+                sockaddr_in6_normalize(gw, &sin6);
+                fmt_sa = (struct sockaddr *)&sin6;
+                salen = sizeof(sin6);
+            }
+            if (getnameinfo(fmt_sa, salen, gateway,
+                            NI_MAXHOST, NULL, 0,
+                            NI_NUMERICHOST) != 0) {
                 continue;
             }
             if (gw->sa_family == AF_INET) {
@@ -526,4 +597,3 @@ GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
 
     return head;
 }
-#endif /* __FreeBSD__ */
