@@ -11,6 +11,7 @@
 
 #include "qom/object.h"
 #include "hw/intc/arm_gic.h"
+#include "hw/misc/allwinner-sid.h"
 #include "target/arm/cpu.h"
 
 /**
@@ -23,6 +24,7 @@ enum {
     AW_H618_DEV_GIC_CPU,
     AW_H618_DEV_GIC_HYP,
     AW_H618_DEV_GIC_VCPU,
+    AW_H618_DEV_SID,
     AW_H618_DEV_UART0,
     AW_H618_DEV_UART1,
     AW_H618_DEV_UART2,
@@ -50,6 +52,7 @@ struct AwH618State {
     ARMCPU cpus[AW_H618_NUM_CPUS];
     const hwaddr *memmap;
     GICState gic;
+    AwSidState sid;
     MemoryRegion sram_a1;
     MemoryRegion sram_a2;
 };

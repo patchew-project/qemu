@@ -339,6 +339,7 @@ config ALLWINNER_H618
     default y if TCG && AARCH64
     select SERIAL_MM
     select ARM_GIC
+    select ALLWINNER_SID
     select UNIMP
 
 config MAX78000_SOC

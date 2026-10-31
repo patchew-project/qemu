@@ -29,6 +29,7 @@ const hwaddr allwinner_h618_memmap[] = {
     [AW_H618_DEV_GIC_CPU]  = 0x03022000,
     [AW_H618_DEV_GIC_HYP]  = 0x03024000,
     [AW_H618_DEV_GIC_VCPU] = 0x03026000,
+    [AW_H618_DEV_SID]      = 0x03006000,
     [AW_H618_DEV_UART0]    = 0x05000000,
     [AW_H618_DEV_UART1]    = 0x05000400,
     [AW_H618_DEV_UART2]    = 0x05000800,
@@ -44,7 +45,6 @@ static const struct AwH618Unimplemented {
 } unimplemented[] = {
     { "ccu",       0x03001000, 4 * KiB },
     { "dma",       0x03002000, 4 * KiB },
-    { "sid",       0x03006000, 4 * KiB },
     { "smc",       0x03007000, 4 * KiB },
     { "timer",     0x03009000, 4 * KiB },
     { "pwm",       0x0300a000, 4 * KiB },
@@ -91,6 +91,10 @@ static void allwinner_h618_init(Object *obj)
     }
 
     object_initialize_child(obj, "gic", &s->gic, TYPE_ARM_GIC);
+
+    object_initialize_child(obj, "sid", &s->sid, TYPE_AW_SID);
+    object_property_add_alias(obj, "identifier", OBJECT(&s->sid),
+                              "identifier");
 }
 
 static void allwinner_h618_realize(DeviceState *dev, Error **errp)
@@ -171,6 +175,11 @@ static void allwinner_h618_realize(DeviceState *dev, Error **errp)
                            qdev_get_gpio_in(DEVICE(&s->gic),
                                             ppibase + AW_H618_GIC_PPI_MAINT));
     }
+
+    /* Security Identifier */
+    qdev_prop_set_uint32(DEVICE(&s->sid), "size", 512);
+    sysbus_realize(SYS_BUS_DEVICE(&s->sid), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->sid), 0, s->memmap[AW_H618_DEV_SID]);
 
     /* SRAM */
     memory_region_init_ram(&s->sram_a1, OBJECT(dev), "sram A1",

@@ -40,6 +40,14 @@ static void orangepi_zero2w_init(MachineState *machine)
     object_property_add_child(OBJECT(machine), "soc", OBJECT(h618));
     object_unref(OBJECT(h618));
 
+    /* Setup SID properties. Currently using a default fixed SID identifier. */
+    if (qemu_uuid_is_null(&h618->sid.identifier)) {
+        qdev_prop_set_string(DEVICE(h618), "identifier",
+                             "03006180-1111-2222-3333-000044556677");
+    } else if (ldl_be_p(&h618->sid.identifier.data[0]) != 0x03006180) {
+        warn_report("Security Identifier value does not include H618 prefix");
+    }
+
     /* Mark H618 object realized */
     qdev_realize(DEVICE(h618), NULL, &error_abort);
 
