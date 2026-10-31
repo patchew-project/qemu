@@ -785,6 +785,7 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/allwinner-h618*
 F: include/hw/*/allwinner-h618*
+F: hw/arm/orangepi-zero2w.c
 
 ARM PrimeCell and CMSDK devices
 M: Peter Maydell <peter.maydell@linaro.org>
