@@ -89,8 +89,6 @@ done:
     return rc;
 }
 
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40800
-
 static int libxengnttab_backend_grant_copy(xengnttab_handle *xgt,
                                            bool to_domain, uint32_t domid,
                                            XenGrantCopySegment *segs,
@@ -149,7 +147,6 @@ done:
     g_free(xengnttab_segs);
     return rc;
 }
-#endif
 
 static xenevtchn_handle *libxenevtchn_backend_open(void)
 {
@@ -406,7 +403,6 @@ struct xenstore_backend_ops libxenstore_backend_ops = {
 
 void setup_xen_backend_ops(void)
 {
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40800
     xengnttab_handle *xgt = xengnttab_open(NULL, 0);
 
     if (xgt) {
@@ -415,7 +411,6 @@ void setup_xen_backend_ops(void)
         }
         xengnttab_close(xgt);
     }
-#endif
     xen_evtchn_ops = &libxenevtchn_backend_ops;
     xen_gnttab_ops = &libxengnttab_backend_ops;
     xen_foreignmem_ops = &libxenforeignmem_backend_ops;
