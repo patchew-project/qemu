@@ -167,6 +167,10 @@ init_dfl_pathnames(void)
 
 static void quit_handler(int sig)
 {
+    if (!ga_state) {
+        return;
+    }
+
     /* if we're frozen, don't exit unless we're absolutely forced to,
      * because it's basically impossible for graceful exit to complete
      * unless all log/pid files are on unfreezable filesystems. there's
@@ -1589,13 +1593,13 @@ static void cleanup_agent(GAState *s)
         ga_command_state_free(s->command_state);
         json_message_parser_destroy(&s->parser);
     }
+    ga_state = NULL;
     g_free(s->pstate_filepath);
     g_free(s->state_filepath_isfrozen);
     if (s->main_loop) {
         g_main_loop_unref(s->main_loop);
     }
     g_free(s);
-    ga_state = NULL;
 }
 
 static int run_agent_once(GAState *s)
