@@ -268,6 +268,9 @@ config LASI
 config ALLWINNER_SRAMC
     bool
 
+config ALLWINNER_SID
+    bool
+
 config ALLWINNER_A10_CCM
     bool
 
