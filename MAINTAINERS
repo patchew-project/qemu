@@ -779,6 +779,13 @@ F: hw/arm/orangepi.c
 F: docs/system/arm/orangepi.rst
 F: tests/functional/arm/test_orangepi.py
 
+Allwinner-h618
+M: Khai Do <dovankhai97@gmail.com>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/*/allwinner-h618*
+F: include/hw/*/allwinner-h618*
+
 ARM PrimeCell and CMSDK devices
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
