@@ -3252,6 +3252,11 @@ config_devices_h = {}
 config_target_h = {}
 config_target_mak = {}
 config_base_arch_mak = {}
+# System targets of these bases share one CPU_RESOLVING_TYPE.
+# i386/x86_64, ppc/ppc64, mips/mips64, and sparc/sparc64 do not.
+# Once they share one name too, drop this workaround.
+config_base_arch_cpu_type = ['arm', 'riscv', 'sh4', 'xtensa']
+config_base_arch_target = {}
 config_target_info = {}
 
 disassemblers = {
@@ -3452,6 +3457,10 @@ foreach target : target_dirs
   target_base_arch = config_target['TARGET_BASE_ARCH']
   config_base_arch = config_base_arch_mak.get(target_base_arch, {}) + config_target
   config_base_arch_mak += {target_base_arch: config_base_arch}
+  if (target.endswith('-softmmu') and
+      target_base_arch in config_base_arch_cpu_type)
+    config_base_arch_target += {target_base_arch: target}
+  endif
 endforeach
 target_dirs = actual_target_dirs
 
@@ -4171,6 +4180,7 @@ common_all = static_library('common',
 target_common_arch_libs = {}
 target_common_system_arch_libs = {}
 target_stubs_arch_libs = {}
+target_cpu_libs = {}
 foreach target_base_arch, config_base_arch : config_base_arch_mak
   target_inc = [include_directories('target' / target_base_arch)]
   inc = [common_user_inc + target_inc]
@@ -4239,6 +4249,23 @@ foreach target_base_arch, config_base_arch : config_base_arch_mak
                          include_directories: inc,
                          c_args: target_system_c_args)
     target_stubs_arch_libs += {target_base_arch: lib}
+  endif
+
+  if target_base_arch in config_base_arch_target
+    accel_target = config_base_arch_target[target_base_arch]
+    target_cpu_libs += {
+      target_base_arch: static_library(
+        'accel-cpu-type-' + target_base_arch,
+        files('accel/accel-cpu-target.c'),
+        config_target_h[accel_target],
+        genh,
+        build_by_default: false,
+        include_directories: inc,
+        c_args: ['-DCOMPILING_PER_TARGET',
+                 '-DCONFIG_TARGET="@0@-config-target.h"'.format(accel_target),
+                 '-DTARGET_ARCH_PREFIX=target_' + target_base_arch.to_lower()],
+        dependencies: common_deps + system_deps)
+    }
   endif
 endforeach
 
@@ -4411,6 +4438,11 @@ foreach target : target_dirs
   target_common = common_ss.apply(config_target, strict: false)
   objects = [common_all.extract_objects(target_common.sources())]
   arch_deps += target_common.dependencies()
+  if target_type == 'system' and target_base_arch in target_cpu_libs
+    objects += target_cpu_libs[target_base_arch].extract_all_objects(recursive: false)
+  else
+    arch_srcs += files('accel/accel-cpu-target.c')
+  endif
   if target_base_arch in target_common_arch_libs
     src = target_common_arch[target_base_arch].apply(config_target, strict: false)
     lib = target_common_arch_libs[target_base_arch]
