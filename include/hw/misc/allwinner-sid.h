@@ -24,6 +24,9 @@
 #include "hw/core/sysbus.h"
 #include "qemu/uuid.h"
 
+/** Maximum eFuse storage size supported */
+#define AW_SID_SIZE_MAX (512)
+
 /**
  * Object model
  * @{
@@ -54,6 +57,11 @@ struct AwSidState {
     /** Stores the emulated device identifier */
     QemuUUID identifier;
 
+    /** Size of eFuse storage */
+    uint32_t size;
+
+    /** eFuse storage buffer */
+    uint8_t storage[AW_SID_SIZE_MAX];
 };
 
 #endif /* HW_MISC_ALLWINNER_SID_H */
