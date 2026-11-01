@@ -1293,19 +1293,16 @@ int xen_evtchn_bind_pirq_op(struct evtchn_bind_pirq *pirq)
         return -EBUSY;
     }
 
-    qemu_mutex_lock(&s->port_lock);
+    WITH_QEMU_LOCK_GUARD(&s->port_lock) {
+        ret = allocate_port(s, 0, EVTCHNSTAT_pirq, pirq->pirq,
+                            &pirq->port);
+        if (ret) {
+            return ret;
+        }
 
-    ret = allocate_port(s, 0, EVTCHNSTAT_pirq, pirq->pirq,
-                        &pirq->port);
-    if (ret) {
-        qemu_mutex_unlock(&s->port_lock);
-        return ret;
+        s->pirq[pirq->pirq].port = pirq->port;
+        trace_kvm_xen_bind_pirq(pirq->pirq, pirq->port);
     }
-
-    s->pirq[pirq->pirq].port = pirq->port;
-    trace_kvm_xen_bind_pirq(pirq->pirq, pirq->port);
-
-    qemu_mutex_unlock(&s->port_lock);
 
     /*
      * Need to do the unmask outside port_lock because it may call
@@ -1919,27 +1916,24 @@ int xen_physdev_unmap_pirq(struct physdev_unmap_pirq *unmap)
     }
 
     BQL_LOCK_GUARD();
-    qemu_mutex_lock(&s->port_lock);
+    WITH_QEMU_LOCK_GUARD(&s->port_lock) {
+        if (!pirq_inuse(s, pirq)) {
+            return -ENOENT;
+        }
 
-    if (!pirq_inuse(s, pirq)) {
-        qemu_mutex_unlock(&s->port_lock);
-        return -ENOENT;
+        gsi = s->pirq[pirq].gsi;
+
+        /* We can only unmap GSI PIRQs */
+        if (gsi < 0) {
+            return -EINVAL;
+        }
+
+        s->gsi_pirq[gsi] = 0;
+        s->pirq[pirq].gsi = IRQ_UNBOUND; /* Doesn't actually matter because: */
+        pirq_inuse_word(s, pirq) &= ~pirq_inuse_bit(pirq);
+
+        trace_kvm_xen_unmap_pirq(pirq, gsi);
     }
-
-    gsi = s->pirq[pirq].gsi;
-
-    /* We can only unmap GSI PIRQs */
-    if (gsi < 0) {
-        qemu_mutex_unlock(&s->port_lock);
-        return -EINVAL;
-    }
-
-    s->gsi_pirq[gsi] = 0;
-    s->pirq[pirq].gsi = IRQ_UNBOUND; /* Doesn't actually matter because: */
-    pirq_inuse_word(s, pirq) &= ~pirq_inuse_bit(pirq);
-
-    trace_kvm_xen_unmap_pirq(pirq, gsi);
-    qemu_mutex_unlock(&s->port_lock);
 
     if (gsi == IRQ_MSI_EMU) {
         kvm_update_msi_routes_all(NULL, true, 0, 0);
@@ -2078,7 +2072,7 @@ int xen_be_evtchn_bind_interdomain(struct xenevtchn_handle *xc, uint32_t domid,
         return -EINVAL;
     }
 
-    qemu_mutex_lock(&s->port_lock);
+    QEMU_LOCK_GUARD(&s->port_lock);
 
     /* The guest has to have an unbound port waiting for us to bind */
     gp = &s->port_table[guest_port];
@@ -2095,15 +2089,14 @@ int xen_be_evtchn_bind_interdomain(struct xenevtchn_handle *xc, uint32_t domid,
             if (kvm_xen_has_cap(EVTCHN_SEND)) {
                 assign_kernel_eventfd(gp->type, guest_port, xc->fd);
             }
-            break;
+            return ret;
         }
         /* fall through */
 
     case EVTCHNSTAT_unbound:
         be_port = find_be_port(s, xc);
         if (!be_port) {
-            ret = -ENOSPC;
-            goto out;
+            return -ENOSPC;
         }
 
         gp->type = EVTCHNSTAT_interdomain;
@@ -2113,24 +2106,16 @@ int xen_be_evtchn_bind_interdomain(struct xenevtchn_handle *xc, uint32_t domid,
         if (kvm_xen_has_cap(EVTCHN_SEND)) {
             assign_kernel_eventfd(gp->type, guest_port, xc->fd);
         }
-        ret = be_port;
-        break;
+        return be_port;
 
     default:
-        ret = -EINVAL;
-        break;
+        return -EINVAL;
     }
-
- out:
-    qemu_mutex_unlock(&s->port_lock);
-
-    return ret;
 }
 
 int xen_be_evtchn_unbind(struct xenevtchn_handle *xc, evtchn_port_t port)
 {
     XenEvtchnState *s = xen_evtchn_singleton;
-    int ret;
 
     if (!s) {
         return -ENOTSUP;
@@ -2140,12 +2125,10 @@ int xen_be_evtchn_unbind(struct xenevtchn_handle *xc, evtchn_port_t port)
         return -EFAULT;
     }
 
-    qemu_mutex_lock(&s->port_lock);
+    QEMU_LOCK_GUARD(&s->port_lock);
 
-    if (port && port != xc->be_port) {
-        ret = -EINVAL;
-        goto out;
-    }
+    if (port && port != xc->be_port)
+        return -EINVAL;
 
     if (xc->guest_port) {
         XenEvtchnPort *gp = &s->port_table[xc->guest_port];
@@ -2164,10 +2147,7 @@ int xen_be_evtchn_unbind(struct xenevtchn_handle *xc, evtchn_port_t port)
 
     s->be_handles[xc->be_port] = NULL;
     xc->be_port = 0;
-    ret = 0;
- out:
-    qemu_mutex_unlock(&s->port_lock);
-    return ret;
+    return 0;
 }
 
 int xen_be_evtchn_close(struct xenevtchn_handle *xc)
