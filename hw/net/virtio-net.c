@@ -2783,7 +2783,9 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
     for (;;) {
         ssize_t ret;
         unsigned int out_num;
-        struct iovec sg[VIRTQUEUE_MAX_SIZE], sg2[VIRTQUEUE_MAX_SIZE + 1], *out_sg;
+        QEMU_UNINITIALIZED struct iovec sg[VIRTQUEUE_MAX_SIZE];
+        QEMU_UNINITIALIZED struct iovec sg2[VIRTQUEUE_MAX_SIZE + 1];
+        struct iovec *out_sg;
         struct virtio_net_hdr vhdr;
 
         elem = virtqueue_pop(q->tx_vq, sizeof(VirtQueueElement));
