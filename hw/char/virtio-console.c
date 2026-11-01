@@ -259,7 +259,7 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
         /*
          * For consoles we don't block guest data transfer just
          * because nothing is connected - we'll just let it go
-         * whetherever the chardev wants - /dev/null probably.
+         * wherever the chardev wants - /dev/null probably.
          *
          * For serial ports we need 100% reliable data transfer
          * so we use the opened/closed signals from chardev to
