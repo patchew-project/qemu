@@ -61,6 +61,9 @@ struct RISCVIOMMUState {
     /* interrupt notifier */
     void (*notify)(RISCVIOMMUState *iommu, unsigned vector);
 
+    /* Optional platform callback when FCTL switches from WSI to MSI. */
+    void (*msi_enabled)(RISCVIOMMUState *iommu);
+
     /* IOMMU target address space */
     AddressSpace *target_as;
     MemoryRegion *target_mr;

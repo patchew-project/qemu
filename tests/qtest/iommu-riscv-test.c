@@ -25,6 +25,28 @@
 #define DBG_TRANSLATED_PA       0x90000000ull
 #define DBG_NESTED_GPA          0x200000ull
 
+#define RISCV_IOMMU_SYS_MSI_TARGET0  (QRIOMMU_SPACE_OFFS + 0x03000000ull)
+#define RISCV_IOMMU_SYS_MSI_TARGET1  (RISCV_IOMMU_SYS_MSI_TARGET0 + 4)
+#define RISCV_IOMMU_SYS_CQ_BASE      \
+    (QRIOMMU_SPACE_OFFS + QRIOMMU_CQ_BASE_ADDR)
+#define RISCV_IOMMU_SYS_MSI_DATA0    0x12345678
+#define RISCV_IOMMU_SYS_MSI_DATA1    0xa5a55a5a
+
+/* RISC-V virt machine PLIC, hart 0 M-mode context. */
+#define RISCV_PLIC_BASE             0x0c000000
+#define RISCV_PLIC_PENDING          (RISCV_PLIC_BASE + 0x1000)
+#define RISCV_PLIC_ENABLE           (RISCV_PLIC_BASE + 0x2000)
+#define RISCV_PLIC_THRESHOLD        (RISCV_PLIC_BASE + 0x200000)
+#define RISCV_PLIC_CLAIM            (RISCV_PLIC_THRESHOLD + 4)
+#define RISCV_IOMMU_SYS_IRQ_BASE    36
+
+#define PCI_TESTDEV_TEST             0
+#define PCI_TESTDEV_WIDTH            1
+#define PCI_TESTDEV_OFFSET           4
+#define PCI_TESTDEV_DATA             8
+#define PCI_TESTDEV_COUNT            12
+#define PCI_TESTDEV_NO_EVENTFD       0
+
 /* RISC-V virt machine PCI configuration */
 #define RISCV_GPEX_PIO_BASE        0x3000000
 #define RISCV_BUS_PIO_LIMIT        0x10000
@@ -451,6 +473,432 @@ static void test_riscv_iommu_dbg(gconstpointer data)
     riscv_iommu_test_teardown(&state);
 }
 
+static void riscv_iommu_sys_set_wsi(QTestState *qts, bool wsi)
+{
+    uint64_t base = VIRT_RISCV_IOMMU_BASE;
+    uint32_t fctl;
+
+    /* Feature changes require Off mode and all in-memory queues disabled. */
+    g_assert_cmphex(qtest_readq(qts, base + RISCV_IOMMU_REG_DDTP) &
+                    (RISCV_IOMMU_DDTP_MODE | RISCV_IOMMU_DDTP_BUSY),
+                    ==, RISCV_IOMMU_DDTP_MODE_OFF);
+    g_assert_cmphex(qtest_readl(qts, base + RISCV_IOMMU_REG_CQCSR) &
+                    (RISCV_IOMMU_CQCSR_CQEN | RISCV_IOMMU_CQCSR_CQON |
+                     RISCV_IOMMU_CQCSR_BUSY), ==, 0);
+    g_assert_cmphex(qtest_readl(qts, base + RISCV_IOMMU_REG_FQCSR) &
+                    (RISCV_IOMMU_FQCSR_FQEN | RISCV_IOMMU_FQCSR_FQON |
+                     RISCV_IOMMU_FQCSR_BUSY), ==, 0);
+    g_assert_cmphex(qtest_readl(qts, base + RISCV_IOMMU_REG_PQCSR) &
+                    (RISCV_IOMMU_PQCSR_PQEN | RISCV_IOMMU_PQCSR_PQON |
+                     RISCV_IOMMU_PQCSR_BUSY), ==, 0);
+
+    fctl = qtest_readl(qts, base + RISCV_IOMMU_REG_FCTL);
+    fctl = (fctl & ~RISCV_IOMMU_FCTL_WSI) |
+           (wsi ? RISCV_IOMMU_FCTL_WSI : 0);
+    qtest_writel(qts, base + RISCV_IOMMU_REG_FCTL, fctl);
+    g_assert_cmphex(qtest_readl(qts, base + RISCV_IOMMU_REG_FCTL) &
+                    RISCV_IOMMU_FCTL_WSI, ==, fctl & RISCV_IOMMU_FCTL_WSI);
+}
+
+static QTestState *riscv_iommu_sys_test_init(const char *extra_args)
+{
+    QTestState *qts;
+    uint64_t cap;
+    uint32_t igs;
+
+    if (!qtest_has_machine("virt")) {
+        g_test_skip("virt machine not available");
+        return NULL;
+    }
+
+    qts = qtest_initf("-machine virt,aia=none,acpi=off,iommu-sys=on "
+                      "-cpu max -smp 1 -m 512 -net none -nodefaults %s",
+                      extra_args ? extra_args : "");
+
+    cap = qtest_readq(qts, VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_CAP);
+    igs = (cap & RISCV_IOMMU_CAP_IGS) >> 28;
+    g_assert_cmpuint(igs, <=, RISCV_IOMMU_CAP_IGS_BOTH);
+    g_assert_cmpuint(igs, !=, RISCV_IOMMU_CAP_IGS_WSI);
+
+    riscv_iommu_sys_set_wsi(qts, false);
+
+    return qts;
+}
+
+static QPCIDevice *riscv_iommu_sys_init_msi_sink(QTestState *qts,
+                                                  QGenericPCIBus *gbus,
+                                                  QPCIBar *bar,
+                                                  uint64_t *target,
+                                                  uint32_t *data)
+{
+    QPCIDevice *dev = NULL;
+    uint32_t offset;
+
+    qpci_init_generic(gbus, qts, NULL, false);
+    riscv_config_qpci_bus(gbus);
+    qpci_device_foreach(&gbus->bus, PCI_VENDOR_ID_REDHAT,
+                        PCI_DEVICE_ID_REDHAT_TEST, save_fn, &dev);
+    g_assert(dev);
+
+    qpci_device_enable(dev);
+    *bar = qpci_iomap(dev, 0, NULL);
+    g_assert_false(bar->is_io);
+
+    qpci_io_writeb(dev, *bar, PCI_TESTDEV_TEST, PCI_TESTDEV_NO_EVENTFD);
+    g_assert_cmpuint(qpci_io_readb(dev, *bar, PCI_TESTDEV_WIDTH), ==, 1);
+    offset = qpci_io_readl(dev, *bar, PCI_TESTDEV_OFFSET);
+    *data = qpci_io_readl(dev, *bar, PCI_TESTDEV_DATA);
+    *target = bar->addr + offset;
+    g_assert_cmpuint(qpci_io_readl(dev, *bar, PCI_TESTDEV_COUNT), ==, 0);
+
+    return dev;
+}
+
+static void riscv_iommu_sys_program_msi(QTestState *qts, unsigned vector,
+                                        uint64_t target, uint32_t data,
+                                        bool masked)
+{
+    uint64_t entry = VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_MSI_CONFIG +
+                     vector * PCI_MSIX_ENTRY_SIZE;
+
+    qtest_writeq(qts, entry + PCI_MSIX_ENTRY_LOWER_ADDR, target);
+    qtest_writel(qts, entry + PCI_MSIX_ENTRY_DATA, data);
+    qtest_writel(qts, entry + PCI_MSIX_ENTRY_VECTOR_CTRL,
+                 masked ? PCI_MSIX_ENTRY_CTRL_MASKBIT : 0);
+}
+
+static void riscv_iommu_sys_set_mask(QTestState *qts, unsigned vector,
+                                     bool masked)
+{
+    uint64_t entry = VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_MSI_CONFIG +
+                     vector * PCI_MSIX_ENTRY_SIZE;
+
+    qtest_writel(qts, entry + PCI_MSIX_ENTRY_VECTOR_CTRL,
+                 masked ? PCI_MSIX_ENTRY_CTRL_MASKBIT : 0);
+}
+
+static void riscv_iommu_sys_setup_cq(QTestState *qts)
+{
+    uint64_t cqb = (RISCV_IOMMU_SYS_CQ_BASE >> 12) << 10;
+    uint32_t cqcsr;
+
+    qtest_writeq(qts, RISCV_IOMMU_SYS_CQ_BASE, UINT64_MAX);
+    qtest_writeq(qts, RISCV_IOMMU_SYS_CQ_BASE + 8, 0);
+    qtest_writeq(qts, VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_CQB, cqb);
+    qtest_writel(qts, VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_CQT, 0);
+    qtest_writel(qts, VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_CQCSR,
+                 RISCV_IOMMU_CQCSR_CQEN | RISCV_IOMMU_CQCSR_CIE);
+
+    cqcsr = qtest_readl(qts,
+                        VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_CQCSR);
+    g_assert_cmphex(cqcsr & RISCV_IOMMU_CQCSR_CQON,
+                    ==, RISCV_IOMMU_CQCSR_CQON);
+}
+
+static void riscv_iommu_sys_trigger_cq_irq(QTestState *qts)
+{
+    uint32_t cqcsr;
+
+    qtest_writel(qts, VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_CQT, 1);
+    cqcsr = qtest_readl(qts,
+                        VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_CQCSR);
+    g_assert_cmphex(cqcsr & RISCV_IOMMU_CQCSR_CMD_ILL,
+                    ==, RISCV_IOMMU_CQCSR_CMD_ILL);
+}
+
+static void riscv_iommu_sys_rearm_cq_irq(QTestState *qts)
+{
+    uint32_t cqcsr;
+
+    qtest_writel(qts, VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_CQT, 0);
+    qtest_writel(qts, VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_CQCSR,
+                 RISCV_IOMMU_CQCSR_CQEN | RISCV_IOMMU_CQCSR_CIE |
+                 RISCV_IOMMU_CQCSR_CMD_ILL);
+    cqcsr = qtest_readl(qts,
+                        VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_CQCSR);
+    g_assert_cmphex(cqcsr & RISCV_IOMMU_CQCSR_CMD_ILL, ==, 0);
+
+    qtest_writel(qts, VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_IPSR,
+                 RISCV_IOMMU_IPSR_CIP);
+    g_assert_cmphex(qtest_readl(qts, VIRT_RISCV_IOMMU_BASE +
+                               RISCV_IOMMU_REG_IPSR) & RISCV_IOMMU_IPSR_CIP,
+                    ==, 0);
+}
+
+static void test_riscv_iommu_sys_msi_unmasked(void)
+{
+    QTestState *qts = riscv_iommu_sys_test_init(NULL);
+
+    if (!qts) {
+        return;
+    }
+
+    qtest_writel(qts, RISCV_IOMMU_SYS_MSI_TARGET0, 0);
+    riscv_iommu_sys_program_msi(qts, 0, RISCV_IOMMU_SYS_MSI_TARGET0,
+                                RISCV_IOMMU_SYS_MSI_DATA0, false);
+    riscv_iommu_sys_setup_cq(qts);
+    riscv_iommu_sys_trigger_cq_irq(qts);
+
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET0),
+                    ==, RISCV_IOMMU_SYS_MSI_DATA0);
+    qtest_quit(qts);
+}
+
+static void test_riscv_iommu_sys_msi_masked(void)
+{
+    QGenericPCIBus gbus;
+    QPCIBar sink_bar;
+    QPCIDevice *sink;
+    QTestState *qts = riscv_iommu_sys_test_init("-device pci-testdev");
+    uint64_t sink_target;
+    uint32_t sink_data;
+
+    if (!qts) {
+        return;
+    }
+
+    sink = riscv_iommu_sys_init_msi_sink(qts, &gbus, &sink_bar,
+                                         &sink_target, &sink_data);
+    riscv_iommu_sys_program_msi(qts, 0, sink_target, sink_data, true);
+    riscv_iommu_sys_setup_cq(qts);
+
+    riscv_iommu_sys_trigger_cq_irq(qts);
+    g_assert_cmpuint(qpci_io_readl(sink, sink_bar, PCI_TESTDEV_COUNT), ==, 0);
+
+    /*
+     * Pending MSIs must not be exposed through the reserved
+     * MSI-X PBA MMIO region.
+     */
+    g_assert_cmphex(qtest_readl(qts, VIRT_RISCV_IOMMU_BASE + 0x400),
+                    ==, 0);
+
+    riscv_iommu_sys_rearm_cq_irq(qts);
+    riscv_iommu_sys_trigger_cq_irq(qts);
+    g_assert_cmpuint(qpci_io_readl(sink, sink_bar, PCI_TESTDEV_COUNT), ==, 0);
+
+    riscv_iommu_sys_set_mask(qts, 0, false);
+    g_assert_cmpuint(qpci_io_readl(sink, sink_bar, PCI_TESTDEV_COUNT), ==, 1);
+
+    riscv_iommu_sys_set_mask(qts, 0, false);
+    g_assert_cmpuint(qpci_io_readl(sink, sink_bar, PCI_TESTDEV_COUNT), ==, 1);
+    g_free(sink);
+    qtest_quit(qts);
+}
+
+static void test_riscv_iommu_sys_msi_config_update(void)
+{
+    QTestState *qts = riscv_iommu_sys_test_init(NULL);
+
+    if (!qts) {
+        return;
+    }
+
+    qtest_writel(qts, RISCV_IOMMU_SYS_MSI_TARGET0, 0);
+    qtest_writel(qts, RISCV_IOMMU_SYS_MSI_TARGET1, 0);
+    riscv_iommu_sys_program_msi(qts, 0, RISCV_IOMMU_SYS_MSI_TARGET0,
+                                RISCV_IOMMU_SYS_MSI_DATA0, true);
+    riscv_iommu_sys_setup_cq(qts);
+    riscv_iommu_sys_trigger_cq_irq(qts);
+
+    /* Updating a masked entry must not release the deferred message. */
+    riscv_iommu_sys_program_msi(qts, 0, RISCV_IOMMU_SYS_MSI_TARGET1,
+                                RISCV_IOMMU_SYS_MSI_DATA1, true);
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET0), ==, 0);
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET1), ==, 0);
+
+    /* Release uses the current address and data, rather than a snapshot. */
+    riscv_iommu_sys_set_mask(qts, 0, false);
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET0), ==, 0);
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET1),
+                    ==, RISCV_IOMMU_SYS_MSI_DATA1);
+    qtest_writel(qts, RISCV_IOMMU_SYS_MSI_TARGET1, 0);
+    riscv_iommu_sys_set_mask(qts, 0, false);
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET1), ==, 0);
+    qtest_quit(qts);
+}
+
+static void test_riscv_iommu_sys_msi_vector_isolation(void)
+{
+    QTestState *qts = riscv_iommu_sys_test_init(NULL);
+
+    if (!qts) {
+        return;
+    }
+
+    qtest_writel(qts, RISCV_IOMMU_SYS_MSI_TARGET0, 0);
+    qtest_writel(qts, RISCV_IOMMU_SYS_MSI_TARGET1, 0);
+    riscv_iommu_sys_program_msi(qts, 0, RISCV_IOMMU_SYS_MSI_TARGET0,
+                                RISCV_IOMMU_SYS_MSI_DATA0, true);
+    riscv_iommu_sys_program_msi(qts, 1, RISCV_IOMMU_SYS_MSI_TARGET1,
+                                RISCV_IOMMU_SYS_MSI_DATA1, false);
+    riscv_iommu_sys_setup_cq(qts);
+
+    riscv_iommu_sys_trigger_cq_irq(qts);
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET0), ==, 0);
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET1), ==, 0);
+
+    riscv_iommu_sys_rearm_cq_irq(qts);
+    qtest_writel(qts, VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_ICVEC, 1);
+    riscv_iommu_sys_trigger_cq_irq(qts);
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET0), ==, 0);
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET1),
+                    ==, RISCV_IOMMU_SYS_MSI_DATA1);
+
+    riscv_iommu_sys_set_mask(qts, 0, false);
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET0),
+                    ==, RISCV_IOMMU_SYS_MSI_DATA0);
+    qtest_quit(qts);
+}
+
+static void test_riscv_iommu_sys_msi_wsi_switch(const void *opaque)
+{
+    bool unmask_in_wsi = GPOINTER_TO_INT(opaque);
+    QGenericPCIBus gbus;
+    QPCIBar sink_bar;
+    QPCIDevice *sink;
+    QTestState *qts = riscv_iommu_sys_test_init("-device pci-testdev");
+    uint64_t sink_target;
+    uint32_t sink_data;
+
+    if (!qts) {
+        return;
+    }
+
+    g_assert_cmpuint((qtest_readq(qts, VIRT_RISCV_IOMMU_BASE +
+                                 RISCV_IOMMU_REG_CAP) &
+                      RISCV_IOMMU_CAP_IGS) >> 28,
+                     ==, RISCV_IOMMU_CAP_IGS_BOTH);
+    sink = riscv_iommu_sys_init_msi_sink(qts, &gbus, &sink_bar,
+                                         &sink_target, &sink_data);
+    riscv_iommu_sys_program_msi(qts, 0, sink_target, sink_data, true);
+    riscv_iommu_sys_setup_cq(qts);
+    riscv_iommu_sys_trigger_cq_irq(qts);
+    g_assert_cmpuint(qpci_io_readl(sink, sink_bar, PCI_TESTDEV_COUNT), ==, 0);
+
+    /* Stop the CQ before changing FCTL, preserving the deferred message. */
+    qtest_writel(qts, VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_CQCSR, 0);
+    riscv_iommu_sys_set_wsi(qts, true);
+    if (unmask_in_wsi) {
+        riscv_iommu_sys_set_mask(qts, 0, false);
+    }
+    g_assert_cmpuint(qpci_io_readl(sink, sink_bar, PCI_TESTDEV_COUNT), ==, 0);
+
+    riscv_iommu_sys_set_wsi(qts, false);
+    g_assert_cmpuint(qpci_io_readl(sink, sink_bar, PCI_TESTDEV_COUNT),
+                     ==, unmask_in_wsi ? 1 : 0);
+    riscv_iommu_sys_set_mask(qts, 0, false);
+    g_assert_cmpuint(qpci_io_readl(sink, sink_bar, PCI_TESTDEV_COUNT), ==, 1);
+
+    /* Repeated mode changes and unmask writes must not replay the MSI. */
+    riscv_iommu_sys_set_wsi(qts, true);
+    riscv_iommu_sys_set_wsi(qts, false);
+    riscv_iommu_sys_set_mask(qts, 0, false);
+    g_assert_cmpuint(qpci_io_readl(sink, sink_bar, PCI_TESTDEV_COUNT), ==, 1);
+    g_free(sink);
+    qtest_quit(qts);
+}
+
+static void test_riscv_iommu_sys_wsi_delivery(void)
+{
+    const unsigned vector = 1;
+    const unsigned irq = RISCV_IOMMU_SYS_IRQ_BASE + vector;
+    const uint32_t irq_bit = 1U << (irq % 32);
+    const unsigned irq_word = (irq / 32) * 4;
+    QGenericPCIBus gbus;
+    QPCIBar sink_bar;
+    QPCIDevice *sink;
+    QTestState *qts = riscv_iommu_sys_test_init("-device pci-testdev");
+    uint64_t sink_target;
+    uint32_t sink_data;
+
+    if (!qts) {
+        return;
+    }
+
+    sink = riscv_iommu_sys_init_msi_sink(qts, &gbus, &sink_bar,
+                                         &sink_target, &sink_data);
+    riscv_iommu_sys_set_wsi(qts, true);
+    /* The MSI vector mask must not suppress delivery through the wire. */
+    riscv_iommu_sys_program_msi(qts, vector, sink_target, sink_data, true);
+    qtest_writel(qts, VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_ICVEC, vector);
+
+    qtest_writel(qts, RISCV_PLIC_BASE + irq * 4, 1);
+    qtest_writel(qts, RISCV_PLIC_ENABLE + irq_word, irq_bit);
+    qtest_writel(qts, RISCV_PLIC_THRESHOLD, 0);
+    g_assert_cmphex(qtest_readl(qts, RISCV_PLIC_PENDING + irq_word), ==, 0);
+    g_assert_cmpuint(qtest_readl(qts, RISCV_PLIC_CLAIM), ==, 0);
+
+    riscv_iommu_sys_setup_cq(qts);
+    riscv_iommu_sys_trigger_cq_irq(qts);
+    /* The PLIC latches the pulse after the device's wire returns low. */
+    g_assert_cmphex(qtest_readl(qts, RISCV_PLIC_PENDING + irq_word),
+                    ==, irq_bit);
+    g_assert_cmpuint(qtest_readl(qts, RISCV_PLIC_CLAIM), ==, irq);
+    g_assert_cmphex(qtest_readl(qts, RISCV_PLIC_PENDING + irq_word), ==, 0);
+    qtest_writel(qts, RISCV_PLIC_CLAIM, irq);
+    g_assert_cmpuint(qpci_io_readl(sink, sink_bar, PCI_TESTDEV_COUNT), ==, 0);
+
+    /* A WSI event must not become a deferred MSI after switching modes. */
+    qtest_writel(qts, VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_CQCSR, 0);
+    riscv_iommu_sys_set_wsi(qts, false);
+    riscv_iommu_sys_set_mask(qts, vector, false);
+    g_assert_cmpuint(qpci_io_readl(sink, sink_bar, PCI_TESTDEV_COUNT), ==, 0);
+    g_free(sink);
+    qtest_quit(qts);
+}
+
+static void test_riscv_iommu_sys_msi_wsi_reset(void)
+{
+    QTestState *qts = riscv_iommu_sys_test_init(NULL);
+
+    if (!qts) {
+        return;
+    }
+
+    qtest_writel(qts, RISCV_IOMMU_SYS_MSI_TARGET0, 0);
+    riscv_iommu_sys_program_msi(qts, 0, RISCV_IOMMU_SYS_MSI_TARGET0,
+                                RISCV_IOMMU_SYS_MSI_DATA0, true);
+    riscv_iommu_sys_setup_cq(qts);
+    riscv_iommu_sys_trigger_cq_irq(qts);
+    qtest_writel(qts, VIRT_RISCV_IOMMU_BASE + RISCV_IOMMU_REG_CQCSR, 0);
+    riscv_iommu_sys_set_wsi(qts, true);
+    riscv_iommu_sys_set_mask(qts, 0, false);
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET0), ==, 0);
+
+    qtest_system_reset(qts);
+    /* Reprogram valid MSI state without depending on table reset values. */
+    riscv_iommu_sys_set_wsi(qts, true);
+    riscv_iommu_sys_program_msi(qts, 0, RISCV_IOMMU_SYS_MSI_TARGET0,
+                                RISCV_IOMMU_SYS_MSI_DATA1, false);
+    riscv_iommu_sys_set_wsi(qts, false);
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET0), ==, 0);
+    riscv_iommu_sys_set_mask(qts, 0, true);
+    riscv_iommu_sys_set_mask(qts, 0, false);
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET0), ==, 0);
+    qtest_quit(qts);
+}
+
+static void test_riscv_iommu_sys_msi_reset(void)
+{
+    QTestState *qts = riscv_iommu_sys_test_init(NULL);
+
+    if (!qts) {
+        return;
+    }
+
+    qtest_writel(qts, RISCV_IOMMU_SYS_MSI_TARGET0, 0);
+    riscv_iommu_sys_program_msi(qts, 0, RISCV_IOMMU_SYS_MSI_TARGET0,
+                                RISCV_IOMMU_SYS_MSI_DATA0, true);
+    riscv_iommu_sys_setup_cq(qts);
+    riscv_iommu_sys_trigger_cq_irq(qts);
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET0), ==, 0);
+
+    qtest_system_reset(qts);
+    riscv_iommu_sys_set_mask(qts, 0, false);
+    g_assert_cmphex(qtest_readl(qts, RISCV_IOMMU_SYS_MSI_TARGET0), ==, 0);
+    qtest_quit(qts);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -468,5 +916,26 @@ int main(int argc, char **argv)
 
         qtest_add_data_func(path, &debug_tests[i], test_riscv_iommu_dbg);
     }
+
+    qtest_add_func("/riscv-iommu-sys/msi/unmasked",
+                   test_riscv_iommu_sys_msi_unmasked);
+    qtest_add_func("/riscv-iommu-sys/msi/masked",
+                   test_riscv_iommu_sys_msi_masked);
+    qtest_add_func("/riscv-iommu-sys/msi/config-update",
+                   test_riscv_iommu_sys_msi_config_update);
+    qtest_add_func("/riscv-iommu-sys/msi/vector-isolation",
+                   test_riscv_iommu_sys_msi_vector_isolation);
+    qtest_add_data_func("/riscv-iommu-sys/msi/wsi-switch-unmasked",
+                        GINT_TO_POINTER(true),
+                        test_riscv_iommu_sys_msi_wsi_switch);
+    qtest_add_data_func("/riscv-iommu-sys/msi/wsi-switch-masked",
+                        GINT_TO_POINTER(false),
+                        test_riscv_iommu_sys_msi_wsi_switch);
+    qtest_add_func("/riscv-iommu-sys/wsi/delivery",
+                   test_riscv_iommu_sys_wsi_delivery);
+    qtest_add_func("/riscv-iommu-sys/msi/wsi-reset",
+                   test_riscv_iommu_sys_msi_wsi_reset);
+    qtest_add_func("/riscv-iommu-sys/msi/reset",
+                   test_riscv_iommu_sys_msi_reset);
     return g_test_run();
 }

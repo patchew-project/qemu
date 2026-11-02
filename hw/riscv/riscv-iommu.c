@@ -2424,6 +2424,7 @@ static MemTxResult riscv_iommu_mmio_write(void *opaque, hwaddr addr,
     RISCVIOMMUState *s = opaque;
     uint32_t regb = addr & ~3;
     uint32_t busy = 0;
+    uint32_t old_fctl = 0;
     uint64_t val = 0;
     bool cy_inh = false;
 
@@ -2439,6 +2440,10 @@ static MemTxResult riscv_iommu_mmio_write(void *opaque, hwaddr addr,
 
     /* Track actionable MMIO write. */
     switch (regb) {
+    case RISCV_IOMMU_REG_FCTL:
+        old_fctl = riscv_iommu_reg_get32(s, RISCV_IOMMU_REG_FCTL);
+        break;
+
     case RISCV_IOMMU_REG_DDTP:
     case RISCV_IOMMU_REG_DDTP + 4:
         process_fn = riscv_iommu_process_ddtp;
@@ -2514,6 +2519,13 @@ static MemTxResult riscv_iommu_mmio_write(void *opaque, hwaddr addr,
      * is UNSPECIFIED.
      */
     riscv_iommu_write_reg_val(s, &s->regs[addr], addr, size, data);
+
+    if (regb == RISCV_IOMMU_REG_FCTL && s->msi_enabled &&
+        (old_fctl & RISCV_IOMMU_FCTL_WSI) &&
+        !(riscv_iommu_reg_get32(s, RISCV_IOMMU_REG_FCTL) &
+          RISCV_IOMMU_FCTL_WSI)) {
+        s->msi_enabled(s);
+    }
 
     /* Busy flag update, MSB 4-byte register. */
     if (busy) {

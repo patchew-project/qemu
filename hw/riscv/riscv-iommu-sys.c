@@ -52,7 +52,65 @@ struct RISCVIOMMUStateSys {
     MemoryRegion msix_pba_mmio;
     uint8_t *msix_table;
     uint8_t *msix_pba;
+    /*
+     * Keep MSI pending state separate from msix_pba.
+     *
+     * The msix_pba MMIO region is mapped at offset 0x400, which is
+     * within the RISC-V IOMMU reserved register space (0x400-0xfff).
+     * Reads from this reserved region must return zero. Using msix_pba
+     * to track pending MSIs would expose non-zero bits through MMIO.
+     *
+     * The specification describes the MSI-X PBA in the context of
+     * PCIe IOMMU integration, while this device is a SysBus device.
+     * Therefore, maintain pending MSIs independently without updating
+     * msix_pba.
+     *
+     * See:
+     * https://docs.riscv.org/reference/iommu/v20260222/iommu_registers.html
+     * https://docs.riscv.org/reference/iommu/v20260222/iommu_hw_guidelines.html
+     */
+    bool msi_pending[RISCV_IOMMU_PCI_MSIX_VECTORS];
 };
+
+static void riscv_iommu_sysdev_send_MSI_unmasked(RISCVIOMMUStateSys *s,
+                                                 uint32_t vector);
+
+static bool riscv_iommu_sysdev_msi_masked(RISCVIOMMUStateSys *s,
+                                          uint32_t vector)
+{
+    uint8_t *table_entry;
+
+    g_assert(vector < RISCV_IOMMU_PCI_MSIX_VECTORS);
+    table_entry = s->msix_table + vector * PCI_MSIX_ENTRY_SIZE;
+
+    return pci_get_long(table_entry + PCI_MSIX_ENTRY_VECTOR_CTRL) &
+           PCI_MSIX_ENTRY_CTRL_MASKBIT;
+}
+
+static void riscv_iommu_sysdev_release_pending(RISCVIOMMUStateSys *s,
+                                              uint32_t vector)
+{
+    /* Retain deferred MSI messages until MSI mode is restored. */
+    if (riscv_iommu_reg_get32(&s->iommu, RISCV_IOMMU_REG_FCTL) &
+        RISCV_IOMMU_FCTL_WSI) {
+        return;
+    }
+
+    if (s->msi_pending[vector] &&
+        !riscv_iommu_sysdev_msi_masked(s, vector)) {
+        s->msi_pending[vector] = false;
+        riscv_iommu_sysdev_send_MSI_unmasked(s, vector);
+    }
+}
+
+static void riscv_iommu_sysdev_msi_enabled(RISCVIOMMUState *iommu)
+{
+    RISCVIOMMUStateSys *s = container_of(iommu, RISCVIOMMUStateSys, iommu);
+
+    for (unsigned vector = 0; vector < ARRAY_SIZE(s->msi_pending); vector++) {
+        riscv_iommu_sysdev_release_pending(s, vector);
+    }
+}
 
 static uint64_t msix_table_mmio_read(void *opaque, hwaddr addr,
                                      unsigned size)
@@ -67,9 +125,17 @@ static void msix_table_mmio_write(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned size)
 {
     RISCVIOMMUStateSys *s = opaque;
+    uint32_t vector = addr / PCI_MSIX_ENTRY_SIZE;
+    bool was_masked;
 
     g_assert(addr + size <= RISCV_IOMMU_PCI_MSIX_VECTORS * PCI_MSIX_ENTRY_SIZE);
+
+    was_masked = riscv_iommu_sysdev_msi_masked(s, vector);
     pci_set_long(s->msix_table + addr, val);
+
+    if (was_masked && !riscv_iommu_sysdev_msi_masked(s, vector)) {
+        riscv_iommu_sysdev_release_pending(s, vector);
+    }
 }
 
 static const MemoryRegionOps msix_table_mmio_ops = {
@@ -134,8 +200,8 @@ static void riscv_iommu_sysdev_init_msi(RISCVIOMMUStateSys *s,
                                 &s->msix_pba_mmio);
 }
 
-static void riscv_iommu_sysdev_send_MSI(RISCVIOMMUStateSys *s,
-                                        uint32_t vector)
+static void riscv_iommu_sysdev_send_MSI_unmasked(RISCVIOMMUStateSys *s,
+                                                 uint32_t vector)
 {
     uint8_t *table_entry = s->msix_table + vector * PCI_MSIX_ENTRY_SIZE;
     uint64_t msi_addr = pci_get_quad(table_entry + PCI_MSIX_ENTRY_LOWER_ADDR);
@@ -158,6 +224,17 @@ static void riscv_iommu_sysdev_send_MSI(RISCVIOMMUStateSys *s,
                            RISCV_IOMMU_FQ_TTYPE_UADDR_WR);
         riscv_iommu_fault(iommu, &ev);
     }
+}
+
+static void riscv_iommu_sysdev_send_MSI(RISCVIOMMUStateSys *s,
+                                        uint32_t vector)
+{
+    if (riscv_iommu_sysdev_msi_masked(s, vector)) {
+        s->msi_pending[vector] = true;
+        return;
+    }
+
+    riscv_iommu_sysdev_send_MSI_unmasked(s, vector);
 }
 
 static void riscv_iommu_sysdev_notify(RISCVIOMMUState *iommu,
@@ -194,6 +271,7 @@ static void riscv_iommu_sys_realize(DeviceState *dev, Error **errp)
     }
 
     s->iommu.notify = riscv_iommu_sysdev_notify;
+    s->iommu.msi_enabled = riscv_iommu_sysdev_msi_enabled;
 
     /* 4 IRQs are defined starting from s->base_irq */
     for (int i = 0; i < RISCV_IOMMU_INTR_COUNT; i++) {
@@ -255,6 +333,7 @@ static void riscv_iommu_sys_reset_hold(Object *obj, ResetType type)
     RISCVIOMMUState *iommu = &sys->iommu;
 
     riscv_iommu_reset(iommu);
+    memset(sys->msi_pending, 0, sizeof(sys->msi_pending));
 
     trace_riscv_iommu_sys_reset_hold(type);
 }
