@@ -485,10 +485,6 @@ bool eth_parse_ipv6_hdr(const struct iovec *pkt, int pkt_frags,
     info->has_ext_hdrs = true;
 
     do {
-        if (input_size < ip6hdr_off + info->full_hdr_len) {
-            return false;
-        }
-
         bytes_read = iov_to_buf(pkt, pkt_frags, ip6hdr_off + info->full_hdr_len,
                                 &ext_hdr, sizeof(ext_hdr));
 
@@ -514,6 +510,10 @@ bool eth_parse_ipv6_hdr(const struct iovec *pkt, int pkt_frags,
 
         info->full_hdr_len += (ext_hdr.ip6r_len + 1) * IP6_EXT_GRANULARITY;
         curr_ext_hdr_type = ext_hdr.ip6r_nxt;
+        if (input_size < ip6hdr_off + info->full_hdr_len) {
+            /* This extension header's length field was bogus */
+            return false;
+        }
     } while (eth_is_ip6_extension_header_type(curr_ext_hdr_type));
 
     info->l4proto = ext_hdr.ip6r_nxt;
