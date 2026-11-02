@@ -35,7 +35,32 @@
 #define HV_POST_DEBUG_DATA                    0x0069
 #define HV_RETRIEVE_DEBUG_DATA                0x006a
 #define HV_RESET_DEBUG_SESSION                0x006b
+#define HV_EXT_CALL_QUERY_CAPABILITIES        0x8001
+#define HV_EXT_CALL_MEMORY_HEAT_HINT          0x8003
 #define HV_HYPERCALL_FAST                     (1u << 16)
+#define HV_HYPERCALL_REP_COMP_OFFSET          32
+#define HV_HYPERCALL_REP_COMP_MASK            0xfff
+
+#define HV_EXT_CAP_MEMORY_HEAT_HINT           (1ull << 1)
+#define HV_EXT_CAP_MEMORY_HEAT_HINT_COLD      (1ull << 2)
+#define HV_EXT_MEMORY_HEAT_HINT_MAX_RANGES    511
+
+#define HV_EXTMEM_HEAT_HINT_COLD              0
+#define HV_EXTMEM_HEAT_HINT_HOT               1
+#define HV_EXTMEM_HEAT_HINT_COLD_DISCARD      2
+
+struct hyperv_memory_heat_hint {
+    uint64_t heat_type;
+    uint64_t ranges[HV_EXT_MEMORY_HEAT_HINT_MAX_RANGES];
+};
+
+/* HV_GPA_PAGE_RANGE in each heat-hint range qword */
+#define HV_GPA_PAGE_RANGE_ADDITIONAL_MASK     0x7ffull
+#define HV_GPA_PAGE_RANGE_LARGEPAGE           (1ull << 11)
+#define HV_GPA_PAGE_RANGE_PAGE_SIZE_1GB       (1ull << 12)
+#define HV_GPA_PAGE_RANGE_4K_GPA_MASK         (~0xfffull)
+#define HV_GPA_PAGE_RANGE_2M_GPA_MASK         (~0x1fffffull)
+#define HV_GPA_PAGE_RANGE_1G_GPA_MASK         (~0x3fffffffull)
 
 /*
  * Message size

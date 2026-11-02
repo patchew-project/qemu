@@ -66,6 +66,7 @@
  * HV_CPUID_FEATURES.EBX bits
  */
 #define HV_PARTITION_DEBUGGING_ALLOWED          (1u << 12)
+#define HV_ENABLE_EXTENDED_HYPERCALLS           (1u << 20)
 
 /*
  * HV_CPUID_ENLIGHTMENT_INFO.EAX bits

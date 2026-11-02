@@ -97,6 +97,13 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
         bool fast = exit->u.hcall.input & HV_HYPERCALL_FAST;
         uint64_t in_param = exit->u.hcall.params[0];
         uint64_t out_param = exit->u.hcall.params[1];
+        uint64_t rep_count = (exit->u.hcall.input >> 32) & 0xFFF;
+
+        if ((code & 0x8000) &&
+            !hyperv_feat_enabled(cpu, HYPERV_FEAT_EXT_HYPERCALLS)) {
+            exit->u.hcall.result = HV_STATUS_INVALID_HYPERCALL_CODE;
+            return 0;
+        }
 
         switch (code) {
         case HV_POST_MESSAGE:
@@ -116,6 +123,23 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
         case HV_RESET_DEBUG_SESSION:
             exit->u.hcall.result =
                 hyperv_hcall_reset_dbg_session(out_param);
+            break;
+        case HV_EXT_CALL_QUERY_CAPABILITIES:
+            exit->u.hcall.result = hyperv_hcall_ext_capabilities(
+                out_param, fast, cpu->hyperv_memory_hint);
+            break;
+        case HV_EXT_CALL_MEMORY_HEAT_HINT:
+            if (!cpu->hyperv_memory_hint) {
+                exit->u.hcall.result = HV_STATUS_INVALID_HYPERCALL_CODE;
+                break;
+            }
+            exit->u.hcall.result =
+                hyperv_hcall_memory_hint(in_param, rep_count, fast);
+            if (exit->u.hcall.result == HV_STATUS_SUCCESS) {
+                exit->u.hcall.result |=
+                    (rep_count & HV_HYPERCALL_REP_COMP_MASK) <<
+                    HV_HYPERCALL_REP_COMP_OFFSET;
+            }
             break;
         default:
             exit->u.hcall.result = HV_STATUS_INVALID_HYPERCALL_CODE;

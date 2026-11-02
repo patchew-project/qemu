@@ -1139,6 +1139,13 @@ static struct {
         },
         .dependencies = BIT(HYPERV_FEAT_VAPIC)
     },
+    [HYPERV_FEAT_EXT_HYPERCALLS] = {
+        .desc = "enable extended hypercalls (hv-extcalls)",
+        .flags = {
+            {.func = HV_CPUID_FEATURES, .reg = R_EBX,
+             .bits = HV_ENABLE_EXTENDED_HYPERCALLS}
+        }
+    },
 };
 
 static struct kvm_cpuid2 *try_get_hv_cpuid(CPUState *cs, int max,

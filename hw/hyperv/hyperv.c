@@ -20,7 +20,9 @@
 #include "system/physmem.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
+#include "qemu/int128.h"
 #include "qemu/lockable.h"
+#include "qemu/madvise.h"
 #include "qemu/queue.h"
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
@@ -643,6 +645,162 @@ uint16_t hyperv_hcall_post_message(uint64_t param, bool fast)
 
 unmap:
     physical_memory_unmap(msg, len, 0, 0);
+    return ret;
+}
+
+uint16_t hyperv_hcall_ext_capabilities(uint64_t outgpa, bool fast,
+                                       bool memory_hint)
+{
+    uint16_t ret;
+    hwaddr len;
+    uint64_t *caps = NULL;
+
+    if (fast) {
+        return HV_STATUS_INVALID_HYPERCALL_CODE;
+    }
+    if (outgpa & (__alignof__(*caps) - 1)) {
+        return HV_STATUS_INVALID_ALIGNMENT;
+    }
+
+    len = sizeof(*caps);
+    caps = physical_memory_map(outgpa, &len, 1);
+    if (!caps || len < sizeof(*caps)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto unmap;
+    }
+
+    *caps = 0;
+    if (memory_hint) {
+        *caps = HV_EXT_CAP_MEMORY_HEAT_HINT;
+        if (QEMU_MADV_COLD != QEMU_MADV_INVALID) {
+            *caps |= HV_EXT_CAP_MEMORY_HEAT_HINT_COLD;
+        }
+    }
+    ret = HV_STATUS_SUCCESS;
+
+unmap:
+    if (caps) {
+        physical_memory_unmap(caps, len, 1, ret == HV_STATUS_SUCCESS ? len : 0);
+    }
+    return ret;
+}
+
+static bool hv_decode_gpa_page_range(uint64_t raw, hwaddr *gpa, hwaddr *len)
+{
+    uint64_t pages = (raw & HV_GPA_PAGE_RANGE_ADDITIONAL_MASK) + 1;
+
+    if (raw & HV_GPA_PAGE_RANGE_LARGEPAGE) {
+        if (raw & HV_GPA_PAGE_RANGE_PAGE_SIZE_1GB) {
+            *gpa = raw & HV_GPA_PAGE_RANGE_1G_GPA_MASK;
+            *len = pages << 30;
+        } else {
+            *gpa = raw & HV_GPA_PAGE_RANGE_2M_GPA_MASK;
+            *len = pages << 21;
+        }
+    } else {
+        *gpa = raw & HV_GPA_PAGE_RANGE_4K_GPA_MASK;
+        *len = pages << 12;
+    }
+
+    return *len != 0;
+}
+
+static void hv_madvise_gpa_range(hwaddr gpa, hwaddr len, int advice)
+{
+    while (len) {
+        MemoryRegionSection section;
+        hwaddr chunk, start, skip;
+        void *host;
+
+        section = memory_region_find(get_system_memory(), gpa, len);
+        if (!section.mr) {
+            break;
+        }
+
+        start = section.offset_within_address_space;
+        chunk = int128_get64(section.size);
+
+        if (!chunk || start < gpa) {
+            memory_region_unref(section.mr);
+            break;
+        }
+
+        skip = start - gpa;
+        if (skip >= len || chunk > len - skip) {
+            memory_region_unref(section.mr);
+            break;
+        }
+
+        gpa = start + chunk;
+        len -= skip + chunk;
+
+        if (memory_region_is_ram(section.mr) &&
+            !memory_region_is_rom(section.mr) &&
+            !memory_region_is_romd(section.mr)) {
+            host = memory_region_get_ram_ptr(section.mr) +
+                   section.offset_within_region;
+            qemu_madvise(host, chunk, advice);
+        }
+        memory_region_unref(section.mr);
+    }
+}
+
+uint16_t hyperv_hcall_memory_hint(uint64_t in_gpa, uint16_t rep_count,
+                                  bool fast)
+{
+    uint16_t ret = HV_STATUS_SUCCESS;
+    hwaddr in_len, needed;
+    struct hyperv_memory_heat_hint *in = NULL;
+    unsigned int i;
+    uint64_t heat_type;
+    int advice;
+
+    if (fast) {
+        return HV_STATUS_INVALID_HYPERCALL_CODE;
+    }
+    if (rep_count < 1 || rep_count > HV_EXT_MEMORY_HEAT_HINT_MAX_RANGES) {
+        return HV_STATUS_INVALID_HYPERCALL_INPUT;
+    }
+    if (in_gpa & (__alignof__(*in) - 1)) {
+        return HV_STATUS_INVALID_ALIGNMENT;
+    }
+
+    needed = sizeof(in->heat_type) + sizeof(in->ranges[0]) * rep_count;
+    in_len = TARGET_PAGE_SIZE;
+    in = physical_memory_map(in_gpa, &in_len, 0);
+    if (!in || in_len < needed) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto unmap;
+    }
+
+    heat_type = in->heat_type & 3;
+    switch (heat_type) {
+    case HV_EXTMEM_HEAT_HINT_HOT:
+        advice = QEMU_MADV_WILLNEED;
+        break;
+    case HV_EXTMEM_HEAT_HINT_COLD:
+    case HV_EXTMEM_HEAT_HINT_COLD_DISCARD:
+        advice = QEMU_MADV_COLD;
+        break;
+    default:
+        ret = HV_STATUS_INVALID_PARAMETER;
+        goto unmap;
+    }
+
+    for (i = 0; i < rep_count; i++) {
+        hwaddr gpa, len;
+        uint64_t raw = in->ranges[i];
+
+        if (!hv_decode_gpa_page_range(raw, &gpa, &len)) {
+            continue;
+        }
+        hv_madvise_gpa_range(gpa, len, advice);
+    }
+
+unmap:
+    if (in) {
+        physical_memory_unmap(in, in_len, 0, 0);
+    }
     return ret;
 }
 

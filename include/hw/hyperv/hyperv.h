@@ -70,6 +70,19 @@ uint16_t hyperv_hcall_post_message(uint64_t param, bool fast);
  * the connection as specified in @param.
  */
 uint16_t hyperv_hcall_signal_event(uint64_t param, bool fast);
+/*
+ * Process HV_EXT_CALL_QUERY_CAPABILITIES hypercall: list supported ext hcall
+ * fill the capabilities bit array in @outgpa.
+ */
+uint16_t hyperv_hcall_ext_capabilities(uint64_t outgpa, bool fast,
+                                       bool memory_hint);
+/*
+ * Process HV_EXT_CALL_MEMORY_HEAT_HINT hypercall: receive a list of hot/cold
+ * pages and call madvice on them.
+ */
+uint16_t hyperv_hcall_memory_hint(uint64_t in_gpa, uint16_t rep_count,
+                                  bool fast);
+
 
 static inline uint32_t hyperv_vp_index(CPUState *cs)
 {

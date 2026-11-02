@@ -259,6 +259,15 @@ Existing enlightenments
 
   Recommended: ``hv-evmcs`` (Intel)
 
+``hv-extcalls``
+  Advertises extended Hyper-V hypercalls (call codes 0x8000 and above) to
+  the guest.
+
+``hv-memory-hint``
+  Enables guest memory heat hints (HvExtCallMemoryHeatHint).
+
+  Requires: ``hv-extcalls``
+
 Supplementary features
 ----------------------
 
@@ -275,6 +284,11 @@ Supplementary features
   Note: ``hv-passthrough`` does not enable ``hv-syndbg`` which can prevent certain
   Windows guests from booting when used without proper configuration. If needed,
   ``hv-syndbg`` can be enabled additionally.
+
+  Note: ``hv-passthrough`` enables ``hv-extcalls`` when the host KVM advertises
+  it. It does not enable ``hv-memory-hint``, which is implemented in QEMU and
+  has no KVM CPUID bit. Enable ``hv-memory-hint`` explicitly when guest heat
+  hints should reach the host.
 
   Note: ``hv-passthrough`` effectively prevents migration as the list of enabled
   enlightenments may differ between target and destination hosts.
