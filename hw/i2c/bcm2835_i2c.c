@@ -166,6 +166,7 @@ static void bcm2835_i2c_write(void *opaque, hwaddr addr,
         /* Clear DONE, CLKT and ERR by writing 1 */
         s->s &= ~(writeval & (BCM2835_I2C_S_DONE |
                   BCM2835_I2C_S_ERR | BCM2835_I2C_S_CLKT));
+        bcm2835_i2c_update_interrupt(s);
         break;
     case BCM2835_I2C_DLEN:
         s->dlen = writeval;

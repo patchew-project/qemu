@@ -89,6 +89,29 @@ static void test_i2c_read_write(gconstpointer data)
 
 }
 
+/* Clearing DONE in the status register lowers the DONE interrupt */
+static void test_i2c_irq(void)
+{
+    uint32_t base_addr = bsc_base_addrs[0];
+
+    qtest_irq_intercept_out_named(global_qtest,
+                                  "/machine/soc/peripherals/bcm2835-i2c0",
+                                  "sysbus-irq");
+
+    writel(base_addr + BCM2835_I2C_A, 0x50);
+    writel(base_addr + BCM2835_I2C_DLEN, 1);
+    writel(base_addr + BCM2835_I2C_C, BCM2835_I2C_C_I2CEN |
+           BCM2835_I2C_C_INTD | BCM2835_I2C_C_ST | BCM2835_I2C_C_CLEAR);
+    writel(base_addr + BCM2835_I2C_FIFO, TMP105_REG_T_HIGH);
+    g_assert_cmphex(readl(base_addr + BCM2835_I2C_S) & BCM2835_I2C_S_DONE,
+                    ==, BCM2835_I2C_S_DONE);
+    g_assert_true(get_irq(0));
+
+    writel(base_addr + BCM2835_I2C_S, BCM2835_I2C_S_DONE);
+    g_assert_false(get_irq(0));
+    writel(base_addr + BCM2835_I2C_C, 0);
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -102,6 +125,7 @@ int main(int argc, char **argv)
         qtest_add_data_func(test_name, (void *)(intptr_t) i,
                             test_i2c_read_write);
     }
+    qtest_add_func("/bcm2835/bcm2835-i2c0/irq", test_i2c_irq);
 
     /* Run I2C tests with TMP105 slaves on all three buses */
     qtest_start("-M raspi3b "
