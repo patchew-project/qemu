@@ -86,177 +86,163 @@ static QCryptoHmacTestData test_data[] = {
 
 static const char hex[] = "0123456789abcdef";
 
-static void test_hmac_alloc(void)
+static void test_hmac_alloc(const void *opaque)
 {
-    size_t i;
+    QCryptoHashAlgo alg = GPOINTER_TO_INT(opaque);
+    QCryptoHmacTestData *data = &test_data[alg];
+    QCryptoHmac *hmac = NULL;
+    uint8_t *result = NULL;
+    size_t resultlen = 0;
+    const char *exp_output = NULL;
+    int ret;
+    size_t j;
 
-    for (i = 0; i < G_N_ELEMENTS(test_data); i++) {
-        QCryptoHmacTestData *data = &test_data[i];
-        QCryptoHmac *hmac = NULL;
-        uint8_t *result = NULL;
-        size_t resultlen = 0;
-        const char *exp_output = NULL;
-        int ret;
-        size_t j;
+    exp_output = data->hex_digest;
 
-        if (!qcrypto_hmac_supports(data->alg)) {
-            return;
-        }
+    hmac = qcrypto_hmac_new(data->alg, (const uint8_t *)KEY,
+                            strlen(KEY), &error_fatal);
+    g_assert(hmac != NULL);
 
-        exp_output = data->hex_digest;
+    ret = qcrypto_hmac_bytes(hmac, (const char *)INPUT_TEXT,
+                             strlen(INPUT_TEXT), &result,
+                             &resultlen, &error_fatal);
+    g_assert(ret == 0);
 
-        hmac = qcrypto_hmac_new(data->alg, (const uint8_t *)KEY,
-                                strlen(KEY), &error_fatal);
-        g_assert(hmac != NULL);
-
-        ret = qcrypto_hmac_bytes(hmac, (const char *)INPUT_TEXT,
-                                 strlen(INPUT_TEXT), &result,
-                                 &resultlen, &error_fatal);
-        g_assert(ret == 0);
-
-        for (j = 0; j < resultlen; j++) {
-            g_assert(exp_output[j * 2] == hex[(result[j] >> 4) & 0xf]);
-            g_assert(exp_output[j * 2 + 1] == hex[result[j] & 0xf]);
-        }
-
-        qcrypto_hmac_free(hmac);
-
-        g_free(result);
+    for (j = 0; j < resultlen; j++) {
+        g_assert(exp_output[j * 2] == hex[(result[j] >> 4) & 0xf]);
+        g_assert(exp_output[j * 2 + 1] == hex[result[j] & 0xf]);
     }
+
+    qcrypto_hmac_free(hmac);
+
+    g_free(result);
 }
 
-static void test_hmac_prealloc(void)
+static void test_hmac_prealloc(const void *opaque)
 {
-    size_t i;
+    QCryptoHashAlgo alg = GPOINTER_TO_INT(opaque);
+    QCryptoHmacTestData *data = &test_data[alg];
+    QCryptoHmac *hmac = NULL;
+    uint8_t *result = NULL, *origresult = NULL;
+    size_t resultlen = 0;
+    const char *exp_output = NULL;
+    int ret;
+    size_t j;
 
-    for (i = 0; i < G_N_ELEMENTS(test_data); i++) {
-        QCryptoHmacTestData *data = &test_data[i];
-        QCryptoHmac *hmac = NULL;
-        uint8_t *result = NULL, *origresult = NULL;
-        size_t resultlen = 0;
-        const char *exp_output = NULL;
-        int ret;
-        size_t j;
+    exp_output = data->hex_digest;
 
-        if (!qcrypto_hmac_supports(data->alg)) {
-            return;
-        }
+    resultlen = strlen(exp_output) / 2;
+    origresult = result = g_new0(uint8_t, resultlen);
 
-        exp_output = data->hex_digest;
+    hmac = qcrypto_hmac_new(data->alg, (const uint8_t *)KEY,
+                            strlen(KEY), &error_fatal);
+    g_assert(hmac != NULL);
 
-        resultlen = strlen(exp_output) / 2;
-        origresult = result = g_new0(uint8_t, resultlen);
+    ret = qcrypto_hmac_bytes(hmac, (const char *)INPUT_TEXT,
+                             strlen(INPUT_TEXT), &result,
+                             &resultlen, &error_fatal);
+    g_assert(ret == 0);
+    /* Validate that our pre-allocated pointer was not replaced */
+    g_assert(result == origresult);
 
-        hmac = qcrypto_hmac_new(data->alg, (const uint8_t *)KEY,
-                                strlen(KEY), &error_fatal);
-        g_assert(hmac != NULL);
-
-        ret = qcrypto_hmac_bytes(hmac, (const char *)INPUT_TEXT,
-                                 strlen(INPUT_TEXT), &result,
-                                 &resultlen, &error_fatal);
-        g_assert(ret == 0);
-        /* Validate that our pre-allocated pointer was not replaced */
-        g_assert(result == origresult);
-
-        exp_output = data->hex_digest;
-        for (j = 0; j < resultlen; j++) {
-            g_assert(exp_output[j * 2] == hex[(result[j] >> 4) & 0xf]);
-            g_assert(exp_output[j * 2 + 1] == hex[result[j] & 0xf]);
-        }
-
-        qcrypto_hmac_free(hmac);
-
-        g_free(result);
+    exp_output = data->hex_digest;
+    for (j = 0; j < resultlen; j++) {
+        g_assert(exp_output[j * 2] == hex[(result[j] >> 4) & 0xf]);
+        g_assert(exp_output[j * 2 + 1] == hex[result[j] & 0xf]);
     }
+
+    qcrypto_hmac_free(hmac);
+
+    g_free(result);
 }
 
-static void test_hmac_iov(void)
+static void test_hmac_iov(const void *opaque)
 {
-    size_t i;
+    QCryptoHashAlgo alg = GPOINTER_TO_INT(opaque);
+    QCryptoHmacTestData *data = &test_data[alg];
+    QCryptoHmac *hmac = NULL;
+    uint8_t *result = NULL;
+    size_t resultlen = 0;
+    const char *exp_output = NULL;
+    int ret;
+    size_t j;
+    struct iovec iov[3] = {
+        { .iov_base = (char *)INPUT_TEXT1, .iov_len = strlen(INPUT_TEXT1) },
+        { .iov_base = (char *)INPUT_TEXT2, .iov_len = strlen(INPUT_TEXT2) },
+        { .iov_base = (char *)INPUT_TEXT3, .iov_len = strlen(INPUT_TEXT3) },
+    };
 
-    for (i = 0; i < G_N_ELEMENTS(test_data); i++) {
-        QCryptoHmacTestData *data = &test_data[i];
-        QCryptoHmac *hmac = NULL;
-        uint8_t *result = NULL;
-        size_t resultlen = 0;
-        const char *exp_output = NULL;
-        int ret;
-        size_t j;
-        struct iovec iov[3] = {
-            { .iov_base = (char *)INPUT_TEXT1, .iov_len = strlen(INPUT_TEXT1) },
-            { .iov_base = (char *)INPUT_TEXT2, .iov_len = strlen(INPUT_TEXT2) },
-            { .iov_base = (char *)INPUT_TEXT3, .iov_len = strlen(INPUT_TEXT3) },
-        };
+    exp_output = data->hex_digest;
 
-        if (!qcrypto_hmac_supports(data->alg)) {
-            return;
-        }
+    hmac = qcrypto_hmac_new(data->alg, (const uint8_t *)KEY,
+                            strlen(KEY), &error_fatal);
+    g_assert(hmac != NULL);
 
-        exp_output = data->hex_digest;
+    ret = qcrypto_hmac_bytesv(hmac, iov, 3, &result,
+                              &resultlen, &error_fatal);
+    g_assert(ret == 0);
 
-        hmac = qcrypto_hmac_new(data->alg, (const uint8_t *)KEY,
-                                strlen(KEY), &error_fatal);
-        g_assert(hmac != NULL);
-
-        ret = qcrypto_hmac_bytesv(hmac, iov, 3, &result,
-                                  &resultlen, &error_fatal);
-        g_assert(ret == 0);
-
-        for (j = 0; j < resultlen; j++) {
-            g_assert(exp_output[j * 2] == hex[(result[j] >> 4) & 0xf]);
-            g_assert(exp_output[j * 2 + 1] == hex[result[j] & 0xf]);
-        }
-
-        qcrypto_hmac_free(hmac);
-
-        g_free(result);
+    for (j = 0; j < resultlen; j++) {
+        g_assert(exp_output[j * 2] == hex[(result[j] >> 4) & 0xf]);
+        g_assert(exp_output[j * 2 + 1] == hex[result[j] & 0xf]);
     }
+
+    qcrypto_hmac_free(hmac);
+
+    g_free(result);
 }
 
-static void test_hmac_digest(void)
+static void test_hmac_digest(const void *opaque)
 {
-    size_t i;
+    QCryptoHashAlgo alg = GPOINTER_TO_INT(opaque);
+    QCryptoHmacTestData *data = &test_data[alg];
+    QCryptoHmac *hmac = NULL;
+    uint8_t *result = NULL;
+    const char *exp_output = NULL;
+    int ret;
 
-    for (i = 0; i < G_N_ELEMENTS(test_data); i++) {
-        QCryptoHmacTestData *data = &test_data[i];
-        QCryptoHmac *hmac = NULL;
-        uint8_t *result = NULL;
-        const char *exp_output = NULL;
-        int ret;
+    exp_output = data->hex_digest;
 
-        if (!qcrypto_hmac_supports(data->alg)) {
-            return;
-        }
+    hmac = qcrypto_hmac_new(data->alg, (const uint8_t *)KEY,
+                            strlen(KEY), &error_fatal);
+    g_assert(hmac != NULL);
 
-        exp_output = data->hex_digest;
+    ret = qcrypto_hmac_digest(hmac, (const char *)INPUT_TEXT,
+                              strlen(INPUT_TEXT), (char **)&result,
+                              &error_fatal);
+    g_assert(ret == 0);
 
-        hmac = qcrypto_hmac_new(data->alg, (const uint8_t *)KEY,
-                                strlen(KEY), &error_fatal);
-        g_assert(hmac != NULL);
+    g_assert_cmpstr((const char *)result, ==, exp_output);
 
-        ret = qcrypto_hmac_digest(hmac, (const char *)INPUT_TEXT,
-                                  strlen(INPUT_TEXT), (char **)&result,
-                                  &error_fatal);
-        g_assert(ret == 0);
+    qcrypto_hmac_free(hmac);
 
-        g_assert_cmpstr((const char *)result, ==, exp_output);
-
-        qcrypto_hmac_free(hmac);
-
-        g_free(result);
-    }
+    g_free(result);
 }
 
 int main(int argc, char **argv)
 {
+    size_t i;
     g_test_init(&argc, &argv, NULL);
 
     g_assert(qcrypto_init(NULL) == 0);
 
-    g_test_add_func("/crypto/hmac/iov", test_hmac_iov);
-    g_test_add_func("/crypto/hmac/alloc", test_hmac_alloc);
-    g_test_add_func("/crypto/hmac/prealloc", test_hmac_prealloc);
-    g_test_add_func("/crypto/hmac/digest", test_hmac_digest);
+#define ADD_TEST(alg, prefix, meth) \
+    { \
+        g_autofree char *name = g_strdup_printf( \
+            "%s/%s", prefix, QCryptoHashAlgo_str(alg)); \
+        g_test_add_data_func(name, GINT_TO_POINTER(alg), meth); \
+    }
+
+    for (i = 0; i < QCRYPTO_HASH_ALGO__MAX ; i++) {
+        if (!qcrypto_hmac_supports(i)) {
+            continue;
+        }
+
+        ADD_TEST(i, "/crypto/hmac/iov", test_hmac_iov);
+        ADD_TEST(i, "/crypto/hmac/alloc", test_hmac_alloc);
+        ADD_TEST(i, "/crypto/hmac/prealloc", test_hmac_prealloc);
+        ADD_TEST(i, "/crypto/hmac/digest", test_hmac_digest);
+    }
 
     return g_test_run();
 }

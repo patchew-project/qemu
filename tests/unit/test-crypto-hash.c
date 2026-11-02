@@ -92,218 +92,191 @@ static const int expected_lens[] = {
 static const char hex[] = "0123456789abcdef";
 
 /* Test with dynamic allocation */
-static void test_hash_alloc(void)
+static void test_hash_alloc(const void *opaque)
 {
-    size_t i;
+    QCryptoHashAlgo alg = GPOINTER_TO_INT(opaque);
+    uint8_t *result = NULL;
+    size_t resultlen = 0;
+    int ret;
+    size_t j;
 
-    for (i = 0; i < G_N_ELEMENTS(expected_outputs) ; i++) {
-        uint8_t *result = NULL;
-        size_t resultlen = 0;
-        int ret;
-        size_t j;
+    ret = qcrypto_hash_bytes(alg,
+                             INPUT_TEXT,
+                             strlen(INPUT_TEXT),
+                             &result,
+                             &resultlen,
+                             &error_fatal);
+    g_assert(ret == 0);
+    g_assert(resultlen == expected_lens[alg]);
 
-        if (!qcrypto_hash_supports(i)) {
-            continue;
-        }
-
-        ret = qcrypto_hash_bytes(i,
-                                 INPUT_TEXT,
-                                 strlen(INPUT_TEXT),
-                                 &result,
-                                 &resultlen,
-                                 &error_fatal);
-        g_assert(ret == 0);
-        g_assert(resultlen == expected_lens[i]);
-
-        for (j = 0; j < resultlen; j++) {
-            g_assert(expected_outputs[i][j * 2] == hex[(result[j] >> 4) & 0xf]);
-            g_assert(expected_outputs[i][j * 2 + 1] == hex[result[j] & 0xf]);
-        }
-        g_free(result);
+    for (j = 0; j < resultlen; j++) {
+        g_assert(expected_outputs[alg][j * 2] == hex[(result[j] >> 4) & 0xf]);
+        g_assert(expected_outputs[alg][j * 2 + 1] == hex[result[j] & 0xf]);
     }
+    g_free(result);
 }
 
 /* Test with caller preallocating */
-static void test_hash_prealloc(void)
+static void test_hash_prealloc(const void *opaque)
 {
-    size_t i;
+    QCryptoHashAlgo alg = GPOINTER_TO_INT(opaque);
+    uint8_t *result, *origresult;
+    size_t resultlen;
+    int ret;
+    size_t j;
 
-    for (i = 0; i < G_N_ELEMENTS(expected_outputs) ; i++) {
-        uint8_t *result, *origresult;
-        size_t resultlen;
-        int ret;
-        size_t j;
+    resultlen = expected_lens[alg];
+    origresult = result = g_new0(uint8_t, resultlen);
 
-        if (!qcrypto_hash_supports(i)) {
-            continue;
-        }
-
-        resultlen = expected_lens[i];
-        origresult = result = g_new0(uint8_t, resultlen);
-
-        ret = qcrypto_hash_bytes(i,
-                                 INPUT_TEXT,
-                                 strlen(INPUT_TEXT),
-                                 &result,
-                                 &resultlen,
-                                 &error_fatal);
-        g_assert(ret == 0);
-        /* Validate that our pre-allocated pointer was not replaced */
-        g_assert(result == origresult);
-        g_assert(resultlen == expected_lens[i]);
-        for (j = 0; j < resultlen; j++) {
-            g_assert(expected_outputs[i][j * 2] == hex[(result[j] >> 4) & 0xf]);
-            g_assert(expected_outputs[i][j * 2 + 1] == hex[result[j] & 0xf]);
-        }
-        g_free(result);
+    ret = qcrypto_hash_bytes(alg,
+                             INPUT_TEXT,
+                             strlen(INPUT_TEXT),
+                             &result,
+                             &resultlen,
+                             &error_fatal);
+    g_assert(ret == 0);
+    /* Validate that our pre-allocated pointer was not replaced */
+    g_assert(result == origresult);
+    g_assert(resultlen == expected_lens[alg]);
+    for (j = 0; j < resultlen; j++) {
+        g_assert(expected_outputs[alg][j * 2] == hex[(result[j] >> 4) & 0xf]);
+        g_assert(expected_outputs[alg][j * 2 + 1] == hex[result[j] & 0xf]);
     }
+    g_free(result);
 }
 
 
 /* Test with dynamic allocation */
-static void test_hash_iov(void)
+static void test_hash_iov(const void *opaque)
 {
-    size_t i;
+    QCryptoHashAlgo alg = GPOINTER_TO_INT(opaque);
+    struct iovec iov[3] = {
+        { .iov_base = (char *)INPUT_TEXT1, .iov_len = strlen(INPUT_TEXT1) },
+        { .iov_base = (char *)INPUT_TEXT2, .iov_len = strlen(INPUT_TEXT2) },
+        { .iov_base = (char *)INPUT_TEXT3, .iov_len = strlen(INPUT_TEXT3) },
+    };
+    uint8_t *result = NULL;
+    size_t resultlen = 0;
+    int ret;
+    size_t j;
 
-    for (i = 0; i < G_N_ELEMENTS(expected_outputs) ; i++) {
-        struct iovec iov[3] = {
-            { .iov_base = (char *)INPUT_TEXT1, .iov_len = strlen(INPUT_TEXT1) },
-            { .iov_base = (char *)INPUT_TEXT2, .iov_len = strlen(INPUT_TEXT2) },
-            { .iov_base = (char *)INPUT_TEXT3, .iov_len = strlen(INPUT_TEXT3) },
-        };
-        uint8_t *result = NULL;
-        size_t resultlen = 0;
-        int ret;
-        size_t j;
-
-        if (!qcrypto_hash_supports(i)) {
-            continue;
-        }
-
-        ret = qcrypto_hash_bytesv(i,
-                                  iov, 3,
-                                  &result,
-                                  &resultlen,
-                                  &error_fatal);
-        g_assert(ret == 0);
-        g_assert(resultlen == expected_lens[i]);
-        for (j = 0; j < resultlen; j++) {
-            g_assert(expected_outputs[i][j * 2] == hex[(result[j] >> 4) & 0xf]);
-            g_assert(expected_outputs[i][j * 2 + 1] == hex[result[j] & 0xf]);
-        }
-        g_free(result);
+    ret = qcrypto_hash_bytesv(alg,
+                              iov, 3,
+                              &result,
+                              &resultlen,
+                              &error_fatal);
+    g_assert(ret == 0);
+    g_assert(resultlen == expected_lens[alg]);
+    for (j = 0; j < resultlen; j++) {
+        g_assert(expected_outputs[alg][j * 2] == hex[(result[j] >> 4) & 0xf]);
+        g_assert(expected_outputs[alg][j * 2 + 1] == hex[result[j] & 0xf]);
     }
+    g_free(result);
 }
 
 
 /* Test with printable hashing */
-static void test_hash_digest(void)
+static void test_hash_digest(const void *opaque)
 {
-    size_t i;
+    QCryptoHashAlgo alg = GPOINTER_TO_INT(opaque);
+    int ret;
+    char *digest;
+    size_t digestsize;
 
-    for (i = 0; i < G_N_ELEMENTS(expected_outputs) ; i++) {
-        int ret;
-        char *digest;
-        size_t digestsize;
+    digestsize = qcrypto_hash_digest_len(alg);
 
-        if (!qcrypto_hash_supports(i)) {
-            continue;
-        }
+    g_assert_cmpint(digestsize * 2, ==, strlen(expected_outputs[alg]));
 
-        digestsize = qcrypto_hash_digest_len(i);
-
-        g_assert_cmpint(digestsize * 2, ==, strlen(expected_outputs[i]));
-
-        ret = qcrypto_hash_digest(i,
-                                  INPUT_TEXT,
-                                  strlen(INPUT_TEXT),
-                                  &digest,
-                                  &error_fatal);
-        g_assert(ret == 0);
-        g_assert_cmpstr(digest, ==, expected_outputs[i]);
-        g_free(digest);
-    }
+    ret = qcrypto_hash_digest(alg,
+                              INPUT_TEXT,
+                              strlen(INPUT_TEXT),
+                              &digest,
+                              &error_fatal);
+    g_assert(ret == 0);
+    g_assert_cmpstr(digest, ==, expected_outputs[alg]);
+    g_free(digest);
 }
 
 /* Test with base64 encoding */
-static void test_hash_base64(void)
+static void test_hash_base64(const void *opaque)
 {
-    size_t i;
+    QCryptoHashAlgo alg = GPOINTER_TO_INT(opaque);
+    int ret;
+    char *digest;
 
-    for (i = 0; i < G_N_ELEMENTS(expected_outputs) ; i++) {
-        int ret;
-        char *digest;
-
-        if (!qcrypto_hash_supports(i)) {
-            continue;
-        }
-
-        ret = qcrypto_hash_base64(i,
-                                  INPUT_TEXT,
-                                  strlen(INPUT_TEXT),
-                                  &digest,
-                                  &error_fatal);
-        g_assert(ret == 0);
-        g_assert_cmpstr(digest, ==, expected_outputs_b64[i]);
-        g_free(digest);
-    }
+    ret = qcrypto_hash_base64(alg,
+                              INPUT_TEXT,
+                              strlen(INPUT_TEXT),
+                              &digest,
+                              &error_fatal);
+    g_assert(ret == 0);
+    g_assert_cmpstr(digest, ==, expected_outputs_b64[alg]);
+    g_free(digest);
 }
 
-static void test_hash_accumulate(void)
+static void test_hash_accumulate(const void *opaque)
 {
-    size_t i;
+    QCryptoHashAlgo alg = GPOINTER_TO_INT(opaque);
+    g_autoptr(QCryptoHash) hash = NULL;
+    struct iovec iov[] = {
+        { .iov_base = (char *)INPUT_TEXT1, .iov_len = strlen(INPUT_TEXT1) },
+        { .iov_base = (char *)INPUT_TEXT2, .iov_len = strlen(INPUT_TEXT2) },
+        { .iov_base = (char *)INPUT_TEXT3, .iov_len = strlen(INPUT_TEXT3) },
+    };
+    g_autofree uint8_t *result = NULL;
+    size_t resultlen = 0;
+    int ret;
+    size_t j;
 
-    for (i = 0; i < G_N_ELEMENTS(expected_outputs) ; i++) {
-        g_autoptr(QCryptoHash) hash = NULL;
-        struct iovec iov[] = {
-            { .iov_base = (char *)INPUT_TEXT1, .iov_len = strlen(INPUT_TEXT1) },
-            { .iov_base = (char *)INPUT_TEXT2, .iov_len = strlen(INPUT_TEXT2) },
-            { .iov_base = (char *)INPUT_TEXT3, .iov_len = strlen(INPUT_TEXT3) },
-        };
-        g_autofree uint8_t *result = NULL;
-        size_t resultlen = 0;
-        int ret;
-        size_t j;
+    hash = qcrypto_hash_new(alg, &error_fatal);
+    g_assert(hash != NULL);
 
-        if (!qcrypto_hash_supports(i)) {
-            continue;
-        }
-
-        hash = qcrypto_hash_new(i, &error_fatal);
-        g_assert(hash != NULL);
-
-        /* Add each iovec to the hash context separately */
-        for (j = 0; j < G_N_ELEMENTS(iov); j++) {
-            ret = qcrypto_hash_updatev(hash,
-                                      &iov[j], 1,
-                                      &error_fatal);
-
-            g_assert(ret == 0);
-        }
-
-        ret = qcrypto_hash_finalize_bytes(hash, &result, &resultlen,
-                                          &error_fatal);
+    /* Add each iovec to the hash context separately */
+    for (j = 0; j < G_N_ELEMENTS(iov); j++) {
+        ret = qcrypto_hash_updatev(hash,
+                                   &iov[j], 1,
+                                   &error_fatal);
 
         g_assert(ret == 0);
-        g_assert(resultlen == expected_lens[i]);
-        for (j = 0; j < resultlen; j++) {
-            g_assert(expected_outputs[i][j * 2] == hex[(result[j] >> 4) & 0xf]);
-            g_assert(expected_outputs[i][j * 2 + 1] == hex[result[j] & 0xf]);
-        }
+    }
+
+    ret = qcrypto_hash_finalize_bytes(hash, &result, &resultlen,
+                                      &error_fatal);
+
+    g_assert(ret == 0);
+    g_assert(resultlen == expected_lens[alg]);
+    for (j = 0; j < resultlen; j++) {
+        g_assert(expected_outputs[alg][j * 2] == hex[(result[j] >> 4) & 0xf]);
+        g_assert(expected_outputs[alg][j * 2 + 1] == hex[result[j] & 0xf]);
     }
 }
 
 int main(int argc, char **argv)
 {
+    size_t i;
     int ret = qcrypto_init(&error_fatal);
     g_assert(ret == 0);
 
     g_test_init(&argc, &argv, NULL);
-    g_test_add_func("/crypto/hash/iov", test_hash_iov);
-    g_test_add_func("/crypto/hash/alloc", test_hash_alloc);
-    g_test_add_func("/crypto/hash/prealloc", test_hash_prealloc);
-    g_test_add_func("/crypto/hash/digest", test_hash_digest);
-    g_test_add_func("/crypto/hash/base64", test_hash_base64);
-    g_test_add_func("/crypto/hash/accumulate", test_hash_accumulate);
+
+#define ADD_TEST(alg, prefix, meth) \
+    { \
+        g_autofree char *name = g_strdup_printf( \
+            "%s/%s", prefix, QCryptoHashAlgo_str(alg)); \
+        g_test_add_data_func(name, GINT_TO_POINTER(alg), meth); \
+    }
+
+    for (i = 0; i < QCRYPTO_HASH_ALGO__MAX ; i++) {
+        if (!qcrypto_hash_supports(i)) {
+            continue;
+        }
+
+        ADD_TEST(i, "/crypto/hash/iov", test_hash_iov);
+        ADD_TEST(i, "/crypto/hash/alloc", test_hash_alloc);
+        ADD_TEST(i, "/crypto/hash/prealloc", test_hash_prealloc);
+        ADD_TEST(i, "/crypto/hash/digest", test_hash_digest);
+        ADD_TEST(i, "/crypto/hash/base64", test_hash_base64);
+        ADD_TEST(i, "/crypto/hash/accumulate", test_hash_accumulate);
+    }
     return g_test_run();
 }
