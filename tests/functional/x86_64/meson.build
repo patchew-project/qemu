@@ -54,4 +54,5 @@ tests_x86_64_system_thorough = [
   'virtio_gpu',
   'rebuild_vmfd',
   'vhost_vsock_cpr',
+  'tap_migration',
 ]
