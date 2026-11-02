@@ -715,6 +715,16 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *excp)
             cpu_handle_debug_exception(cpu);
         }
         cpu->exception_index = -1;
+
+        if (*excp == EXCP_HLT && unlikely(cpu_single_stepping(cpu))) {
+            /*
+             * After processing the halt, ensure an EXCP_DEBUG is
+             * raised when single-stepping so that GDB doesn't miss the
+             * next instruction.
+             */
+            cpu->exception_index = EXCP_DEBUG;
+        }
+
         return true;
     }
 
