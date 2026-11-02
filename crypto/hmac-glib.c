@@ -18,13 +18,11 @@
 #include "hmacpriv.h"
 
 static int qcrypto_hmac_alg_map[QCRYPTO_HASH_ALGO__MAX] = {
+    [0 ... QCRYPTO_HASH_ALGO__MAX - 1] = -1,
     [QCRYPTO_HASH_ALGO_MD5] = G_CHECKSUM_MD5,
     [QCRYPTO_HASH_ALGO_SHA1] = G_CHECKSUM_SHA1,
     [QCRYPTO_HASH_ALGO_SHA256] = G_CHECKSUM_SHA256,
     [QCRYPTO_HASH_ALGO_SHA512] = G_CHECKSUM_SHA512,
-    [QCRYPTO_HASH_ALGO_SHA224] = -1,
-    [QCRYPTO_HASH_ALGO_SHA384] = -1,
-    [QCRYPTO_HASH_ALGO_RIPEMD160] = -1,
 };
 
 typedef struct QCryptoHmacGlib QCryptoHmacGlib;
