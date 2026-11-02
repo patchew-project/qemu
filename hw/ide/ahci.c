@@ -172,6 +172,11 @@ static uint32_t ahci_port_read(AHCIState *s, int port, int offset)
     return val;
 }
 
+static inline int ahci_bus_master_enabled(AHCIState *s)
+{
+    return !s->bus_master_enabled || s->bus_master_enabled(s);
+}
+
 static void ahci_check_irq(AHCIState *s)
 {
     int i;
@@ -1625,6 +1630,8 @@ static const IDEDMAOps ahci_dma_ops = {
 
 void ahci_init(AHCIState *s, DeviceState *qdev)
 {
+    s->bus_master_enabled = NULL;
+
     /* XXX BAR size should be 1k, but that breaks, so bump it to 4k for now */
     memory_region_init_io(&s->mem, OBJECT(qdev), &ahci_mem_ops, s,
                           "ahci", AHCI_MEM_BAR_SIZE);
@@ -1792,10 +1799,14 @@ static int ahci_state_post_load(void *opaque, int version_id)
             return -1;
         }
 
-        /* After a migrate, the DMA/FIS engines are "off" and
-         * need to be conditionally restarted */
+        /*
+         * After a migrate, the DMA/FIS engines are "off" and need to be
+         * conditionally restarted. If PCI bus mastering is disabled, leave
+         * the engines stopped because DMA is inactive.
+         */
         pr->cmd &= ~(PORT_CMD_LIST_ON | PORT_CMD_FIS_ON);
-        if (ahci_cond_start_engines(ad) != 0) {
+        if (ahci_bus_master_enabled(s) &&
+            ahci_cond_start_engines(ad) != 0) {
             return -1;
         }
 

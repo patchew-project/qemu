@@ -46,6 +46,7 @@ typedef struct AHCIState {
     uint32_t ports;
     qemu_irq irq;
     AddressSpace *as;
+    bool (*bus_master_enabled)(struct AHCIState *s);
 } AHCIState;
 
 
