@@ -246,6 +246,8 @@ static void bcm2835_spi_reset(DeviceState *dev)
     s->dlen = 0;
     s->ltoh = 0x1;
     s->dc = 0x30201020;
+
+    bcm2835_spi_update_int(s);
 }
 
 static const VMStateDescription vmstate_bcm2835_spi = {
