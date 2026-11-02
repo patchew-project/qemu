@@ -7,7 +7,7 @@ import os
 import platform
 import resource
 import subprocess
-from unittest import skipIf, skipUnless
+from unittest import skip, skipIf, skipUnless
 
 from .cmd import which
 
@@ -184,12 +184,15 @@ Decorator to skip execution of a test if passwordless
 sudo command is not available.
 '''
 def skipWithoutSudo():
-    proc = subprocess.run(["sudo", "-n", "/bin/true"],
-                          stdin=subprocess.PIPE,
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT,
-                          universal_newlines=True,
-                          check=False)
+    try:
+        proc = subprocess.run(["sudo", "-n", "/bin/true"],
+                              stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT,
+                              universal_newlines=True,
+                              check=False)
+    except OSError as e:
+        return skip(f'requires sudo: {e}')
 
     return skipUnless(proc.returncode == 0,
                       f'requires password-less sudo access: {proc.stdout}')
