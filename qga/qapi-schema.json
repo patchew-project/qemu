@@ -110,7 +110,7 @@
 #
 # Returns: The unique integer id passed in by the client
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'command': 'guest-sync',
   'data':    { 'id': 'int' },
@@ -120,7 +120,7 @@
 # @guest-ping:
 #     Ping the guest agent, a non-error return implies success
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'command': 'guest-ping' }
 
@@ -172,7 +172,7 @@
 # @success-response: whether command returns a response on success
 #     (since 1.7)
 #
-# Since: 1.1.0
+# Since: 1.1
 ##
 { 'struct': 'GuestAgentCommandInfo',
   'data': { 'name': 'str', 'enabled': 'bool', 'success-response': 'bool' } }
@@ -185,7 +185,7 @@
 #
 # @supported_commands: Information about guest agent commands
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'struct': 'GuestAgentInfo',
   'data': { 'version': 'str',
@@ -195,7 +195,7 @@
 # @guest-info:
 #     Get some information about the guest agent.
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'command': 'guest-info',
   'returns': 'GuestAgentInfo' }
@@ -213,7 +213,7 @@
 # when running with --no-shutdown, by issuing the `query-status` QMP
 # command to confirm the VM status is "shutdown".
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'command': 'guest-shutdown', 'data': { '*mode': 'str' },
   'success-response': false }
@@ -228,7 +228,7 @@
 #
 # Returns: Guest file handle
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'command': 'guest-file-open',
   'data':    { 'path': 'str', '*mode': 'str' },
@@ -240,7 +240,7 @@
 #
 # @handle: filehandle returned by `guest-file-open`
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'command': 'guest-file-close',
   'data': { 'handle': 'int' } }
@@ -256,7 +256,7 @@
 #
 # @eof: whether EOF was encountered during read operation.
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'struct': 'GuestFileRead',
   'data': { 'count': 'int', 'buf-b64': 'str', 'eof': 'bool' } }
@@ -273,7 +273,7 @@
 # @count: maximum number of bytes to read (default is 4KB, maximum is
 #     48MB)
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'command': 'guest-file-read',
   'data':    { 'handle': 'int', '*count': 'int' },
@@ -288,7 +288,7 @@
 #
 # @eof: whether EOF was encountered during write operation.
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'struct': 'GuestFileWrite',
   'data': { 'count': 'int', 'eof': 'bool' } }
@@ -304,7 +304,7 @@
 # @count: bytes to write (actual bytes, after base64-decode), default
 #     is all content in buf-b64 buffer after base64 decoding
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'command': 'guest-file-write',
   'data':    { 'handle': 'int', 'buf-b64': 'str', '*count': 'int' },
@@ -318,7 +318,7 @@
 #
 # @eof: whether EOF was encountered during file seek
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'struct': 'GuestFileSeek',
   'data': { 'position': 'int', 'eof': 'bool' } }
@@ -364,7 +364,7 @@
 #
 # @whence: Symbolic or numeric code for interpreting offset
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'command': 'guest-file-seek',
   'data':    { 'handle': 'int', 'offset': 'int',
@@ -377,7 +377,7 @@
 #
 # @handle: filehandle returned by `guest-file-open`
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'command': 'guest-file-flush',
   'data': { 'handle': 'int' } }
@@ -390,7 +390,7 @@
 #
 # @frozen: all non-network guest filesystems frozen
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'enum': 'GuestFsfreezeStatus',
   'data': [ 'thawed', 'frozen' ],
@@ -404,7 +404,7 @@
 #    result of some other guest processes having issued an fs
 #    freeze/thaw.
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'command': 'guest-fsfreeze-status',
   'returns': 'GuestFsfreezeStatus',
@@ -427,7 +427,7 @@
 #    Volume Shadow-copy Service DLL helper.  The frozen state is
 #    limited for up to 10 seconds by VSS.
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'command': 'guest-fsfreeze-freeze',
   'returns': 'int',
@@ -464,7 +464,7 @@
 #    filesystems were unfrozen before this call, and that the
 #    filesystem state may have changed before issuing this command.
 #
-# Since: 0.15.0
+# Since: 0.15
 ##
 { 'command': 'guest-fsfreeze-thaw',
   'returns': 'int',
