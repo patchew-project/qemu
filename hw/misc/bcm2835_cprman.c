@@ -184,10 +184,10 @@ static void pll_channel_update(CprmanPllChannelState *channel)
 
     if (!div) {
         /*
-         * It seems that when the divider value is 0, it is considered as
-         * being maximum by the hardware (see the Linux driver).
+         * A divider of 0 divides by 256, one more than the largest value
+         * the field holds (Linux clk-bcm2835 uses CLK_DIVIDER_MAX_AT_ZERO).
          */
-        div = R_A2W_PLLx_CHANNELy_DIV_MASK;
+        div = 1 << R_A2W_PLLx_CHANNELy_DIV_LENGTH;
     }
 
     /* Some channels have an additional fixed divider */
