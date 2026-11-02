@@ -43,9 +43,7 @@
                       "63b54e4cb2d2032b393994aa263c0dbb" \
                       "e00a9f2fe9ef6037352232a1eec55ee7"
 #define OUTPUT_RIPEMD160 "f3d658fad3fdfb2b52c9369cf0d441249ddfa8a0"
-#ifdef CONFIG_CRYPTO_SM3
 #define OUTPUT_SM3 "d4a97db105b477b84c4f20ec9c31a6c814e2705a0b83a5a89748d75f0ef456a1"
-#endif
 
 #define OUTPUT_MD5_B64 "Yo0gY3FWMDWrjvYvSSveyQ=="
 #define OUTPUT_SHA1_B64 "sudPJnWKOkIeUJzuBFJEt4dTzAI="
@@ -58,9 +56,7 @@
                           "7sVe5w=="
 #define OUTPUT_RIPEMD160_B64 "89ZY+tP9+ytSyTac8NRBJJ3fqKA="
 
-#ifdef CONFIG_CRYPTO_SM3
 #define OUTPUT_SM3_B64 "1Kl9sQW0d7hMTyDsnDGmyBTicFoLg6Wol0jXXw70VqE="
-#endif
 
 static const char *expected_outputs[] = {
     [QCRYPTO_HASH_ALGO_MD5] = OUTPUT_MD5,
@@ -70,9 +66,7 @@ static const char *expected_outputs[] = {
     [QCRYPTO_HASH_ALGO_SHA384] = OUTPUT_SHA384,
     [QCRYPTO_HASH_ALGO_SHA512] = OUTPUT_SHA512,
     [QCRYPTO_HASH_ALGO_RIPEMD160] = OUTPUT_RIPEMD160,
-#ifdef CONFIG_CRYPTO_SM3
     [QCRYPTO_HASH_ALGO_SM3] = OUTPUT_SM3,
-#endif
 };
 static const char *expected_outputs_b64[] = {
     [QCRYPTO_HASH_ALGO_MD5] = OUTPUT_MD5_B64,
@@ -82,9 +76,7 @@ static const char *expected_outputs_b64[] = {
     [QCRYPTO_HASH_ALGO_SHA384] = OUTPUT_SHA384_B64,
     [QCRYPTO_HASH_ALGO_SHA512] = OUTPUT_SHA512_B64,
     [QCRYPTO_HASH_ALGO_RIPEMD160] = OUTPUT_RIPEMD160_B64,
-#ifdef CONFIG_CRYPTO_SM3
     [QCRYPTO_HASH_ALGO_SM3] = OUTPUT_SM3_B64,
-#endif
 };
 static const int expected_lens[] = {
     [QCRYPTO_HASH_ALGO_MD5] = 16,
@@ -94,9 +86,7 @@ static const int expected_lens[] = {
     [QCRYPTO_HASH_ALGO_SHA384] = 48,
     [QCRYPTO_HASH_ALGO_SHA512] = 64,
     [QCRYPTO_HASH_ALGO_RIPEMD160] = 20,
-#ifdef CONFIG_CRYPTO_SM3
     [QCRYPTO_HASH_ALGO_SM3] = 32,
-#endif
 };
 
 static const char hex[] = "0123456789abcdef";
