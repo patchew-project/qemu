@@ -1544,6 +1544,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
                 if (fault_pte_addr) {
                     *fault_pte_addr = pte_gpa >> 2;
                 }
+                env->two_stage_indirect_write = true;
                 return TRANSLATE_G_STAGE_FAIL;
             }
         }
@@ -1785,6 +1786,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     hwaddr tlb_size = TARGET_PAGE_SIZE;
 
     env->guest_phys_fault_addr = 0;
+    env->two_stage_indirect_write = false;
 
     qemu_log_mask(CPU_LOG_MMU, "%s ad %" VADDR_PRIx " rw %d mmu_idx %d\n",
                   __func__, address, access_type, mmu_idx);
@@ -2233,7 +2235,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                  */
                 tinst = (riscv_cpu_xlen(env) == 32) ? 0x00002000 : 0x00003000;
 
-                if (cause == RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT) {
+                if (env->two_stage_indirect_write) {
                     tinst |= 0x20;
                 }
             } else {
@@ -2256,6 +2258,9 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                  * doing VS-stage page table walk.
                  */
                 tinst = (riscv_cpu_xlen(env) == 32) ? 0x00002000 : 0x00003000;
+                if (env->two_stage_indirect_write) {
+                    tinst |= 0x20;
+                }
             }
             break;
         case RISCV_EXCP_ILLEGAL_INST:
@@ -2506,6 +2511,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
 
     env->two_stage_lookup = false;
     env->two_stage_indirect_lookup = false;
+    env->two_stage_indirect_write = false;
 }
 
 #endif /* !CONFIG_USER_ONLY */
