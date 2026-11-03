@@ -130,6 +130,27 @@ foreach name, flags : gstage_tinst
   }
 endforeach
 
+# test-mstatus-gva.S: one build per case; the flags are documented there
+mstatus_gva = {
+  'load':      ['-DMODE=VS', '-DACCESS=ld t0, 0(a0)', '-DREG=3',
+                '-DFLAGS=PTE_R', '-DCAUSE=LOAD_GPF'],
+  'load-vu':   ['-DMODE=VU', '-DACCESS=ld t0, 0(a0)', '-DREG=4',
+                '-DFLAGS=(PTE_R|PTE_U)', '-DCAUSE=LOAD_GPF'],
+  'hlv':       ['-DMODE=HS', '-DACCESS=hlv.d t0, (a0)', '-DREG=5',
+                '-DFLAGS=PTE_R', '-DCAUSE=LOAD_GPF'],
+  'hsv':       ['-DMODE=HS', '-DACCESS=hsv.d zero, (a0)', '-DREG=6',
+                '-DFLAGS=(PTE_R|PTE_W|PTE_A)', '-DCAUSE=STORE_GPF'],
+}
+foreach name, flags : mstatus_gva
+  tests += {
+    'test-mstatus-gva.S': {
+      'exe_name': 'test-mstatus-gva-' + name,
+      'cflags': cflags + ['-march=rv64gch', hyp_guest] + flags,
+      'qemu_args': ['-cpu', 'rv64,h=true,svadu=true', qemu_args],
+    }
+  }
+endforeach
+
 tests += {
   'test-vle32ff.S': {
     'cflags': cflags + ['-march=rv64gcv'],
