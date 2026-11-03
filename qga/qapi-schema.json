@@ -1819,8 +1819,7 @@
 
 ##
 # @GuestNetworkRoute:
-#     Route information.  Supported on Linux (since 9.1), Windows
-#     (since 11.0), and FreeBSD (since 11.2).
+#     Route information.
 #
 # @iface: The destination network or host's egress network interface
 #     in the routing table
@@ -1834,31 +1833,31 @@
 #
 # @mask: Subnet Mask (IPv4 only)
 #
-# @irtt: Initial round-trip delay (not for Windows and FreeBSD,
+# @irtt: Initial round-trip delay (not for Windows and BSD,
 #     IPv4 only)
 #
 # @flags: Route flags (not for Windows)
 #
-# @refcnt: The route's reference count (not for Windows and FreeBSD)
+# @refcnt: The route's reference count (not for Windows and BSD)
 #
-# @use: Route usage count (not for Windows and FreeBSD)
+# @use: Route usage count (not for Windows and BSD)
 #
 # @window: TCP window size, used for flow control (not for Windows
-#     and FreeBSD, IPv4 only)
+#     and BSD, IPv4 only)
 #
 # @mtu: Data link layer maximum packet size (not for Windows)
 #
 # @desprefixlen: Destination prefix length (for IPv6)
 #
-# @source: Source IP address (not for FreeBSD, IPv6 only)
+# @source: Source IP address (not for BSD, IPv6 only)
 #
-# @srcprefixlen: Source prefix length (not for FreeBSD, IPv6 only)
+# @srcprefixlen: Source prefix length (not for BSD, IPv6 only)
 #
 # @nexthop: Next hop IP address (for IPv6)
 #
 # @version: IP version (4 or 6)
 #
-# Since: 9.1 (Linux only); 11.0 (Windows); 11.2 (FreeBSD)
+# Since: 9.1 (Linux only); 11.0 (Windows); 11.2 (BSD)
 ##
 { 'struct': 'GuestNetworkRoute',
   'data': {'iface': 'str',
@@ -1878,7 +1877,7 @@
            '*nexthop': 'str',
            'version': 'int'
            },
-  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32', 'CONFIG_FREEBSD'] } }
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32', 'CONFIG_BSD'] } }
 
 ##
 # @guest-network-get-route:
@@ -1886,9 +1885,9 @@
 #
 # Returns: List of route info of guest.
 #
-# Since: 9.1 (Linux only); 11.0 (Windows); 11.2 (FreeBSD)
+# Since: 9.1 (Linux only); 11.0 (Windows); 11.2 (BSD)
 ##
 { 'command': 'guest-network-get-route',
   'returns': ['GuestNetworkRoute'],
-  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32', 'CONFIG_FREEBSD'] }
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32', 'CONFIG_BSD'] }
 }
