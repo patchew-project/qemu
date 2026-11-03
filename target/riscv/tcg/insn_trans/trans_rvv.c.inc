@@ -234,8 +234,7 @@ static bool do_vsetivli(DisasContext *s, int rd, TCGv s1, TCGv s2)
     gen_helper_vsetvl(dst, tcg_env, s1, s2, tcg_constant_tl(0));
     gen_set_gpr(s, rd, dst);
     finalize_rvv_inst(s);
-    gen_update_pc(s, s->cur_insn_len);
-    lookup_and_goto_ptr(s);
+    gen_goto_tb(s, 0, s->cur_insn_len);
     s->base.is_jmp = DISAS_NORETURN;
 
     return true;
