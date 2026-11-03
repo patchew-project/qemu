@@ -53,6 +53,83 @@ tests += {
   }
 }
 
+hyp_guest = files('../hyp-guest.S')[0]
+
+# test-gstage-tinst.S: one build per case; the flags are documented there
+gstage_tinst = {
+  # the guest's tables are read-only, so the walk's A/D write is refused
+  'load':      ['-DMODE=VS', '-DACCESS=ld t0, 0(a0)', '-DREG=3',
+                '-DFLAGS=PTE_R', '-DCAUSE=LOAD_GPF'],
+  'fetch':     ['-DMODE=VS', '-DACCESS=jr a0', '-DREG=4',
+                '-DFLAGS=(PTE_R|PTE_X)', '-DCAUSE=FETCH_GPF'],
+  'store':     ['-DMODE=VS', '-DACCESS=sd zero, 0(a0)', '-DREG=5',
+                '-DFLAGS=(PTE_R|PTE_W|PTE_A)',
+                '-DCAUSE=STORE_GPF'],
+  'store-ad':  ['-DMODE=VS', '-DACCESS=sd zero, 0(a0)', '-DREG=6',
+                '-DFLAGS=(PTE_R|PTE_W)',
+                '-DCAUSE=STORE_GPF'],
+  'amo':       ['-DMODE=VS', '-DACCESS=amoadd.d t0, zero, (a0)', '-DREG=7',
+                '-DFLAGS=(PTE_R|PTE_W|PTE_A)',
+                '-DCAUSE=STORE_GPF'],
+  'load-4k':   ['-DMODE=VS', '-DACCESS=ld t0, 0(a0)', '-DREG=8',
+                '-DPTE_ADDR=VS_L0', '-DFLAGS=PTE_R',
+                '-DCAUSE=LOAD_GPF'],
+  'load-1g':   ['-DMODE=VS', '-DACCESS=ld t0, 0(a0)',
+                '-DADDR=(0xC0000000+9*0x200000)', '-DPTE_ADDR=(VS_ROOT+3*8)',
+                '-DPTE_PA=REGION(0)', '-DFLAGS=PTE_R',
+                '-DCAUSE=LOAD_GPF'],
+  'load-vu':   ['-DMODE=VU', '-DACCESS=ld t0, 0(a0)', '-DREG=10',
+                '-DFLAGS=(PTE_R|PTE_U)', '-DCAUSE=LOAD_GPF'],
+  'hlv':       ['-DMODE=HS', '-DACCESS=hlv.d t0, (a0)', '-DREG=11',
+                '-DFLAGS=PTE_R', '-DCAUSE=LOAD_GPF'],
+  'hsv':       ['-DMODE=HS', '-DACCESS=hsv.d zero, (a0)', '-DREG=12',
+                '-DFLAGS=(PTE_R|PTE_W|PTE_A)',
+                '-DCAUSE=STORE_GPF'],
+  'load-hs':   ['-DMODE=VS', '-DACCESS=ld t0, 0(a0)', '-DREG=13',
+                '-DFLAGS=PTE_R', '-DCAUSE=LOAD_GPF',
+                '-DTO_HS'],
+  'store-hs':  ['-DMODE=VS', '-DACCESS=sd zero, 0(a0)', '-DREG=14',
+                '-DFLAGS=(PTE_R|PTE_W|PTE_A)',
+                '-DCAUSE=STORE_GPF', '-DTO_HS'],
+  # the tables are unreadable, so the walk fails reading root entry 2
+  'hsv-noread': ['-DMODE=HS', '-DACCESS=hsv.d zero, (a0)', '-DREG=15',
+                 '-DFLAGS=(PTE_R|PTE_W|PTE_A)', '-DPERM=G_NOREAD',
+                 '-DENTRY=(VS_ROOT+2*8)', '-DCAUSE=STORE_GPF',
+                 '-DTINST=TINST_READ'],
+  'hlv-noread': ['-DMODE=HS', '-DACCESS=hlv.d t0, (a0)', '-DREG=16',
+                 '-DFLAGS=(PTE_R|PTE_A)', '-DPERM=G_NOREAD',
+                 '-DENTRY=(VS_ROOT+2*8)', '-DCAUSE=LOAD_GPF',
+                 '-DTINST=TINST_READ'],
+  'fetch-noread': ['-DMODE=VS', '-DREG=17', '-DADDR=probe',
+                   '-DFLAGS=(PTE_R|PTE_X|PTE_A)', '-DPERM=G_NOREAD',
+                   '-DENTRY=(VS_ROOT+2*8)', '-DCAUSE=FETCH_GPF',
+                   '-DTINST=TINST_READ'],
+  # A/D updating off: an ordinary page fault, nothing written
+  'noadue-h':  ['-DMODE=VS', '-DACCESS=ld t0, 0(a0)', '-DREG=21',
+                '-DFLAGS=PTE_R', '-DHENVCFG=0', '-DCAUSE=LOAD_PF',
+                '-DENTRY=0', '-DTINST_NOT_WALK'],
+  'noadue-m':  ['-DMODE=VS', '-DACCESS=ld t0, 0(a0)', '-DREG=22',
+                '-DFLAGS=PTE_R', '-DMENVCFG=0', '-DCAUSE=LOAD_PF',
+                '-DENTRY=0', '-DTINST_NOT_WALK'],
+  'noadue-store': ['-DMODE=VS', '-DACCESS=sd zero, 0(a0)', '-DREG=23',
+                   '-DFLAGS=(PTE_R|PTE_W|PTE_A)', '-DHENVCFG=0',
+                   '-DCAUSE=STORE_PF', '-DENTRY=0', '-DTINST_NOT_WALK'],
+  # control: the guest itself stores into its read-only tables
+  'control':   ['-DMODE=VS', '-DACCESS=sd zero, 0(a0)', '-DREG=2',
+                '-DFLAGS=(PTE_R|PTE_W|PTE_A|PTE_D)', '-DADDR=(VS_ROOT+0x800)',
+                '-DENTRY=(VS_ROOT+0x800)', '-DCAUSE=STORE_GPF',
+                '-DTINST_NOT_WALK'],
+}
+foreach name, flags : gstage_tinst
+  tests += {
+    'test-gstage-tinst.S': {
+      'exe_name': 'test-gstage-tinst-' + name,
+      'cflags': cflags + ['-march=rv64gch', hyp_guest] + flags,
+      'qemu_args': ['-cpu', 'rv64,h=true,svadu=true', qemu_args],
+    }
+  }
+endforeach
+
 tests += {
   'test-vle32ff.S': {
     'cflags': cflags + ['-march=rv64gcv'],
