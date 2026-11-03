@@ -2,6 +2,7 @@
 
 test_ppc64_timeouts = {
   'fadump' : 480,
+  'hotplug_blk' : 600,
   'hv' : 1000,
   'mac99' : 120,
   'openbsd' : 240,
@@ -19,6 +20,7 @@ tests_ppc64_system_quick = [
 tests_ppc64_system_thorough = [
   'e500',
   'fadump',
+  'hotplug_blk',
   'hv',
   'mac99',
   'openbsd',
