@@ -110,6 +110,13 @@ static void pci_ich9_reset(DeviceState *dev)
     ahci_reset(&d->ahci);
 }
 
+static bool pci_ich9_ahci_bus_master_enabled(AHCIState *s)
+{
+    AHCIPCIState *d = container_of(s, AHCIPCIState, ahci);
+
+    return PCI_DEVICE(d)->is_master;
+}
+
 static void pci_ich9_ahci_init(Object *obj)
 {
     AHCIPCIState *d = ICH9_AHCI(obj);
@@ -117,6 +124,7 @@ static void pci_ich9_ahci_init(Object *obj)
     qemu_init_irq_child(obj, "update-irq", &d->irq,
                         pci_ich9_ahci_update_irq, d, 0);
     ahci_init(&d->ahci, DEVICE(obj));
+    d->ahci.bus_master_enabled = pci_ich9_ahci_bus_master_enabled;
     d->ahci.irq = &d->irq;
 }
 
