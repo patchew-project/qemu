@@ -272,8 +272,12 @@ scripts.  The testing success criteria is golden output comparison, and the
 test files are named with numbers.
 
 To run iotests, make sure QEMU is built successfully, then switch to the
-``tests/qemu-iotests`` directory under the build directory, and run ``./check``
-with desired arguments from there.
+``tests/qemu-iotests`` directory under the build directory, and run
+the ``check`` script via the ``run`` wrapper which sets up the environment:
+
+.. code::
+
+   ../../run ./check [args]
 
 By default, "raw" format and "file" protocol is used; all tests will be
 executed, except the unsupported ones. You can override the format and protocol
@@ -282,16 +286,16 @@ with arguments:
 .. code::
 
   # test with qcow2 format
-  ./check -qcow2
+  ../../run ./check -qcow2
   # or test a different protocol
-  ./check -nbd
+  ../../run ./check -nbd
 
 It's also possible to list test numbers explicitly:
 
 .. code::
 
   # run selected cases with qcow2 format
-  ./check -qcow2 001 030 153
+  ../../run ./check -qcow2 001 030 153
 
 Cache mode can be selected with the "-c" option, which may help reveal bugs
 that are specific to certain cache mode.
