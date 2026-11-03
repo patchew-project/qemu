@@ -110,9 +110,25 @@ static int hlx_find_new_value_producer(Packet *packet, int consumer,
 {
     for (int i = 0; i < packet->num_insns; i++) {
         Insn *insn = &packet->insn[i];
+        uint8_t regno;
 
-        if (i != consumer && GET_ATTRIB(insn->opcode, A_HLX) &&
-            insn->dest_idx != -1 && insn->regno[insn->dest_idx] == lreg) {
+        /*
+         * Skip ourselves, instructions without return values, and
+         * any non-HLX instructions.
+         */
+        if (i == consumer || !GET_ATTRIB(insn->opcode, A_HLX) ||
+            insn->dest_idx == -1) {
+            continue;
+        }
+
+        regno = insn->regno[insn->dest_idx];
+
+        /*
+         * Compare against the base register number, and against the top
+         * register for instructions returning pairs.
+         */
+        if (regno == lreg ||
+            (GET_ATTRIB(insn->opcode, A_HLX_PAIRED_ALU) && regno + 1 == lreg)) {
             return i;
         }
     }
