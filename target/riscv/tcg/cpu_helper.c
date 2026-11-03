@@ -2416,9 +2416,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             }
             env->mstatus = set_field(env->mstatus, MSTATUS_MPV,
                                      env->virt_enabled);
-            if (env->virt_enabled && tval) {
-                env->mstatus = set_field(env->mstatus, MSTATUS_GVA, 1);
-            }
+            env->mstatus = set_field(env->mstatus, MSTATUS_GVA, write_gva);
 
             mtval2 = env->guest_phys_fault_addr;
 
