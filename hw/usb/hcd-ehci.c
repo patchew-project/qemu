@@ -330,6 +330,15 @@ static int ehci_get_state(EHCIState *s, int async)
     return async ? s->astate : s->pstate;
 }
 
+/*
+ * get_dwords() has raised HSE and cleared Run/Stop.  Park the schedule
+ * in EST_ACTIVE so the next advance pass idles it instead of asserting.
+ */
+static void ehci_abandon_pass(EHCIState *ehci, int async)
+{
+    ehci_set_state(ehci, async, EST_ACTIVE);
+}
+
 static void ehci_set_fetch_addr(EHCIState *s, int async, uint64_t addr)
 {
     if (async) {
@@ -1600,6 +1609,7 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
     for (i = 0; i < MAX_QH; i++) {
         if (!get_dwords(ehci, NLPTR_GET(entry), (uint32_t *) &qh,
                         ehci_qh_dwords(ehci))) {
+            ehci_abandon_pass(ehci, async);
             return 0;
         }
         ehci_trace_qh(NULL, NLPTR_GET(entry), &qh);
@@ -1703,6 +1713,7 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     memset(&qh, 0, sizeof(qh));
     if (!get_dwords(ehci, NLPTR_GET(q->qhaddr),
                     (uint32_t *) &qh, ehci_qh_dwords(ehci))) {
+        ehci_abandon_pass(ehci, async);
         q = NULL;
         goto out;
     }
@@ -1807,6 +1818,7 @@ static int ehci_state_fetchsitd(EHCIState *ehci, int async)
 
     if (!get_dwords(ehci, NLPTR_GET(entry), (uint32_t *)&sitd,
                     sizeof(EHCIsitd) >> 2)) {
+        ehci_abandon_pass(ehci, async);
         return 0;
     }
     ehci_trace_sitd(ehci, entry, &sitd);
@@ -1867,6 +1879,7 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
 
     addr = NLPTR_GET(q->qtdaddr);
     if (!get_dwords(q->ehci, addr +  8, &qtd.token,   1)) {
+        ehci_abandon_pass(q->ehci, q->async);
         return 0;
     }
     barrier();
@@ -1878,6 +1891,7 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
         (q->ehci->caps_64bit_addr &&
          !get_dwords(q->ehci, addr + offsetof(EHCIqtd, bufptr_hi),
                      qtd.bufptr_hi, ARRAY_SIZE(qtd.bufptr_hi)))) {
+        ehci_abandon_pass(q->ehci, q->async);
         return 0;
     }
     ehci_trace_qtd(q, NLPTR_GET(q->qtdaddr), &qtd);
