@@ -12,6 +12,7 @@
 #include "libqos/pci-pc.h"
 #include "hw/usb/uhci-regs.h"
 #include "hw/usb/ehci-regs.h"
+#include "hw/usb/hcd-ehci.h"
 #include "libqos/usb.h"
 
 static QPCIBus *pcibus;
@@ -142,6 +143,123 @@ static void pci_ehci_port_hotplug(void)
     usb_test_hotplug(global_qtest, "ich9-ehci-1", "3", pci_ehci_port_3_hotplug);
 }
 
+/* operational registers, relative to the BAR */
+#define EHCI_USBCMD             0x20
+#define EHCI_USBSTS             0x24
+#define EHCI_PERIODICLISTBASE   0x34
+#define EHCI_ASYNCLISTADDR      0x38
+
+#define NLPTR_TYPE_QH           (1 << 1)
+#define NLPTR_TYPE_SITD         (2 << 1)
+#define NLPTR_T                 1
+
+#define QH_ADDR                 0x100000    /* in the default 128 MiB of RAM */
+#define FRAME_LIST_ADDR         0x101000
+#define BAD_ADDR                0x40000000  /* above RAM, nothing mapped */
+#define FRAME_NS                1000000
+
+static uint32_t ehci_readl(uint32_t off)
+{
+    return qpci_io_readl(ehci1.dev, ehci1.bar, off);
+}
+
+static void ehci_writel(uint32_t off, uint32_t val)
+{
+    qpci_io_writel(ehci1.dev, ehci1.bar, off, val);
+}
+
+static void ehci_hcreset(void)
+{
+    ehci_writel(EHCI_USBCMD, USBCMD_HCRESET);
+    g_assert_cmphex(ehci_readl(EHCI_USBCMD) & USBCMD_HCRESET, ==, 0);
+    g_assert_cmphex(ehci_readl(EHCI_USBSTS) & USBSTS_HALT, ==, USBSTS_HALT);
+}
+
+static void ehci_write_qh(uint32_t next, uint32_t next_qtd)
+{
+    uint32_t qh[16] = {
+        next,
+        QH_EPCHAR_H | (64 << QH_EPCHAR_MPLEN_SH) |
+            (EHCI_QH_EPS_HIGH << QH_EPCHAR_EPS_SH),
+        1 << QH_EPCAP_MULT_SH,
+        0,                                      /* current qTD */
+        next_qtd,
+        NLPTR_T,                                /* alternate next qTD */
+        0,                                      /* token: inactive */
+    };
+
+    memwrite(QH_ADDR, qh, sizeof(qh));
+}
+
+/* Run a schedule into a descriptor that cannot be read. */
+static void ehci_run_into_dma_error(uint32_t usbcmd)
+{
+    uint32_t sts;
+    int i;
+
+    ehci_writel(EHCI_USBCMD, usbcmd);
+    for (i = 0; i < 16; i++) {
+        clock_step(FRAME_NS);
+        if (ehci_readl(EHCI_USBSTS) & USBSTS_HSE) {
+            break;
+        }
+    }
+    g_assert_cmphex(ehci_readl(EHCI_USBSTS) & USBSTS_HSE, ==, USBSTS_HSE);
+    g_assert_cmphex(ehci_readl(EHCI_USBCMD) & USBCMD_RUNSTOP, ==, 0);
+
+    for (i = 0; i < 4; i++) {
+        clock_step(FRAME_NS);
+    }
+    sts = ehci_readl(EHCI_USBSTS);
+    g_assert_cmphex(sts & USBSTS_HALT, ==, USBSTS_HALT);
+    g_assert_cmphex(sts & (USBSTS_ASS | USBSTS_PSS), ==, 0);
+
+    /* a reset must bring the controller back */
+    ehci_hcreset();
+    ehci_write_qh(QH_ADDR | NLPTR_TYPE_QH, NLPTR_T);
+    ehci_writel(EHCI_ASYNCLISTADDR, QH_ADDR);
+    ehci_writel(EHCI_USBCMD, USBCMD_RUNSTOP | USBCMD_ASE);
+    for (i = 0; i < 4; i++) {
+        clock_step(FRAME_NS);
+    }
+    g_assert_cmphex(ehci_readl(EHCI_USBSTS) & (USBSTS_HSE | USBSTS_HALT),
+                    ==, 0);
+    g_assert_cmphex(ehci_readl(EHCI_USBCMD) & USBCMD_RUNSTOP, ==,
+                    USBCMD_RUNSTOP);
+    ehci_hcreset();
+}
+
+static void pci_ehci_dma_error(void)
+{
+    uint32_t entries[32];
+    int i;
+
+    g_assert(pcibus != NULL);
+    ehci_hcreset();
+
+    /* async schedule: the list head itself is unreadable */
+    ehci_writel(EHCI_ASYNCLISTADDR, BAD_ADDR);
+    ehci_run_into_dma_error(USBCMD_RUNSTOP | USBCMD_ASE);
+
+    /* async schedule: the head QH links to an unreadable QH */
+    ehci_write_qh(BAD_ADDR | NLPTR_TYPE_QH, NLPTR_T);
+    ehci_writel(EHCI_ASYNCLISTADDR, QH_ADDR);
+    ehci_run_into_dma_error(USBCMD_RUNSTOP | USBCMD_ASE);
+
+    /* async schedule: a readable QH points at an unreadable qTD */
+    ehci_write_qh(QH_ADDR | NLPTR_TYPE_QH, BAD_ADDR);
+    ehci_writel(EHCI_ASYNCLISTADDR, QH_ADDR);
+    ehci_run_into_dma_error(USBCMD_RUNSTOP | USBCMD_ASE);
+
+    /* periodic schedule: the frame list points at an unreadable siTD */
+    for (i = 0; i < ARRAY_SIZE(entries); i++) {
+        entries[i] = BAD_ADDR | NLPTR_TYPE_SITD;
+    }
+    memwrite(FRAME_LIST_ADDR, entries, sizeof(entries));
+    ehci_writel(EHCI_PERIODICLISTBASE, FRAME_LIST_ADDR);
+    ehci_run_into_dma_error(USBCMD_RUNSTOP | USBCMD_PSE);
+}
+
 
 int main(int argc, char **argv)
 {
@@ -160,6 +278,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ehci/pci/uhci-port-2", pci_uhci_port_2);
     qtest_add_func("/ehci/pci/ehci-port-2", pci_ehci_port_2);
     qtest_add_func("/ehci/pci/ehci-port-3-hotplug", pci_ehci_port_hotplug);
+    qtest_add_func("/ehci/pci/ehci-dma-error", pci_ehci_dma_error);
 
     qtest_start("-machine q35 -device ich9-usb-ehci1,bus=pcie.0,addr=1d.7,"
                 "multifunction=on,id=ich9-ehci-1 "
