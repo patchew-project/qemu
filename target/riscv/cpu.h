@@ -445,6 +445,7 @@ struct CPUArchState {
      * address translation for the VS-stage page table walk.
      */
     bool two_stage_indirect_lookup;
+    bool two_stage_indirect_write;
 
     uint32_t scounteren;
     uint32_t mcounteren;
