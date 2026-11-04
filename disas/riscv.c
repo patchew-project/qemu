@@ -2640,9 +2640,12 @@ static const rv_opcode_data *decode_inst_opcode(rv_decode *dec, rv_isa isa)
                 case 39: return &op_vqwdotas_vv;
                 }
             }
-            if (((inst >> 12) & 0b111) == 1 &&
-                ((inst >> 26) & 0b111111) == 36) {
-                return &op_vfwdota_vv;
+            if (((inst >> 12) & 0b111) == 1) {
+                switch ((inst >> 26) & 0b111111) {
+                case 36: return &op_vfwdota_vv;
+                case 38: return &op_vfqwdota_vv;
+                case 39: return &op_vfqwdota_alt_vv;
+                }
             }
             if (((inst >> 25) & 1) == 1 && ((inst >> 12) & 0b111) == 2) {
                 switch ((inst >> 26) & 0b111111) {
