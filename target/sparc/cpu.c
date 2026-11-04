@@ -491,7 +491,7 @@ static const sparc_def_t sparc_defs[] = {
     },
     {
         .name = "TI-SuperSparc-61",
-        .iu_version = 0x44000000, /* SuperSPARC 3.x */
+        .iu_version = 0x40000000, /* SuperSPARC 3.x */
         .fpu_version = 0 << FSR_VER_SHIFT,
         .mmu_version = 0x01000000, /* SuperSPARC 3.x, MXCC */
         .mmu_bm = 0x00002000,
