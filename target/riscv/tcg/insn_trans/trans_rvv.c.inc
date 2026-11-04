@@ -4289,3 +4289,78 @@ static bool trans_##NAME(DisasContext *s, arg_rmrr *a)                  \
 
 GEN_ZVDOTA_FP8_TRANS(vfqwdota_vv, vext_vfqwdota_check)
 GEN_ZVDOTA_FP8_TRANS(vfqwdota_alt_vv, vext_vfqwdota_check)
+
+static bool vext_zvbdota_base_check(DisasContext *s, arg_rmrr * a,
+                                    int32_t vd_eew)
+{
+    int32_t vlenb = s->cfg_ptr->vlenb;
+    int32_t vd_emul = MAX(0, vd_eew + 3 - ctzl(vlenb));
+    uint8_t ci = a->rs2 & 0b111;
+    int rs2 = a->rs2 & ~0x7;
+
+    return require_rvv(s) &&
+           vext_check_isa_ill(s) &&
+           s->vstart_eq_zero &&
+           (s->lmul == 0) &&
+           ((ci << (3 + vd_eew)) < vlenb) &&
+           require_vm(a->vm, a->rd) &&
+           require_align(a->rd, vd_emul) &&
+           !is_overlapped(a->rd, 1 << vd_emul, a->rs1, 1) &&
+           !is_overlapped(a->rd, 1 << vd_emul, rs2, 8) &&
+           vext_check_input_eew(s, a->rs1, s->sew, rs2, s->sew, a->vm);
+}
+
+static bool vext_vqwbdota_check(DisasContext *s, arg_rmrr *a)
+{
+    int32_t sew = s->sew;
+    int32_t vd_eew = sew + 2;
+    return vext_zvbdota_base_check(s, a, vd_eew) &&
+           (s->cfg_ptr->ext_zvqwbdota8i && sew == MO_8);
+}
+
+typedef void gen_helper_zvbdota_int(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr,
+                                    TCGv_i32, TCGv_env, TCGv_i32);
+
+#define GEN_ZVBDOTA_INT_TRANS(NAME, CHECK)                               \
+static bool trans_##NAME(DisasContext *s, arg_rmrr *a)                   \
+{                                                                        \
+    static gen_helper_zvbdota_int * const fns[2] = {                     \
+        gen_helper_##NAME##_b, NULL,                                     \
+    };                                                                   \
+    if (CHECK(s, a)) {                                                   \
+        TCGv_ptr dest, src1, src2, mask;                                 \
+        TCGv_i32 ci, desc;                                               \
+        uint32_t data = 0;                                               \
+        int32_t vd_eew = s->sew + 2;                                     \
+        int32_t vd_emul = MAX(0, vd_eew + 3 - ctzl(s->cfg_ptr->vlenb));  \
+                                                                         \
+        data = FIELD_DP32(data, VDATA, VM, a->vm);                       \
+        data = FIELD_DP32(data, VDATA, VTA, s->vta);                     \
+        data = FIELD_DP32(data, VDATA, LMUL, vd_emul);                   \
+        data = FIELD_DP32(data, VDATA, VMA, s->vma);                     \
+        data = FIELD_DP32(data, VDATA, VTA_ALL_1S, s->cfg_vta_all_1s);   \
+                                                                         \
+        dest = tcg_temp_new_ptr();                                       \
+        mask = tcg_temp_new_ptr();                                       \
+        src1 = tcg_temp_new_ptr();                                       \
+        src2 = tcg_temp_new_ptr();                                       \
+        desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlenb,             \
+                                          s->cfg_ptr->vlenb, data));     \
+        ci = tcg_constant_i32((a->rs2 & 0x7) << 3);                      \
+                                                                         \
+        tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, a->rd));             \
+        tcg_gen_addi_ptr(src1, tcg_env, vreg_ofs(s, a->rs1));            \
+        tcg_gen_addi_ptr(src2, tcg_env, vreg_ofs(s, a->rs2 & ~0x7));     \
+        tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));                 \
+                                                                         \
+        fns[s->sew](dest, mask, src1, src2, ci, tcg_env, desc);          \
+                                                                         \
+        finalize_rvv_inst(s);                                            \
+                                                                         \
+        return true;                                                     \
+    }                                                                    \
+    return false;                                                        \
+}
+
+GEN_ZVBDOTA_INT_TRANS(vqwbdotau_vv, vext_vqwbdota_check)
+GEN_ZVBDOTA_INT_TRANS(vqwbdotas_vv, vext_vqwbdota_check)
