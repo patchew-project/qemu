@@ -182,7 +182,8 @@ bool riscv_use_emulated_aplic(bool msimode)
     return kvm_kernel_irqchip_split();
 }
 
-void riscv_aplic_set_kvm_msicfgaddr(RISCVAPLICState *aplic, hwaddr addr)
+void riscv_aplic_set_kvm_msicfgaddr(RISCVAPLICState *aplic, hwaddr addr,
+                                    uint32_t hart_bits, uint32_t guest_bits)
 {
     if (!kvm_enabled()) {
         return;
@@ -191,8 +192,12 @@ void riscv_aplic_set_kvm_msicfgaddr(RISCVAPLICState *aplic, hwaddr addr)
     if (riscv_use_emulated_aplic(aplic->msimode)) {
         addr >>= APLIC_xMSICFGADDR_PPN_SHIFT;
         aplic->kvm_msicfgaddr = extract64(addr, 0, 32);
-        aplic->kvm_msicfgaddrH = extract64(addr, 32, 32) &
-                                 APLIC_MMSICFGADDRH_VALID_MASK;
+        aplic->kvm_msicfgaddrH =
+            ((hart_bits & APLIC_xMSICFGADDRH_LHXW_MASK) <<
+             APLIC_xMSICFGADDRH_LHXW_SHIFT) |
+            ((guest_bits & APLIC_xMSICFGADDRH_LHXS_MASK) <<
+             APLIC_xMSICFGADDRH_LHXS_SHIFT) |
+            (extract64(addr, 32, 32) & APLIC_xMSICFGADDRH_BAPPN_MASK);
     }
 }
 
@@ -404,7 +409,7 @@ static void riscv_aplic_msi_send(RISCVAPLICState *aplic,
 
     if (aplic->kvm_splitmode) {
         msicfgaddr = aplic->kvm_msicfgaddr;
-        msicfgaddrH = ((uint64_t)aplic->kvm_msicfgaddrH << 32);
+        msicfgaddrH = aplic->kvm_msicfgaddrH;
     } else {
         msicfgaddr = aplic_m->mmsicfgaddr;
         msicfgaddrH = aplic_m->mmsicfgaddrH;
