@@ -1851,6 +1851,7 @@ F: docs/system/riscv/sifive_u.rst
 F: hw/*/*sifive*.c
 F: include/hw/*/*sifive*.h
 F: tests/functional/riscv64/test_sifive_u.py
+F: tests/qtest/sifive_l2cc_test.c
 
 Tenstorrent Machines
 M: Joel Stanley <joel@jms.id.au>
