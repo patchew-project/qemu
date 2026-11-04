@@ -55,6 +55,7 @@
 #include "hw/mem/nvdimm.h"
 #include "hw/cxl/cxl_host.h"
 #include "hw/usb/usb.h"
+#include "hw/usb/xhci.h"
 #include "hw/i386/intel_iommu.h"
 #include "hw/net/ne2000-isa.h"
 #include "hw/virtio/virtio-iommu.h"
@@ -1162,6 +1163,23 @@ void pc_nic_init(PCMachineClass *pcmc, ISABus *isa_bus, PCIBus *pci_bus)
     if (pci_bus) {
         pci_init_nic_devices(pci_bus, mc->default_nic);
     }
+}
+
+/*
+ * 1d.0 is where q35's first UHCI sat. On pc the PIIX3's own USB function
+ * is out: the DSDT routes slot 1 INTA to the SCI link and qemu-xhci
+ * interrupts on INTA.
+ */
+void pc_usb_xhci_create(PCIBus *pci_bus)
+{
+    DeviceState *dev = qdev_try_new(TYPE_QEMU_XHCI);
+
+    if (!dev) {
+        error_report("-usb: this build has no %s device", TYPE_QEMU_XHCI);
+        exit(1);
+    }
+    qdev_prop_set_int32(dev, "addr", PCI_DEVFN(0x1d, 0));
+    qdev_realize_and_unref(dev, BUS(pci_bus), &error_fatal);
 }
 
 void pc_i8259_create(ISABus *isa_bus, qemu_irq *i8259_irqs)

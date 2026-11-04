@@ -298,8 +298,12 @@ static void pc_q35_init(MachineState *machine)
     }
 
     if (machine_usb(machine)) {
-        /* Should we create 6 UHCI according to ich9 spec? */
-        ehci_create_ich9_with_companions(pcms->pcibus, 0x1d);
+        if (pcmc->usb_xhci) {
+            pc_usb_xhci_create(pcms->pcibus);
+        } else {
+            /* Should we create 6 UHCI according to ich9 spec? */
+            ehci_create_ich9_with_companions(pcms->pcibus, 0x1d);
+        }
     }
 
     if (pcms->smbus_enabled) {
@@ -353,6 +357,7 @@ static void pc_q35_machine_options(MachineClass *m)
     ObjectClass *oc = OBJECT_CLASS(m);
     pcmc->pci_root_uid = 0;
     pcmc->default_cpu_version = 1;
+    pcmc->usb_xhci = true;
 
     m->family = "pc_q35";
     m->desc = "Standard PC (Q35 + ICH9, 2009)";
@@ -387,7 +392,10 @@ DEFINE_Q35_MACHINE_AS_LATEST(12, 0);
 
 static void pc_q35_machine_11_2_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_q35_machine_12_0_options(m);
+    pcmc->usb_xhci = false;
     compat_props_add(m->compat_props, hw_compat_11_2, hw_compat_11_2_len);
     compat_props_add(m->compat_props, pc_compat_11_2, pc_compat_11_2_len);
 }

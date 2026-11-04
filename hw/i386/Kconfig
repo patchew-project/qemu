@@ -78,6 +78,7 @@ config I440FX
     imply E1000_PCI
     imply VMPORT
     imply VMMOUSE
+    imply USB_XHCI_PCI
     select ACPI_PIIX4
     select PC_PCI
     select PC_ACPI
@@ -108,6 +109,7 @@ config Q35
     imply VMPORT
     imply VMMOUSE
     imply IOMMUFD
+    imply USB_XHCI_PCI
     select PC_PCI
     select PC_ACPI
     select PCI_EXPRESS_Q35

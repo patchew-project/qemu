@@ -245,7 +245,8 @@ static void pc_init1(MachineState *machine, const char *pci_type)
     pci_dev = pci_new_multifunction(-1,
                                     pc_south_bridge_type[pcms->south_bridge]);
     object_property_set_bool(OBJECT(pci_dev), "has-usb",
-                             machine_usb(machine), &error_abort);
+                             machine_usb(machine) && !pcmc->usb_xhci,
+                             &error_abort);
     object_property_set_bool(OBJECT(pci_dev), "has-acpi",
                              x86_machine_is_acpi_enabled(x86ms),
                              &error_abort);
@@ -304,6 +305,10 @@ static void pc_init1(MachineState *machine, const char *pci_type)
                          !MACHINE_CLASS(pcmc)->no_floppy, 0x4);
 
     pc_nic_init(pcmc, isa_bus, pcms->pcibus);
+
+    if (machine_usb(machine) && pcmc->usb_xhci) {
+        pc_usb_xhci_create(pcms->pcibus);
+    }
 
     if (piix4_pm) {
         smi_irq = qemu_allocate_irq(pc_acpi_smi_interrupt, first_cpu, 0);
@@ -375,6 +380,7 @@ static void pc_i440fx_machine_options(MachineClass *m)
     pcmc->default_south_bridge = PC_SOUTH_BRIDGE_OPTION_PIIX3;
     pcmc->pci_root_uid = 0;
     pcmc->default_cpu_version = 1;
+    pcmc->usb_xhci = true;
 
     m->family = "pc_piix";
     m->desc = "Standard PC (i440FX + PIIX, 1996)";
@@ -406,7 +412,10 @@ DEFINE_I440FX_MACHINE_AS_LATEST(12, 0);
 
 static void pc_i440fx_machine_11_2_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_i440fx_machine_12_0_options(m);
+    pcmc->usb_xhci = false;
     compat_props_add(m->compat_props, hw_compat_11_2, hw_compat_11_2_len);
     compat_props_add(m->compat_props, pc_compat_11_2, pc_compat_11_2_len);
 }
