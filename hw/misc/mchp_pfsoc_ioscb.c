@@ -209,6 +209,22 @@ static const MemoryRegionOps mchp_pfsoc_io_calib_ddr_ops = {
 #define SERVICES_STATUS_SUCCESS             0
 #define SERVICES_STATUS_FAILED              1
 
+static void mchp_pfsoc_ioscb_update_irq(MchpPfSoCIoscbState *s)
+{
+    qemu_set_irq(s->irq, s->irq_pending);
+}
+
+bool mchp_pfsoc_ioscb_get_irq_pending(MchpPfSoCIoscbState *s)
+{
+    return s->irq_pending;
+}
+
+void mchp_pfsoc_ioscb_set_irq_pending(MchpPfSoCIoscbState *s, bool pending)
+{
+    s->irq_pending = pending;
+    mchp_pfsoc_ioscb_update_irq(s);
+}
+
 static void services_cr_write(MchpPfSoCIoscbState *s, uint32_t value)
 {
     uint32_t command;
@@ -248,7 +264,7 @@ static void services_cr_write(MchpPfSoCIoscbState *s, uint32_t value)
 
     s->services_sr = status << SERVICES_SR_STATUS_SHIFT;
     if (value & SERVICES_CR_NOTIFY) {
-        qemu_irq_raise(s->irq);
+        mchp_pfsoc_ioscb_set_irq_pending(s, true);
     }
 }
 
@@ -339,7 +355,7 @@ static void mchp_pfsoc_ioscb_reset(DeviceState *dev)
     s->services_cr = 0;
     s->services_sr = 0;
     memset(s->mailbox_data, 0, sizeof(s->mailbox_data));
-    qemu_irq_lower(s->irq);
+    mchp_pfsoc_ioscb_set_irq_pending(s, false);
 }
 
 static const Property mchp_pfsoc_ioscb_properties[] = {

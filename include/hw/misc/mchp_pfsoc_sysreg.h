@@ -24,13 +24,14 @@
 #define MCHP_PFSOC_SYSREG_H
 
 #include "hw/core/sysbus.h"
+#include "hw/misc/mchp_pfsoc_ioscb.h"
 
 #define MCHP_PFSOC_SYSREG_REG_SIZE  0x2000
 
 typedef struct MchpPfSoCSysregState {
     SysBusDevice parent;
     MemoryRegion sysreg;
-    qemu_irq irq;
+    MchpPfSoCIoscbState *ioscb;
 } MchpPfSoCSysregState;
 
 #define TYPE_MCHP_PFSOC_SYSREG "mchp.pfsoc.sysreg"
