@@ -239,6 +239,10 @@ config MCHP_PFSOC_IOSCB
 config MCHP_PFSOC_SYSREG
     bool
 
+config SIFIVE_L2CC
+    bool
+    select REGISTER
+
 config SIFIVE_TEST
     bool
 
