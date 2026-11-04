@@ -978,6 +978,14 @@ static bool riscv_cpu_has_work(CPUState *cs)
 }
 #endif /* !CONFIG_USER_ONLY */
 
+static void riscv_init_fp_status(float_status *s)
+{
+    set_default_nan_mode(1, s);
+    /* Default NaN value: sign bit clear, frac msb set */
+    set_float_default_nan_pattern(0b01000000, s);
+    set_float_e4m3_nan_is_snan(false, s);
+}
+
 static void riscv_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
@@ -1095,10 +1103,9 @@ static void riscv_cpu_reset_hold(Object *obj, ResetType type)
     env->xl = riscv_cpu_mxl(env);
     cs->exception_index = RISCV_EXCP_NONE;
     env->load_res = -1;
-    set_default_nan_mode(1, &env->fp_status);
-    /* Default NaN value: sign bit clear, frac msb set */
-    set_float_default_nan_pattern(0b01000000, &env->fp_status);
     env->vill = true;
+
+    riscv_init_fp_status(&env->fp_status);
 
 #ifndef CONFIG_USER_ONLY
 #ifdef CONFIG_TCG
