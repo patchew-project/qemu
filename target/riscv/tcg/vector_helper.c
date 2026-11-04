@@ -5970,3 +5970,52 @@ GEN_VEXT_VV(vwabdau_vv_b, 2)
 GEN_VEXT_VV(vwabdau_vv_h, 4)
 GEN_VEXT_VX(vwabdau_vx_b, 2)
 GEN_VEXT_VX(vwabdau_vx_h, 4)
+
+/*
+ * Zvqwdota8i: 8-bit Integer Dot Product with Accumulation
+ */
+#define GEN_VEXT_ZVDOTA_INT(NAME, WD, W1, T2, HD, HS)            \
+void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,      \
+                  CPURISCVState *env, uint32_t desc)             \
+{                                                                \
+    uint32_t vm = vext_vm(desc);                                 \
+    uint32_t vl = env->vl;                                       \
+    uint32_t vta = vext_vta(desc);                               \
+    uint32_t vta_all_1s = vext_vta_all_1s(desc);                 \
+    uint16_t vlenb = riscv_cpu_cfg(env)->vlenb;                  \
+    uint32_t total_elems = vlenb >> ctzl(sizeof(uint##WD##_t));  \
+    uint8_t altfmt = FIELD_EX64(env->vtype, VTYPE, ALTFMT);      \
+    uint32_t i;                                                  \
+    uint##WD##_t acc, dot_result, a;                             \
+                                                                 \
+    VSTART_CHECK_EARLY_EXIT(env, vl);                            \
+                                                                 \
+    acc = *((uint##WD##_t *)vd + HD(0));                         \
+    dot_result = 0;                                              \
+                                                                 \
+    for (i = 0; i < vl; i++) {                                   \
+        if (!vm && !vext_elem_mask(v0, i)) {                     \
+            continue;                                            \
+        }                                                        \
+                                                                 \
+        uint##WD##_t b = *((T2 *)vs2 + HS(i));                   \
+        if (altfmt) {                                            \
+            a = *((int##W1##_t *)vs1 + HS(i));                   \
+        } else {                                                 \
+            a = *((uint##W1##_t *)vs1 + HS(i));                  \
+        }                                                        \
+        dot_result += (a * b);                                   \
+    }                                                            \
+                                                                 \
+    *((uint##WD##_t *)vd + HD(0)) = acc + dot_result;            \
+                                                                 \
+    env->vstart = 0;                                             \
+                                                                 \
+    if (vta_all_1s) {                                            \
+        vext_set_elems_1s(vd, vta, sizeof(int##WD##_t),          \
+                          total_elems * sizeof(int##WD##_t));    \
+    }                                                            \
+}
+
+GEN_VEXT_ZVDOTA_INT(vqwdotau_vv_b, 32, 8, uint8_t, H4, H1)
+GEN_VEXT_ZVDOTA_INT(vqwdotas_vv_b, 32, 8, int8_t, H4, H1)

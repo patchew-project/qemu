@@ -4132,7 +4132,70 @@ static bool trans_##NAME(DisasContext *s, arg_rmrr *a)                  \
     return false;                                                       \
 }
 
+/* Zvqwdota8i 8-bit Integer Dot-Product Extension */
+static bool vext_zvdota_base_check(DisasContext *s, arg_rmrr * a)
+{
+    return require_rvv(s) &&
+           vext_check_isa_ill(s) &&
+           s->vstart_eq_zero &&
+           require_align(a->rs1, s->lmul) &&
+           require_align(a->rs2, s->lmul) &&
+           require_vm(a->vm, a->rd) &&
+           require_noover(a->rd, 0, a->rs1, s->lmul) &&
+           require_noover(a->rd, 0, a->rs2, s->lmul) &&
+           vext_check_input_eew(s, a->rs1, s->sew, a->rs2, s->sew, a->vm);
+}
+
+static bool vext_vqwdota_check(DisasContext *s, arg_rmrr *a)
+{
+    return vext_zvdota_base_check(s, a) &&
+           (s->cfg_ptr->ext_zvqwdota8i && s->sew == MO_8);
+}
+
+typedef void gen_helper_zvdota_int(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr,
+                                   TCGv_env, TCGv_i32);
+
+#define GEN_ZVDOTA_INT_TRANS(NAME, CHECK)                               \
+static bool trans_##NAME(DisasContext *s, arg_rmrr *a)                  \
+{                                                                       \
+    static gen_helper_zvdota_int * const fns[2] = {                     \
+        gen_helper_##NAME##_b, NULL,                                    \
+    };                                                                  \
+    if (CHECK(s, a)) {                                                  \
+        TCGv_ptr dest, src1, src2, mask;                                \
+        TCGv_i32 desc;                                                  \
+        uint32_t data = 0;                                              \
+                                                                        \
+        data = FIELD_DP32(data, VDATA, VM, a->vm);                      \
+        data = FIELD_DP32(data, VDATA, LMUL, s->lmul);                  \
+        data = FIELD_DP32(data, VDATA, VTA, s->vta);                    \
+        data = FIELD_DP32(data, VDATA, VTA_ALL_1S, s->cfg_vta_all_1s);  \
+                                                                        \
+        dest = tcg_temp_new_ptr();                                      \
+        mask = tcg_temp_new_ptr();                                      \
+        src1 = tcg_temp_new_ptr();                                      \
+        src2 = tcg_temp_new_ptr();                                      \
+        desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlenb,            \
+                                          s->cfg_ptr->vlenb, data));    \
+                                                                        \
+        tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, a->rd));            \
+        tcg_gen_addi_ptr(src1, tcg_env, vreg_ofs(s, a->rs1));           \
+        tcg_gen_addi_ptr(src2, tcg_env, vreg_ofs(s, a->rs2));           \
+        tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));                \
+                                                                        \
+        fns[s->sew](dest, mask, src1, src2, tcg_env, desc);             \
+                                                                        \
+        finalize_rvv_inst(s);                                           \
+                                                                        \
+        return true;                                                    \
+    }                                                                   \
+    return false;                                                       \
+}
+
 GEN_ABD_OPIVV_WIDEN_TRANS(vwabda_vv, vwabd_vv_check)
 GEN_ABD_OPIVX_WIDEN_TRANS(vwabda_vx, vwabd_vx_check)
 GEN_ABD_OPIVV_WIDEN_TRANS(vwabdau_vv, vwabd_vv_check)
 GEN_ABD_OPIVX_WIDEN_TRANS(vwabdau_vx, vwabd_vx_check)
+
+GEN_ZVDOTA_INT_TRANS(vqwdotau_vv, vext_vqwdota_check)
+GEN_ZVDOTA_INT_TRANS(vqwdotas_vv, vext_vqwdota_check)

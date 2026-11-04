@@ -1097,3 +1097,7 @@ vwabda_vv     111101 . ..... ..... 000 ..... 1010111 @r_vm
 vwabda_vx     111101 . ..... ..... 100 ..... 1010111 @r_vm
 vwabdau_vv    111110 . ..... ..... 000 ..... 1010111 @r_vm
 vwabdau_vx    111110 . ..... ..... 100 ..... 1010111 @r_vm
+
+# *** Zvqwdota8i 8-bit Integer Dot-Product Extension ***
+vqwdotau_vv  100110 . ..... ..... 000 ..... 1110111 @r_vm
+vqwdotas_vv  100111 . ..... ..... 000 ..... 1110111 @r_vm
