@@ -27,6 +27,9 @@ The ``microchip-icicle-kit`` machine supports the following devices:
 * 1 SDHC storage controller
 
 The machine has a fixed 2 GiB of RAM. Other memory sizes are rejected.
+The machine defaults to all five harts. ``-smp`` may select two to five harts,
+with one E51 and one to four U54 cores. The firmware and device tree must match
+the selected topology; the HSS boot flow below uses all five harts.
 
 Boot options
 ------------
