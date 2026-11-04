@@ -6201,3 +6201,58 @@ GEN_VEXT_ZVBDOTA_INT(vqwbdotau_vv_b, 32, 8, uint8_t, H4, H1)
 GEN_VEXT_ZVBDOTA_INT(vqwbdotas_vv_b, 32, 8, int8_t, H4, H1)
 GEN_VEXT_ZVBDOTA_INT(vqwbdotau_vv_h, 64, 16, uint16_t, H8, H2)
 GEN_VEXT_ZVBDOTA_INT(vqwbdotas_vv_h, 64, 16, int16_t, H8, H2)
+
+/*
+ * Zvfwbdota16bf: BF16 Batched Dot Product with Accumulation
+ */
+void HELPER(vfwbdota_vv)(void *vd, void *v0, void *vs1, void *vs2, uint32_t ci,
+                         CPURISCVState *env, uint32_t desc)
+{
+    uint32_t vm = vext_vm(desc);
+    uint32_t vl = env->vl;
+    uint32_t vta = vext_vta(desc);
+    uint32_t vta_all_1s = vext_vta_all_1s(desc);
+    uint32_t vlenb = riscv_cpu_cfg(env)->vlenb;
+    uint32_t vd_emul = vext_lmul(desc);
+    uint32_t log_esz = 2;
+    uint32_t total_elems = (vlenb << vd_emul) >> log_esz;
+    uint32_t vlmax = vlenb >> MO_16;
+    uint32_t n, k;
+    bfloat16 *a_vec, *b_vec;
+    float32 acc, dot_result;
+
+    VSTART_CHECK_EARLY_EXIT(env, vl);
+
+    a_vec = g_new0(bfloat16, vlmax);
+    b_vec = g_new0(bfloat16, vlmax);
+
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    for (n = 0; n < 8; n++) {
+        if (!vm && !vext_elem_mask(v0, ci + n)) {
+            continue;
+        }
+
+        for (k = 0; k < vl; k++) {
+            a_vec[k] = *((bfloat16 *)vs2 + n * vlmax + H2(k));
+            b_vec[k] = *((bfloat16 *)vs1 + H2(k));
+        }
+
+        dot_result = rvbna_dot_bfloat16_bfloat16(a_vec, b_vec, vlmax,
+                                                 &env->fp_status);
+        acc = *((float32 *)vd + H4(ci + n));
+        *((float32 *)vd + H4(ci + n)) = rvbna_final_f32_add(dot_result, acc,
+                                                            &env->fp_status);
+    }
+    riscv_cpu_check_fflags(env, pre_fflag);
+
+    g_free(a_vec);
+    g_free(b_vec);
+
+    env->vstart = 0;
+
+    if (ci + 8 < total_elems) {
+        if (vta_all_1s) {
+            vext_set_elems_1s(vd, vta, (ci + 8) * 4, total_elems * 4);
+        }
+    }
+}
