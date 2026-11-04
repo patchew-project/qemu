@@ -10,6 +10,7 @@ riscv_ss.add(files(
   'fpu_helper.c',
   'm128_helper.c',
   'op_helper.c',
+  'rvbna.c',
   'translate.c',
   'tcg-cpu.c',
   'vcrypto_helper.c',
@@ -26,5 +27,4 @@ riscv_system_ss.add(files(
   'pmu.c',
   'th_csr.c',
 ))
-
 

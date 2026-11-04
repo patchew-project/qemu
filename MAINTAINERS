@@ -416,6 +416,12 @@ F: target/riscv/tcg/xsf_helper.c
 F: disas/riscv-xsf*
 F: tests/tcg/riscv64/test-xsfvqmacc.S
 
+RISC-V Bulk Normalization Algorithm (RVBNA)
+M: Max Chou <max.chou@sifive.com>
+L: qemu-riscv@nongnu.org
+S: Supported
+F: target/riscv/tcg/rvbna.*
+
 RENESAS RX CPUs
 R: Yoshinori Sato <yoshinori.sato@nifty.com>
 S: Orphan
