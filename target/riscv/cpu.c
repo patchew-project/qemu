@@ -2904,6 +2904,15 @@ static RISCVCPUImpliedExtsRule ZVFQWBDOTA8F_IMPLIED = {
     },
 };
 
+static RISCVCPUImpliedExtsRule ZVFBDOTA32F_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zvfbdota32f),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zve32f),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
 static RISCVCPUImpliedExtsRule ZVFWBDOTA16BF_IMPLIED = {
     .ext = CPU_CFG_OFFSET(ext_zvfwbdota16bf),
     .implied_multi_exts = {
@@ -3132,6 +3141,7 @@ RISCVCPUImpliedExtsRule *riscv_multi_ext_implied_rules[] = {
     &ZVE64D_IMPLIED,
     &ZVE64F_IMPLIED,
     &ZVE64X_IMPLIED,
+    &ZVFBDOTA32F_IMPLIED,
     &ZVFBFA_IMPLIED,
     &ZVFBFMIN_IMPLIED,
     &ZVFBFWMA_IMPLIED,
