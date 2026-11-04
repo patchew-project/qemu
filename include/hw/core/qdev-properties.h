@@ -144,17 +144,15 @@ extern const PropertyInfo qdev_prop_link_array;
  * @_name: name of the array
  * @_state: name of the device state structure type
  * @_field: uint32_t field in @_state to hold the array length
- * @_arrayfield: field in @_state (of type '@_arraytype *') which
- *               will point to the array
+ * @_arrayfield: field in @_state which will point to the array
  * @_arrayprop: PropertyInfo for the array elements (e.g. qdev_prop_uint32);
  *              a corresponding array PropertyInfo named @_arrayprop##_array
  *              must exist
- * @_arraytype: C type of the array elements
  *
  * Define device properties for a variable-length array _name.  The array is
  * represented as a list in the visitor interface.
  *
- * @_arraytype is required to be movable with memcpy().
+ * The element type must be movable with memcpy().
  *
  * When the array property is set, the @_field member of the device
  * struct is set to the array length, and @_arrayfield is set to point
@@ -164,7 +162,7 @@ extern const PropertyInfo qdev_prop_link_array;
  * @_arrayfield memory.
  */
 #define DEFINE_PROP_ARRAY(_name, _state, _field,                        \
-                          _arrayfield, _arrayprop, _arraytype)          \
+                          _arrayfield, _arrayprop)                      \
     DEFINE_PROP(_name, _state, _field, _arrayprop##_array, uint32_t,    \
                 .set_default = true,                                    \
                 .defval.u = 0,                                          \
@@ -179,10 +177,8 @@ extern const PropertyInfo qdev_prop_link_array;
  * @_name: name of the array
  * @_state: name of the device state structure type
  * @_field: uint32_t field in @_state to hold the array length
- * @_arrayfield: field in @_state (of type '@_arraytype *') which
- *               will point to the array
+ * @_arrayfield: field in @_state which will point to the array
  * @_linktype: QOM type name of the link type
- * @_arraytype: C type of the array elements
  *
  * Define device properties for a variable-length array _name of links
  * (i.e. this is the array version of DEFINE_PROP_LINK).
@@ -191,7 +187,7 @@ extern const PropertyInfo qdev_prop_link_array;
  * where each string is the QOM path of the object to be linked.
  */
 #define DEFINE_PROP_LINK_ARRAY(_name, _state, _field, _arrayfield,      \
-                               _linktype, _arraytype)                   \
+                               _linktype)                               \
     DEFINE_PROP(_name, _state, _field, qdev_prop_link_array, uint32_t,  \
                 .set_default = true,                                    \
                 .defval.u = 0,                                          \
