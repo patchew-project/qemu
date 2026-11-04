@@ -2837,7 +2837,9 @@ static void init_proc_e500(CPUPPCState *env, int version)
     /* Processor identification */
     spr_register(env, SPR_BOOKE_PIR, "PIR",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_pir,
+                 &spr_read_generic,
+                 (version == fsl_e500v1 || version == fsl_e500v2) ?
+                     SPR_NOACCESS : &spr_write_generic32,
                  0x00000000);
 
     spr_register(env, SPR_BOOKE_SPEFSCR, "SPEFSCR",
