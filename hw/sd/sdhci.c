@@ -1582,6 +1582,24 @@ static const VMStateDescription sdhci_hostctl2_vmstate = {
     },
 };
 
+static bool sdhci_vendor_spec_vmstate_needed(void *opaque)
+{
+    SDHCIState *s = opaque;
+
+    return s->vendor_spec;
+}
+
+static const VMStateDescription sdhci_vendor_spec_vmstate = {
+    .name = "sdhci/vendor-spec",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = sdhci_vendor_spec_vmstate_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT16(vendor_spec, SDHCIState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static bool sdhci_pending_insert_vmstate_needed(void *opaque)
 {
     SDHCIState *s = opaque;
@@ -1601,6 +1619,7 @@ static int sdhci_pre_load(void *opaque)
     SDHCIState *s = opaque;
 
     s->hostctl2 = 0;
+    s->vendor_spec = 0;
     s->sdma_boundary_paused = false;
     return 0;
 }
@@ -1676,6 +1695,7 @@ const VMStateDescription sdhci_vmstate = {
     },
     .subsections = (const VMStateDescription * const []) {
         &sdhci_hostctl2_vmstate,
+        &sdhci_vendor_spec_vmstate,
         &sdhci_pending_insert_vmstate,
         &sdhci_sdma_boundary_paused_vmstate,
         NULL
@@ -1779,6 +1799,10 @@ static void sdhci_bus_class_init(ObjectClass *klass, const void *data)
 
 #define ESDHC_VENDOR_SPEC               0xc0
 #define ESDHC_FRC_SDCLK_ON              (1 << 8)
+#define ESDHC_VENDOR_IPGEN              (1 << 11)
+#define ESDHC_VENDOR_HCKEN              (1 << 12)
+#define ESDHC_VENDOR_PEREN              (1 << 13)
+#define ESDHC_VENDOR_CKEN               (1 << 14)
 
 #define ESDHC_DLL_CTRL                  0x60
 
@@ -2029,14 +2053,67 @@ static void fsl_esdhc_le_init(Object *obj)
     qdev_prop_set_uint8(dev, "sd-spec-version", 2);
 }
 
+static bool usdhc_vendor_clocks_on(const SDHCIState *s)
+{
+    uint16_t clocks = ESDHC_VENDOR_IPGEN | ESDHC_VENDOR_HCKEN |
+                      ESDHC_VENDOR_PEREN | ESDHC_VENDOR_CKEN;
+
+    return (s->vendor_spec & clocks) == clocks;
+}
+
+static uint64_t usdhc_read(void *opaque, hwaddr offset, unsigned size)
+{
+    SDHCIState *s = opaque;
+    uint32_t value;
+
+    switch (offset & ~3) {
+    case SDHC_PRNSTS:
+        value = esdhc_read(opaque, SDHC_PRNSTS, 4);
+        if ((s->vendor_spec & (ESDHC_VENDOR_IPGEN | ESDHC_VENDOR_HCKEN)) ==
+            (ESDHC_VENDOR_IPGEN | ESDHC_VENDOR_HCKEN)) {
+            value |= ESDHC_PRNSTS_SDSTB;
+        }
+        break;
+    case ESDHC_VENDOR_SPEC:
+        value = s->vendor_spec;
+        break;
+    default:
+        return esdhc_read(opaque, offset, size);
+    }
+    return extract32(value, (offset & 3) * 8, size * 8);
+}
+
 static void
 usdhc_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 {
     SDHCIState *s = SYSBUS_SDHCI(opaque);
     uint32_t value = (uint32_t)val;
 
-    switch (offset) {
+    switch (offset & ~3) {
+    case SDHC_TRNMOD: {
+        uint16_t clkcon = s->clkcon;
+
+        /* Present vendor clocks to the common command check */
+        if (usdhc_vendor_clocks_on(s)) {
+            s->clkcon |= SDHC_CLOCK_CHK_MASK;
+        }
+        if (offset == SDHC_TRNMOD && size == 4) {
+            val |= s->trnmod;
+        }
+        sdhci_write(opaque, offset, val, size);
+        s->clkcon = clkcon;
+        break;
+    }
+
+    case SDHC_CLKCON:
+        esdhc_write(opaque, offset, val, size);
+        break;
+
     case ESDHC_MIX_CTRL:
+        if (offset != ESDHC_MIX_CTRL) {
+            esdhc_write(opaque, offset, val, size);
+            break;
+        }
         /*
          * So, when SD/MMC stack in Linux tries to write to "Transfer
          * Mode Register", uSDHC i.MX quirk code will translate it
@@ -2054,16 +2131,10 @@ usdhc_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
         s->trnmod = value & UINT16_MAX;
         break;
 
-    case SDHC_TRNMOD:
-        /*
-         * Similar to above, but this time a write to "Command
-         * Register" will be translated into a 4-byte write to
-         * "Transfer Mode register" where lower 16-bit of value would
-         * be set to zero. So what we do is fill those bits with
-         * cached value from s->trnmod and let the SDHCI
-         * infrastructure handle the rest
-         */
-        sdhci_write(opaque, offset, val | s->trnmod, size);
+    case ESDHC_VENDOR_SPEC:
+        value = deposit32(s->vendor_spec, (offset & 3) * 8,
+                          size * 8, value);
+        esdhc_write(opaque, ESDHC_VENDOR_SPEC, value, 4);
         break;
 
     default:
@@ -2073,7 +2144,7 @@ usdhc_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 }
 
 static const MemoryRegionOps usdhc_mmio_ops = {
-    .read = esdhc_read,
+    .read = usdhc_read,
     .write = usdhc_write,
     .valid = {
         .min_access_size = 1,
