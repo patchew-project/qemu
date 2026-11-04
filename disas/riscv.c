@@ -2647,6 +2647,7 @@ static const rv_opcode_data *decode_inst_opcode(rv_decode *dec, rv_isa isa)
                 case 36: return &op_vfwdota_vv;
                 case 38: return &op_vfqwdota_vv;
                 case 39: return &op_vfqwdota_alt_vv;
+                case 43: return &op_vfbdota_vv;
                 case 44: return &op_vfwbdota_vv;
                 case 46: return &op_vfqwbdota_vv;
                 case 47: return &op_vfqwbdota_alt_vv;
