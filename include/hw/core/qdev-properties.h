@@ -23,9 +23,7 @@ struct Property {
         int64_t i;
         uint64_t u;
     } defval;
-    const PropertyInfo *arrayinfo;
     int          arrayoffset;
-    int          arrayfieldsize;
     uint8_t      bitnr;
     bool         set_default;
 };
@@ -34,6 +32,8 @@ struct PropertyInfo {
     const char *type;
     const char *description;
     const QAPITypeInfo *qapi_type;
+    const struct PropertyInfo *element_info;
+    size_t element_size;
     bool realized_set_allowed; /* allow setting property on realized device */
     char *(*print)(Object *obj, const Property *prop);
     void (*set_default_value)(ObjectProperty *op, const Property *prop);
@@ -73,8 +73,13 @@ extern const PropertyInfo qdev_prop_size;
 extern const PropertyInfo qdev_prop_string;
 extern const PropertyInfo qdev_prop_on_off_auto;
 extern const PropertyInfo qdev_prop_size32;
-extern const PropertyInfo qdev_prop_array;
+extern const PropertyInfo qdev_prop_uint8_array;
+extern const PropertyInfo qdev_prop_uint16_array;
+extern const PropertyInfo qdev_prop_uint32_array;
+extern const PropertyInfo qdev_prop_uint64_array;
+extern const PropertyInfo qdev_prop_string_array;
 extern const PropertyInfo qdev_prop_link;
+extern const PropertyInfo qdev_prop_link_array;
 
 #define DEFINE_PROP(_name, _state, _field, _prop, _type, ...) {  \
         .name      = (_name),                                    \
@@ -141,7 +146,9 @@ extern const PropertyInfo qdev_prop_link;
  * @_field: uint32_t field in @_state to hold the array length
  * @_arrayfield: field in @_state (of type '@_arraytype *') which
  *               will point to the array
- * @_arrayprop: PropertyInfo defining what property the array elements have
+ * @_arrayprop: PropertyInfo for the array elements (e.g. qdev_prop_uint32);
+ *              a corresponding array PropertyInfo named @_arrayprop##_array
+ *              must exist
  * @_arraytype: C type of the array elements
  *
  * Define device properties for a variable-length array _name.  The array is
@@ -158,11 +165,9 @@ extern const PropertyInfo qdev_prop_link;
  */
 #define DEFINE_PROP_ARRAY(_name, _state, _field,                        \
                           _arrayfield, _arrayprop, _arraytype)          \
-    DEFINE_PROP(_name, _state, _field, qdev_prop_array, uint32_t,       \
+    DEFINE_PROP(_name, _state, _field, _arrayprop##_array, uint32_t,    \
                 .set_default = true,                                    \
                 .defval.u = 0,                                          \
-                .arrayinfo = &(_arrayprop),                             \
-                .arrayfieldsize = sizeof(_arraytype),                   \
                 .arrayoffset = offsetof(_state, _arrayfield))
 
 #define DEFINE_PROP_LINK(_name, _state, _field, _type, _ptr_type)     \
@@ -187,11 +192,9 @@ extern const PropertyInfo qdev_prop_link;
  */
 #define DEFINE_PROP_LINK_ARRAY(_name, _state, _field, _arrayfield,      \
                                _linktype, _arraytype)                   \
-    DEFINE_PROP(_name, _state, _field, qdev_prop_array, uint32_t,       \
+    DEFINE_PROP(_name, _state, _field, qdev_prop_link_array, uint32_t,  \
                 .set_default = true,                                    \
                 .defval.u = 0,                                          \
-                .arrayinfo = &qdev_prop_link,                           \
-                .arrayfieldsize = sizeof(_arraytype),                   \
                 .arrayoffset = offsetof(_state, _arrayfield),           \
                 .link_type = _linktype)
 
