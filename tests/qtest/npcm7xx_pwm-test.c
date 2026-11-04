@@ -241,8 +241,8 @@ static uint64_t pwm_get_freq(QTestState *qts, int module_index, int pwm_index)
     char path[100];
     char name[100];
 
-    sprintf(path, "/machine/soc/pwm[%d]", module_index);
-    sprintf(name, "freq[%d]", pwm_index);
+    snprintf(path, sizeof(path), "/machine/soc/pwm[%d]", module_index);
+    snprintf(name, sizeof(name), "freq[%d]", pwm_index);
 
     return pwm_qom_get(qts, path, name);
 }
@@ -252,8 +252,8 @@ static uint64_t pwm_get_duty(QTestState *qts, int module_index, int pwm_index)
     char path[100];
     char name[100];
 
-    sprintf(path, "/machine/soc/pwm[%d]", module_index);
-    sprintf(name, "duty[%d]", pwm_index);
+    snprintf(path, sizeof(path), "/machine/soc/pwm[%d]", module_index);
+    snprintf(name, sizeof(name), "duty[%d]", pwm_index);
 
     return pwm_qom_get(qts, path, name);
 }

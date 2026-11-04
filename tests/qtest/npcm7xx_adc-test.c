@@ -137,7 +137,7 @@ static void adc_write_input(QTestState *qts, const ADC *adc,
 {
     char name[100];
 
-    sprintf(name, "adci[%u]", index);
+    snprintf(name, sizeof(name), "adci[%u]", index);
     adc_qom_set(qts, adc, name, value);
 }
 
@@ -319,7 +319,8 @@ static void test_calibrate(gconstpointer adc_p)
         char buf[100];
         QTestState *qts;
 
-        sprintf(buf, "-machine quanta-gsj -global npcm7xx-adc.iref=%u", iref);
+        snprintf(buf, sizeof(buf),
+                 "-machine quanta-gsj -global npcm7xx-adc.iref=%u", iref);
         qts = qtest_init(buf);
 
         /* Check the converted value is correct using the calibration value. */
