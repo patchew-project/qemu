@@ -256,6 +256,61 @@ floatx80 floatx80_default_inf(bool zSign, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| Determine if a OCP FP8 E4M3 NaN is signaling NaN.
+| E4M3 has only one NaN encoding, so classification is policy-based.
+*----------------------------------------------------------------------------*/
+
+static bool float8_e4m3_nan_is_snan(float8_e4m3 a, float_status *status)
+{
+    return get_float_e4m3_nan_is_snan(status);
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the OCP FP8 E4M3 value `a' is a quiet NaN; otherwise returns 0.
+*----------------------------------------------------------------------------*/
+
+bool float8_e4m3_is_quiet_nan(float8_e4m3 a_, float_status *status)
+{
+    return float8_e4m3_is_any_nan(a_) && !float8_e4m3_nan_is_snan(a_, status);
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the OCP FP8 E4M3 value `a' is a signaling NaN; otherwise 0.
+*----------------------------------------------------------------------------*/
+
+bool float8_e4m3_is_signaling_nan(float8_e4m3 a_, float_status *status)
+{
+    return float8_e4m3_is_any_nan(a_) && float8_e4m3_nan_is_snan(a_, status);
+}
+
+/*----------------------------------------------------------------------------
+| Determine if a OCP FP8 E5M2 NaN is signaling NaN.
+*----------------------------------------------------------------------------*/
+
+static bool float8_e5m2_nan_is_snan(float8_e5m2 a, float_status *status)
+{
+    return frac_msb_is_snan((a >> 1) & 1, status);
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the OCP FP8 E5M2 value `a' is a quiet NaN; otherwise returns 0.
+*----------------------------------------------------------------------------*/
+
+bool float8_e5m2_is_quiet_nan(float8_e5m2 a_, float_status *status)
+{
+    return float8_e5m2_is_any_nan(a_) && !float8_e5m2_nan_is_snan(a_, status);
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the OCP FP8 E5M2 value `a' is a signaling NaN; otherwise 0.
+*----------------------------------------------------------------------------*/
+
+bool float8_e5m2_is_signaling_nan(float8_e5m2 a_, float_status *status)
+{
+    return float8_e5m2_is_any_nan(a_) && float8_e5m2_nan_is_snan(a_, status);
+}
+
+/*----------------------------------------------------------------------------
 | Determine if a float16 NaN is signaling NaN.
 *----------------------------------------------------------------------------*/
 
