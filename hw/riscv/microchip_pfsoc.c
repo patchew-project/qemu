@@ -175,6 +175,12 @@ static void microchip_pfsoc_soc_instance_init(Object *obj)
     object_initialize_child(obj, "dma-controller", &s->dma,
                             TYPE_SIFIVE_PDMA);
 
+    object_initialize_child(obj, "l2-cache-controller", &s->l2cc,
+                            TYPE_SIFIVE_L2CC);
+    qdev_prop_set_uint32(DEVICE(&s->l2cc), "num-masters", 15);
+    qdev_prop_set_uint64(DEVICE(&s->l2cc), "zero-size",
+                         microchip_pfsoc_memmap[MICROCHIP_PFSOC_L2ZERO].size);
+
     object_initialize_child(obj, "sysreg", &s->sysreg,
                             TYPE_MCHP_PFSOC_SYSREG);
 
@@ -201,8 +207,6 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *rsvd0_mem = g_new(MemoryRegion, 1);
     MemoryRegion *e51_dtim_mem = g_new(MemoryRegion, 1);
-    MemoryRegion *l2lim_mem = g_new(MemoryRegion, 1);
-    MemoryRegion *l2zero_mem = g_new(MemoryRegion, 1);
     MemoryRegion *envm_data = g_new(MemoryRegion, 1);
     MemoryRegion *qspi_xip_mem = g_new(MemoryRegion, 1);
     char *plic_hart_config;
@@ -261,35 +265,14 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
         RISCV_ACLINT_DEFAULT_MTIMECMP, RISCV_ACLINT_DEFAULT_MTIME,
         iks->clint_timebase_freq, false);
 
-    /* L2 cache controller */
-    create_unimplemented_device("microchip.pfsoc.l2cc",
-        memmap[MICROCHIP_PFSOC_L2CC].base, memmap[MICROCHIP_PFSOC_L2CC].size);
-
-    /*
-     * Add L2-LIM at reset size.
-     * This should be reduced in size as the L2 Cache Controller WayEnable
-     * register is incremented. Unfortunately I don't see a nice (or any) way
-     * to handle reducing or blocking out the L2 LIM while still allowing it
-     * be re returned to all enabled after a reset. For the time being, just
-     * leave it enabled all the time. This won't break anything, but will be
-     * too generous to misbehaving guests.
-     */
-    memory_region_init_ram(l2lim_mem, NULL, "microchip.pfsoc.l2lim",
-                           memmap[MICROCHIP_PFSOC_L2LIM].size, &error_fatal);
-    memory_region_add_subregion(system_memory,
-                                memmap[MICROCHIP_PFSOC_L2LIM].base,
-                                l2lim_mem);
-
-    /*
-     * HSS decompresses into the L2 zero-device window and executes there.
-     * Model it as RAM because QEMU does not model the backing L2 cache.
-     */
-    memory_region_init_ram(l2zero_mem, NULL, "microchip.pfsoc.l2zero",
-                           memmap[MICROCHIP_PFSOC_L2ZERO].size,
-                           &error_fatal);
-    memory_region_add_subregion(system_memory,
-                                memmap[MICROCHIP_PFSOC_L2ZERO].base,
-                                l2zero_mem);
+    /* The L2CC owns the SRAM backing and both software-visible windows */
+    sysbus_realize(SYS_BUS_DEVICE(&s->l2cc), errp);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->l2cc), SIFIVE_L2CC_MMIO_REGS,
+                    memmap[MICROCHIP_PFSOC_L2CC].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->l2cc), SIFIVE_L2CC_MMIO_LIM,
+                    memmap[MICROCHIP_PFSOC_L2LIM].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->l2cc), SIFIVE_L2CC_MMIO_ZERO,
+                    memmap[MICROCHIP_PFSOC_L2ZERO].base);
 
     /* create PLIC hart topology configuration string */
     plic_hart_config = riscv_plic_hart_config_string(ms->smp.cpus);
