@@ -1649,7 +1649,7 @@ static int vtd_address_space_sync(VTDAddressSpace *vtd_as)
  * or second stage translation, it depends on PGTT setting.
  */
 static bool vtd_dev_pt_enabled(IntelIOMMUState *s, VTDContextEntry *ce,
-                               uint32_t pasid)
+                               uint32_t pasid, VTDPASIDEntry *pasid_entry)
 {
     VTDPASIDEntry pe;
     int ret;
@@ -1663,6 +1663,11 @@ static bool vtd_dev_pt_enabled(IntelIOMMUState *s, VTDContextEntry *ce,
              */
             return false;
         }
+
+        if (pasid_entry) {
+            *pasid_entry = pe;
+        }
+
         return vtd_pe_pgtt_is_pt(&pe);
     }
 
@@ -1689,7 +1694,7 @@ static bool vtd_as_pt_enabled(VTDAddressSpace *as)
         return false;
     }
 
-    return vtd_dev_pt_enabled(s, &ce, as->pasid);
+    return vtd_dev_pt_enabled(s, &ce, as->pasid, NULL);
 }
 
 /* Return whether the device is using IOMMU translation. */
@@ -1887,7 +1892,8 @@ VTDAddressSpace *vtd_get_as_by_sid(IntelIOMMUState *s, uint16_t sid)
     return vtd_get_as_by_sid_and_pasid(s, sid, IOMMU_NO_PASID);
 }
 
-static void vtd_pt_enable_fast_path(IntelIOMMUState *s, uint16_t source_id)
+static void vtd_pt_enable_fast_path(IntelIOMMUState *s, uint16_t source_id,
+                                    VTDPASIDEntry *pe)
 {
     VTDAddressSpace *vtd_as;
     bool success = false;
@@ -1900,6 +1906,13 @@ static void vtd_pt_enable_fast_path(IntelIOMMUState *s, uint16_t source_id)
     if (vtd_switch_address_space(vtd_as) == false) {
         /* We switched off IOMMU region successfully. */
         success = true;
+
+        if (s->root_scalable) {
+            VTDPASIDCacheEntry *pc_entry = &vtd_as->pasid_cache_entry;
+
+            pc_entry->pasid_entry = *pe;
+            pc_entry->valid = true;
+        }
     }
 
 out:
@@ -2091,6 +2104,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
 {
     IntelIOMMUState *s = vtd_as->iommu_state;
     VTDContextEntry ce;
+    VTDPASIDEntry pe;
     uint8_t bus_num = pci_bus_num(bus);
     VTDContextCacheEntry *cc_entry;
     uint64_t pte, page_mask;
@@ -2167,7 +2181,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
      * We don't need to translate for pass-through context entries.
      * Also, let's ignore IOTLB caching as well for PT devices.
      */
-    if (vtd_dev_pt_enabled(s, &ce, pasid)) {
+    if (vtd_dev_pt_enabled(s, &ce, pasid, &pe)) {
         entry->iova = addr & VTD_PAGE_MASK_4K;
         entry->translated_addr = entry->iova;
         entry->addr_mask = ~VTD_PAGE_MASK_4K;
@@ -2180,10 +2194,11 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
          * the device. Let's enable the fast path for passthrough.
          *
          * When passthrough is disabled again for the device, we can
-         * capture it via the context entry invalidation, then the
-         * IOMMU region can be swapped back.
+         * capture it via context-cache invalidation in legacy mode or
+         * PASID-cache invalidation in scalable mode, then the IOMMU
+         * region can be swapped back.
          */
-        vtd_pt_enable_fast_path(s, source_id);
+        vtd_pt_enable_fast_path(s, source_id, &pe);
         vtd_iommu_unlock(s);
         return true;
     }
@@ -3133,6 +3148,7 @@ static void vtd_pasid_cache_sync_locked(gpointer key, gpointer value,
             vtd_address_space_unmap(vtd_as, n);
         }
         vtd_switch_address_space(vtd_as);
+        return;
     }
 
     /*
@@ -3158,11 +3174,11 @@ static void vtd_pasid_cache_sync_locked(gpointer key, gpointer value,
     }
 
     if (!pc_entry->valid) {
-        pc_entry->pasid_entry = pe;
         pc_entry->valid = true;
     } else if (!vtd_pasid_entry_compare(&pe, &pc_entry->pasid_entry)) {
         return;
     }
+    pc_entry->pasid_entry = pe;
 
     vtd_switch_address_space(vtd_as);
     vtd_address_space_sync(vtd_as);
