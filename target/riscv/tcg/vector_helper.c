@@ -42,6 +42,7 @@ static target_ulong vtype_reserved(CPURISCVState *env, target_ulong vtype)
     if (riscv_cpu_cfg(env)->ext_zvfbfa ||
         riscv_cpu_cfg(env)->ext_zvfqwdota8f ||
         riscv_cpu_cfg(env)->ext_zvfwdota16bf ||
+        riscv_cpu_cfg(env)->ext_zvqwbdota8i ||
         riscv_cpu_cfg(env)->ext_zvqwdota16i ||
         riscv_cpu_cfg(env)->ext_zvqwdota8i) {
         reserved = vtype & MAKE_64BIT_MASK(R_VTYPE_RESERVED_SHIFT,
@@ -94,6 +95,7 @@ target_ulong HELPER(vsetvl)(CPURISCVState *env, target_ulong s1,
     case MO_8:
         ill_altfmt &= !(cpu->cfg.ext_zvfbfa ||
                         cpu->cfg.ext_zvfqwdota8f ||
+                        cpu->cfg.ext_zvqwbdota8i ||
                         cpu->cfg.ext_zvqwdota8i);
         break;
     case MO_16:
