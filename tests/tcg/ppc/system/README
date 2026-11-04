@@ -1,0 +1,22 @@
+These Book E ISA tests use the generic tests/tcg build and test runner.
+They run on ppce500 with e500mc, e5500 and e6500 CPU models. System mode
+allows checking SRR0 and ESR on illegal instructions. The ppc target runs
+e500mc in 32-bit computation mode; ppc64 runs e5500/e6500 in 64-bit mode.
+
+The cross compiler builds freestanding ELF32 executables for ppc with
+-m32 and ELF64 executables for ppc64 with -m64. No target libc or
+multilib runtime is needed. The boot stub uses the initial RAM mapping
+provided by ppce500 -kernel, maps the CCSR area, and installs a program
+exception handler. Results go to UART0, and the existing GPIO power-off
+line terminates QEMU. The standard run_and_diff wrapper compares the
+output with isa.out.
+
+Configure QEMU with ppc-softmmu and/or ppc64-softmmu enabled. Compilers
+are found through the usual TCG cross-compiler detection or containers;
+--cross-cc-ppc and --cross-cc-ppc64 can select them explicitly. Run with:
+
+    make check-tcg-ppc-softmmu
+    make check-tcg-ppc64-softmmu
+
+These targets are generated only when configure finds a usable cross
+compiler or container. If missing, check the TCG tests configure summary.
