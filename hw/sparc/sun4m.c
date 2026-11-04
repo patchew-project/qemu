@@ -840,10 +840,13 @@ static void sun4m_hw_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0);
 
-    /* models without ECC don't trap when missing ram is accessed */
+    /*
+     * models without ECC don't trap when missing ram is accessed,
+     * up to the end of memory decode at iommu_base
+     */
     if (!hwdef->ecc_base) {
         empty_slot_init("ecc", machine->ram_size,
-                        hwdef->max_mem - machine->ram_size);
+                        hwdef->iommu_base - machine->ram_size);
     }
 
     prom_init(hwdef->slavio_base, machine->firmware);
