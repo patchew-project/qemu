@@ -1109,6 +1109,6 @@ vfwdota_vv  100100 . ..... ..... 001 ..... 1110111 @r_vm
 vfqwdota_vv     100110 . ..... ..... 001 ..... 1110111 @r_vm
 vfqwdota_alt_vv 100111 . ..... ..... 001 ..... 1110111 @r_vm
 
-# *** Zvqwbdota8i 8-bit Integer Batched Dot-Product Extension ***
+# *** Zvqwbdota8i/Zvqwbdota16i Integer Batched Dot-Product Extension ***
 vqwbdotau_vv  101110 . ..... ..... 000 ..... 1110111 @r_vm
 vqwbdotas_vv  101111 . ..... ..... 000 ..... 1110111 @r_vm
