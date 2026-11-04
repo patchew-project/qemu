@@ -4200,3 +4200,45 @@ GEN_ABD_OPIVX_WIDEN_TRANS(vwabdau_vx, vwabd_vx_check)
 
 GEN_ZVDOTA_INT_TRANS(vqwdotau_vv, vext_vqwdota_check)
 GEN_ZVDOTA_INT_TRANS(vqwdotas_vv, vext_vqwdota_check)
+
+static bool vext_vfwdota_check(DisasContext *s, arg_rmrr * a)
+{
+    return s->mstatus_fs != EXT_STATUS_DISABLED &&
+           vext_zvdota_base_check(s, a) &&
+           (s->cfg_ptr->ext_zvfwdota16bf && s->sew == MO_16 && s->altfmt == 1);
+}
+
+static bool trans_vfwdota_vv(DisasContext *s, arg_rmrr * a)
+{
+    if (vext_vfwdota_check(s, a)) {
+        TCGv_ptr dest, src1, src2, mask;
+        TCGv_i32 desc;
+        uint32_t data = 0;
+
+        gen_set_rm(s, RISCV_FRM_DYN);
+
+        data = FIELD_DP32(data, VDATA, VM, a->vm);
+        data = FIELD_DP32(data, VDATA, LMUL, s->lmul);
+        data = FIELD_DP32(data, VDATA, VTA, s->vta);
+        data = FIELD_DP32(data, VDATA, VTA_ALL_1S, s->cfg_vta_all_1s);
+
+        dest = tcg_temp_new_ptr();
+        mask = tcg_temp_new_ptr();
+        src1 = tcg_temp_new_ptr();
+        src2 = tcg_temp_new_ptr();
+        desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlenb, s->cfg_ptr->vlenb,
+                                          data));
+
+        tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, a->rd));
+        tcg_gen_addi_ptr(src1, tcg_env, vreg_ofs(s, a->rs1));
+        tcg_gen_addi_ptr(src2, tcg_env, vreg_ofs(s, a->rs2));
+        tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));
+
+        gen_helper_vfwdota_vv(dest, mask, src1, src2, tcg_env, desc);
+
+        finalize_rvv_inst(s);
+
+        return true;
+    }
+    return false;
+}

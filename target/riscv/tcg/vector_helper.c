@@ -6025,3 +6025,51 @@ GEN_VEXT_ZVDOTA_INT(vqwdotau_vv_b, 32, 8, uint8_t, H4, H1)
 GEN_VEXT_ZVDOTA_INT(vqwdotas_vv_b, 32, 8, int8_t, H4, H1)
 GEN_VEXT_ZVDOTA_INT(vqwdotau_vv_h, 64, 16, uint16_t, H8, H2)
 GEN_VEXT_ZVDOTA_INT(vqwdotas_vv_h, 64, 16, int16_t, H8, H2)
+
+/*
+ * Zvfwdota16bf: BF16 Dot Product with Accumulation
+ */
+void HELPER(vfwdota_vv)(void *vd, void *v0, void *vs1, void *vs2,
+                        CPURISCVState *env, uint32_t desc)
+{
+    uint32_t vlmax = vext_max_elems(desc, 1);
+    uint32_t vm = vext_vm(desc);
+    uint32_t vl = env->vl;
+    uint32_t vta = vext_vta(desc);
+    uint32_t vta_all_1s = vext_vta_all_1s(desc);
+    uint32_t total_elems = riscv_cpu_cfg(env)->vlenb >> 2;
+    uint32_t i;
+    bfloat16 *a_vec, *b_vec;
+    uint32_t dot_result, acc;
+
+    VSTART_CHECK_EARLY_EXIT(env, vl);
+
+    a_vec = g_new0(bfloat16, vlmax);
+    b_vec = g_new0(bfloat16, vlmax);
+
+    for (i = 0; i < vl; i++) {
+        if (!vm && !vext_elem_mask(v0, i)) {
+            continue;
+        }
+        a_vec[i] = *((uint16_t *)vs1 + H2(i));
+        b_vec[i] = *((uint16_t *)vs2 + H2(i));
+    }
+
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    dot_result = rvbna_dot_bfloat16_bfloat16(a_vec, b_vec, vlmax,
+                                             &env->fp_status);
+
+    acc = *((uint32_t *)vd + H4(0));
+    *((uint32_t *)vd + H4(0)) = rvbna_final_f32_add(dot_result, acc,
+                                                    &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+
+    g_free(a_vec);
+    g_free(b_vec);
+
+    env->vstart = 0;
+
+    if (vta_all_1s) {
+        vext_set_elems_1s(vd, vta, 1 * 4, total_elems * 4);
+    }
+}

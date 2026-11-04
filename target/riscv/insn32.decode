@@ -1101,3 +1101,6 @@ vwabdau_vx    111110 . ..... ..... 100 ..... 1010111 @r_vm
 # *** Zvqwdota8i/Zvqwdota16i Integer Dot-Product Extension ***
 vqwdotau_vv  100110 . ..... ..... 000 ..... 1110111 @r_vm
 vqwdotas_vv  100111 . ..... ..... 000 ..... 1110111 @r_vm
+
+# *** Zvfwdota16bf BF16 Dot-Product Extension ***
+vfwdota_vv  100100 . ..... ..... 001 ..... 1110111 @r_vm
