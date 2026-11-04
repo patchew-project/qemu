@@ -191,7 +191,8 @@ static bool require_noover(const int8_t dst, const int8_t dst_lmul,
     return !is_overlapped(dst, dst_size, src, src_size);
 }
 
-static bool do_vsetvl(DisasContext *s, int rd, int rs1, TCGv s2)
+/* A negative vtype denotes the register-supplied form. */
+static bool do_vsetvl(DisasContext *s, int rd, int rs1, TCGv s2, int vtype)
 {
     TCGv s1, dst;
 
@@ -215,8 +216,22 @@ static bool do_vsetvl(DisasContext *s, int rd, int rs1, TCGv s2)
     gen_set_gpr(s, rd, dst);
     finalize_rvv_inst(s);
 
-    gen_update_pc(s, s->cur_insn_len);
-    lookup_and_goto_ptr(s);
+    if (vtype >= 0 && (rd != 0 || rs1 != 0)) {
+        uint32_t vsew = FIELD_EX32(vtype, VTYPE, VSEW);
+        int8_t lmul = sextract32(FIELD_EX32(vtype, VTYPE, VLMUL), 0, 3);
+        uint32_t vlmax = vext_get_vlmax(s->cfg_ptr->vlenb, vsew, lmul);
+        target_ulong pc_save = s->pc_save;
+        TCGLabel *not_vlmax = gen_new_label();
+
+        tcg_gen_brcondi_tl(TCG_COND_NE, dst, vlmax, not_vlmax);
+        gen_goto_tb(s, 0, s->cur_insn_len);
+        s->pc_save = pc_save;
+        gen_set_label(not_vlmax);
+        gen_goto_tb(s, 1, s->cur_insn_len);
+    } else {
+        gen_update_pc(s, s->cur_insn_len);
+        lookup_and_goto_ptr(s);
+    }
     s->base.is_jmp = DISAS_NORETURN;
     return true;
 }
@@ -244,13 +259,13 @@ static bool do_vsetivli(DisasContext *s, int rd, TCGv s1, TCGv s2)
 static bool trans_vsetvl(DisasContext *s, arg_vsetvl *a)
 {
     TCGv s2 = get_gpr(s, a->rs2, EXT_ZERO);
-    return do_vsetvl(s, a->rd, a->rs1, s2);
+    return do_vsetvl(s, a->rd, a->rs1, s2, -1);
 }
 
 static bool trans_vsetvli(DisasContext *s, arg_vsetvli *a)
 {
     TCGv s2 = tcg_constant_tl(a->zimm);
-    return do_vsetvl(s, a->rd, a->rs1, s2);
+    return do_vsetvl(s, a->rd, a->rs1, s2, a->zimm);
 }
 
 static bool trans_vsetivli(DisasContext *s, arg_vsetivli *a)
