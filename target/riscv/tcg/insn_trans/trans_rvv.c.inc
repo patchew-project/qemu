@@ -4149,7 +4149,8 @@ static bool vext_zvdota_base_check(DisasContext *s, arg_rmrr * a)
 static bool vext_vqwdota_check(DisasContext *s, arg_rmrr *a)
 {
     return vext_zvdota_base_check(s, a) &&
-           (s->cfg_ptr->ext_zvqwdota8i && s->sew == MO_8);
+           ((s->cfg_ptr->ext_zvqwdota8i && s->sew == MO_8) ||
+            (s->cfg_ptr->ext_zvqwdota16i && s->sew == MO_16));
 }
 
 typedef void gen_helper_zvdota_int(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr,
@@ -4159,7 +4160,7 @@ typedef void gen_helper_zvdota_int(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr,
 static bool trans_##NAME(DisasContext *s, arg_rmrr *a)                  \
 {                                                                       \
     static gen_helper_zvdota_int * const fns[2] = {                     \
-        gen_helper_##NAME##_b, NULL,                                    \
+        gen_helper_##NAME##_b, gen_helper_##NAME##_h,                   \
     };                                                                  \
     if (CHECK(s, a)) {                                                  \
         TCGv_ptr dest, src1, src2, mask;                                \
