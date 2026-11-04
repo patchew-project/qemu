@@ -41,6 +41,7 @@ static target_ulong vtype_reserved(CPURISCVState *env, target_ulong vtype)
 
     if (riscv_cpu_cfg(env)->ext_zvfbfa ||
         riscv_cpu_cfg(env)->ext_zvfqwdota8f ||
+        riscv_cpu_cfg(env)->ext_zvfwbdota16bf ||
         riscv_cpu_cfg(env)->ext_zvfwdota16bf ||
         riscv_cpu_cfg(env)->ext_zvqwbdota16i ||
         riscv_cpu_cfg(env)->ext_zvqwbdota8i ||
@@ -101,6 +102,7 @@ target_ulong HELPER(vsetvl)(CPURISCVState *env, target_ulong s1,
         break;
     case MO_16:
         ill_altfmt &= !(cpu->cfg.ext_zvfbfa ||
+                        cpu->cfg.ext_zvfwbdota16bf ||
                         cpu->cfg.ext_zvfwdota16bf ||
                         cpu->cfg.ext_zvqwbdota16i ||
                         cpu->cfg.ext_zvqwdota16i);
