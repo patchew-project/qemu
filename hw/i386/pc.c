@@ -75,6 +75,9 @@
 #include "hw/xen/xen-bus.h"
 #endif
 
+GlobalProperty pc_compat_11_2[] = {};
+const size_t pc_compat_11_2_len = G_N_ELEMENTS(pc_compat_11_2);
+
 GlobalProperty pc_compat_11_1[] = {};
 const size_t pc_compat_11_1_len = G_N_ELEMENTS(pc_compat_11_1);
 

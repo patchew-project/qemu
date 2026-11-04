@@ -41,6 +41,9 @@
 #include "qemu/audio.h"
 #include "hw/arm/smmuv3.h"
 
+GlobalProperty hw_compat_11_2[] = {};
+const size_t hw_compat_11_2_len = G_N_ELEMENTS(hw_compat_11_2);
+
 GlobalProperty hw_compat_11_1[] = {
     { "sysbus-ehci-usb", "x-migrate-fetch-addr-64bit", "off" },
     { "pci-ehci-usb", "x-migrate-fetch-addr-64bit", "off" },
