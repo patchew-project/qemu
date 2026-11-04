@@ -3216,7 +3216,7 @@ POWERPC_FAMILY(e5500)(ObjectClass *oc, const void *data)
                        PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC |
                        PPC_64B | PPC_POPCNTB | PPC_POPCNTWD;
     pcc->insns_flags2 = PPC2_BOOKE206 | PPC2_PRCNTL | PPC2_PERM_ISA206 |
-                        PPC2_FP_CVT_S64;
+                        PPC2_FP_CVT_S64 | PPC2_INT_ISA205;
     pcc->msr_mask = (1ull << MSR_CM) |
                     (1ull << MSR_GS) |
                     (1ull << MSR_UCLE) |
@@ -3265,7 +3265,8 @@ POWERPC_FAMILY(e6500)(ObjectClass *oc, const void *data)
                        PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC |
                        PPC_64B | PPC_POPCNTB | PPC_POPCNTWD | PPC_ALTIVEC;
     pcc->insns_flags2 = PPC2_BOOKE206 | PPC2_PRCNTL | PPC2_PERM_ISA206 |
-                        PPC2_FP_CVT_S64 | PPC2_ATOMIC_ISA206;
+                        PPC2_FP_CVT_S64 | PPC2_ATOMIC_ISA206 |
+                        PPC2_INT_ISA205;
     pcc->msr_mask = (1ull << MSR_CM) |
                     (1ull << MSR_GS) |
                     (1ull << MSR_UCLE) |
