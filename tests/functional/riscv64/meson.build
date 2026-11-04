@@ -3,6 +3,7 @@
 test_riscv64_timeouts = {
   'boston' : 120,
   'k230' : 120,
+  'microchip_icicle_kit' : 180,
   'server_ref' : 120,
   'tuxrun' : 120,
 }
@@ -16,6 +17,7 @@ tests_riscv64_system_thorough = [
   'endianness',
   'boston',
   'k230',
+  'microchip_icicle_kit',
   'server_ref',
   'sifive_u',
   'tt_atlantis',
