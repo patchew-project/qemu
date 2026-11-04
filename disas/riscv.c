@@ -2634,6 +2634,12 @@ static const rv_opcode_data *decode_inst_opcode(rv_decode *dec, rv_isa isa)
             }
             break;
         case 29:
+            if (((inst >> 12) & 0b111) == 0) {
+                switch ((inst >> 26) & 0b111111) {
+                case 38: return &op_vqwdotau_vv;
+                case 39: return &op_vqwdotas_vv;
+                }
+            }
             if (((inst >> 25) & 1) == 1 && ((inst >> 12) & 0b111) == 2) {
                 switch ((inst >> 26) & 0b111111) {
                 case 32: return &op_vsm3me_vv;
