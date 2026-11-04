@@ -1104,3 +1104,7 @@ vqwdotas_vv  100111 . ..... ..... 000 ..... 1110111 @r_vm
 
 # *** Zvfwdota16bf BF16 Dot-Product Extension ***
 vfwdota_vv  100100 . ..... ..... 001 ..... 1110111 @r_vm
+
+# *** Zvfqwdota8f OCP FP8 Dot-Product Extension ***
+vfqwdota_vv     100110 . ..... ..... 001 ..... 1110111 @r_vm
+vfqwdota_alt_vv 100111 . ..... ..... 001 ..... 1110111 @r_vm
