@@ -28,6 +28,7 @@
 #include "hw/gpio/sifive_gpio.h"
 #include "hw/misc/sifive_u_otp.h"
 #include "hw/misc/sifive_u_prci.h"
+#include "hw/misc/sifive_l2cc.h"
 #include "hw/ssi/sifive_spi.h"
 #include "hw/timer/sifive_pwm.h"
 
@@ -45,6 +46,7 @@ typedef struct SiFiveUSoCState {
     RISCVHartArrayState e_cpus;
     RISCVHartArrayState u_cpus;
     DeviceState *plic;
+    SiFiveL2CCState l2cc;
     SiFiveUPRCIState prci;
     SIFIVEGPIOState gpio;
     SiFiveUOTPState otp;
@@ -82,6 +84,7 @@ enum {
     SIFIVE_U_DEV_L2CC,
     SIFIVE_U_DEV_PDMA,
     SIFIVE_U_DEV_L2LIM,
+    SIFIVE_U_DEV_L2ZERO,
     SIFIVE_U_DEV_PLIC,
     SIFIVE_U_DEV_PRCI,
     SIFIVE_U_DEV_UART0,

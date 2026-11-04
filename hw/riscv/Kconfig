@@ -116,6 +116,7 @@ config SIFIVE_U
     select CPU_CLUSTER
     select DEVICE_TREE
     select RISCV_ACLINT
+    select SIFIVE_L2CC
     select SIFIVE_GPIO
     select SIFIVE_PDMA
     select SIFIVE_PLIC
