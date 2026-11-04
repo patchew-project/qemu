@@ -89,6 +89,18 @@ tests += {
   }
 }
 
+dot_cpu = ('rv64,v=true,vlen=512' +
+           ',x-zvqwdota8i=true,x-zvqwdota16i=true' +
+           ',x-zvqwbdota8i=true,x-zvqwbdota16i=true' +
+           ',x-zvfwdota16bf=true,x-zvfwbdota16bf=true' +
+           ',x-zvfqwdota8f=true,x-zvfqwbdota8f=true,x-zvfbdota32f=true')
+tests += {
+  'test-zvdota.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', dot_cpu, qemu_args],
+  }
+}
+
 if 'qemu-system-riscv64' in emulators
   tcg_tests += {
     'riscv64-softmmu': {
