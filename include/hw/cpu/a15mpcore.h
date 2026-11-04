@@ -38,6 +38,7 @@ struct A15MPPrivState {
     uint32_t num_irq;
     MemoryRegion container;
 
+    MemoryRegion reserved;
     GICState gic;
 };
 

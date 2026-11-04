@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/cpu/a15mpcore.h"
 #include "hw/core/cpu.h"
@@ -27,6 +28,28 @@
 #include "hw/core/qdev-properties.h"
 #include "system/kvm.h"
 #include "target/arm/gtimer.h"
+
+static uint64_t a15mp_reserved_read(void *opaque, hwaddr offset, unsigned size)
+{
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "%s: read from reserved offset 0x%" HWADDR_PRIx "\n",
+                  __func__, offset);
+    return 0;
+}
+
+static void a15mp_reserved_write(void *opaque, hwaddr offset, uint64_t value,
+                                 unsigned size)
+{
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "%s: write to reserved offset 0x%" HWADDR_PRIx "\n",
+                  __func__, offset);
+}
+
+static const MemoryRegionOps a15mp_reserved_ops = {
+    .read = a15mp_reserved_read,
+    .write = a15mp_reserved_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
 
 static void a15mp_priv_set_irq(void *opaque, int irq, int level)
 {
@@ -43,6 +66,8 @@ static void a15mp_priv_initfn(Object *obj)
     memory_region_init(&s->container, obj, "a15mp-priv-container", 0x8000);
     sysbus_init_mmio(sbd, &s->container);
 
+    memory_region_init_io(&s->reserved, obj, &a15mp_reserved_ops, s,
+                          "a15mp-reserved", 0x1000);
     object_initialize_child(obj, "gic", &s->gic, gic_class_name());
     qdev_prop_set_uint32(DEVICE(&s->gic), "revision", 2);
 }
@@ -130,7 +155,14 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
      *  0x5400-0x55ff -- GIC virtual interface control for CPU 2
      *  0x5600-0x57ff -- GIC virtual interface control for CPU 3
      *  0x6000-0x7fff -- GIC virtual CPU interface
+     *
+     * The Cortex-A15 TRM specifies a bus error for reserved accesses, and
+     * the Cortex-A7 TRM says they can abort. The GIC-400 TRM instead
+     * specifies RAZ/WI. Existing U-Boot code on i.MX6 boards relies on
+     * these accesses completing without an abort, so use RAZ/WI here
+     * for compatibility and log the invalid guest accesses.
      */
+    memory_region_add_subregion(&s->container, 0, &s->reserved);
     memory_region_add_subregion(&s->container, 0x1000,
                                 sysbus_mmio_get_region(busdev, 0));
     memory_region_add_subregion(&s->container, 0x2000,
