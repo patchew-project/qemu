@@ -52,8 +52,10 @@ QEMU emulates the following sun4m peripherals:
 -  CS4231 sound device (only on SS-5, not working yet)
 
 The number of peripherals is fixed in the architecture. Maximum memory
-size depends on the machine type, for SS-5 it is 256MB and for others
-2047MB.
+size depends on the machine type: 512 MiB for the SS-10 and SS-20,
+256 MiB for the SS-5, 160 MiB for the SS-4, 128 MiB for the LX,
+SPARCclassic and SPARCbook, 80 MiB for the Voyager, and 1 GiB for the
+SPARCserver 600MP.
 
 Since version 0.8.2, QEMU uses OpenBIOS https://www.openbios.org/.
 OpenBIOS is a free (GPL v2) portable firmware implementation. The goal
