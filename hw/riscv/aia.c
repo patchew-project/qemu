@@ -38,6 +38,7 @@ DeviceState *riscv_create_aia(MemoryRegion *container,
 {
     int i;
     hwaddr addr = 0;
+    uint32_t hart_bits, guest_bits;
     DeviceState *aplic_s_dev = NULL;
     DeviceState *aplic_m_dev = NULL;
 
@@ -93,7 +94,10 @@ DeviceState *riscv_create_aia(MemoryRegion *container,
                                  msimode, false, aplic_m_dev);
 
     if (kvm_enabled() && msimode) {
-        riscv_aplic_set_kvm_msicfgaddr(RISCV_APLIC(aplic_s_dev), addr);
+        hart_bits = imsic_num_bits(hart_count);
+        guest_bits = imsic_num_bits(aia_guests + 1);
+        riscv_aplic_set_kvm_msicfgaddr(RISCV_APLIC(aplic_s_dev), addr,
+                                    hart_bits, guest_bits);
     }
 
     return kvm_enabled() ? aplic_s_dev : aplic_m_dev;
