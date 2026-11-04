@@ -595,7 +595,7 @@ static void test_visitor_out_list_struct(TestOutputVisitorData *data,
         char expected[32];
 
         g_assert(qvalue);
-        sprintf(expected, "%d", i);
+        snprintf(expected, sizeof(expected), "%d", i);
         g_assert_cmpstr(qstring_get_str(qvalue), ==, expected);
         i++;
     }
