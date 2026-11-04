@@ -21,6 +21,7 @@ config MICROCHIP_PFSOC
     select MCHP_PFSOC_MMUART
     select MCHP_PFSOC_SYSREG
     select RISCV_ACLINT
+    select SIFIVE_L2CC
     select SIFIVE_PDMA
     select SIFIVE_PLIC
     select UNIMP
