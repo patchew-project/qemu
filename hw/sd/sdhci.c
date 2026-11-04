@@ -1809,6 +1809,7 @@ static void sdhci_bus_class_init(ObjectClass *klass, const void *data)
 #define ESDHC_TUNING_CTRL               0xcc
 #define ESDHC_TUNE_CTRL_STATUS          0x68
 #define ESDHC_WTMK_LVL                  0x44
+#define ESDHC_SYSCTL_RSTA               BIT(24)
 
 /* Undocumented register used by guests working around erratum ERR004536 */
 #define ESDHC_UNDOCUMENTED_REG27        0x6c
@@ -2105,9 +2106,25 @@ usdhc_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
         break;
     }
 
-    case SDHC_CLKCON:
+    case SDHC_CLKCON: {
+        uint16_t norintstsen = s->norintstsen;
+        uint16_t errintstsen = s->errintstsen;
+        bool reset_all = (val << ((offset & 3) * 8)) & ESDHC_SYSCTL_RSTA;
+
         esdhc_write(opaque, offset, val, size);
+        if (reset_all) {
+            /*
+             * U-Boot programs INT_STATUS_EN before issuing another RSTA.
+             * Preserve status enables for this initialization sequence.
+             * Signal enables and pending status retain generic reset
+             * semantics. This compatibility behavior is not specified
+             * by the reference manual.
+             */
+            s->norintstsen = norintstsen;
+            s->errintstsen = errintstsen;
+        }
         break;
+    }
 
     case ESDHC_MIX_CTRL:
         if (offset != ESDHC_MIX_CTRL) {
