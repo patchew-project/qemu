@@ -6258,3 +6258,72 @@ void HELPER(vfwbdota_vv)(void *vd, void *v0, void *vs1, void *vs2, uint32_t ci,
         }
     }
 }
+
+/*
+ * Zvfqwdota8f: OCP FP8 Dot Product with Accumulation
+ */
+#define GEN_VEXT_ZVBDOTA_FP8(NAME, TYPE_VS2)                             \
+void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,              \
+                  uint32_t ci, CPURISCVState *env, uint32_t desc)        \
+{                                                                        \
+    uint32_t vm = vext_vm(desc);                                         \
+    uint32_t vl = env->vl;                                               \
+    uint32_t vta = vext_vta(desc);                                       \
+    uint32_t vta_all_1s = vext_vta_all_1s(desc);                         \
+    uint32_t vlenb = riscv_cpu_cfg(env)->vlenb;                          \
+    uint32_t vd_emul = vext_lmul(desc);                                  \
+    uint32_t total_elems = (vlenb << vd_emul) >> 2;                      \
+    uint32_t vlmax = vlenb;                                              \
+    uint32_t altfmt = FIELD_EX64(env->vtype, VTYPE, ALTFMT);             \
+    uint32_t n, k;                                                       \
+    uint8_t *a_vec, *b_vec;                                              \
+    float32 acc, dot_result;                                             \
+                                                                         \
+    VSTART_CHECK_EARLY_EXIT(env, vl);                                    \
+                                                                         \
+    a_vec = g_new0(uint8_t, vlmax);                                      \
+    b_vec = g_new0(uint8_t, vlmax);                                      \
+                                                                         \
+    FloatExceptionFlags pre_fflag =                                      \
+        get_float_exception_flags(&env->fp_status);                      \
+    for (n = 0; n < 8; n++) {                                            \
+        if (!vm && !vext_elem_mask(v0, ci + n)) {                        \
+            continue;                                                    \
+        }                                                                \
+                                                                         \
+        for (k = 0; k < vl; k++) {                                       \
+            a_vec[k] = *((uint8_t *)vs2 + n * vlmax + H1(k));            \
+            b_vec[k] = *((uint8_t *)vs1 + H1(k));                        \
+        }                                                                \
+                                                                         \
+        FloatSNaNRule pre_snan_rule = get_snan_rule(&env->fp_status);    \
+        set_snan_rule(float_snan_never, &env->fp_status);                \
+        if (altfmt == 0) {                                               \
+            dot_result = rvbna_dot_float8_##TYPE_VS2##_float8_e4m3(      \
+                    a_vec, b_vec, vlmax, &env->fp_status);               \
+        } else {                                                         \
+            dot_result = rvbna_dot_float8_##TYPE_VS2##_float8_e5m2(      \
+                    a_vec, b_vec, vlmax, &env->fp_status);               \
+        }                                                                \
+        set_snan_rule(pre_snan_rule, &env->fp_status);                   \
+                                                                         \
+        acc = *((float32 *)vd + H4(ci + n));                             \
+        *((float32 *)vd + H4(ci + n)) = rvbna_final_f32_add(             \
+                dot_result, acc, &env->fp_status);                       \
+    }                                                                    \
+    riscv_cpu_check_fflags(env, pre_fflag);                              \
+                                                                         \
+    g_free(a_vec);                                                       \
+    g_free(b_vec);                                                       \
+                                                                         \
+    env->vstart = 0;                                                     \
+                                                                         \
+    if (ci + 8 < total_elems) {                                          \
+        if (vta_all_1s) {                                                \
+            vext_set_elems_1s(vd, vta, (ci + 8) * 4, total_elems * 4);   \
+        }                                                                \
+    }                                                                    \
+}
+
+GEN_VEXT_ZVBDOTA_FP8(vfqwbdota_vv, e4m3)
+GEN_VEXT_ZVBDOTA_FP8(vfqwbdota_alt_vv, e5m2)
