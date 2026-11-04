@@ -557,6 +557,31 @@ static void cg3_init(hwaddr addr, qemu_irq irq, int vram_size, int width,
 
 static const uint8_t idreg_data[] = { 0xfe, 0x81, 0x01, 0x03 };
 
+/*
+ * toke: fcode-version2 " SUNW,DBRI" device-name my-address h# 10000 +
+ * my-space encode-phys h# 100 encode-int encode+ " reg" property fcode-end
+ */
+static const uint8_t dbri_fcode[] = {
+    0xf1, 0x08, 0x04, 0x9c, 0x00, 0x00, 0x00, 0x32,
+    0x12, 0x09, 0x53, 0x55, 0x4e, 0x57, 0x2c, 0x44,
+    0x42, 0x52, 0x49, 0x02, 0x01, 0x01, 0x02, 0x10,
+    0x00, 0x01, 0x00, 0x00, 0x1e, 0x01, 0x03, 0x01,
+    0x13, 0x10, 0x00, 0x00, 0x01, 0x00, 0x01, 0x11,
+    0x01, 0x12, 0x12, 0x03, 0x72, 0x65, 0x67, 0x01,
+    0x10, 0x00
+};
+
+static void dbri_prom_init(hwaddr addr)
+{
+    MemoryRegion *rom = g_new(MemoryRegion, 1);
+
+    memory_region_init_rom(rom, NULL, "sun-DBRI.prom", 0x40, &error_fatal);
+    memory_region_add_subregion(get_system_memory(), addr, rom);
+    address_space_write_rom(&address_space_memory, addr,
+                            MEMTXATTRS_UNSPECIFIED,
+                            dbri_fcode, sizeof(dbri_fcode));
+}
+
 static void idreg_init(hwaddr addr)
 {
     DeviceState *dev;
@@ -1025,8 +1050,7 @@ static void sun4m_hw_init(MachineState *machine)
     if (hwdef->dbri_base) {
         /* ISDN chip with attached CS4215 audio codec */
         /* prom space */
-        create_unimplemented_device("sun-DBRI.prom",
-                                    hwdef->dbri_base + 0x1000, 0x30);
+        dbri_prom_init(hwdef->dbri_base + 0x1000);
         /* reg space */
         create_unimplemented_device("sun-DBRI",
                                     hwdef->dbri_base + 0x10000, 0x100);
