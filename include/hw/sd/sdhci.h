@@ -113,6 +113,11 @@ typedef struct SDHCIState SDHCIState;
  * busy.
  */
 #define SDHCI_QUIRK_NO_BUSY_IRQ          BIT(0)
+/*
+ * Controller completes contiguous SDMA transfers without the standard
+ * intermediate buffer-boundary stop and address-update handshake
+ */
+#define SDHCI_QUIRK_NO_SDMA_BOUNDARY     BIT(1)
 
 #define TYPE_PCI_SDHCI "sdhci-pci"
 DECLARE_INSTANCE_CHECKER(SDHCIState, PCI_SDHCI,
