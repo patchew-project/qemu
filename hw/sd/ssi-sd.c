@@ -185,6 +185,12 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
             s->mode = SSI_SD_CMD;
             return SSI_DUMMY;
         }
+        /* The next byte after R1 may already be the write start token. */
+        if (sdbus_receive_ready(&s->sdbus) &&
+            (val == SSI_TOKEN_SINGLE || val == SSI_TOKEN_MULTI_WRITE)) {
+            s->mode = SSI_SD_DATA_WRITE;
+            return SSI_DUMMY;
+        }
         if (sdbus_data_ready(&s->sdbus)) {
             DPRINTF("Data read\n");
             s->mode = SSI_SD_DATA_START;
