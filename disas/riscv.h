@@ -138,6 +138,7 @@ typedef enum {
     rv_codec_k_bs,
     rv_codec_k_rnum,
     rv_codec_v_r,
+    rv_codec_v_r_ci,
     rv_codec_v_ldst,
     rv_codec_v_i,
     rv_codec_v_i_u,
@@ -254,6 +255,7 @@ typedef struct {
 #define rv_fmt_vd_vs2_vs1             "O\tD,F,E"
 #define rv_fmt_vd_vs2_vs1_vl          "O\tD,F,El"
 #define rv_fmt_vd_vs2_vs1_vm          "O\tD,F,Em"
+#define rv_fmt_vd_vs2_vs1_ci_vm       "O\tD,F,E,im"
 #define rv_fmt_vd_vs2_rs1_vl          "O\tD,F,1l"
 #define rv_fmt_vd_vs2_fs1_vl          "O\tD,F,4l"
 #define rv_fmt_vd_vs2_rs1_vm          "O\tD,F,1m"

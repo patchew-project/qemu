@@ -2638,6 +2638,8 @@ static const rv_opcode_data *decode_inst_opcode(rv_decode *dec, rv_isa isa)
                 switch ((inst >> 26) & 0b111111) {
                 case 38: return &op_vqwdotau_vv;
                 case 39: return &op_vqwdotas_vv;
+                case 46: return &op_vqwbdotau_vv;
+                case 47: return &op_vqwbdotas_vv;
                 }
             }
             if (((inst >> 12) & 0b111) == 1) {
@@ -2997,6 +2999,13 @@ static void decode_inst_operands(rv_decode *dec, rv_isa isa,
         dec->rd = operand_rd(inst);
         dec->rs1 = operand_rs1(inst);
         dec->rs2 = operand_rs2(inst);
+        dec->vm = operand_vm(inst);
+        break;
+    case rv_codec_v_r_ci:
+        dec->rd = operand_rd(inst);
+        dec->rs1 = operand_rs1(inst);
+        dec->rs2 = operand_rs2(inst) & ~0x7;
+        dec->imm = (operand_rs2(inst) & 0x7) << 3;
         dec->vm = operand_vm(inst);
         break;
     case rv_codec_v_ldst:
