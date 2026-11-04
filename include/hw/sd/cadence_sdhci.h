@@ -34,6 +34,7 @@ typedef struct CadenceSDHCIState {
     MemoryRegion container;
     MemoryRegion iomem;
     BusState *bus;
+    bool bus64bit;
 
     uint32_t regs[CADENCE_SDHCI_NUM_REGS];
 
