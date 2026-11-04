@@ -2193,9 +2193,12 @@ DEF("usb", 0, QEMU_OPTION_usb,
 SRST
 ``-usb``
     Enable USB emulation on machine types with an on-board USB host
-    controller (if not enabled by default). Note that on-board USB host
-    controllers may not support USB 3.0. In this case
-    ``-device qemu-xhci`` can be used instead on machines with PCI.
+    controller (if not enabled by default). On the ``pc`` and ``q35``
+    machines this is a ``qemu-xhci`` from the 12.0 machine types on;
+    older types get the chipset's UHCI (``pc``) or EHCI with UHCI
+    companions (``q35``). Other on-board USB host controllers may not
+    support USB 3.0. In this case ``-device qemu-xhci`` can be used
+    instead on machines with PCI.
 ERST
 
 DEF("usbdevice", HAS_ARG, QEMU_OPTION_usbdevice,

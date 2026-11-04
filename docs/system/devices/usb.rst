@@ -20,6 +20,11 @@ released around 2010 or later) we recommend using it:
 
     |qemu_system| -device qemu-xhci
 
+From the 12.0 machine types on, ``-usb`` creates a ``qemu-xhci`` on
+the ``pc`` and ``q35`` machines.  Guests without an XHCI driver, such
+as Windows 7, need an older machine type or an explicit
+``-device piix3-usb-uhci`` or ``-device usb-ehci``.
+
 XHCI supports USB 1.1, USB 2.0 and USB 3.0 devices, so this is the
 only controller you need.  With only a single USB controller (and
 therefore only a single USB bus) present in the system there is no
@@ -42,9 +47,9 @@ bus though, so there are two completely separate USB buses: One USB
 the EHCI controller.  Devices must be attached to the correct
 controller manually.
 
-The easiest way to add a UHCI controller to a ``pc`` machine is the
-``-usb`` switch.  QEMU will create the UHCI controller as function of
-the PIIX3 chipset.  The USB 1.1 bus will carry the name ``usb-bus.0``.
+On ``pc`` machine types up to 11.2 the ``-usb`` switch creates the
+UHCI controller as function of the PIIX3 chipset.  The USB 1.1 bus
+will carry the name ``usb-bus.0``.
 
 You can use the standard ``-device`` switch to add a EHCI controller to
 your virtual machine.  It is strongly recommended to specify an ID for
@@ -59,9 +64,9 @@ bus they should be attached to.  Here is a complete example:
 
     |qemu_system| -M pc ${otheroptions}                        \\
         -drive if=none,id=usbstick,format=raw,file=/path/to/image   \\
-        -usb                                                        \\
+        -device piix3-usb-uhci,id=uhci                              \\
         -device usb-ehci,id=ehci                                    \\
-        -device usb-tablet,bus=usb-bus.0                            \\
+        -device usb-tablet,bus=uhci.0                               \\
         -device usb-storage,bus=ehci.0,drive=usbstick
 
 This attaches a USB tablet to the UHCI adapter and a USB mass storage
@@ -88,8 +93,8 @@ you, which you can use like this:
 
 Then use ``bus=ehci.0`` to assign your USB devices to that bus.
 
-Using the ``-usb`` switch for ``q35`` machines will create a similar
-USB controller configuration.
+On ``q35`` machine types up to 11.2 the ``-usb`` switch creates this
+configuration.
 
 
 .. _Connecting USB devices:
@@ -359,9 +364,9 @@ and also assign it to the correct USB bus in QEMU like this:
 .. parsed-literal::
 
    |qemu_system| -M pc [...]                            \\
-        -usb                                                 \\
+        -device piix3-usb-uhci,id=uhci                       \\
         -device usb-ehci,id=ehci                             \\
-        -device usb-host,bus=usb-bus.0,hostbus=3,hostport=1  \\
+        -device usb-host,bus=uhci.0,hostbus=3,hostport=1     \\
         -device usb-host,bus=ehci.0,hostbus=1,hostport=1
 
 ``usb-host`` properties for reset behavior
