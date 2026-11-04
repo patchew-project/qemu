@@ -53,6 +53,7 @@ typedef struct MchpPfSoCIoscbState {
     uint32_t services_sr;
     uint8_t mailbox_data[MCHP_PFSOC_IOSCB_MAILBOX_SIZE];
     char *serial_number;
+    bool irq_pending;
     qemu_irq irq;
 } MchpPfSoCIoscbState;
 
@@ -60,5 +61,8 @@ typedef struct MchpPfSoCIoscbState {
 
 #define MCHP_PFSOC_IOSCB(obj) \
     OBJECT_CHECK(MchpPfSoCIoscbState, (obj), TYPE_MCHP_PFSOC_IOSCB)
+
+bool mchp_pfsoc_ioscb_get_irq_pending(MchpPfSoCIoscbState *s);
+void mchp_pfsoc_ioscb_set_irq_pending(MchpPfSoCIoscbState *s, bool pending);
 
 #endif /* MCHP_PFSOC_IOSCB_H */

@@ -24,20 +24,22 @@
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
-#include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/core/sysbus.h"
 #include "hw/misc/mchp_pfsoc_sysreg.h"
 #include "system/runstate.h"
 
-#define CLOCK_CONFIG_CR 0x8
-#define RTC_CLOCK_CR    0xc
-#define MSS_RESET_CR    0x18
-#define ENVM_CR         0xb8
-#define MESSAGE_INT     0x118c
+#define CLOCK_CONFIG_CR     0x8
+#define RTC_CLOCK_CR        0xc
+#define MSS_RESET_CR        0x18
+#define ENVM_CR             0xb8
+#define MESSAGE_INT         0x118c
+#define MESSAGE_INT_PENDING BIT(0)
 
 static uint64_t mchp_pfsoc_sysreg_read(void *opaque, hwaddr offset,
                                        unsigned size)
 {
+    MchpPfSoCSysregState *s = opaque;
     uint32_t val = 0;
 
     switch (offset) {
@@ -55,6 +57,10 @@ static uint64_t mchp_pfsoc_sysreg_read(void *opaque, hwaddr offset,
     case ENVM_CR:
         /* Indicate the eNVM is running at the configured divider rate */
         val = BIT(6);
+        break;
+    case MESSAGE_INT:
+        val = mchp_pfsoc_ioscb_get_irq_pending(s->ioscb) ?
+              MESSAGE_INT_PENDING : 0;
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read "
@@ -77,7 +83,12 @@ static void mchp_pfsoc_sysreg_write(void *opaque, hwaddr offset,
         }
         break;
     case MESSAGE_INT:
-        qemu_irq_lower(s->irq);
+        /*
+         * MESSAGE_INT bit 0 is read/write: writing zero clears the interrupt
+         * and writing one sets it. IOSCB owns the state and PLIC output.
+         */
+        mchp_pfsoc_ioscb_set_irq_pending(s->ioscb,
+                                        value & MESSAGE_INT_PENDING);
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
@@ -97,13 +108,22 @@ static void mchp_pfsoc_sysreg_realize(DeviceState *dev, Error **errp)
 {
     MchpPfSoCSysregState *s = MCHP_PFSOC_SYSREG(dev);
 
+    if (!s->ioscb) {
+        error_setg(errp, "The 'ioscb' link must be set");
+        return;
+    }
+
     memory_region_init_io(&s->sysreg, OBJECT(dev),
                           &mchp_pfsoc_sysreg_ops, s,
                           "mchp.pfsoc.sysreg",
                           MCHP_PFSOC_SYSREG_REG_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->sysreg);
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
 }
+
+static const Property mchp_pfsoc_sysreg_properties[] = {
+    DEFINE_PROP_LINK("ioscb", MchpPfSoCSysregState, ioscb,
+                     TYPE_MCHP_PFSOC_IOSCB, MchpPfSoCIoscbState *),
+};
 
 static void mchp_pfsoc_sysreg_class_init(ObjectClass *klass, const void *data)
 {
@@ -111,6 +131,7 @@ static void mchp_pfsoc_sysreg_class_init(ObjectClass *klass, const void *data)
 
     dc->desc = "Microchip PolarFire SoC SYSREG module";
     dc->realize = mchp_pfsoc_sysreg_realize;
+    device_class_set_props(dc, mchp_pfsoc_sysreg_properties);
 }
 
 static const TypeInfo mchp_pfsoc_sysreg_info = {
