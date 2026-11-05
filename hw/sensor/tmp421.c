@@ -54,8 +54,12 @@ struct TMP421State {
     I2CSlave parent_obj;
     /*< public >*/
 
-    int16_t temperature[4];
+    /* Measured temperature, millidegrees Celsius */
+    int32_t temp_mc[4];
     uint8_t n_correct[3];   /* remote channels only */
+
+    /* migration only: the register form the stream carries */
+    int16_t temperature[4];
 
     uint8_t status;
     uint8_t config[2];
@@ -115,12 +119,51 @@ OBJECT_DECLARE_TYPE(TMP421State, TMP421Class, TMP421)
 static const int32_t mins[2] = { -40000, -55000 };
 static const int32_t maxs[2] = { 127000, 150000 };
 
+/*
+ * Register form of a measurement (datasheet Table 1): whole degrees in the
+ * high byte, the fraction in the upper nibble of the low byte. The standard
+ * range is two's complement and saturates at -64 C (C0h) and +127 C (7Fh);
+ * the extended range is unsigned with a -64 C offset, spanning -64 C (00h) to
+ * +191 C (FFh). The range only selects an encoding: the measurement itself is
+ * held apart, so switching range re-reads the same temperature.
+ */
+#define TMP421_EXT_OFFSET   (64 * 256)
+#define TMP421_STD_REG_MIN  (-64 * 256)          /* C0h, -64 C */
+#define TMP421_STD_REG_MAX  (127 * 256 + 0xf0)   /* 7Fh, +127 C */
+#define TMP421_EXT_REG_MAX  (255 * 256 + 0xf0)   /* FFh, +191 C offset */
+
+static uint16_t tmp421_encode(const TMP421State *s, unsigned channel)
+{
+    bool ext_range = s->config[0] & TMP421_CONFIG_RANGE;
+    int raw = s->temp_mc[channel] * 256 / 1000;
+
+    if (ext_range) {
+        raw = MAX(0, MIN(TMP421_EXT_REG_MAX, raw + TMP421_EXT_OFFSET));
+    } else {
+        raw = MAX(TMP421_STD_REG_MIN, MIN(TMP421_STD_REG_MAX, raw));
+    }
+
+    return raw;
+}
+
+/*
+ * The inverse of tmp421_encode(). Only the standard range is signed: the
+ * extended one spans the whole byte, so its top bit is a temperature, not a
+ * sign. Rounding follows the sign so that every register value the encoder
+ * can produce decodes back to the measurement it came from.
+ */
+static int32_t tmp421_decode(const TMP421State *s, int16_t reg)
+{
+    bool ext_range = s->config[0] & TMP421_CONFIG_RANGE;
+    int32_t raw = ext_range ? (uint16_t)reg - TMP421_EXT_OFFSET : reg;
+
+    return (raw * 1000 + (raw < 0 ? -128 : 128)) / 256;
+}
+
 static void tmp421_get_temperature(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     TMP421State *s = TMP421(obj);
-    bool ext_range = (s->config[0] & TMP421_CONFIG_RANGE);
-    int offset = ext_range * 64 * 256;
     int64_t value;
     int tempid;
 
@@ -134,21 +177,18 @@ static void tmp421_get_temperature(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    value = ((s->temperature[tempid] - offset) * 1000 + 128) / 256;
+    value = s->temp_mc[tempid];
 
     visit_type_int(v, name, &value, errp);
 }
 
-/* Units are 0.001 centigrades relative to 0 C.  s->temperature is 8.8
- * fixed point, so units are 1/256 centigrades.  A simple ratio will do.
- */
+/* Units are 0.001 centigrades relative to 0 C. */
 static void tmp421_set_temperature(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     TMP421State *s = TMP421(obj);
     int64_t temp;
     bool ext_range = (s->config[0] & TMP421_CONFIG_RANGE);
-    int offset = ext_range * 64 * 256;
     int tempid;
 
     if (!visit_type_int(v, name, &temp, errp)) {
@@ -171,7 +211,7 @@ static void tmp421_set_temperature(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    s->temperature[tempid] = (int16_t) ((temp * 256 - 128) / 1000) + offset;
+    s->temp_mc[tempid] = temp;
 }
 
 static bool tmp421_channel_enabled(TMP421State *s, unsigned channel)
@@ -188,16 +228,14 @@ static bool tmp421_channel_enabled(TMP421State *s, unsigned channel)
  */
 static uint8_t tmp421_temp_high(TMP421State *s, unsigned channel)
 {
-    uint16_t reg = s->temperature[channel];
-
-    return tmp421_channel_enabled(s, channel) ? reg >> 8 : 0;
+    return tmp421_channel_enabled(s, channel) ?
+           tmp421_encode(s, channel) >> 8 : 0;
 }
 
 static uint8_t tmp421_temp_low(TMP421State *s, unsigned channel)
 {
-    uint16_t reg = s->temperature[channel];
-
-    return tmp421_channel_enabled(s, channel) ? reg & 0xf0 : 0;
+    return tmp421_channel_enabled(s, channel) ?
+           tmp421_encode(s, channel) & 0xf0 : 0;
 }
 
 static void tmp421_read(TMP421State *s)
@@ -342,10 +380,38 @@ static const VMStateDescription vmstate_tmp421_n_correct = {
     }
 };
 
+/*
+ * The stream carries the register form of the measurement: that is what a
+ * QEMU predating the millidegree state writes, and what it expects back.
+ */
+static int tmp421_pre_save(void *opaque)
+{
+    TMP421State *s = opaque;
+
+    for (unsigned channel = 0; channel < ARRAY_SIZE(s->temp_mc); channel++) {
+        s->temperature[channel] = tmp421_encode(s, channel);
+    }
+
+    return 0;
+}
+
+static int tmp421_post_load(void *opaque, int version_id)
+{
+    TMP421State *s = opaque;
+
+    for (unsigned channel = 0; channel < ARRAY_SIZE(s->temp_mc); channel++) {
+        s->temp_mc[channel] = tmp421_decode(s, s->temperature[channel]);
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_tmp421 = {
     .name = "TMP421",
     .version_id = 0,
     .minimum_version_id = 0,
+    .pre_save = tmp421_pre_save,
+    .post_load = tmp421_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT8(len, TMP421State),
         VMSTATE_UINT8_ARRAY(buf, TMP421State, 2),
