@@ -30,6 +30,28 @@
 /* stub for system/main.c */
 int (*qemu_main)(void);
 
+static void test_accel_cpu_parent(const TargetInfo *ti)
+{
+    static const char * const needed[] = {
+        "arm-cpu",
+        "i386-cpu",
+        "powerpc-cpu",
+        "powerpc64-cpu",
+        "riscv-cpu",
+        "x86_64-cpu",
+    };
+    size_t i;
+    g_autofree char *name = NULL;
+
+    for (i = 0; i < ARRAY_SIZE(needed); i++) {
+        if (g_str_equal(ti->cpu_type, needed[i])) {
+            name = g_strconcat("accel-", ti->cpu_type, NULL);
+            g_assert_nonnull(object_class_by_name(name));
+            return;
+        }
+    }
+}
+
 static void test_qom_types_are_unique(const void *data)
 {
     const TargetInfo *ti = data;
@@ -49,6 +71,9 @@ static void test_qom_types_are_unique(const void *data)
     module_call_init(MODULE_INIT_QOM);
     /* trigger type_initialize for all types */
     object_class_get_list("", false);
+
+    /* Accel parent lookup depends on the QOM types above being unique. */
+    test_accel_cpu_parent(ti);
 }
 
 int main(int argc, char **argv)

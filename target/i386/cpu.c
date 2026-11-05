@@ -23,6 +23,7 @@
 #include "qemu/qemu-print.h"
 #include "qemu/hw-version.h"
 #include "cpu.h"
+#include "accel/accel-cpu.h"
 #include "tcg/helper-tcg.h"
 #include "exec/translation-block.h"
 #include "system/hvf.h"
@@ -11093,6 +11094,7 @@ static void x86_cpu_register_types(void)
 {
     int i;
 
+    accel_cpu_register_type(CPU_RESOLVING_TYPE);
     type_register_static(&x86_cpu_type_info);
     for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
         x86_register_cpudef_types(&builtin_x86_defs[i]);

@@ -25,6 +25,7 @@
 #include "qemu/guest-random.h"
 #include "qemu/atomic.h"
 #include "cpu.h"
+#include "accel/accel-cpu.h"
 #include "cpu_vendorid.h"
 #include "target/riscv/tcg/csr.h"
 #include "internals.h"
@@ -3932,3 +3933,10 @@ static const TypeInfo riscv_cpu_type_infos[] = {
 };
 
 DEFINE_TYPES(riscv_cpu_type_infos)
+
+static void riscv_accel_cpu_register_type(void)
+{
+    accel_cpu_register_type(CPU_RESOLVING_TYPE);
+}
+
+type_init(riscv_accel_cpu_register_type)
