@@ -60,6 +60,7 @@ struct TMP421State {
 
     /* migration only: the register form the stream carries */
     int16_t temperature[4];
+    bool temp_mc_loaded;
 
     uint8_t status;
     uint8_t config[2];
@@ -381,6 +382,56 @@ static const VMStateDescription vmstate_tmp421_n_correct = {
 };
 
 /*
+ * That form only resolves a sixteenth of a degree, so the measurement itself
+ * travels in a subsection -- sent only when the register form cannot
+ * reproduce it, which leaves the usual stream loadable by a QEMU that does
+ * not know the subsection.
+ */
+static bool tmp421_temp_mc_needed(void *opaque)
+{
+    TMP421State *s = opaque;
+    bool ext_range = s->config[0] & TMP421_CONFIG_RANGE;
+    int32_t offset = ext_range ? TMP421_EXT_OFFSET : 0;
+
+    /*
+     * The register form reproduces a measurement when the conversion divides
+     * exactly and the encoder had nothing to clamp. Asking the decoder
+     * instead would settle the question with the function whose result the
+     * subsection exists to protect, and hide any error it has.
+     */
+    for (unsigned channel = 0; channel < ARRAY_SIZE(s->temp_mc); channel++) {
+        int32_t scaled = s->temp_mc[channel] * 256;
+
+        if (scaled % 1000 ||
+            (uint16_t)(scaled / 1000 + offset) != tmp421_encode(s, channel)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static int tmp421_temp_mc_post_load(void *opaque, int version_id)
+{
+    TMP421State *s = opaque;
+
+    s->temp_mc_loaded = true;
+    return 0;
+}
+
+static const VMStateDescription vmstate_tmp421_temp_mc = {
+    .name = "TMP421/temperature-mc",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = tmp421_temp_mc_needed,
+    .post_load = tmp421_temp_mc_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_INT32_ARRAY(temp_mc, TMP421State, 4),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+/*
  * The stream carries the register form of the measurement: that is what a
  * QEMU predating the millidegree state writes, and what it expects back.
  */
@@ -399,9 +450,13 @@ static int tmp421_post_load(void *opaque, int version_id)
 {
     TMP421State *s = opaque;
 
-    for (unsigned channel = 0; channel < ARRAY_SIZE(s->temp_mc); channel++) {
-        s->temp_mc[channel] = tmp421_decode(s, s->temperature[channel]);
+    if (!s->temp_mc_loaded) {
+        for (unsigned channel = 0; channel < ARRAY_SIZE(s->temp_mc);
+             channel++) {
+            s->temp_mc[channel] = tmp421_decode(s, s->temperature[channel]);
+        }
     }
+    s->temp_mc_loaded = false;
 
     return 0;
 }
@@ -424,6 +479,7 @@ static const VMStateDescription vmstate_tmp421 = {
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription * const []) {
+        &vmstate_tmp421_temp_mc,
         &vmstate_tmp421_n_correct,
         NULL
     }
