@@ -562,7 +562,8 @@ STDAPI DllRegisterServer(void)
 
     /* Add this module to registry */
 
-    sprintf(key, "CLSID\\%s", g_szClsid);
+    StrCpyNA(key, "CLSID\\", sizeof(key));
+    StrCatBuffA(key, g_szClsid, sizeof(key));
     if (!CreateRegistryKey(key, NULL, g_szClsid)) {
         goto out;
     }
@@ -572,7 +573,9 @@ STDAPI DllRegisterServer(void)
         goto out;
     }
 
-    sprintf(key, "CLSID\\%s\\InprocServer32", g_szClsid);
+    StrCpyNA(key, "CLSID\\", sizeof(key));
+    StrCatBuffA(key, g_szClsid, sizeof(key));
+    StrCatBuffA(key, "\\InprocServer32", sizeof(key));
     if (!CreateRegistryKey(key, NULL, dllPath)) {
         goto out;
     }
@@ -581,7 +584,9 @@ STDAPI DllRegisterServer(void)
         goto out;
     }
 
-    sprintf(key, "CLSID\\%s\\ProgID", g_szClsid);
+    StrCpyNA(key, "CLSID\\", sizeof(key));
+    StrCatBuffA(key, g_szClsid, sizeof(key));
+    StrCatBuffA(key, "\\ProgID", sizeof(key));
     if (!CreateRegistryKey(key, NULL, g_szProgid)) {
         goto out;
     }
@@ -590,7 +595,8 @@ STDAPI DllRegisterServer(void)
         goto out;
     }
 
-    sprintf(key, "%s\\CLSID", g_szProgid);
+    StrCpyNA(key, g_szProgid, sizeof(key));
+    StrCatBuffA(key, "\\CLSID", sizeof(key));
     if (!CreateRegistryKey(key, NULL, g_szClsid)) {
         goto out;
     }
@@ -651,7 +657,8 @@ STDAPI DllUnregisterServer(void)
         errmsg(hr, "CoCreateInstance(VSSCoordinator) failed");
     }
 
-    sprintf(key, "CLSID\\%s", g_szClsid);
+    StrCpyNA(key, "CLSID\\", sizeof(key));
+    StrCatBuffA(key, g_szClsid, sizeof(key));
     SHDeleteKey(HKEY_CLASSES_ROOT, key);
     SHDeleteKey(HKEY_CLASSES_ROOT, g_szProgid);
 
