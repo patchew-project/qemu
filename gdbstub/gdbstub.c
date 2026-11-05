@@ -1679,6 +1679,11 @@ void gdb_extend_qsupported_features(char *qflags)
 
 static void handle_query_supported(GArray *params, void *user_ctx)
 {
+    const char *gdb_supported = "";
+    if (params->len) {
+        gdb_supported = gdb_get_cmd_param(params, 0)->data;
+    }
+
     g_string_printf(gdbserver_state.str_buf, "PacketSize=%x", MAX_PACKET_LENGTH);
     if (gdb_get_core_xml_file(first_cpu)) {
         g_string_append(gdbserver_state.str_buf, ";qXfer:features:read+");
@@ -1701,16 +1706,10 @@ static void handle_query_supported(GArray *params, void *user_ctx)
     g_string_append(gdbserver_state.str_buf, ";qXfer:exec-file:read+");
 #endif
 
-    if (params->len) {
-        const char *gdb_supported = gdb_get_cmd_param(params, 0)->data;
-
-        if (strstr(gdb_supported, "multiprocess+")) {
-            gdbserver_state.multiprocess = true;
-        }
+    gdbserver_state.multiprocess = strstr(gdb_supported, "multiprocess+");
 #if defined(CONFIG_USER_ONLY)
-        gdb_handle_query_supported_user(gdb_supported);
+    gdb_handle_query_supported_user(gdb_supported);
 #endif
-    }
 
     g_string_append(gdbserver_state.str_buf, ";vContSupported+;multiprocess+");
 
