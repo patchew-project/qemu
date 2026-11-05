@@ -167,7 +167,7 @@ static void rx_index_addr(DisasContext *ctx, char out[8], int ld, int mi)
         g_assert_not_reached();
     }
 
-    sprintf(out, "%u", dsp << (mi < 3 ? mi : 4 - mi));
+    snprintf(out, 8, "%u", dsp << (mi < 3 ? mi : 4 - mi));
 }
 
 static void prt_ldmi(DisasContext *ctx, const char *insn,
