@@ -125,7 +125,8 @@ static int tcg_init_machine(AccelState *as, MachineState *ms)
          * there is one remaining limitation to check:
          *   - The guest can't be oversized (e.g. 64 bit guest on 32 bit host)
          */
-        if (mttcg_supported && !icount_enabled()) {
+        if (mttcg_supported && !icount_enabled()
+                            && replay_mode == REPLAY_MODE_NONE) {
             s->mttcg_enabled = ON_OFF_AUTO_ON;
             max_threads = ms->smp.max_cpus;
         } else {
@@ -133,6 +134,11 @@ static int tcg_init_machine(AccelState *as, MachineState *ms)
         }
         break;
     case ON_OFF_AUTO_ON:
+        if (replay_mode != REPLAY_MODE_NONE) {
+            error_report("MTTCG is not supported with record/replay, "
+                         "use round-robin TCG (thread=single)");
+            return -1;
+        }
         if (!mttcg_supported) {
             warn_report("Guest not yet converted to MTTCG - "
                         "you may get unexpected results");
@@ -195,7 +201,10 @@ static void tcg_set_thread(Object *obj, const char *value, Error **errp)
     TCGState *s = TCG_STATE(obj);
 
     if (strcmp(value, "multi") == 0) {
-        if (icount_enabled()) {
+        if (replay_mode != REPLAY_MODE_NONE) {
+            error_setg(errp, "No MTTCG with record/replay, "
+                             "use round-robin TCG (thread=single)");
+        } else if (icount_enabled()) {
             error_setg(errp, "No MTTCG when icount is enabled");
         } else {
             s->mttcg_enabled = ON_OFF_AUTO_ON;

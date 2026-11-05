@@ -14,6 +14,7 @@
 #include "exec/icount.h"
 #include "system/replay.h"
 #include "system/runstate.h"
+#include "system/tcg.h"
 #include "replay-internal.h"
 #include "qemu/main-loop.h"
 #include "qemu/option.h"
@@ -445,6 +446,11 @@ void replay_start(void)
     }
     if (!icount_enabled()) {
         error_report("Please enable icount to use record/replay");
+        exit(1);
+    }
+    if (tcg_enabled() && qemu_tcg_mttcg_enabled()) {
+        error_report("Record/replay requires round-robin TCG, "
+                     "not MTTCG");
         exit(1);
     }
 
