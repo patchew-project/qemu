@@ -369,7 +369,7 @@ static const char *nic_dump(const uint8_t * buf, unsigned size)
         size = 16;
     }
     while (size-- > 0) {
-        p += sprintf(p, " %02x", *buf++);
+        p += snprintf(p, sizeof(dump) - (p - dump), " %02x", *buf++);
     }
     return dump;
 }
