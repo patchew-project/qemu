@@ -19,6 +19,7 @@
 #include "qemu/base-arch-defs.h"
 #include "qemu/target-info.h"
 #include "qemu/memalign.h"
+#include "qemu/queue.h"
 #include "qapi/visitor.h"
 #include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
@@ -74,6 +75,7 @@ struct TypeImpl
     bool secure;
 
     uint64_t targets;
+    QSLIST_ENTRY(TypeImpl) next;
 
     const char *parent;
     TypeImpl *parent_type;
@@ -83,6 +85,11 @@ struct TypeImpl
     int num_interfaces;
     InterfaceImpl interfaces[MAX_INTERFACES];
 };
+
+typedef struct TypeBucket {
+    uint64_t targets;
+    QSLIST_HEAD(, TypeImpl) variants;
+} TypeBucket;
 
 static Type type_interface;
 
@@ -113,15 +120,56 @@ static uint64_t target_mask_filter(uint64_t mask)
     return mask & target_mask_selected();
 }
 
-static void type_table_add(TypeImpl *ti)
+static void type_table_add(TypeBucket *bucket, TypeImpl *ti)
 {
     assert(!enumerating_types);
-    g_hash_table_insert(type_table, (void *)ti->name, ti);
+    if (!bucket) {
+        bucket = g_new0(TypeBucket, 1);
+        g_hash_table_insert(type_table, (void *)ti->name, bucket);
+    }
+    bucket->targets |= ti->targets;
+    QSLIST_INSERT_HEAD(&bucket->variants, ti, next);
 }
 
-static TypeImpl *type_table_lookup(const char *name)
+static GSList *type_list_lookup(const char *name, uint64_t need)
 {
-    return g_hash_table_lookup(type_table, name);
+    TypeBucket *bucket;
+    TypeImpl *ti;
+    GSList *list = NULL;
+
+    if (!name) {
+        return NULL;
+    }
+    bucket = g_hash_table_lookup(type_table, name);
+    if (!bucket) {
+        return NULL;
+    }
+    QSLIST_FOREACH(ti, &bucket->variants, next) {
+        if (!target_mask_filter(ti->targets)) {
+            continue;
+        }
+        /* need == 0 keeps all variants; any other need matches at most one mask. */
+        if ((ti->targets & need) != need) {
+            continue;
+        }
+        list = g_slist_append(list, ti);
+    }
+    return list;
+}
+
+static TypeImpl *type_table_lookup(const char *name, uint64_t need)
+{
+    g_autoptr(GSList) list;
+
+    g_assert(need != 0);
+    list = type_list_lookup(name, need);
+    return list ? list->data : NULL;
+}
+
+static TypeImpl *type_lookup_current(const char *name)
+{
+    g_autoptr(GSList) list = type_list_lookup(name, 0);
+    return g_slist_length(list) == 1 ? list->data : NULL;
 }
 
 static TypeImpl *type_new(const TypeInfo *info, uint64_t targets)
@@ -130,11 +178,6 @@ static TypeImpl *type_new(const TypeInfo *info, uint64_t targets)
     int i;
 
     g_assert(info->name != NULL);
-
-    if (type_table_lookup(info->name) != NULL) {
-        fprintf(stderr, "Registering `%s' which already exists\n", info->name);
-        abort();
-    }
 
     ti->name = g_strdup(info->name);
     ti->parent = g_strdup(info->parent);
@@ -188,6 +231,7 @@ static bool type_name_is_valid(const char *name)
 
 static TypeImpl *type_register_internal(const TypeInfo *info, uint64_t targets)
 {
+    TypeBucket *bucket;
     TypeImpl *ti;
 
     if (!type_name_is_valid(info->name)) {
@@ -212,9 +256,15 @@ static TypeImpl *type_register_internal(const TypeInfo *info, uint64_t targets)
         return NULL;
     }
 
+    bucket = g_hash_table_lookup(type_table, info->name);
+    if (bucket && (bucket->targets & targets)) {
+        fprintf(stderr, "Registering '%s' which already exists\n", info->name);
+        abort();
+    }
+
     ti = type_new(info, targets);
 
-    type_table_add(ti);
+    type_table_add(bucket, ti);
     return ti;
 }
 
@@ -233,24 +283,24 @@ void type_register_static_array(const TypeInfo *infos, int nr_infos)
     }
 }
 
-static TypeImpl *type_get_by_name_noload(const char *name)
+static TypeImpl *type_get_by_name_noload(const char *name, uint64_t need)
 {
     if (name == NULL) {
         return NULL;
     }
 
-    return type_table_lookup(name);
+    return type_table_lookup(name, need);
 }
 
 static TypeImpl *type_get_or_load_by_name(const char *name, Error **errp)
 {
-    TypeImpl *type = type_get_by_name_noload(name);
+    TypeImpl *type = type_lookup_current(name);
 
 #ifdef CONFIG_MODULES
     if (!type) {
         int rv = module_load_qom(name, errp);
         if (rv > 0) {
-            type = type_get_by_name_noload(name);
+            type = type_lookup_current(name);
         } else {
             error_prepend(errp, "could not load a module for type '%s'", name);
             return NULL;
@@ -267,7 +317,7 @@ static TypeImpl *type_get_or_load_by_name(const char *name, Error **errp)
 static TypeImpl *type_get_parent(TypeImpl *type)
 {
     if (!type->parent_type && type->parent) {
-        type->parent_type = type_get_by_name_noload(type->parent);
+        type->parent_type = type_get_by_name_noload(type->parent, type->targets);
         if (!type->parent_type) {
             fprintf(stderr, "Type '%s' is missing its parent '%s'\n",
                     type->name, type->parent);
@@ -422,7 +472,7 @@ static void type_initialize(TypeImpl *ti)
         }
 
         for (i = 0; i < ti->num_interfaces; i++) {
-            TypeImpl *t = type_get_by_name_noload(ti->interfaces[i].typename);
+            TypeImpl *t = type_get_by_name_noload(ti->interfaces[i].typename, ti->targets);
             if (!t) {
                 error_report("missing interface '%s' for object '%s'",
                              ti->interfaces[i].typename, parent->name);
@@ -1097,7 +1147,7 @@ ObjectClass *object_class_dynamic_cast(ObjectClass *class,
         return class;
     }
 
-    target_type = type_get_by_name_noload(typename);
+    target_type = type_get_by_name_noload(typename, type->targets);
     if (!target_type) {
         /* target class type unknown, so fail the cast */
         return NULL;
@@ -1201,7 +1251,7 @@ const char *object_class_get_name(ObjectClass *klass)
 
 ObjectClass *object_class_by_name(const char *typename)
 {
-    TypeImpl *type = type_get_by_name_noload(typename);
+    TypeImpl *type = type_lookup_current(typename);
 
     if (!type) {
         return NULL;
@@ -1246,12 +1296,13 @@ typedef struct OCFData
     void *opaque;
 } OCFData;
 
-static void object_class_foreach_tramp(gpointer key, gpointer value,
-                                       gpointer opaque)
+static void object_class_foreach_type(TypeImpl *type, OCFData *data)
 {
-    OCFData *data = opaque;
-    TypeImpl *type = value;
     ObjectClass *k;
+
+    if (!target_mask_filter(type->targets)) {
+        return;
+    }
 
     type_initialize(type);
     k = type->class;
@@ -1266,6 +1317,18 @@ static void object_class_foreach_tramp(gpointer key, gpointer value,
     }
 
     data->fn(k, data->opaque);
+}
+
+static void object_class_foreach_tramp(gpointer key, gpointer value,
+                                       gpointer opaque)
+{
+    OCFData *data = opaque;
+    TypeBucket *bucket = value;
+    TypeImpl *type;
+
+    QSLIST_FOREACH(type, &bucket->variants, next) {
+        object_class_foreach_type(type, data);
+    }
 }
 
 void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
