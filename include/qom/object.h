@@ -16,6 +16,7 @@
 
 #include "qapi/qapi-builtin-types.h"
 #include "qapi/qapi-type-info.h"
+#include "qemu/base-arch-defs.h"
 #include "qemu/module.h"
 
 struct TypeImpl;
@@ -987,6 +988,17 @@ const char *object_get_typename(const Object *obj);
  * Returns: the new #Type.
  */
 Type type_register_static(const TypeInfo *info);
+
+/**
+ * type_register_targets:
+ * @info: The #TypeInfo of the new type.
+ * @targets: QEMU_ARCH_* mask of targets that may use this type.
+ *
+ * @targets is passed through target_mask_filter(). QEMU_ARCH_ALL stays
+ * QEMU_ARCH_ALL. Returns the new #Type, or %NULL when the filtered
+ * mask is empty.
+ */
+Type type_register_targets(const TypeInfo *info, uint64_t targets);
 
 /**
  * type_register_static_array:

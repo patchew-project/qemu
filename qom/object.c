@@ -274,6 +274,12 @@ TypeImpl *type_register_static(const TypeInfo *info)
     return type_register_internal(info, QEMU_ARCH_ALL);
 }
 
+TypeImpl *type_register_targets(const TypeInfo *info, uint64_t targets)
+{
+    assert(info->parent);
+    return type_register_internal(info, targets);
+}
+
 void type_register_static_array(const TypeInfo *infos, int nr_infos)
 {
     int i;
