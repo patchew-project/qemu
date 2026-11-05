@@ -39,17 +39,6 @@
 #define TMP422_DEVICE_ID                0x22
 #define TMP423_DEVICE_ID                0x23
 
-typedef struct DeviceInfo {
-    int model;
-    const char *name;
-} DeviceInfo;
-
-static const DeviceInfo devices[] = {
-    { TMP421_DEVICE_ID, "tmp421" },
-    { TMP422_DEVICE_ID, "tmp422" },
-    { TMP423_DEVICE_ID, "tmp423" },
-};
-
 struct TMP421State {
     /*< private >*/
     I2CSlave parent_obj;
@@ -69,10 +58,14 @@ struct TMP421State {
 
 struct TMP421Class {
     I2CSlaveClass parent_class;
-    const DeviceInfo *dev;
+
+    uint8_t device_id;
+    uint8_t config2_reset;
 };
 
-#define TYPE_TMP421 "tmp421-generic"
+#define TYPE_TMP421 "tmp421"
+#define TYPE_TMP422 "tmp422"
+#define TYPE_TMP423 "tmp423"
 OBJECT_DECLARE_TYPE(TMP421State, TMP421Class, TMP421)
 
 
@@ -178,7 +171,7 @@ static void tmp421_read(TMP421State *s)
         s->buf[s->len++] = TMP421_MANUFACTURER_ID;
         break;
     case TMP421_DEVICE_ID_REG:
-        s->buf[s->len++] = sc->dev->model;
+        s->buf[s->len++] = sc->device_id;
         break;
     case TMP421_CONFIG_REG_1:
         s->buf[s->len++] = s->config[0];
@@ -314,20 +307,7 @@ static void tmp421_reset(TMP421State *s)
      */
     s->pointer = 0;
     s->config[0] = 0;
-
-    /* resistance correction and channel enablement */
-    switch (sc->dev->model) {
-    case TMP421_DEVICE_ID:
-        s->config[1] = 0x1c;
-        break;
-    case TMP422_DEVICE_ID:
-        s->config[1] = 0x3c;
-        break;
-    case TMP423_DEVICE_ID:
-        s->config[1] = 0x7c;
-        break;
-    }
-
+    s->config[1] = sc->config2_reset;
     s->rate = 0x7;       /* 8Hz */
     s->status = 0;
 }
@@ -349,7 +329,9 @@ static void tmp421_class_init(ObjectClass *klass, const void *data)
     k->send = tmp421_tx;
     rc->phases.hold = tmp421_reset_hold;
     dc->vmsd = &vmstate_tmp421;
-    sc->dev = (DeviceInfo *) data;
+
+    sc->device_id = TMP421_DEVICE_ID;
+    sc->config2_reset = 0x1c;
 
     object_class_property_add(klass, "temperature0", "int", &int_type_info,
                               tmp421_get_temperature,
@@ -365,28 +347,40 @@ static void tmp421_class_init(ObjectClass *klass, const void *data)
                               tmp421_set_temperature, NULL, NULL);
 }
 
-static const TypeInfo tmp421_info = {
-    .name          = TYPE_TMP421,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(TMP421State),
-    .class_size    = sizeof(TMP421Class),
-    .abstract      = true,
-};
-
-static void tmp421_register_types(void)
+static void tmp422_class_init(ObjectClass *klass, const void *data)
 {
-    int i;
+    TMP421Class *sc = TMP421_CLASS(klass);
 
-    type_register_static(&tmp421_info);
-    for (i = 0; i < ARRAY_SIZE(devices); ++i) {
-        TypeInfo ti = {
-            .name       = devices[i].name,
-            .parent     = TYPE_TMP421,
-            .class_init = tmp421_class_init,
-            .class_data = &devices[i],
-        };
-        type_register_static(&ti);
-    }
+    sc->device_id = TMP422_DEVICE_ID;
+    sc->config2_reset = 0x3c;
 }
 
-type_init(tmp421_register_types)
+static void tmp423_class_init(ObjectClass *klass, const void *data)
+{
+    TMP421Class *sc = TMP421_CLASS(klass);
+
+    sc->device_id = TMP423_DEVICE_ID;
+    sc->config2_reset = 0x7c;
+}
+
+static const TypeInfo tmp421_types[] = {
+    {
+        .name          = TYPE_TMP421,
+        .parent        = TYPE_I2C_SLAVE,
+        .instance_size = sizeof(TMP421State),
+        .class_size    = sizeof(TMP421Class),
+        .class_init    = tmp421_class_init,
+    },
+    {
+        .name          = TYPE_TMP422,
+        .parent        = TYPE_TMP421,
+        .class_init    = tmp422_class_init,
+    },
+    {
+        .name          = TYPE_TMP423,
+        .parent        = TYPE_TMP421,
+        .class_init    = tmp423_class_init,
+    },
+};
+
+DEFINE_TYPES(tmp421_types)
