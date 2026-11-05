@@ -19,5 +19,7 @@
 #define TYPE_TMP175 "tmp175"
 #define TYPE_TMP75  "tmp75"
 #define TYPE_LM75B  "lm75b"
+/* TMP1075 adds a 16-bit Config register and a Device ID register. */
+#define TYPE_TMP1075 "tmp1075"
 
 #endif

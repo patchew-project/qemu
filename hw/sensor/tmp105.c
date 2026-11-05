@@ -1,5 +1,5 @@
 /*
- * Texas Instruments TMP105/TMP75/TMP175/LM75B temperature sensor.
+ * Texas Instruments TMP105/TMP75/TMP175/TMP1075/LM75B temperature sensor.
  *
  * Copyright (C) 2008 Nokia Corporation
  * Written by Andrzej Zaborowski <andrew@openedhand.com>
@@ -52,6 +52,7 @@ struct TMP105State {
 
     uint8_t pointer;
     uint8_t config;
+    uint8_t config_lsb;
     int16_t temperature;
     int16_t limit[2];
     uint8_t faults;
@@ -77,6 +78,12 @@ struct TMP105State {
  * @fixed_res: converter resolution field pinned by the device, or -1 when it is
  * software-selectable.
  * @limit_lsb_mask: low-byte mask applied to the T_LOW/T_HIGH limit registers.
+ * @config16: the Config register is 16 bits wide over I2C. Its control bits
+ * occupy the upper byte (mirroring the 8-bit layout); the lower byte has no
+ * function of its own but is writable, and comes up as 0xff. Single-byte
+ * access stays compatible with the 8-bit parts.
+ * @die_id: value of the read-only Device ID register, or 0 when the device has
+ * none.
  */
 struct TMP105Class {
     I2CSlaveClass parent_class;
@@ -85,6 +92,8 @@ struct TMP105Class {
     int8_t fixed_res;
     uint8_t limit_lsb_mask;
     bool tm_change_clears_alert;
+    bool config16;
+    uint16_t die_id;
 };
 
 FIELD(CONFIG, SHUTDOWN_MODE,        0, 1)
@@ -186,6 +195,13 @@ static void tmp105_read(TMP105State *s)
         tmp105_interrupt_update(s);
     }
 
+    if (tc->die_id && (s->pointer & 0x0f) == TMP105_REG_DIE_ID) {
+        s->buf[s->len++] = tc->die_id >> 8;
+        s->buf[s->len++] = tc->die_id & 0xff;
+        trace_tmp105_read(s->parent_obj.address, s->pointer);
+        return;
+    }
+
     switch (s->pointer & 3) {
     case TMP105_REG_TEMPERATURE:
         res = tc->fixed_res >= 0 ? tc->fixed_res :
@@ -197,6 +213,9 @@ static void tmp105_read(TMP105State *s)
 
     case TMP105_REG_CONFIG:
         s->buf[s->len++] = s->config;
+        if (tc->config16) {
+            s->buf[s->len++] = s->config_lsb;
+        }
         break;
 
     case TMP105_REG_T_LOW:
@@ -221,11 +240,29 @@ static void tmp105_write(TMP105State *s)
 
     trace_tmp105_write(s->parent_obj.address, s->pointer);
 
+    if (tc->die_id && (s->pointer & 0x0f) == TMP105_REG_DIE_ID) {
+        return; /* Device ID register is read-only */
+    }
+
     switch (s->pointer & 3) {
     case TMP105_REG_TEMPERATURE:
         break;
 
     case TMP105_REG_CONFIG:
+        /*
+         * The control bits live in the first data byte for every variant (the
+         * upper byte of the TMP1075 16-bit register); a second byte is the low
+         * byte, which drives nothing but keeps what it is given.
+         */
+        if (s->len == 3) {
+            if (tc->config16) {
+                s->config_lsb = s->buf[1];
+            }
+            break;
+        }
+        if (s->len != 2) {
+            break;
+        }
         config = s->buf[0] & tc->config_wmask;
         if (FIELD_EX8(config & ~s->config, CONFIG, SHUTDOWN_MODE)) {
             trace_tmp105_write_shutdown(s->parent_obj.address);
@@ -335,6 +372,13 @@ static bool fault_count_needed(void *opaque)
     return s->fault_count != 0;
 }
 
+static bool config_lsb_needed(void *opaque)
+{
+    TMP105State *s = opaque;
+
+    return TMP105_GET_CLASS(s)->config16 && s->config_lsb != 0xff;
+}
+
 static const VMStateDescription vmstate_tmp105_detect_falling = {
     .name = "TMP105/detect-falling",
     .version_id = 1,
@@ -353,6 +397,17 @@ static const VMStateDescription vmstate_tmp105_fault_count = {
     .needed = fault_count_needed,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT8(fault_count, TMP105State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_tmp105_config_lsb = {
+    .name = "TMP105/config-lsb",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = config_lsb_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT8(config_lsb, TMP105State),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -376,6 +431,7 @@ static const VMStateDescription vmstate_tmp105 = {
     .subsections = (const VMStateDescription * const []) {
         &vmstate_tmp105_detect_falling,
         &vmstate_tmp105_fault_count,
+        &vmstate_tmp105_config_lsb,
         NULL
     }
 };
@@ -388,6 +444,7 @@ static void tmp105_reset_hold(Object *obj, ResetType type)
     s->temperature = 0;
     s->pointer = 0;
     s->config = 0;
+    s->config_lsb = tc->config16 ? 0xff : 0;
     s->faults = tc->faultq[FIELD_EX8(s->config, CONFIG, FAULT_QUEUE)];
     s->fault_count = 0;
     s->alarm = 0;
@@ -448,6 +505,8 @@ static void tmp105_class_init(ObjectClass *klass, const void *data)
     tc->fixed_res = -1;
     tc->limit_lsb_mask = 0xf0;
     tc->tm_change_clears_alert = false;
+    tc->config16 = false;
+    tc->die_id = 0;
 }
 
 static void tmp175_class_init(ObjectClass *klass, const void *data)
@@ -483,6 +542,25 @@ static void lm75b_class_init(ObjectClass *klass, const void *data)
     tc->tm_change_clears_alert = false;
 }
 
+/*
+ * The TMP1075 fixes the converter at 12 bits (its R1:R0 bits select the
+ * conversion rate instead, which this instantaneous model does not track), uses
+ * the TMP75 fault-queue mapping, exposes a 16-bit Config register and answers
+ * the Device ID register with 0x7500.
+ */
+static void tmp1075_class_init(ObjectClass *klass, const void *data)
+{
+    TMP105Class *tc = TMP105_CLASS(klass);
+
+    tc->faultq = tmp105_faultq[1];
+    tc->config_wmask = 0xff;
+    tc->fixed_res = 3;
+    tc->limit_lsb_mask = 0xf0;
+    tc->tm_change_clears_alert = true;
+    tc->config16 = true;
+    tc->die_id = TMP1075_DEVICE_ID;
+}
+
 static const TypeInfo tmp105_types[] = {
     {
         .name          = TYPE_TMP105,
@@ -506,6 +584,11 @@ static const TypeInfo tmp105_types[] = {
         .name          = TYPE_LM75B,
         .parent        = TYPE_TMP105,
         .class_init    = lm75b_class_init,
+    },
+    {
+        .name          = TYPE_TMP1075,
+        .parent        = TYPE_TMP105,
+        .class_init    = tmp1075_class_init,
     },
 };
 

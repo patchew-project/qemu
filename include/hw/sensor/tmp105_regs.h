@@ -21,6 +21,7 @@
  * @TMP105_REG_CONFIG: Configuration register
  * @TMP105_REG_T_LOW: Low temperature register (also known as T_hyst)
  * @TMP105_REG_T_HIGH: High temperature register (also known as T_OS)
+ * @TMP105_REG_DIE_ID: Device ID register (TMP1075 only)
  *
  * The following temperature sensors are
  * compatible with the TMP105 registers:
@@ -46,6 +47,10 @@ typedef enum TMP105Reg {
     TMP105_REG_CONFIG,
     TMP105_REG_T_LOW,
     TMP105_REG_T_HIGH,
+    TMP105_REG_DIE_ID = 0x0f,
 } TMP105Reg;
+
+/* Value returned by the TMP1075 Device ID register. */
+#define TMP1075_DEVICE_ID 0x7500
 
 #endif
