@@ -28,6 +28,8 @@
 #define LM75B_TEST_ID    "lm75b-test"
 #define LM75B_TEST_PATH  "/machine/peripheral/" LM75B_TEST_ID
 
+#define TMP1075_TEST_ID  "tmp1075-test"
+
 #define TMP105_CONFIG_POL   (1 << 2)   /* ALERT active-high when set */
 #define TMP105_CONFIG_TM    (1 << 1)   /* interrupt (thermostat) mode */
 #define TMP105_CONFIG_FQ_1  (0 << 3)   /* fault queue: 1 consecutive fault */
@@ -419,6 +421,26 @@ static void test_lm75b_shutdown_clears_alert(void *obj, void *data,
     g_assert_false(get_irq(0));
 }
 
+/*
+ * The TMP1075 answers a read-only Device ID register and powers up with the
+ * modern reset defaults.
+ */
+static void test_tmp1075_device_id(void *obj, void *data,
+                                   QGuestAllocator *alloc)
+{
+    QI2CDevice *i2cdev = (QI2CDevice *)obj;
+
+    g_assert_cmphex(i2c_get16(i2cdev, TMP105_REG_CONFIG), ==, 0x00ff);
+    g_assert_cmphex(i2c_get16(i2cdev, TMP105_REG_T_LOW), ==, 0x4b00);
+    g_assert_cmphex(i2c_get16(i2cdev, TMP105_REG_T_HIGH), ==, 0x5000);
+
+    g_assert_cmphex(i2c_get16(i2cdev, TMP105_REG_DIE_ID), ==,
+                    TMP1075_DEVICE_ID);
+    i2c_set16(i2cdev, TMP105_REG_DIE_ID, 0x1234);
+    g_assert_cmphex(i2c_get16(i2cdev, TMP105_REG_DIE_ID), ==,
+                    TMP1075_DEVICE_ID);
+}
+
 static void tmp105_register_nodes(void)
 {
     QOSGraphEdgeOptions opts = {
@@ -475,5 +497,16 @@ static void tmp105_register_nodes(void)
     qos_add_test("limits", "lm75b", test_lm75b_limits, NULL);
     qos_add_test("shutdown-clears-alert", "lm75b",
                  test_lm75b_shutdown_clears_alert, NULL);
+
+    /* TMP1075: 16-bit Config register and a Device ID register. */
+    QOSGraphEdgeOptions tmp1075_opts = {
+        .extra_device_opts = "id=" TMP1075_TEST_ID ",address=0x4d"
+    };
+    add_qi2c_address(&tmp1075_opts, &(QI2CAddress) { 0x4d });
+
+    qos_node_create_driver("tmp1075", i2c_device_create);
+    qos_node_consumes("tmp1075", "i2c-bus", &tmp1075_opts);
+
+    qos_add_test("device-id", "tmp1075", test_tmp1075_device_id, NULL);
 }
 libqos_init(tmp105_register_nodes);
