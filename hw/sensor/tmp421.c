@@ -225,7 +225,7 @@ static void tmp421_read(TMP421State *s)
     }
 }
 
-static void tmp421_reset(I2CSlave *i2c);
+static void tmp421_reset(TMP421State *s);
 
 static void tmp421_write(TMP421State *s)
 {
@@ -240,7 +240,7 @@ static void tmp421_write(TMP421State *s)
         s->config[1] = s->buf[0];
         break;
     case TMP421_RESET:
-        tmp421_reset(I2C_SLAVE(s));
+        tmp421_reset(s);
         break;
     }
 }
@@ -304,17 +304,18 @@ static const VMStateDescription vmstate_tmp421 = {
     }
 };
 
-static void tmp421_reset(I2CSlave *i2c)
+static void tmp421_reset(TMP421State *s)
 {
-    TMP421State *s = TMP421(i2c);
     TMP421Class *sc = TMP421_GET_CLASS(s);
 
-    memset(s->temperature, 0, sizeof(s->temperature));
+    /*
+     * The measured temperatures are not cleared: they model the physical
+     * input the ADC re-samples after reset, and boards may preset them.
+     */
     s->pointer = 0;
+    s->config[0] = 0;
 
-    s->config[0] = 0; /* TMP421_CONFIG_RANGE */
-
-     /* resistance correction and channel enablement */
+    /* resistance correction and channel enablement */
     switch (sc->dev->model) {
     case TMP421_DEVICE_ID:
         s->config[1] = 0x1c;
@@ -331,23 +332,22 @@ static void tmp421_reset(I2CSlave *i2c)
     s->status = 0;
 }
 
-static void tmp421_realize(DeviceState *dev, Error **errp)
+static void tmp421_reset_hold(Object *obj, ResetType type)
 {
-    TMP421State *s = TMP421(dev);
-
-    tmp421_reset(&s->parent_obj);
+    tmp421_reset(TMP421(obj));
 }
 
 static void tmp421_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
     TMP421Class *sc = TMP421_CLASS(klass);
 
-    dc->realize = tmp421_realize;
     k->event = tmp421_event;
     k->recv = tmp421_rx;
     k->send = tmp421_tx;
+    rc->phases.hold = tmp421_reset_hold;
     dc->vmsd = &vmstate_tmp421;
     sc->dev = (DeviceInfo *) data;
 
