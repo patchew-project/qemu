@@ -22,6 +22,7 @@
 #define TMP421_CONFIG_REG_1             0x09
 #define    TMP421_CONFIG_RANGE            (1 << 2)
 #define TMP421_CONFIG_REG_2             0x0A
+#define    TMP421_CONFIG_REN              (1 << 4)
 #define TMP421_CONVERSION_RATE_REG      0x0B
 #define TMP421_TEMP_LSB0                0x10
 #define TMP421_RESET                    0xFC
@@ -76,6 +77,15 @@ static void set_temperature(const char *id, unsigned channel, int value)
                    "'property': %s, 'value': %d } }", id, prop, value);
     g_assert(qdict_haskey(response, "return"));
     qobject_unref(response);
+}
+
+static bool has_temperature(const char *id, unsigned channel)
+{
+    QDict *response = qmp_get_temperature(id, channel);
+    bool present = qdict_haskey(response, "return");
+
+    qobject_unref(response);
+    return present;
 }
 
 static void test_ids(void *obj, void *data, QGuestAllocator *alloc)
@@ -156,6 +166,31 @@ static void test_range_saturation(void *obj, void *data,
     g_assert_cmphex(i2c_get16(i2cdev, TMP421_TEMP_MSB0), ==, 0xD5F0);
 }
 
+static void test_channels(void *obj, void *data, QGuestAllocator *alloc)
+{
+    const TMP421Variant *var = data;
+    QI2CDevice *i2cdev = obj;
+
+    /* Only the variant's own channels expose a temperature property. */
+    for (unsigned ch = 0; ch < 4; ch++) {
+        g_assert_true(has_temperature(var->id, ch) == (ch < var->nchannels));
+    }
+
+    /* Absent channel enables and reserved bits are dropped on write. */
+    i2c_set8(i2cdev, TMP421_CONFIG_REG_2, 0xff);
+    g_assert_cmphex(i2c_get8(i2cdev, TMP421_CONFIG_REG_2), ==,
+                    var->config2_reset);
+
+    /* Disabling remote channel 1 makes it read back as zero. */
+    set_temperature(var->id, 1, 25001);
+    g_assert_cmphex(i2c_get16(i2cdev, TMP421_TEMP_MSB0 + 1), ==, 0x1900);
+    i2c_set8(i2cdev, TMP421_CONFIG_REG_2,
+             var->config2_reset & ~TMP421_CONFIG_REN);
+    g_assert_cmphex(i2c_get16(i2cdev, TMP421_TEMP_MSB0 + 1), ==, 0);
+    i2c_set8(i2cdev, TMP421_CONFIG_REG_2, var->config2_reset);
+    g_assert_cmphex(i2c_get16(i2cdev, TMP421_TEMP_MSB0 + 1), ==, 0x1900);
+}
+
 static void tmp421_register_node(const TMP421Variant *var, const char *type,
                                  uint8_t addr)
 {
@@ -169,6 +204,8 @@ static void tmp421_register_node(const TMP421Variant *var, const char *type,
     qos_node_consumes(type, "i2c-bus", &opts);
 
     qos_add_test("ids", type, test_ids,
+                 &(QOSGraphTestOptions) { .arg = (void *)var });
+    qos_add_test("channels", type, test_channels,
                  &(QOSGraphTestOptions) { .arg = (void *)var });
 }
 
