@@ -167,10 +167,6 @@ static TypeImpl *type_register_internal(const TypeInfo *info)
         abort();
     }
 
-    if (info->is_available && !info->is_available()) {
-        return NULL;
-    }
-
     ti = type_new(info);
 
     type_table_add(ti);

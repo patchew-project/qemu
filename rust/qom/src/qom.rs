@@ -695,7 +695,6 @@ pub trait ObjectImpl: ObjectType + IsA<Object> {
         class_init: Some(rust_class_init::<Self>),
         class_base_init: Self::CLASS_BASE_INIT,
         class_data: core::ptr::null(),
-        is_available: None,
         interfaces: core::ptr::null(),
     };
 
