@@ -2,6 +2,10 @@ config ADC128D818
     bool
     depends on I2C
 
+config INA230
+    bool
+    depends on I2C
+
 config TMP105
     bool
     depends on I2C

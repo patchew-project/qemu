@@ -8,6 +8,13 @@ adc128d818_convert(const char *id, uint8_t channel, uint16_t value) "%s ch %u va
 adc128d818_irq(const char *id, bool level) "%s level %u"
 adc128d818_reset(const char *id, const char *source) "%s %s"
 
+# ina230.c
+ina230_read(const char *id, uint8_t reg, uint16_t value) "%s reg 0x%02x val 0x%04x"
+ina230_write(const char *id, uint8_t reg, uint16_t value) "%s reg 0x%02x val 0x%04x"
+ina230_convert(const char *id, uint16_t shunt, uint16_t bus, uint16_t current, uint16_t power) "%s shunt 0x%04x bus 0x%04x current 0x%04x power 0x%04x"
+ina230_alert(const char *id, bool level) "%s level %u"
+ina230_reset(const char *id, const char *source) "%s %s"
+
 # tmp105.c
 tmp105_read(uint8_t dev, uint8_t addr) "device: 0x%02x, addr: 0x%02x"
 tmp105_write(uint8_t dev, uint8_t addr) "device: 0x%02x, addr 0x%02x"
