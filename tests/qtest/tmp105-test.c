@@ -441,6 +441,33 @@ static void test_tmp1075_device_id(void *obj, void *data,
                     TMP1075_DEVICE_ID);
 }
 
+/*
+ * The Config register is 16 bits wide but stays compatible with 8-bit access:
+ * the control bits are the upper byte, the lower byte drives nothing.
+ */
+static void test_tmp1075_config_width(void *obj, void *data,
+                                      QGuestAllocator *alloc)
+{
+    QI2CDevice *i2cdev = (QI2CDevice *)obj;
+
+    /* A single-byte write reaches the control byte and leaves the rest. */
+    i2c_set8(i2cdev, TMP105_REG_CONFIG, 0x60);
+    g_assert_cmphex(i2c_get8(i2cdev, TMP105_REG_CONFIG), ==, 0x60);
+    g_assert_cmphex(i2c_get16(i2cdev, TMP105_REG_CONFIG), ==, 0x60ff);
+
+    /* A word write keeps both bytes. */
+    i2c_set16(i2cdev, TMP105_REG_CONFIG, 0x6200);
+    g_assert_cmphex(i2c_get16(i2cdev, TMP105_REG_CONFIG), ==, 0x6200);
+
+    /* The low byte survives a single-byte write to the control byte. */
+    i2c_set8(i2cdev, TMP105_REG_CONFIG, 0x60);
+    g_assert_cmphex(i2c_get16(i2cdev, TMP105_REG_CONFIG), ==, 0x6000);
+
+    /* The one-shot bit always reads back as zero. */
+    i2c_set8(i2cdev, TMP105_REG_CONFIG, TMP105_CONFIG_OS);
+    g_assert_cmphex(i2c_get8(i2cdev, TMP105_REG_CONFIG), ==, 0x00);
+}
+
 static void tmp105_register_nodes(void)
 {
     QOSGraphEdgeOptions opts = {
@@ -508,5 +535,6 @@ static void tmp105_register_nodes(void)
     qos_node_consumes("tmp1075", "i2c-bus", &tmp1075_opts);
 
     qos_add_test("device-id", "tmp1075", test_tmp1075_device_id, NULL);
+    qos_add_test("config-width", "tmp1075", test_tmp1075_config_width, NULL);
 }
 libqos_init(tmp105_register_nodes);
