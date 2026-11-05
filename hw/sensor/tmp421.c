@@ -42,6 +42,7 @@
 #include "qapi/visitor.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+#include "hw/sensor/tmp421.h"
 
 /* Manufacturer / Device ID's */
 #define TMP421_MANUFACTURER_ID          0x55
@@ -80,9 +81,6 @@ struct TMP421Class {
     uint8_t config2_reset;
 };
 
-#define TYPE_TMP421 "tmp421"
-#define TYPE_TMP422 "tmp422"
-#define TYPE_TMP423 "tmp423"
 OBJECT_DECLARE_TYPE(TMP421State, TMP421Class, TMP421)
 
 
