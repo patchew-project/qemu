@@ -668,10 +668,8 @@ static void rvserver_ref_machine_instance_finalize(Object *obj)
 static char *rvserver_ref_get_aia_guests(Object *obj, Error **errp)
 {
     RISCVServerRefMachineState *s = RISCV_SERVER_REF_MACHINE(obj);
-    char val[32];
 
-    sprintf(val, "%d", s->aia_guests);
-    return g_strdup(val);
+    return g_strdup_printf("%d", s->aia_guests);
 }
 
 static void rvserver_ref_set_aia_guests(Object *obj, const char *val,
@@ -716,7 +714,10 @@ static void rvserver_machine_device_plug_cb(const HotplugHandler *hotplug_dev,
 
 static void rvserver_ref_machine_class_init(ObjectClass *oc, const void *data)
 {
-    char str[128];
+    g_autofree char *str = g_strdup_printf("Set number of guest MMIO pages"
+                                           " for AIA IMSIC. Valid value should"
+                                           " be between 0 and %d.",
+                                           RVSERVER_IRQCHIP_MAX_GUESTS);
     MachineClass *mc = MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
     static const char * const valid_cpu_types[] = {
@@ -743,8 +744,6 @@ static void rvserver_ref_machine_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc, "aia-guests",
                                   rvserver_ref_get_aia_guests,
                                   rvserver_ref_set_aia_guests);
-    sprintf(str, "Set number of guest MMIO pages for AIA IMSIC. Valid value "
-                 "should be between 0 and %d.", RVSERVER_IRQCHIP_MAX_GUESTS);
     object_class_property_set_description(oc, "aia-guests", str);
 
     assert(!mc->get_hotplug_handler);
