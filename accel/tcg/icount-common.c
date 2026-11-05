@@ -441,10 +441,10 @@ bool icount_configure(QemuOpts *opts, Error **errp)
             error_setg(errp, "icount: Invalid shift value");
             return false;
         }
-    } else if (icount_align_option) {
+    } else if (align) {
         error_setg(errp, "shift=auto and align=on are incompatible");
         return false;
-    } else if (!icount_sleep) {
+    } else if (!sleep) {
         error_setg(errp, "shift=auto and sleep=off are incompatible");
         return false;
     }
