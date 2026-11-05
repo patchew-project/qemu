@@ -530,7 +530,7 @@ void decimal64Show(const decimal64 *d64) {
 
   if (DECLITEND) {
     for (i=0; i<DECIMAL64_Bytes; i++, j+=2) {
-      sprintf(&buf[j], "%02x", d64->bytes[7-i]);
+      snprintf(&buf[j], sizeof(buf) - j, "%02x", d64->bytes[7-i]);
       }
     printf(" D64> %s [S:%d Cb:%02x Ec:%02x] LittleEndian\n", buf,
 	   d64->bytes[7]>>7, (d64->bytes[7]>>2)&0x1f,
@@ -538,7 +538,7 @@ void decimal64Show(const decimal64 *d64) {
     }
    else { /* big-endian */
     for (i=0; i<DECIMAL64_Bytes; i++, j+=2) {
-      sprintf(&buf[j], "%02x", d64->bytes[i]);
+      snprintf(&buf[j], sizeof(buf) - j, "%02x", d64->bytes[i]);
       }
     printf(" D64> %s [S:%d Cb:%02x Ec:%02x] BigEndian\n", buf,
 	   decimal64Sign(d64), decimal64Comb(d64), decimal64ExpCon(d64));

@@ -470,7 +470,7 @@ void decimal32Show(const decimal32 *d32) {
 
   if (DECLITEND) {
     for (i=0; i<DECIMAL32_Bytes; i++, j+=2) {
-      sprintf(&buf[j], "%02x", d32->bytes[3-i]);
+      snprintf(&buf[j], sizeof(buf) - j, "%02x", d32->bytes[3-i]);
       }
     printf(" D32> %s [S:%d Cb:%02x Ec:%02x] LittleEndian\n", buf,
 	   d32->bytes[3]>>7, (d32->bytes[3]>>2)&0x1f,
@@ -478,7 +478,7 @@ void decimal32Show(const decimal32 *d32) {
     }
    else {
     for (i=0; i<DECIMAL32_Bytes; i++, j+=2) {
-      sprintf(&buf[j], "%02x", d32->bytes[i]);
+      snprintf(&buf[j], sizeof(buf) - j, "%02x", d32->bytes[i]);
       }
     printf(" D32> %s [S:%d Cb:%02x Ec:%02x] BigEndian\n", buf,
 	   decimal32Sign(d32), decimal32Comb(d32), decimal32ExpCon(d32));
