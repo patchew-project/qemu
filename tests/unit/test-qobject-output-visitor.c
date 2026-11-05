@@ -592,10 +592,9 @@ static void test_visitor_out_list_struct(TestOutputVisitorData *data,
     i = 0;
     QLIST_FOREACH_ENTRY(qlist, e) {
         QString *qvalue = qobject_to(QString, qlist_entry_obj(e));
-        char expected[32];
+        g_autofree char *expected = g_strdup_printf("%d", i);
 
         g_assert(qvalue);
-        sprintf(expected, "%d", i);
         g_assert_cmpstr(qstring_get_str(qvalue), ==, expected);
         i++;
     }

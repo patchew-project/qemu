@@ -595,9 +595,7 @@ static void test_visitor_in_list_struct(TestInputVisitorData *data,
 
     i = 0;
     for (str_list = arrs->string; str_list; str_list = str_list->next) {
-        char expected[32];
-
-        sprintf(expected, "%d", i);
+        g_autofree char *expected = g_strdup_printf("%d", i);
         g_assert_cmpstr(str_list->value, ==, expected);
         i++;
     }
