@@ -71,6 +71,8 @@ struct TypeImpl
     bool abstract;
     bool secure;
 
+    uint64_t targets;
+
     const char *parent;
     TypeImpl *parent_type;
 
@@ -97,7 +99,7 @@ static TypeImpl *type_table_lookup(const char *name)
     return g_hash_table_lookup(type_table, name);
 }
 
-static TypeImpl *type_new(const TypeInfo *info)
+static TypeImpl *type_new(const TypeInfo *info, uint64_t targets)
 {
     TypeImpl *ti = g_malloc0(sizeof(*ti));
     int i;
@@ -126,6 +128,7 @@ static TypeImpl *type_new(const TypeInfo *info)
 
     ti->abstract = info->abstract;
     ti->secure = info->secure;
+    ti->targets = targets;
 
     for (i = 0; info->interfaces && info->interfaces[i].type; i++) {
         ti->interfaces[i].typename = g_strdup(info->interfaces[i].type);
@@ -158,7 +161,7 @@ static bool type_name_is_valid(const char *name)
     return plen == slen;
 }
 
-static TypeImpl *type_register_internal(const TypeInfo *info)
+static TypeImpl *type_register_internal(const TypeInfo *info, uint64_t targets)
 {
     TypeImpl *ti;
 
@@ -171,7 +174,7 @@ static TypeImpl *type_register_internal(const TypeInfo *info)
         return NULL;
     }
 
-    ti = type_new(info);
+    ti = type_new(info, targets);
 
     type_table_add(ti);
     return ti;
@@ -180,7 +183,7 @@ static TypeImpl *type_register_internal(const TypeInfo *info)
 TypeImpl *type_register_static(const TypeInfo *info)
 {
     assert(info->parent);
-    return type_register_internal(info);
+    return type_register_internal(info, QEMU_ARCH_ALL);
 }
 
 void type_register_static_array(const TypeInfo *infos, int nr_infos)
@@ -310,7 +313,7 @@ static void type_initialize_interface(TypeImpl *ti, TypeImpl *interface_type,
     info.name = g_strdup_printf("%s::%s", ti->name, interface_type->name);
     info.abstract = true;
 
-    iface_impl = type_new(&info);
+    iface_impl = type_new(&info, ti->targets);
     iface_impl->parent_type = parent_type;
     type_initialize(iface_impl);
     g_free((char *)info.name);
@@ -3240,6 +3243,6 @@ static void __attribute__((constructor)) register_types(void)
     };
 
     type_table = g_hash_table_new(g_str_hash, g_str_equal);
-    type_interface = type_register_internal(&interface_info);
-    type_register_internal(&object_info);
+    type_interface = type_register_internal(&interface_info, QEMU_ARCH_ALL);
+    type_register_internal(&object_info, QEMU_ARCH_ALL);
 }
