@@ -194,6 +194,10 @@
 #     not providing a security boundary, or its status is undefined.
 #     (since 11.2)
 #
+# @targets: list of targets that the machine can be used with.  Only
+#     present when `query-machines` argument @all-targets is true.
+#     (since 12.0)
+#
 # Features:
 #
 # @unstable: Member @compat-props is experimental.
@@ -205,6 +209,7 @@
             '*is-default': 'bool', 'cpu-max': 'int',
             'hotpluggable-cpus': 'bool',  'numa-mem-supported': 'bool',
             'deprecated': 'bool', '*default-cpu-type': 'str',
+            '*targets': ['SysEmuTarget'],
             '*default-ram-id': 'str', 'acpi': 'bool',
             '*compat-props': { 'type': ['CompatProperty'],
                                'features': ['unstable'] },
@@ -216,6 +221,10 @@
 #
 # @compat-props: if true, also return compatibility properties.
 #     (default: false) (since 9.1)
+#
+# @all-targets: if true, return info about all machines present
+#     instead of only those available with the current active
+#     target (since 12.0)
 #
 # Features:
 #
@@ -248,7 +257,8 @@
 ##
 { 'command': 'query-machines',
   'data': { '*compat-props': { 'type': 'bool',
-                               'features': [ 'unstable' ] } },
+                               'features': [ 'unstable' ] },
+            '*all-targets': 'bool' },
   'returns': ['MachineInfo'] }
 
 ##

@@ -33,6 +33,7 @@
 #include "system/runstate.h"
 #include "system/system.h"
 #include "hw/s390x/storage-keys.h"
+#include "qemu/base-arch-defs.h"
 
 /*
  * QMP query for enabled and present accelerators
@@ -153,6 +154,7 @@ qmp_query_cpu_model_expansion(CpuModelExpansionType type,
 }
 
 MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
+                                    bool has_all_targets, bool all_targets,
                                     Error **errp)
 {
     GSList *el, *machines;
@@ -163,6 +165,10 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
         MachineClass *mc = el->data;
         const char *default_cpu_type = machine_class_default_cpu_type(mc);
         MachineInfo *info;
+
+        if (!all_targets && !machine_class_is_available(mc)) {
+            continue;
+        }
 
         info = g_malloc0(sizeof(*info));
         if (mc->is_default) {
@@ -187,6 +193,18 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
             info->default_ram_id = g_strdup(mc->default_ram_id);
         }
         info->secure = object_class_is_secure(OBJECT_CLASS(mc));
+
+        if (all_targets) {
+            SysEmuTargetList **targets;
+            size_t i;
+            info->has_targets = true;
+            targets = &info->targets;
+            for (i = 0; i < SYS_EMU_TARGET__MAX; i++) {
+                if (mc->targets & QEMU_ARCH_BIT(i)) {
+                    QAPI_LIST_APPEND(targets, i);
+                }
+            }
+        }
 
         if (compat_props && mc->compat_props) {
             int i;

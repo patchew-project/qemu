@@ -37,6 +37,8 @@ const char *machine_default_cpu_type(const MachineState *ms);
  */
 const char *machine_class_default_cpu_type(MachineClass *mc);
 
+bool machine_class_is_available(MachineClass *mc);
+
 void machine_add_audiodev_property(MachineClass *mc);
 void machine_run_board_init(MachineState *machine, const char *mem_path, Error **errp);
 bool machine_usb(MachineState *machine);
@@ -282,6 +284,7 @@ struct MachineClass {
         int default_ipa_size, int max_ipa_size);
     bool (*get_kernel_irqchip_default) (const MachineState *machine);
 
+    int targets; /* QEMU_ARCH_xxx bitmask */
     BlockInterfaceType block_default_type;
     int units_per_default_bus;
     int max_cpus;

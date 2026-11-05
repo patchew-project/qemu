@@ -40,6 +40,8 @@
 #include "hw/acpi/generic_event_device.h"
 #include "qemu/audio.h"
 #include "hw/arm/smmuv3.h"
+#include "qemu/base-arch-defs.h"
+#include "qemu/target-info-qapi.h"
 
 GlobalProperty hw_compat_11_1[] = {
     { "sysbus-ehci-usb", "x-migrate-fetch-addr-64bit", "off" },
@@ -710,6 +712,17 @@ bool device_type_is_dynamic_sysbus(MachineClass *mc, const char *type)
 
     return allowed;
 }
+
+bool machine_class_is_available(MachineClass *mc)
+{
+    /*
+     * XXX: Once all machines have 'targets' set, we
+     * can remove the 'mc->targets == 0' check
+     */
+    return mc->targets == 0 ||
+        QEMU_ARCH_BIT(target_arch()) & mc->targets;
+}
+
 
 static char *machine_get_audiodev(Object *obj, Error **errp)
 {

@@ -1583,6 +1583,9 @@ static void machine_help_func(const QDict *qdict)
     machines = g_slist_sort_with_data(machines, machine_class_cmp, NULL);
     for (el = machines; el; el = el->next) {
         MachineClass *mc = el->data;
+        if (!machine_class_is_available(mc)) {
+            continue;
+        }
         if (mc->alias) {
             printf("%-20s %s (alias of %s)\n", mc->alias, mc->desc, mc->name);
         }
@@ -2207,6 +2210,12 @@ static bool qemu_create_machine(QDict *qdict)
     Error *local_err = NULL;
     MachineClass *machine_class = select_machine(qdict, &error_fatal);
     object_set_machine_compat_props(machine_class->compat_props);
+
+    if (!machine_class_is_available(machine_class)) {
+        error_report("Machine '%s' is not available with this target",
+                     machine_class->name);
+        return false;
+    }
 
     if (!object_class_check_security(OBJECT_CLASS(machine_class),
                                      &local_err)) {
