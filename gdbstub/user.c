@@ -701,9 +701,7 @@ fail:
 
 void gdb_handle_query_supported_user(const char *gdb_supported)
 {
-    if (strstr(gdb_supported, "fork-events+")) {
-        gdbserver_user_state.fork_events = true;
-    }
+    gdbserver_user_state.fork_events = strstr(gdb_supported, "fork-events+");
     g_string_append(gdbserver_state.str_buf, ";fork-events+");
 }
 
