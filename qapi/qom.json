@@ -36,8 +36,7 @@
 #        graph.
 #
 # @qapi-type: the name of the property's type as it appears in the
-#     output of ``query-qmp-schema``.  Absent if the type does not
-#     occur there.  (since 11.2)
+#     output of ``query-qmp-schema``.  (since 11.2)
 #
 # @description: if specified, the description of the property.
 #
@@ -52,7 +51,7 @@
 { 'struct': 'ObjectPropertyInfo',
   'data': { 'name': 'str',
             'type': 'str',
-            '*qapi-type': { 'type': 'str', 'features': [ 'unstable' ] },
+            'qapi-type': { 'type': 'str', 'features': [ 'unstable' ] },
             '*description': 'str',
             '*default-value': 'any' } }
 
@@ -65,8 +64,7 @@
 #     `ObjectPropertyInfo`.
 #
 # @qapi-type: the name of the property's type as it appears in the
-#     output of ``query-qmp-schema``.  Absent if the type does not
-#     occur there.  (since 11.2)
+#     output of ``query-qmp-schema``.  (since 11.2)
 #
 # @value: the value of the property.  Absent when the property cannot
 #     be read.
@@ -80,7 +78,7 @@
 { 'struct': 'ObjectPropertyValue',
   'data': { 'name': 'str',
             'type': 'str',
-            '*qapi-type': { 'type': 'str', 'features': [ 'unstable' ] },
+            'qapi-type': { 'type': 'str', 'features': [ 'unstable' ] },
             '*value': 'any' } }
 
 ##
