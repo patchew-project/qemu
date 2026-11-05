@@ -3574,11 +3574,15 @@ else
   # Unlike vcs_tag(), which always defines QEMU_PKGVERSION, leave it out if
   # empty.  include/qemu/version.h then omits the parentheses from
   # QEMU_FULL_VERSION.
-  qemu_version_data = configuration_data()
-  if qemu_pkgversion != ''
-    qemu_version_data.set_quoted('QEMU_PKGVERSION', qemu_pkgversion)
-  endif
-  qemu_version = configure_file(output: 'qemu-version.h', configuration: qemu_version_data)
+  # custom_target is a genh source, so consumers order on qemu-version.h
+  # and ninja recreates it when the template or pkgversion changes.
+  qemu_version = custom_target(
+    'qemu-version.h',
+    input: files('scripts/qemu-version.h.in'),
+    output: 'qemu-version.h',
+    capture: true,
+    command: [python, files('scripts/qemu-version.py'),
+              '-version', qemu_pkgversion, '@INPUT@'])
 endif
 genh += qemu_version
 
