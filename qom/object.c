@@ -16,6 +16,8 @@
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
 #include "qemu/cutils.h"
+#include "qemu/base-arch-defs.h"
+#include "qemu/target-info.h"
 #include "qemu/memalign.h"
 #include "qapi/visitor.h"
 #include "qapi/string-input-visitor.h"
@@ -87,6 +89,29 @@ static Type type_interface;
 static GHashTable *type_table;
 
 static bool enumerating_types;
+
+/**
+ * target_mask_filter:
+ * @mask: QEMU_ARCH_* mask to filter.
+ *
+ * QEMU_ARCH_ALL is unchanged for tools, user mode, and system mode.
+ *
+ * Tools return 0 from target_mask_selected() and cannot select a
+ * target, so any other mask aborts registration.
+ *
+ * Before system mode selects a target, target_mask_selected() is
+ * QEMU_ARCH_ALL and @mask is unchanged.
+ *
+ * When a target is selected, any other mask is intersected with
+ * QEMU_ARCH_BIT() of that target. User mode always has a target.
+ */
+static uint64_t target_mask_filter(uint64_t mask)
+{
+    if (mask == QEMU_ARCH_ALL) {
+        return mask;
+    }
+    return mask & target_mask_selected();
+}
 
 static void type_table_add(TypeImpl *ti)
 {
@@ -171,6 +196,19 @@ static TypeImpl *type_register_internal(const TypeInfo *info, uint64_t targets)
     }
 
     if (info->is_available && !info->is_available()) {
+        return NULL;
+    }
+
+    /* Tools cannot select a target, so targets must be QEMU_ARCH_ALL. */
+    if (target_mask_selected() == 0 && targets != QEMU_ARCH_ALL) {
+        fprintf(stderr,
+                "Registering '%s' with targets other than QEMU_ARCH_ALL "
+                "in tools\n", info->name);
+        abort();
+    }
+
+    targets = target_mask_filter(targets);
+    if (!targets) {
         return NULL;
     }
 
