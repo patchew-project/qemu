@@ -24,12 +24,17 @@ module_init(do_qemu_init_target_info, MODULE_INIT_TARGET_INFO)
 
 /*
  * User mode does not support multiple targets in the same binary, so just
- * define target_info().
+ * define target_info() and target_mask_selected(). The target is always
+ * selected.
  */
-#define target_info_init(ti_var)        \
-const TargetInfo *target_info(void)     \
-{                                       \
-    return &ti_var;                     \
+#define target_info_init(ti_var)                           \
+const TargetInfo *target_info(void)                        \
+{                                                          \
+    return &ti_var;                                        \
+}                                                          \
+uint64_t target_mask_selected(void)                        \
+{                                                          \
+    return QEMU_ARCH_BIT((ti_var).target_arch);            \
 }
 
 #else /* CONFIG_USER_ONLY */

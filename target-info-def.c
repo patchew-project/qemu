@@ -9,6 +9,9 @@
 #include "qemu/osdep.h"
 #include "qemu/target-info.h"
 #include "qemu/target-info-def.h"
+#ifdef CONFIG_USER_ONLY
+#include "qemu/base-arch-defs.h"
+#endif
 #include "qemu/target-info-init.h"
 #include "hw/core/boards.h"
 #include "cpu.h"

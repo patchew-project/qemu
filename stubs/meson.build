@@ -12,6 +12,7 @@ stub_ss.add(files('monitor-hmp.c'))
 stub_ss.add(files('qapi-event-emit.c'))
 stub_ss.add(files('replay-mode.c'))
 stub_ss.add(files('trace-control.c'))
+stub_ss.add(files('target-mask-selected.c'))
 
 if have_block
   stub_ss.add(files('bdrv-next-monitor-owned.c'))

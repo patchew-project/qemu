@@ -134,4 +134,13 @@ bool target_base_riscv(void);
  */
 bool target_riscv64(void);
 
+/**
+ * target_mask_selected:
+ *
+ * Returns the QEMU_ARCH_* mask of the selected target. System mode
+ * returns QEMU_ARCH_ALL until a target is selected. User mode returns
+ * that target's bit. Tools return 0.
+ */
+uint64_t target_mask_selected(void);
+
 #endif
