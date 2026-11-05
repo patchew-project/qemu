@@ -52,7 +52,7 @@ static const DeviceInfo devices[] = {
 
 struct TMP421State {
     /*< private >*/
-    I2CSlave i2c;
+    I2CSlave parent_obj;
     /*< public >*/
 
     int16_t temperature[4];
@@ -299,7 +299,7 @@ static const VMStateDescription vmstate_tmp421 = {
         VMSTATE_UINT8(status, TMP421State),
         VMSTATE_UINT8(rate, TMP421State),
         VMSTATE_INT16_ARRAY(temperature, TMP421State, 4),
-        VMSTATE_I2C_SLAVE(i2c, TMP421State),
+        VMSTATE_I2C_SLAVE(parent_obj, TMP421State),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -335,7 +335,7 @@ static void tmp421_realize(DeviceState *dev, Error **errp)
 {
     TMP421State *s = TMP421(dev);
 
-    tmp421_reset(&s->i2c);
+    tmp421_reset(&s->parent_obj);
 }
 
 static void tmp421_class_init(ObjectClass *klass, const void *data)
