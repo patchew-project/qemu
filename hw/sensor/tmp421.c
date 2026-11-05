@@ -60,6 +60,7 @@ struct TMP421Class {
     I2CSlaveClass parent_class;
 
     uint8_t device_id;
+    uint8_t nchannels;      /* local + remote */
     uint8_t config2_reset;
 };
 
@@ -160,11 +161,49 @@ static void tmp421_set_temperature(Object *obj, Visitor *v, const char *name,
     s->temperature[tempid] = (int16_t) ((temp * 256 - 128) / 1000) + offset;
 }
 
+static bool tmp421_channel_enabled(TMP421State *s, unsigned channel)
+{
+    TMP421Class *sc = TMP421_GET_CLASS(s);
+
+    return channel < sc->nchannels &&
+           (s->config[1] & (1 << (3 + channel)));
+}
+
+/*
+ * A disabled or absent channel reads back zero. The low byte carries the
+ * temperature fraction in its upper nibble.
+ */
+static uint8_t tmp421_temp_high(TMP421State *s, unsigned channel)
+{
+    uint16_t reg = s->temperature[channel];
+
+    return tmp421_channel_enabled(s, channel) ? reg >> 8 : 0;
+}
+
+static uint8_t tmp421_temp_low(TMP421State *s, unsigned channel)
+{
+    uint16_t reg = s->temperature[channel];
+
+    return tmp421_channel_enabled(s, channel) ? reg & 0xf0 : 0;
+}
+
 static void tmp421_read(TMP421State *s)
 {
     TMP421Class *sc = TMP421_GET_CLASS(s);
 
     s->len = 0;
+
+    if (s->pointer <= TMP421_TEMP_MSB3) {
+        /* high byte read latches the paired low byte from one conversion */
+        unsigned channel = s->pointer - TMP421_TEMP_MSB0;
+        s->buf[s->len++] = tmp421_temp_high(s, channel);
+        s->buf[s->len++] = tmp421_temp_low(s, channel);
+        return;
+    }
+    if (s->pointer >= TMP421_TEMP_LSB0 && s->pointer <= TMP421_TEMP_LSB3) {
+        s->buf[s->len++] = tmp421_temp_low(s, s->pointer - TMP421_TEMP_LSB0);
+        return;
+    }
 
     switch (s->pointer) {
     case TMP421_MANUFACTURER_ID_REG:
@@ -185,35 +224,8 @@ static void tmp421_read(TMP421State *s)
     case TMP421_STATUS_REG:
         s->buf[s->len++] = s->status;
         break;
-
-        /* FIXME: check for channel enablement in config registers */
-    case TMP421_TEMP_MSB0:
-        s->buf[s->len++] = (((uint16_t) s->temperature[0]) >> 8);
-        s->buf[s->len++] = (((uint16_t) s->temperature[0]) >> 0) & 0xf0;
-        break;
-    case TMP421_TEMP_MSB1:
-        s->buf[s->len++] = (((uint16_t) s->temperature[1]) >> 8);
-        s->buf[s->len++] = (((uint16_t) s->temperature[1]) >> 0) & 0xf0;
-        break;
-    case TMP421_TEMP_MSB2:
-        s->buf[s->len++] = (((uint16_t) s->temperature[2]) >> 8);
-        s->buf[s->len++] = (((uint16_t) s->temperature[2]) >> 0) & 0xf0;
-        break;
-    case TMP421_TEMP_MSB3:
-        s->buf[s->len++] = (((uint16_t) s->temperature[3]) >> 8);
-        s->buf[s->len++] = (((uint16_t) s->temperature[3]) >> 0) & 0xf0;
-        break;
-    case TMP421_TEMP_LSB0:
-        s->buf[s->len++] = (((uint16_t) s->temperature[0]) >> 0) & 0xf0;
-        break;
-    case TMP421_TEMP_LSB1:
-        s->buf[s->len++] = (((uint16_t) s->temperature[1]) >> 0) & 0xf0;
-        break;
-    case TMP421_TEMP_LSB2:
-        s->buf[s->len++] = (((uint16_t) s->temperature[2]) >> 0) & 0xf0;
-        break;
-    case TMP421_TEMP_LSB3:
-        s->buf[s->len++] = (((uint16_t) s->temperature[3]) >> 0) & 0xf0;
+    default:
+        s->buf[s->len++] = 0;
         break;
     }
 }
@@ -317,6 +329,19 @@ static void tmp421_reset_hold(Object *obj, ResetType type)
     tmp421_reset(TMP421(obj));
 }
 
+static void tmp421_initfn(Object *obj)
+{
+    TMP421Class *sc = TMP421_GET_CLASS(obj);
+
+    for (unsigned channel = 0; channel < sc->nchannels; channel++) {
+        g_autofree char *name = g_strdup_printf("temperature%u", channel);
+
+        object_property_add(obj, name, "int", &int_type_info,
+                            tmp421_get_temperature,
+                            tmp421_set_temperature, NULL, NULL);
+    }
+}
+
 static void tmp421_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -332,19 +357,7 @@ static void tmp421_class_init(ObjectClass *klass, const void *data)
 
     sc->device_id = TMP421_DEVICE_ID;
     sc->config2_reset = 0x1c;
-
-    object_class_property_add(klass, "temperature0", "int", &int_type_info,
-                              tmp421_get_temperature,
-                              tmp421_set_temperature, NULL, NULL);
-    object_class_property_add(klass, "temperature1", "int", &int_type_info,
-                              tmp421_get_temperature,
-                              tmp421_set_temperature, NULL, NULL);
-    object_class_property_add(klass, "temperature2", "int", &int_type_info,
-                              tmp421_get_temperature,
-                              tmp421_set_temperature, NULL, NULL);
-    object_class_property_add(klass, "temperature3", "int", &int_type_info,
-                              tmp421_get_temperature,
-                              tmp421_set_temperature, NULL, NULL);
+    sc->nchannels = 2;
 }
 
 static void tmp422_class_init(ObjectClass *klass, const void *data)
@@ -353,6 +366,7 @@ static void tmp422_class_init(ObjectClass *klass, const void *data)
 
     sc->device_id = TMP422_DEVICE_ID;
     sc->config2_reset = 0x3c;
+    sc->nchannels = 3;
 }
 
 static void tmp423_class_init(ObjectClass *klass, const void *data)
@@ -361,6 +375,7 @@ static void tmp423_class_init(ObjectClass *klass, const void *data)
 
     sc->device_id = TMP423_DEVICE_ID;
     sc->config2_reset = 0x7c;
+    sc->nchannels = 4;
 }
 
 static const TypeInfo tmp421_types[] = {
@@ -368,6 +383,7 @@ static const TypeInfo tmp421_types[] = {
         .name          = TYPE_TMP421,
         .parent        = TYPE_I2C_SLAVE,
         .instance_size = sizeof(TMP421State),
+        .instance_init = tmp421_initfn,
         .class_size    = sizeof(TMP421Class),
         .class_init    = tmp421_class_init,
     },
