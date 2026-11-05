@@ -863,7 +863,7 @@ static void scsi_generic_command_dump(uint8_t *cmd, int len)
     line_buffer = g_malloc(len * 5 + 1);
 
     for (i = 0, p = line_buffer; i < len; i++) {
-        p += sprintf(p, " 0x%02x", cmd[i]);
+        p += snprintf(p, (len - i) * 5 + 1, " 0x%02x", cmd[i]);
     }
     trace_scsi_generic_send_command(line_buffer);
 
