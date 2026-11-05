@@ -394,6 +394,8 @@ static void tmp421_initfn(Object *obj)
         object_property_add(obj, name, "int", &int_type_info,
                             tmp421_get_temperature,
                             tmp421_set_temperature, NULL, NULL);
+        object_property_set_description(obj, name,
+                            "Temperature, in millidegrees Celsius");
     }
 }
 
