@@ -11,6 +11,7 @@
 #include "hw/arm/aspeed.h"
 #include "hw/arm/aspeed_soc.h"
 #include "hw/sensor/tmp105.h"
+#include "qemu/base-arch-defs.h"
 
 /* AST2700 evb hardware value */
 /* SCU HW Strap1 */
@@ -45,6 +46,7 @@ static void aspeed_machine_ast2700a1_evb_class_init(ObjectClass *oc,
     amc->i2c_init  = ast2700_evb_i2c_init;
     amc->vbootrom = true;
     mc->default_ram_size = 1 * GiB;
+    mc->targets = QEMU_ARCH_BIT(SYS_EMU_TARGET_AARCH64);
     aspeed_machine_class_init_cpus_defaults(mc);
 }
 
@@ -67,6 +69,7 @@ static void aspeed_machine_ast2700a2_evb_class_init(ObjectClass *oc,
     amc->i2c_init  = ast2700_evb_i2c_init;
     amc->vbootrom = true;
     mc->default_ram_size = 2 * GiB;
+    mc->targets = QEMU_ARCH_BIT(SYS_EMU_TARGET_AARCH64);
     aspeed_machine_class_init_cpus_defaults(mc);
 }
 
@@ -75,13 +78,11 @@ static const TypeInfo aspeed_ast27x0_evb_types[] = {
         .name          = MACHINE_TYPE_NAME("ast2700a1-evb"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_ast2700a1_evb_class_init,
-        .is_available  = target_aarch64,
     },
     {
         .name          = MACHINE_TYPE_NAME("ast2700a2-evb"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_ast2700a2_evb_class_init,
-        .is_available  = target_aarch64,
     }
 };
 

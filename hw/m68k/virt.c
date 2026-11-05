@@ -36,6 +36,7 @@
 #include "hw/intc/goldfish_pic.h"
 #include "hw/virtio/virtio-mmio.h"
 #include "hw/virtio/virtio-blk.h"
+#include "qemu/base-arch-defs.h"
 
 /*
  * 6 goldfish-pic for CPU IRQ #1 to IRQ #6
@@ -320,6 +321,7 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
     mc->no_floppy = 1;
     mc->no_parallel = 1;
     mc->default_ram_id = "m68k_virt.ram";
+    mc->targets = QEMU_ARCH_BIT(SYS_EMU_TARGET_M68K);
 }
 
 static const TypeInfo virt_machine_info = {
@@ -327,7 +329,6 @@ static const TypeInfo virt_machine_info = {
     .parent       = TYPE_MACHINE,
     .abstract     = true,
     .class_init   = virt_machine_class_init,
-    .is_available = target_m68k,
 };
 
 static void virt_machine_register_types(void)
@@ -355,7 +356,6 @@ type_init(virt_machine_register_types)
         .name = MACHINE_VER_TYPE_NAME("virt", __VA_ARGS__), \
         .parent = MACHINE_TYPE_NAME("virt"), \
         .class_init = MACHINE_VER_SYM(class_init, virt, __VA_ARGS__), \
-        .is_available = target_m68k, \
     }; \
     static void MACHINE_VER_SYM(register, virt, __VA_ARGS__)(void) \
     { \

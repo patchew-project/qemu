@@ -94,6 +94,7 @@
 #include "hw/cxl/cxl_host.h"
 #include "qemu/guest-random.h"
 #include "hw/watchdog/sbsa_gwdt.h"
+#include "qemu/base-arch-defs.h"
 
 static GlobalProperty arm_virt_compat_defaults[] = {
     { TYPE_VIRTIO_IOMMU_PCI, "aw-bits", "48" },
@@ -131,7 +132,6 @@ static void arm_virt_compat_default_set(MachineClass *mc)
         .name = MACHINE_VER_TYPE_NAME("virt", __VA_ARGS__), \
         .parent = TYPE_VIRT_MACHINE, \
         .class_init = MACHINE_VER_SYM(class_init, virt, __VA_ARGS__), \
-        .is_available = target_base_arm, \
         .secure = true, \
     }; \
     static void MACHINE_VER_SYM(register, virt, __VA_ARGS__)(void) \
@@ -4204,6 +4204,8 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
     hc->unplug = virt_machine_device_unplug_cb;
     mc->nvdimm_supported = true;
     mc->smp_props.clusters_supported = true;
+    mc->targets = QEMU_ARCH_BIT(SYS_EMU_TARGET_AARCH64) |
+        QEMU_ARCH_BIT(SYS_EMU_TARGET_ARM);
 
     /* Supported caches */
     mc->smp_props.cache_supported[CACHE_LEVEL_AND_TYPE_L1D] = true;
@@ -4444,7 +4446,6 @@ static const TypeInfo virt_machine_info = {
          { TYPE_HOTPLUG_HANDLER },
          { }
     },
-    .is_available = target_base_arm,
 };
 
 static void machvirt_machine_init(void)

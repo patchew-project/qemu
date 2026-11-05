@@ -28,6 +28,7 @@
 #include "system/system.h"
 #include "system/qtest.h"
 #include "system/reset.h"
+#include "qemu/base-arch-defs.h"
 
 #include <libfdt.h>
 
@@ -552,6 +553,7 @@ static void openrisc_virt_machine_init(ObjectClass *oc, const void *data)
     mc->max_cpus = VIRT_CPUS_MAX;
     mc->is_default = false;
     mc->default_cpu_type = OPENRISC_CPU_TYPE_NAME("or1200");
+    mc->targets = QEMU_ARCH_BIT(SYS_EMU_TARGET_OR1K);
 }
 
 static const TypeInfo or1ksim_machine_typeinfo = {
@@ -559,7 +561,6 @@ static const TypeInfo or1ksim_machine_typeinfo = {
     .parent     = TYPE_MACHINE,
     .class_init = openrisc_virt_machine_init,
     .instance_size = sizeof(OR1KVirtState),
-    .is_available = target_or1k,
 };
 
 static void or1ksim_machine_init_register_types(void)

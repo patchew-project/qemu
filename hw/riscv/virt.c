@@ -61,6 +61,7 @@
 #include "qapi/qapi-type-infos-common.h"
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/uefi/var-service-api.h"
+#include "qemu/base-arch-defs.h"
 
 #include "aia.h"
 
@@ -1140,6 +1141,8 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_id = "riscv_virt_board.ram";
     assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
+    mc->targets = QEMU_ARCH_BIT(SYS_EMU_TARGET_RISCV64) |
+        QEMU_ARCH_BIT(SYS_EMU_TARGET_RISCV32);
 
     hc->plug = virt_machine_device_plug_cb;
 
@@ -1195,7 +1198,6 @@ static const TypeInfo virt_machine_typeinfo = {
     .instance_init = virt_machine_instance_init,
     .instance_finalize = virt_machine_instance_finalize,
     .instance_size = sizeof(RISCVVirtState),
-    .is_available = target_base_riscv,
     .interfaces = (const InterfaceInfo[]) {
          { TYPE_HOTPLUG_HANDLER },
          { }
