@@ -77,17 +77,17 @@ void m68k_tcg_init(void)
 
     p = cpu_reg_names;
     for (i = 0; i < 8; i++) {
-        sprintf(p, "D%d", i);
+        snprintf(p, 3, "D%d", i);
         cpu_dregs[i] = tcg_global_mem_new(tcg_env,
                                           offsetof(CPUM68KState, dregs[i]), p);
         p += 3;
-        sprintf(p, "A%d", i);
+        snprintf(p, 3, "A%d", i);
         cpu_aregs[i] = tcg_global_mem_new(tcg_env,
                                           offsetof(CPUM68KState, aregs[i]), p);
         p += 3;
     }
     for (i = 0; i < 4; i++) {
-        sprintf(p, "ACC%d", i);
+        snprintf(p, 5, "ACC%d", i);
         cpu_macc[i] = tcg_global_mem_new_i64(tcg_env,
                                          offsetof(CPUM68KState, macc[i]), p);
         p += 5;
