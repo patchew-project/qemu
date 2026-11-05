@@ -12,9 +12,8 @@
 #include "hw/arm/aspeed_soc.h"
 #include "hw/i2c/i2c_mux_pca954x.h"
 #include "hw/sensor/tmp105.h"
+#include "hw/sensor/tmp421.h"
 #include "hw/nvram/eeprom_at24c.h"
-
-#define TYPE_TMP422 "tmp422"
 
 /* Fuji hardware value */
 #define FUJI_BMC_HW_STRAP1    0x00000000

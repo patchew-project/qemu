@@ -13,8 +13,7 @@
 #include "hw/gpio/pca9552.h"
 #include "hw/nvram/eeprom_at24c.h"
 #include "hw/rtc/ds1338.h"
-
-#define TYPE_TMP421 "tmp421"
+#include "hw/sensor/tmp421.h"
 /* Bletchley hardware value */
 #define BLETCHLEY_BMC_HW_STRAP1 0x00002000
 #define BLETCHLEY_BMC_HW_STRAP2 0x00000801

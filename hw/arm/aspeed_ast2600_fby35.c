@@ -12,10 +12,10 @@
 #include "hw/arm/aspeed_soc.h"
 #include "hw/nvram/eeprom_at24c.h"
 #include "hw/sensor/tmp105.h"
+#include "hw/sensor/tmp421.h"
 #include "system/reset.h"
 
 #define TYPE_LM75 TYPE_TMP105
-#define TYPE_TMP421 "tmp421"
 #define FBY35_BMC_RAM_SIZE (2 * GiB)
 
 static const uint8_t fby35_nic_fruid[] = {

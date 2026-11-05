@@ -12,6 +12,7 @@
 #include "hw/arm/aspeed_soc.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/rtc/ds1338.h"
+#include "hw/sensor/tmp421.h"
 
 /* TODO: Find the actual hardware value */
 #define SUPERMICROX11_BMC_HW_STRAP1 (                                   \
@@ -45,7 +46,7 @@ static void supermicrox11_bmc_i2c_init(AspeedMachineState *bmc)
 
     /* add a TMP423 temperature sensor */
     dev = DEVICE(i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 2),
-                                         "tmp423", 0x4c));
+                                         TYPE_TMP423, 0x4c));
     object_property_set_int(OBJECT(dev), "temperature0", 31000, &error_abort);
     object_property_set_int(OBJECT(dev), "temperature1", 28000, &error_abort);
     object_property_set_int(OBJECT(dev), "temperature2", 20000, &error_abort);
