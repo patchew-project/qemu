@@ -113,7 +113,12 @@ write_authkeys(const char *path, const GStrv keys,
     g_autofree char *contents = NULL;
     g_autoptr(GError) err = NULL;
 
-    contents = g_strjoinv("\n", keys);
+    if (keys[0] != NULL) {
+        g_autofree char *joined = g_strjoinv("\n", keys);
+        contents = g_strconcat(joined, "\n", NULL);
+    } else {
+        contents = g_strdup("");
+    }
     if (!g_file_set_contents(path, contents, -1, &err)) {
         error_setg(errp, "failed to write to '%s': %s", path, err->message);
         return false;
@@ -402,7 +407,7 @@ test_add_keys(void)
                                       &err);
     g_assert(err == NULL);
 
-    test_authorized_keys_equal("algo key2 comments");
+    test_authorized_keys_equal("algo key2 comments\n");
 
     qmp_guest_ssh_add_authorized_keys(g_get_user_name(),
                                       (strList *)&test_key1_2,
@@ -412,7 +417,7 @@ test_add_keys(void)
 
     /*  key2 came first, and shouldn't be duplicated */
     test_authorized_keys_equal("algo key2 comments\n"
-                               "algo key1 comments");
+                               "algo key1 comments\n");
 }
 
 static void
@@ -428,7 +433,7 @@ test_add_reset_keys(void)
 
     /* reset with key2 only */
     test_authorized_keys_equal("algo key1 comments\n"
-                               "algo key2 comments");
+                               "algo key2 comments\n");
 
     qmp_guest_ssh_add_authorized_keys(g_get_user_name(),
                                       (strList *)&test_key2,
@@ -436,7 +441,7 @@ test_add_reset_keys(void)
                                       &err);
     g_assert(err == NULL);
 
-    test_authorized_keys_equal("algo key2 comments");
+    test_authorized_keys_equal("algo key2 comments\n");
 
     /* empty should clear file */
     qmp_guest_ssh_add_authorized_keys(g_get_user_name(),
@@ -446,6 +451,30 @@ test_add_reset_keys(void)
     g_assert(err == NULL);
 
     test_authorized_keys_equal("");
+}
+
+static void
+test_add_keys_trailing_newline(void)
+{
+    Error *err = NULL;
+
+    test_authorized_keys_set("algo key1 comments\n");
+    qmp_guest_ssh_add_authorized_keys(g_get_user_name(),
+                                      (strList *)&test_key2,
+                                      FALSE, FALSE,
+                                      &err);
+    g_assert(err == NULL);
+    test_authorized_keys_equal("algo key1 comments\n"
+                               "algo key2 comments\n");
+
+    test_authorized_keys_set("algo key1 comments");
+    qmp_guest_ssh_add_authorized_keys(g_get_user_name(),
+                                      (strList *)&test_key2,
+                                      FALSE, FALSE,
+                                      &err);
+    g_assert(err == NULL);
+    test_authorized_keys_equal("algo key1 comments\n"
+                               "algo key2 comments\n");
 }
 
 static void
@@ -507,6 +536,8 @@ int main(int argc, char *argv[])
     g_test_add_func("/qga/ssh/invalid_key", test_invalid_key);
     g_test_add_func("/qga/ssh/add_keys", test_add_keys);
     g_test_add_func("/qga/ssh/add_reset_keys", test_add_reset_keys);
+    g_test_add_func("/qga/ssh/add_keys_trailing_newline",
+                    test_add_keys_trailing_newline);
     g_test_add_func("/qga/ssh/remove_keys", test_remove_keys);
     g_test_add_func("/qga/ssh/get_keys", test_get_keys);
 

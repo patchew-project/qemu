@@ -11,13 +11,23 @@ GStrv read_authkeys(const char *path, Error **errp)
 {
     g_autoptr(GError) err = NULL;
     g_autofree char *contents = NULL;
+    GStrv lines;
+    guint len;
 
     if (!g_file_get_contents(path, &contents, NULL, &err)) {
         error_setg(errp, "failed to read '%s': %s", path, err->message);
         return NULL;
     }
 
-    return g_strsplit(contents, "\n", -1);
+    lines = g_strsplit(contents, "\n", -1);
+
+    len = g_strv_length(lines);
+    if (len > 0 && lines[len - 1][0] == '\0') {
+        g_free(lines[len - 1]);
+        lines[len - 1] = NULL;
+    }
+
+    return lines;
 }
 
 bool check_openssh_pub_keys(strList *keys, size_t *nkeys, Error **errp)

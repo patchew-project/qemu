@@ -431,7 +431,12 @@ static bool write_authkeys(WindowsUserInfo *userInfo, GStrv authkeys,
     g_autofree char *contents = NULL;
     g_autoptr(GError) err = NULL;
 
-    contents = g_strjoinv("\n", authkeys);
+    if (authkeys[0] != NULL) {
+        g_autofree char *joined = g_strjoinv("\n", authkeys);
+        contents = g_strconcat(joined, "\n", NULL);
+    } else {
+        contents = g_strdup("");
+    }
 
     if (!g_file_set_contents(userInfo->authorizedKeyFile, contents, -1, &err)) {
         error_setg(errp, "failed to write to '%s': %s",
