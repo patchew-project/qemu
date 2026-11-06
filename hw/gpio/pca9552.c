@@ -557,10 +557,8 @@ static void pca9535_reset_hold(Object *obj, ResetType type)
     s->len = 0;
 }
 
-static void pca955x_initfn(Object *obj)
+static void pca955x_pin_init(PCA955xClass *k)
 {
-    PCA955xClass *k = PCA955X_GET_CLASS(obj);
-
     assert(k->pin_count <= PCA955X_PIN_COUNT_MAX);
     for (int ix = 0; ix < k->pin_count; ix++) {
         char *name;
@@ -568,13 +566,17 @@ static void pca955x_initfn(Object *obj)
         if (k->has_led_support) {
             /* LED variant: expose the LED selector state as led%d. */
             name = g_strdup_printf("led%d", ix);
-            object_property_add(obj, name, "str", &str_type_info,
-                                pca955x_get_led, pca955x_set_led, NULL, NULL);
+            object_class_property_add(OBJECT_CLASS(k), name,
+                                      "str", &str_type_info,
+                                      pca955x_get_led, pca955x_set_led,
+                                      NULL, NULL);
         } else {
             /* GPIO variant: expose the pin logic level as pin%d. */
             name = g_strdup_printf("pin%d", ix);
-            object_property_add(obj, name, "str", &str_type_info,
-                                pca955x_get_pin, pca955x_set_pin, NULL, NULL);
+            object_class_property_add(OBJECT_CLASS(k), name,
+                                      "str", &str_type_info,
+                                      pca955x_get_pin, pca955x_set_pin,
+                                      NULL, NULL);
         }
         g_free(name);
     }
@@ -640,6 +642,7 @@ static void pca9552_class_init(ObjectClass *oc, const void *data)
     pc->max_reg = PCA9552_LS3;
     pc->pin_count = 16;
     pc->has_led_support = true;
+    pca955x_pin_init(pc);
 }
 
 static void pca95x5_class_init(ObjectClass *oc, const void *data)
@@ -653,13 +656,13 @@ static void pca95x5_class_init(ObjectClass *oc, const void *data)
     pc->max_reg = PCA9535_CONFIG1;
     pc->pin_count = 16;
     pc->has_led_support = false;
+    pca955x_pin_init(pc);
 }
 
 static const TypeInfo pca955x_types[] = {
     {
         .name          = TYPE_PCA955X,
         .parent        = TYPE_I2C_SLAVE,
-        .instance_init = pca955x_initfn,
         .instance_size = sizeof(PCA955xState),
         .class_init    = pca955x_class_init,
         .class_size    = sizeof(PCA955xClass),
