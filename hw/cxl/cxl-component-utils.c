@@ -264,6 +264,23 @@ static const MemoryRegionOps cache_mem_ops = {
     },
 };
 
+/* CXL r4.0 Table 8-73: the CXL.io range is reserved */
+static uint64_t cxl_io_reg_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
+static void cxl_io_reg_write(void *opaque, hwaddr addr, uint64_t val,
+                             unsigned size)
+{
+}
+
+static const MemoryRegionOps cxl_io_reg_ops = {
+    .read = cxl_io_reg_read,
+    .write = cxl_io_reg_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
 void cxl_component_register_block_init(Object *obj,
                                        CXLComponentState *cxl_cstate,
                                        const char *type)
@@ -273,8 +290,7 @@ void cxl_component_register_block_init(Object *obj,
     memory_region_init(&cregs->component_registers, obj, type,
                        CXL2_COMPONENT_BLOCK_SIZE);
 
-    /* io registers controls link which we don't care about in QEMU */
-    memory_region_init_io(&cregs->io, obj, NULL, NULL, ".io",
+    memory_region_init_io(&cregs->io, obj, &cxl_io_reg_ops, NULL, ".io",
                           CXL2_COMPONENT_IO_REGION_SIZE);
     memory_region_init_io(&cregs->cache_mem, obj, &cache_mem_ops, cxl_cstate,
                           ".cache_mem", CXL2_COMPONENT_CM_REGION_SIZE);
