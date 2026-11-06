@@ -173,18 +173,10 @@ static void pca9554_get_pin(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
     PCA9554State *s = PCA9554_BASE(obj);
-    int pin, rc;
+    uintptr_t pin = (uintptr_t)opaque;
     GpioPinState state;
 
-    rc = sscanf(name, "pin%2d", &pin);
-    if (rc != 1) {
-        error_setg(errp, "%s: error reading %s", __func__, name);
-        return;
-    }
-    if (pin < 0 || pin >= PCA9554_BASE_GET_CLASS(s)->pin_count) {
-        error_setg(errp, "%s invalid pin %s", __func__, name);
-        return;
-    }
+    assert(pin < PCA9554_BASE_GET_CLASS(s)->pin_count);
 
     /*
      * Report the physical pin level. The input register is kept in sync by
@@ -200,20 +192,14 @@ static void pca9554_set_pin(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
     PCA9554State *s = PCA9554_BASE(obj);
-    int pin, rc, val;
+    uintptr_t pin = (uintptr_t)opaque;
+    int val;
     uint8_t mask;
     GpioPinState state;
 
+    assert(pin < PCA9554_BASE_GET_CLASS(s)->pin_count);
+
     if (!visit_type_GpioPinState(v, name, &state, errp)) {
-        return;
-    }
-    rc = sscanf(name, "pin%2d", &pin);
-    if (rc != 1) {
-        error_setg(errp, "%s: error reading %s", __func__, name);
-        return;
-    }
-    if (pin < 0 || pin >= PCA9554_BASE_GET_CLASS(s)->pin_count) {
-        error_setg(errp, "%s invalid pin %s", __func__, name);
         return;
     }
 
@@ -221,7 +207,7 @@ static void pca9554_set_pin(Object *obj, Visitor *v, const char *name,
         /* Warn and ignore if the guest has configured this pin as output */
         if (!((s->regs[PCA9554_CONFIG] >> pin) & 0x1)) {
             qemu_log_mask(LOG_UNIMP,
-                          "%s: pin %d is configured as output, "
+                          "%s: pin %" PRIdPTR " is configured as output, "
                           "ignoring external set\n",
                           s->description, pin);
             return;
@@ -290,7 +276,7 @@ static void pca9554_pin_init(PCA9554Class *pc)
         object_class_property_add(OBJECT_CLASS(pc), name,
                                   "str", &GpioPinState_type_info,
                                   pca9554_get_pin, pca9554_set_pin,
-                                  NULL, NULL);
+                                  NULL, (void *)(uintptr_t)pin);
         g_free(name);
     }
 }

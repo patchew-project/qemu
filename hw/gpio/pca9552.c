@@ -360,18 +360,12 @@ static void pca955x_get_led(Object *obj, Visitor *v, const char *name,
 {
     PCA955xClass *k = PCA955X_GET_CLASS(obj);
     PCA955xState *s = PCA955X(obj);
-    int led, rc, reg;
+    uintptr_t led = (uintptr_t)opaque;
+    int reg;
     Pca9552LedState state;
 
-    rc = sscanf(name, "led%2d", &led);
-    if (rc != 1) {
-        error_setg(errp, "%s: error reading %s", __func__, name);
-        return;
-    }
-    if (led < 0 || led >= k->pin_count) {
-        error_setg(errp, "%s: invalid led %s", __func__, name);
-        return;
-    }
+    assert(led < k->pin_count);
+
     /*
      * Get the LSx register as the qom interface should expose the device
      * state, not the modeled 'input line' behaviour which would come from
@@ -397,19 +391,13 @@ static void pca955x_set_led(Object *obj, Visitor *v, const char *name,
 {
     PCA955xClass *k = PCA955X_GET_CLASS(obj);
     PCA955xState *s = PCA955X(obj);
-    int led, rc, reg, val;
+    uintptr_t led = (uintptr_t)opaque;
+    int reg, val;
     Pca9552LedState state;
 
+    assert(led < k->pin_count);
+
     if (!visit_type_Pca9552LedState(v, name, &state, errp)) {
-        return;
-    }
-    rc = sscanf(name, "led%2d", &led);
-    if (rc != 1) {
-        error_setg(errp, "%s: error reading %s", __func__, name);
-        return;
-    }
-    if (led < 0 || led >= k->pin_count) {
-        error_setg(errp, "%s: invalid led %s", __func__, name);
         return;
     }
 
@@ -426,19 +414,11 @@ static void pca955x_get_pin(Object *obj, Visitor *v, const char *name,
 {
     PCA955xClass *k = PCA955X_GET_CLASS(obj);
     PCA955xState *s = PCA955X(obj);
-    int pin, rc;
+    uintptr_t pin = (uintptr_t)opaque;
     uint8_t input_reg;
     GpioPinState state;
 
-    rc = sscanf(name, "pin%2d", &pin);
-    if (rc != 1) {
-        error_setg(errp, "%s: error reading %s", __func__, name);
-        return;
-    }
-    if (pin < 0 || pin >= k->pin_count) {
-        error_setg(errp, "%s invalid pin %s", __func__, name);
-        return;
-    }
+    assert(pin < k->pin_count);
 
     /*
      * Report the raw pin logic level; polarity inversion is a read-time
@@ -454,20 +434,13 @@ static void pca955x_set_pin(Object *obj, Visitor *v, const char *name,
 {
     PCA955xClass *k = PCA955X_GET_CLASS(obj);
     PCA955xState *s = PCA955X(obj);
-    int pin, rc;
+    uintptr_t pin = (uintptr_t)opaque;
     GpioPinState state;
     uint8_t config_reg;
 
+    assert(pin < k->pin_count);
+
     if (!visit_type_GpioPinState(v, name, &state, errp)) {
-        return;
-    }
-    rc = sscanf(name, "pin%2d", &pin);
-    if (rc != 1) {
-        error_setg(errp, "%s: error reading %s", __func__, name);
-        return;
-    }
-    if (pin < 0 || pin >= k->pin_count) {
-        error_setg(errp, "%s invalid pin %s", __func__, name);
         return;
     }
 
@@ -475,7 +448,8 @@ static void pca955x_set_pin(Object *obj, Visitor *v, const char *name,
     config_reg = PCA9535_CONFIG0 + (pin / 8);
     if (!((s->regs[config_reg] >> (pin % 8)) & 0x1)) {
         qemu_log_mask(LOG_UNIMP,
-                      "%s: pin %d is configured as output, ignoring set\n",
+                      "%s: pin %" PRIdPTR " is configured as output, "
+                      "ignoring set\n",
                       s->description, pin);
         return;
     }
@@ -549,14 +523,14 @@ static void pca955x_pin_init(PCA955xClass *k)
             object_class_property_add(OBJECT_CLASS(k), name,
                                       "str", &Pca9552LedState_type_info,
                                       pca955x_get_led, pca955x_set_led,
-                                      NULL, NULL);
+                                      NULL, (void *)(uintptr_t)ix);
         } else {
             /* GPIO variant: expose the pin logic level as pin%d. */
             name = g_strdup_printf("pin%d", ix);
             object_class_property_add(OBJECT_CLASS(k), name,
                                       "str", &GpioPinState_type_info,
                                       pca955x_get_pin, pca955x_set_pin,
-                                      NULL, NULL);
+                                      NULL, (void *)(uintptr_t)ix);
         }
         g_free(name);
     }
