@@ -323,11 +323,11 @@ static void ras_init_common(uint32_t *reg_state, uint32_t *write_msk)
 }
 
 static void hdm_init_common(uint32_t *reg_state, uint32_t *write_msk,
-                            enum reg_type type, bool bi)
+                            enum reg_type type, bool bi,
+                            unsigned int decoder_count)
 {
-    int decoder_count = CXL_HDM_DECODER_COUNT;
     int hdm_inc = R_CXL_HDM_DECODER1_BASE_LO - R_CXL_HDM_DECODER0_BASE_LO;
-    int i;
+    unsigned int i;
 
     ARRAY_FIELD_DP32(reg_state, CXL_HDM_DECODER_CAPABILITY, DECODER_COUNT,
                      cxl_decoder_count_enc(decoder_count));
@@ -406,13 +406,16 @@ static void bi_decoder_init_common(uint32_t *reg_state, uint32_t *write_msk,
     ARRAY_FIELD_DP32(reg_state, CXL_BI_DECODER_STATUS, COMMIT_TMO_BASE, 0x2);
 }
 
-void cxl_component_register_init_common(uint32_t *reg_state,
-                                        uint32_t *write_msk,
-                                        enum reg_type type,
-                                        bool bi)
+void cxl_component_register_init_count(uint32_t *reg_state,
+                                       uint32_t *write_msk,
+                                       enum reg_type type, bool bi,
+                                       unsigned int decoder_count)
 {
     int caps = 0;
 
+    assert(decoder_count > 0 && decoder_count <= CXL_HDM_DECODER_COUNT);
+    assert(cxl_decoder_count_dec(cxl_decoder_count_enc(decoder_count)) ==
+           decoder_count);
     memset(reg_state, 0, CXL2_COMPONENT_CM_REGION_SIZE);
 
     /* CXL Capability Header Register */
@@ -449,7 +452,7 @@ void cxl_component_register_init_common(uint32_t *reg_state,
     case CXL2_LOGICAL_DEVICE:
         /* + HDM */
         init_cap_reg(HDM, 5, 1);
-        hdm_init_common(reg_state, write_msk, type, bi);
+        hdm_init_common(reg_state, write_msk, type, bi, decoder_count);
         /* fallthrough */
     case CXL2_DOWNSTREAM_PORT:
     case CXL2_DEVICE:
@@ -484,6 +487,15 @@ void cxl_component_register_init_common(uint32_t *reg_state,
 
     ARRAY_FIELD_DP32(reg_state, CXL_CAPABILITY_HEADER, ARRAY_SIZE, caps);
 #undef init_cap_reg
+}
+
+void cxl_component_register_init_common(uint32_t *reg_state,
+                                        uint32_t *write_msk,
+                                        enum reg_type type,
+                                        bool bi)
+{
+    cxl_component_register_init_count(reg_state, write_msk, type, bi,
+                                      CXL_HDM_DECODER_COUNT);
 }
 
 /*

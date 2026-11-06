@@ -312,6 +312,10 @@ typedef struct cxl_component {
 void cxl_component_register_block_init(Object *obj,
                                        CXLComponentState *cxl_cstate,
                                        const char *type);
+void cxl_component_register_init_count(uint32_t *reg_state,
+                                       uint32_t *write_msk,
+                                       enum reg_type type, bool bi,
+                                       unsigned int decoder_count);
 void cxl_component_register_init_common(uint32_t *reg_state,
                                         uint32_t *write_msk,
                                         enum reg_type type, bool bi);
