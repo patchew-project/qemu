@@ -362,6 +362,7 @@ static void hdm_init_common(uint32_t *reg_state, uint32_t *write_msk,
         write_msk[R_CXL_HDM_DECODER0_CTRL + i * hdm_inc] = 0x13ff;
         if (type == CXL2_DEVICE ||
             type == CXL2_TYPE3_DEVICE ||
+            type == CXL3_TYPE2_DEVICE ||
             type == CXL2_LOGICAL_DEVICE) {
             write_msk[R_CXL_HDM_DECODER0_TARGET_LIST_LO + i * hdm_inc] =
                 0xf0000000;
@@ -449,6 +450,7 @@ void cxl_component_register_init_count(uint32_t *reg_state,
         /* fallthrough */
     case CXL2_UPSTREAM_PORT:
     case CXL2_TYPE3_DEVICE:
+    case CXL3_TYPE2_DEVICE:
     case CXL2_LOGICAL_DEVICE:
         /* + HDM */
         init_cap_reg(HDM, 5, 1);

@@ -839,6 +839,8 @@ struct CXLType2Dev {
 
     /* State */
     AddressSpace hostvmem_as;
+    CXLComponentState cxl_cstate;
+    uint8_t dvsec_wmask[PCIE_CXL_DEVICE_DVSEC_LENGTH];
 };
 
 #define TYPE_CXL_TYPE2 "cxl-type2"
