@@ -54,6 +54,20 @@ tests += {
 }
 
 tests += {
+  'test-rv128-mcause.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'x-rv128', qemu_args],
+  }
+}
+
+tests += {
+  'test-rv128-scause.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'x-rv128', qemu_args],
+  }
+}
+
+tests += {
   'test-vle32ff.S': {
     'cflags': cflags + ['-march=rv64gcv'],
     'qemu_args': ['-cpu', 'rv64,v=true', qemu_args],
