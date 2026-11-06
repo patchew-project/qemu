@@ -18,6 +18,7 @@
 #include "hw/pci/pcie_port.h"
 #include "migration/vmstate.h"
 #include "system/hostmem.h"
+#include "system/ramblock.h"
 
 static void clean_memory(PCIDevice *pci_dev)
 {
@@ -215,7 +216,7 @@ static void update_dvsecs(CXLType2Dev *ct2d)
         .cap = CXL_DVSEC_CAP_CACHE | CXL_DVSEC_CAP_IO | CXL_DVSEC_CAP_MEM |
                CXL_DVSEC_CAP_MEM_HWINIT |
                1 << CXL_DVSEC_CAP_HDM_COUNT_SHIFT | CXL_DVSEC_CAP_CACHE_WBI |
-               CXL_DVSEC_CAP_RST,
+               CXL_DVSEC_CAP_RST | CXL_DVSEC_CAP_RST_MEM_CLR,
         .ctrl = CXL_DVSEC_CTRL_IO_EN,
         .range1_size_hi = size >> 32,
         .range1_size_lo = (2 << 5) | (2 << 2) | 0x3 | (size & 0xF0000000),
@@ -260,7 +261,8 @@ static void build_dvsecs(CXLType2Dev *ct2d)
                  cxl_type2_dvsec(ct2d, offsetof(CXLDVSECDevice, ctrl2)),
                  CXL_DVSEC_CTRL2_DISABLE_CACHING |
                  CXL_DVSEC_CTRL2_INIT_CACHE_WBI |
-                 CXL_DVSEC_CTRL2_INIT_CXL_RST);
+                 CXL_DVSEC_CTRL2_INIT_CXL_RST |
+                 CXL_DVSEC_CTRL2_RST_MEM_CLR_EN);
 
     memcpy(ct2d->dvsec_wmask, PCI_DEVICE(ct2d)->wmask +
            range_lob(&cxl_cstate->dvsecs[PCIE_CXL_DEVICE_DVSEC]),
@@ -294,11 +296,30 @@ static void cxl_type2_update_status2(CXLType2Dev *ct2d, uint16_t clear,
 }
 
 /*
+ * A discard would change the file behind a private file mapping and undo
+ * the preallocation of a prealloc backend, so those get zeros written.
+ */
+static bool cxl_type2_clear_memory(CXLType2Dev *ct2d)
+{
+    MemoryRegion *vmr = host_memory_backend_get_memory(ct2d->hostvmem);
+    RAMBlock *rb = vmr->ram_block;
+    uint64_t size = memory_region_size(vmr);
+
+    if (rb && !ct2d->hostvmem->prealloc && !ram_block_discard_is_disabled() &&
+        (qemu_ram_get_fd(rb) < 0 || qemu_ram_is_shared(rb)) &&
+        !ram_block_discard_range(rb, 0, size)) {
+        return true;
+    }
+    return address_space_set(&ct2d->hostvmem_as, 0, 0, size,
+                             MEMTXATTRS_UNSPECIFIED) == MEMTX_OK;
+}
+
+/*
  * CXL r4.0 Section 9.7. Fields locked by CONFIG_LOCK or Lock On Commit keep
  * their values. The CXL.io part of the reset, which has the scope of an FLR,
  * is not emulated.
  */
-static void cxl_type2_cxl_reset(CXLType2Dev *ct2d)
+static void cxl_type2_cxl_reset(CXLType2Dev *ct2d, uint16_t ctrl2)
 {
     static const size_t range_bases[] = {
         offsetof(CXLDVSECDevice, range1_base_hi),
@@ -309,6 +330,7 @@ static void cxl_type2_cxl_reset(CXLType2Dev *ct2d)
     uint8_t *config = PCI_DEVICE(ct2d)->config;
     uint32_t *cache_mem = ct2d->cxl_cstate.crb.cache_mem_registers;
     uint16_t lock = cxl_type2_dvsec(ct2d, offsetof(CXLDVSECDevice, lock));
+    bool cleared = true;
 
     cxl_type2_update_status2(ct2d, CXL_DVSEC_STATUS2_RST_DONE |
                              CXL_DVSEC_STATUS2_RST_ERR, 0);
@@ -328,8 +350,12 @@ static void cxl_type2_cxl_reset(CXLType2Dev *ct2d)
 
     cxl_type2_update_mem_active(ct2d);
 
+    if (ctrl2 & CXL_DVSEC_CTRL2_RST_MEM_CLR_EN) {
+        cleared = cxl_type2_clear_memory(ct2d);
+    }
     cxl_type2_update_status2(ct2d, CXL_DVSEC_STATUS2_CACHE_INV,
-                             CXL_DVSEC_STATUS2_RST_DONE);
+                             cleared ? CXL_DVSEC_STATUS2_RST_DONE :
+                             CXL_DVSEC_STATUS2_RST_ERR);
 }
 
 /*
@@ -355,7 +381,7 @@ static void cxl_type2_ctrl2_write(CXLType2Dev *ct2d)
     }
     /* Initiate CXL Reset reads as 0; the reset clears all of Control2 */
     if (ctrl2 & CXL_DVSEC_CTRL2_INIT_CXL_RST) {
-        cxl_type2_cxl_reset(ct2d);
+        cxl_type2_cxl_reset(ct2d, ctrl2);
     }
 }
 
