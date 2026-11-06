@@ -23,7 +23,7 @@
 #include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
-#include "qapi/qapi-builtin-type-infos.h"
+#include "qapi/qapi-type-infos-machine.h"
 #include "qapi/qapi-visit-machine.h"
 #include "qapi/visitor.h"
 #include "trace.h"
@@ -547,14 +547,14 @@ static void pca955x_pin_init(PCA955xClass *k)
             /* LED variant: expose the LED selector state as led%d. */
             name = g_strdup_printf("led%d", ix);
             object_class_property_add(OBJECT_CLASS(k), name,
-                                      "str", &str_type_info,
+                                      "str", &Pca9552LedState_type_info,
                                       pca955x_get_led, pca955x_set_led,
                                       NULL, NULL);
         } else {
             /* GPIO variant: expose the pin logic level as pin%d. */
             name = g_strdup_printf("pin%d", ix);
             object_class_property_add(OBJECT_CLASS(k), name,
-                                      "str", &str_type_info,
+                                      "str", &GpioPinState_type_info,
                                       pca955x_get_pin, pca955x_set_pin,
                                       NULL, NULL);
         }

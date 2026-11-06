@@ -17,7 +17,7 @@
 #include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
-#include "qapi/qapi-builtin-type-infos.h"
+#include "qapi/qapi-type-infos-machine.h"
 #include "qapi/qapi-visit-machine.h"
 #include "qapi/visitor.h"
 #include "trace.h"
@@ -288,7 +288,7 @@ static void pca9554_pin_init(PCA9554Class *pc)
 
         name = g_strdup_printf("pin%d", pin);
         object_class_property_add(OBJECT_CLASS(pc), name,
-                                  "str", &str_type_info,
+                                  "str", &GpioPinState_type_info,
                                   pca9554_get_pin, pca9554_set_pin,
                                   NULL, NULL);
         g_free(name);
