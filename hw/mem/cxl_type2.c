@@ -170,6 +170,11 @@ MemTxResult cxl_type2_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
     return address_space_write(as, dpa, attrs, &data, size);
 }
 
+static uint16_t cxl_type2_dvsec(CXLType2Dev *ct2d, size_t reg)
+{
+    return range_lob(&ct2d->cxl_cstate.dvsecs[PCIE_CXL_DEVICE_DVSEC]) + reg;
+}
+
 static void update_dvsecs(CXLType2Dev *ct2d)
 {
     CXLComponentState *cxl_cstate = &ct2d->cxl_cstate;
@@ -178,9 +183,9 @@ static void update_dvsecs(CXLType2Dev *ct2d)
     uint8_t *dvsec;
 
     dvsec = (uint8_t *)&(CXLDVSECDevice){
-        .cap = CXL_DVSEC_CAP_IO | CXL_DVSEC_CAP_MEM |
+        .cap = CXL_DVSEC_CAP_CACHE | CXL_DVSEC_CAP_IO | CXL_DVSEC_CAP_MEM |
                CXL_DVSEC_CAP_MEM_HWINIT |
-               1 << CXL_DVSEC_CAP_HDM_COUNT_SHIFT,
+               1 << CXL_DVSEC_CAP_HDM_COUNT_SHIFT | CXL_DVSEC_CAP_CACHE_WBI,
         .ctrl = CXL_DVSEC_CTRL_IO_EN,
         .range1_size_hi = size >> 32,
         .range1_size_lo = (2 << 5) | (2 << 2) | 0x3 | (size & 0xF0000000),
@@ -195,9 +200,9 @@ static void update_dvsecs(CXLType2Dev *ct2d)
                                REG_LOC_DVSEC, dvsec);
 
     dvsec = (uint8_t *)&(CXLDVSECPortFlexBus){
-        .cap                     = 0x26, /* 68B, IO, Mem, non-MLD */
+        .cap                     = 0x27, /* 68B, IO, Cache, Mem, non-MLD */
         .ctrl                    = 0x02, /* IO always enabled */
-        .status                  = 0x26, /* same as capabilities */
+        .status                  = 0x27, /* same as capabilities */
         .rcvd_mod_ts_data_phase1 = 0xef,
     };
     cxl_component_update_dvsec(cxl_cstate, PCIE_CXL3_FLEXBUS_PORT_DVSEC_LENGTH,
@@ -221,10 +226,11 @@ static void build_dvsecs(CXLType2Dev *ct2d)
                                PCIE_CXL3_FLEXBUS_PORT_DVSEC_REVID, NULL);
     update_dvsecs(ct2d);
 
-    /* No CXL.cache and no CXL Reset, so no Control2 bit is writable */
+    /* Disable Caching and Initiate Cache Write Back and Invalidation */
     pci_set_word(PCI_DEVICE(ct2d)->wmask +
-                 range_lob(&cxl_cstate->dvsecs[PCIE_CXL_DEVICE_DVSEC]) +
-                 offsetof(CXLDVSECDevice, ctrl2), 0);
+                 cxl_type2_dvsec(ct2d, offsetof(CXLDVSECDevice, ctrl2)),
+                 CXL_DVSEC_CTRL2_DISABLE_CACHING |
+                 CXL_DVSEC_CTRL2_INIT_CACHE_WBI);
 
     memcpy(ct2d->dvsec_wmask, PCI_DEVICE(ct2d)->wmask +
            range_lob(&cxl_cstate->dvsecs[PCIE_CXL_DEVICE_DVSEC]),
@@ -248,11 +254,49 @@ static void cxl_type2_dvsec_lock(CXLType2Dev *ct2d)
     pci_set_quad(wmask + offsetof(CXLDVSECDevice, range2_base_hi), 0);
 }
 
+static void cxl_type2_update_status2(CXLType2Dev *ct2d, uint16_t clear,
+                                     uint16_t set)
+{
+    uint8_t *reg = PCI_DEVICE(ct2d)->config +
+                   cxl_type2_dvsec(ct2d, offsetof(CXLDVSECDevice, status2));
+
+    pci_set_word(reg, (pci_get_word(reg) & ~clear) | set);
+}
+
+/*
+ * CXL r4.0 Section 8.1.3.4: the device holds no modified cache lines, so a
+ * write back and invalidate completes at once.
+ */
+static void cxl_type2_ctrl2_write(CXLType2Dev *ct2d)
+{
+    uint8_t *reg = PCI_DEVICE(ct2d)->config +
+                   cxl_type2_dvsec(ct2d, offsetof(CXLDVSECDevice, ctrl2));
+    uint16_t ctrl2 = pci_get_word(reg);
+
+    if (!(ctrl2 & CXL_DVSEC_CTRL2_DISABLE_CACHING)) {
+        /* Cache Invalid reads as 0 while Disable Caching is 0 */
+        cxl_type2_update_status2(ct2d, CXL_DVSEC_STATUS2_CACHE_INV, 0);
+    }
+    if (ctrl2 & CXL_DVSEC_CTRL2_INIT_CACHE_WBI) {
+        pci_set_word(reg, ctrl2 & ~CXL_DVSEC_CTRL2_INIT_CACHE_WBI);
+        /* Undefined unless Disable Caching is set */
+        if (ctrl2 & CXL_DVSEC_CTRL2_DISABLE_CACHING) {
+            cxl_type2_update_status2(ct2d, 0, CXL_DVSEC_STATUS2_CACHE_INV);
+        }
+    }
+}
+
 static void cxl_type2_config_write(PCIDevice *pci_dev, uint32_t addr,
                                    uint32_t val, int len)
 {
+    CXLType2Dev *ct2d = CXL_TYPE2(pci_dev);
+    uint16_t ctrl2 = cxl_type2_dvsec(ct2d, offsetof(CXLDVSECDevice, ctrl2));
+
     pci_default_write_config(pci_dev, addr, val, len);
-    cxl_type2_dvsec_lock(CXL_TYPE2(pci_dev));
+    cxl_type2_dvsec_lock(ct2d);
+    if (ranges_overlap(addr, len, ctrl2, sizeof(uint16_t))) {
+        cxl_type2_ctrl2_write(ct2d);
+    }
 }
 
 static void setup_cxl_regs(PCIDevice *pci_dev)
@@ -325,8 +369,7 @@ static void cxl_type2_firmware_init(CXLType2Dev *ct2d)
 {
     CXLComponentState *cxl_cstate = &ct2d->cxl_cstate;
     uint32_t *cache_mem = cxl_cstate->crb.cache_mem_registers;
-    uint16_t ctrl = range_lob(&cxl_cstate->dvsecs[PCIE_CXL_DEVICE_DVSEC]) +
-                    offsetof(CXLDVSECDevice, ctrl);
+    uint16_t ctrl = cxl_type2_dvsec(ct2d, offsetof(CXLDVSECDevice, ctrl));
     CXLFirmwareHDM range = {
         .valid = true,
         .base = ct2d->fmw->base,
@@ -335,7 +378,8 @@ static void cxl_type2_firmware_init(CXLType2Dev *ct2d)
     };
 
     pci_set_word(PCI_DEVICE(ct2d)->config + ctrl,
-                 CXL_DVSEC_CTRL_IO_EN | CXL_DVSEC_CTRL_MEM_EN);
+                 CXL_DVSEC_CTRL_CACHE_EN | CXL_DVSEC_CTRL_IO_EN |
+                 CXL_DVSEC_CTRL_MEM_EN);
     ARRAY_FIELD_DP32(cache_mem, CXL_HDM_DECODER_GLOBAL_CONTROL,
                      HDM_DECODER_ENABLE, 1);
     cxl_firmware_hdm_program(&range, cache_mem);
