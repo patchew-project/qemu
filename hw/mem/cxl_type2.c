@@ -11,6 +11,8 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/cxl/cxl.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_bridge.h"
+#include "hw/pci/pcie_port.h"
 #include "migration/vmstate.h"
 #include "system/hostmem.h"
 
@@ -20,6 +22,29 @@ static void clean_memory(PCIDevice *pci_dev)
 
     address_space_destroy(&ct2d->hostvmem_as);
     host_memory_backend_set_mapped(ct2d->hostvmem, false);
+}
+
+/*
+ * The firmware decoder setup covers only the host bridge and the device, and
+ * cxl_cfmws_find_device() routes only to devfn 0 below a port.
+ */
+static bool cxl_type2_check_topology(PCIDevice *pci_dev, Error **errp)
+{
+    PCIDevice *rp = pci_get_bus(pci_dev)->parent_dev;
+    PCIDevice *host = rp ? pci_get_bus(rp)->parent_dev : NULL;
+
+    if (!rp || !pci_is_cxl(rp) ||
+        !object_dynamic_cast(OBJECT(rp), TYPE_PCIE_ROOT_PORT) || !host ||
+        !object_dynamic_cast(OBJECT(host), TYPE_PXB_CXL_DEV)) {
+        error_setg(errp, "cxl-type2 must be directly below a CXL root port "
+                   "of a pxb-cxl");
+        return false;
+    }
+    if (pci_dev->devfn != 0) {
+        error_setg(errp, "cxl-type2 must be at slot 0, function 0");
+        return false;
+    }
+    return true;
 }
 
 static bool setup_memory(PCIDevice *pci_dev, Error **errp)
@@ -190,7 +215,8 @@ static void setup_cxl_regs(PCIDevice *pci_dev)
 
 static void cxl_type2_realize(PCIDevice *pci_dev, Error **errp)
 {
-    if (!setup_memory(pci_dev, errp)) {
+    if (!cxl_type2_check_topology(pci_dev, errp) ||
+        !setup_memory(pci_dev, errp)) {
         return;
     }
 
