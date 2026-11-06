@@ -7,6 +7,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/range.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/core/qdev-properties.h"
@@ -306,6 +307,43 @@ static void cxl_type2_exit(PCIDevice *pci_dev)
     clean_memory(pci_dev);
 }
 
+/* CXL r4.0 Section 8.2.4.20.7: a locked decoder is read only until reset */
+static void cxl_type2_lock_decoder(CXLComponentState *cxl_cstate)
+{
+    uint32_t *write_msk = cxl_cstate->crb.cache_mem_regs_write_mask;
+
+    write_msk[R_CXL_HDM_DECODER0_BASE_LO] = 0;
+    write_msk[R_CXL_HDM_DECODER0_BASE_HI] = 0;
+    write_msk[R_CXL_HDM_DECODER0_SIZE_LO] = 0;
+    write_msk[R_CXL_HDM_DECODER0_SIZE_HI] = 0;
+    write_msk[R_CXL_HDM_DECODER0_CTRL] = 0;
+    write_msk[R_CXL_HDM_DECODER0_DPA_SKIP_LO] = 0;
+    write_msk[R_CXL_HDM_DECODER0_DPA_SKIP_HI] = 0;
+}
+
+static void cxl_type2_firmware_init(CXLType2Dev *ct2d)
+{
+    CXLComponentState *cxl_cstate = &ct2d->cxl_cstate;
+    uint32_t *cache_mem = cxl_cstate->crb.cache_mem_registers;
+    uint16_t ctrl = range_lob(&cxl_cstate->dvsecs[PCIE_CXL_DEVICE_DVSEC]) +
+                    offsetof(CXLDVSECDevice, ctrl);
+    CXLFirmwareHDM range = {
+        .valid = true,
+        .base = ct2d->fmw->base,
+        .size = memory_region_size(
+            host_memory_backend_get_memory(ct2d->hostvmem)),
+    };
+
+    pci_set_word(PCI_DEVICE(ct2d)->config + ctrl,
+                 CXL_DVSEC_CTRL_IO_EN | CXL_DVSEC_CTRL_MEM_EN);
+    ARRAY_FIELD_DP32(cache_mem, CXL_HDM_DECODER_GLOBAL_CONTROL,
+                     HDM_DECODER_ENABLE, 1);
+    cxl_firmware_hdm_program(&range, cache_mem);
+    ARRAY_FIELD_DP32(cache_mem, CXL_HDM_DECODER0_CTRL, LOCK_ON_COMMIT, 1);
+    cxl_type2_lock_decoder(cxl_cstate);
+    cfmws_update_non_interleaved(true);
+}
+
 static void cxl_type2_reset(DeviceState *dev)
 {
     CXLType2Dev *ct2d = CXL_TYPE2(dev);
@@ -319,6 +357,10 @@ static void cxl_type2_reset(DeviceState *dev)
     cxl_component_register_init_count(cxl_cstate->crb.cache_mem_registers,
                                       cxl_cstate->crb.cache_mem_regs_write_mask,
                                       CXL3_TYPE2_DEVICE, false, 1);
+
+    if (ct2d->fmw) {
+        cxl_type2_firmware_init(ct2d);
+    }
 }
 
 static const Property cxl_type2_props[] = {
