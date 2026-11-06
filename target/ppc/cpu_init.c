@@ -43,6 +43,7 @@
 #include "exec/page-protection.h"
 #include "exec/watchpoint.h"
 #include "helper_regs.h"
+#include "accel/accel-cpu.h"
 #include "internal.h"
 #include "spr_common.h"
 #include "power8-pmu.h"
@@ -7589,6 +7590,7 @@ static const TypeInfo ppc_vhyp_type_info = {
 
 static void ppc_cpu_register_types(void)
 {
+    accel_cpu_register_type(CPU_RESOLVING_TYPE);
     type_register_static(&ppc_cpu_type_info);
 #ifndef CONFIG_USER_ONLY
     type_register_static(&ppc_vhyp_type_info);
