@@ -1514,6 +1514,14 @@ static int virtio_gpu_virgl_init(VirtIOGPU *g)
             return -EINVAL;
         }
     }
+    if (virtio_gpu_rocm_enabled(g->parent_obj.conf)) {
+#ifdef VIRGL_RENDERER_USE_ROCM
+        flags |= VIRGL_RENDERER_USE_ROCM;
+#else
+        error_report("rocm requires a ROCm-enabled virglrenderer");
+        return -EINVAL;
+#endif
+    }
 #endif
 
     ret = virgl_renderer_init(g, flags, &virtio_gpu_3d_cbs);
@@ -1612,6 +1620,15 @@ GArray *virtio_gpu_virgl_get_capsets(VirtIOGPU *g)
                                    &capset_max_size);
         if (capset_max_size) {
             virtio_gpu_virgl_add_capset(capset_ids, VIRTIO_GPU_CAPSET_DRM);
+        }
+    }
+
+    if (virtio_gpu_rocm_enabled(g->parent_obj.conf)) {
+        virgl_renderer_get_cap_set(VIRTIO_GPU_CAPSET_ROCM,
+                                   &capset_max_ver,
+                                   &capset_max_size);
+        if (capset_max_size) {
+            virtio_gpu_virgl_add_capset(capset_ids, VIRTIO_GPU_CAPSET_ROCM);
         }
     }
 
