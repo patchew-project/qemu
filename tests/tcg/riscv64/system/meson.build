@@ -21,6 +21,7 @@ tests += {
   'interruptedmemory.S': setup + {'plugin_test': {'plugin': 'discons'}},
   'issue1060.S': setup,
   'test-mepc-masking.S': setup,
+  'test-zawrs-stval.S': setup + {'qemu_args': ['-cpu', 'max', qemu_args]},
   'test-crc32.S': setup + {'qemu_args': ['-cpu', 'rv64,xlrbr=true', qemu_args]},
   'test-minstret-ecall.S': setup + {'qemu_args': ['-icount', 'shift=1', qemu_args]},
   'test-minstret-wfi.S': setup + {'qemu_args': ['-icount', 'shift=1', qemu_args]},

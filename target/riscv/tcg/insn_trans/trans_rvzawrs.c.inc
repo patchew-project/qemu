@@ -54,6 +54,8 @@ static bool trans_wrs_nto(DisasContext *ctx, arg_wrs_nto *a)
      * exception, as handled by the wrs.nto helper.
      */
 #ifndef CONFIG_USER_ONLY
+    /* Save the opcode in case the helper raises an exception. */
+    decode_save_opc(ctx, 0);
     gen_helper_wrs_nto(tcg_env);
 #endif
 
