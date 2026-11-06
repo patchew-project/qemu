@@ -13,6 +13,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/gpio/pca9554.h"
 #include "hw/gpio/pca9554_regs.h"
+#include "hw/i2c/i2c.h"
 #include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
@@ -20,6 +21,29 @@
 #include "qapi/visitor.h"
 #include "trace.h"
 #include "qom/object.h"
+
+typedef struct PCA9554State PCA9554State;
+DECLARE_INSTANCE_CHECKER(PCA9554State, PCA9554,
+                         TYPE_PCA9554)
+
+#define PCA9554_NR_REGS 4
+#define PCA9554_PIN_COUNT 8
+#define PCA9536_PIN_COUNT 4
+
+struct PCA9554State {
+    /*< private >*/
+    I2CSlave i2c;
+    /*< public >*/
+
+    uint8_t len;
+    uint8_t pointer;
+
+    uint8_t regs[PCA9554_NR_REGS];
+    qemu_irq gpio_out[PCA9554_PIN_COUNT];
+    uint8_t ext_state[PCA9554_PIN_COUNT];
+    char *description; /* For debugging purpose only */
+    bool hw_dir; /* Honor pin direction */
+};
 
 struct PCA9554Class {
     /*< private >*/
