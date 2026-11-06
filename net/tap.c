@@ -265,6 +265,14 @@ static void tap_send(void *opaque)
         size_t min_pktsz = sizeof(min_pkt);
 
         size = tap_read_packet(s->fd, s->buf, sizeof(s->buf));
+#ifdef EBADFD
+        if (size < 0 && errno == EBADFD) {
+            error_report("tap: device is gone, stop polling: %s",
+                         strerror(errno));
+            tap_read_poll(s, false);
+            break;
+        }
+#endif
         if (size <= 0) {
             break;
         }

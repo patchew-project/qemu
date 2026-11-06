@@ -20,6 +20,8 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <linux/if_tun.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
 #endif
 
 #ifndef ETH_P_RARP
@@ -380,6 +382,72 @@ static void mq_tap_attach_fail(void *obj, void *data, QGuestAllocator *t_alloc)
     g_assert_cmpint(readb(addr + sizeof(cmd)), ==, VIRTIO_NET_ERR);
     guest_free(t_alloc, addr);
 }
+
+static unsigned long qemu_cpu_ticks(void)
+{
+    g_autofree char *path = g_strdup_printf("/proc/%d/stat",
+                                            qtest_pid(global_qtest));
+    g_autofree char *stat = NULL;
+    g_auto(GStrv) f = NULL;
+    char *p;
+
+    g_assert(g_file_get_contents(path, &stat, NULL, NULL));
+    p = strrchr(stat, ')');
+    g_assert(p);
+    /* utime and stime follow the 11 fields after the command name */
+    f = g_strsplit(p + 2, " ", 14);
+    g_assert_cmpint(g_strv_length(f), ==, 14);
+    return g_ascii_strtoull(f[11], NULL, 10) +
+           g_ascii_strtoull(f[12], NULL, 10);
+}
+
+static void tap_delete(int fd)
+{
+    struct ifreq ifr = { };
+    struct {
+        struct nlmsghdr nh;
+        struct ifinfomsg ifi;
+    } req = {
+        .nh.nlmsg_len = sizeof(req),
+        .nh.nlmsg_type = RTM_DELLINK,
+        .nh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK,
+        .ifi.ifi_family = AF_UNSPEC,
+    };
+    struct {
+        struct nlmsghdr nh;
+        struct nlmsgerr err;
+    } ack;
+    int sock;
+
+    g_assert_cmpint(ioctl(fd, TUNGETIFF, &ifr), ==, 0);
+    req.ifi.ifi_index = if_nametoindex(ifr.ifr_name);
+    g_assert_cmpint(req.ifi.ifi_index, >, 0);
+
+    sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+    g_assert_cmpint(sock, >=, 0);
+    g_assert_cmpint(send(sock, &req, sizeof(req), 0), ==, sizeof(req));
+    g_assert_cmpint(recv(sock, &ack, sizeof(ack), 0), ==, sizeof(ack));
+    g_assert_cmpint(ack.nh.nlmsg_type, ==, NLMSG_ERROR);
+    g_assert_cmpint(ack.err.error, ==, 0);
+    close(sock);
+}
+
+static void tap_deleted(void *obj, void *data, QGuestAllocator *t_alloc)
+{
+    int *fds = data;
+    unsigned long ticks;
+
+    if (fds[0] < 0) {
+        g_test_skip("cannot create a tap device");
+        return;
+    }
+
+    tap_delete(fds[0]);
+
+    ticks = qemu_cpu_ticks();
+    g_usleep(G_USEC_PER_SEC);
+    g_assert_cmpuint(qemu_cpu_ticks() - ticks, <, sysconf(_SC_CLK_TCK) / 2);
+}
 #endif /* CONFIG_LINUX */
 
 #endif /* _WIN32 */
@@ -431,6 +499,8 @@ static void register_virtio_net_test(void)
     opts.edge.extra_device_opts = "mq=on";
     qos_add_test("mq-tap-attach-fail", "virtio-net", mq_tap_attach_fail, &opts);
     opts.edge.extra_device_opts = NULL;
+    opts.arg = GINT_TO_POINTER(1);
+    qos_add_test("tap-deleted", "virtio-net", tap_deleted, &opts);
 #endif
 #endif
 
