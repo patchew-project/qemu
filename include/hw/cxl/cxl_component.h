@@ -327,6 +327,9 @@ uint8_t cxl_interleave_ways_enc(int iw, Error **errp);
 int cxl_interleave_ways_dec(uint8_t iw_enc, Error **errp);
 uint8_t cxl_interleave_granularity_enc(uint64_t gran, Error **errp);
 
+bool cxl_host_addr_to_dpa(CXLComponentState *cxl_cstate, hwaddr host_addr,
+                          uint64_t *dpa);
+
 hwaddr cxl_decode_ig(int ig);
 
 CXLComponentState *cxl_get_hb_cstate(PCIHostState *hb);

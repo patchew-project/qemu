@@ -1164,73 +1164,7 @@ void ct3_clear_region_block_backed(CXLType3Dev *ct3d, uint64_t dpa,
 
 static bool cxl_type3_dpa(CXLType3Dev *ct3d, hwaddr host_addr, uint64_t *dpa)
 {
-    int hdm_inc = R_CXL_HDM_DECODER1_BASE_LO - R_CXL_HDM_DECODER0_BASE_LO;
-    uint32_t *cache_mem = ct3d->cxl_cstate.crb.cache_mem_registers;
-    unsigned int hdm_count;
-    uint32_t cap;
-    uint64_t dpa_base = 0;
-    int i;
-
-    cap = ldl_le_p(cache_mem + R_CXL_HDM_DECODER_CAPABILITY);
-    hdm_count = cxl_decoder_count_dec(FIELD_EX32(cap,
-                                                 CXL_HDM_DECODER_CAPABILITY,
-                                                 DECODER_COUNT));
-
-    for (i = 0; i < hdm_count; i++) {
-        uint64_t decoder_base, decoder_size, hpa_offset, skip;
-        uint32_t hdm_ctrl, low, high;
-        int ig, iw;
-
-        low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_LO + i * hdm_inc);
-        high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_HI + i * hdm_inc);
-        decoder_base = ((uint64_t)high << 32) | (low & 0xf0000000);
-
-        low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_LO + i * hdm_inc);
-        high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_HI + i * hdm_inc);
-        decoder_size = ((uint64_t)high << 32) | (low & 0xf0000000);
-
-        low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_DPA_SKIP_LO +
-                       i * hdm_inc);
-        high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_DPA_SKIP_HI +
-                        i * hdm_inc);
-        skip = ((uint64_t)high << 32) | (low & 0xf0000000);
-        dpa_base += skip;
-
-        hpa_offset = (uint64_t)host_addr - decoder_base;
-
-        hdm_ctrl = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_CTRL + i * hdm_inc);
-        iw = FIELD_EX32(hdm_ctrl, CXL_HDM_DECODER0_CTRL, IW);
-        ig = FIELD_EX32(hdm_ctrl, CXL_HDM_DECODER0_CTRL, IG);
-        if (!FIELD_EX32(hdm_ctrl, CXL_HDM_DECODER0_CTRL, COMMITTED)) {
-            return false;
-        }
-        if (((uint64_t)host_addr < decoder_base) ||
-            (hpa_offset >= decoder_size)) {
-            int decoded_iw = cxl_interleave_ways_dec(iw, NULL);
-
-            if (decoded_iw == 0) {
-                return false;
-            }
-
-            dpa_base += decoder_size / decoded_iw;
-            continue;
-        }
-
-        if (iw < 8) {
-            *dpa = dpa_base +
-                ((MAKE_64BIT_MASK(0, 8 + ig) & hpa_offset) |
-                 ((MAKE_64BIT_MASK(8 + ig + iw, 64 - 8 - ig - iw) & hpa_offset)
-                  >> iw));
-        } else {
-            *dpa = dpa_base +
-                ((MAKE_64BIT_MASK(0, 8 + ig) & hpa_offset) |
-                 ((((MAKE_64BIT_MASK(ig + iw, 64 - ig - iw) & hpa_offset)
-                   >> (ig + iw)) / 3) << (ig + 8)));
-        }
-
-        return true;
-    }
-    return false;
+    return cxl_host_addr_to_dpa(&ct3d->cxl_cstate, host_addr, dpa);
 }
 
 static int cxl_type3_hpa_to_as_and_dpa(CXLType3Dev *ct3d,
