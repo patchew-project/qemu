@@ -147,6 +147,53 @@ though in these EP devices, the decoder is responsible not for
 routing but for translation of the incoming host physical address (HPA)
 into a Device Physical Address (DPA).
 
+CXL Devices - Type 2
+~~~~~~~~~~~~~~~~~~~~
+``cxl-type2`` is a CXL Type 2 device with volatile device memory. It
+emulates the registers that host software uses to find and set up such
+a device.
+
+The device uses the processing accelerator class code 0x1200, so the
+generic CXL memory device driver does not bind to it, and no other Linux
+driver claims it on its own. A guest uses it through vfio-pci, which
+hands a CXL Type 2 device to the proposed vfio-cxl driver, or through a
+driver of its own that calls the Linux CXL core Type 2 interface. Its
+Device DVSEC reports CXL.cache, CXL.mem, one HDM range, cache write-back
+and invalidate, and CXL Reset with memory clear.
+
+CXL.cache is advertised but not modelled. The device does not send
+CXL.cache requests, and its memory is host RAM. A cache write-back and
+invalidate request completes at once and reports Cache Invalid. The
+capability is set because vfio-cxl takes a device as CXL Type 2 only when
+it reports both CXL.cache and CXL.mem.
+
+The device must be at slot 0, function 0, directly below a CXL root
+port of a pxb-cxl, and cannot be hotplugged or hot-unplugged. A pxb-cxl
+can have one ``cxl-type2`` below it. The size of its ``volatile-memdev``
+must be a multiple of 256 MiB. ``fmw-index``, 0 by default, selects the
+fixed memory window. That window must target only the device's pxb-cxl,
+allow device-coherent memory and hold the whole memory backend.
+
+At every reset QEMU does what platform firmware does at boot. It
+commits the host bridge HDM decoder for the device memory, enables
+CXL.cache and CXL.mem, and commits the device HDM decoder at the window
+base with Lock On Commit set. The locked decoder is read only until the
+next system reset.
+
+The device memory is reachable only while Mem_Enable in DVSEC Control
+and HDM Decoder Enable in HDM Decoder Global Control are both set.
+Otherwise the direct mapping is disabled and accesses through the
+window fail.
+
+Software starts a CXL Reset through DVSEC Control2. The locked decoder
+stays committed. DVSEC Control and the range bases return to their
+defaults unless CONFIG_LOCK is set, and HDM Decoder Global Control
+returns to 0, so the memory is not reachable until software sets
+Mem_Enable and HDM Decoder Enable again.
+A CXL Reset does not repeat the firmware setup, and it leaves the PCI
+Command register and the BARs as they were. With CXL Reset Mem Clr Enable
+set, the reset zeroes the memory backend.
+
 CXL Memory Interleave
 ---------------------
 To understand the interaction of different CXL hardware components which
@@ -331,6 +378,27 @@ The same volatile setup may optionally include an LSA region::
   -device cxl-rp,port=0,bus=cxl.1,id=root_port13,chassis=0,slot=2 \
   -device cxl-type3,bus=root_port13,volatile-memdev=vmem0,lsa=cxl-lsa0,id=cxl-vmem0 \
   -M cxl-fmw.0.targets.0=cxl.1,cxl-fmw.0.size=4G
+
+A CXL Type 2 device directly attached to a CXL root port. The fixed
+window holds its 256 MiB of memory::
+
+  qemu-system-x86_64 -M q35,cxl=on -m 4G -smp 4 \
+  ...
+  -object memory-backend-ram,id=t2mem0,size=256M \
+  -device pxb-cxl,bus_nr=12,bus=pcie.0,id=cxl.1 \
+  -device cxl-rp,port=0,bus=cxl.1,id=root_port13,chassis=0,slot=2 \
+  -device cxl-type2,bus=root_port13,volatile-memdev=t2mem0,id=cxl-t2 \
+  -M cxl-fmw.0.targets.0=cxl.1,cxl-fmw.0.size=256M
+
+The same device on an Arm virt machine::
+
+  qemu-system-aarch64 -M virt,gic-version=3,cxl=on -m 4G -smp 4 -cpu max \
+  ...
+  -object memory-backend-ram,id=t2mem0,size=256M \
+  -device pxb-cxl,bus_nr=12,bus=pcie.0,id=cxl.1 \
+  -device cxl-rp,port=0,bus=cxl.1,id=root_port13,chassis=0,slot=2 \
+  -device cxl-type2,bus=root_port13,volatile-memdev=t2mem0,id=cxl-t2 \
+  -M cxl-fmw.0.targets.0=cxl.1,cxl-fmw.0.size=256M
 
 A setup suitable for 4 way interleave. Only one fixed window provided, to enable 2 way
 interleave across 2 CXL host bridges.  Each host bridge has 2 CXL Root Ports, with
