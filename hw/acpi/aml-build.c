@@ -154,6 +154,12 @@ void crs_replace_with_free_ranges(GPtrArray *ranges,
             crs_range_insert(free_ranges, free_base, used->base - 1);
         }
 
+        /* avoid free_base overflow when used->limit equals UINT64_MAX */
+        if (used->limit >= end) {
+            free_base = end;
+            break;
+        }
+
         free_base = used->limit + 1;
     }
 
