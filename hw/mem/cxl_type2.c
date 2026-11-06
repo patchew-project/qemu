@@ -48,6 +48,43 @@ static bool setup_memory(PCIDevice *pci_dev, Error **errp)
     return true;
 }
 
+static int cxl_type2_hpa_to_as_and_dpa(CXLType2Dev *ct2d, hwaddr host_addr,
+                                       AddressSpace **as, uint64_t *dpa)
+{
+    MemoryRegion *vmr = host_memory_backend_get_memory(ct2d->hostvmem);
+
+    if (!cxl_host_addr_to_dpa(&ct2d->cxl_cstate, host_addr, dpa) ||
+        *dpa >= memory_region_size(vmr)) {
+        return -EINVAL;
+    }
+    *as = &ct2d->hostvmem_as;
+    return 0;
+}
+
+MemTxResult cxl_type2_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
+                           unsigned size, MemTxAttrs attrs)
+{
+    AddressSpace *as;
+    uint64_t dpa;
+
+    if (cxl_type2_hpa_to_as_and_dpa(CXL_TYPE2(d), host_addr, &as, &dpa)) {
+        return MEMTX_ERROR;
+    }
+    return address_space_read(as, dpa, attrs, data, size);
+}
+
+MemTxResult cxl_type2_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
+                            unsigned size, MemTxAttrs attrs)
+{
+    AddressSpace *as;
+    uint64_t dpa;
+
+    if (cxl_type2_hpa_to_as_and_dpa(CXL_TYPE2(d), host_addr, &as, &dpa)) {
+        return MEMTX_ERROR;
+    }
+    return address_space_write(as, dpa, attrs, &data, size);
+}
+
 static void update_dvsecs(CXLType2Dev *ct2d)
 {
     CXLComponentState *cxl_cstate = &ct2d->cxl_cstate;
@@ -164,6 +201,7 @@ static void cxl_type2_realize(PCIDevice *pci_dev, Error **errp)
 
 static void cxl_type2_exit(PCIDevice *pci_dev)
 {
+    cxl_fmws_direct_passthrough_remove_all(pci_dev);
     clean_memory(pci_dev);
 }
 
@@ -172,6 +210,7 @@ static void cxl_type2_reset(DeviceState *dev)
     CXLType2Dev *ct2d = CXL_TYPE2(dev);
     CXLComponentState *cxl_cstate = &ct2d->cxl_cstate;
 
+    cxl_fmws_direct_passthrough_remove_all(PCI_DEVICE(dev));
     update_dvsecs(ct2d);
     memcpy(PCI_DEVICE(ct2d)->wmask +
            range_lob(&cxl_cstate->dvsecs[PCIE_CXL_DEVICE_DVSEC]),

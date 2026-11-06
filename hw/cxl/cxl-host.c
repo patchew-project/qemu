@@ -223,6 +223,20 @@ static bool cxl_mem_device(Object *obj, CXLMemDevice *md)
 {
     CXLType3Dev *ct3d;
 
+    if (object_dynamic_cast(obj, TYPE_CXL_TYPE2)) {
+        CXLType2Dev *ct2d = CXL_TYPE2(obj);
+
+        if (md) {
+            *md = (CXLMemDevice) {
+                .pdev = PCI_DEVICE(ct2d),
+                .cstate = &ct2d->cxl_cstate,
+                .hostvmem = ct2d->hostvmem,
+                .direct_mr = ct2d->direct_mr,
+                .direct_mr_fw = ct2d->direct_mr_fw,
+            };
+        }
+        return true;
+    }
     if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
         return false;
     }
@@ -577,6 +591,9 @@ static MemTxResult cxl_read_cfmws(void *opaque, hwaddr addr, uint64_t *data,
         return MEMTX_ERROR;
     }
 
+    if (object_dynamic_cast(OBJECT(d), TYPE_CXL_TYPE2)) {
+        return cxl_type2_read(d, addr + fw->base, data, size, attrs);
+    }
     return cxl_type3_read(d, addr + fw->base, data, size, attrs);
 }
 
@@ -593,6 +610,9 @@ static MemTxResult cxl_write_cfmws(void *opaque, hwaddr addr,
         return MEMTX_OK;
     }
 
+    if (object_dynamic_cast(OBJECT(d), TYPE_CXL_TYPE2)) {
+        return cxl_type2_write(d, addr + fw->base, data, size, attrs);
+    }
     return cxl_type3_write(d, addr + fw->base, data, size, attrs);
 }
 

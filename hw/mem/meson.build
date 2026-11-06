@@ -7,6 +7,7 @@ mem_ss.add(when: 'CONFIG_CXL_MEM_DEVICE', if_true: files('cxl_type3.c'))
 mem_ss.add(when: 'CONFIG_CXL_TYPE2_DEVICE', if_true: files('cxl_type2.c'))
 mem_ss.add(when: 'CONFIG_SP_MEM', if_true: files('sp-mem.c'))
 stub_ss.add(files('cxl_type3_stubs.c'))
+stub_ss.add(files('cxl_type2_stubs.c'))
 
 stub_ss.add(files('memory-device-stubs.c'))
 system_ss.add_all(when: 'CONFIG_MEM_DEVICE', if_true: mem_ss)

@@ -3399,7 +3399,7 @@ R: Anisa Su <anisa.su@samsung.com>
 L: linux-cxl@vger.kernel.org
 S: Supported
 F: hw/cxl/
-F: hw/mem/cxl_type2.c
+F: hw/mem/cxl_type2*.c
 F: hw/mem/cxl_type3.c
 F: include/hw/cxl/
 F: qapi/cxl.json

@@ -838,6 +838,8 @@ struct CXLType2Dev {
     HostMemoryBackend *hostvmem;
 
     /* State */
+    MemoryRegion direct_mr[CXL_HDM_DECODER_COUNT];
+    CXLFixedWindow *direct_mr_fw[CXL_HDM_DECODER_COUNT];
     AddressSpace hostvmem_as;
     CXLComponentState cxl_cstate;
     uint8_t dvsec_wmask[PCIE_CXL_DEVICE_DVSEC_LENGTH];
@@ -845,6 +847,11 @@ struct CXLType2Dev {
 
 #define TYPE_CXL_TYPE2 "cxl-type2"
 OBJECT_DECLARE_SIMPLE_TYPE(CXLType2Dev, CXL_TYPE2)
+
+MemTxResult cxl_type2_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
+                           unsigned size, MemTxAttrs attrs);
+MemTxResult cxl_type2_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
+                            unsigned size, MemTxAttrs attrs);
 
 MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
                            unsigned size, MemTxAttrs attrs);
