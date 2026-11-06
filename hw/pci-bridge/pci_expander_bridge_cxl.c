@@ -111,9 +111,18 @@ static const TypeInfo cxl_host_info = {
     .class_init    = pxb_cxl_host_class_init,
 };
 
+bool pxb_cxl_register_firmware_hdm(PXBCXLDev *pxb, uint64_t base,
+                                   uint64_t size, uint8_t target,
+                                   Error **errp)
+{
+    return cxl_firmware_hdm_set(&pxb->firmware_hdm, "pxb-cxl", base, size,
+                                target, errp);
+}
+
 static void pxb_cxl_dev_reset(DeviceState *dev)
 {
-    CXLHost *cxl = PXB_CXL_DEV(dev)->cxl_host_bridge;
+    PXBCXLDev *pxb = PXB_CXL_DEV(dev);
+    CXLHost *cxl = pxb->cxl_host_bridge;
     CXLComponentState *cxl_cstate = &cxl->cxl_cstate;
     PCIHostState *hb = PCI_HOST_BRIDGE(cxl);
     uint32_t *reg_state = cxl_cstate->crb.cache_mem_registers;
@@ -121,11 +130,12 @@ static void pxb_cxl_dev_reset(DeviceState *dev)
     int dsp_count = 0;
 
     cxl_component_register_init_common(reg_state, write_msk, CXL2_RC, false);
+    cxl->passthrough = false;
     /*
      * The CXL specification allows for host bridges with no HDM decoders
      * if they only have a single root port.
      */
-    if (!PXB_CXL_DEV(dev)->hdm_for_passthrough) {
+    if (!pxb->hdm_for_passthrough && !pxb->firmware_hdm.valid) {
         dsp_count = pcie_count_ds_ports(hb->bus);
     }
     /* Initial reset will have 0 dsp so wait until > 0 */
@@ -136,6 +146,14 @@ static void pxb_cxl_dev_reset(DeviceState *dev)
     } else {
         ARRAY_FIELD_DP32(reg_state, CXL_HDM_DECODER_CAPABILITY, TARGET_COUNT,
                          8);
+        if (pxb->firmware_hdm.valid) {
+            cxl_firmware_hdm_program(&pxb->firmware_hdm, reg_state);
+            /*
+             * An endpoint that committed before this reset could not map
+             * its memory directly, as this decoder was not committed yet.
+             */
+            cfmws_update_non_interleaved(true);
+        }
     }
 }
 

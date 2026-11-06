@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/pci/pci.h"
 #include "hw/cxl/cxl.h"
@@ -498,6 +499,52 @@ void cxl_component_register_init_common(uint32_t *reg_state,
 {
     cxl_component_register_init_count(reg_state, write_msk, type, bi,
                                       CXL_HDM_DECODER_COUNT);
+}
+
+/* One range per host bridge; registering the same range again succeeds */
+bool cxl_firmware_hdm_set(CXLFirmwareHDM *fw, const char *owner,
+                          uint64_t base, uint64_t size, uint8_t target,
+                          Error **errp)
+{
+    if (!size || !QEMU_IS_ALIGNED(base, 256 * MiB) ||
+        !QEMU_IS_ALIGNED(size, 256 * MiB)) {
+        error_setg(errp, "firmware HDM range must be 256 MiB aligned");
+        return false;
+    }
+
+    if (fw->valid) {
+        if (fw->base == base && fw->size == size && fw->target == target) {
+            return true;
+        }
+        error_setg(errp, "%s supports one firmware HDM range", owner);
+        return false;
+    }
+
+    *fw = (CXLFirmwareHDM) {
+        .valid = true,
+        .base = base,
+        .size = size,
+        .target = target,
+    };
+    return true;
+}
+
+/*
+ * The caller sets HDM Decoder Enable where it applies. It reads as 0 on host
+ * bridges (CXL r4.0 Section 8.2.4.20.2).
+ */
+void cxl_firmware_hdm_program(const CXLFirmwareHDM *fw, uint32_t *cache_mem)
+{
+    uint32_t ctrl = 0;
+
+    stl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_LO, fw->base & 0xf0000000);
+    stl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_HI, fw->base >> 32);
+    stl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_LO, fw->size & 0xf0000000);
+    stl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_HI, fw->size >> 32);
+    stl_le_p(cache_mem + R_CXL_HDM_DECODER0_TARGET_LIST_LO, fw->target);
+    ctrl = FIELD_DP32(ctrl, CXL_HDM_DECODER0_CTRL, COMMIT, 1);
+    ctrl = FIELD_DP32(ctrl, CXL_HDM_DECODER0_CTRL, COMMITTED, 1);
+    stl_le_p(cache_mem + R_CXL_HDM_DECODER0_CTRL, ctrl);
 }
 
 /*

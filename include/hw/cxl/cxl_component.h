@@ -328,6 +328,19 @@ void cxl_component_create_dvsec(CXLComponentState *cxl_cstate,
 void cxl_component_update_dvsec(CXLComponentState *cxl, uint16_t length,
                                 uint16_t type, uint8_t *body);
 
+/* The range that firmware routes through HDM decoder 0 to one port */
+typedef struct CXLFirmwareHDM {
+    bool valid;
+    uint64_t base;
+    uint64_t size;
+    uint8_t target;
+} CXLFirmwareHDM;
+
+bool cxl_firmware_hdm_set(CXLFirmwareHDM *fw, const char *owner,
+                          uint64_t base, uint64_t size, uint8_t target,
+                          Error **errp);
+void cxl_firmware_hdm_program(const CXLFirmwareHDM *fw, uint32_t *cache_mem);
+
 int cxl_decoder_count_enc(int count);
 int cxl_decoder_count_dec(int enc_cnt);
 
