@@ -119,6 +119,11 @@ bool pxb_cxl_register_firmware_hdm(PXBCXLDev *pxb, uint64_t base,
                                 target, errp);
 }
 
+void pxb_cxl_unregister_firmware_hdm(PXBCXLDev *pxb)
+{
+    pxb->firmware_hdm = (CXLFirmwareHDM) { 0 };
+}
+
 static void pxb_cxl_dev_reset(DeviceState *dev)
 {
     PXBCXLDev *pxb = PXB_CXL_DEV(dev);

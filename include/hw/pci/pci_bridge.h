@@ -126,6 +126,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(PXBCXLDev, PXB_CXL_DEV)
 bool pxb_cxl_register_firmware_hdm(PXBCXLDev *pxb, uint64_t base,
                                    uint64_t size, uint8_t target,
                                    Error **errp);
+void pxb_cxl_unregister_firmware_hdm(PXBCXLDev *pxb);
 
 int pci_bridge_ssvid_init(PCIDevice *dev, uint8_t offset,
                           uint16_t svid, uint16_t ssid,

@@ -7,9 +7,11 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/cxl/cxl.h"
+#include "hw/cxl/cxl_host.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pcie_port.h"
@@ -30,6 +32,7 @@ static void clean_memory(PCIDevice *pci_dev)
  */
 static bool cxl_type2_check_topology(PCIDevice *pci_dev, Error **errp)
 {
+    CXLType2Dev *ct2d = CXL_TYPE2(pci_dev);
     PCIDevice *rp = pci_get_bus(pci_dev)->parent_dev;
     PCIDevice *host = rp ? pci_get_bus(rp)->parent_dev : NULL;
 
@@ -44,8 +47,58 @@ static bool cxl_type2_check_topology(PCIDevice *pci_dev, Error **errp)
         error_setg(errp, "cxl-type2 must be at slot 0, function 0");
         return false;
     }
+
+    ct2d->pxb = PXB_CXL_DEV(host);
+    ct2d->root_port = PCIE_PORT(rp)->port;
     return true;
 }
+
+/* fw->target_hbs is set only once machine creation is done */
+static bool cxl_type2_resolve_fmw(CXLType2Dev *ct2d, Error **errp)
+{
+    MemoryRegion *mr = host_memory_backend_get_memory(ct2d->hostvmem);
+    GSList *list = cxl_fmws_get_all_sorted();
+    CXLFixedWindow *fw = NULL;
+    unsigned int matches = 0;
+    bool ambiguous = false;
+    Object *target;
+
+    for (GSList *iter = list; iter; iter = iter->next) {
+        if (CXL_FMW(iter->data)->index == ct2d->fmw_index) {
+            fw = CXL_FMW(iter->data);
+            matches++;
+        }
+    }
+    g_slist_free(list);
+
+    if (matches != 1) {
+        error_setg(errp, "cxl-type2 fmw-index %u matched %u CFMWS windows",
+                   ct2d->fmw_index, matches);
+        return false;
+    }
+    if (fw->num_targets != 1) {
+        error_setg(errp, "cxl-type2 requires a single-target CFMWS");
+        return false;
+    }
+    if (!(fw->restrictions & CXL_FMW_DEVICE_COHERENT)) {
+        error_setg(errp, "cxl-type2 CFMWS must allow device-coherent memory");
+        return false;
+    }
+    if (memory_region_size(mr) > fw->size) {
+        error_setg(errp, "cxl-type2 volatile-memdev does not fit in its CFMWS");
+        return false;
+    }
+    target = object_resolve_path_type(fw->targets[0], TYPE_PXB_CXL_DEV,
+                                      &ambiguous);
+    if (!target || ambiguous || target != OBJECT(ct2d->pxb)) {
+        error_setg(errp, "cxl-type2 CFMWS does not target its pxb-cxl");
+        return false;
+    }
+
+    ct2d->fmw = fw;
+    return true;
+}
+
 
 static bool setup_memory(PCIDevice *pci_dev, Error **errp)
 {
@@ -64,6 +117,12 @@ static bool setup_memory(PCIDevice *pci_dev, Error **errp)
     if (host_memory_backend_is_mapped(ct2d->hostvmem)) {
         error_setg(errp, "memory backend %s can't be used multiple times.",
                    object_get_canonical_path_component(OBJECT(ct2d->hostvmem)));
+        return false;
+    }
+    if (!memory_region_size(vmr) ||
+        !QEMU_IS_ALIGNED(memory_region_size(vmr), 256 * MiB)) {
+        error_setg(errp, "volatile-memdev size must be a nonzero multiple of "
+                   "256 MiB");
         return false;
     }
     memory_region_set_nonvolatile(vmr, false);
@@ -215,18 +274,34 @@ static void setup_cxl_regs(PCIDevice *pci_dev)
 
 static void cxl_type2_realize(PCIDevice *pci_dev, Error **errp)
 {
+    CXLType2Dev *ct2d = CXL_TYPE2(pci_dev);
+    uint64_t size;
+
     if (!cxl_type2_check_topology(pci_dev, errp) ||
         !setup_memory(pci_dev, errp)) {
         return;
     }
+    if (!cxl_type2_resolve_fmw(ct2d, errp)) {
+        clean_memory(pci_dev);
+        return;
+    }
+    size = memory_region_size(host_memory_backend_get_memory(ct2d->hostvmem));
 
     pcie_endpoint_cap_init(pci_dev, 0x80);
 
     setup_cxl_regs(pci_dev);
+
+    if (!pxb_cxl_register_firmware_hdm(ct2d->pxb, ct2d->fmw->base, size,
+                                       ct2d->root_port, errp)) {
+        clean_memory(pci_dev);
+    }
 }
 
 static void cxl_type2_exit(PCIDevice *pci_dev)
 {
+    CXLType2Dev *ct2d = CXL_TYPE2(pci_dev);
+
+    pxb_cxl_unregister_firmware_hdm(ct2d->pxb);
     cxl_fmws_direct_passthrough_remove_all(pci_dev);
     clean_memory(pci_dev);
 }
@@ -249,6 +324,7 @@ static void cxl_type2_reset(DeviceState *dev)
 static const Property cxl_type2_props[] = {
     DEFINE_PROP_LINK("volatile-memdev", CXLType2Dev, hostvmem,
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
+    DEFINE_PROP_UINT32("fmw-index", CXLType2Dev, fmw_index, 0),
 };
 
 static const VMStateDescription cxl_type2_vmsd = {
@@ -271,6 +347,8 @@ static void cxl_type2_class_init(ObjectClass *oc, const void *data)
     pc->revision = 1;
 
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    /* pxb-cxl commits its decoder for the device only at reset */
+    dc->hotpluggable = false;
     dc->desc = "CXL Type-2 device";
     dc->vmsd = &cxl_type2_vmsd;
     device_class_set_legacy_reset(dc, cxl_type2_reset);

@@ -836,8 +836,12 @@ struct CXLType2Dev {
 
     /* Properties */
     HostMemoryBackend *hostvmem;
+    uint32_t fmw_index;
 
     /* State */
+    struct PXBCXLDev *pxb;
+    uint8_t root_port;
+    CXLFixedWindow *fmw;
     MemoryRegion direct_mr[CXL_HDM_DECODER_COUNT];
     CXLFixedWindow *direct_mr_fw[CXL_HDM_DECODER_COUNT];
     AddressSpace hostvmem_as;
