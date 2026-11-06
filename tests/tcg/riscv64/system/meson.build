@@ -89,6 +89,18 @@ tests += {
   }
 }
 
+tests += {
+  'test-zicfilp-smrnmi.S': setup + {
+    # Keep .org 0x100 at the configured RNMI exception vector.
+    'cflags': cflags + ['-Wl,--build-id=none'],
+    'qemu_args': [
+      '-cpu', 'rv64,zicsr=true,zicfilp=true,smrnmi=true',
+      '-global', 'rv64-riscv-cpu.rnmi-exception-vector=0x80000100',
+      qemu_args,
+    ],
+  },
+}
+
 if 'qemu-system-riscv64' in emulators
   tcg_tests += {
     'riscv64-softmmu': {
