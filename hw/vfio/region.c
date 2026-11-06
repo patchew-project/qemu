@@ -341,6 +341,9 @@ static bool vfio_region_create_dma_buf(VFIORegion *region, Error **errp)
         if (ret == -ENOTTY) {
             warn_report_once("VFIO dma-buf not supported in kernel, "
                              "using mmap fallback, P2P DMA will not work");
+            for (i = 0; i < region->nr_mmaps; i++) {
+                memory_region_set_skip_iommu_map(&region->mmaps[i].mem, true);
+            }
             return true;
         }
         error_setg_errno(errp, -ret, "%s: dma-buf unavailable, "
