@@ -766,24 +766,27 @@ static int peer_detach(VirtIONet *n, int index)
     return tap_disable(nc->peer);
 }
 
-static void virtio_net_set_queue_pairs(VirtIONet *n)
+static int virtio_net_set_queue_pairs(VirtIONet *n)
 {
     int i;
     int r;
+    int ret = 0;
 
     if (n->nic->peer_deleted) {
-        return;
+        return 0;
     }
 
     for (i = 0; i < n->max_queue_pairs; i++) {
         if (i < n->curr_queue_pairs) {
             r = peer_attach(n, i);
-            assert(!r);
         } else {
             r = peer_detach(n, i);
-            assert(!r);
+        }
+        if (r < 0) {
+            ret = r;
         }
     }
+    return ret;
 }
 
 static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue);
@@ -1499,7 +1502,7 @@ static int virtio_net_handle_mq(VirtIONet *n, uint8_t cmd,
                                 struct iovec *iov, unsigned int iov_cnt)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
-    uint16_t queue_pairs;
+    uint16_t queue_pairs, old_queue_pairs;
     NetClientState *nc = qemu_get_queue(n->nic);
 
     virtio_net_disable_rss(n);
@@ -1532,6 +1535,7 @@ static int virtio_net_handle_mq(VirtIONet *n, uint8_t cmd,
         return VIRTIO_NET_ERR;
     }
 
+    old_queue_pairs = n->curr_queue_pairs;
     n->curr_queue_pairs = queue_pairs;
     if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
         /*
@@ -1543,7 +1547,12 @@ static int virtio_net_handle_mq(VirtIONet *n, uint8_t cmd,
     /* stop the backend before changing the number of queue_pairs to avoid handling a
      * disabled queue */
     virtio_net_set_status(vdev, vdev->status);
-    virtio_net_set_queue_pairs(n);
+    if (virtio_net_set_queue_pairs(n) < 0) {
+        n->curr_queue_pairs = old_queue_pairs;
+        virtio_net_set_status(vdev, vdev->status);
+        virtio_net_set_queue_pairs(n);
+        return VIRTIO_NET_ERR;
+    }
 
     return VIRTIO_NET_OK;
 }
@@ -3298,7 +3307,9 @@ static int virtio_net_post_load_device(void *opaque, int version_id)
      */
     n->saved_guest_offloads = n->curr_guest_offloads;
 
-    virtio_net_set_queue_pairs(n);
+    if (virtio_net_set_queue_pairs(n) < 0) {
+        return -EINVAL;
+    }
 
     /* Find the first multicast entry in the saved MAC filter */
     for (i = 0; i < n->mac_table.in_use; i++) {

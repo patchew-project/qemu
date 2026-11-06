@@ -16,6 +16,12 @@
 #include "libqos/qgraph.h"
 #include "libqos/virtio-net.h"
 
+#ifdef CONFIG_LINUX
+#include <net/if.h>
+#include <sys/ioctl.h>
+#include <linux/if_tun.h>
+#endif
+
 #ifndef ETH_P_RARP
 #define ETH_P_RARP 0x8035
 #endif
@@ -285,6 +291,97 @@ static void *virtio_net_test_setup(GString *cmd_line, void *arg)
     return sv;
 }
 
+#ifdef CONFIG_LINUX
+static void virtio_net_test_cleanup_tap(void *opaque)
+{
+    int *fds = opaque;
+    int i;
+
+    qos_invalidate_command_line();
+    for (i = 0; i < 2; i++) {
+        if (fds[i] >= 0) {
+            close(fds[i]);
+        }
+    }
+    g_free(fds);
+}
+
+/* arg is the number of tap queues, 1 or 2 */
+static void *virtio_net_test_setup_tap(GString *cmd_line, void *arg)
+{
+    struct ifreq ifr = {
+        .ifr_flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR | IFF_MULTI_QUEUE,
+    };
+    int queues = GPOINTER_TO_INT(arg);
+    int *fds = g_new(int, 2);
+    int i;
+
+    fds[0] = fds[1] = -1;
+    /* TUNSETIFF returns the device name in ifr, the next call attaches to it */
+    for (i = 0; i < queues; i++) {
+        fds[i] = open("/dev/net/tun", O_RDWR);
+        if (fds[i] < 0 || ioctl(fds[i], TUNSETIFF, &ifr) < 0) {
+            break;
+        }
+    }
+
+    if (i < queues) {
+        for (i = 0; i < 2; i++) {
+            if (fds[i] >= 0) {
+                close(fds[i]);
+                fds[i] = -1;
+            }
+        }
+        g_string_append(cmd_line, " -netdev hubport,hubid=0,id=hs0 ");
+    } else if (queues == 1) {
+        g_string_append_printf(cmd_line, " -netdev tap,fd=%d,id=hs0 ",
+                               fds[0]);
+    } else {
+        g_string_append_printf(cmd_line, " -netdev tap,fds=%d:%d,id=hs0 ",
+                               fds[0], fds[1]);
+    }
+
+    g_test_queue_destroy(virtio_net_test_cleanup_tap, fds);
+    return fds;
+}
+
+static void mq_tap_attach_fail(void *obj, void *data, QGuestAllocator *t_alloc)
+{
+    QVirtioNet *net = obj;
+    int *fds = data;
+    QTestState *qts = global_qtest;
+    QVirtQueue *vq = net->queues[net->n_queues - 1];
+    struct ifreq ifr = { .ifr_flags = IFF_ATTACH_QUEUE };
+    uint8_t cmd[4] = { VIRTIO_NET_CTRL_MQ, VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET };
+    uint64_t addr;
+    uint32_t head;
+
+    if (fds[0] < 0) {
+        g_test_skip("cannot create a multiqueue tap device");
+        return;
+    }
+
+    if (qvirtio_is_big_endian(net->vdev)) {
+        stw_be_p(cmd + 2, 2);
+    } else {
+        stw_le_p(cmd + 2, 2);
+    }
+
+    /* Grab queue 1 so that QEMU fails to attach it */
+    g_assert_cmpint(ioctl(fds[1], TUNSETQUEUE, &ifr), ==, 0);
+
+    addr = guest_alloc(t_alloc, sizeof(cmd) + 1);
+    memwrite(addr, cmd, sizeof(cmd));
+    head = qvirtqueue_add(qts, vq, addr, sizeof(cmd), false, true);
+    qvirtqueue_add(qts, vq, addr + sizeof(cmd), 1, true, false);
+    qvirtqueue_kick(qts, net->vdev, vq, head);
+    qvirtio_wait_used_elem(qts, net->vdev, vq, head, NULL,
+                           QVIRTIO_NET_TIMEOUT_US);
+    g_assert_cmpint(readb(addr + sizeof(cmd)), ==, VIRTIO_NET_ERR);
+    guest_free(t_alloc, addr);
+}
+#endif /* CONFIG_LINUX */
+
 #endif /* _WIN32 */
 
 static void large_tx(void *obj, void *data, QGuestAllocator *t_alloc)
@@ -328,6 +425,13 @@ static void register_virtio_net_test(void)
     qos_add_test("basic", "virtio-net", send_recv_test, &opts);
     qos_add_test("rx_stop_cont", "virtio-net", stop_cont_test, &opts);
     qos_add_test("announce-self", "virtio-net", announce_self, &opts);
+#ifdef CONFIG_LINUX
+    opts.before = virtio_net_test_setup_tap;
+    opts.arg = GINT_TO_POINTER(2);
+    opts.edge.extra_device_opts = "mq=on";
+    qos_add_test("mq-tap-attach-fail", "virtio-net", mq_tap_attach_fail, &opts);
+    opts.edge.extra_device_opts = NULL;
+#endif
 #endif
 
     /* These tests do not need a loopback backend.  */
