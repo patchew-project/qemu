@@ -1001,6 +1001,12 @@ if test "$docs" != "disabled" ; then
         fi
         echo "Sphinx not found/usable, disabling docs."
         docs=disabled
+    elif ! has plantuml; then
+        if test "$docs" = "enabled" ; then
+            error_exit "plantuml not found"
+        fi
+        echo "plantuml not found, disabling docs."
+        docs=disabled
     else
         docs=enabled
     fi

@@ -3,3 +3,4 @@
 
 sphinx==7.2.6
 sphinx_rtd_theme==2.0.0
+sphinxcontrib-plantuml==0.30

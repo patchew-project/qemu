@@ -3,6 +3,9 @@ mappings:
   bindgen:
     Ubuntu2204:
 
+  plantuml:
+    default: plantuml
+
   python3:
     CentOSStream9: python3.12
 

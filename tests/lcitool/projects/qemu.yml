@@ -90,6 +90,7 @@ packages:
  - pcre-static
  - pixman
  - pkg-config
+ - plantuml
  - pulseaudio
  - python3
  - python3-numpy

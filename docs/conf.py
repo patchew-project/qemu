@@ -66,7 +66,10 @@ extensions = [
     'qapi_domain',
     'qapidoc',
     'qmp_lexer',
+    'sphinxcontrib.plantuml',
 ]
+
+plantuml_output_format = 'svg'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = [os.path.join(qemu_docdir, '_templates')]
@@ -345,3 +348,22 @@ hxtool_srctree = os.path.join(qemu_docdir, '..')
 qapidoc_srctree = os.path.join(qemu_docdir, '..')
 dbusdoc_srctree = os.path.join(qemu_docdir, '..')
 dbus_index_common_prefix = ["org.qemu."]
+
+
+def setup(app):
+    import docutils.nodes
+    import sphinxcontrib.plantuml
+
+    # We manually setup the plantuml extension so we can skip nodes with
+    # diagrams when generating the text based output.
+
+    def skip_node(self, node):
+        raise docutils.nodes.SkipNode
+
+    app.setup_extension('sphinxcontrib.plantuml')
+    app.add_node(
+        sphinxcontrib.plantuml.plantuml,
+        override=True,
+        man=(skip_node, None),
+        text=(skip_node, None),
+    )

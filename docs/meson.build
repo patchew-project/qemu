@@ -1,9 +1,10 @@
 sphinx_build = find_program(fs.parent(python.full_path()) / 'sphinx-build',
                             required: get_option('docs'))
+plantuml = find_program('plantuml', required: get_option('docs'))
 
 # Check if tools are available to build documentation.
 build_docs = false
-if sphinx_build.found()
+if sphinx_build.found() and plantuml.found()
   SPHINX_ARGS = ['env', 'CONFDIR=' + qemu_confdir, sphinx_build, '-q']
   # If we're making warnings fatal, apply this to Sphinx runs as well
   if get_option('werror')
