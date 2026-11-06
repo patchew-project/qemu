@@ -96,6 +96,37 @@ typedef struct CXLDVSECDevice {
 } QEMU_PACKED CXLDVSECDevice;
 QEMU_BUILD_BUG_ON(sizeof(CXLDVSECDevice) != PCIE_CXL_DEVICE_DVSEC_LENGTH);
 
+/* CXL r4.0 Section 8.1.3.1: DVSEC CXL Capability */
+#define CXL_DVSEC_CAP_CACHE             0x0001
+#define CXL_DVSEC_CAP_IO                0x0002
+#define CXL_DVSEC_CAP_MEM               0x0004
+#define CXL_DVSEC_CAP_MEM_HWINIT        0x0008
+#define CXL_DVSEC_CAP_HDM_COUNT_SHIFT   4
+#define CXL_DVSEC_CAP_CACHE_WBI         0x0040
+#define CXL_DVSEC_CAP_RST               0x0080
+#define CXL_DVSEC_CAP_RST_TIMEOUT_SHIFT 8
+#define CXL_DVSEC_CAP_RST_TIMEOUT_MASK  0x0700
+#define CXL_DVSEC_CAP_RST_MEM_CLR       0x0800
+
+/* CXL r4.0 Section 8.1.3.2: DVSEC CXL Control */
+#define CXL_DVSEC_CTRL_CACHE_EN         0x0001
+#define CXL_DVSEC_CTRL_IO_EN            0x0002
+#define CXL_DVSEC_CTRL_MEM_EN           0x0004
+
+/* CXL r4.0 Section 8.1.3.4: DVSEC CXL Control2 */
+#define CXL_DVSEC_CTRL2_DISABLE_CACHING 0x0001
+#define CXL_DVSEC_CTRL2_INIT_CACHE_WBI  0x0002
+#define CXL_DVSEC_CTRL2_INIT_CXL_RST    0x0004
+#define CXL_DVSEC_CTRL2_RST_MEM_CLR_EN  0x0008
+
+/* CXL r4.0 Section 8.1.3.5: DVSEC CXL Status2 */
+#define CXL_DVSEC_STATUS2_CACHE_INV     0x0001
+#define CXL_DVSEC_STATUS2_RST_DONE      0x0002
+#define CXL_DVSEC_STATUS2_RST_ERR       0x0004
+
+/* CXL r4.0 Section 8.1.3.6: DVSEC CXL Lock */
+#define CXL_DVSEC_LOCK_CONFIG_LOCK      0x0001
+
 /*
  * CXL r3.1 Section 8.1.5: CXL Extensions DVSEC for Ports
  * DVSEC ID: 3, Revision: 0
