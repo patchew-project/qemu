@@ -143,6 +143,17 @@ an issue as a normal bug.
   which case plain manipulation of the stream is not considered as
   an attack vector.
 
+* **network protocols**. In scenarios involving a network connection,
+  such as NBD block devices, some bugs might be triggered when a
+  malicious server or client on the other side of the connection
+  intentionally violates the expected protocol. However, to be
+  considered as a security attack vector, the bug must be reproduced
+  prior to QEMU completing a TLS handshake with the remote partner. If
+  the bug relies on a plaintext connection, or can only be triggered
+  after first successfully negotiating TLS to filter out untrusted
+  connections, then it will be treated as a hardening bug but not a
+  security flaw.
+
 * **uninitialized stack variables**. If the bug scenario relies on
   undefined behaviour from stack variables that lack explicit
   initialization, it will not usually be considered a security flaw.
@@ -320,3 +331,16 @@ encryption and authorization control policy on client connections.
 In summary, the monitor console is considered a privileged control interface to
 QEMU and as such should only be made accessible to a trusted management
 application or user.
+
+Block device network protocols (NBD, NFS, etc.)
+'''''''''''''''''''''''''''''''''''''''''''''''
+
+When using QEMU to access remote storage over a network (such as QEMU
+acting as an NBD or NFS client) or to provide remote storage access
+(such as QEMU acting as an NBD server), it is important to realize
+that an unencrypted connection can allow an external process a
+potential attack vector over the network port. The general
+recommendation is that if the protocol allows the use of TLS, then the
+management application must configure the use of TLS, in order to
+limit the impact of unauthorized or man-in-the-middle attacks to the
+smaller region of time before the TLS handshake takes place.
