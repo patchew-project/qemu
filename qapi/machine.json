@@ -417,6 +417,35 @@
   'data': ['discard', 'delay', 'slew' ] }
 
 ##
+# @GpioPinState:
+#
+# @low: Pin low
+#
+# @high: Pin high
+#
+# Since: 12.0
+##
+{ 'enum': 'GpioPinState',
+  'data': ['low', 'high'] }
+
+##
+# @Pca9552LedState:
+#     LED state for PCA9552.
+#
+# @on: LED on
+#
+# @off: LED off
+#
+# @pwm0: LED controlled by PWM0
+#
+# @pwm1: LED controlled by PWM1
+#
+# Since: 12.0
+##
+{ 'enum': 'Pca9552LedState',
+  'data': ['on', 'off', 'pwm0', 'pwm1'] }
+
+##
 # @PCSouthBridgeOption:
 #     South bridge chipset option for PC i440FX machines.
 #
