@@ -3234,14 +3234,37 @@ static RISCVException write_mepc(CPURISCVState *env, int csrno,
 static RISCVException read_mcause(CPURISCVState *env, int csrno,
                                   target_ulong *val)
 {
-    *val = env->mcause;
+    *val = env->mcause_int | env->mcause;
     return RISCV_EXCP_NONE;
+}
+
+static uint64_t cause_int_mask(RISCVMXL xl)
+{
+    g_assert(xl != MXL_RV128);
+    return 1ULL << ((16 << xl) - 1);
 }
 
 static RISCVException write_mcause(CPURISCVState *env, int csrno,
                                    target_ulong val, uintptr_t ra)
 {
-    env->mcause = val;
+    env->mcause = val & (cause_int_mask(riscv_cpu_xlen(env)) - 1);
+    env->mcause_int = val & cause_int_mask(riscv_cpu_xlen(env));
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_mcause_i128(CPURISCVState *env, int csrno,
+                                       Int128 *val)
+{
+    *val = int128_make128(env->mcause, env->mcause_int);
+
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_mcause_i128(CPURISCVState *env, int csrno,
+                                        Int128 val)
+{
+    env->mcause = int128_getlo(val);
+    env->mcause_int = int128_gethi(val);
     return RISCV_EXCP_NONE;
 }
 
@@ -4494,14 +4517,31 @@ static RISCVException write_sepc(CPURISCVState *env, int csrno,
 static RISCVException read_scause(CPURISCVState *env, int csrno,
                                   target_ulong *val)
 {
-    *val = env->scause;
+    *val = env->scause_int | env->scause;
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_scause(CPURISCVState *env, int csrno,
                                    target_ulong val, uintptr_t ra)
 {
-    env->scause = val;
+    env->scause = val & (cause_int_mask(riscv_cpu_sxl(env)) - 1);
+    env->scause_int = val & cause_int_mask(riscv_cpu_sxl(env));
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_scause_i128(CPURISCVState *env, int csrno,
+                                       Int128 *val)
+{
+    *val = int128_make128(env->scause, env->scause_int);
+
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_scause_i128(CPURISCVState *env, int csrno,
+                                        Int128 val)
+{
+    env->scause = int128_getlo(val);
+    env->scause_int = int128_gethi(val);
     return RISCV_EXCP_NONE;
 }
 
@@ -5532,14 +5572,16 @@ static RISCVException write_vsepc(CPURISCVState *env, int csrno,
 static RISCVException read_vscause(CPURISCVState *env, int csrno,
                                    target_ulong *val)
 {
-    *val = env->vscause;
+    *val = env->vscause_int | env->vscause;
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_vscause(CPURISCVState *env, int csrno,
                                     target_ulong val, uintptr_t ra)
 {
-    env->vscause = val;
+    /* Assumes vxlen == sxlen */
+    env->vscause = val & (cause_int_mask(riscv_cpu_sxl(env)) - 1);
+    env->vscause_int = val & cause_int_mask(riscv_cpu_sxl(env));
     return RISCV_EXCP_NONE;
 }
 
@@ -5629,6 +5671,24 @@ static RISCVException write_pmpcfg(CPURISCVState *env, int csrno,
     uint32_t reg_index = csrno - CSR_PMPCFG0;
 
     pmpcfg_csr_write(env, reg_index, val);
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_pmpcfg_i128(CPURISCVState *env, int csrno,
+                                       Int128 *val)
+{
+    uint32_t reg_index = csrno - CSR_PMPCFG0;
+
+    *val = pmpcfg_csr_read_i128(env, reg_index);
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_pmpcfg_i128(CPURISCVState *env, int csrno,
+                                        Int128 val)
+{
+    uint32_t reg_index = csrno - CSR_PMPCFG0;
+
+    pmpcfg_csr_write_i128(env, reg_index, val);
     return RISCV_EXCP_NONE;
 }
 
@@ -6227,7 +6287,8 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MSCRATCH] = { "mscratch", any,  read_mscratch, write_mscratch,
                        NULL, read_mscratch_i128, write_mscratch_i128   },
     [CSR_MEPC]     = { "mepc",     any,  read_mepc,     write_mepc     },
-    [CSR_MCAUSE]   = { "mcause",   any,  read_mcause,   write_mcause   },
+    [CSR_MCAUSE]   = { "mcause",   any,  read_mcause,   write_mcause,
+                        NULL, read_mcause_i128, write_mcause_i128      },
     [CSR_MTVAL]    = { "mtval",    any,  read_mtval,    write_mtval    },
     [CSR_MIP]      = { "mip",      any,  NULL,    NULL, rmw_mip        },
 
@@ -6362,7 +6423,9 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SSCRATCH] = { "sscratch", smode, read_sscratch, write_sscratch,
                        NULL, read_sscratch_i128, write_sscratch_i128    },
     [CSR_SEPC]     = { "sepc",     smode, read_sepc,     write_sepc     },
-    [CSR_SCAUSE]   = { "scause",   smode, read_scause,   write_scause   },
+    [CSR_SCAUSE]   = { "scause",   smode, read_scause,   write_scause,
+                       NULL, read_scause_i128, write_scause_i128        },
+
     [CSR_STVAL]    = { "stval",    smode, read_stval,    write_stval    },
     [CSR_SIP]      = { "sip",      smode, NULL,    NULL, rmw_sip        },
     [CSR_STIMECMP] = { "stimecmp", sstc, read_stimecmp, write_stimecmp,
