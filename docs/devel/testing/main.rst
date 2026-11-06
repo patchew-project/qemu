@@ -271,9 +271,13 @@ than "make check" tests and 99% of the code is written in bash or Python
 scripts.  The testing success criteria is golden output comparison, and the
 test files are named with numbers.
 
-To run iotests, make sure QEMU is built successfully, then switch to the
-``tests/qemu-iotests`` directory under the build directory, and run ``./check``
-with desired arguments from there.
+To run iotests, make sure QEMU is built successfully, then switch to
+the build tree and run the ``tests/qemu-iotests/check`` script via the
+``run`` wrapper which sets up the environment:
+
+.. code::
+
+   ./run ./tests/qemu-iotests/check [args]
 
 By default, "raw" format and "file" protocol is used; all tests will be
 executed, except the unsupported ones. You can override the format and protocol
@@ -282,22 +286,22 @@ with arguments:
 .. code::
 
   # test with qcow2 format
-  ./check -qcow2
+  ./run ./tests/qemu-iotests/check -qcow2
   # or test a different protocol
-  ./check -nbd
+  .run ./tests/qemu-iotests/check -nbd
 
 It's also possible to list test numbers explicitly:
 
 .. code::
 
   # run selected cases with qcow2 format
-  ./check -qcow2 001 030 153
+  ./run ./tests/qemu-iotests/check -qcow2 001 030 153
 
 Cache mode can be selected with the "-c" option, which may help reveal bugs
 that are specific to certain cache mode.
 
-More options are supported by the ``./check`` script, run ``./check -h`` for
-help.
+More options are supported by the ``check`` script; run
+``./tests/qemu-iotests/check -h`` for help.
 
 Writing a new test case
 ~~~~~~~~~~~~~~~~~~~~~~~
