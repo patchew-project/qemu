@@ -8,6 +8,7 @@
 #ifndef PCA9554_H
 #define PCA9554_H
 
+#define TYPE_PCA9554_BASE "pca9554-base"
 #define TYPE_PCA9554 "pca9554"
 #define TYPE_PCA9536 "pca9536"
 
