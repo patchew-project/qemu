@@ -22,13 +22,11 @@
 #include "trace.h"
 #include "qom/object.h"
 
-typedef struct PCA9554State PCA9554State;
-DECLARE_INSTANCE_CHECKER(PCA9554State, PCA9554,
-                         TYPE_PCA9554)
-
 #define PCA9554_NR_REGS 4
 #define PCA9554_PIN_COUNT 8
 #define PCA9536_PIN_COUNT 4
+
+OBJECT_DECLARE_TYPE(PCA9554State, PCA9554Class, PCA9554)
 
 struct PCA9554State {
     /*< private >*/
@@ -52,10 +50,6 @@ struct PCA9554Class {
 
     uint8_t pin_count;
 };
-typedef struct PCA9554Class PCA9554Class;
-
-DECLARE_CLASS_CHECKERS(PCA9554Class, PCA9554,
-                       TYPE_PCA9554)
 
 #define PCA9554_PIN_LOW  0x0
 #define PCA9554_PIN_HIZ  0x1
