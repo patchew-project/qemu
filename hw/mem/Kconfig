@@ -17,6 +17,11 @@ config CXL_MEM_DEVICE
     default y if CXL
     select MEM_DEVICE
 
+config CXL_TYPE2_DEVICE
+    bool
+    default y if CXL
+    select MEM_DEVICE
+
 config SP_MEM
     bool
     select MEM_DEVICE

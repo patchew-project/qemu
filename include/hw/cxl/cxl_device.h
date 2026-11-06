@@ -830,6 +830,20 @@ struct CSWMBCCIDev {
 #define TYPE_CXL_SWITCH_MAILBOX_CCI "cxl-switch-mailbox-cci"
 OBJECT_DECLARE_TYPE(CSWMBCCIDev, CSWMBCCIClass, CXL_SWITCH_MAILBOX_CCI)
 
+struct CXLType2Dev {
+    /* Private */
+    PCIDevice parent_obj;
+
+    /* Properties */
+    HostMemoryBackend *hostvmem;
+
+    /* State */
+    AddressSpace hostvmem_as;
+};
+
+#define TYPE_CXL_TYPE2 "cxl-type2"
+OBJECT_DECLARE_SIMPLE_TYPE(CXLType2Dev, CXL_TYPE2)
+
 MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
                            unsigned size, MemTxAttrs attrs);
 MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
