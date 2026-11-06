@@ -1593,6 +1593,7 @@ GArray *virtio_gpu_virgl_get_capsets(VirtIOGPU *g)
     uint32_t capset_max_ver, capset_max_size;
     GArray *capset_ids;
 
+    g->parent_obj.conf.flags &= ~(1 << VIRTIO_GPU_FLAG_BLOB_READONLY_ENABLED);
     capset_ids = g_array_new(false, false, sizeof(uint32_t));
 
     /* VIRGL is always supported. */
@@ -1629,6 +1630,8 @@ GArray *virtio_gpu_virgl_get_capsets(VirtIOGPU *g)
                                    &capset_max_size);
         if (capset_max_size) {
             virtio_gpu_virgl_add_capset(capset_ids, VIRTIO_GPU_CAPSET_ROCM);
+            g->parent_obj.conf.flags |=
+                1 << VIRTIO_GPU_FLAG_BLOB_READONLY_ENABLED;
         }
     }
 
