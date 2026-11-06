@@ -109,6 +109,8 @@ PCI devices (other than virtio):
   PCIe Upstream Switch Port (``-device pcie-upstream-port``)
 1b36:0016
   PCIe Downstream Switch Port (``-device pcie-downstream-port``)
+1b36:0017
+  CXL Type-2 device (``-device cxl-type2``)
 
 All these devices are documented in :doc:`index`.
 
