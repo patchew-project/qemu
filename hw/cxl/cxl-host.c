@@ -209,6 +209,37 @@ static bool cxl_hdm_find_target(uint32_t *cache_mem, hwaddr addr,
     return found;
 }
 
+/* A CXL device with memory that a fixed memory window can map directly */
+typedef struct CXLMemDevice {
+    PCIDevice *pdev;
+    CXLComponentState *cstate;
+    HostMemoryBackend *hostvmem;
+    HostMemoryBackend *hostpmem;
+    MemoryRegion *direct_mr;
+    CXLFixedWindow **direct_mr_fw;
+} CXLMemDevice;
+
+static bool cxl_mem_device(Object *obj, CXLMemDevice *md)
+{
+    CXLType3Dev *ct3d;
+
+    if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
+        return false;
+    }
+    ct3d = CXL_TYPE3(obj);
+    if (md) {
+        *md = (CXLMemDevice) {
+            .pdev = PCI_DEVICE(ct3d),
+            .cstate = &ct3d->cxl_cstate,
+            .hostvmem = ct3d->hostvmem,
+            .hostpmem = ct3d->hostpmem,
+            .direct_mr = ct3d->direct_mr,
+            .direct_mr_fw = ct3d->direct_mr_fw,
+        };
+    }
+    return true;
+}
+
 static PCIDevice *cxl_cfmws_find_device(CXLFixedWindow *fw, hwaddr addr,
                                         bool allow_interleave)
 {
@@ -265,7 +296,7 @@ static PCIDevice *cxl_cfmws_find_device(CXLFixedWindow *fw, hwaddr addr,
         return NULL;
     }
 
-    if (object_dynamic_cast(OBJECT(d), TYPE_CXL_TYPE3)) {
+    if (cxl_mem_device(OBJECT(d), NULL)) {
         return d;
     }
 
@@ -304,7 +335,7 @@ static PCIDevice *cxl_cfmws_find_device(CXLFixedWindow *fw, hwaddr addr,
         return NULL;
     }
 
-    if (!object_dynamic_cast(OBJECT(d), TYPE_CXL_TYPE3)) {
+    if (!cxl_mem_device(OBJECT(d), NULL)) {
         return NULL;
     }
 
@@ -312,7 +343,7 @@ static PCIDevice *cxl_cfmws_find_device(CXLFixedWindow *fw, hwaddr addr,
 }
 
 typedef struct CXLDirectPTState {
-    CXLType3Dev *ct3d;
+    CXLMemDevice md;
     hwaddr decoder_base;
     hwaddr decoder_size;
     hwaddr dpa_base;
@@ -322,15 +353,15 @@ typedef struct CXLDirectPTState {
 static void cxl_fmws_direct_passthrough_setup(CXLDirectPTState *state,
                                               CXLFixedWindow *fw)
 {
-    CXLType3Dev *ct3d = state->ct3d;
+    CXLMemDevice *md = &state->md;
     MemoryRegion *mr = NULL;
     uint64_t vmr_size = 0, pmr_size = 0, offset = 0;
     MemoryRegion *direct_mr;
     g_autofree char *direct_mr_name = NULL;
     unsigned int idx = state->hdm_decoder_idx;
 
-    if (ct3d->hostvmem) {
-        MemoryRegion *vmr = host_memory_backend_get_memory(ct3d->hostvmem);
+    if (md->hostvmem) {
+        MemoryRegion *vmr = host_memory_backend_get_memory(md->hostvmem);
 
         vmr_size = memory_region_size(vmr);
         if (state->dpa_base < vmr_size) {
@@ -338,8 +369,8 @@ static void cxl_fmws_direct_passthrough_setup(CXLDirectPTState *state,
             offset = state->dpa_base;
         }
     }
-    if (!mr && ct3d->hostpmem) {
-        MemoryRegion *pmr = host_memory_backend_get_memory(ct3d->hostpmem);
+    if (!mr && md->hostpmem) {
+        MemoryRegion *pmr = host_memory_backend_get_memory(md->hostpmem);
 
         pmr_size = memory_region_size(pmr);
         if (state->dpa_base - vmr_size < pmr_size) {
@@ -351,37 +382,49 @@ static void cxl_fmws_direct_passthrough_setup(CXLDirectPTState *state,
         return;
     }
 
-    if (ct3d->direct_mr_fw[idx]) {
+    if (md->direct_mr_fw[idx]) {
         return;
     }
 
-    direct_mr = &ct3d->direct_mr[idx];
+    direct_mr = &md->direct_mr[idx];
     direct_mr_name = g_strdup_printf("cxl-direct-mapping-alias-%u", idx);
     if (!direct_mr_name) {
         return;
     }
 
-    memory_region_init_alias(direct_mr, OBJECT(ct3d), direct_mr_name, mr,
+    memory_region_init_alias(direct_mr, OBJECT(md->pdev), direct_mr_name, mr,
                              offset, state->decoder_size);
     memory_region_transaction_begin();
     memory_region_add_subregion(&fw->mr,
                                 state->decoder_base - fw->base, direct_mr);
     memory_region_transaction_commit();
-    ct3d->direct_mr_fw[idx] = fw;
+    md->direct_mr_fw[idx] = fw;
 }
 
-static void cxl_fmws_direct_passthrough_remove(CXLType3Dev *ct3d,
+static void cxl_fmws_direct_passthrough_unmap(CXLMemDevice *md,
+                                              unsigned int idx)
+{
+    CXLFixedWindow *owner_fw = md->direct_mr_fw[idx];
+    MemoryRegion *direct_mr = &md->direct_mr[idx];
+
+    memory_region_transaction_begin();
+    memory_region_del_subregion(&owner_fw->mr, direct_mr);
+    object_unparent(OBJECT(direct_mr));
+    memory_region_transaction_commit();
+    md->direct_mr_fw[idx] = NULL;
+}
+
+static void cxl_fmws_direct_passthrough_remove(CXLMemDevice *md,
                                                uint64_t decoder_base,
                                                unsigned int idx)
 {
-    CXLFixedWindow *owner_fw = ct3d->direct_mr_fw[idx];
-    MemoryRegion *direct_mr = &ct3d->direct_mr[idx];
+    CXLFixedWindow *owner_fw = md->direct_mr_fw[idx];
 
     if (!owner_fw) {
         return;
     }
 
-    if (!memory_region_is_mapped(direct_mr)) {
+    if (!memory_region_is_mapped(&md->direct_mr[idx])) {
         return;
     }
 
@@ -389,11 +432,21 @@ static void cxl_fmws_direct_passthrough_remove(CXLType3Dev *ct3d,
         return;
     }
 
-    memory_region_transaction_begin();
-    memory_region_del_subregion(&owner_fw->mr, direct_mr);
-    object_unparent(OBJECT(direct_mr));
-    memory_region_transaction_commit();
-    ct3d->direct_mr_fw[idx] = NULL;
+    cxl_fmws_direct_passthrough_unmap(md, idx);
+}
+
+void cxl_fmws_direct_passthrough_remove_all(PCIDevice *dev)
+{
+    CXLMemDevice md;
+
+    if (!cxl_mem_device(OBJECT(dev), &md)) {
+        return;
+    }
+    for (unsigned int i = 0; i < CXL_HDM_DECODER_COUNT; i++) {
+        if (md.direct_mr_fw[i]) {
+            cxl_fmws_direct_passthrough_unmap(&md, i);
+        }
+    }
 }
 
 static int cxl_fmws_direct_passthrough(Object *obj, void *opaque)
@@ -421,19 +474,18 @@ static int update_non_interleaved(Object *obj, void *opaque)
 {
     const int hdm_inc = R_CXL_HDM_DECODER1_BASE_LO - R_CXL_HDM_DECODER0_BASE_LO;
     bool commit = *(bool *)opaque;
-    CXLType3Dev *ct3d;
+    CXLMemDevice md;
     uint32_t *cache_mem;
     unsigned int hdm_count, i;
     int interleave_ways_dec;
     uint32_t cap;
     uint64_t dpa_base = 0;
 
-    if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
+    if (!cxl_mem_device(obj, &md)) {
         return 0;
     }
 
-    ct3d = CXL_TYPE3(obj);
-    cache_mem = ct3d->cxl_cstate.crb.cache_mem_registers;
+    cache_mem = md.cstate->crb.cache_mem_registers;
     cap = ldl_le_p(cache_mem + R_CXL_HDM_DECODER_CAPABILITY);
     hdm_count = cxl_decoder_count_dec(FIELD_EX32(cap,
                                                  CXL_HDM_DECODER_CAPABILITY,
@@ -447,8 +499,8 @@ static int update_non_interleaved(Object *obj, void *opaque)
         committed = FIELD_EX32(hdm_ctrl, CXL_HDM_DECODER0_CTRL, COMMITTED);
 
         /*
-         * Optimization: Looking for a fully committed path; if the type 3 HDM
-         * decoder is not commmitted, it cannot lie on such a path.
+         * Optimization: Looking for a fully committed path; if the endpoint
+         * HDM decoder is not committed, it cannot lie on such a path.
          */
         if (commit && !committed) {
             return 0;
@@ -473,10 +525,10 @@ static int update_non_interleaved(Object *obj, void *opaque)
 
         if (iw == 0) {
             if (!commit) {
-                cxl_fmws_direct_passthrough_remove(ct3d, decoder_base, i);
+                cxl_fmws_direct_passthrough_remove(&md, decoder_base, i);
             } else {
                 CXLDirectPTState state = {
-                    .ct3d = ct3d,
+                    .md = md,
                     .decoder_base = decoder_base,
                     .decoder_size = decoder_size,
                     .dpa_base = dpa_base,

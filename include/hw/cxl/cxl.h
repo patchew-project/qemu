@@ -84,4 +84,5 @@ typedef struct CXLDownstreamPort CXLDownstreamPort;
 DECLARE_INSTANCE_CHECKER(CXLDownstreamPort, CXL_DSP, TYPE_CXL_DSP)
 
 void cfmws_update_non_interleaved(bool commit);
+void cxl_fmws_direct_passthrough_remove_all(PCIDevice *dev);
 #endif
