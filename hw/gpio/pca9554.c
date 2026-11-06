@@ -290,18 +290,18 @@ static void pca9554_reset(DeviceState *dev)
     s->len = 0;
 }
 
-static void pca9554_initfn(Object *obj)
+static void pca9554_pin_init(PCA9554Class *pc)
 {
-    PCA9554Class *pc = PCA9554_BASE_GET_CLASS(obj);
     int pin;
 
     for (pin = 0; pin < pc->pin_count; pin++) {
         char *name;
 
         name = g_strdup_printf("pin%d", pin);
-        object_property_add(obj, name, "str", &str_type_info,
-                            pca9554_get_pin, pca9554_set_pin,
-                            NULL, NULL);
+        object_class_property_add(OBJECT_CLASS(pc), name,
+                                  "str", &str_type_info,
+                                  pca9554_get_pin, pca9554_set_pin,
+                                  NULL, NULL);
         g_free(name);
     }
 }
@@ -352,6 +352,7 @@ static void pca9554_class_init(ObjectClass *klass, const void *data)
     PCA9554Class *pc = PCA9554_BASE_CLASS(klass);
 
     pc->pin_count = PCA9554_PIN_COUNT;
+    pca9554_pin_init(pc);
 }
 
 static void pca9536_class_init(ObjectClass *klass, const void *data)
@@ -359,13 +360,13 @@ static void pca9536_class_init(ObjectClass *klass, const void *data)
     PCA9554Class *pc = PCA9554_BASE_CLASS(klass);
 
     pc->pin_count = PCA9536_PIN_COUNT;
+    pca9554_pin_init(pc);
 }
 
 static const TypeInfo pca9554_types[] = {
     {
         .name          = TYPE_PCA9554_BASE,
         .parent        = TYPE_I2C_SLAVE,
-        .instance_init = pca9554_initfn,
         .instance_size = sizeof(PCA9554State),
         .class_init    = pca9554_base_class_init,
         .class_size    = sizeof(PCA9554Class),
@@ -378,7 +379,7 @@ static const TypeInfo pca9554_types[] = {
     },
     {
         .name          = TYPE_PCA9536,
-        .parent        = TYPE_PCA9554,
+        .parent        = TYPE_PCA9554_BASE,
         .class_init    = pca9536_class_init,
     }
 };
