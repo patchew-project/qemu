@@ -124,7 +124,7 @@ static gint crs_range_compare(gconstpointer a, gconstpointer b)
 }
 
 /*
- * crs_replace_with_free_ranges - given the 'used' ranges within [start - end]
+ * crs_replace_with_free_ranges - given the 'used' ranges and [start - end]
  * interval, computes the 'free' ranges from the same interval.
  * Example: If the input array is { [a1 - a2],[b1 - b2] }, the function
  * will return { [base - a1], [a2 - b1], [b2 - limit] }.
@@ -139,6 +139,16 @@ void crs_replace_with_free_ranges(GPtrArray *ranges,
     g_ptr_array_sort(ranges, crs_range_compare);
     for (i = 0; i < ranges->len; i++) {
         CrsRangeEntry *used = g_ptr_array_index(ranges, i);
+
+        /* skip ranges below the window */
+        if (used->limit < free_base) {
+            continue;
+        }
+
+        /* skip ranges above the window */
+        if (used->base > end) {
+            break;
+        }
 
         if (free_base < used->base) {
             crs_range_insert(free_ranges, free_base, used->base - 1);
