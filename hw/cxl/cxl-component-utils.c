@@ -490,9 +490,10 @@ void cxl_component_register_init_common(uint32_t *reg_state,
  * Helper to creates a DVSEC header for a CXL entity. The caller is responsible
  * for tracking the valid offset.
  *
- * This function will build the DVSEC header on behalf of the caller and then
- * copy in the remaining data for the vendor specific bits.
- * It will also set up appropriate write masks.
+ * This function will build the DVSEC header on behalf of the caller and set
+ * up appropriate write masks. With @body it also copies in the remaining
+ * data; otherwise the caller fills it in later with
+ * cxl_component_update_dvsec().
  */
 void cxl_component_create_dvsec(CXLComponentState *cxl,
                                 enum reg_type cxl_dev_type, uint16_t length,
@@ -512,9 +513,12 @@ void cxl_component_create_dvsec(CXLComponentState *cxl,
     pci_set_long(pdev->config + offset + PCIE_DVSEC_HEADER1_OFFSET,
                  (length << 20) | (rev << 16) | CXL_VENDOR_ID);
     pci_set_word(pdev->config + offset + PCIE_DVSEC_ID_OFFSET, type);
-    memcpy(pdev->config + offset + sizeof(DVSECHeader),
-           body + sizeof(DVSECHeader),
-           length - sizeof(DVSECHeader));
+
+    if (body) {
+        memcpy(pdev->config + offset + sizeof(DVSECHeader),
+               body + sizeof(DVSECHeader),
+               length - sizeof(DVSECHeader));
+    }
 
     /* Configure write masks */
     switch (type) {
@@ -604,6 +608,23 @@ void cxl_component_create_dvsec(CXLComponentState *cxl,
     /* Update state for future DVSEC additions */
     range_init_nofail(&cxl->dvsecs[type], cxl->dvsec_offset, length);
     cxl->dvsec_offset += length;
+}
+
+void cxl_component_update_dvsec(CXLComponentState *cxl, uint16_t length,
+                                uint16_t type, uint8_t *body)
+{
+    PCIDevice *pdev = cxl->pdev;
+    struct Range *r;
+
+    assert(type < CXL20_MAX_DVSEC);
+
+    r = &cxl->dvsecs[type];
+
+    assert(range_size(r) == length);
+
+    memcpy(pdev->config + r->lob + sizeof(DVSECHeader),
+           body + sizeof(DVSECHeader),
+           length - sizeof(DVSECHeader));
 }
 
 /* CXL r3.1 Section 8.2.4.20.7 CXL HDM Decoder n Control Register */

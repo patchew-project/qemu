@@ -320,6 +320,9 @@ void cxl_component_create_dvsec(CXLComponentState *cxl_cstate,
                                 enum reg_type cxl_dev_type, uint16_t length,
                                 uint16_t type, uint8_t rev, uint8_t *body);
 
+void cxl_component_update_dvsec(CXLComponentState *cxl, uint16_t length,
+                                uint16_t type, uint8_t *body);
+
 int cxl_decoder_count_enc(int count);
 int cxl_decoder_count_dec(int enc_cnt);
 
