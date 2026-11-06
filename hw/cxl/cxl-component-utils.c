@@ -193,6 +193,21 @@ static void bi_handler(CXLComponentState *cxl_cstate, hwaddr offset,
     stl_le_p((uint8_t *)cache_mem + offset, value);
 }
 
+/* @value has the write mask applied */
+void cxl_cache_mem_write_common(CXLComponentState *cxl_cstate, hwaddr offset,
+                                uint32_t value)
+{
+    if (offset >= A_CXL_HDM_DECODER_CAPABILITY &&
+        offset <= A_CXL_HDM_DECODER3_TARGET_LIST_HI) {
+        dumb_hdm_handler(cxl_cstate, offset, value);
+    } else if (offset == A_CXL_BI_RT_CTRL ||
+               offset == A_CXL_BI_DECODER_CTRL) {
+        bi_handler(cxl_cstate, offset, value);
+    } else {
+        cxl_cstate->crb.cache_mem_registers[offset / 4] = value;
+    }
+}
+
 static void cxl_cache_mem_write_reg(void *opaque, hwaddr offset, uint64_t value,
                                     unsigned size)
 {
@@ -213,15 +228,7 @@ static void cxl_cache_mem_write_reg(void *opaque, hwaddr offset, uint64_t value,
             return;
         }
 
-        if (offset >= A_CXL_HDM_DECODER_CAPABILITY &&
-            offset <= A_CXL_HDM_DECODER3_TARGET_LIST_HI) {
-            dumb_hdm_handler(cxl_cstate, offset, value);
-        } else if (offset == A_CXL_BI_RT_CTRL ||
-                   offset == A_CXL_BI_DECODER_CTRL) {
-            bi_handler(cxl_cstate, offset, value);
-        } else {
-            cregs->cache_mem_registers[offset / 4] = value;
-        }
+        cxl_cache_mem_write_common(cxl_cstate, offset, value);
         return;
     }
     case 8:
