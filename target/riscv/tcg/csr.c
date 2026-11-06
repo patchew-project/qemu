@@ -775,8 +775,10 @@ static RISCVException pmp(CPURISCVState *env, int csrno)
         if (csrno <= max_pmpcfg) {
             uint32_t reg_index = csrno - CSR_PMPCFG0;
 
-            /* TODO: RV128 restriction check */
             if ((reg_index & 1) && (riscv_cpu_mxl(env) == MXL_RV64)) {
+                return RISCV_EXCP_ILLEGAL_INST;
+            }
+            if ((reg_index & 3) && (riscv_cpu_mxl(env) == MXL_RV128)) {
                 return RISCV_EXCP_ILLEGAL_INST;
             }
         }
@@ -6508,11 +6510,13 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     /* Physical Memory Protection */
     [CSR_MSECCFG]    = { "mseccfg",   have_mseccfg, read_mseccfg, write_mseccfg,
                          .min_priv_ver = PRIV_VERSION_1_11_0           },
-    [CSR_PMPCFG0]    = { "pmpcfg0",   pmp, read_pmpcfg,  write_pmpcfg  },
+    [CSR_PMPCFG0]    = { "pmpcfg0",   pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                          read_pmpcfg_i128,  write_pmpcfg_i128 },
     [CSR_PMPCFG1]    = { "pmpcfg1",   pmp, read_pmpcfg,  write_pmpcfg  },
     [CSR_PMPCFG2]    = { "pmpcfg2",   pmp, read_pmpcfg,  write_pmpcfg  },
     [CSR_PMPCFG3]    = { "pmpcfg3",   pmp, read_pmpcfg,  write_pmpcfg  },
-    [CSR_PMPCFG4]    = { "pmpcfg4",   pmp, read_pmpcfg,  write_pmpcfg,
+    [CSR_PMPCFG4]    = { "pmpcfg4",   pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                          read_pmpcfg_i128,  write_pmpcfg_i128,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
     [CSR_PMPCFG5]    = { "pmpcfg5",   pmp, read_pmpcfg,  write_pmpcfg,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
@@ -6520,7 +6524,8 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
     [CSR_PMPCFG7]    = { "pmpcfg7",   pmp, read_pmpcfg,  write_pmpcfg,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
-    [CSR_PMPCFG8]    = { "pmpcfg8",   pmp, read_pmpcfg,  write_pmpcfg,
+    [CSR_PMPCFG8]    = { "pmpcfg8",   pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                         read_pmpcfg_i128,  write_pmpcfg_i128,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
     [CSR_PMPCFG9]    = { "pmpcfg9",   pmp, read_pmpcfg,  write_pmpcfg,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
@@ -6528,7 +6533,8 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
     [CSR_PMPCFG11]   = { "pmpcfg11",  pmp, read_pmpcfg,  write_pmpcfg,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
-    [CSR_PMPCFG12]   = { "pmpcfg12",  pmp, read_pmpcfg,  write_pmpcfg,
+    [CSR_PMPCFG12]   = { "pmpcfg12",  pmp, read_pmpcfg,  write_pmpcfg, NULL,
+                         read_pmpcfg_i128,  write_pmpcfg_i128,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
     [CSR_PMPCFG13]   = { "pmpcfg13",  pmp, read_pmpcfg,  write_pmpcfg,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
