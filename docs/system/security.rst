@@ -320,3 +320,24 @@ encryption and authorization control policy on client connections.
 In summary, the monitor console is considered a privileged control interface to
 QEMU and as such should only be made accessible to a trusted management
 application or user.
+
+Block device network protocols (NBD, NFS, etc.)
+'''''''''''''''''''''''''''''''''''''''''''''''
+
+When using QEMU to access remote storage over a network (such as QEMU
+acting as an NBD or NFS client) or to provide remote storage access
+(such as QEMU acting as an NBD server), it is important to realize
+that an unencrypted connection can allow an external process a
+potential attack vector over the network port. When possible, QEMU
+should be configured to require TLS to prevent a man-in-the-middle
+attack, as well as use x509 client certificates with the
+tls-creds-x509 object set with 'verify-peer=on' to check that the peer
+is allowed to connect. It may also be worth using 'tls-authz' to
+filter which certificates are allowed if the CA issues certs more
+broadly.
+
+Proper hardening of network connections can prevent the use of
+untrusted clients, and is therefore a factor when considering whether
+a malicious network partner that intentionally violates the
+communication protocol to trigger a QEMU bug can be treated as a lower
+priority bug.
