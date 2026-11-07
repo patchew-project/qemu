@@ -92,6 +92,8 @@ cp_portable() {
         -e "$arch_cmd" \
         -e 's/__bitwise//' \
         -e 's/__counted_by(\w*)//' \
+        -e 's/__counted_by_be(\w*)//' \
+        -e 's/__counted_by_le(\w*)//' \
         -e 's/__attribute__((packed))/QEMU_PACKED/' \
         -e 's/__inline__/inline/' \
         -e 's/__BITS_PER_LONG/HOST_LONG_BITS/' \
