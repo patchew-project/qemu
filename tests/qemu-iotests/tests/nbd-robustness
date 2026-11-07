@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+# group: rw auto quick
+#
+# Test cases for NBD robustness against malicious clients
+#
+# Copyright (C) 2026 Red Hat, Inc.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+import os
+from contextlib import contextmanager
+
+import iotests
+from iotests import qemu_img_create, qemu_io
+
+import socket
+import struct
+
+
+disk = os.path.join(iotests.test_dir, 'disk')
+size = '4M'
+nbd_sock = os.path.join(iotests.sock_dir, 'nbd_sock')
+nbd_uri = 'nbd+unix:///{}?socket=' + nbd_sock
+nbd: ModuleType
+
+
+class TestNbdRobustness(iotests.QMPTestCase):
+    def setUp(self):
+        qemu_img_create('-f', iotests.imgfmt, disk, size)
+        qemu_io('-c', 'w -P 1 0 2M', '-c', 'w -P 2 2M 2M', disk)
+
+        self.vm = iotests.VM()
+        self.vm.launch()
+        self.vm.cmd('blockdev-add', {
+            'driver': 'qcow2',
+            'node-name': 'n',
+            'file': {'driver': 'file', 'filename': disk}
+        })
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(disk)
+        try:
+            os.remove(nbd_sock)
+        except OSError:
+            pass
+
+    @contextmanager
+    def run_server(self, max_connections=None):
+        args = {
+            'addr': {
+                'type': 'unix',
+                'data': {'path': nbd_sock}
+            }
+        }
+        if max_connections is not None:
+            args['max-connections'] = max_connections
+
+        self.vm.cmd('nbd-server-start', args)
+        yield
+
+        self.vm.cmd('nbd-server-stop')
+
+    def add_export(self, name, writable=None):
+        args = {
+            'type': 'nbd',
+            'id': name,
+            'node-name': 'n',
+            'name': name,
+        }
+        if writable is not None:
+            args['writable'] = writable
+
+        self.vm.cmd('block-export-add', args)
+
+    def test_invalid_block_status(self):
+        with self.run_server():
+            self.add_export('r')
+
+            # Use raw socket traffic to intentionally violate NBD protocol
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+                s.connect(nbd_sock)
+                # Server sends NBDMAGIC(8) + IHAVEOPT(8) + flags(2)
+                data = s.recv(18)
+                magic, opt, flags = struct.unpack(">QQH", data)
+                assert magic == 0x4e42444d41474943
+                assert opt == 0x49484156454f5054
+                assert flags == 0x3
+
+                # Reply with flags(4) - just fixed newstyle flag
+                s.send(struct.pack(">I", 1))
+
+                # Request NBD_OPT_EXTENDED_HEADERS, no extra payload
+                s.send(struct.pack(">QII", 0x49484156454f5054, 11, 0))
+
+                # Expect successful reply:
+                # magic(8) + option(4) + reply(4) + length(4)
+                data = s.recv(20)
+                magic, opt, reply, length = struct.unpack(">QIII", data)
+                assert magic == 0x3e889045565a9
+                assert opt == 11
+                assert reply == 1
+                assert length == 0
+
+                # Request NBD_OPT_GO, name but no info as payload
+                payload = struct.pack(">I", 1) + b'r' + struct.pack(">H", 0)
+                s.send(struct.pack(">QII", 0x49484156454f5054, 7, len(payload))
+                       + payload)
+
+                # Expect (and ignore) zero or more info packets before ack
+                while True:
+                    data = s.recv(20)
+                    magic, opt, reply, length = struct.unpack(">QIII", data)
+                    assert magic == 0x3e889045565a9
+                    assert opt == 7
+                    payload = s.recv(length)
+                    if reply != 3:
+                        break
+                assert reply == 1
+
+                # Send invalid NBD_CMD_BLOCK_STATUS with payload flag. This
+                # violates the NBD protocol (since no context was negotiated),
+                # but should not crash the server.
+                payload = struct.pack(">QI", 0x1000, 0)
+                s.send(struct.pack(">IHHQQQ", 0x21e41c71, 0x20, 7, 1, 0,
+                                   len(payload)) + payload)
+
+                # Expect a rejection.
+                data = s.recv(32)
+                magic, flags, rtype, cookie, offs, length = struct.unpack(">IHHQQQ", data)
+                assert magic == 0x6e8a278c
+                assert rtype & 0x8000 == 0x8000
+                assert cookie == 1
+                s.recv(length)
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'])
