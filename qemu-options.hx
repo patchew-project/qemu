@@ -3553,6 +3553,15 @@ SRST
             # and connect the TCP stream to its stdin/stdout
             |qemu_system| -nic  'user,id=n1,guestfwd=tcp:10.0.2.100:1234-cmd:netcat 10.10.1.1 4321'
 
+    ``guestfwd=[tcp]:server:port-unix-per-connection:path``
+        With ``unix-per-connection:``, a new connection is opened to the
+        given unix socket per TCP connection made by the guest. The unix socket
+        need not exist at startup time.
+
+        .. parsed-literal::
+
+            |qemu_system| -nic user,guestfwd=tcp:10.0.2.100:1234-unix-per-connection:/tmp/socket
+
 ``-netdev tap,id=id[,fd=h][,ifname=name][,script=file][,downscript=dfile][,br=bridge][,helper=helper]``
     Configure a host TAP network backend with ID id.
 

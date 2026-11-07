@@ -1159,6 +1159,12 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
                        "forwarding rule '%s'", config_str);
             return -1;
         }
+    } else if (g_str_has_prefix(p, "unix-per-connection:")) {
+        if (slirp_add_unix(s->slirp, &p[20], &server, port) < 0) {
+            error_setg(errp, "Conflicting/invalid host:port in guest "
+                       "forwarding rule '%s'", config_str);
+            return -1;
+        }
     } else {
         Error *err = NULL;
         /*
