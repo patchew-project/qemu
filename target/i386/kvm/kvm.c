@@ -501,6 +501,12 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         }
     } else if (function == 6 && reg == R_EAX) {
         ret |= CPUID_6_EAX_ARAT; /* safe to allow because of emulated APIC */
+    } else if (function == 6 && reg == R_ECX) {
+        uint32_t ecx;
+        if (s->aperfmperf_enable) {
+            host_cpuid(6, 0, &unused, &unused, &ecx, &unused);
+            ret |= ecx & CPUID_6_ECX_APERFMPERF;
+        }
     } else if (function == 7 && index == 0 && reg == R_EBX) {
         /* Not new instructions, just an optimization.  */
         uint32_t ebx;
@@ -3401,6 +3407,18 @@ static int kvm_vm_enable_energy_msrs(KVMState *s)
     return 0;
 }
 
+static int kvm_vm_enable_aperfmperf_msrs(KVMState *s)
+{
+    int supported = kvm_check_extension(s, KVM_CAP_X86_DISABLE_EXITS);
+
+    if (!(supported & KVM_X86_DISABLE_EXITS_APERFMPERF)) {
+        error_report("kvm: APERF/MPERF passthrough is not supported by this host");
+        return -ENOTSUP;
+    }
+    return kvm_vm_enable_cap(s, KVM_CAP_X86_DISABLE_EXITS, 0,
+                             KVM_X86_DISABLE_EXITS_APERFMPERF);
+}
+
 int kvm_arch_on_vmfd_change(MachineState *ms, KVMState *s)
 {
     int ret;
@@ -3583,6 +3601,13 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
                     return ret;
                 }
             }
+        }
+    }
+
+    if (s->aperfmperf_enable) {
+        ret = kvm_vm_enable_aperfmperf_msrs(s);
+        if (ret < 0) {
+            return ret;
         }
     }
 

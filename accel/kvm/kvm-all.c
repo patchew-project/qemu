@@ -4264,6 +4264,12 @@ static void kvm_set_kvm_rapl_socket_path(Object *obj,
     s->msr_energy.socket_path = g_strdup(str);
 }
 
+static void kvm_set_kvm_aperfmperf(Object *obj, bool value, Error **errp)
+{
+    KVMState *s = KVM_STATE(obj);
+    s->aperfmperf_enable = value;
+}
+
 static void kvm_accel_instance_init(Object *obj)
 {
     KVMState *s = KVM_STATE(obj);
@@ -4284,6 +4290,7 @@ static void kvm_accel_instance_init(Object *obj)
     s->xen_evtchn_max_pirq = 256;
     s->device = NULL;
     s->msr_energy.enable = false;
+    s->aperfmperf_enable = false;
     s->honor_guest_pat = ON_OFF_AUTO_OFF;
 }
 
@@ -4329,6 +4336,12 @@ static void kvm_accel_class_init(ObjectClass *oc, const void *data)
                                   kvm_set_kvm_rapl_socket_path);
     object_class_property_set_description(oc, "rapl-helper-socket",
         "Socket Path for comminucating with the Virtual MSR helper daemon");
+
+    object_class_property_add_bool(oc, "aperfmperf",
+                                   NULL,
+                                   kvm_set_kvm_aperfmperf);
+    object_class_property_set_description(oc, "aperfmperf",
+        "Allow frequency related MSRs for APERF/MPERF interface in Guest");
 
     kvm_arch_accel_class_init(oc);
 }
