@@ -2584,12 +2584,12 @@ nbd_co_block_status_payload_read(NBDClient *client, NBDRequest *request,
         return -EINVAL;
     }
 
-    assert(client->contexts.exp == client->exp);
     nr_bitmaps = client->exp->nr_export_bitmaps;
     request->contexts = g_new0(NBDMetaContexts, 1);
     request->contexts->exp = client->exp;
 
-    if (payload_len % sizeof(uint32_t) ||
+    if (!client->contexts.count ||
+        payload_len % sizeof(uint32_t) ||
         payload_len < sizeof(NBDBlockStatusPayload) ||
         payload_len > (sizeof(NBDBlockStatusPayload) +
                        sizeof(id) * client->contexts.count)) {
