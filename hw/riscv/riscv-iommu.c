@@ -2299,6 +2299,11 @@ static void riscv_iommu_process_dbg(RISCVIOMMUState *s)
 
 typedef void riscv_iommu_process_fn(RISCVIOMMUState *s);
 
+static void riscv_iommu_process_fctl(RISCVIOMMUState *s)
+{
+    s->fctl = riscv_iommu_reg_get32(s, RISCV_IOMMU_REG_FCTL);
+}
+
 static void riscv_iommu_update_icvec(RISCVIOMMUState *s, uint64_t data)
 {
     uint64_t icvec = 0;
@@ -2439,6 +2444,10 @@ static MemTxResult riscv_iommu_mmio_write(void *opaque, hwaddr addr,
 
     /* Track actionable MMIO write. */
     switch (regb) {
+    case RISCV_IOMMU_REG_FCTL:
+        process_fn = riscv_iommu_process_fctl;
+        break;
+
     case RISCV_IOMMU_REG_DDTP:
     case RISCV_IOMMU_REG_DDTP + 4:
         process_fn = riscv_iommu_process_ddtp;
