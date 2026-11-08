@@ -18,6 +18,8 @@ from time import sleep
 
 try:
     from qemu.qmp.legacy import QEMUMonitorProtocol
+    from ghes_decode import DecodeGhesEntry
+
 except ModuleNotFoundError as exc:
     print(f"Module '{exc.name}' not found.", file=sys.stderr)
     print(f"Try $builddir/run {' '.join(sys.argv)}", file=sys.stderr)
@@ -672,6 +674,8 @@ class qmp:
                 util.dump_bytearray("Raw data", bytearray(self.raw_data))
 
             util.dump_bytearray("Payload", payload)
+
+            DecodeGhesEntry(cper_data)
 
         return self.send_cper_raw(cper_data, timeout=timeout)
 
