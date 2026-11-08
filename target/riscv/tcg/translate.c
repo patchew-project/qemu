@@ -654,6 +654,15 @@ static void gen_jal(DisasContext *ctx, int rd, target_ulong imm)
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
+static void gen_pm_adjust_addr(DisasContext *ctx, TCGv dest, TCGv src)
+{
+    if (ctx->addr_signed) {
+        tcg_gen_sextract_tl(dest, src, 0, ctx->addr_xl);
+    } else {
+        tcg_gen_extract_tl(dest, src, 0, ctx->addr_xl);
+    }
+}
+
 /* Compute a canonical address from a register plus offset. */
 static TCGv get_address(DisasContext *ctx, int rs1, int imm)
 {
@@ -661,11 +670,7 @@ static TCGv get_address(DisasContext *ctx, int rs1, int imm)
     TCGv src1 = get_gpr(ctx, rs1, EXT_NONE);
 
     tcg_gen_addi_tl(addr, src1, imm);
-    if (ctx->addr_signed) {
-        tcg_gen_sextract_tl(addr, addr, 0, ctx->addr_xl);
-    } else {
-        tcg_gen_extract_tl(addr, addr, 0, ctx->addr_xl);
-    }
+    gen_pm_adjust_addr(ctx, addr, addr);
 
     return addr;
 }
@@ -677,11 +682,7 @@ static TCGv get_address_indexed(DisasContext *ctx, int rs1, TCGv offs)
     TCGv src1 = get_gpr(ctx, rs1, EXT_NONE);
 
     tcg_gen_add_tl(addr, src1, offs);
-    if (ctx->addr_signed) {
-        tcg_gen_sextract_tl(addr, addr, 0, ctx->addr_xl);
-    } else {
-        tcg_gen_extract_tl(addr, addr, 0, ctx->addr_xl);
-    }
+    gen_pm_adjust_addr(ctx, addr, addr);
 
     return addr;
 }
