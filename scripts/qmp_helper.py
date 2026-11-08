@@ -343,41 +343,44 @@ class qmp:
 
         # Try up to attempts
         for i in range(0, attempts):
+            if i > 0:
+                print(f"Error inject attempt {i}/{attempts} failed. Retrying...")
+                sleep(0.1)
+
             try:
                 obj = self.qmp_monitor.cmd_obj(msg)
-
-                if obj and "return" in obj and not obj["return"]:
-                    break
+                if not obj:
+                    print(f"Command: {command}")
+                    print(f"Failed to create a QMP object.")
+                    return None
 
             except Exception as e:                     # pylint: disable=W0718
                 print(f"Command: {command}")
                 print(f"Failed to inject error: {e}.")
-                obj = None
+                return None
 
-            if attempts > 1:
-                print(f"Error inject attempt {i + 1}/{attempts} failed.")
+            error = obj.get("error")
+            if isinstance(error, dict):
+                desc = error.get("desc", "unknown error")
+                if return_error:
+                    print(f"Command: {msg}")
+                    print(f'{error["class"]}: {desc}')
 
-            if i + 1 < attempts:
-                sleep(0.1)
+                if not "acknowledge previous" in desc:
+                    break
 
-        if not obj:
-            return None
+                continue
 
-        if "return" in obj:
-            if isinstance(obj.get("return"), dict):
-                if obj["return"]:
-                    return obj["return"]
-                return "OK"
+            if "return" in obj:
+                if isinstance(obj.get("return"), dict):
+                    if obj["return"]:
+                        return obj["return"]
+                    return "OK"
 
-            return obj["return"]
+                return obj["return"]
 
-        if isinstance(obj.get("error"), dict):
-            error = obj["error"]
-            if return_error:
-                print(f"Command: {msg}")
-                print(f'{error["class"]}: {error["desc"]}')
-        else:
-            print(json.dumps(obj))
+            else:
+                print(json.dumps(obj))
 
         return None
 
