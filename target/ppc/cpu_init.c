@@ -2974,6 +2974,20 @@ static void init_proc_e500(CPUPPCState *env, int version)
                      &spr_read_generic, &spr_write_e500_l2csr0,
                      0x00000000);
     }
+    if (version == fsl_e500mc || version == fsl_e5500) {
+        /*
+         * L2CSIZE is in 64 KiB units. Use 128 KiB for e500mc and a
+         * 256 KiB default for e5500, matching the T1040/T1024 SoCs.
+         * Other SoC models can override the e5500 capacity.
+         */
+        spr_register(env, SPR_Exxx_L2CFG0, "L2CFG0",
+                     &spr_read_generic, SPR_NOACCESS,
+                     &spr_read_generic, SPR_NOACCESS,
+                     version == fsl_e500mc ? 0x3cb1c002 : 0x3cb1c004);
+        spr_register(env, SPR_Exxx_L2CSR1, "L2CSR1",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic32, 0);
+    }
     spr_register(env, SPR_BOOKE_MCSRR0, "MCSRR0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
