@@ -2877,8 +2877,12 @@ static void init_proc_e500(CPUPPCState *env, int version)
                  MMUCFG_NPIDS(1) | MMUCFG_PIDSIZE(14) | MMUCFG_LRAT |
                  MMUCFG_RASIZE(40) | MMUCFG_LPIDSIZE(6);
         env->nb_pids = 1;
-        tlbncfg[0] = 0x08052400;
-        tlbncfg[1] = 0x40028040;
+        /* MMU v2 reports page sizes through TLBnPS */
+        tlbncfg[0] = register_tlbncfg(8, 0, 0,
+                                      TLBnCFG_PT | TLBnCFG_GTWE | TLBnCFG_HES,
+                                      1024);
+        tlbncfg[1] = register_tlbncfg(64, 0, 0,
+                                      TLBnCFG_IND | TLBnCFG_IPROT, 64);
         break;
     default:
         cpu_abort(env_cpu(env), "Unknown CPU: " TARGET_FMT_lx "\n",
