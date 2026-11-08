@@ -7,6 +7,7 @@ APEI tables generating and CPER record
    This work is licensed under the terms of the GNU GPL, version 2 or later.
    See the COPYING file in the top-level directory.
 
+
 Design Details
 --------------
 
@@ -105,14 +106,39 @@ Design Details
     firmware will write back the start address of either "etc/hardware_errors"
     or HEST table at the corresponding fw_cfg file.
 
-(9) When QEMU gets a SIGBUS from the kernel, QEMU writes CPER into corresponding
-    "Error Status Data Block", guest memory, and then injects platform specific
-    interrupt (in case of arm/virt machine it's Synchronous External Abort) as a
-    notification which is necessary for notifying the guest.
+.. note::
 
-(10) This notification (in virtual hardware) will be handled by the guest
-     kernel, on receiving notification, guest APEI driver could read the CPER error
-     and take appropriate action.
+    GHES support requires ACPI and ``-machine ras=on``.
 
-(11) kvm_arch_on_sigbus_vcpu() reports RAS errors via a SEA notifications,
-     when a SIGBUS event is triggered.
+Notifications on ARM64
+----------------------
+
+The ARM64 ``virt`` machine supports two GHESv2 notification sources:
+
+* source 0: Synchronous External Abort (SEA);
+* source 1: GPIO notification delivered through a Generic Event Device (GED).
+
+Source 0 reports hardware-memory RAS events on the ``virt`` machine:
+
+* When QEMU receives a ``SIGBUS`` from the kernel, it writes the CPER into the
+  corresponding ``Error Status Data Block`` in guest memory and reports the
+  event through a Synchronous External Abort (SEA). The guest kernel handle
+  the SEA,
+
+* The guest APEI driver can read and process the CPER record.
+
+* ``kvm_arch_on_sigbus_vcpu()`` reports these RAS events through SEA.
+
+When source 1 is available, QEMU supports GHES error injection through the QMP
+interface.
+
+
+Notifications on x86
+--------------------
+
+The ``pc`` and ``q35`` machines support one GHESv2 source:
+
+* source 1: System Control Interrupt (SCI).
+
+When source 1 is available, QEMU supports GHES error injection through
+the QMP interface.
