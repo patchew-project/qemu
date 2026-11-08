@@ -358,7 +358,7 @@ F: hw/ppc/trace*
 F: configs/devices/ppc*
 F: docs/system/ppc/embedded.rst
 F: docs/system/target-ppc.rst
-F: tests/tcg/ppc*/*
+F: tests/tcg/ppc*/
 F: tests/functional/ppc*/meson.build
 F: tests/functional/ppc/test_74xx.py
 

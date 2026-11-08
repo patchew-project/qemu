@@ -1,3 +1,5 @@
+subdir('system')
+
 tests = []
 
 # Multi arch tests

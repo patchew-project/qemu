@@ -469,6 +469,10 @@ option('tcg_tests_cross_cc_or1k', type: 'string',
        description: 'cc for or1k tcg tests')
 option('tcg_tests_cross_cflags_or1k', type: 'string',
        description: 'cflags for or1k tcg tests')
+option('tcg_tests_cross_cc_ppc', type: 'string',
+       description: 'cc for ppc tcg tests')
+option('tcg_tests_cross_cflags_ppc', type: 'string',
+       description: 'cflags for ppc tcg tests')
 option('tcg_tests_cross_cc_ppc64', type: 'string',
        description: 'cc for ppc64 tcg tests')
 option('tcg_tests_cross_cflags_ppc64', type: 'string',
