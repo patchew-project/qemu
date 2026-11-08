@@ -26,6 +26,7 @@ DECLARE_CLASS_CHECKERS(AcpiDeviceIfClass, ACPI_DEVICE_IF,
                      TYPE_ACPI_DEVICE_IF)
 
 typedef struct AcpiDeviceIf AcpiDeviceIf;
+typedef struct AcpiGhesState AcpiGhesState;
 
 /**
  * AcpiDeviceIfClass:
@@ -33,6 +34,7 @@ typedef struct AcpiDeviceIf AcpiDeviceIf;
  * ospm_status: returns status of ACPI device objects, reported
  *              via _OST method if device supports it.
  * send_event: inject a specified event into guest
+ * get_ghes_state: returns the controller's GHES state, if supported
  * madt_cpu: fills @entry with Interrupt Controller Structure
  *           for CPU indexed by @uid in @apic_ids array,
  *           returned structure types are:
@@ -50,5 +52,9 @@ struct AcpiDeviceIfClass {
     /* <public> */
     void (*ospm_status)(AcpiDeviceIf *adev, ACPIOSTInfoList ***list);
     void (*send_event)(AcpiDeviceIf *adev, AcpiEventStatusBits ev);
+
+    AcpiGhesState *(*get_ghes_state)(AcpiDeviceIf *adev);
 };
+
+AcpiGhesState *acpi_device_get_ghes_state(AcpiDeviceIf *adev);
 #endif

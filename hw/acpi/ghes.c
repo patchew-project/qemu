@@ -24,7 +24,7 @@
 #include "hw/acpi/ghes.h"
 #include "hw/acpi/aml-build.h"
 #include "qemu/error-report.h"
-#include "hw/acpi/generic_event_device.h"
+#include "hw/acpi/acpi_dev_interface.h"
 #include "hw/nvram/fw_cfg.h"
 #include "qemu/uuid.h"
 #include "exec/cpu-common.h"
@@ -587,21 +587,27 @@ bool acpi_ghes_memory_errors(AcpiGhesState *ags, uint16_t source_id,
                                    source_id, errp);
 }
 
-AcpiGhesState *acpi_ghes_get_state(void)
+static int acpi_ghes_find_state(Object *obj, void *opaque)
 {
-    AcpiGedState *acpi_ged_state;
+    Object *adev = object_dynamic_cast(obj, TYPE_ACPI_DEVICE_IF);
     AcpiGhesState *ags;
 
-    acpi_ged_state = ACPI_GED(object_resolve_path_type("", TYPE_ACPI_GED,
-                                                       NULL));
-
-    if (!acpi_ged_state) {
-        return NULL;
+    if (!adev) {
+        return 0;
     }
-    ags = &acpi_ged_state->ghes_state;
-
-    if (!ags->hw_error_le && !ags->hest_addr_le) {
-        return NULL;
+    ags = acpi_device_get_ghes_state(ACPI_DEVICE_IF(adev));
+    if (!ags || (!ags->hw_error_le && !ags->hest_addr_le)) {
+        return 0;
     }
+    *(AcpiGhesState **)opaque = ags;
+    return 1;
+}
+
+AcpiGhesState *acpi_ghes_get_state(void)
+{
+    AcpiGhesState *ags = NULL;
+
+    object_child_foreach_recursive(object_get_root(), acpi_ghes_find_state,
+                                   &ags);
     return ags;
 }

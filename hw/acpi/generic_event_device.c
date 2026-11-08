@@ -324,6 +324,11 @@ static void acpi_ged_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list)
     acpi_cpu_ospm_status(&s->cpuhp_state, list);
 }
 
+static AcpiGhesState *acpi_ged_get_ghes_state(AcpiDeviceIf *adev)
+{
+    return &ACPI_GED(adev)->ghes_state;
+}
+
 static void acpi_ged_send_event(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
 {
     AcpiGedState *s = ACPI_GED(adev);
@@ -610,6 +615,7 @@ static void acpi_ged_class_init(ObjectClass *class, const void *data)
 
     adevc->ospm_status = acpi_ged_ospm_status;
     adevc->send_event = acpi_ged_send_event;
+    adevc->get_ghes_state = acpi_ged_get_ghes_state;
 
     object_class_property_add_uint16_ptr(class, ACPI_PCIHP_IO_BASE_PROP,
                                          offsetof(AcpiGedState,
