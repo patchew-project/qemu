@@ -1230,14 +1230,17 @@ static RISCVException write_mhpmevent(CPURISCVState *env, int csrno,
     if (riscv_cpu_mxl(env) == MXL_RV32) {
         mhpmevt_val = deposit64(env->mhpmevent_val[evt_index], 0, 32, val);
     } else {
-        inh_avail_mask = ~MHPMEVENT_FILTER_MASK | MHPMEVENT_BIT_MINH;
+        inh_avail_mask = (~MHPMEVENT_FILTER_MASK | MHPMEVENT_BIT_MINH) &
+                         ~MHPMEVENT_WPRI;
         inh_avail_mask |= riscv_has_ext(env, RVU) ? MHPMEVENT_BIT_UINH : 0;
         inh_avail_mask |= riscv_has_ext(env, RVS) ? MHPMEVENT_BIT_SINH : 0;
         inh_avail_mask |= (riscv_has_ext(env, RVH) &&
                            riscv_has_ext(env, RVU)) ? MHPMEVENT_BIT_VUINH : 0;
         inh_avail_mask |= (riscv_has_ext(env, RVH) &&
                            riscv_has_ext(env, RVS)) ? MHPMEVENT_BIT_VSINH : 0;
-        mhpmevt_val = val & inh_avail_mask;
+
+        mhpmevt_val = (val & inh_avail_mask) |
+                      (env->mhpmevent_val[evt_index] & MHPMEVENT_WPRI);
     }
 
     env->mhpmevent_val[evt_index] = mhpmevt_val;
@@ -1262,7 +1265,10 @@ static RISCVException write_mhpmeventh(CPURISCVState *env, int csrno,
     int evt_index = csrno - CSR_MHPMEVENT3H + 3;
     target_ulong inh_avail_mask = (target_ulong)(~MHPMEVENTH_FILTER_MASK |
                                                   MHPMEVENTH_BIT_MINH);
+    target_ulong old_wpri_bits;
+    target_ulong new_high;
 
+    inh_avail_mask &= ~MHPMEVENTH_WPRI;
     inh_avail_mask |= riscv_has_ext(env, RVU) ? MHPMEVENTH_BIT_UINH : 0;
     inh_avail_mask |= riscv_has_ext(env, RVS) ? MHPMEVENTH_BIT_SINH : 0;
     inh_avail_mask |= (riscv_has_ext(env, RVH) &&
@@ -1270,8 +1276,13 @@ static RISCVException write_mhpmeventh(CPURISCVState *env, int csrno,
     inh_avail_mask |= (riscv_has_ext(env, RVH) &&
                        riscv_has_ext(env, RVS)) ? MHPMEVENTH_BIT_VSINH : 0;
 
+    old_wpri_bits = extract64(env->mhpmevent_val[evt_index], 32, 32) &
+                    MHPMEVENTH_WPRI;
+
+    new_high = (val & inh_avail_mask) | old_wpri_bits;
+
     env->mhpmevent_val[evt_index] = deposit64(env->mhpmevent_val[evt_index],
-                                              32, 32, val & inh_avail_mask);
+                                              32, 32, new_high);
 
     riscv_pmu_update_event_map(env, env->mhpmevent_val[evt_index], evt_index);
 
@@ -1531,7 +1542,7 @@ static int rmw_cd_mhpmevent(CPURISCVState *env, int evt_index,
             *val &= ~MHPMEVENT_BIT_MINH;
         }
     } else if (wr_mask) {
-        wr_mask &= ~MHPMEVENT_BIT_MINH;
+        wr_mask &= ~(MHPMEVENT_BIT_MINH | MHPMEVENT_WPRI);
         /* wr_mask is 64-bit so upper 32 bits of mhpmevt_val are retained */
         mhpmevt_val = (new_val & wr_mask) | (mhpmevt_val & ~wr_mask);
         env->mhpmevent_val[evt_index] = mhpmevt_val;
@@ -1560,7 +1571,7 @@ static int rmw_cd_mhpmeventh(CPURISCVState *env, int evt_index,
             *val &= ~MHPMEVENTH_BIT_MINH;
         }
     } else if (wr_mask) {
-        wr_mask &= ~MHPMEVENTH_BIT_MINH;
+        wr_mask &= ~(MHPMEVENTH_BIT_MINH | MHPMEVENTH_WPRI);
         mhpmevth_val = (new_val & wr_mask) | (mhpmevth_val & ~wr_mask);
         mhpmevt_val = deposit64(mhpmevt_val, 32, 32, mhpmevth_val);
         env->mhpmevent_val[evt_index] = mhpmevt_val;
