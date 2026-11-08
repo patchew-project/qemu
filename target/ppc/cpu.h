@@ -1120,15 +1120,21 @@ FIELD(FPSCR, FI, FPSCR_FI, 1)
 #define MAS8_TLBPID             0x00000fff
 
 /* Bit definitions for MMUCFG */
-#define MMUCFG_MAVN     0x00000003      /* MMU Architecture Version Number */
-#define MMUCFG_MAVN_V1  0x00000000      /* v1.0 */
-#define MMUCFG_MAVN_V2  0x00000001      /* v2.0 */
-#define MMUCFG_NTLBS    0x0000000c      /* Number of TLBs */
-#define MMUCFG_PIDSIZE  0x000007c0      /* PID Reg Size */
-#define MMUCFG_TWC      0x00008000      /* TLB Write Conditional (v2.0) */
-#define MMUCFG_LRAT     0x00010000      /* LRAT Supported (v2.0) */
-#define MMUCFG_RASIZE   0x00fe0000      /* Real Addr Size */
-#define MMUCFG_LPIDSIZE 0x0f000000      /* LPID Reg Size */
+#define MMUCFG_MAVN            0x00000003 /* MMU Architecture Version Number */
+#define MMUCFG_MAVN_V1         0x00000000 /* v1.0 */
+#define MMUCFG_MAVN_V2         0x00000001 /* v2.0 */
+#define MMUCFG_NTLBS_MASK      0x0000000c /* Number of TLBs minus one */
+#define MMUCFG_NTLBS(n)        (((n) - 1U) << 2)
+#define MMUCFG_PIDSIZE_MASK    0x000007c0 /* PID width minus one */
+#define MMUCFG_PIDSIZE(n)      (((n) - 1U) << 6)
+#define MMUCFG_NPIDS_MASK      0x00007800 /* Number of PID registers */
+#define MMUCFG_NPIDS(n)        ((n) << 11)
+#define MMUCFG_TWC             0x00008000 /* TLB Write Conditional (v2.0) */
+#define MMUCFG_LRAT            0x00010000 /* LRAT Supported (v2.0) */
+#define MMUCFG_RASIZE_MASK     0x00fe0000 /* Real address width */
+#define MMUCFG_RASIZE(n)       ((n) << 17)
+#define MMUCFG_LPIDSIZE_MASK   0x0f000000 /* LPID width */
+#define MMUCFG_LPIDSIZE(n)     ((n) << 24)
 
 /* Bit definitions for MMUCSR0 */
 #define MMUCSR0_TLB1FI  0x00000002      /* TLB1 Flash invalidate */
