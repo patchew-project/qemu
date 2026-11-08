@@ -223,6 +223,24 @@ static const VMStateDescription vmstate_pcihp_state = {
     }
 };
 
+static bool ich9_hest_needed(void *opaque)
+{
+    ICH9LPCPMRegs *pm = opaque;
+
+    return pm->ghes_state.hest_addr_le != 0;
+}
+
+static const VMStateDescription vmstate_ich9_hest = {
+    .name = "ich9_pm/hest",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ich9_hest_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT64(ghes_state.hest_addr_le, ICH9LPCPMRegs),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_ich9_pm = {
     .name = "ich9_pm",
     .version_id = 1,
@@ -245,6 +263,7 @@ const VMStateDescription vmstate_ich9_pm = {
         &vmstate_tco_io_state,
         &vmstate_cpuhp_state,
         &vmstate_pcihp_state,
+        &vmstate_ich9_hest,
         NULL
     }
 };

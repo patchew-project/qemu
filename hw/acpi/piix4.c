@@ -224,6 +224,24 @@ static bool vmstate_test_migrate_acpi_index(void *opaque, int version_id)
            !s->not_migrate_acpi_index;
 }
 
+static bool piix4_hest_needed(void *opaque)
+{
+    PIIX4PMState *s = opaque;
+
+    return s->ghes_state.hest_addr_le != 0;
+}
+
+static const VMStateDescription vmstate_piix4_hest = {
+    .name = "piix4_pm/hest",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = piix4_hest_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT64(ghes_state.hest_addr_le, PIIX4PMState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 /* qemu-kvm 1.2 uses version 3 but advertised as 2
  * To support incoming qemu-kvm 1.2 migration, change version_id
  * and minimum_version_id to 2 below (which breaks migration from
@@ -259,6 +277,7 @@ static const VMStateDescription vmstate_acpi = {
     .subsections = (const VMStateDescription * const []) {
          &vmstate_memhp_state,
          &vmstate_cpuhp_state,
+         &vmstate_piix4_hest,
          NULL
     }
 };
@@ -561,6 +580,11 @@ static void piix4_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list)
     acpi_cpu_ospm_status(&s->cpuhp_state, list);
 }
 
+static AcpiGhesState *piix4_get_ghes_state(AcpiDeviceIf *adev)
+{
+    return &PIIX4_PM(adev)->ghes_state;
+}
+
 static void piix4_send_gpe(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
 {
     PIIX4PMState *s = PIIX4_PM(adev);
@@ -617,6 +641,7 @@ static void piix4_pm_class_init(ObjectClass *klass, const void *data)
     hc->is_hotpluggable_bus = piix4_is_hotpluggable_bus;
     adevc->ospm_status = piix4_ospm_status;
     adevc->send_event = piix4_send_gpe;
+    adevc->get_ghes_state = piix4_get_ghes_state;
 
     object_class_property_add_uint16_ptr(klass, ACPI_PCIHP_IO_BASE_PROP,
                                          offsetof(PIIX4PMState,

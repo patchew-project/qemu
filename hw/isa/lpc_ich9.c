@@ -833,6 +833,11 @@ static const Property ich9_lpc_properties[] = {
                      pm.periodic_timer_enabled, true),
 };
 
+static AcpiGhesState *ich9_get_ghes_state(AcpiDeviceIf *adev)
+{
+    return &ICH9_LPC_DEVICE(adev)->pm.ghes_state;
+}
+
 static void ich9_send_gpe(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
 {
     ICH9LPCState *s = ICH9_LPC_DEVICE(adev);
@@ -900,6 +905,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, const void *data)
     hc->is_hotpluggable_bus = ich9_pm_is_hotpluggable_bus;
     adevc->ospm_status = ich9_pm_ospm_status;
     adevc->send_event = ich9_send_gpe;
+    adevc->get_ghes_state = ich9_get_ghes_state;
     amldevc->build_dev_aml = build_ich9_isa_aml;
 
     object_class_property_add_uint8_ptr(klass, ACPI_PM_PROP_SCI_INT,

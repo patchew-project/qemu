@@ -29,6 +29,7 @@
 #include "hw/i2c/pm_smbus.h"
 #include "hw/isa/apm.h"
 #include "hw/acpi/cpu.h"
+#include "hw/acpi/ghes.h"
 
 #define TYPE_PIIX4_PM "PIIX4_PM"
 OBJECT_DECLARE_SIMPLE_TYPE(PIIX4PMState, PIIX4_PM)
@@ -43,6 +44,7 @@ struct PIIX4PMState {
 
     MemoryRegion io_gpe;
     ACPIREGS ar;
+    AcpiGhesState ghes_state;
 
     APMState apm;
 

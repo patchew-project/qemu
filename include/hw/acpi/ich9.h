@@ -27,6 +27,7 @@
 #include "hw/acpi/memory_hotplug.h"
 #include "hw/acpi/acpi_dev_interface.h"
 #include "hw/acpi/ich9_tco.h"
+#include "hw/acpi/ghes.h"
 #include "hw/acpi/cpu.h"
 
 #define ACPI_PCIHP_ADDR_ICH9 0x0cc0
@@ -38,6 +39,7 @@ typedef struct ICH9LPCPMRegs {
      * PM1a_CNT_BLK = 2 in FADT so it is defined as uint16_t.
      */
     ACPIREGS acpi_regs;
+    AcpiGhesState ghes_state;
 
     MemoryRegion io;
     MemoryRegion io_gpe;
