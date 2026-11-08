@@ -2868,6 +2868,7 @@ static void init_proc_e500(CPUPPCState *env, int version)
         mmucfg = MMUCFG_MAVN_V1 | MMUCFG_NTLBS(2) |
                  MMUCFG_NPIDS(1) | MMUCFG_PIDSIZE(8) |
                  MMUCFG_RASIZE(36) | MMUCFG_LPIDSIZE(6);
+        env->nb_pids = 1;
         tlbncfg[0] = register_tlbncfg(4, 1, 1, 0, 512);
         tlbncfg[1] = register_tlbncfg(64, 1, 12, TLBnCFG_AVAIL | TLBnCFG_IPROT, 64);
         break;
