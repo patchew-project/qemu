@@ -592,6 +592,9 @@ static void gen_mtfsf(DisasContext *ctx)
     flm = FPFLM(ctx->opcode);
     l = FPL(ctx->opcode);
     w = FPW(ctx->opcode);
+    if (ctx->flags & POWERPC_FLAG_FPSCR_IGNORE_WL) {
+        l = w = 0;
+    }
     if (unlikely(w & !(ctx->insns_flags2 & PPC2_FP_ISA205))) {
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
         return;
@@ -627,6 +630,9 @@ static void gen_mtfsfi(DisasContext *ctx)
     }
     w = FPW(ctx->opcode);
     bf = FPBF(ctx->opcode);
+    if (ctx->flags & POWERPC_FLAG_FPSCR_IGNORE_WL) {
+        w = 0;
+    }
     if (unlikely(w & !(ctx->insns_flags2 & PPC2_FP_ISA205))) {
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
         return;

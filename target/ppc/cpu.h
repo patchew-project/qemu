@@ -846,6 +846,8 @@ enum {
     POWERPC_FLAG_BHRB      = 0x01000000,
     /* Use PPE42-specific behavior                                           */
     POWERPC_FLAG_PPE42     = 0x02000000,
+    /* Treat FPSCR instruction W and L fields as zero                        */
+    POWERPC_FLAG_FPSCR_IGNORE_WL = 0x04000000,
 };
 
 /*

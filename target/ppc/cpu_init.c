@@ -3188,7 +3188,8 @@ POWERPC_FAMILY(e500mc)(ObjectClass *oc, const void *data)
     /* FIXME: figure out the correct flag for e500mc */
     pcc->bfd_mach = bfd_mach_ppc_e500;
     pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DE |
-                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK |
+                 POWERPC_FLAG_FPSCR_IGNORE_WL;
 }
 
 #ifdef TARGET_PPC64
@@ -3238,7 +3239,8 @@ POWERPC_FAMILY(e5500)(ObjectClass *oc, const void *data)
     /* FIXME: figure out the correct flag for e5500 */
     pcc->bfd_mach = bfd_mach_ppc_e500;
     pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DE |
-                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK |
+                 POWERPC_FLAG_FPSCR_IGNORE_WL;
 }
 
 static void init_proc_e6500(CPUPPCState *env)
@@ -3288,7 +3290,8 @@ POWERPC_FAMILY(e6500)(ObjectClass *oc, const void *data)
     pcc->bus_model = PPC_FLAGS_INPUT_BookE;
     pcc->bfd_mach = bfd_mach_ppc_e500;
     pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DE |
-                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_VRE;
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_VRE |
+                 POWERPC_FLAG_FPSCR_IGNORE_WL;
 }
 
 #endif
