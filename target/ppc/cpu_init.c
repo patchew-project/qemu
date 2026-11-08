@@ -2891,8 +2891,8 @@ static void init_proc_e500(CPUPPCState *env, int version)
         l1cfg1 |= 0x00B80000;
         break;
     case fsl_e6500:
-        env->dcache_line_size = 32;
-        env->icache_line_size = 32;
+        env->dcache_line_size = 64;
+        env->icache_line_size = 64;
         l1cfg0 |= 0x0F83820;
         l1cfg1 |= 0x0B83820;
         break;
