@@ -540,7 +540,7 @@ vubr_accept_cb(int sock, void *ctx)
 static VubrDev *
 vubr_new(const char *path, bool client)
 {
-    VubrDev *dev = (VubrDev *) calloc(1, sizeof(VubrDev));
+    VubrDev *dev = g_new0(VubrDev, 1);
     struct sockaddr_un un;
     CallbackFunc cb;
     size_t len;
