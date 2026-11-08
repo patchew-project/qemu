@@ -3030,7 +3030,7 @@ static void init_proc_e500(CPUPPCState *env, int version)
     if ((version == fsl_e5500) || (version == fsl_e6500)) {
         spr_register(env, SPR_BOOKE_EPCR, "EPCR",
                      SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
+                     &spr_read_generic, &spr_write_generic32,
                      0x00000000);
         spr_register(env, SPR_BOOKE_MAS7_MAS3, "MAS7_MAS3",
                      SPR_NOACCESS, SPR_NOACCESS,
