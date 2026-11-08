@@ -1545,7 +1545,7 @@ static bool trans_XOR(DisasContext *ctx, arg_XOR *a)
 
 static bool trans_CMPB(DisasContext *ctx, arg_CMPB *a)
 {
-    REQUIRE_INSNS_FLAGS2(ctx, ISA205);
+    REQUIRE_INSNS_FLAGS2(ctx, INT_ISA205);
     gen_helper_CMPB(cpu_gpr[a->ra], cpu_gpr[a->rt], cpu_gpr[a->rb]);
     return true;
 }
@@ -1636,7 +1636,7 @@ static bool trans_PRTYW(DisasContext *ctx, arg_PRTYW *a)
     TCGv rs = cpu_gpr[a->rs];
     TCGv t0 = tcg_temp_new();
 
-    REQUIRE_INSNS_FLAGS2(ctx, ISA205);
+    REQUIRE_INSNS_FLAGS2(ctx, INT_ISA205);
     tcg_gen_shri_tl(t0, rs, 16);
     tcg_gen_xor_tl(ra, rs, t0);
     tcg_gen_shri_tl(t0, ra, 8);
@@ -1652,7 +1652,7 @@ static bool trans_PRTYD(DisasContext *ctx, arg_PRTYD *a)
     TCGv t0 = tcg_temp_new();
 
     REQUIRE_64BIT(ctx);
-    REQUIRE_INSNS_FLAGS2(ctx, ISA205);
+    REQUIRE_INSNS_FLAGS2(ctx, INT_ISA205);
     tcg_gen_shri_tl(t0, rs, 32);
     tcg_gen_xor_tl(ra, rs, t0);
     tcg_gen_shri_tl(t0, ra, 16);
