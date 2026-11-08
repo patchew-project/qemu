@@ -2852,15 +2852,22 @@ static void init_proc_e500(CPUPPCState *env, int version)
     env->nb_ways = 2;
     switch (version) {
     case fsl_e500v1:
+        mmucfg = MMUCFG_MAVN_V1 | MMUCFG_NTLBS(2) |
+                 MMUCFG_NPIDS(3) | MMUCFG_PIDSIZE(8);
         tlbncfg[0] = register_tlbncfg(2, 1, 1, 0, 256);
         tlbncfg[1] = register_tlbncfg(16, 1, 9, TLBnCFG_AVAIL | TLBnCFG_IPROT, 16);
         break;
     case fsl_e500v2:
+        mmucfg = MMUCFG_MAVN_V1 | MMUCFG_NTLBS(2) |
+                 MMUCFG_NPIDS(3) | MMUCFG_PIDSIZE(8);
         tlbncfg[0] = register_tlbncfg(4, 1, 1, 0, 512);
         tlbncfg[1] = register_tlbncfg(16, 1, 12, TLBnCFG_AVAIL | TLBnCFG_IPROT, 16);
         break;
     case fsl_e500mc:
     case fsl_e5500:
+        mmucfg = MMUCFG_MAVN_V1 | MMUCFG_NTLBS(2) |
+                 MMUCFG_NPIDS(1) | MMUCFG_PIDSIZE(8) |
+                 MMUCFG_RASIZE(36) | MMUCFG_LPIDSIZE(6);
         tlbncfg[0] = register_tlbncfg(4, 1, 1, 0, 512);
         tlbncfg[1] = register_tlbncfg(64, 1, 12, TLBnCFG_AVAIL | TLBnCFG_IPROT, 64);
         break;
