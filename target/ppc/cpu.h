@@ -2040,6 +2040,7 @@ void ppc_compat_add_property(Object *obj, const char *name,
 #define SPR_BOOKE_DSRR1       (0x23F)
 #define SPR_BOOKE_SPRG8       (0x25C)
 #define SPR_BOOKE_SPRG9       (0x25D)
+#define SPR_Exxx_L1CSR2       (0x25E)
 #define SPR_BOOKE_MAS0        (0x270)
 #define SPR_BOOKE_MAS1        (0x271)
 #define SPR_BOOKE_MAS2        (0x272)
