@@ -914,7 +914,8 @@ static uint8_t base_required_struct_types[] = {
     0, 1, 3, 4, 16, 17, 19, 32, 127
 };
 
-static void test_acpi_ghes_v2_injection(test_data *data)
+static void test_acpi_ghes_v2_injection(test_data *data, bool sci,
+                                        int notif_type)
 {
     const uint8_t cper[20] = { [0] = 2, [16] = 2 }; /* corrected GESB */
     g_autofree char *payload = g_base64_encode(cper, sizeof(cper));
@@ -923,14 +924,18 @@ static void test_acpi_ghes_v2_injection(test_data *data)
     QTestState *qts = data->qts;
     const uint8_t *ghes = NULL;
     AcpiSdtTable *hest = NULL;
+    AcpiSdtTable *fadt = NULL;
     AcpiSdtTable *table;
+    uint8_t gpe_len;
+    uint32_t gpe0;
 
     for (unsigned i = 0; i < data->tables->len; i++) {
         table = &g_array_index(data->tables, AcpiSdtTable, i);
 
         if (compare_signature(table, "HEST")) {
             hest = table;
-            break;
+        } else if (compare_signature(table, "FACP")) {
+            fadt = table;
         }
     }
     g_assert_nonnull(hest);
@@ -945,29 +950,51 @@ static void test_acpi_ghes_v2_injection(test_data *data)
         }
     }
     g_assert_nonnull(ghes);
-    g_assert_cmpuint(ghes[32], ==, 7); /* GPIO notification */
+    g_assert_cmpuint(ghes[32], ==, notif_type);
     status_addr = qtest_readq(qts, ldq_le_p(ghes + 24));
     ack_addr = ldq_le_p(ghes + 68);
     g_assert_cmphex(status_addr, !=, 0);
     g_assert_cmphex(ack_addr, !=, 0);
     g_assert_cmpuint(qtest_readq(qts, ack_addr), ==, 1);
 
+    if (sci) {
+        g_assert_nonnull(fadt);
+        gpe0 = ldl_le_p(fadt->aml + 80);
+        gpe_len = fadt->aml[92];
+        qtest_irq_intercept_in(qts, "ioapic");
+        qtest_outb(qts, gpe0, 0xff);
+        qtest_outb(qts, gpe0 + gpe_len / 2, 0x80);
+    }
+
     for (unsigned i = 0; i < 3; i++) {
+        if (sci) {
+            g_assert_false(qtest_get_irq(qts, 9));
+        }
         qtest_qmp_assert_success(qts,
             "{'execute': 'inject-ghes-v2-error', 'arguments': {'cper': %s}}",
             payload);
         g_assert_cmpuint(qtest_readq(qts, ack_addr), ==, 0);
         qtest_memread(qts, status_addr, actual, sizeof(actual));
         g_assert_cmpmem(actual, sizeof(actual), cper, sizeof(cper));
-
-        /* GED converts the GPIO notification into an Error event. */
-        g_assert_cmphex(qtest_readl(qts, VIRT_ACPI_GED_BASE), ==, 0x20);
-        g_assert_cmphex(qtest_readl(qts, VIRT_ACPI_GED_BASE), ==, 0);
+        if (sci) {
+            g_assert_cmphex(qtest_inb(qts, gpe0) & 0x80, ==, 0x80);
+            g_assert_true(qtest_get_irq(qts, 9));
+        } else {
+            /* GED converts the GPIO notification into an Error event. */
+            g_assert_cmphex(qtest_readl(qts, VIRT_ACPI_GED_BASE), ==, 0x20);
+            g_assert_cmphex(qtest_readl(qts, VIRT_ACPI_GED_BASE), ==, 0);
+        }
 
         /* A second injection must wait for OSPM's acknowledgement. */
         qobject_unref(qtest_qmp_assert_failure_ref(qts,
             "{'execute': 'inject-ghes-v2-error', 'arguments': {'cper': %s}}",
             payload));
+
+        if (sci) {
+            /* Emulate OSPM clearing the edge GPE. */
+            qtest_outb(qts, gpe0, 0x80);
+            g_assert_false(qtest_get_irq(qts, 9));
+        }
         qtest_writeq(qts, ack_addr, 1);
     }
 }
@@ -987,7 +1014,28 @@ static void test_acpi_aarch64_virt_ras(void)
 
     test_vm_prepare("-cpu cortex-a57 -machine ras=on", &data);
     process_acpi_tables_noexit(&data);
-    test_acpi_ghes_v2_injection(&data);
+    test_acpi_ghes_v2_injection(&data, false, 7);
+    qtest_quit(data.qts);
+    free_test_data(&data);
+}
+
+static void test_acpi_x86_ras(const void *opaque)
+{
+    test_data data = {
+        .machine = opaque,
+        .arch = "x86",
+        .variant = ".ras",
+    };
+
+    test_vm_prepare("-machine ras=on", &data);
+    process_acpi_tables_noexit(&data);
+    test_acpi_ghes_v2_injection(&data, true, 3);
+    free_test_data(&data);
+
+    /* Check if fw restored error buffer, then write back HEST on reset. */
+    qtest_system_reset(data.qts);
+    process_acpi_tables_noexit(&data);
+    test_acpi_ghes_v2_injection(&data, true, 3);
     qtest_quit(data.qts);
     free_test_data(&data);
 }
@@ -2883,6 +2931,8 @@ int main(int argc, char *argv[])
         }
         if (qtest_has_machine(MACHINE_PC)) {
             qtest_add_func("acpi/piix4", test_acpi_piix4_tcg);
+            qtest_add_data_func("acpi/piix4/ras", MACHINE_PC,
+                                test_acpi_x86_ras);
             qtest_add_func("acpi/piix4/oem-fields", test_acpi_piix4_oem_fields);
             qtest_add_func("acpi/piix4/bridge", test_acpi_piix4_tcg_bridge);
             qtest_add_func("acpi/piix4/pci-hotplug/no_root_hotplug",
@@ -2921,6 +2971,7 @@ int main(int argc, char *argv[])
         }
         if (qtest_has_machine(MACHINE_Q35)) {
             qtest_add_func("acpi/q35", test_acpi_q35_tcg);
+            qtest_add_data_func("acpi/q35/ras", MACHINE_Q35, test_acpi_x86_ras);
             qtest_add_func("acpi/q35/oem-fields", test_acpi_q35_oem_fields);
             if (tpm_model_is_available("-machine q35", "tpm-tis")) {
                 qtest_add_func("acpi/q35/tpm2-tis", test_acpi_q35_tcg_tpm2_tis);
