@@ -2965,6 +2965,10 @@ static void init_proc_e500(CPUPPCState *env, int version)
                  &spr_read_generic, &spr_write_e500_l1csr1,
                  0x00000000);
     if (version != fsl_e500v1 && version != fsl_e500v2) {
+        spr_register(env, SPR_Exxx_L1CSR2, "L1CSR2",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic32,
+                     0x00000000);
         spr_register(env, SPR_Exxx_L2CSR0, "L2CSR0",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_e500_l2csr0,
