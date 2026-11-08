@@ -51,6 +51,7 @@
 #include "qemu/error-report.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/pc-hotplug.h"
+#include "hw/acpi/ghes.h"
 #include "acpi-build.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/cxl/cxl_host.h"
@@ -1608,6 +1609,34 @@ static void pc_machine_set_max_fw_size(Object *obj, Visitor *v,
     pcms->max_fw_size = value;
 }
 
+static bool pc_machine_get_ras(Object *obj, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    return pcms->ras;
+}
+
+static void pc_machine_set_ras(Object *obj, bool value, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    pcms->ras = value;
+}
+
+static void pc_sci_error(Notifier *n, void *opaque)
+{
+    PCMachineState *pcms = container_of(n, PCMachineState, ghes_sci_notifier);
+    X86MachineState *x86ms = X86_MACHINE(pcms);
+    uint16_t *source_id = opaque;
+
+    /* Currently, only QMP injection is supported */
+    if (!pcms->ras || !x86ms->acpi_dev ||
+        *source_id != ACPI_HEST_SRC_ID_QMP) {
+        return;
+    }
+
+    acpi_send_event(DEVICE(x86ms->acpi_dev), ACPI_GENERIC_ERROR);
+}
 
 static void pc_machine_initfn(Object *obj)
 {
@@ -1642,11 +1671,17 @@ static void pc_machine_initfn(Object *obj)
     if (pcmc->pci_enabled) {
         cxl_machine_init(obj, &pcms->cxl_devices_state);
     }
+
+    pcms->ghes_sci_notifier.notify = pc_sci_error;
+    notifier_list_add(&acpi_generic_error_notifiers,
+                        &pcms->ghes_sci_notifier);
 }
 
 static void pc_machine_finalize(Object *obj)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
+
+    notifier_remove(&pcms->ghes_sci_notifier);
 
     if (pcms->pcspk && !qdev_is_realized(DEVICE(pcms->pcspk))) {
         object_unref(OBJECT(pcms->pcspk));
@@ -1772,6 +1807,12 @@ static void pc_machine_class_init(ObjectClass *oc, const void *data)
                               NULL, NULL);
     object_class_property_set_description(oc, PC_MACHINE_SMBIOS_EP,
         "SMBIOS Entry Point type [32, 64]");
+
+    object_class_property_add_bool(oc, "ras", pc_machine_get_ras,
+                                   pc_machine_set_ras);
+    object_class_property_set_description(oc, "ras",
+                                          "Set on/off to enable/disable reporting host memory errors "
+                                          "to a KVM guest using ACPI and guest external abort exceptions");
 
     object_class_property_add_bool(oc, "fd-bootchk",
         pc_machine_get_fd_bootchk,

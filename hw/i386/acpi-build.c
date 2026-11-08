@@ -71,6 +71,7 @@
 #include "hw/acpi/utils.h"
 #include "hw/acpi/pci.h"
 #include "hw/acpi/cxl.h"
+#include "hw/acpi/ghes.h"
 
 #include "qom/qom-qobject.h"
 #include "hw/i386/amd_iommu.h"
@@ -852,6 +853,56 @@ static void build_acpi0017(Aml *table)
     aml_append(table, scope);
 }
 
+/* ACPI 5.0, 6.2.10.2: Platform-Wide OSPM Capabilities. */
+#define ACPI_PLAT_OSPM_CAP "0811B06E-4A27-44F9-8D60-3CBBC22E7B48"
+
+/* ACPI 5.0: Table 6-151: Platform-Wide _OSC caps DWORD 2 */
+#define ACPI_OSC_CAP_APEI  (1U << 4)
+
+static Aml *build_apei_osc(uint32_t mask, uint32_t bits)
+{
+    Aml *method = aml_method("_OSC", 4, AML_SERIALIZED);
+    uint8_t failure[8] = { 2 }; /* _OSC failure */
+    uint32_t disabled = mask & ~bits;
+    Aml *support = aml_name("CDW2");
+    Aml *status = aml_name("CDW1");
+    Aml *if_ctx;
+
+    if_ctx = aml_if(aml_lless(aml_sizeof(aml_arg(3)), aml_int(8)));
+    aml_append(if_ctx, aml_return(aml_buffer(sizeof(failure), failure)));
+    aml_append(method, if_ctx);
+    aml_append(method, aml_create_dword_field(aml_arg(3), aml_int(0), "CDW1"));
+    aml_append(method, aml_create_dword_field(aml_arg(3), aml_int(4), "CDW2"));
+
+    /* Arg0: UUID */
+    if_ctx = aml_if(aml_lnot(aml_equal(aml_arg(0),
+                    aml_touuid(ACPI_PLAT_OSPM_CAP))));
+    aml_append(if_ctx, aml_or(status, aml_int(4), status));
+    aml_append(if_ctx, aml_return(aml_arg(3)));
+    aml_append(method, if_ctx);
+
+    /* Arg1: Revision ID: 1 */
+    if_ctx = aml_if(aml_lnot(aml_equal(aml_arg(1), aml_int(1))));
+    aml_append(if_ctx, aml_or(status, aml_int(8), status));
+    aml_append(if_ctx, aml_return(aml_arg(3)));
+    aml_append(method, if_ctx);
+
+    /* Arg2: count of entries in Arg3: 2 dwords */
+    if_ctx = aml_if(aml_lnot(aml_equal(aml_arg(2), aml_int(2))));
+    aml_append(if_ctx, aml_or(status, aml_int(2), status));
+    aml_append(if_ctx, aml_return(aml_arg(3)));
+    aml_append(method, if_ctx);
+
+    /* Arg3: Second DWORD: caps - update according with mask */
+    aml_append(method, aml_and(support, aml_int(~disabled), aml_local(0)));
+    if_ctx = aml_if(aml_lnot(aml_equal(support, aml_local(0))));
+    aml_append(if_ctx, aml_or(status, aml_int(mask), status));
+    aml_append(method, if_ctx);
+    aml_append(method, aml_store(aml_local(0), support));
+    aml_append(method, aml_return(aml_arg(3)));
+    return method;
+}
+
 static void
 build_dsdt(GArray *table_data, BIOSLinker *linker,
            AcpiPmInfo *pm, AcpiMiscInfo *misc,
@@ -1281,6 +1332,21 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             }
             aml_append(scope, method);
         }
+        aml_append(dsdt, scope);
+    }
+
+    if (pcms->ras) {
+        sb_scope = aml_scope("_SB");
+        aml_append(sb_scope, build_apei_osc(ACPI_OSC_CAP_APEI,
+                                            ACPI_OSC_CAP_APEI));
+        aml_append(sb_scope, aml_error_device());
+        aml_append(dsdt, sb_scope);
+
+        scope = aml_scope("_GPE");
+        method = aml_method("_E07", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_notify(aml_name("\\_SB." ACPI_APEI_ERROR_DEVICE),
+                                      aml_int(0x80)));
+        aml_append(scope, method);
         aml_append(dsdt, scope);
     }
 
@@ -2043,6 +2109,10 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
     return true;
 }
 
+static const AcpiNotificationSourceId hest_ghes_notify[] = {
+    {ACPI_HEST_SRC_ID_QMP, ACPI_GHES_NOTIFY_SCI},
+};
+
 static
 void acpi_build(AcpiBuildTables *tables, MachineState *machine)
 {
@@ -2199,6 +2269,16 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
         cxl_build_cedt(table_offsets, tables_blob, tables->linker,
                        x86ms->oem_id, x86ms->oem_table_id, &pcms->cxl_devices_state);
     }
+    if (pcms->ras) {
+        AcpiGhesState *ags =
+            acpi_device_get_ghes_state(ACPI_DEVICE_IF(x86ms->acpi_dev));
+
+        acpi_add_table(table_offsets, tables_blob);
+        acpi_build_hest(ags, tables_blob, tables->hardware_errors,
+                        tables->linker, hest_ghes_notify,
+                        ARRAY_SIZE(hest_ghes_notify),
+                        x86ms->oem_id, x86ms->oem_table_id);
+    }
 
     acpi_add_table(table_offsets, tables_blob);
     build_waet(tables_blob, tables->linker, x86ms->oem_id, x86ms->oem_table_id);
@@ -2315,6 +2395,21 @@ void acpi_setup(void)
     static FwCfgTPMConfig tpm_config;
 #endif
 
+    if (pcms->ras) {
+        AcpiGhesState *ags = NULL;
+
+        if (x86ms->acpi_dev) {
+            ags = acpi_device_get_ghes_state(ACPI_DEVICE_IF(x86ms->acpi_dev));
+        }
+        if (!x86ms->fw_cfg || !pcms->acpi_build_enabled ||
+            !x86_machine_is_acpi_enabled(x86ms) || !ags) {
+            error_report("ras=on requires ACPI table generation and a PC "
+                         "ACPI controller");
+            exit(EXIT_FAILURE);
+        }
+        ags->use_hest_addr = true;
+    }
+
     if (!x86ms->fw_cfg) {
         ACPI_BUILD_DPRINTF("No fw cfg. Bailing out.\n");
         return;
@@ -2360,6 +2455,13 @@ void acpi_setup(void)
                         &tpm_config, sizeof tpm_config);
     }
 #endif
+
+    if (pcms->ras) {
+        AcpiGhesState *ags =
+            acpi_device_get_ghes_state(ACPI_DEVICE_IF(x86ms->acpi_dev));
+
+        acpi_ghes_add_fw_cfg(ags, x86ms->fw_cfg, tables.hardware_errors);
+    }
 
     vmgenid_dev = find_vmgenid_dev();
     if (vmgenid_dev) {
