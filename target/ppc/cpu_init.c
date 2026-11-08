@@ -3159,6 +3159,12 @@ POWERPC_FAMILY(e500v2)(ObjectClass *oc, const void *data)
                  POWERPC_FLAG_BUS_CLK;
 }
 
+static bool ppc_pvr_match_booke(PowerPCCPUClass *pcc, uint32_t pvr, bool best)
+{
+    /* Match the core version while allowing hardware revision differences */
+    return (pvr & 0xffff0000) == (pcc->pvr & 0xffff0000);
+}
+
 static void init_proc_e500mc(CPUPPCState *env)
 {
     init_proc_e500(env, fsl_e500mc);
@@ -3170,6 +3176,7 @@ POWERPC_FAMILY(e500mc)(ObjectClass *oc, const void *data)
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
 
     dc->desc = "e500mc core";
+    pcc->pvr_match = ppc_pvr_match_booke;
     pcc->init_proc = init_proc_e500mc;
     pcc->check_pow = check_pow_none;
     pcc->check_attn = check_attn_none;
@@ -3218,6 +3225,7 @@ POWERPC_FAMILY(e5500)(ObjectClass *oc, const void *data)
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
 
     dc->desc = "e5500 core";
+    pcc->pvr_match = ppc_pvr_match_booke;
     pcc->init_proc = init_proc_e5500;
     pcc->check_pow = check_pow_none;
     pcc->check_attn = check_attn_none;
@@ -3268,6 +3276,7 @@ POWERPC_FAMILY(e6500)(ObjectClass *oc, const void *data)
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
 
     dc->desc = "e6500 core";
+    pcc->pvr_match = ppc_pvr_match_booke;
     pcc->init_proc = init_proc_e6500;
     pcc->check_pow = check_pow_none;
     pcc->check_attn = check_attn_none;
