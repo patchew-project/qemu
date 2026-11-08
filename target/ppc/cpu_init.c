@@ -2901,6 +2901,14 @@ static void init_proc_e500(CPUPPCState *env, int version)
                   env->spr[SPR_PVR]);
     }
     register_BookE206_sprs(env, 0x000000DF, tlbncfg, mmucfg);
+    if (version != fsl_e500v1 && version != fsl_e500v2) {
+        spr_register(env, SPR_BOOKE_MAS5, "MAS5",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic32, 0);
+        spr_register(env, SPR_BOOKE_MAS8, "MAS8",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic32, 0);
+    }
     register_usprgh_sprs(env);
 
     if (version != fsl_e500v1) {
