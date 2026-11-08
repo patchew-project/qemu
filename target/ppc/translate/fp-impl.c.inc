@@ -324,7 +324,7 @@ TRANS(FNABS, do_move_b, 1ULL << 63, tcg_gen_ori_i64);
 static bool trans_FCPSGN(DisasContext *ctx, arg_FCPSGN *a)
 {
     TCGv_i64 t0, t1, t2;
-    REQUIRE_INSNS_FLAGS2(ctx, ISA205);
+    REQUIRE_INSNS_FLAGS2(ctx, FP_ISA205);
     REQUIRE_FPU(ctx);
     t0 = tcg_temp_new_i64();
     t1 = tcg_temp_new_i64();
@@ -592,13 +592,13 @@ static void gen_mtfsf(DisasContext *ctx)
     flm = FPFLM(ctx->opcode);
     l = FPL(ctx->opcode);
     w = FPW(ctx->opcode);
-    if (unlikely(w & !(ctx->insns_flags2 & PPC2_ISA205))) {
+    if (unlikely(w & !(ctx->insns_flags2 & PPC2_FP_ISA205))) {
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
         return;
     }
     if (!l) {
         t0 = tcg_constant_i32(flm << (w * 8));
-    } else if (ctx->insns_flags2 & PPC2_ISA205) {
+    } else if (ctx->insns_flags2 & PPC2_FP_ISA205) {
         t0 = tcg_constant_i32(0xffff);
     } else {
         t0 = tcg_constant_i32(0xff);
@@ -627,7 +627,7 @@ static void gen_mtfsfi(DisasContext *ctx)
     }
     w = FPW(ctx->opcode);
     bf = FPBF(ctx->opcode);
-    if (unlikely(w & !(ctx->insns_flags2 & PPC2_ISA205))) {
+    if (unlikely(w & !(ctx->insns_flags2 & PPC2_FP_ISA205))) {
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
         return;
     }

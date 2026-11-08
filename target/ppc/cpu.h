@@ -2570,8 +2570,8 @@ enum {
     PPC2_PRCNTL        = 0x0000000000000008ULL,
     /* Byte-reversed, indexed, double-word load and store                    */
     PPC2_DBRX          = 0x0000000000000010ULL,
-    /* Book I 2.05 PowerPC specification                                     */
-    PPC2_ISA205        = 0x0000000000000020ULL,
+    /* ISA 2.05 integer instructions (cmpb, prtyw and prtyd)                 */
+    PPC2_INT_ISA205    = 0x0000000000000020ULL,
     /* POWER ISA 2.07                                                        */
     PPC2_ISA207        = 0x0000000000000040ULL,
     /* ISA 2.06B bpermd                                                      */
@@ -2604,15 +2604,17 @@ enum {
     PPC2_PPE42X        = 0x0000000000100000ULL,
     /* PPE42XM instructions                                                  */
     PPC2_PPE42XM       = 0x0000000000200000ULL,
+    /* ISA 2.05 floating-point instructions and extended FPSCR access        */
+    PPC2_FP_ISA205     = 0x0000000000400000ULL,
 
 #define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_VSX | PPC2_PRCNTL | PPC2_DBRX | \
-                        PPC2_ISA205 | PPC2_ISA207 | PPC2_PERM_ISA206 | \
+                        PPC2_INT_ISA205 | PPC2_ISA207 | PPC2_PERM_ISA206 | \
                         PPC2_DIVE_ISA206 | PPC2_ATOMIC_ISA206 | \
                         PPC2_FP_CVT_ISA206 | PPC2_FP_TST_ISA206 | PPC2_DFP | \
                         PPC2_FP_CVT_S64 | PPC2_TM | PPC2_PM_ISA206 | \
                         PPC2_ISA300 | PPC2_ISA310 | PPC2_MEM_LWSYNC | \
                         PPC2_BCDA_ISA206 | PPC2_PPE42 | PPC2_PPE42X | \
-                        PPC2_PPE42XM)
+                        PPC2_PPE42XM | PPC2_FP_ISA205)
 };
 
 /*****************************************************************************/

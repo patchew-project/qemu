@@ -4403,7 +4403,7 @@ static bool trans_ICBIEP(DisasContext *ctx, arg_X_ea *a)
 static void gen_dform39(DisasContext *ctx)
 {
     if ((ctx->opcode & 0x3) == 0) {
-        if (ctx->insns_flags2 & PPC2_ISA205) {
+        if (ctx->insns_flags2 & PPC2_FP_ISA205) {
             return gen_lfdp(ctx);
         }
     }
@@ -4415,7 +4415,7 @@ static void gen_dform3D(DisasContext *ctx)
 {
     if ((ctx->opcode & 3) == 0) { /* DS-FORM */
         /* stfdp */
-        if (ctx->insns_flags2 & PPC2_ISA205) {
+        if (ctx->insns_flags2 & PPC2_FP_ISA205) {
             return gen_stfdp(ctx);
         }
     }
@@ -4429,9 +4429,11 @@ GEN_HANDLER_E(cp_abort, 0x1F, 0x06, 0x1A, 0x03FFF801, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER_E(paste, 0x1F, 0x06, 0x1C, 0x03C00000, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(rlwnm, 0x17, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 /* handles lfdp, lxsd, lxssp */
-GEN_HANDLER_E(dform39, 0x39, 0xFF, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA205),
+GEN_HANDLER_E(dform39, 0x39, 0xFF, 0xFF, 0x00000000,
+              PPC_NONE, PPC2_FP_ISA205),
 /* handles stfdp, stxsd, stxssp */
-GEN_HANDLER_E(dform3D, 0x3D, 0xFF, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA205),
+GEN_HANDLER_E(dform3D, 0x3D, 0xFF, 0xFF, 0x00000000,
+              PPC_NONE, PPC2_FP_ISA205),
 GEN_HANDLER(mcrxr, 0x1F, 0x00, 0x10, 0x007FF801, PPC_MISC),
 GEN_HANDLER(mfspr, 0x1F, 0x13, 0x0A, 0x00000001, PPC_MISC),
 GEN_HANDLER(mftb, 0x1F, 0x13, 0x0B, 0x00000001, PPC_MFTB),
