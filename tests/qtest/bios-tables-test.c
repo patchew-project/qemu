@@ -68,6 +68,7 @@
 
 #define MACHINE_PC "pc"
 #define MACHINE_Q35 "q35"
+#define VIRT_ACPI_GED_BASE 0x09080000
 
 #define ACPI_REBUILD_EXPECTED_AML "TEST_ACPI_REBUILD_AML"
 
@@ -912,6 +913,84 @@ static void test_acpi_one(const char *params, test_data *data)
 static uint8_t base_required_struct_types[] = {
     0, 1, 3, 4, 16, 17, 19, 32, 127
 };
+
+static void test_acpi_ghes_v2_injection(test_data *data)
+{
+    const uint8_t cper[20] = { [0] = 2, [16] = 2 }; /* corrected GESB */
+    g_autofree char *payload = g_base64_encode(cper, sizeof(cper));
+    uint64_t status_addr, ack_addr;
+    uint8_t actual[sizeof(cper)];
+    QTestState *qts = data->qts;
+    const uint8_t *ghes = NULL;
+    AcpiSdtTable *hest = NULL;
+    AcpiSdtTable *table;
+
+    for (unsigned i = 0; i < data->tables->len; i++) {
+        table = &g_array_index(data->tables, AcpiSdtTable, i);
+
+        if (compare_signature(table, "HEST")) {
+            hest = table;
+            break;
+        }
+    }
+    g_assert_nonnull(hest);
+
+    for (unsigned i = 0; i < ldl_le_p(hest->aml + 36); i++) {
+        const uint8_t *entry = hest->aml + 40 + i * 92;
+
+        g_assert_cmpuint(lduw_le_p(entry), ==, 10); /* GHESv2 */
+        if (lduw_le_p(entry + 2) == 1) { /* QMP source */
+            ghes = entry;
+            break;
+        }
+    }
+    g_assert_nonnull(ghes);
+    g_assert_cmpuint(ghes[32], ==, 7); /* GPIO notification */
+    status_addr = qtest_readq(qts, ldq_le_p(ghes + 24));
+    ack_addr = ldq_le_p(ghes + 68);
+    g_assert_cmphex(status_addr, !=, 0);
+    g_assert_cmphex(ack_addr, !=, 0);
+    g_assert_cmpuint(qtest_readq(qts, ack_addr), ==, 1);
+
+    for (unsigned i = 0; i < 3; i++) {
+        qtest_qmp_assert_success(qts,
+            "{'execute': 'inject-ghes-v2-error', 'arguments': {'cper': %s}}",
+            payload);
+        g_assert_cmpuint(qtest_readq(qts, ack_addr), ==, 0);
+        qtest_memread(qts, status_addr, actual, sizeof(actual));
+        g_assert_cmpmem(actual, sizeof(actual), cper, sizeof(cper));
+
+        /* GED converts the GPIO notification into an Error event. */
+        g_assert_cmphex(qtest_readl(qts, VIRT_ACPI_GED_BASE), ==, 0x20);
+        g_assert_cmphex(qtest_readl(qts, VIRT_ACPI_GED_BASE), ==, 0);
+
+        /* A second injection must wait for OSPM's acknowledgement. */
+        qobject_unref(qtest_qmp_assert_failure_ref(qts,
+            "{'execute': 'inject-ghes-v2-error', 'arguments': {'cper': %s}}",
+            payload));
+        qtest_writeq(qts, ack_addr, 1);
+    }
+}
+
+static void test_acpi_aarch64_virt_ras(void)
+{
+    test_data data = {
+        .machine = "virt",
+        .arch = "aarch64",
+        .tcg_only = true,
+        .uefi_fl1 = "pc-bios/edk2-aarch64-code.fd",
+        .uefi_fl2 = "pc-bios/edk2-aarch64-vars.fd",
+        .cd = "tests/data/uefi-boot-images/bios-tables-test.aarch64.iso.qcow2",
+        .ram_start = 0x40000000ULL,
+        .scan_len = 128ULL * MiB,
+    };
+
+    test_vm_prepare("-cpu cortex-a57 -machine ras=on", &data);
+    process_acpi_tables_noexit(&data);
+    test_acpi_ghes_v2_injection(&data);
+    qtest_quit(data.qts);
+    free_test_data(&data);
+}
 
 static void test_acpi_piix4_tcg(void)
 {
@@ -2930,6 +3009,7 @@ int main(int argc, char *argv[])
     } else if (strcmp(arch, "aarch64") == 0) {
         if (has_tcg && qtest_has_device("virtio-blk-pci")) {
             qtest_add_func("acpi/virt", test_acpi_aarch64_virt_tcg);
+            qtest_add_func("acpi/virt/ras", test_acpi_aarch64_virt_ras);
             qtest_add_func("acpi/virt/acpihmatvirt",
                            test_acpi_aarch64_virt_tcg_acpi_hmat);
             qtest_add_func("acpi/virt/topology",
