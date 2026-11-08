@@ -2865,7 +2865,9 @@ static void init_proc_e500(CPUPPCState *env, int version)
         tlbncfg[1] = register_tlbncfg(64, 1, 12, TLBnCFG_AVAIL | TLBnCFG_IPROT, 64);
         break;
     case fsl_e6500:
-        mmucfg = 0x6510B45;
+        mmucfg = MMUCFG_MAVN_V2 | MMUCFG_NTLBS(2) |
+                 MMUCFG_NPIDS(1) | MMUCFG_PIDSIZE(14) | MMUCFG_LRAT |
+                 MMUCFG_RASIZE(40) | MMUCFG_LPIDSIZE(6);
         env->nb_pids = 1;
         tlbncfg[0] = 0x08052400;
         tlbncfg[1] = 0x40028040;
