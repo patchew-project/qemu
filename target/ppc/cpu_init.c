@@ -2824,7 +2824,7 @@ static void init_proc_e500(CPUPPCState *env, int version)
         ivor_mask = 0x000003FE0000FFFFULL;
         break;
     case fsl_e6500:
-        ivor_mask = 0x000003FF0000FFFFULL;
+        ivor_mask = 0x000007FF0000FFFFULL;
         break;
     }
     register_BookE_sprs(env, ivor_mask);
