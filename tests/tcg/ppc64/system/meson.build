@@ -6,6 +6,7 @@ ppc64_system_cflags = ppc_system_cflags + ['-m64']
 tests = []
 foreach cpu: ['e5500', 'e6500']
   sources = ppc_system_sources
+  sources += ['byte-parity.S']
   foreach src: sources
     tests += {
       '../ppc/system/' + src: {
