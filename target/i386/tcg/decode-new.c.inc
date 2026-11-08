@@ -1423,8 +1423,8 @@ static const X86OpEntry opcodes_0F[256] = {
     [0xf6] = X86_OP_ENTRY3(PSADBW,   V,x, H,x, W,x,         vex4 mmx avx2_256 p_00_66),
     [0xf7] = X86_OP_ENTRY3(MASKMOV,  None,None, V,dq, U,dq, vex4_unal avx2_256 mmx p_00_66),
 
-    [0x08] = X86_OP_ENTRY0(NOP,           svm(INVD)),
-    [0x09] = X86_OP_ENTRY0(NOP,           svm(WBINVD)),
+    [0x08] = X86_OP_ENTRY0(NOP,           chk(cpl0) svm(INVD)),
+    [0x09] = X86_OP_ENTRY0(NOP,           chk(cpl0) svm(WBINVD)),
     [0x0b] = X86_OP_ENTRY0(UD),           /* UD2 */
     [0x0d] = X86_OP_ENTRY1(NOP,  M,v),    /* 3DNow! prefetch */
     [0x0e] = X86_OP_ENTRY0(EMMS,                              cpuid(3DNOW)), /* femms */
