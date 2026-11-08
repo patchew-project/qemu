@@ -11,7 +11,7 @@ ppc_system_cflags = ['-nostdlib', '-ffreestanding', '-mcpu=power6',
                      '-Wl,-T', ppc_system_link_script, ppc_system_boot]
 ppc_system_qemu_args = ['-M', 'ppce500', '-accel', 'tcg', '-display', 'none',
                         '-serial', 'stdio', '-monitor', 'none', '-nic', 'none']
-ppc_system_sources = ['unsupported.S']
+ppc_system_sources = ['unsupported.S', 'fpscr.S']
 
 tests = []
 foreach src: ppc_system_sources
