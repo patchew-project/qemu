@@ -60,6 +60,7 @@
 
 #include "qemu/memalign.h"
 #include "qemu/mmap-alloc.h"
+#include "qemu/mmap-vma.h"
 
 #define MAX_MEM_PREALLOC_THREAD_COUNT 32
 
@@ -741,6 +742,8 @@ void *qemu_alloc_stack(size_t *sz)
         perror("failed to allocate memory for stack");
         abort();
     }
+
+    qemu_name_vma(ptr, *sz, "coroutine-stack");
 
     /* Stack grows down -- guard page at the bottom. */
     if (mprotect(ptr, pagesz, PROT_NONE) != 0) {
