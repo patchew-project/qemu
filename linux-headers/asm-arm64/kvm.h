@@ -34,8 +34,8 @@
 #ifndef __ASSEMBLER__
 #include <linux/psci.h>
 #include <linux/types.h>
-#include <asm/ptrace.h>
-#include <asm/sve_context.h>
+#include "asm-arm64/ptrace.h"
+#include "asm-arm64/sve_context.h"
 
 #define __KVM_HAVE_IRQ_LINE
 #define __KVM_HAVE_VCPU_EVENTS

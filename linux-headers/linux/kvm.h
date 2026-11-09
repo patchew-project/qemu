@@ -2,6 +2,10 @@
 #ifndef __LINUX_KVM_H
 #define __LINUX_KVM_H
 
+#ifndef QEMU_KVM_H
+#error Including <linux/kvm.h> directly is prohibited, use "system/kvm.h" instead
+#endif
+
 /*
  * Userspace interface for /dev/kvm - kernel based virtual machine
  *
@@ -13,7 +17,6 @@
 
 #include <linux/stddef.h>
 #include <linux/ioctl.h>
-#include <asm/kvm.h>
 
 
 #define KVM_API_VERSION 12

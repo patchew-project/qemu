@@ -13,26 +13,26 @@
 #ifndef _ASM_UNISTD_H
 #define _ASM_UNISTD_H
 
-#include <asm/sgidefs.h>
+#include "asm-mips/sgidefs.h"
 
 #if _MIPS_SIM == _MIPS_SIM_ABI32
 
 #define __NR_Linux	4000
-#include <asm/unistd_o32.h>
+#include "asm-mips/unistd_o32.h"
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
 
 #if _MIPS_SIM == _MIPS_SIM_ABI64
 
 #define __NR_Linux	5000
-#include <asm/unistd_n64.h>
+#include "asm-mips/unistd_n64.h"
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
 
 #if _MIPS_SIM == _MIPS_SIM_NABI32
 
 #define __NR_Linux	6000
-#include <asm/unistd_n32.h>
+#include "asm-mips/unistd_n32.h"
 
 #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */
 

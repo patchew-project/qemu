@@ -14,10 +14,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include <asm/bitsperlong.h>
+#include "asm-riscv/bitsperlong.h"
 
 #if __BITS_PER_LONG == 64
-#include <asm/unistd_64.h>
+#include "asm-riscv/unistd_64.h"
 #else
-#include <asm/unistd_32.h>
+#include "asm-riscv/unistd_32.h"
 #endif

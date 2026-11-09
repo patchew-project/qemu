@@ -11,9 +11,9 @@
 #define _ASM_POWERPC_UNISTD_H_
 
 #ifndef __powerpc64__
-#include <asm/unistd_32.h>
+#include "asm-powerpc/unistd_32.h"
 #else
-#include <asm/unistd_64.h>
+#include "asm-powerpc/unistd_64.h"
 #endif
 
 #endif /* _ASM_POWERPC_UNISTD_H_ */

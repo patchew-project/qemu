@@ -8,6 +8,6 @@
 #ifndef _ASM_S390_UNISTD_H_
 #define _ASM_S390_UNISTD_H_
 
-#include <asm/unistd_64.h>
+#include "asm-s390/unistd_64.h"
 
 #endif /* _ASM_S390_UNISTD_H_ */
