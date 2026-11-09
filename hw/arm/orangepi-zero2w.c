@@ -13,8 +13,12 @@
 #include "qemu/error-report.h"
 #include "hw/core/boards.h"
 #include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
 #include "hw/arm/allwinner-h618.h"
 #include "hw/arm/boot.h"
+#include "hw/core/loader.h"
+#include "hw/sd/sd.h"
+#include "system/blockdev.h"
 
 #define TYPE_ORANGEPI_ZERO2W_MACHINE MACHINE_TYPE_NAME("orangepi-zero2w")
 OBJECT_DECLARE_SIMPLE_TYPE(OrangePiZero2WMachineState, ORANGEPI_ZERO2W_MACHINE)
@@ -29,12 +33,10 @@ static void orangepi_zero2w_init(MachineState *machine)
 {
     OrangePiZero2WMachineState *opms = ORANGEPI_ZERO2W_MACHINE(machine);
     AwH618State *h618;
-
-    /* BIOS is not supported by this board */
-    if (machine->firmware) {
-        error_report("BIOS not supported for this machine");
-        exit(1);
-    }
+    DriveInfo *di;
+    BlockBackend *blk;
+    BusState *bus;
+    DeviceState *carddev;
 
     h618 = AW_H618(object_new(TYPE_AW_H618));
     object_property_add_child(OBJECT(machine), "soc", OBJECT(h618));
@@ -51,6 +53,15 @@ static void orangepi_zero2w_init(MachineState *machine)
     /* Mark H618 object realized */
     qdev_realize(DEVICE(h618), NULL, &error_abort);
 
+    /* Retrieve SD bus and plug in SD card */
+    di = drive_get(IF_SD, 0, 0);
+    blk = di ? blk_by_legacy_dinfo(di) : NULL;
+    bus = qdev_get_child_bus(DEVICE(h618), "sd-bus");
+
+    carddev = qdev_new(TYPE_SD_CARD);
+    qdev_prop_set_drive_err(carddev, "drive", blk, &error_fatal);
+    qdev_realize_and_unref(carddev, bus, &error_fatal);
+
     /* SDRAM */
     memory_region_add_subregion(get_system_memory(),
                                 h618->memmap[AW_H618_DEV_SDRAM],
@@ -59,6 +70,24 @@ static void orangepi_zero2w_init(MachineState *machine)
     opms->bootinfo.loader_start = h618->memmap[AW_H618_DEV_SDRAM];
     opms->bootinfo.ram_size = machine->ram_size;
     opms->bootinfo.psci_conduit = QEMU_PSCI_CONDUIT_SMC;
+
+    /* Load firmware if specified (-bios) */
+    if (machine->firmware) {
+        hwaddr firmware_addr = 0x40080000;
+        int r;
+
+        r = load_image_targphys(machine->firmware, firmware_addr,
+                                machine->ram_size -
+                                (firmware_addr - 0x40000000), NULL);
+        if (r < 0) {
+            error_report("Failed to load firmware from %s", machine->firmware);
+            exit(1);
+        }
+
+        opms->bootinfo.entry = firmware_addr;
+        opms->bootinfo.firmware_loaded = true;
+    }
+
     arm_load_kernel(&h618->cpus[0], machine, &opms->bootinfo);
 }
 
