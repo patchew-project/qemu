@@ -35,9 +35,11 @@
 #include "qemu/cutils.h"
 #include "qemu/main-loop.h"
 
+#include "qapi/qapi-commands-block-core.h"
 #include "qapi/qapi-visit-sockets.h"
 #include "qobject/qstring.h"
 #include "qapi/clone-visitor.h"
+#include "qapi/error.h"
 
 #include "block/qdict.h"
 #include "block/nbd.h"
@@ -2245,6 +2247,61 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
 };
+
+XDbgNbdClient *qmp_x_debug_query_nbd_client(const char *node_name,
+                                            Error **errp)
+{
+    BlockDriverState *bs;
+    BDRVNBDState *s;
+    XDbgNbdClient *info;
+
+    bs = bdrv_find_node(node_name);
+    if (!bs) {
+        error_setg(errp, "Node '%s' not found", node_name);
+        return NULL;
+    }
+
+    if (bs->drv != &bdrv_nbd &&
+        bs->drv != &bdrv_nbd_tcp &&
+        bs->drv != &bdrv_nbd_unix) {
+        error_setg(errp, "Node '%s' is not an NBD client", node_name);
+        return NULL;
+    }
+
+    s = bs->opaque;
+    info = g_new0(XDbgNbdClient, 1);
+    WITH_QEMU_LOCK_GUARD(&s->requests_lock) {
+        switch (s->state) {
+        case NBD_CLIENT_CONNECTING_WAIT:
+            info->state = XDBG_NBD_CLIENT_STATE_CONNECTING_WAIT;
+            break;
+        case NBD_CLIENT_CONNECTING_NOWAIT:
+            info->state = XDBG_NBD_CLIENT_STATE_CONNECTING_NOWAIT;
+            break;
+        case NBD_CLIENT_CONNECTED:
+            info->state = XDBG_NBD_CLIENT_STATE_CONNECTED;
+            break;
+        case NBD_CLIENT_QUIT:
+            info->state = XDBG_NBD_CLIENT_STATE_QUIT;
+            break;
+        }
+    }
+
+    switch (nbd_client_connection_get_thread_state(s->conn)) {
+    case NBD_CLIENT_CONNECTION_THREAD_IDLE:
+        break;
+    case NBD_CLIENT_CONNECTION_THREAD_RUNNING:
+        info->connector = g_new0(XDbgNbdClientConnector, 1);
+        info->connector->state = XDBG_NBD_CLIENT_CONNECTOR_STATE_RUNNING;
+        break;
+    case NBD_CLIENT_CONNECTION_THREAD_PARKED:
+        info->connector = g_new0(XDbgNbdClientConnector, 1);
+        info->connector->state = XDBG_NBD_CLIENT_CONNECTOR_STATE_PARKED;
+        break;
+    }
+
+    return info;
+}
 
 static void bdrv_nbd_init(void)
 {

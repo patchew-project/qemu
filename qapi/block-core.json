@@ -2218,6 +2218,85 @@
   'allow-preconfig': true }
 
 ##
+# @XDbgNbdClientState:
+#     Enum of NBD client state.
+#
+# @connecting-wait: No active connection.  A request waits for the
+#     connection attempt to finish, while reconnect-delay has not
+#     expired.
+#
+# @connecting-nowait: No active connection.  A request fails at once
+#     if no channel is ready.
+#
+# @connected: Client has a valid connection.
+#
+# @quit: Client will not reconnect.
+#
+# Since: 11.2
+##
+{ 'enum': 'XDbgNbdClientState',
+  'data': [ 'connecting-wait', 'connecting-nowait', 'connected', 'quit' ] }
+
+##
+# @XDbgNbdClientConnectorState:
+#     Enum of NBD client connector state.
+#
+# @running: Connection attempt is in progress.
+#
+# @parked: Connection was successful and channel is kept for the next
+#     request.
+#
+# Since: 11.2
+##
+{ 'enum': 'XDbgNbdClientConnectorState',
+  'data': [ 'running', 'parked' ] }
+
+##
+# @XDbgNbdClientConnector:
+#     The NBD connector information.
+#
+# @state: State of the connector.
+#
+# Since: 11.2
+##
+{ 'struct': 'XDbgNbdClientConnector',
+  'data': { 'state': 'XDbgNbdClientConnectorState' } }
+
+##
+# @XDbgNbdClient:
+#     The NBD connection state of the client and its connector.
+#     The two members are read independently and may not reflect a
+#     single point in time.
+#
+# @state: The client state.
+#
+# @connector: The connector details.  Only present while a connection
+#     attempt is running or its channel is parked.
+#
+# Since: 11.2
+##
+{ 'struct': 'XDbgNbdClient',
+  'data': { 'state': 'XDbgNbdClientState',
+            '*connector': 'XDbgNbdClientConnector' } }
+
+##
+# @x-debug-query-nbd-client:
+#     Get the NBD client state.
+#
+# @node-name: node name of the NBD client to query.
+#
+# Features:
+#
+# @unstable: This command is meant for debugging and testing.
+#
+# Since: 11.2
+##
+{ 'command': 'x-debug-query-nbd-client',
+  'data': { 'node-name': 'str' },
+  'returns': 'XDbgNbdClient',
+  'features': [ 'unstable' ] }
+
+##
 # @drive-mirror:
 #     Start mirroring a block device's writes to a new destination.
 #     target specifies the target of the new image.  If the file
