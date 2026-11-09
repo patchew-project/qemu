@@ -1,3 +1,7 @@
+config ALLWINNER_SDHOST
+    bool
+    select SD
+
 config PL181
     bool
     select SD

@@ -310,6 +310,7 @@ config ALLWINNER_H3
     select ALLWINNER_I2C
     select ALLWINNER_WDT
     select ALLWINNER_SID
+    select ALLWINNER_SDHOST
     select SERIAL_MM
     select ARM_TIMER
     select ARM_GIC
