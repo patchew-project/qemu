@@ -803,6 +803,7 @@ void pcie_cap_slot_reset(PCIDevice *dev)
                                  PCI_EXP_SLTSTA_PDC |
                                  PCI_EXP_SLTSTA_ABP);
 
+    pcie_cap_slot_link_up(dev);
     pcie_cap_update_power(dev);
     hotplug_event_update_event_status(dev);
 }
@@ -944,6 +945,38 @@ int pcie_cap_slot_post_load(void *opaque, int version_id)
 void pcie_cap_slot_push_attention_button(PCIDevice *dev)
 {
     pcie_cap_slot_event(dev, PCI_EXP_HP_EV_ABP);
+}
+
+/*
+ * PCIe r6.5, sec 7.5.3.8: setting the SBR bit eventually transitions
+ * the port to DL_Down, clearing DLLLA.
+ */
+void pcie_cap_slot_link_down(PCIDevice *dev)
+{
+    assert(pci_is_express_downstream_port(dev));
+    uint8_t *exp_cap = dev->config + dev->exp.exp_cap;
+
+    pci_word_test_and_clear_mask(exp_cap + PCI_EXP_LNKSTA,
+                                 PCI_EXP_LNKSTA_DLLLA);
+}
+
+/*
+ * PCIe r6.5, sec 7.5.3.8: on SBR de-assertion the link retrains and
+ * DLLLA is re-asserted if a device is still present.
+ */
+void pcie_cap_slot_link_up(PCIDevice *dev)
+{
+    assert(pci_is_express_downstream_port(dev));
+    PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(dev));
+    uint8_t *exp_cap = dev->config + dev->exp.exp_cap;
+    uint32_t lnkcap = pci_get_long(exp_cap + PCI_EXP_LNKCAP);
+
+    if (sec_bus->devices[0] &&
+        (dev->cap_present & QEMU_PCIE_LNKSTA_DLLLA ||
+         (lnkcap & PCI_EXP_LNKCAP_DLLLARC))) {
+        pci_word_test_and_set_mask(exp_cap + PCI_EXP_LNKSTA,
+                                   PCI_EXP_LNKSTA_DLLLA);
+    }
 }
 
 /* root control/capabilities/status. PME isn't emulated for now */

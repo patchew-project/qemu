@@ -33,6 +33,7 @@
 #include "qemu/units.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/pci/pcie.h"
 #include "qemu/module.h"
 #include "qemu/range.h"
 #include "qapi/error.h"
@@ -274,8 +275,18 @@ void pci_bridge_write_config(PCIDevice *d,
 
     newctl = pci_get_word(d->config + PCI_BRIDGE_CONTROL);
     if (~oldctl & newctl & PCI_BRIDGE_CTL_BUS_RESET) {
-        /* Trigger hot reset on 0->1 transition. */
+        /* SBR assertion (0->1): bring link down, then reset devices. */
+        if (pci_is_express_downstream_port(d)) {
+            pcie_cap_slot_link_down(d);
+        }
         bus_cold_reset(BUS(&s->sec_bus));
+    }
+
+    if (oldctl & ~newctl & PCI_BRIDGE_CTL_BUS_RESET) {
+        /* SBR de-assertion (1->0): bring link back up. */
+        if (pci_is_express_downstream_port(d)) {
+            pcie_cap_slot_link_up(d);
+        }
     }
 }
 
