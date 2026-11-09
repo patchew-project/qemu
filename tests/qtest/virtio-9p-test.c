@@ -1009,6 +1009,123 @@ static void fs_deep_absolute_path(void *obj, void *data,
     g_string_free(path, TRUE);
 }
 
+/*
+ * Tests for directories that are traversable (x) but not readable (r) by the
+ * user running QEMU, like a Nix store directory with mode 0751 or 1771 shared
+ * with a VM by a user that is not in its group: listing such a directory
+ * must fail, but all entries with known names must still be accessible.
+ */
+#define UNREADABLE_DIR_MODE 0111
+#define UNREADABLE_DIR_FILE_CONTENT "known file content\n"
+
+/* creates "<dir>/known/file", then removes read permission from <dir> */
+static void create_unreadable_dir(const char *dir)
+{
+    g_autofree char *known = g_build_filename(dir, "known", NULL);
+    g_autofree char *file = g_build_filename(known, "file", NULL);
+
+    g_assert(g_mkdir_with_parents(known, 0755) == 0);
+    g_assert(g_file_set_contents(file, UNREADABLE_DIR_FILE_CONTENT, -1, NULL));
+    g_assert(chmod(dir, UNREADABLE_DIR_MODE) == 0);
+}
+
+/* true if the permission setup is ineffective, e.g. because we are root */
+static bool unreadable_dir_is_readable(const char *dir)
+{
+    DIR *d = opendir(dir);
+
+    if (d) {
+        closedir(d);
+        return true;
+    }
+    g_assert_cmpint(errno, ==, EACCES);
+    return false;
+}
+
+/*
+ * Walk to and read "known/file" in the unreadable directory @dir_path (NULL
+ * for the export root), and check that the unreadable directory can't be
+ * listed.
+ */
+static void do_unreadable_dir_checks(QVirtio9P *v9p, const char *dir_path)
+{
+    const uint32_t len = strlen(UNREADABLE_DIR_FILE_CONTENT);
+    g_autofree char *buf = g_malloc0(len + 1);
+    g_autofree char *file_path =
+        g_build_filename(dir_path ? dir_path : "", "known/file", NULL);
+    struct v9fs_attr attr;
+    uint32_t fid_dir, fid_file, count;
+    uint16_t nwqid;
+
+    /* the unreadable dir itself can be walked to and stat'ed ... */
+    fid_dir = twalk({ .client = v9p, .fid = 0, .path = dir_path }).newfid;
+    tgetattr({
+        .client = v9p, .fid = fid_dir, .request_mask = P9_GETATTR_BASIC,
+        .rgetattr.attr = &attr
+    });
+    g_assert_cmpint(attr.mode & 07777, ==, UNREADABLE_DIR_MODE);
+    /* ... but not opened for listing */
+    tlopen({
+        .client = v9p, .fid = fid_dir, .flags = O_RDONLY | O_DIRECTORY,
+        .expectErr = EACCES
+    });
+
+    /* entries with known names in it are fully accessible */
+    /* (a partial walk is not an error on protocol level, so check nwqid) */
+    fid_file = twalk({
+        .client = v9p, .fid = 0, .path = file_path,
+        .rwalk = { .nwqid = &nwqid }
+    }).newfid;
+    g_assert_cmpint(nwqid, ==, dir_path ? 3 : 2);
+    tgetattr({
+        .client = v9p, .fid = fid_file, .request_mask = P9_GETATTR_BASIC,
+        .rgetattr.attr = &attr
+    });
+    g_assert_cmpint(attr.size, ==, len);
+    tlopen({ .client = v9p, .fid = fid_file, .flags = O_RDONLY });
+    count = tread({
+        .client = v9p, .fid = fid_file, .offset = 0, .count = len,
+        .rread = { .count = &count, .data = buf }
+    }).count;
+    g_assert_cmpint(count, ==, len);
+    g_assert_cmpstr(buf, ==, UNREADABLE_DIR_FILE_CONTENT);
+}
+
+/* non-readable but traversable directory within the export root */
+static void fs_walk_unreadable_dir(void *obj, void *data,
+                                   QGuestAllocator *t_alloc)
+{
+    QVirtio9P *v9p = obj;
+    v9fs_set_allocator(t_alloc);
+    g_autofree char *dir = virtio_9p_test_path("unreadable_dir");
+
+    create_unreadable_dir(dir);
+    if (unreadable_dir_is_readable(dir)) {
+        g_test_skip("Directory permissions are not enforced (root?)");
+        return;
+    }
+
+    tattach({ .client = v9p });
+    do_unreadable_dir_checks(v9p, "unreadable_dir");
+}
+
+/* the export root itself is non-readable but traversable */
+static void fs_attach_unreadable_root(void *obj, void *data,
+                                      QGuestAllocator *t_alloc)
+{
+    QVirtio9P *v9p = obj;
+    v9fs_set_allocator(t_alloc);
+    g_autofree char *root = virtio_9p_test_path("");
+
+    if (unreadable_dir_is_readable(root)) {
+        g_test_skip("Directory permissions are not enforced (root?)");
+        return;
+    }
+
+    tattach({ .client = v9p });
+    do_unreadable_dir_checks(v9p, NULL);
+}
+
 static void fs_local_xattr_limit_default(void *obj, void *data,
                                          QGuestAllocator *t_alloc)
 {
@@ -1067,6 +1184,18 @@ static void assign_9p_local_driver_with_args(GString *cmd_line,
 static void *assign_9p_local_driver(GString *cmd_line, void *arg)
 {
     assign_9p_local_driver_with_args(cmd_line, NULL);
+    return arg;
+}
+
+static void *assign_9p_local_driver_unreadable_root(GString *cmd_line,
+                                                   void *arg)
+{
+    g_autofree char *root = NULL;
+
+    assign_9p_local_driver_with_args(cmd_line, NULL);
+    /* must be set up before QEMU opens the export root */
+    root = virtio_9p_test_path("");
+    create_unreadable_dir(root);
     return arg;
 }
 
@@ -1140,6 +1269,8 @@ static void register_virtio_9p_test(void)
                  &opts);
     qos_add_test("local/deep_absolute_path", "virtio-9p",
                  fs_deep_absolute_path, &opts);
+    qos_add_test("local/walk/unreadable_dir", "virtio-9p",
+                 fs_walk_unreadable_dir, &opts);
     qos_add_test("local/xattr_limit/default", "virtio-9p",
                  fs_local_xattr_limit_default, &opts);
     opts.before = local_max_xattr_custom_opt;
@@ -1148,6 +1279,9 @@ static void register_virtio_9p_test(void)
     opts.before = local_max_xattr_unlimited_opt;
     qos_add_test("local/xattr_limit/unlimited", "virtio-9p",
                  fs_local_xattr_limit_unlimited, &opts);
+    opts.before = assign_9p_local_driver_unreadable_root;
+    qos_add_test("local/attach/unreadable_root", "virtio-9p",
+                 fs_attach_unreadable_root, &opts);
 }
 
 libqos_init(register_virtio_9p_test);
