@@ -1115,7 +1115,7 @@ static int model_cmp(char **a, char **b)
 
 static void show_nic_models(void)
 {
-    GPtrArray *results = g_ptr_array_new();
+    g_autoptr(GPtrArray) results = g_ptr_array_new_with_free_func(g_free);
     int i;
 
     g_hash_table_foreach_remove(nic_model_help, add_nic_result, results);
