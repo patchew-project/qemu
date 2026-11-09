@@ -526,3 +526,16 @@ If the user requests a modern x86 CPU model (i.e. not one of ``486``,
 ``athlon``, ``kvm32``, ``pentium``, ``pentium2``, ``pentium3``or ``qemu32``)
 a warning will be displayed until a future QEMU version when such CPUs will
 be rejected.
+
+Block drivers
+-------------
+
+QED (since 12.0)
+''''''''''''''''
+
+The QED disk image format is not actively maintained and qcow2 has exceeded its
+features and performance for many years. Since QED was never widely deployed,
+the format is not required for compatibility reasons. It is unlikely that
+qemu-img users still need to convert images to or from QED.
+
+Use qcow2 instead of QED.
