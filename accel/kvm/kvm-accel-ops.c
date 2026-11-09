@@ -25,7 +25,6 @@
 #include "qemu/guest-random.h"
 #include "qapi/error.h"
 
-#include <linux/kvm.h>
 #include "kvm-cpus.h"
 
 static void *kvm_vcpu_thread_fn(void *arg)

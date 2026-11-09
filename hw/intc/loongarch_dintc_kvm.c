@@ -7,7 +7,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/intc/loongarch_dintc.h"
-#include "linux/kvm.h"
 #include "qapi/error.h"
 #include "system/kvm.h"
 

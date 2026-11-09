@@ -35,7 +35,7 @@
 
 /* For dirty ring test; so far only x86_64 is supported */
 #if defined(__linux__) && defined(HOST_X86_64)
-#include "linux/kvm.h"
+#include "system/kvm.h"
 #endif
 
 GQueue *tests;

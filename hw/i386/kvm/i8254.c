@@ -24,7 +24,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <linux/kvm.h>
 #include "qapi/qapi-types-machine.h"
 #include "qapi/error.h"
 #include "qemu/module.h"

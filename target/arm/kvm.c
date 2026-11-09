@@ -13,8 +13,6 @@
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
 
-#include <linux/kvm.h>
-
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"

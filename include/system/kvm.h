@@ -29,6 +29,7 @@
 # endif
 #else
 # define CONFIG_KVM_IS_POSSIBLE
+# include <linux/kvm.h>
 #endif
 
 #ifdef CONFIG_KVM_IS_POSSIBLE

@@ -13,7 +13,6 @@
 
 #include "qemu/osdep.h"
 
-#include <linux/kvm.h>
 #include <linux/kvm_para.h>
 #include <linux/psp-sev.h>
 

@@ -27,7 +27,6 @@
 #include "exec/cpu-common.h"
 #include "qapi/error.h"
 
-#include <linux/kvm.h>
 #include "qom/object.h"
 
 #define TYPE_KVM_CLOCK "kvmclock"

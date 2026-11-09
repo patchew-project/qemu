@@ -14,9 +14,10 @@
 #ifndef ARM_KVM_CONSTS_H
 #define ARM_KVM_CONSTS_H
 
+#include "system/kvm.h"
+
 #ifdef COMPILING_PER_TARGET
 #ifdef CONFIG_KVM
-#include <linux/kvm.h>
 #include <linux/psci.h>
 #define MISMATCH_CHECK(X, Y) QEMU_BUILD_BUG_ON(X != Y)
 #endif

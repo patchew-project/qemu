@@ -24,7 +24,7 @@
 #include <sys/syscall.h>
 #include <sys/resource.h>
 
-#include <linux/kvm.h>
+#include "system/kvm.h"
 #include <linux/kvm_para.h>
 #include "standard-headers/asm-x86/kvm_para.h"
 #include "hw/xen/interface/arch-x86/cpuid.h"

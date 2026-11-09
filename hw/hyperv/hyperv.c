@@ -15,7 +15,6 @@
 #include "system/memory.h"
 #include "exec/target_page.h"
 #include "exec/cpu-common.h"
-#include "linux/kvm.h"
 #include "system/kvm.h"
 #include "system/physmem.h"
 #include "qemu/bitops.h"

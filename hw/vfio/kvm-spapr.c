@@ -7,7 +7,7 @@
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
-#include <linux/kvm.h>
+#include "system/kvm.h"
 
 #include "hw/vfio/vfio-container-legacy.h"
 #include "hw/vfio/kvm-spapr.h"

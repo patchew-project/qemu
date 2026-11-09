@@ -20,8 +20,6 @@
 #include <sys/ioctl.h>
 #include <sys/prctl.h>
 
-#include <linux/kvm.h>
-
 #include "qemu/timer.h"
 #include "qapi/error.h"
 #include "qapi/qapi-builtin-type-infos.h"

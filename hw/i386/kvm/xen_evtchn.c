@@ -43,7 +43,6 @@
 
 #include "system/kvm.h"
 #include "system/kvm_xen.h"
-#include <linux/kvm.h>
 #include <sys/eventfd.h>
 
 #include "hw/xen/interface/memory.h"

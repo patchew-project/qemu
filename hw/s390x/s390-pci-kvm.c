@@ -11,7 +11,7 @@
 
 #include "qemu/osdep.h"
 
-#include <linux/kvm.h>
+#include "system/kvm.h"
 
 #include "kvm/kvm_s390x.h"
 #include "target/s390x/kvm/pv.h"

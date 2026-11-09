@@ -11,8 +11,6 @@
  */
 #include "qemu/osdep.h"
 
-#include <linux/kvm.h>
-
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

@@ -17,7 +17,7 @@
 #include <sys/ioctl.h>
 #include <poll.h>
 
-#include <linux/kvm.h>
+#include "system/kvm.h"
 
 #include "qemu/atomic.h"
 #include "qemu/option.h"

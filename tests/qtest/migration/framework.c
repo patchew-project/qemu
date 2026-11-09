@@ -27,7 +27,7 @@
 #include "qemu/sockets.h"
 
 #ifdef CONFIG_LINUX
-#include <linux/kvm.h>
+#include "system/kvm.h"
 #include <sys/ioctl.h>
 #endif
 

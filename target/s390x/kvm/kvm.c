@@ -21,7 +21,7 @@
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
 
-#include <linux/kvm.h>
+#include "system/kvm.h"
 #include <asm/ptrace.h>
 
 #include "cpu.h"

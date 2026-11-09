@@ -8,7 +8,6 @@
 #include "qemu/osdep.h"
 #include "exec/target_long.h"
 #include <sys/ioctl.h>
-#include <linux/kvm.h>
 #include "asm-loongarch/kvm_para.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"

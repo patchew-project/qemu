@@ -21,7 +21,6 @@
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
 
-#include <linux/kvm.h>
 #include "system/kvm.h"
 #include "exec/cpu-common.h"
 #include "hw/vfio/vfio-device.h"

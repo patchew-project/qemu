@@ -25,9 +25,6 @@
 #include "system/reset.h"
 #endif
 #include "vec.h"
-#ifdef CONFIG_KVM
-#include <linux/kvm.h>
-#endif
 #include "tcg/tcg_loongarch.h"
 #include "disas/capstone.h"
 

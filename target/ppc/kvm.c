@@ -19,8 +19,6 @@
 #include <sys/ioctl.h>
 #include <sys/vfs.h>
 
-#include <linux/kvm.h>
-
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "cpu.h"
