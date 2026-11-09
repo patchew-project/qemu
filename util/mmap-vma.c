@@ -7,6 +7,7 @@
  */
 #include "qemu/mmap-vma.h"
 #include "qemu/osdep.h"
+#include "trace.h"
 
 #include <errno.h>
 #include <stddef.h>
@@ -36,6 +37,7 @@ static int qemu_vname_vma(void *ptr, size_t sz, const char *fmt, va_list args)
     int rc = 0;
 
 #if defined(PR_SET_VMA_ANON_NAME)
+    int err;
     char strbuf[VMA_MAXLEN];
 
     assert(sizeof(VMA_PREFIX) < sizeof(strbuf));
@@ -49,8 +51,10 @@ static int qemu_vname_vma(void *ptr, size_t sz, const char *fmt, va_list args)
     }
 
     rc = prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, ptr, sz, strbuf);
+    err = errno;
+    trace_qemu_vname_vma(strbuf, ptr, sz, rc, err);
     if (rc) {
-        return -errno;
+        return -err;
     }
 #endif
 
