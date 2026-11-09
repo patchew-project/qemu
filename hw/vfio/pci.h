@@ -263,11 +263,11 @@ void vfio_pci_bars_exit(VFIOPCIDevice *vdev);
 void vfio_sub_page_bar_update_mappings(VFIOPCIDevice *vdev);
 
 /* Capabilities */
-void vfio_add_emulated_word(VFIOPCIDevice *vdev, int pos,
-                            uint16_t val, uint16_t mask);
-void vfio_add_emulated_long(VFIOPCIDevice *vdev, int pos,
-                            uint32_t val, uint32_t mask);
-void vfio_pci_disable_rp_atomics(VFIOPCIDevice *vdev);
+void vfio_pci_cap_add_emulated_word(VFIOPCIDevice *vdev, int pos,
+                                    uint16_t val, uint16_t mask);
+void vfio_pci_cap_add_emulated_long(VFIOPCIDevice *vdev, int pos,
+                                    uint32_t val, uint32_t mask);
+void vfio_pci_cap_disable_rp_atomics(VFIOPCIDevice *vdev);
 bool vfio_pci_add_capabilities(VFIOPCIDevice *vdev, Error **errp);
 
 /* Quirks */

@@ -59,7 +59,7 @@ static void vfio_set_word_bits(uint8_t *buf, uint16_t val, uint16_t mask)
     pci_set_word(buf, (pci_get_word(buf) & ~mask) | val);
 }
 
-void vfio_add_emulated_word(VFIOPCIDevice *vdev, int pos,
+void vfio_pci_cap_add_emulated_word(VFIOPCIDevice *vdev, int pos,
                             uint16_t val, uint16_t mask)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
@@ -74,7 +74,7 @@ static void vfio_set_long_bits(uint8_t *buf, uint32_t val, uint32_t mask)
     pci_set_long(buf, (pci_get_long(buf) & ~mask) | val);
 }
 
-void vfio_add_emulated_long(VFIOPCIDevice *vdev, int pos,
+void vfio_pci_cap_add_emulated_long(VFIOPCIDevice *vdev, int pos,
                             uint32_t val, uint32_t mask)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
@@ -148,7 +148,7 @@ static void vfio_pci_enable_rp_atomics(VFIOPCIDevice *vdev)
     vdev->clear_parent_atomics_on_exit = true;
 }
 
-void vfio_pci_disable_rp_atomics(VFIOPCIDevice *vdev)
+void vfio_pci_cap_disable_rp_atomics(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
 
@@ -220,15 +220,15 @@ static bool vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size,
          * Endpoints, which changes the type and clears the LNK & LNK2 fields.
          */
         if (type == PCI_EXP_TYPE_ENDPOINT) {
-            vfio_add_emulated_word(vdev, pos + PCI_CAP_FLAGS,
+            vfio_pci_cap_add_emulated_word(vdev, pos + PCI_CAP_FLAGS,
                                    PCI_EXP_TYPE_RC_END << 4,
                                    PCI_EXP_FLAGS_TYPE);
 
             /* Link Capabilities, Status, and Control goes away */
             if (size > PCI_EXP_LNKCTL) {
-                vfio_add_emulated_long(vdev, pos + PCI_EXP_LNKCAP, 0, ~0);
-                vfio_add_emulated_word(vdev, pos + PCI_EXP_LNKCTL, 0, ~0);
-                vfio_add_emulated_word(vdev, pos + PCI_EXP_LNKSTA, 0, ~0);
+                vfio_pci_cap_add_emulated_long(vdev, pos + PCI_EXP_LNKCAP, 0, ~0);
+                vfio_pci_cap_add_emulated_word(vdev, pos + PCI_EXP_LNKCTL, 0, ~0);
+                vfio_pci_cap_add_emulated_word(vdev, pos + PCI_EXP_LNKSTA, 0, ~0);
 
 #ifndef PCI_EXP_LNKCAP2
 #define PCI_EXP_LNKCAP2 44
@@ -238,9 +238,9 @@ static bool vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size,
 #endif
                 /* Link 2 Capabilities, Status, and Control goes away */
                 if (size > PCI_EXP_LNKCAP2) {
-                    vfio_add_emulated_long(vdev, pos + PCI_EXP_LNKCAP2, 0, ~0);
-                    vfio_add_emulated_word(vdev, pos + PCI_EXP_LNKCTL2, 0, ~0);
-                    vfio_add_emulated_word(vdev, pos + PCI_EXP_LNKSTA2, 0, ~0);
+                    vfio_pci_cap_add_emulated_long(vdev, pos + PCI_EXP_LNKCAP2, 0, ~0);
+                    vfio_pci_cap_add_emulated_word(vdev, pos + PCI_EXP_LNKCTL2, 0, ~0);
+                    vfio_pci_cap_add_emulated_word(vdev, pos + PCI_EXP_LNKSTA2, 0, ~0);
                 }
             }
 
@@ -258,13 +258,13 @@ static bool vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size,
          * These devices don't support LNK/LNK2 capabilities, so make them up.
          */
         if (type == PCI_EXP_TYPE_RC_END) {
-            vfio_add_emulated_word(vdev, pos + PCI_CAP_FLAGS,
+            vfio_pci_cap_add_emulated_word(vdev, pos + PCI_CAP_FLAGS,
                                    PCI_EXP_TYPE_ENDPOINT << 4,
                                    PCI_EXP_FLAGS_TYPE);
-            vfio_add_emulated_long(vdev, pos + PCI_EXP_LNKCAP,
+            vfio_pci_cap_add_emulated_long(vdev, pos + PCI_EXP_LNKCAP,
                            QEMU_PCI_EXP_LNKCAP_MLW(QEMU_PCI_EXP_LNK_X1) |
                            QEMU_PCI_EXP_LNKCAP_MLS(QEMU_PCI_EXP_LNK_2_5GT), ~0);
-            vfio_add_emulated_word(vdev, pos + PCI_EXP_LNKCTL, 0, ~0);
+            vfio_pci_cap_add_emulated_word(vdev, pos + PCI_EXP_LNKCTL, 0, ~0);
         }
 
         vfio_pci_enable_rp_atomics(vdev);
@@ -278,7 +278,7 @@ static bool vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size,
      * config space.
      */
     if ((flags & PCI_EXP_FLAGS_VERS) == 0) {
-        vfio_add_emulated_word(vdev, pos + PCI_CAP_FLAGS,
+        vfio_pci_cap_add_emulated_word(vdev, pos + PCI_CAP_FLAGS,
                                1, PCI_EXP_FLAGS_VERS);
     }
 
@@ -476,8 +476,8 @@ static int vfio_setup_rebar_ecap(VFIOPCIDevice *vdev, uint16_t pos)
          * BAR size.  A write of an unsupported value is undefined, therefore
          * the register field is essentially RO.
          */
-        vfio_add_emulated_long(vdev, pos + PCI_REBAR_CAP + (i * 8), cap, ~0);
-        vfio_add_emulated_long(vdev, pos + PCI_REBAR_CTRL + (i * 8), ctrl, ~0);
+        vfio_pci_cap_add_emulated_long(vdev, pos + PCI_REBAR_CAP + (i * 8), cap, ~0);
+        vfio_pci_cap_add_emulated_long(vdev, pos + PCI_REBAR_CTRL + (i * 8), ctrl, ~0);
     }
 
     return 0;

@@ -1158,7 +1158,7 @@ bool vfio_pci_config_setup(VFIOPCIDevice *vdev, Error **errp)
             error_setg(errp, "invalid PCI vendor ID provided");
             return false;
         }
-        vfio_add_emulated_word(vdev, PCI_VENDOR_ID, vdev->vendor_id, ~0);
+        vfio_pci_cap_add_emulated_word(vdev, PCI_VENDOR_ID, vdev->vendor_id, ~0);
         trace_vfio_pci_emulated_vendor_id(vbasedev->name, vdev->vendor_id);
     } else {
         vdev->vendor_id = pci_get_word(pdev->config + PCI_VENDOR_ID);
@@ -1169,7 +1169,7 @@ bool vfio_pci_config_setup(VFIOPCIDevice *vdev, Error **errp)
             error_setg(errp, "invalid PCI device ID provided");
             return false;
         }
-        vfio_add_emulated_word(vdev, PCI_DEVICE_ID, vdev->device_id, ~0);
+        vfio_pci_cap_add_emulated_word(vdev, PCI_DEVICE_ID, vdev->device_id, ~0);
         trace_vfio_pci_emulated_device_id(vbasedev->name, vdev->device_id);
     } else {
         vdev->device_id = pci_get_word(pdev->config + PCI_DEVICE_ID);
@@ -1180,7 +1180,7 @@ bool vfio_pci_config_setup(VFIOPCIDevice *vdev, Error **errp)
             error_setg(errp, "invalid PCI subsystem vendor ID provided");
             return false;
         }
-        vfio_add_emulated_word(vdev, PCI_SUBSYSTEM_VENDOR_ID,
+        vfio_pci_cap_add_emulated_word(vdev, PCI_SUBSYSTEM_VENDOR_ID,
                                vdev->sub_vendor_id, ~0);
         trace_vfio_pci_emulated_sub_vendor_id(vbasedev->name,
                                               vdev->sub_vendor_id);
@@ -1191,7 +1191,7 @@ bool vfio_pci_config_setup(VFIOPCIDevice *vdev, Error **errp)
             error_setg(errp, "invalid PCI subsystem device ID provided");
             return false;
         }
-        vfio_add_emulated_word(vdev, PCI_SUBSYSTEM_ID, vdev->sub_device_id, ~0);
+        vfio_pci_cap_add_emulated_word(vdev, PCI_SUBSYSTEM_ID, vdev->sub_device_id, ~0);
         trace_vfio_pci_emulated_sub_device_id(vbasedev->name,
                                               vdev->sub_device_id);
     }
@@ -1206,7 +1206,7 @@ bool vfio_pci_config_setup(VFIOPCIDevice *vdev, Error **errp)
             return false;
         }
         /* Higher 24 bits of PCI_CLASS_REVISION are class code */
-        vfio_add_emulated_long(vdev, PCI_CLASS_REVISION,
+        vfio_pci_cap_add_emulated_long(vdev, PCI_CLASS_REVISION,
                                vdev->class_code << 8, ~0xff);
         trace_vfio_pci_emulated_class_code(vbasedev->name, vdev->class_code);
     } else {
@@ -1433,7 +1433,7 @@ static void vfio_exitfn(PCIDevice *pdev)
         timer_free(vdev->intx.mmap_timer);
     }
     vfio_pci_msi_teardown(vdev);
-    vfio_pci_disable_rp_atomics(vdev);
+    vfio_pci_cap_disable_rp_atomics(vdev);
     vfio_pci_bars_exit(vdev);
     vfio_migration_exit(vbasedev);
     if (!vbasedev->mdev) {
