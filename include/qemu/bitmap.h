@@ -104,6 +104,12 @@ static inline unsigned long *bitmap_try_new(long nbits)
     return g_try_new0(unsigned long, nelem);
 }
 
+static inline size_t bitmap_size(long nbits)
+{
+    long nelem = BITS_TO_LONGS(nbits);
+    return sizeof(unsigned long) * nelem;
+}
+
 static inline unsigned long *bitmap_new(long nbits)
 {
     long nelem = BITS_TO_LONGS(nbits);

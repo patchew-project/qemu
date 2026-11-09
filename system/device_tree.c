@@ -27,6 +27,7 @@
 #include "hw/core/loader.h"
 #include "hw/core/boards.h"
 #include "qemu/config-file.h"
+#include "qemu/mmap-vma.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qobject/qdict.h"
 
@@ -41,6 +42,7 @@ void *create_device_tree(int *sizep)
 
     *sizep = FDT_MAX_SIZE;
     fdt = g_malloc0(FDT_MAX_SIZE);
+    qemu_name_buffer(fdt, FDT_MAX_SIZE, "device_tree");
     ret = fdt_create(fdt, FDT_MAX_SIZE);
     if (ret < 0) {
         goto fail;

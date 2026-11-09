@@ -69,3 +69,26 @@ int qemu_name_vma(void *ptr, size_t sz, const char *fmt, ...)
     va_start(args, fmt);
     return qemu_vname_vma(ptr, sz, fmt, args);
 }
+
+G_GNUC_PRINTF(3, 4)
+int qemu_name_buffer(void *ptr, size_t sz, const char *fmt, ...)
+{
+    /*
+     * this is hacky as hell, but ptmalloc will occasionally use
+     * mmap() for large buffers - when it does so, you get a pointer
+     * to 16 bytes after the actual mmap. This function compensates
+     * for that to guess at what the real mmap allocation was.
+     *
+     * This can be used unconditionally whether or not the allocation
+     * was actually mmap'd - if it wasn't, this just fails. Yes, it's
+     * still very ugly.
+     */
+    va_list args;
+    size_t pagesz = qemu_real_host_page_size();
+
+    ptr = ptr - 0x10;
+    sz = ROUND_UP(sz + 0x10, pagesz);
+
+    va_start(args, fmt);
+    return qemu_vname_vma(ptr, sz, fmt, args);
+}
