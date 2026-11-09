@@ -222,6 +222,7 @@ void kvm_irqchip_change_notify(void);
 
 #ifdef COMPILING_PER_TARGET
 #include "cpu.h"
+#include "hw/core/cpu.h"
 
 /**
  * kvm_update_guest_debug(): ensure KVM debug structures updated
