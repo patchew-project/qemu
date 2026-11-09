@@ -24,12 +24,20 @@
 
 #ifdef COMPILING_PER_TARGET
 # ifdef CONFIG_KVM
+#  include <asm/kvm.h>
 #  include <linux/kvm.h>
 #  define CONFIG_KVM_IS_POSSIBLE
 # endif
 #else
 # define CONFIG_KVM_IS_POSSIBLE
+  struct kvm_debug_exit_arch {};
+  struct kvm_sync_regs {};
+  struct kvm_guest_debug_arch {};
 # include <linux/kvm.h>
+# pragma GCC poison kvm_debug_exit_arch
+# pragma GCC poison kvm_sync_regs
+# pragma GCC poison kvm_guest_debug_arch
+# pragma GCC poison kvm_guest_debug
 #endif
 
 #ifdef CONFIG_KVM_IS_POSSIBLE
