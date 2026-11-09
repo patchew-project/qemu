@@ -139,7 +139,7 @@ class Asset:
                 with tmp_cache_file.open("xb") as dst:
                     with urllib.request.urlopen(self.url) as resp:
                         copyfileobj(resp, dst)
-                        length_hdr = resp.getheader("Content-Length")
+                        length_hdr = resp.headers.get("Content-Length")
 
                 # Verify downloaded file size against length metadata, if
                 # available.
