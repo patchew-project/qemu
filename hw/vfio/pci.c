@@ -1225,7 +1225,7 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev, bool ats_needed)
      * physical device, we cache the config space to avoid overwriting
      * the original config space when we parse the extended capabilities.
      */
-    config = g_memdup(pdev->config, vdev->config_size);
+    config = g_memdup2(pdev->config, vdev->config_size);
 
     /*
      * Extended capabilities are chained with each pointing to the next, so we
