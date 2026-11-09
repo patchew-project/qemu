@@ -97,7 +97,8 @@ int local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
 
 int local_opendir_nofollow(FsContext *fs_ctx, const char *path)
 {
-    return local_open_nofollow(fs_ctx, path, O_DIRECTORY | O_RDONLY, 0);
+    return local_open_nofollow(fs_ctx, path,
+                               O_DIRECTORY | O_RDONLY | O_PATH_9P_UTIL, 0);
 }
 
 static void renameat_preserve_errno(int odirfd, const char *opath, int ndirfd,
@@ -526,7 +527,7 @@ static int local_opendir(FsContext *ctx,
     int dirfd;
     DIR *stream;
 
-    dirfd = local_opendir_nofollow(ctx, fs_path->data);
+    dirfd = local_open_nofollow(ctx, fs_path->data, O_DIRECTORY | O_RDONLY, 0);
     if (dirfd == -1) {
         return -1;
     }
@@ -1207,7 +1208,7 @@ static int local_statfs(FsContext *s, V9fsPath *fs_path, struct statfs *stbuf)
 {
     int fd, ret;
 
-    fd = local_open_nofollow(s, fs_path->data, O_RDONLY, 0);
+    fd = local_open_nofollow(s, fs_path->data, O_RDONLY | O_PATH_9P_UTIL, 0);
     if (fd == -1) {
         return -1;
     }
@@ -1471,7 +1472,7 @@ static int local_init(FsContext *ctx, Error **errp)
 {
     LocalData *data = g_malloc(sizeof(*data));
 
-    data->mountfd = open(ctx->fs_root, O_DIRECTORY | O_RDONLY);
+    data->mountfd = open(ctx->fs_root, O_DIRECTORY | O_RDONLY | O_PATH_9P_UTIL);
     if (data->mountfd == -1) {
         error_setg_file_open(errp, errno, ctx->fs_root);
         goto err;
