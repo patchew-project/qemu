@@ -285,7 +285,7 @@ if cpu == 'x86_64'
 elif cpu == 'aarch64'
   kvm_targets = ['aarch64-softmmu']
 elif cpu == 's390x'
-  kvm_targets = ['s390x-softmmu']
+  kvm_targets = ['s390x-softmmu', 'aarch64-softmmu']
 elif cpu == 'ppc64'
   kvm_targets = ['ppc-softmmu', 'ppc64-softmmu']
 elif cpu == 'riscv64'
