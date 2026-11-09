@@ -29,6 +29,7 @@ const hwaddr allwinner_h618_memmap[] = {
     [AW_H618_DEV_GIC_CPU]  = 0x03022000,
     [AW_H618_DEV_GIC_HYP]  = 0x03024000,
     [AW_H618_DEV_GIC_VCPU] = 0x03026000,
+    [AW_H618_DEV_MMC0]     = 0x04020000,
     [AW_H618_DEV_SID]      = 0x03006000,
     [AW_H618_DEV_UART0]    = 0x05000000,
     [AW_H618_DEV_UART1]    = 0x05000400,
@@ -49,7 +50,6 @@ static const struct AwH618Unimplemented {
     { "timer",     0x03009000, 4 * KiB },
     { "pwm",       0x0300a000, 4 * KiB },
     { "pio",       0x0300b000, 4 * KiB },
-    { "mmc0",      0x04020000, 4 * KiB },
     { "mmc1",      0x04021000, 4 * KiB },
     { "mmc2",      0x04022000, 4 * KiB },
     { "rtc",       0x07000000, 4 * KiB },
@@ -72,6 +72,7 @@ enum {
     AW_H618_GIC_SPI_UART1 = 1,
     AW_H618_GIC_SPI_UART2 = 2,
     AW_H618_GIC_SPI_UART3 = 3,
+    AW_H618_GIC_SPI_MMC0  = 35,
 };
 
 enum {
@@ -95,6 +96,8 @@ static void allwinner_h618_init(Object *obj)
     object_initialize_child(obj, "sid", &s->sid, TYPE_AW_SID);
     object_property_add_alias(obj, "identifier", OBJECT(&s->sid),
                               "identifier");
+
+    object_initialize_child(obj, "mmc0", &s->mmc0, TYPE_AW_SDHOST_SUN50I_A64);
 }
 
 static void allwinner_h618_realize(DeviceState *dev, Error **errp)
@@ -180,6 +183,17 @@ static void allwinner_h618_realize(DeviceState *dev, Error **errp)
     qdev_prop_set_uint32(DEVICE(&s->sid), "size", 256);
     sysbus_realize(SYS_BUS_DEVICE(&s->sid), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sid), 0, s->memmap[AW_H618_DEV_SID]);
+
+    /* SD/MMC 0 */
+    object_property_set_link(OBJECT(&s->mmc0), "dma-memory",
+                             OBJECT(get_system_memory()), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&s->mmc0), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->mmc0), 0, s->memmap[AW_H618_DEV_MMC0]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->mmc0), 0,
+                       qdev_get_gpio_in(DEVICE(&s->gic), AW_H618_GIC_SPI_MMC0));
+
+    object_property_add_alias(OBJECT(s), "sd-bus", OBJECT(&s->mmc0),
+                              "sd-bus");
 
     /* SRAM */
     memory_region_init_ram(&s->sram_a1, OBJECT(dev), "sram A1",

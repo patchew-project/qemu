@@ -341,6 +341,7 @@ config ALLWINNER_H618
     select SERIAL_MM
     select ARM_GIC
     select ALLWINNER_SID
+    select ALLWINNER_SDHOST
     select UNIMP
 
 config MAX78000_SOC
