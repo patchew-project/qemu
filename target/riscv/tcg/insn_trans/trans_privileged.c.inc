@@ -167,8 +167,8 @@ static bool trans_wfi(DisasContext *ctx, arg_wfi *a)
 {
 #ifndef CONFIG_USER_ONLY
     decode_save_opc(ctx, 0);
-    gen_update_pc(ctx, ctx->cur_insn_len);
-    gen_helper_wfi(tcg_env);
+    gen_update_pc(ctx, 0);
+    gen_helper_wfi(tcg_env, tcg_constant_i32(ctx->cur_insn_len));
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
 #else
