@@ -185,16 +185,6 @@ const size_t pc_compat_4_2_len = G_N_ELEMENTS(pc_compat_4_2);
 GlobalProperty pc_compat_4_1[] = {};
 const size_t pc_compat_4_1_len = G_N_ELEMENTS(pc_compat_4_1);
 
-/*
- * @PC_FW_DATA:
- * Size of the chunk of memory at the top of RAM for the BIOS ACPI tables
- * and other BIOS datastructures.
- *
- * BIOS ACPI tables: 128K. Other BIOS datastructures: less than 4K
- * reported to be used at the moment, 32K should be enough for a while.
- */
-#define PC_FW_DATA (0x20000 + 0x8000)
-
 GSIState *pc_gsi_create(qemu_irq **irqs, bool pci_enabled)
 {
     GSIState *s;
@@ -576,7 +566,7 @@ void xen_load_linux(PCMachineState *pcms)
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, x86ms->boot_cpus);
     rom_set_fw(fw_cfg);
 
-    x86_load_linux(x86ms, fw_cfg, PC_FW_DATA);
+    x86_load_linux(x86ms, fw_cfg, X86_FW_DATA);
     for (i = 0; i < nb_option_roms; i++) {
         assert(!strcmp(option_rom[i].name, "linuxboot_dma.bin") ||
                !strcmp(option_rom[i].name, "pvh.bin") ||
@@ -910,7 +900,7 @@ void pc_memory_init(PCMachineState *pcms,
     }
 
     if (linux_boot) {
-        x86_load_linux(x86ms, fw_cfg, PC_FW_DATA);
+        x86_load_linux(x86ms, fw_cfg, X86_FW_DATA);
     }
 
     for (i = 0; i < nb_option_roms; i++) {
