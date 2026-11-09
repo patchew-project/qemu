@@ -46,6 +46,20 @@ if [ -z "$output" ]; then
     output="$PWD"
 fi
 
+cp_asm() {
+    f=$1
+    to=$2
+
+    if test -z "$arch"; then
+        exit 2
+    fi
+
+    header=$(basename "$f");
+
+    sed -e '/\#include/s/<asm\/\([^>]*\)>/"asm-'$arch'\/\1"/' \
+        $f > "$to/$header"
+}
+
 cp_portable() {
     f=$1
     to=$2
@@ -132,7 +146,7 @@ for arch in $ARCHLIST; do
     mkdir -p "$output/linux-headers/asm-$arch"
     for header in kvm.h unistd.h bitsperlong.h mman.h; do
         if test -f "$hdrdir/include/asm/$header"; then
-            cp "$hdrdir/include/asm/$header" "$output/linux-headers/asm-$arch"
+            cp_asm "$hdrdir/include/asm/$header" "$output/linux-headers/asm-$arch"
         elif test -f "$hdrdir/include/asm-generic/$header"; then
             # not installed as <asm/$header>, but used as such in kernel sources
             cat <<EOF >$output/linux-headers/asm-$arch/$header
@@ -142,30 +156,30 @@ EOF
     done
 
     if [ $arch = mips ]; then
-        cp "$hdrdir/include/asm/sgidefs.h" "$output/linux-headers/asm-mips/"
-        cp "$hdrdir/include/asm/unistd_o32.h" "$output/linux-headers/asm-mips/"
-        cp "$hdrdir/include/asm/unistd_n32.h" "$output/linux-headers/asm-mips/"
-        cp "$hdrdir/include/asm/unistd_n64.h" "$output/linux-headers/asm-mips/"
+        cp_asm "$hdrdir/include/asm/sgidefs.h" "$output/linux-headers/asm-mips/"
+        cp_asm "$hdrdir/include/asm/unistd_o32.h" "$output/linux-headers/asm-mips/"
+        cp_asm "$hdrdir/include/asm/unistd_n32.h" "$output/linux-headers/asm-mips/"
+        cp_asm "$hdrdir/include/asm/unistd_n64.h" "$output/linux-headers/asm-mips/"
     fi
     if [ $arch = powerpc ]; then
-        cp "$hdrdir/include/asm/unistd_32.h" "$output/linux-headers/asm-powerpc/"
-        cp "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-powerpc/"
+        cp_asm "$hdrdir/include/asm/unistd_32.h" "$output/linux-headers/asm-powerpc/"
+        cp_asm "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-powerpc/"
     fi
 
     rm -rf "$output/include/standard-headers/asm-$arch"
     mkdir -p "$output/include/standard-headers/asm-$arch"
     if [ $arch = s390 ]; then
         cp_portable "$hdrdir/include/asm/virtio-ccw.h" "$output/include/standard-headers/asm-s390/"
-        cp "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-s390/"
+        cp_asm "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-s390/"
     fi
     if [ $arch = arm64 ]; then
-        cp "$hdrdir/include/asm/sve_context.h" "$output/linux-headers/asm-arm64/"
-        cp "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-arm64/"
+        cp_asm "$hdrdir/include/asm/sve_context.h" "$output/linux-headers/asm-arm64/"
+        cp_asm "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-arm64/"
     fi
     if [ $arch = x86 ]; then
-        cp "$hdrdir/include/asm/unistd_32.h" "$output/linux-headers/asm-x86/"
-        cp "$hdrdir/include/asm/unistd_x32.h" "$output/linux-headers/asm-x86/"
-        cp "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-x86/"
+        cp_asm "$hdrdir/include/asm/unistd_32.h" "$output/linux-headers/asm-x86/"
+        cp_asm "$hdrdir/include/asm/unistd_x32.h" "$output/linux-headers/asm-x86/"
+        cp_asm "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-x86/"
 
         cp_portable "$hdrdir/include/asm/kvm_para.h" "$output/include/standard-headers/asm-$arch"
         cat <<EOF >$output/linux-headers/asm-$arch/kvm_para.h
@@ -182,20 +196,28 @@ EOF
                     "$output/include/standard-headers/asm-x86"
     fi
     if [ $arch = riscv ]; then
-        cp "$hdrdir/include/asm/ptrace.h" "$output/linux-headers/asm-riscv/"
-        cp "$hdrdir/include/asm/unistd_32.h" "$output/linux-headers/asm-riscv/"
-        cp "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-riscv/"
+        cp_asm "$hdrdir/include/asm/ptrace.h" "$output/linux-headers/asm-riscv/"
+        cp_asm "$hdrdir/include/asm/unistd_32.h" "$output/linux-headers/asm-riscv/"
+        cp_asm "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-riscv/"
     fi
     if [ $arch = loongarch ]; then
-        cp "$hdrdir/include/asm/kvm_para.h" "$output/linux-headers/asm-loongarch/"
-        cp "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-loongarch/"
+        cp_asm "$hdrdir/include/asm/kvm_para.h" "$output/linux-headers/asm-loongarch/"
+        cp_asm "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-loongarch/"
     fi
 done
 arch=
 
 rm -rf "$output/linux-headers/linux"
 mkdir -p "$output/linux-headers/linux"
-for header in const.h stddef.h kvm.h vfio.h vfio_ccw.h vfio_zdev.h vhost.h \
+
+# Including architecture-dependent KVM UAPI header files is delegated to
+# "system/kvm.h". Remove including <asm/kvm.h> and add a guard to prevent
+# including <linux/kvm.h> in QEMU source code directly.
+sed -e '/\#define __LINUX_KVM_H/a \\n#ifndef QEMU_KVM_H\n#error Including <linux\/kvm.h> directly is prohibited, use "system\/kvm.h" instead\n#endif' \
+    -e '/\#include <asm\/kvm.h>/d' \
+    "$hdrdir/include/linux/kvm.h" >$output/linux-headers/linux/kvm.h
+
+for header in const.h stddef.h vfio.h vfio_ccw.h vfio_zdev.h vhost.h \
               psci.h psp-sev.h userfaultfd.h memfd.h mman.h nvme_ioctl.h \
               vduse.h iommufd.h bits.h mshv.h; do
     cp "$hdrdir/include/linux/$header" "$output/linux-headers/linux"
