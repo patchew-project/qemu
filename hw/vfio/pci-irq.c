@@ -93,7 +93,7 @@ static void vfio_intx_mmap_enable(void *opaque)
         return;
     }
 
-    vfio_mmap_set_enabled(vdev, true);
+    vfio_region_set_enabled(vdev, true);
 }
 
 static void vfio_intx_interrupt(void *opaque)
@@ -109,7 +109,7 @@ static void vfio_intx_interrupt(void *opaque)
 
     vdev->intx.pending = true;
     pci_irq_assert(pdev);
-    vfio_mmap_set_enabled(vdev, false);
+    vfio_region_set_enabled(vdev, false);
     if (vdev->intx.mmap_timeout) {
         timer_mod(vdev->intx.mmap_timer,
                        qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + vdev->intx.mmap_timeout);
@@ -389,7 +389,7 @@ void vfio_intx_disable(VFIOPCIDevice *vdev)
     vfio_device_irq_disable(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
     vdev->intx.pending = false;
     pci_irq_deassert(pdev);
-    vfio_mmap_set_enabled(vdev, true);
+    vfio_region_set_enabled(vdev, true);
 
     fd = event_notifier_get_fd(&vdev->intx.interrupt);
     qemu_set_fd_handler(fd, NULL, NULL, vdev);
@@ -1436,15 +1436,6 @@ void vfio_pci_teardown_msi(VFIOPCIDevice *vdev)
                     vdev->bars[vdev->msix->table_bar].mr,
                     vdev->bars[vdev->msix->pba_bar].mr);
         g_free(vdev->msix->pending);
-    }
-}
-
-void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled)
-{
-    int i;
-
-    for (i = 0; i < PCI_ROM_SLOT; i++) {
-        vfio_region_mmaps_set_enabled(&vdev->bars[i].region, enabled);
     }
 }
 

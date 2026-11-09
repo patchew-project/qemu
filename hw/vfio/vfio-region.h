@@ -42,7 +42,6 @@ uint64_t vfio_region_read(void *opaque,
 int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
                       int index, const char *name, Error **errp);
 int vfio_region_mmap(VFIORegion *region);
-void vfio_region_mmaps_set_enabled(VFIORegion *region, bool enabled);
 void vfio_region_exit(VFIORegion *region);
 void vfio_region_finalize(VFIORegion *region);
 
@@ -50,5 +49,8 @@ struct vfio_region_info;
 int vfio_region_setup_sparse_mmaps(VFIORegion *region,
                                     struct vfio_region_info *info,
                                     Error **errp);
+
+struct VFIOPCIDevice;
+void vfio_region_set_enabled(struct VFIOPCIDevice *vdev, bool enabled);
 
 #endif /* HW_VFIO_REGION_H */

@@ -232,7 +232,6 @@ void vfio_update_msi(VFIOPCIDevice *vdev);
 bool vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp);
 bool vfio_msi_setup(VFIOPCIDevice *vdev, int pos, Error **errp);
 bool vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp);
-void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
 bool vfio_pci_interrupt_setup(VFIOPCIDevice *vdev, Error **errp);
 void vfio_pci_intx_eoi(VFIODevice *vbasedev);
 void vfio_pci_teardown_msi(VFIOPCIDevice *vdev);
