@@ -15,6 +15,7 @@ vfio_ss.add(when: 'CONFIG_VFIO_PCI', if_true: files(
   'pci-caps.c',
   'pci-irq.c',
   'pci-quirks.c',
+  'pci-rom.c',
   'pci.c',
 ))
 vfio_ss.add(when: 'CONFIG_VFIO_CCW', if_true: files('ccw.c'))

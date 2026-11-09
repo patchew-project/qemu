@@ -251,6 +251,7 @@ bool vfio_pci_config_setup(VFIOPCIDevice *vdev, Error **errp);
 void vfio_pci_config_register_vga(VFIOPCIDevice *vdev);
 
 /* ROM */
+void vfio_pci_size_rom(VFIOPCIDevice *vdev);
 bool vfio_opt_rom_in_denylist(VFIOPCIDevice *vdev);
 
 /* VGA */
