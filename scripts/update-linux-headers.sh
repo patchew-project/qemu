@@ -173,6 +173,8 @@ EOF
         cp_asm "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-s390/"
     fi
     if [ $arch = arm64 ]; then
+        cp_asm "$hdrdir/include/asm/hwcap.h" "$output/linux-headers/asm-arm64/"
+        cp_asm "$hdrdir/include/asm/ptrace.h" "$output/linux-headers/asm-arm64/"
         cp_asm "$hdrdir/include/asm/sve_context.h" "$output/linux-headers/asm-arm64/"
         cp_asm "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-arm64/"
     fi
