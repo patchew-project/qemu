@@ -482,13 +482,13 @@ void vfio_pci_write_config(PCIDevice *pdev,
 
         if (!was_enabled) {
             if (is_enabled) {
-                vfio_msi_enable(vdev);
+                vfio_pci_msi_enable(vdev);
             }
         } else {
             if (!is_enabled) {
-                vfio_msi_disable(vdev);
+                vfio_pci_msi_disable(vdev);
             } else {
-                vfio_update_msi(vdev);
+                vfio_pci_msi_update(vdev);
             }
         }
     } else if (pdev->cap_present & QEMU_PCI_CAP_MSIX &&
@@ -500,9 +500,9 @@ void vfio_pci_write_config(PCIDevice *pdev,
         is_enabled = msix_enabled(pdev);
 
         if (!was_enabled && is_enabled) {
-            vfio_msix_enable(vdev);
+            vfio_pci_msix_enable(vdev);
         } else if (was_enabled && !is_enabled) {
-            vfio_msix_disable(vdev);
+            vfio_pci_msix_disable(vdev);
         }
     } else if (ranges_overlap(addr, len, PCI_BASE_ADDRESS_0, 24) ||
         range_covers_byte(addr, len, PCI_COMMAND)) {
@@ -1021,14 +1021,14 @@ static bool vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
 
     switch (cap_id) {
     case PCI_CAP_ID_MSI:
-        ret = vfio_msi_setup(vdev, pos, errp);
+        ret = vfio_pci_msi_setup(vdev, pos, errp);
         break;
     case PCI_CAP_ID_EXP:
         vfio_check_pcie_flr(vdev, pos);
         ret = vfio_setup_pcie_cap(vdev, pos, size, errp);
         break;
     case PCI_CAP_ID_MSIX:
-        ret = vfio_msix_setup(vdev, pos, errp);
+        ret = vfio_pci_msix_setup(vdev, pos, errp);
         break;
     case PCI_CAP_ID_PM:
         vfio_check_pm_reset(vdev, pos);
@@ -1361,7 +1361,7 @@ void vfio_pci_pre_reset(VFIOPCIDevice *vdev)
     uint32_t val;
     uint16_t cmd;
 
-    vfio_disable_interrupts(vdev);
+    vfio_pci_irq_disable(vdev);
 
     /*
      * Stop any ongoing DMA by disconnecting I/O, MMIO, and bus master.
@@ -1410,7 +1410,7 @@ void vfio_pci_post_reset(VFIOPCIDevice *vdev)
     Error *err = NULL;
     int ret, nr;
 
-    if (!vfio_intx_enable(vdev, &err)) {
+    if (!vfio_pci_intx_enable(vdev, &err)) {
         error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
 
@@ -1618,9 +1618,9 @@ static int vfio_pci_load_config(VFIODevice *vbasedev, QEMUFile *f)
     }
 
     if (msi_enabled(pdev)) {
-        vfio_msi_enable(vdev);
+        vfio_pci_msi_enable(vdev);
     } else if (msix_enabled(pdev)) {
-        vfio_msix_enable(vdev);
+        vfio_pci_msix_enable(vdev);
     }
 
     return ret;
@@ -1944,7 +1944,7 @@ bool vfio_pci_config_setup(VFIOPCIDevice *vdev, Error **errp)
 
     vfio_bars_prepare(vdev);
 
-    if (!vfio_msix_early_setup(vdev, errp)) {
+    if (!vfio_pci_msix_early_setup(vdev, errp)) {
         return false;
     }
 
@@ -2043,7 +2043,7 @@ static void vfio_pci_realize(PCIDevice *pdev, Error **errp)
         vfio_bar_quirk_setup(vdev, i);
     }
 
-    if (!vfio_pci_interrupt_setup(vdev, errp)) {
+    if (!vfio_pci_irq_setup(vdev, errp)) {
         goto out_unset_idev;
     }
 
@@ -2097,7 +2097,7 @@ static void vfio_pci_realize(PCIDevice *pdev, Error **errp)
 out_deregister:
     vfio_display_exit(vdev);
     if (vdev->interrupt == VFIO_INT_INTx) {
-        vfio_intx_disable(vdev);
+        vfio_pci_intx_disable(vdev);
     }
     pci_device_set_intx_routing_notifier(pdev, NULL);
     if (vdev->irqchip_change_notifier.notify) {
@@ -2111,7 +2111,7 @@ out_unset_idev:
         pci_device_unset_iommu_device(pdev);
     }
 out_teardown:
-    vfio_pci_teardown_msi(vdev);
+    vfio_pci_msi_teardown(vdev);
     vfio_pci_bars_exit(vdev);
 error:
     error_prepend(errp, VFIO_MSG_PREFIX, vbasedev->name);
@@ -2130,17 +2130,17 @@ static void vfio_exitfn(PCIDevice *pdev)
     VFIODevice *vbasedev = &vdev->vbasedev;
 
     vfio_display_exit(vdev);
-    vfio_unregister_req_notifier(vdev);
-    vfio_unregister_err_notifier(vdev);
+    vfio_pci_unregister_req_notifier(vdev);
+    vfio_pci_unregister_err_notifier(vdev);
     pci_device_set_intx_routing_notifier(pdev, NULL);
     if (vdev->irqchip_change_notifier.notify) {
         kvm_irqchip_remove_change_notifier(&vdev->irqchip_change_notifier);
     }
-    vfio_disable_interrupts(vdev);
+    vfio_pci_irq_disable(vdev);
     if (vdev->intx.mmap_timer) {
         timer_free(vdev->intx.mmap_timer);
     }
-    vfio_pci_teardown_msi(vdev);
+    vfio_pci_msi_teardown(vdev);
     vfio_pci_disable_rp_atomics(vdev);
     vfio_pci_bars_exit(vdev);
     vfio_migration_exit(vbasedev);

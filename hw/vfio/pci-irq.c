@@ -301,7 +301,7 @@ static void vfio_irqchip_change(Notifier *notify, void *data)
     vfio_intx_update(vdev, &vdev->intx.route);
 }
 
-bool vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
+bool vfio_pci_intx_enable(VFIOPCIDevice *vdev, Error **errp)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
     uint32_t val = vfio_pci_read_config(pdev, PCI_INTERRUPT_PIN, 1);
@@ -329,7 +329,7 @@ bool vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
      * The incoming state is cleared thereafter.
      */
     if (!cpr_is_incoming()) {
-        vfio_disable_interrupts(vdev);
+        vfio_pci_irq_disable(vdev);
     }
 
     vdev->intx.pin = pin - 1; /* Pin A (1) -> irq[0] */
@@ -377,7 +377,7 @@ skip_signaling:
     return true;
 }
 
-void vfio_intx_disable(VFIOPCIDevice *vdev)
+void vfio_pci_intx_disable(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
     int fd;
@@ -398,11 +398,6 @@ void vfio_intx_disable(VFIOPCIDevice *vdev)
     vdev->interrupt = VFIO_INT_NONE;
 
     trace_vfio_intx_disable(vdev->vbasedev.name);
-}
-
-bool vfio_pci_intx_enable(VFIOPCIDevice *vdev, Error **errp)
-{
-    return vfio_intx_enable(vdev, errp);
 }
 
 void vfio_pci_intx_set_handler(VFIOPCIDevice *vdev, bool enable)
@@ -629,7 +624,7 @@ static void set_irq_signalling(VFIODevice *vbasedev, VFIOMSIVector *vector,
     }
 }
 
-void vfio_pci_vector_init(VFIOPCIDevice *vdev, int nr)
+void vfio_pci_msi_vector_use(VFIOPCIDevice *vdev, int nr)
 {
     VFIOMSIVector *vector = &vdev->msi_vectors[nr];
     PCIDevice *pdev = PCI_DEVICE(vdev);
@@ -660,7 +655,7 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
     vector = &vdev->msi_vectors[nr];
 
     if (!vector->use) {
-        vfio_pci_vector_init(vdev, nr);
+        vfio_pci_msi_vector_use(vdev, nr);
     }
 
     qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
@@ -801,12 +796,12 @@ void vfio_pci_commit_kvm_msi_virq_batch(VFIOPCIDevice *vdev)
     }
 }
 
-void vfio_msix_enable(VFIOPCIDevice *vdev)
+void vfio_pci_msix_enable(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
     int ret;
 
-    vfio_disable_interrupts(vdev);
+    vfio_pci_irq_disable(vdev);
 
     vdev->msi_vectors = g_new0(VFIOMSIVector, vdev->msix->entries);
 
@@ -856,12 +851,12 @@ void vfio_msix_enable(VFIOPCIDevice *vdev)
     trace_vfio_msix_enable(vdev->vbasedev.name);
 }
 
-void vfio_msi_enable(VFIOPCIDevice *vdev)
+void vfio_pci_msi_enable(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
     int ret, i;
 
-    vfio_disable_interrupts(vdev);
+    vfio_pci_irq_disable(vdev);
 
     vdev->nr_vectors = msi_nr_vectors_allocated(pdev);
 retry:
@@ -954,7 +949,7 @@ static void vfio_msi_disable_common(VFIOPCIDevice *vdev)
     vdev->interrupt = VFIO_INT_NONE;
 }
 
-void vfio_msix_disable(VFIOPCIDevice *vdev)
+void vfio_pci_msix_disable(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
     Error *err = NULL;
@@ -975,12 +970,12 @@ void vfio_msix_disable(VFIOPCIDevice *vdev)
 
     /*
      * Always clear MSI-X IRQ index. A PF device could have enabled
-     * MSI-X with no vectors. See vfio_msix_enable().
+     * MSI-X with no vectors. See vfio_pci_msix_enable().
      */
     vfio_device_irq_disable(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX);
 
     vfio_msi_disable_common(vdev);
-    if (!vfio_intx_enable(vdev, &err)) {
+    if (!vfio_pci_intx_enable(vdev, &err)) {
         error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
 
@@ -990,13 +985,13 @@ void vfio_msix_disable(VFIOPCIDevice *vdev)
     trace_vfio_msix_disable(vdev->vbasedev.name);
 }
 
-void vfio_msi_disable(VFIOPCIDevice *vdev)
+void vfio_pci_msi_disable(VFIOPCIDevice *vdev)
 {
     Error *err = NULL;
 
     vfio_device_irq_disable(&vdev->vbasedev, VFIO_PCI_MSI_IRQ_INDEX);
     vfio_msi_disable_common(vdev);
-    vfio_intx_enable(vdev, &err);
+    vfio_pci_intx_enable(vdev, &err);
     if (err) {
         error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
@@ -1004,7 +999,7 @@ void vfio_msi_disable(VFIOPCIDevice *vdev)
     trace_vfio_msi_disable(vdev->vbasedev.name);
 }
 
-void vfio_update_msi(VFIOPCIDevice *vdev)
+void vfio_pci_msi_update(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
     int i;
@@ -1025,7 +1020,7 @@ void vfio_update_msi(VFIOPCIDevice *vdev)
 /*
  * Interrupt setup
  */
-void vfio_disable_interrupts(VFIOPCIDevice *vdev)
+void vfio_pci_irq_disable(VFIOPCIDevice *vdev)
 {
     /*
      * More complicated than it looks.  Disabling MSI/X transitions the
@@ -1033,17 +1028,17 @@ void vfio_disable_interrupts(VFIOPCIDevice *vdev)
      * disable MSI/X and then cleanup by disabling INTx.
      */
     if (vdev->interrupt == VFIO_INT_MSIX) {
-        vfio_msix_disable(vdev);
+        vfio_pci_msix_disable(vdev);
     } else if (vdev->interrupt == VFIO_INT_MSI) {
-        vfio_msi_disable(vdev);
+        vfio_pci_msi_disable(vdev);
     }
 
     if (vdev->interrupt == VFIO_INT_INTx) {
-        vfio_intx_disable(vdev);
+        vfio_pci_intx_disable(vdev);
     }
 }
 
-bool vfio_msi_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
+bool vfio_pci_msi_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
     uint16_t ctrl;
@@ -1259,7 +1254,7 @@ static bool vfio_pci_relocate_msix(VFIOPCIDevice *vdev, Error **errp)
  * need to first look for where the MSI-X table lives.  So we
  * unfortunately split MSI-X setup across two functions.
  */
-bool vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
+bool vfio_pci_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
     uint8_t pos;
@@ -1367,7 +1362,7 @@ bool vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
     return vfio_pci_relocate_msix(vdev, errp);
 }
 
-bool vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
+bool vfio_pci_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
     int ret;
@@ -1425,7 +1420,7 @@ bool vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
     return true;
 }
 
-void vfio_pci_teardown_msi(VFIOPCIDevice *vdev)
+void vfio_pci_msi_teardown(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
 
@@ -1503,7 +1498,7 @@ void vfio_pci_register_err_notifier(VFIOPCIDevice *vdev)
     }
 }
 
-void vfio_unregister_err_notifier(VFIOPCIDevice *vdev)
+void vfio_pci_unregister_err_notifier(VFIOPCIDevice *vdev)
 {
     Error *err = NULL;
 
@@ -1577,7 +1572,7 @@ void vfio_pci_register_req_notifier(VFIOPCIDevice *vdev)
     }
 }
 
-void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
+void vfio_pci_unregister_req_notifier(VFIOPCIDevice *vdev)
 {
     Error *err = NULL;
 
@@ -1596,7 +1591,7 @@ void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
     vdev->req_enabled = false;
 }
 
-bool vfio_pci_interrupt_setup(VFIOPCIDevice *vdev, Error **errp)
+bool vfio_pci_irq_setup(VFIOPCIDevice *vdev, Error **errp)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
 
@@ -1620,11 +1615,11 @@ bool vfio_pci_interrupt_setup(VFIOPCIDevice *vdev, Error **errp)
         kvm_irqchip_add_change_notifier(&vdev->irqchip_change_notifier);
 
         /*
-         * During CPR, do not call vfio_intx_enable at this time.  Instead,
+         * During CPR, do not call vfio_pci_intx_enable at this time.  Instead,
          * call it from vfio_pci_post_load after the intx routing data has
          * been loaded from vmstate.
          */
-        if (!cpr_is_incoming() && !vfio_intx_enable(vdev, errp)) {
+        if (!cpr_is_incoming() && !vfio_pci_intx_enable(vdev, errp)) {
             timer_free(vdev->intx.mmap_timer);
             pci_device_set_intx_routing_notifier(pdev, NULL);
             kvm_irqchip_remove_change_notifier(&vdev->irqchip_change_notifier);

@@ -69,7 +69,7 @@ static void vfio_cpr_claim_vectors(VFIOPCIDevice *vdev, int nr_vectors,
 
         fd = vfio_cpr_load_vector_fd(vdev, "interrupt", i);
         if (fd >= 0) {
-            vfio_pci_vector_init(vdev, i);
+            vfio_pci_msi_vector_use(vdev, i);
             vfio_pci_msi_set_handler(vdev, i, true);
         }
 

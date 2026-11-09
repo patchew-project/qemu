@@ -345,7 +345,7 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
         vfio_user_msix_setup(vdev);
     }
 
-    if (!vfio_pci_interrupt_setup(vdev, errp)) {
+    if (!vfio_pci_irq_setup(vdev, errp)) {
         goto out_teardown;
     }
 
@@ -355,7 +355,7 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
     return;
 
 out_teardown:
-    vfio_pci_teardown_msi(vdev);
+    vfio_pci_msi_teardown(vdev);
     vfio_pci_bars_exit(vdev);
 error:
     error_prepend(errp, VFIO_MSG_PREFIX, vdev->vbasedev.name);
