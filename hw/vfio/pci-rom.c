@@ -180,7 +180,7 @@ void vfio_pci_size_rom(VFIOPCIDevice *vdev)
 
     if (pdev->romfile || !pdev->rom_bar) {
         /* Since pci handles romfile, just print a message and return */
-        if (vfio_opt_rom_in_denylist(vdev) && pdev->romfile) {
+        if (vfio_quirk_rom_in_denylist(vdev) && pdev->romfile) {
             warn_report("Device at %s is known to cause system instability"
                         " issues during option rom execution",
                         vdev->vbasedev.name);
@@ -208,7 +208,7 @@ void vfio_pci_size_rom(VFIOPCIDevice *vdev)
         return;
     }
 
-    if (vfio_opt_rom_in_denylist(vdev)) {
+    if (vfio_quirk_rom_in_denylist(vdev)) {
         if (pdev->rom_bar > 0) {
             warn_report("Device at %s is known to cause system instability"
                         " issues during option rom execution",

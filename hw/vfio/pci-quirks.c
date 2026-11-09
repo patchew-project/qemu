@@ -48,7 +48,7 @@ static const struct {
     { 0x14e4, 0x168e }, /* Broadcom BCM 57810 */
 };
 
-bool vfio_opt_rom_in_denylist(VFIOPCIDevice *vdev)
+bool vfio_quirk_rom_in_denylist(VFIOPCIDevice *vdev)
 {
     int i;
 

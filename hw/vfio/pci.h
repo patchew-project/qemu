@@ -252,7 +252,6 @@ void vfio_pci_config_register_vga(VFIOPCIDevice *vdev);
 
 /* ROM */
 void vfio_pci_size_rom(VFIOPCIDevice *vdev);
-bool vfio_opt_rom_in_denylist(VFIOPCIDevice *vdev);
 
 /* VGA */
 uint64_t vfio_vga_read(void *opaque, hwaddr addr, unsigned size);
@@ -284,6 +283,7 @@ bool vfio_add_virt_caps(VFIOPCIDevice *vdev, Error **errp);
 void vfio_rom_quirk_setup(VFIOPCIDevice *vdev);
 void vfio_quirk_reset(VFIOPCIDevice *vdev);
 VFIOQuirk *vfio_quirk_alloc(int nr_mem);
+bool vfio_quirk_rom_in_denylist(VFIOPCIDevice *vdev);
 
 /* IGD */
 void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr);
