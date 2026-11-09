@@ -24,7 +24,11 @@
 
 #ifdef COMPILING_PER_TARGET
 # ifdef CONFIG_KVM
-#  include <asm/kvm.h>
+#  ifdef TARGET_AARCH64
+#    include <asm-arm64/kvm.h>
+#  else
+#    include <asm/kvm.h>
+#  endif
 #  include <linux/kvm.h>
 #  define CONFIG_KVM_IS_POSSIBLE
 # endif
