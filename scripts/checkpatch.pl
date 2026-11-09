@@ -1854,7 +1854,7 @@ sub process {
 		}
 
 # Extract author email for trailer checks
-		if ($in_header_lines && $line =~ /^(?:Author|From):\s*(.*)/) {
+		if ($line =~ /^(?:Author|From):\s*(.*)/) {
 			my $author_info = $1;
 			if ($author_info =~ /<([^>]+)>/) {
 				$author_email = $1;
