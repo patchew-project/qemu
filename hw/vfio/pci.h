@@ -221,11 +221,27 @@ bool vfio_pci_intx_enable(VFIOPCIDevice *vdev, Error **errp);
 void vfio_pci_intx_set_handler(VFIOPCIDevice *vdev, bool enable);
 void vfio_pci_msix_set_notifiers(VFIOPCIDevice *vdev);
 void vfio_pci_msi_set_handler(VFIOPCIDevice *vdev, int nr, bool enable);
+void vfio_disable_interrupts(VFIOPCIDevice *vdev);
+bool vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp);
+void vfio_intx_disable(VFIOPCIDevice *vdev);
+void vfio_msi_enable(VFIOPCIDevice *vdev);
+void vfio_msi_disable(VFIOPCIDevice *vdev);
+void vfio_msix_enable(VFIOPCIDevice *vdev);
+void vfio_msix_disable(VFIOPCIDevice *vdev);
+void vfio_update_msi(VFIOPCIDevice *vdev);
+bool vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp);
+bool vfio_msi_setup(VFIOPCIDevice *vdev, int pos, Error **errp);
+bool vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp);
+void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
 bool vfio_pci_interrupt_setup(VFIOPCIDevice *vdev, Error **errp);
 void vfio_pci_intx_eoi(VFIODevice *vbasedev);
 void vfio_pci_teardown_msi(VFIOPCIDevice *vdev);
 
 /* Config space */
+int vfio_pci_config_space_read(VFIOPCIDevice *vdev, off_t offset,
+                               uint32_t size, void *data);
+int vfio_pci_config_space_write(VFIOPCIDevice *vdev, off_t offset,
+                                uint32_t size, void *data);
 uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len);
 void vfio_pci_write_config(PCIDevice *pdev,
                            uint32_t addr, uint32_t val, int len);
@@ -286,7 +302,9 @@ extern const VMStateDescription vfio_display_vmstate;
 
 /* Notifiers */
 void vfio_pci_register_err_notifier(VFIOPCIDevice *vdev);
+void vfio_unregister_err_notifier(VFIOPCIDevice *vdev);
 void vfio_pci_register_req_notifier(VFIOPCIDevice *vdev);
+void vfio_unregister_req_notifier(VFIOPCIDevice *vdev);
 
 /**
  * vfio_pci_from_vfio_device: Transform from VFIODevice to
