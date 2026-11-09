@@ -1686,7 +1686,8 @@ bool kvm_arch_stop_on_emulation_error(CPUState *cs)
     return true;
 }
 
-static void kvm_riscv_handle_sbi_dbcn(CPUState *cs, struct kvm_run *run)
+static void kvm_riscv_handle_sbi_dbcn(CPUState *cs, struct kvm_run *run,
+                                      CharFrontend *fe)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     g_autofree uint8_t *buf = NULL;
@@ -1707,6 +1708,12 @@ static void kvm_riscv_handle_sbi_dbcn(CPUState *cs, struct kvm_run *run)
             break;
         }
 
+        if (!fe) {
+            run->riscv_sbi.ret[0] = SBI_ERR_DENIED;
+            run->riscv_sbi.ret[1] = 0;
+            break;
+        }
+
         addr = run->riscv_sbi.args[1];
 
         /*
@@ -1720,22 +1727,22 @@ static void kvm_riscv_handle_sbi_dbcn(CPUState *cs, struct kvm_run *run)
         buf = g_malloc0(num_bytes);
 
         if (run->riscv_sbi.function_id == SBI_EXT_DBCN_CONSOLE_READ) {
-            ret = qemu_chr_fe_read_all(serial_hd(0)->fe, buf, num_bytes);
+            ret = qemu_chr_fe_read_all(fe, buf, num_bytes);
             if (ret < 0) {
-                error_report("SBI_EXT_DBCN_CONSOLE_READ: error when "
-                             "reading chardev");
-                exit(1);
+                run->riscv_sbi.ret[0] = SBI_ERR_FAILED;
+                run->riscv_sbi.ret[1] = 0;
+                break;
             }
 
             address_space_write(cs->as, addr, attrs, buf, ret);
         } else {
             address_space_read(cs->as, addr, attrs, buf, num_bytes);
 
-            ret = qemu_chr_fe_write_all(serial_hd(0)->fe, buf, num_bytes);
+            ret = qemu_chr_fe_write_all(fe, buf, num_bytes);
             if (ret < 0) {
-                error_report("SBI_EXT_DBCN_CONSOLE_WRITE: error when "
-                             "writing chardev");
-                exit(1);
+                run->riscv_sbi.ret[0] = SBI_ERR_FAILED;
+                run->riscv_sbi.ret[1] = 0;
+                break;
             }
         }
 
@@ -1743,13 +1750,19 @@ static void kvm_riscv_handle_sbi_dbcn(CPUState *cs, struct kvm_run *run)
         run->riscv_sbi.ret[1] = ret;
         break;
     case SBI_EXT_DBCN_CONSOLE_WRITE_BYTE:
-        ch = run->riscv_sbi.args[0];
-        ret = qemu_chr_fe_write_all(serial_hd(0)->fe, &ch, sizeof(ch));
+        if (!fe) {
+            run->riscv_sbi.ret[0] = SBI_ERR_DENIED;
+            run->riscv_sbi.ret[1] = 0;
+            break;
+        }
 
-        if (ret < 0) {
-            error_report("SBI_EXT_DBCN_CONSOLE_WRITE_BYTE: error when "
-                         "writing chardev");
-            exit(1);
+        ch = run->riscv_sbi.args[0];
+        ret = qemu_chr_fe_write_all(fe, &ch, sizeof(ch));
+
+        if (ret != sizeof(ch)) {
+            run->riscv_sbi.ret[0] = SBI_ERR_FAILED;
+            run->riscv_sbi.ret[1] = 0;
+            break;
         }
 
         run->riscv_sbi.ret[0] = SBI_SUCCESS;
@@ -1762,15 +1775,21 @@ static void kvm_riscv_handle_sbi_dbcn(CPUState *cs, struct kvm_run *run)
 
 static int kvm_riscv_handle_sbi(CPUState *cs, struct kvm_run *run)
 {
+    Chardev *chr = serial_hd(0);
+    CharFrontend *fe = chr ? chr->fe : NULL;
     int ret = 0;
     unsigned char ch;
+
     switch (run->riscv_sbi.extension_id) {
     case SBI_EXT_0_1_CONSOLE_PUTCHAR:
         ch = run->riscv_sbi.args[0];
-        qemu_chr_fe_write(serial_hd(0)->fe, &ch, sizeof(ch));
+        if (fe) {
+            qemu_chr_fe_write(fe, &ch, sizeof(ch));
+        }
+        run->riscv_sbi.ret[0] = 0;
         break;
     case SBI_EXT_0_1_CONSOLE_GETCHAR:
-        ret = qemu_chr_fe_read_all(serial_hd(0)->fe, &ch, sizeof(ch));
+        ret = fe ? qemu_chr_fe_read_all(fe, &ch, sizeof(ch)) : 0;
         if (ret == sizeof(ch)) {
             run->riscv_sbi.ret[0] = ch;
         } else {
@@ -1779,7 +1798,7 @@ static int kvm_riscv_handle_sbi(CPUState *cs, struct kvm_run *run)
         ret = 0;
         break;
     case SBI_EXT_DBCN:
-        kvm_riscv_handle_sbi_dbcn(cs, run);
+        kvm_riscv_handle_sbi_dbcn(cs, run, fe);
         break;
     default:
         qemu_log_mask(LOG_UNIMP,
