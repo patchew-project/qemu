@@ -116,7 +116,7 @@ static int vfio_cpr_pci_post_load(void *opaque, int version_id)
     PCIDevice *pdev = PCI_DEVICE(vdev);
     int nr_vectors;
 
-    vfio_sub_page_bar_update_mappings(vdev);
+    vfio_pci_bar_update_sub_page_mappings(vdev);
 
     if (msix_enabled(pdev)) {
         vfio_pci_msix_set_notifiers(vdev);

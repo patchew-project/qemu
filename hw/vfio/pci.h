@@ -260,7 +260,7 @@ bool vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp);
 
 /* BARs */
 void vfio_pci_bars_exit(VFIOPCIDevice *vdev);
-void vfio_sub_page_bar_update_mappings(VFIOPCIDevice *vdev);
+void vfio_pci_bar_update_sub_page_mappings(VFIOPCIDevice *vdev);
 
 /* Capabilities */
 void vfio_pci_cap_add_emulated_word(VFIOPCIDevice *vdev, int pos,

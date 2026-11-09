@@ -927,7 +927,7 @@ VFIOPCIDevice *vfio_pci_from_vfio_device(VFIODevice *vbasedev)
     return NULL;
 }
 
-void vfio_sub_page_bar_update_mappings(VFIOPCIDevice *vdev)
+void vfio_pci_bar_update_sub_page_mappings(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
     int page_size = qemu_real_host_page_size();
