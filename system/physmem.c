@@ -1767,7 +1767,8 @@ static void *file_ram_alloc(RAMBlock *block,
     qemu_map_flags |= (block->flags & RAM_SHARED) ? QEMU_MAP_SHARED : 0;
     qemu_map_flags |= (block->flags & RAM_PMEM) ? QEMU_MAP_SYNC : 0;
     qemu_map_flags |= (block->flags & RAM_NORESERVE) ? QEMU_MAP_NORESERVE : 0;
-    area = qemu_ram_mmap(fd, memory, block->mr->align, qemu_map_flags, offset);
+    area = qemu_ram_mmap(fd, memory, block->mr->align, qemu_map_flags, offset,
+                         "file_ram_alloc");
     if (area == MAP_FAILED) {
         error_setg_errno(errp, errno,
                          "unable to map backing store for guest RAM");
@@ -2169,7 +2170,9 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
         } else {
             new_block->host = qemu_anon_ram_alloc(new_block->max_length,
                                                   &new_block->mr->align,
-                                                  shared, noreserve);
+                                                  shared, noreserve,
+                                                  new_block->mr->name);
+
             if (!new_block->host) {
                 g_autofree char *size_s = size_to_str(new_block->max_length);
                 error_setg_errno(errp, errno,

@@ -45,7 +45,7 @@ static int get_allocation_granularity(void)
 }
 
 void *qemu_anon_ram_alloc(size_t size, uint64_t *align, bool shared,
-                          bool noreserve)
+                          bool noreserve, const char *nickname)
 {
     void *ptr;
 

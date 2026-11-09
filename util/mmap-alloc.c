@@ -187,7 +187,8 @@ static void *mmap_reserve(size_t size, int fd)
  * it accessible.
  */
 static void *mmap_activate(void *ptr, size_t size, int fd,
-                           uint32_t qemu_map_flags, off_t map_offset)
+                           uint32_t qemu_map_flags, off_t map_offset,
+                           const char *nickname)
 {
     const bool noreserve = qemu_map_flags & QEMU_MAP_NORESERVE;
     const bool readonly = qemu_map_flags & QEMU_MAP_READONLY;
@@ -236,6 +237,8 @@ static void *mmap_activate(void *ptr, size_t size, int fd,
          */
         activated_ptr = mmap(ptr, size, prot, flags, fd, map_offset);
     }
+
+    qemu_name_vma(ptr, size, "%s", nickname);
     return activated_ptr;
 }
 
@@ -253,7 +256,8 @@ void *qemu_ram_mmap(int fd,
                     size_t size,
                     size_t align,
                     uint32_t qemu_map_flags,
-                    off_t map_offset)
+                    off_t map_offset,
+                    const char *nickname)
 {
     const size_t guard_pagesize = mmap_guard_pagesize(fd);
     size_t offset, total;
@@ -277,7 +281,7 @@ void *qemu_ram_mmap(int fd,
     offset = QEMU_ALIGN_UP((uintptr_t)guardptr, align) - (uintptr_t)guardptr;
 
     ptr = mmap_activate(guardptr + offset, size, fd, qemu_map_flags,
-                        map_offset);
+                        map_offset, nickname);
     if (ptr == MAP_FAILED) {
         munmap(guardptr, total);
         return MAP_FAILED;

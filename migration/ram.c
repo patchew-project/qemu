@@ -3720,7 +3720,8 @@ int colo_init_ram_cache(Error **errp)
     WITH_RCU_READ_LOCK_GUARD() {
         RAMBLOCK_FOREACH_NOT_IGNORED(block) {
             block->colo_cache = qemu_anon_ram_alloc(block->used_length,
-                                                    NULL, false, false);
+                                                    NULL, false, false,
+                                                    "colo cache");
             if (!block->colo_cache) {
                 error_setg(errp, "Can't alloc memory for COLO cache of "
                            "block %s, size 0x" RAM_ADDR_FMT,
