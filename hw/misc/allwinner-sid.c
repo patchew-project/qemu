@@ -79,10 +79,15 @@ static void allwinner_sid_write(void *opaque, hwaddr offset,
 
         if ((s->control & REG_PRCTL_OP_LOCK) &&
             (s->control & REG_PRCTL_WRITE)) {
-            uint32_t id = s->control >> 16;
+            uint32_t id = extract32(s->control, 16, 9);
 
             if (id <= sizeof(QemuUUID) - sizeof(s->rdkey)) {
                 s->rdkey = ldl_be_p(&s->identifier.data[id]);
+            } else if (s->size >= sizeof(s->rdkey) &&
+                       id <= s->size - sizeof(s->rdkey)) {
+                s->rdkey = ldl_be_p(&s->storage[id]);
+            } else {
+                s->rdkey = 0;
             }
         }
         s->control &= ~REG_PRCTL_WRITE;
@@ -129,16 +134,19 @@ static void allwinner_sid_init(Object *obj)
 
 static const Property allwinner_sid_properties[] = {
     DEFINE_PROP_UUID_NODEFAULT("identifier", AwSidState, identifier),
+    DEFINE_PROP_UINT32("size", AwSidState, size, sizeof(QemuUUID)),
 };
 
 static const VMStateDescription allwinner_sid_vmstate = {
     .name = "allwinner-sid",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(control, AwSidState),
         VMSTATE_UINT32(rdkey, AwSidState),
         VMSTATE_UINT8_ARRAY_V(identifier.data, AwSidState, sizeof(QemuUUID), 1),
+        VMSTATE_UINT32_V(size, AwSidState, 2),
+        VMSTATE_UINT8_ARRAY_V(storage, AwSidState, AW_SID_SIZE_MAX, 2),
         VMSTATE_END_OF_LIST()
     }
 };
