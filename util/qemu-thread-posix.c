@@ -17,6 +17,7 @@
 #include "qemu-thread-common.h"
 #include "qemu/tsan.h"
 #include "qemu/bitmap.h"
+#include "qemu/mmap-vma.h"
 
 #if defined(CONFIG_PTHREAD_SET_NAME_NP) || defined(CONFIG_PTHREAD_GET_NAME_NP)
 #include <pthread_np.h>
@@ -362,6 +363,13 @@ static void qemu_thread_atexit_notify(void *arg)
 
 void qemu_thread_set_name(const char *name)
 {
+# if defined(CONFIG_PTHREAD_GETATTR_NP)
+    pthread_attr_t real_attr;
+    void *pthread_addr;
+    size_t stacksize;
+    size_t guardsize;
+# endif
+
     /*
      * Attempt to set the thread name; note that this is for debug, so
      * we're not going to fail if we can't set it.
@@ -372,6 +380,32 @@ void qemu_thread_set_name(const char *name)
     pthread_setname_np(name);
 # elif defined(CONFIG_PTHREAD_SET_NAME_NP)
     pthread_set_name_np(pthread_self(), name);
+# endif
+
+# if defined(CONFIG_PTHREAD_GETATTR_NP)
+    if (pthread_getattr_np(pthread_self(), &real_attr)) {
+        return;
+    }
+
+    if (pthread_attr_getguardsize(&real_attr, &guardsize)) {
+        goto cleanup;
+    }
+
+    if (pthread_attr_getguardsize(&real_attr, &guardsize)) {
+        goto cleanup;
+    }
+
+    if (pthread_attr_getstack(&real_attr, &pthread_addr, &stacksize)) {
+        goto cleanup;
+    }
+
+    /* Though there's a guard page, it isn't actually marked RO, so
+     * just label the entire region */
+    qemu_name_vma(pthread_addr - guardsize, stacksize + guardsize,
+                  "pthread (%s)", name);
+
+ cleanup:
+    pthread_attr_destroy(&real_attr);
 # endif
 }
 
