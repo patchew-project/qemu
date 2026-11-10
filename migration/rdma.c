@@ -3870,6 +3870,8 @@ int rdma_registration_handle(QEMUFile *f)
             trace_rdma_registration_handle_register(head.repeat);
 
             reg_resp.repeat = head.repeat;
+            /* one result per requested chunk (source may batch registers) */
+            reg_resp.len = head.repeat * sizeof(RDMARegisterResult);
             registers = (RDMARegister *) rdma->wr_data[idx].control_curr;
 
             /* Making sure the register buffers to read are valid */
