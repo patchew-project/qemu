@@ -91,6 +91,10 @@ _start:
 	/* Enable PAE mode (bit 5). */
 	mov %cr4, %eax
 	btsl $5, %eax
+#ifdef LA57
+	/* Enable 5-level paging (bit 12). */
+	btsl $12, %eax
+#endif
 	mov %eax, %cr4
 
 #define MSR_EFER		0xc0000080 /* extended feature register */
@@ -102,7 +106,11 @@ _start:
 	wrmsr
 
 	/* Enable paging */
+#ifdef LA57
+	mov $.Lpml5, %ecx
+#else
 	mov $.Lpml4, %ecx
+#endif
 	mov %ecx, %cr3
 
 	mov %cr0, %eax
@@ -272,3 +280,9 @@ i = 0
 .align 4096
 .Lpml4:
         .quad .Lpdp + 7 /* 0-512 GB */
+
+#ifdef LA57
+.align 4096
+.Lpml5:
+        .quad .Lpml4 + 7
+#endif

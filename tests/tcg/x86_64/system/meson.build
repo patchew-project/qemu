@@ -48,6 +48,21 @@ tests += {
   }
 }
 
+# The LAM test takes exceptions on the current stack, without CR4.OSFXSR.
+lam_cflags = cflags + ['-mno-red-zone', '-mgeneral-regs-only']
+foreach paging, extra: {'': [], '-la57': ['-DLA57']}
+  foreach suffix, cpu: {'': 'max', '-off': 'max,lam=off'}
+    tests += {
+      'lam.c': {
+        'exe_name': 'lam' + paging + suffix,
+        'cflags': lam_cflags + extra +
+                  ['-DEXPECT_LAM=' + (suffix == '' ? '1' : '0')],
+        'qemu_args': ['-cpu', cpu] + qemu_def_args,
+      }
+    }
+  endforeach
+endforeach
+
 if 'qemu-system-x86_64' in emulators
   tcg_tests += {
     'x86_64-softmmu': {
