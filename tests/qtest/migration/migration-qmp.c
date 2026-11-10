@@ -549,10 +549,16 @@ void migrate_cancel(QTestState *who)
 }
 
 void migrate_postcopy_start(QTestState *from, QTestState *to,
-                            QTestMigrationState *src_state)
+                            QTestMigrationState *src_state,
+                            QTestMigrationState *dst_state)
 {
     qtest_qmp_assert_success(from, "{ 'execute': 'migrate-start-postcopy' }");
 
     wait_for_stop(from, src_state);
-    qtest_qmp_eventwait(to, "RESUME");
+
+    /* Poll so that every destination event passes the event callback */
+    while (!dst_state->resume_seen) {
+        qtest_qmp_assert_success(to, "{ 'execute': 'query-status' }");
+        g_usleep(1000);
+    }
 }

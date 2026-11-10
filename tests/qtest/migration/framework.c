@@ -667,6 +667,8 @@ static void migrate_postcopy_complete(QTestState *from, QTestState *to,
     MigrationTestEnv *env = migration_get_env();
 
     wait_for_migration_complete(from);
+    wait_for_migration_complete(to);
+    g_assert(!dst_state.migrated_before_resume);
 
     if (args->start.suspend_me) {
         /* wakeup succeeds only if guest is suspended */
@@ -695,7 +697,7 @@ void test_postcopy_common(MigrateCommon *args)
     if (migrate_postcopy_prepare(&from, &to, &hook_data, args)) {
         return;
     }
-    migrate_postcopy_start(from, to, &src_state);
+    migrate_postcopy_start(from, to, &src_state, &dst_state);
     migrate_postcopy_complete(from, to, hook_data, args);
 }
 
@@ -842,7 +844,7 @@ void test_postcopy_recovery_common(MigrateCommon *args,
     migrate_set_parameter_int(from, "max-postcopy-bandwidth", 4096);
 
     /* Now we start the postcopy */
-    migrate_postcopy_start(from, to, &src_state);
+    migrate_postcopy_start(from, to, &src_state, &dst_state);
 
     /*
      * Wait until postcopy is really started; we can only run the

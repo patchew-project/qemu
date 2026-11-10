@@ -46,6 +46,7 @@ void migrate_continue(QTestState *who, const char *state);
 void migrate_recover(QTestState *who, const char *uri);
 void migrate_cancel(QTestState *who);
 void migrate_postcopy_start(QTestState *from, QTestState *to,
-                            QTestMigrationState *src_state);
+                            QTestMigrationState *src_state,
+                            QTestMigrationState *dst_state);
 
 #endif /* MIGRATION_QMP_H */

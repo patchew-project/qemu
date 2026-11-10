@@ -178,6 +178,14 @@ bool migrate_watch_for_events(QTestState *who, const char *name,
     } else if (g_str_equal(name, "RESUME")) {
         state->resume_seen = true;
         return true;
+    } else if (g_str_equal(name, "MIGRATION") && !state->resume_seen) {
+        const char *status = qdict_get_str(qdict_get_qdict(event, "data"),
+                                           "status");
+
+        if (g_str_equal(status, "postcopy-active") ||
+            g_str_equal(status, "completed")) {
+            state->migrated_before_resume = true;
+        }
     }
 
     return false;

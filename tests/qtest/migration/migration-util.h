@@ -22,6 +22,8 @@ typedef struct QTestMigrationState {
     bool resume_seen;
     bool suspend_seen;
     bool suspend_me;
+    /* postcopy-active or completed reported before RESUME */
+    bool migrated_before_resume;
 } QTestMigrationState;
 
 bool migrate_watch_for_events(QTestState *who, const char *name,
