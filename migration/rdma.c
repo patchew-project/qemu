@@ -67,6 +67,9 @@ static inline uint64_t rdma_merge_max(void)
 #define RDMA_CONTROL_MAX_BUFFER (512 * 1024)
 #define RDMA_CONTROL_MAX_COMMANDS_PER_MESSAGE 4096
 
+/* Max WRITE commands the consumer drains per pass. */
+#define RDMA_CONSUMER_BATCH_MAX 128
+
 #define RDMA_CONTROL_VERSION_CURRENT 1
 /*
  * Capabilities for negotiation.
@@ -2688,6 +2691,12 @@ static bool ring_empty(RDMASendRing *r)
     return (qatomic_load_acquire(&r->head) - r->tail) == 0;
 }
 
+/* Consumer-side count of published, unconsumed commands. */
+static unsigned ring_avail(RDMASendRing *r)
+{
+    return qatomic_load_acquire(&r->head) - r->tail;
+}
+
 /* Producer-side snapshot of queued-but-unprocessed commands in the ring. */
 static unsigned ring_occupancy(RDMAContext *rdma)
 {
@@ -2879,18 +2888,10 @@ static int ring_barrier(RDMAContext *rdma, RDMACmdType type, uint64_t flags,
     return ret;
 }
 
-static bool ring_pop(RDMASendRing *r, RDMACmd *cmd)
+/* Consumer: release n drained slots at once, waking a blocked producer once. */
+static void ring_advance_tail_by(RDMASendRing *r, unsigned n)
 {
-    if (ring_empty(r)) {
-        return false;
-    }
-    *cmd = r->ring[r->tail & RDMA_SEND_RING_MASK];   /* after load_acquire */
-    return true;
-}
-
-static void ring_advance_tail(RDMASendRing *r)
-{
-    qatomic_store_release(&r->tail, r->tail + 1);
+    qatomic_store_release(&r->tail, r->tail + n);
     ring_wake_producer(r);
 }
 
@@ -2986,29 +2987,63 @@ static void *rdma_consumer_thread(void *opaque)
     trace_rdma_consumer_thread_start();
 
     while (!qatomic_read(&r->abort) && !stop) {
-        RDMACmd cmd;
+        unsigned avail = ring_avail(r);
+        unsigned batch, processed = 0;
 
-        if (ring_pop(r, &cmd)) {
+        if (avail == 0) {
+            /*
+             * Ring empty: reap ready completions without blocking, then
+             * sleep until the next push so a new command wakes us at once.
+             * Round draining is handled by RDMA_CMD_FLUSH.
+             */
+            while (rdma->nb_sent > 0) {
+                uint64_t wr_id;
+
+                if (qemu_rdma_poll(rdma, rdma->send_cq, &wr_id, NULL) < 0) {
+                    ring_set_abort(rdma);
+                    break;
+                }
+                if (wr_id == RDMA_WRID_NONE) {
+                    break;              /* nothing more ready right now */
+                }
+            }
+            if (qatomic_read(&r->abort)) {
+                break;
+            }
+            ring_idle_wait(r);
+            continue;
+        }
+
+        /*
+         * Drain up to RDMA_CONSUMER_BATCH_MAX commands, or fewer if that is
+         * all that is queued, then publish tail once for the whole batch.
+         */
+        batch = avail < RDMA_CONSUMER_BATCH_MAX ? avail
+                                                : RDMA_CONSUMER_BATCH_MAX;
+
+        while (processed < batch) {
+            unsigned idx = r->tail + processed;
+            RDMACmd cmd = r->ring[idx & RDMA_SEND_RING_MASK];
+
             if (rdma_consumer_dispatch(rdma, &cmd, &stop) < 0) {
                 ring_set_abort(rdma);
                 break;
             }
+            processed++;
             if (cmd.seq) {
                 ring_barrier_complete(r, cmd.seq);
             }
-            ring_advance_tail(r);
-            continue;
-        }
-        if (rdma->nb_sent > 0) {
-            /* Ring empty but writes in flight: reap (bounded, error-aware). */
-            if (qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RDMA_WRITE,
-                                         NULL) < 0) {
-                ring_set_abort(rdma);
+            if (stop) {
                 break;
             }
-            continue;
         }
-        ring_idle_wait(r);
+
+        if (processed) {
+            ring_advance_tail_by(r, processed);
+        }
+        if (qatomic_read(&r->abort)) {
+            break;
+        }
     }
 
     if (qatomic_read(&r->abort)) {
