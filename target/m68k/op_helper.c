@@ -196,6 +196,9 @@ static void cf_interrupt_all(CPUM68KState *env, int is_hw)
 
     fmt |= 0x40000000;
     fmt |= vector << 16;
+    if (cs->exception_index == EXCP_ACCESS) {
+        fmt |= (env->mmu.ssw & 0xf) << 24;
+    }
     fmt |= sr;
 
     env->sr |= SR_S;
@@ -429,6 +432,18 @@ void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
     CPUM68KState *env = cpu_env(cs);
 
     cpu_restore_state(cs, retaddr);
+
+    if (m68k_feature(env, M68K_FEATURE_CF_ISA_A)) {
+        if (access_type == MMU_INST_FETCH) {
+            env->mmu.ssw = 0x4;
+        } else if (access_type == MMU_DATA_STORE) {
+            env->mmu.ssw = 0x8;
+        } else {
+            env->mmu.ssw = 0xc;
+        }
+        cs->exception_index = EXCP_ACCESS;
+        cpu_loop_exit(cs);
+    }
 
     if (m68k_feature(env, M68K_FEATURE_M68040)) {
         env->mmu.mmusr = 0;
