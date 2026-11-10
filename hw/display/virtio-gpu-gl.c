@@ -31,10 +31,25 @@ static void virtio_gpu_gl_update_cursor_data(VirtIOGPU *g,
                                              uint32_t resource_id)
 {
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
+    struct virgl_renderer_resource_info info = { 0 };
     uint32_t width, height;
     uint32_t pixels, *data;
 
     if (gl->renderer_state != RS_INITED) {
+        return;
+    }
+
+    virgl_renderer_force_ctx_0();
+    if (virgl_renderer_resource_get_info(resource_id, &info) != 0) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: unknown cursor resource %u\n",
+                      __func__, resource_id);
+        return;
+    }
+
+    if (!virtio_gpu_format_is_cursor_capable(info.virgl_format)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: cursor resource %u has unsupported format %u\n",
+                      __func__, resource_id, info.virgl_format);
         return;
     }
 
@@ -45,6 +60,9 @@ static void virtio_gpu_gl_update_cursor_data(VirtIOGPU *g,
 
     if (width != s->current_cursor->width ||
         height != s->current_cursor->height) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: cursor resource %u has unsupported dimension %ux%u\n",
+                      __func__, resource_id, width, height);
         free(data);
         return;
     }

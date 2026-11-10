@@ -42,4 +42,17 @@ virtio_gpu_get_pixman_format(uint32_t virtio_gpu_format)
     }
 }
 
+/*
+ * Cursor data is copied as 32bpp; formats without a pixman mapping are
+ * rejected.
+ */
+static inline bool
+virtio_gpu_format_is_cursor_capable(uint32_t format)
+{
+    pixman_format_code_t pformat;
+
+    pformat = virtio_gpu_get_pixman_format(format);
+    return pformat && PIXMAN_FORMAT_BPP(pformat) == 32;
+}
+
 #endif
