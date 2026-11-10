@@ -218,12 +218,23 @@ static void read_page_mem(const AspeedSMCTestData *data, uint32_t addr,
 typedef void (*read_page_mem_fn)(const AspeedSMCTestData *data,
                                  uint32_t addr, uint32_t *page);
 
+static void flash_write_enable(const AspeedSMCTestData *data)
+{
+    spi_ctrl_start_user(data);
+    flash_writeb(data, 0, WREN);
+    spi_ctrl_stop_user(data);
+}
+
 static void write_page_mem(const AspeedSMCTestData *data, uint32_t addr,
                            uint32_t write_value)
 {
-    spi_ctrl_setmode(data, CTRL_WRITEMODE, PP);
-
     for (int i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
+        /* Send write enable before each Page Program */
+        flash_write_enable(data);
+
+        /* move out USER mode to use direct writes to the AHB bus */
+        spi_ctrl_setmode(data, CTRL_WRITEMODE, PP);
+
         flash_writel(data, addr + i * 4, write_value);
     }
 }
@@ -468,10 +479,13 @@ void aspeed_smc_test_write_page_mem(const void *data)
     flash_writeb(test_data, 0, WREN);
     spi_ctrl_stop_user(test_data);
 
-    /* move out USER mode to use direct writes to the AHB bus */
-    spi_ctrl_setmode(test_data, CTRL_WRITEMODE, PP);
-
     for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
+        /* Send write enable before each Page Program */
+        flash_write_enable(test_data);
+
+        /* move out USER mode to use direct writes to the AHB bus */
+        spi_ctrl_setmode(test_data, CTRL_WRITEMODE, PP);
+
         flash_writel(test_data, my_page_addr + i * 4,
                make_be32(my_page_addr + i * 4));
     }
