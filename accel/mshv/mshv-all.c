@@ -179,7 +179,8 @@ static int create_partition(int mshv_fd, int *vm_fd)
     pt_flags = (1ULL << MSHV_PT_BIT_LAPIC) |
                (1ULL << MSHV_PT_BIT_X2APIC) |
                (1ULL << MSHV_PT_BIT_GPA_SUPER_PAGES) |
-               (1ULL << MSHV_PT_BIT_CPU_AND_XSAVE_FEATURES);
+               (1ULL << MSHV_PT_BIT_CPU_AND_XSAVE_FEATURES) |
+               (1ULL << MSHV_PT_BIT_SMT_ENABLED_GUEST);
 
     /* enable all */
     disabled_xsave_features.as_uint64 = 0;
