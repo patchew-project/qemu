@@ -652,6 +652,8 @@ static void flash_erase(Flash *s, int offset, FlashCMD cmd)
     }
     memset(s->storage + offset, 0xff, len);
     flash_sync_area(s, offset, len);
+
+    s->write_enable = false;
 }
 
 static inline void flash_sync_dirty(Flash *s, int64_t newpage)
@@ -1600,6 +1602,10 @@ static int m25p80_cs(SSIPeripheral *ss, bool select)
     if (select) {
         if (s->state == STATE_COLLECTING_VAR_LEN_DATA) {
             complete_collecting_data(s);
+        }
+        /* Deassert WEL at the end of a non-AAI page program */
+        if (s->state == STATE_PAGE_PROGRAM && !s->aai_enable) {
+            s->write_enable = false;
         }
         s->len = 0;
         s->pos = 0;
