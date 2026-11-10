@@ -44,8 +44,18 @@ virtio_gpu_rutabaga_update_cursor(VirtIOGPU *g, struct virtio_gpu_scanout *s,
         return;
     }
 
+    if (!virtio_gpu_format_is_cursor_capable(res->format)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: cursor resource %u has unsupported format %u\n",
+                      __func__, resource_id, res->format);
+        return;
+    }
+
     if (res->width != s->current_cursor->width ||
         res->height != s->current_cursor->height) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: cursor resource %u has unsupported dimension %ux%u\n",
+                      __func__, resource_id, res->width, res->height);
         return;
     }
 
@@ -59,9 +69,12 @@ virtio_gpu_rutabaga_update_cursor(VirtIOGPU *g, struct virtio_gpu_scanout *s,
     transfer_iovec.iov_base = s->current_cursor->data;
     transfer_iovec.iov_len = res->width * res->height * 4;
 
-    rutabaga_resource_transfer_read(vr->rutabaga, 0,
-                                    resource_id, &transfer,
-                                    &transfer_iovec);
+    if (rutabaga_resource_transfer_read(vr->rutabaga, 0, resource_id,
+                                        &transfer, &transfer_iovec) != 0) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: failed to read cursor resource %u\n",
+                      __func__, resource_id);
+    }
 }
 
 static void
