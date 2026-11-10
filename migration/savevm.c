@@ -2269,6 +2269,10 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
         migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_DEVICE,
                           MIGRATION_STATUS_POSTCOPY_ACTIVE);
     }
+    if (mis->postcopy_package_loaded_ping) {
+        mis->postcopy_package_loaded_ping = false;
+        migrate_send_rp_pong(mis, QEMU_VM_PING_PACKAGED_LOADED);
+    }
     qemu_event_set(&mis->main_thread_load_event);
 }
 
@@ -2619,6 +2623,10 @@ static int loadvm_process_command(QEMUFile *f, Error **errp)
             error_setg(errp, "CMD_PING (0x%x) received with no return path",
                        tmp32);
             return -1;
+        }
+        if (tmp32 == QEMU_VM_PING_PACKAGED_LOADED) {
+            mis->postcopy_package_loaded_ping = true;
+            return 0;
         }
         migrate_send_rp_pong(mis, tmp32);
         return 0;

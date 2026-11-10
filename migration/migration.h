@@ -130,6 +130,8 @@ struct MigrationIncomingState {
      * loading state, or in postcopy once the run BH has changed the run state.
      */
     QemuEvent main_thread_load_event;
+    /* QEMU_VM_PING_PACKAGED_LOADED received, answered by the run BH */
+    bool postcopy_package_loaded_ping;
 
     /* For network announces */
     AnnounceTimer  announce_timer;

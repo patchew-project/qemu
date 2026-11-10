@@ -514,6 +514,7 @@ void migration_incoming_state_destroy(void)
     }
 
     qemu_event_reset(&mis->main_thread_load_event);
+    mis->postcopy_package_loaded_ping = false;
 
     if (mis->page_requested) {
         g_tree_destroy(mis->page_requested);
