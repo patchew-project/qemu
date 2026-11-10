@@ -803,6 +803,8 @@ void pcie_cap_slot_reset(PCIDevice *dev)
                                  PCI_EXP_SLTSTA_PDC |
                                  PCI_EXP_SLTSTA_ABP);
 
+    pcie_cap_update_slot_link(dev,
+                              pci_get_word(dev->config + PCI_BRIDGE_CONTROL));
     pcie_cap_update_power(dev);
     hotplug_event_update_event_status(dev);
 }
@@ -944,6 +946,24 @@ int pcie_cap_slot_post_load(void *opaque, int version_id)
 void pcie_cap_slot_push_attention_button(PCIDevice *dev)
 {
     pcie_cap_slot_event(dev, PCI_EXP_HP_EV_ABP);
+}
+
+/*
+ * Set DLLLA to reflect the actual link state: up iff a device is
+ * present on the secondary bus and SBR is not asserted.
+ */
+void pcie_cap_update_slot_link(PCIDevice *dev, uint16_t bctl)
+{
+    PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(dev));
+    uint8_t *exp_cap = dev->config + dev->exp.exp_cap;
+    uint32_t lnkcap = pci_get_long(exp_cap + PCI_EXP_LNKCAP);
+    bool link_up = sec_bus->devices[0] && !(bctl & PCI_BRIDGE_CTL_BUS_RESET);
+
+    if (dev->cap_present & QEMU_PCIE_LNKSTA_DLLLA ||
+        (lnkcap & PCI_EXP_LNKCAP_DLLLARC)) {
+        pci_set_word_by_mask(exp_cap + PCI_EXP_LNKSTA,
+                             PCI_EXP_LNKSTA_DLLLA, link_up);
+    }
 }
 
 /* root control/capabilities/status. PME isn't emulated for now */
