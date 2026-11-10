@@ -2263,6 +2263,7 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
     }
 
     trace_vmstate_downtime_checkpoint("dst-postcopy-bh-vm-started");
+    qemu_event_set(&mis->main_thread_load_event);
 }
 
 /* After all discards we can start running and asking for pages */
@@ -3148,7 +3149,10 @@ int qemu_loadvm_state(QEMUFile *f, Error **errp)
     cpu_synchronize_all_pre_loadvm();
 
     ret = qemu_loadvm_state_main(f, mis, errp);
-    qemu_event_set(&mis->main_thread_load_event);
+    /* Otherwise loadvm_postcopy_handle_run_bh() sets it */
+    if (postcopy_state_get() != POSTCOPY_INCOMING_RUNNING) {
+        qemu_event_set(&mis->main_thread_load_event);
+    }
 
     trace_qemu_loadvm_state_post_main(ret);
 

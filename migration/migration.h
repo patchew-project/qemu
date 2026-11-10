@@ -127,7 +127,7 @@ struct MigrationIncomingState {
     QemuEvent  thread_sync_event;
     /*
      * Free at the start of the main state load, set as the main thread finishes
-     * loading state.
+     * loading state, or in postcopy once the run BH has changed the run state.
      */
     QemuEvent main_thread_load_event;
 
