@@ -2111,7 +2111,7 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
 {
     Error *err = NULL;
 
-    /* Free the send ring before touching the QP. */
+    /* Stop and join the consumer before touching the QP it owns. */
     rdma_consumer_stop(rdma);
 
     if (rdma->cm_id && rdma->connected) {
@@ -2764,6 +2764,37 @@ static bool ring_full(RDMASendRing *r)
     return (r->head - qatomic_load_acquire(&r->tail)) >= RDMA_SEND_RING_SIZE;
 }
 
+static bool ring_empty(RDMASendRing *r)
+{
+    return (qatomic_load_acquire(&r->head) - r->tail) == 0;
+}
+
+static void ring_set_abort(RDMAContext *rdma)
+{
+    RDMASendRing *r = rdma->send_ring;
+
+    if (!r) {
+        return;
+    }
+    qemu_mutex_lock(&r->wait_lock);
+    qatomic_set(&r->abort, true);
+    qemu_cond_broadcast(&r->not_full);
+    qemu_cond_broadcast(&r->not_empty);
+    qemu_cond_broadcast(&r->barrier_cv);
+    qemu_mutex_unlock(&r->wait_lock);
+}
+
+static void ring_wake_producer(RDMASendRing *r)
+{
+    smp_mb();   /* order the *_waiting load below vs the sleeper's store */
+    if (qatomic_read(&r->producer_waiting)) {
+        qemu_mutex_lock(&r->wait_lock);
+        qemu_cond_broadcast(&r->not_full);
+        qemu_cond_broadcast(&r->barrier_cv);
+        qemu_mutex_unlock(&r->wait_lock);
+    }
+}
+
 /* Producer -> wake the consumer if it is idle on an empty ring. */
 static void ring_wake_consumer(RDMASendRing *r)
 {
@@ -2800,10 +2831,84 @@ static int ring_push(RDMAContext *rdma, const RDMACmd *cmd)
     return 0;
 }
 
-/*
- * Producer: allocate the send ring once (idempotent).  The consumer
- * thread that drains it is created in a later change.
- */
+static bool ring_pop(RDMASendRing *r, RDMACmd *cmd)
+{
+    if (ring_empty(r)) {
+        return false;
+    }
+    *cmd = r->ring[r->tail & RDMA_SEND_RING_MASK];   /* after load_acquire */
+    return true;
+}
+
+static void ring_advance_tail(RDMASendRing *r)
+{
+    qatomic_store_release(&r->tail, r->tail + 1);
+    ring_wake_producer(r);
+}
+
+/* Consumer: sleep until the ring is non-empty or aborted. */
+static void ring_idle_wait(RDMASendRing *r)
+{
+    qemu_mutex_lock(&r->wait_lock);
+    r->consumer_waiting = true;
+    smp_mb();                           /* pair with ring_wake_consumer() */
+    while (ring_empty(r) && !r->abort) {
+        qemu_cond_wait(&r->not_empty, &r->wait_lock);
+    }
+    r->consumer_waiting = false;
+    qemu_mutex_unlock(&r->wait_lock);
+}
+
+static int rdma_consumer_dispatch(RDMAContext *rdma, const RDMACmd *cmd,
+                                  bool *stop)
+{
+    Error *err = NULL;
+    int ret = 0;
+
+    switch (cmd->type) {
+    case RDMA_CMD_FINISH:
+        ret = qemu_rdma_drain_cq(rdma, &err);
+        *stop = true;
+        break;
+    default:
+        break;
+    }
+    if (ret < 0 && err) {
+        error_report_err(err);
+    }
+    return ret;
+}
+
+static void *rdma_consumer_thread(void *opaque)
+{
+    RDMAContext *rdma = opaque;
+    RDMASendRing *r = rdma->send_ring;
+    bool stop = false;
+
+    rcu_register_thread();
+
+    while (!qatomic_read(&r->abort) && !stop) {
+        RDMACmd cmd;
+
+        if (ring_pop(r, &cmd)) {
+            if (rdma_consumer_dispatch(rdma, &cmd, &stop) < 0) {
+                ring_set_abort(rdma);
+                break;
+            }
+            ring_advance_tail(r);
+            continue;
+        }
+        ring_idle_wait(r);
+    }
+
+    if (qatomic_read(&r->abort)) {
+        /* make the failure visible to the producer's rdma_errored() checks */
+        rdma->errored = true;
+    }
+    rcu_unregister_thread();
+    return NULL;
+}
+
 static void rdma_consumer_start(RDMAContext *rdma)
 {
     RDMASendRing *r;
@@ -2820,9 +2925,10 @@ static void rdma_consumer_start(RDMAContext *rdma)
     rdma->pend_block = -1;        /* no pending WRITE span yet */
     /* Producer-only flag (migration thread + cleanup, never concurrent). */
     rdma->consumer_started = true;
+    qemu_thread_create(&rdma->consumer_thread, "rdma-send",
+                       rdma_consumer_thread, rdma, QEMU_THREAD_JOINABLE);
 }
 
-/* Producer: tear down the send ring. */
 static void rdma_consumer_stop(RDMAContext *rdma)
 {
     RDMASendRing *r = rdma->send_ring;
@@ -2835,6 +2941,8 @@ static void rdma_consumer_stop(RDMAContext *rdma)
     if (!qatomic_read(&r->abort)) {
         ring_push(rdma, &cmd);
     }
+    qemu_thread_join(&rdma->consumer_thread);
+
     qemu_mutex_destroy(&r->wait_lock);
     qemu_cond_destroy(&r->not_full);
     qemu_cond_destroy(&r->not_empty);
