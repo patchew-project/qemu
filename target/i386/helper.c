@@ -204,7 +204,8 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
 #endif
     if ((new_cr4 ^ env->cr[4]) &
         (CR4_PGE_MASK | CR4_PAE_MASK | CR4_PSE_MASK |
-         CR4_SMEP_MASK | CR4_SMAP_MASK | CR4_LA57_MASK)) {
+         CR4_SMEP_MASK | CR4_SMAP_MASK | CR4_LA57_MASK |
+         CR4_LAM_SUP_MASK)) {
         tlb_flush(env_cpu(env));
     }
 
@@ -289,6 +290,9 @@ bool x86_cpu_translate_for_debug(CPUState *cs, vaddr addr,
             uint64_t pml5e_addr, pml5e;
             uint64_t pml4e_addr, pml4e;
             int32_t sext;
+
+            /* LAM: translate as for a data access */
+            addr = x86_lam_mask_addr(env, addr);
 
             /* test virtual address sign extension */
             sext = la57 ? (int64_t)addr >> 56 : (int64_t)addr >> 47;

@@ -581,15 +581,35 @@ static bool get_physical_address(CPUX86State *env, vaddr addr,
         }
 
         if (likely(env->cr[0] & CR0_PG_MASK || use_stage2)) {
+            int lam_prot_mask = 0;
+
             in.cr3 = env->cr[3];
             in.mmu_idx = mmu_idx;
             in.ptw_idx = use_stage2 ? MMU_NESTED_IDX : MMU_PHYS_IDX;
             in.pg_mode = get_pg_mode(env);
 
             if (in.pg_mode & PG_MODE_LMA) {
-                /* test virtual address sign extension */
+                vaddr masked = x86_lam_mask_addr(env, addr);
                 int shift = in.pg_mode & PG_MODE_LA57 ? 56 : 47;
-                int64_t sext = (int64_t)addr >> shift;
+                int64_t sext;
+
+                /*
+                 * LAM masks data addresses but not fetches.  Both install
+                 * the entry under the unmasked address, so if masking
+                 * changes it, keep only the permissions of this access.
+                 */
+                if (masked != addr) {
+                    if (access_type == MMU_INST_FETCH) {
+                        lam_prot_mask = PAGE_READ | PAGE_WRITE;
+                    } else {
+                        lam_prot_mask = PAGE_EXEC;
+                        addr = masked;
+                        in.addr = addr;
+                    }
+                }
+
+                /* test virtual address sign extension */
+                sext = (int64_t)addr >> shift;
                 if (sext != 0 && sext != -1) {
                     *err = (TranslateFault){
                         .exception_index = EXCP0D_GPF,
@@ -599,7 +619,11 @@ static bool get_physical_address(CPUX86State *env, vaddr addr,
                     return false;
                 }
             }
-            return mmu_translate(env, &in, out, err, ra);
+            if (!mmu_translate(env, &in, out, err, ra)) {
+                return false;
+            }
+            out->prot &= ~lam_prot_mask;
+            return true;
         }
         break;
     }

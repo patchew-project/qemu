@@ -260,6 +260,9 @@ typedef enum X86Seg {
 #define CR0_CD_MASK  (1U << 30)
 #define CR0_PG_MASK  (1U << 31)
 
+#define CR3_LAM_U57_MASK (1ULL << 61)
+#define CR3_LAM_U48_MASK (1ULL << 62)
+
 #define CR4_VME_MASK  (1U << 0)
 #define CR4_PVI_MASK  (1U << 1)
 #define CR4_TSD_MASK  (1U << 2)
@@ -3109,6 +3112,49 @@ static inline uint64_t cr4_reserved_bits(CPUX86State *env)
         reserved_bits |= CR4_CET_MASK;
     }
     return reserved_bits;
+}
+
+/* Reserved CR3 bits in IA-32e mode */
+static inline uint64_t cr3_reserved_bits(CPUX86State *env)
+{
+    uint64_t reserved_bits = ~0ULL << env_archcpu(env)->phys_bits;
+
+    if (env->features[FEAT_7_1_EAX] & CPUID_7_1_EAX_LAM) {
+        reserved_bits &= ~(CR3_LAM_U57_MASK | CR3_LAM_U48_MASK);
+    }
+    return reserved_bits;
+}
+
+/* LAM width of @addr: 57 or 48, or 64 without LAM. IA-32e mode only. */
+static inline unsigned x86_lam_addr_bits(CPUX86State *env, uint64_t addr)
+{
+    if (!(env->features[FEAT_7_1_EAX] & CPUID_7_1_EAX_LAM)) {
+        return 64;
+    }
+    if (addr >> 63) {
+        if (!(env->cr[4] & CR4_LAM_SUP_MASK)) {
+            return 64;
+        }
+        return env->cr[4] & CR4_LA57_MASK ? 57 : 48;
+    }
+    if (env->cr[3] & CR3_LAM_U57_MASK) {
+        return 57;
+    }
+    if (env->cr[3] & CR3_LAM_U48_MASK) {
+        return 48;
+    }
+    return 64;
+}
+
+/* @addr with its LAM metadata masked, keeping bit 63. IA-32e mode only. */
+static inline uint64_t x86_lam_mask_addr(CPUX86State *env, uint64_t addr)
+{
+    unsigned lam_bits = x86_lam_addr_bits(env, addr);
+
+    if (lam_bits == 64) {
+        return addr;
+    }
+    return deposit64(sextract64(addr, 0, lam_bits), 63, 1, addr >> 63);
 }
 
 static inline bool ctl_has_irq(CPUX86State *env)

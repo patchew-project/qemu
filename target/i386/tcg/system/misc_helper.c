@@ -90,8 +90,7 @@ void HELPER(write_crN)(CPUX86State *env, int reg, target_ulong t0)
         cpu_x86_update_cr0(env, t0);
         break;
     case 3:
-        if ((env->efer & MSR_EFER_LMA) &&
-                (t0 & ((~0ULL) << env_archcpu(env)->phys_bits))) {
+        if ((env->efer & MSR_EFER_LMA) && (t0 & cr3_reserved_bits(env))) {
             cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
         }
         if (!(env->efer & MSR_EFER_LMA)) {
@@ -504,6 +503,27 @@ void HELPER(rdmsr)(CPUX86State *env)
 
 void HELPER(flush_page)(CPUX86State *env, target_ulong addr)
 {
+#ifdef TARGET_X86_64
+    if (env->hflags & HF_LMA_MASK) {
+        int shift = env->cr[4] & CR4_LA57_MASK ? 56 : 47;
+        int64_t sext = (int64_t)addr >> shift;
+        unsigned lam_bits;
+
+        /* no LAM for the operand: non-canonical is a no-op */
+        if (sext != 0 && sext != -1) {
+            return;
+        }
+
+        /* TLB entries are per tag: flush every tagged alias */
+        lam_bits = x86_lam_addr_bits(env, addr);
+        if (lam_bits < 64) {
+            tlb_flush_page_bits_by_mmuidx(env_cpu(env), addr,
+                                          MAKE_64BIT_MASK(0, NB_MMU_MODES),
+                                          lam_bits);
+            return;
+        }
+    }
+#endif
     tlb_flush_page(env_cpu(env), addr);
 }
 
