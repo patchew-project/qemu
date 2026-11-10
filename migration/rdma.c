@@ -32,6 +32,7 @@
 #include "qemu/thread.h"
 #include "qemu/sockets.h"
 #include "qemu/coroutine.h"
+#include "qemu/timer.h"
 #include "system/memory.h"
 #include <sys/socket.h>
 #include <netdb.h>
@@ -1213,7 +1214,9 @@ static int producer_flush_pending(RDMAContext *rdma);
 static int ring_barrier(RDMAContext *rdma, RDMACmdType type, uint64_t flags,
                         const struct iovec *iov, size_t niov);
 static void ring_set_abort(RDMAContext *rdma);
+static unsigned ring_occupancy(RDMAContext *rdma);
 static void rdma_nbsent_stats_dump(RDMAContext *rdma);
+static void rdma_prodcons_stats_dump(RDMASendRing *r);
 
 /*
  * Consult the connection manager to see a work request
@@ -2616,6 +2619,7 @@ static int rdma_ram_round_notify(NotifierWithReturn *n G_GNUC_UNUSED,
     }
 
     /* Complete all chunks in the ring before the next round. */
+    trace_rdma_ram_round_notify(ring_occupancy(rdma));
     if (ring_barrier(rdma, RDMA_CMD_FLUSH, 0, NULL, 0) < 0) {
         error_setg(errp, "RDMA consumer aborted during round drain");
         return -1;
@@ -2684,6 +2688,14 @@ static bool ring_empty(RDMASendRing *r)
     return (qatomic_load_acquire(&r->head) - r->tail) == 0;
 }
 
+/* Producer-side snapshot of queued-but-unprocessed commands in the ring. */
+static unsigned ring_occupancy(RDMAContext *rdma)
+{
+    RDMASendRing *r = rdma->send_ring;
+
+    return r->head - qatomic_read(&r->tail);
+}
+
 static void ring_set_abort(RDMAContext *rdma)
 {
     RDMASendRing *r = rdma->send_ring;
@@ -2703,6 +2715,7 @@ static void ring_wake_producer(RDMASendRing *r)
 {
     smp_mb();   /* order the *_waiting load below vs the sleeper's store */
     if (qatomic_read(&r->producer_waiting)) {
+        trace_rdma_ring_wake_producer();
         qemu_mutex_lock(&r->wait_lock);
         qemu_cond_broadcast(&r->not_full);
         qemu_cond_broadcast(&r->barrier_cv);
@@ -2715,20 +2728,38 @@ static void ring_wake_consumer(RDMASendRing *r)
 {
     smp_mb();   /* order the *_waiting load below vs the sleeper's store */
     if (qatomic_read(&r->consumer_waiting)) {
+        trace_rdma_ring_wake_consumer();
         qemu_mutex_lock(&r->wait_lock);
         qemu_cond_signal(&r->not_empty);
         qemu_mutex_unlock(&r->wait_lock);
     }
 }
 
+static const char *rdma_cmd_type_str(RDMACmdType type)
+{
+    switch (type) {
+    case RDMA_CMD_WRITE:    return "WRITE";
+    case RDMA_CMD_FLUSH:    return "FLUSH";
+    case RDMA_CMD_REG_STOP: return "REG_STOP";
+    case RDMA_CMD_FILE:     return "FILE";
+    case RDMA_CMD_FINISH:   return "FINISH";
+    default:                return "UNKNOWN";
+    }
+}
+
 static int ring_push(RDMAContext *rdma, const RDMACmd *cmd)
 {
     RDMASendRing *r = rdma->send_ring;
+    unsigned occupancy;
 
     /* SETUP starts the consumer before any WRITE/FLUSH/REG_STOP/FILE. */
     assert(r);
+    trace_rdma_ring_push_begin(rdma_cmd_type_str(cmd->type),
+                               cmd->chunk_index);
 
     if (ring_full(r)) {
+        int64_t wait_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+
         qemu_mutex_lock(&r->wait_lock);
         r->producer_waiting = true;
         smp_mb();                       /* pair with ring_wake_producer() */
@@ -2737,12 +2768,23 @@ static int ring_push(RDMAContext *rdma, const RDMACmd *cmd)
         }
         r->producer_waiting = false;
         qemu_mutex_unlock(&r->wait_lock);
+
+        wait_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - wait_ns;
+        r->pushwait_total_ns += wait_ns;
+        if ((uint64_t)wait_ns > r->pushwait_max_ns) {
+            r->pushwait_max_ns = wait_ns;
+        }
+        trace_rdma_ring_push_full_wait(cmd->type, wait_ns);
     }
     if (qatomic_read(&r->abort)) {
         return -1;
     }
     r->ring[r->head & RDMA_SEND_RING_MASK] = *cmd;
     qatomic_store_release(&r->head, r->head + 1);   /* publish payload+slot */
+    occupancy = r->head - qatomic_read(&r->tail);
+    if (occupancy > r->occupancy_max) {
+        r->occupancy_max = occupancy;
+    }
     ring_wake_consumer(r);
     return 0;
 }
@@ -2798,8 +2840,10 @@ static int ring_barrier(RDMAContext *rdma, RDMACmdType type, uint64_t flags,
                         const struct iovec *iov, size_t niov)
 {
     RDMASendRing *r = rdma->send_ring;
+    int64_t wait_ns;
     unsigned seq;
     RDMACmd cmd;
+    int ret;
 
     assert(r);          /* consumer started at SETUP; see ring_push() */
 
@@ -2813,6 +2857,7 @@ static int ring_barrier(RDMAContext *rdma, RDMACmdType type, uint64_t flags,
     if (seq == 0) {                 /* seq 0 is the "no barrier" sentinel */
         seq = ++r->barrier_next_seq;
     }
+    trace_rdma_ring_barrier_begin(type, seq);
     cmd = (RDMACmd){
         .type = type,
         .flags = flags,
@@ -2822,10 +2867,16 @@ static int ring_barrier(RDMAContext *rdma, RDMACmdType type, uint64_t flags,
     };
 
     if (ring_push(rdma, &cmd) < 0) {
+        trace_rdma_ring_barrier_end(type, seq, 0, -1);
         return -1;
     }
 
-    return ring_wait_barrier(r, seq);
+    /* time spent blocked waiting for the consumer to complete the barrier */
+    wait_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    ret = ring_wait_barrier(r, seq);
+    wait_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - wait_ns;
+    trace_rdma_ring_barrier_end(type, seq, wait_ns, ret);
+    return ret;
 }
 
 static bool ring_pop(RDMASendRing *r, RDMACmd *cmd)
@@ -2853,11 +2904,20 @@ static void ring_barrier_complete(RDMASendRing *r, unsigned seq)
 /* Consumer: sleep until the ring is non-empty or aborted. */
 static void ring_idle_wait(RDMASendRing *r)
 {
+    int64_t start_ns, idle_ns;
+
     qemu_mutex_lock(&r->wait_lock);
     r->consumer_waiting = true;
     smp_mb();                           /* pair with ring_wake_consumer() */
+    start_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    trace_rdma_consumer_idle_begin();
     while (ring_empty(r) && !r->abort) {
         qemu_cond_wait(&r->not_empty, &r->wait_lock);
+    }
+    idle_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start_ns;
+    trace_rdma_consumer_idle_end(idle_ns);
+    if ((uint64_t)idle_ns > r->idle_max_ns) {
+        r->idle_max_ns = idle_ns;
     }
     r->consumer_waiting = false;
     qemu_mutex_unlock(&r->wait_lock);
@@ -2876,6 +2936,7 @@ static int rdma_consumer_reg_stop(RDMAContext *rdma, uint64_t flags,
             return -1;
         }
         rdma_nbsent_stats_dump(rdma);
+        rdma_prodcons_stats_dump(rdma->send_ring);
     }
     return qemu_rdma_exchange_send(rdma, &head, NULL, NULL, NULL, NULL, errp);
 }
@@ -2885,6 +2946,9 @@ static int rdma_consumer_dispatch(RDMAContext *rdma, const RDMACmd *cmd,
 {
     Error *err = NULL;
     int ret = 0;
+
+    trace_rdma_consumer_dispatch(cmd->type, cmd->block_index,
+                                 cmd->chunk_index, cmd->seq);
 
     switch (cmd->type) {
     case RDMA_CMD_WRITE:
@@ -2919,6 +2983,7 @@ static void *rdma_consumer_thread(void *opaque)
     bool stop = false;
 
     rcu_register_thread();
+    trace_rdma_consumer_thread_start();
 
     while (!qatomic_read(&r->abort) && !stop) {
         RDMACmd cmd;
@@ -2950,6 +3015,7 @@ static void *rdma_consumer_thread(void *opaque)
         /* make the failure visible to the producer's rdma_errored() checks */
         rdma->errored = true;
     }
+    trace_rdma_consumer_thread_stop(qatomic_read(&r->abort));
     rcu_unregister_thread();
     return NULL;
 }
@@ -3361,6 +3427,13 @@ static void rdma_nbsent_stats_dump(RDMAContext *rdma)
     }
     trace_rdma_nbsent_stats(rdma->nbsent_max, rdma->nbsent_posts,
                             rdma->nbsent_full_hits, rdma->nbsent_zero_hits);
+}
+
+/* Producer/consumer ring stats for the whole migration (consumer at FINISH). */
+static void rdma_prodcons_stats_dump(RDMASendRing *r)
+{
+    trace_rdma_prodcons_stats(r->idle_max_ns, r->pushwait_max_ns,
+                              r->pushwait_total_ns, r->occupancy_max);
 }
 
 int rdma_control_save_page(QEMUFile *f, ram_addr_t block_offset,
