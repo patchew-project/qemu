@@ -20,7 +20,7 @@
 bool vg_virgl_init(VuGpu *g);
 uint32_t vg_virgl_get_num_capsets(void);
 void vg_virgl_process_cmd(VuGpu *vg, struct virtio_gpu_ctrl_command *cmd);
-void vg_virgl_update_cursor_data(VuGpu *g, uint32_t resource_id,
+bool vg_virgl_update_cursor_data(VuGpu *g, uint32_t resource_id,
                                  gpointer data);
 
 #endif

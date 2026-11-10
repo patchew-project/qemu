@@ -14,24 +14,35 @@
 
 #include "qemu/osdep.h"
 #include <virglrenderer.h>
+#include "hw/virtio/virtio-gpu-pixman.h"
 #include "virgl.h"
 
 #include <epoxy/gl.h>
 
-void
+bool
 vg_virgl_update_cursor_data(VuGpu *g, uint32_t resource_id,
                             gpointer data)
 {
-    uint32_t width, height;
-    uint32_t *cursor;
+    struct virgl_renderer_resource_info info = { 0 };
+    g_autofree uint32_t *cursor = NULL;
+    uint32_t width = 0, height = 0;
+
+    virgl_renderer_force_ctx_0();
+    if (virgl_renderer_resource_get_info(resource_id, &info) != 0 ||
+        !virtio_gpu_format_is_cursor_capable(info.virgl_format)) {
+        g_debug("%s: invalid cursor resource %u", G_STRFUNC, resource_id);
+        return false;
+    }
 
     cursor = virgl_renderer_get_cursor_data(resource_id, &width, &height);
-    g_return_if_fail(cursor != NULL);
-    g_return_if_fail(width == 64);
-    g_return_if_fail(height == 64);
+    if (!cursor || width != 64 || height != 64) {
+        g_debug("%s: failed to read cursor resource %u (%ux%u)",
+                G_STRFUNC, resource_id, width, height);
+        return false;
+    }
 
     memcpy(data, cursor, 64 * 64 * sizeof(uint32_t));
-    free(cursor);
+    return true;
 }
 
 static void

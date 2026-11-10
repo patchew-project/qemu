@@ -949,19 +949,22 @@ vg_handle_ctrl(VuDev *dev, int qidx)
     }
 }
 
-static void
+static bool
 update_cursor_data_simple(VuGpu *g, uint32_t resource_id, gpointer data)
 {
     struct virtio_gpu_simple_resource *res;
 
     res = virtio_gpu_find_resource(g, resource_id);
-    g_return_if_fail(res != NULL);
-    g_return_if_fail(pixman_image_get_width(res->image) == 64);
-    g_return_if_fail(pixman_image_get_height(res->image) == 64);
-    g_return_if_fail(
-        PIXMAN_FORMAT_BPP(pixman_image_get_format(res->image)) == 32);
+    if (!res || !res->image ||
+        pixman_image_get_width(res->image) != 64 ||
+        pixman_image_get_height(res->image) != 64 ||
+        PIXMAN_FORMAT_BPP(pixman_image_get_format(res->image)) != 32) {
+        g_debug("%s: invalid cursor resource %u", G_STRFUNC, resource_id);
+        return false;
+    }
 
     memcpy(data, pixman_image_get_data(res->image), 64 * 64 * sizeof(uint32_t));
+    return true;
 }
 
 static void
@@ -984,6 +987,7 @@ vg_process_cursor_cmd(VuGpu *g, struct virtio_gpu_update_cursor *cursor)
         break;
     }
     case VIRTIO_GPU_CMD_UPDATE_CURSOR: {
+        bool ok = true;
         VhostUserGpuMsg msg = {
             .request = VHOST_USER_GPU_CURSOR_UPDATE,
             .size = sizeof(VhostUserGpuCursorUpdate),
@@ -998,12 +1002,17 @@ vg_process_cursor_cmd(VuGpu *g, struct virtio_gpu_update_cursor *cursor)
             }
         };
         g_debug("%s: update", G_STRFUNC);
-        if (g->virgl) {
-            vg_virgl_update_cursor_data(g, cursor->resource_id,
-                                        msg.payload.cursor_update.data);
+        if (!cursor->resource_id) {
+            /* no resource: send a transparent cursor */
+        } else if (g->virgl) {
+            ok = vg_virgl_update_cursor_data(g, cursor->resource_id,
+                                             msg.payload.cursor_update.data);
         } else {
-            update_cursor_data_simple(g, cursor->resource_id,
-                                      msg.payload.cursor_update.data);
+            ok = update_cursor_data_simple(g, cursor->resource_id,
+                                           msg.payload.cursor_update.data);
+        }
+        if (!ok) {
+            break;
         }
         vg_send_msg(g, &msg, -1);
         break;
