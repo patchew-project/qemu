@@ -2263,6 +2263,12 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
     }
 
     trace_vmstate_downtime_checkpoint("dst-postcopy-bh-vm-started");
+
+    /* Already POSTCOPY_ACTIVE without a return path or in fast snapshot load */
+    if (mis->state == MIGRATION_STATUS_POSTCOPY_DEVICE) {
+        migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_DEVICE,
+                          MIGRATION_STATUS_POSTCOPY_ACTIVE);
+    }
     qemu_event_set(&mis->main_thread_load_event);
 }
 
@@ -2277,11 +2283,6 @@ static int loadvm_postcopy_handle_run(MigrationIncomingState *mis, Error **errp)
         return -1;
     }
 
-    /* We might be already in POSTCOPY_ACTIVE if there is no return path */
-    if (mis->state == MIGRATION_STATUS_POSTCOPY_DEVICE) {
-        migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_DEVICE,
-                          MIGRATION_STATUS_POSTCOPY_ACTIVE);
-    }
     postcopy_state_set(POSTCOPY_INCOMING_RUNNING);
     migration_bh_schedule(loadvm_postcopy_handle_run_bh, mis);
 
