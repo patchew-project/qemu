@@ -302,6 +302,12 @@ typedef struct RDMAContext {
     /* number of outstanding writes */
     int nb_sent;
 
+    /* nb_sent statistics */
+    uint64_t nbsent_max;            /* peak outstanding writes */
+    uint64_t nbsent_posts;          /* posts (nb_sent++) */
+    uint64_t nbsent_full_hits;      /* posts that hit a full SQ */
+    uint64_t nbsent_zero_hits;      /* drains to zero */
+
     /* store info about current buffer so that we can
        merge it with future sends */
     uint64_t current_addr;
@@ -1164,6 +1170,11 @@ static uint64_t qemu_rdma_make_wrid(uint64_t wr_id, uint64_t index,
     return result;
 }
 
+/* nb_sent statistics counters */
+static void rdma_nbsent_inc(RDMAContext *rdma, uint64_t nb_sent);
+static void rdma_nbsent_full(RDMAContext *rdma);
+static void rdma_nbsent_zero(RDMAContext *rdma);
+
 /*
  * Consult the connection manager to see a work request
  * (of any kind) has completed.
@@ -1213,6 +1224,9 @@ static int qemu_rdma_poll(RDMAContext *rdma, struct ibv_cq *cq,
 
         if (rdma->nb_sent > 0) {
             rdma->nb_sent--;
+            if (rdma->nb_sent == 0) {
+                rdma_nbsent_zero(rdma);
+            }
         }
     } else {
         trace_rdma_poll_other(wr_id, rdma->nb_sent);
@@ -1438,6 +1452,7 @@ static bool qemu_rdma_post_send(RDMAContext *rdma,
     ret = ibv_post_send(rdma->qp, send_wr, &bad_wr);
     if (ret == ENOMEM && rdma->nb_sent) {
         trace_rdma_post_send_queue_full(send_wr->wr_id, rdma->nb_sent);
+        rdma_nbsent_full(rdma);
         ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RDMA_WRITE, NULL);
         if (ret < 0) {
             error_setg(errp, "rdma migration: failed to make room for %s",
@@ -1953,6 +1968,7 @@ static int qemu_rdma_write_flush(RDMAContext *rdma, Error **errp)
     if (ret == 0) {
         rdma->nb_sent++;
         trace_rdma_write_flush(rdma->nb_sent);
+        rdma_nbsent_inc(rdma, rdma->nb_sent);
     }
 
     rdma->current_length = 0;
@@ -2998,6 +3014,41 @@ err:
     return -1;
 }
 
+static void rdma_nbsent_inc(RDMAContext *rdma, uint64_t nb_sent)
+{
+    rdma->nbsent_posts++;
+    if (nb_sent > rdma->nbsent_max) {
+        rdma->nbsent_max = nb_sent;
+    }
+}
+
+static void rdma_nbsent_full(RDMAContext *rdma)
+{
+    rdma->nbsent_full_hits++;
+}
+
+static void rdma_nbsent_zero(RDMAContext *rdma)
+{
+    rdma->nbsent_zero_hits++;
+}
+
+static void rdma_stats_reset(RDMAContext *rdma)
+{
+    rdma->nbsent_max = 0;
+    rdma->nbsent_posts = 0;
+    rdma->nbsent_full_hits = 0;
+    rdma->nbsent_zero_hits = 0;
+}
+
+static void rdma_nbsent_stats_dump(RDMAContext *rdma)
+{
+    if (rdma->nbsent_posts == 0) {
+        return;
+    }
+    trace_rdma_nbsent_stats(rdma->nbsent_max, rdma->nbsent_posts,
+                            rdma->nbsent_full_hits, rdma->nbsent_zero_hits);
+}
+
 int rdma_control_save_page(QEMUFile *f, ram_addr_t block_offset,
                            ram_addr_t offset, size_t size)
 {
@@ -3547,6 +3598,10 @@ int rdma_registration_start(QEMUFile *f, uint64_t flags)
         return -1;
     }
 
+    if (flags == RAM_CONTROL_SETUP) {
+        rdma_stats_reset(rdma);
+    }
+
     trace_rdma_registration_start(flags);
     qemu_put_be64(f, RAM_SAVE_FLAG_HOOK);
     return qemu_fflush(f);
@@ -3581,6 +3636,11 @@ int rdma_registration_stop(QEMUFile *f, uint64_t flags)
     }
 
     qemu_fflush(f);
+
+    if (flags == RAM_CONTROL_FINISH) {
+        rdma_nbsent_stats_dump(rdma);
+    }
+
     ret = qemu_rdma_write_flush(rdma, &err);
 
     if (ret < 0) {
