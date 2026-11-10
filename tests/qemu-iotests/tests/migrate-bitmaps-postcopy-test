@@ -31,6 +31,7 @@ disk_a1 = os.path.join(iotests.test_dir, 'disk_a1')
 disk_b1 = os.path.join(iotests.test_dir, 'disk_b1')
 size = '256G'
 fifo = os.path.join(iotests.test_dir, 'mig_fifo')
+mig_sock = os.path.join(iotests.sock_dir, 'mig_sock')
 
 granularity = 512
 nb_bitmaps = 15
@@ -297,6 +298,44 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
 
         check_bitmaps(self.vm_a, 0)
         check_bitmaps(self.vm_b, 0)
+
+
+# libvirt's configuration: the source waits for the destination's pong
+class TestDirtyBitmapPostcopyReturnPath(iotests.QMPTestCase):
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, disk_a, '1G')
+        qemu_img('create', '-f', iotests.imgfmt, disk_b, '1G')
+        self.vm_a = iotests.VM(path_suffix='a').add_drive(disk_a)
+        self.vm_b = iotests.VM(path_suffix='b').add_drive(disk_b)
+        self.vm_b.add_incoming('unix:' + mig_sock)
+        self.vm_a.launch()
+        self.vm_b.launch()
+
+    def tearDown(self):
+        self.vm_a.shutdown()
+        self.vm_b.shutdown()
+        os.remove(disk_a)
+        os.remove(disk_b)
+
+    def test_postcopy_success(self):
+        self.vm_a.cmd('block-dirty-bitmap-add', node='drive0',
+                      name='bitmap0', persistent=True)
+
+        caps = [{'capability': 'dirty-bitmaps', 'state': True},
+                {'capability': 'events', 'state': True},
+                {'capability': 'return-path', 'state': True}]
+        self.vm_a.cmd('migrate-set-capabilities', capabilities=caps)
+        self.vm_b.cmd('migrate-set-capabilities', capabilities=caps)
+
+        self.vm_a.cmd('migrate', uri='unix:' + mig_sock)
+        self.vm_a.cmd('migrate-start-postcopy')
+
+        match = {'data': {'status': 'postcopy-active'}}
+        self.vm_a.event_wait('MIGRATION', match=match)
+        match = {'data': {'status': 'completed'}}
+        self.vm_b.event_wait('MIGRATION', match=match)
+        self.vm_a.event_wait('MIGRATION', match=match)
+        check_bitmaps(self.vm_b, 1)
 
 
 if __name__ == '__main__':
