@@ -199,6 +199,7 @@ static void cf_interrupt_all(CPUM68KState *env, int is_hw)
     fmt |= sr;
 
     env->sr |= SR_S;
+    env->sr &= ~SR_T;
     if (is_hw) {
         env->sr = (env->sr & ~SR_I) | (env->pending_level << SR_I_SHIFT);
         env->sr &= ~SR_M;
