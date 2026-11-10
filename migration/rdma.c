@@ -29,6 +29,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/rcu.h"
+#include "qemu/thread.h"
 #include "qemu/sockets.h"
 #include "qemu/coroutine.h"
 #include "system/memory.h"
@@ -279,6 +280,33 @@ typedef struct RDMALocalBlocks {
 } RDMALocalBlocks;
 
 /*
+ * Producer/consumer split (source side): the migration thread (producer)
+ * scans dirty pages and enqueues chunk-write and barrier commands into an
+ * SPSC ring; a dedicated consumer thread owns the QP/CQ and does all RDMA.
+ */
+typedef enum {
+    RDMA_CMD_WRITE,     /* write one dirty span: block/chunk + offset/length */
+    RDMA_CMD_FLUSH,     /* drain nb_sent -> 0 (round boundary) */
+    RDMA_CMD_REG_STOP,  /* send REGISTER_FINISHED; flags = RAM_CONTROL_* */
+    RDMA_CMD_FILE,      /* QEMUFile control bytes: iov/niov */
+    RDMA_CMD_FINISH,    /* drain then stop the consumer */
+} RDMACmdType;
+
+typedef struct RDMACmd {
+    RDMACmdType type;
+    uint32_t block_index;
+    uint32_t chunk_index;
+    uint64_t offset;              /* WRITE: dirty span start, block-relative */
+    uint32_t length;             /* WRITE: dirty span length (within a chunk) */
+    uint64_t flags;               /* REG_STOP */
+    const struct iovec *iov;      /* FILE (producer blocks -> stays valid) */
+    size_t niov;                  /* FILE */
+    unsigned seq;                 /* barrier completion sequence (0 = none) */
+} RDMACmd;
+
+typedef struct RDMASendRing RDMASendRing;
+
+/*
  * Main data structure for RDMA state.
  * While there is only one copy of this structure being allocated right now,
  * this is the place where one would start if you wanted to consider
@@ -316,6 +344,17 @@ typedef struct RDMAContext {
     int current_index;
     /* index of the chunk in the current ram block */
     int current_chunk;
+
+    /* producer/consumer split (source side) */
+    RDMASendRing *send_ring;      /* SPSC ring; allocated at consumer start */
+    QemuThread consumer_thread;
+    bool consumer_started;        /* producer-only: route via ring once set */
+
+    /* producer-only: pending contiguous WRITE span, not yet enqueued */
+    int pend_block;               /* block index, -1 = none */
+    uint32_t pend_chunk;          /* chunk index of the span */
+    uint64_t pend_offset;         /* span start, block-relative bytes */
+    uint64_t pend_length;         /* span length in bytes (within one chunk) */
 
     bool pin_all;
 
@@ -2669,6 +2708,49 @@ static int rdma_ram_round_notify(NotifierWithReturn *n G_GNUC_UNUSED,
 
 static NotifierWithReturn rdma_ram_round_notifier = {
     .notify = rdma_ram_round_notify,
+};
+
+/*
+ * ---------------------------------------------------------------------------
+ * Producer/consumer send ring (source side).
+ *
+ * Lock-free SPSC ring: the producer (migration thread) owns head, the
+ * consumer (RDMA thread) owns tail.  A mutex+condvars are used only to
+ * sleep/wake at the empty/full/abort/barrier edges (guarded by the *_waiting
+ * flags so the steady state stays lock-free).  Barriers ride the ring as
+ * ordered descriptors and publish completion via barrier_done_seq.
+ *
+ * head/tail are free-running unsigned counters, never reset.  Wrap is
+ * implicit: occupancy is the modular difference head - tail (always in
+ * [0, N] since the producer stops at full), and the slot index is
+ * counter & MASK.  Because N is a power of two and 2^32 is an exact multiple
+ * of N, masking stays continuous across the 2^32 counter wrap.  Barrier seqs
+ * use the same modular scheme with signed distance; seq 0 is reserved as the
+ * "no barrier" sentinel and skipped on wrap.
+ * ---------------------------------------------------------------------------
+ */
+#define RDMA_SEND_RING_SIZE 2048            /* power of two; > SQ depth (512) */
+#define RDMA_SEND_RING_MASK (RDMA_SEND_RING_SIZE - 1)
+
+struct RDMASendRing {
+    RDMACmd  ring[RDMA_SEND_RING_SIZE];
+    unsigned head;                          /* producer owns */
+    unsigned tail;                          /* consumer owns */
+    unsigned barrier_done_seq;              /* consumer owns; producer reads */
+    unsigned barrier_next_seq;              /* producer owns */
+    bool     abort;                         /* sticky */
+    QemuMutex wait_lock;
+    QemuCond  not_full;                     /* producer sleeps */
+    QemuCond  not_empty;                    /* consumer sleeps */
+    QemuCond  barrier_cv;                   /* producer sleeps for ack */
+    bool     producer_waiting;
+    bool     consumer_waiting;
+
+    /* statistics, dumped at FINISH */
+    uint64_t pushwait_max_ns;    /* longest producer wait on a full ring */
+    uint64_t pushwait_total_ns;  /* total producer wait on a full ring */
+    uint64_t occupancy_max;      /* peak queued commands */
+    uint64_t idle_max_ns;        /* longest consumer wait on an empty ring */
 };
 
 static int qio_channel_rdma_set_blocking(QIOChannel *ioc,
