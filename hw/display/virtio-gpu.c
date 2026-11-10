@@ -81,9 +81,10 @@ virtio_gpu_simple_resource_new_blob(uint32_t resource_id, uint64_t blob_size)
     return res;
 }
 
-void virtio_gpu_update_cursor_data(VirtIOGPU *g,
-                                   struct virtio_gpu_scanout *s,
-                                   uint32_t resource_id)
+static void
+virtio_gpu_update_cursor_data(VirtIOGPU *g,
+                              struct virtio_gpu_scanout *s,
+                              uint32_t resource_id)
 {
     struct virtio_gpu_simple_resource *res;
     uint32_t pixels;
@@ -1178,8 +1179,9 @@ virtio_gpu_resource_detach_backing(VirtIOGPU *g,
     virtio_gpu_cleanup_mapping(g, res);
 }
 
-void virtio_gpu_simple_process_cmd(VirtIOGPU *g,
-                                   struct virtio_gpu_ctrl_command *cmd)
+static void
+virtio_gpu_simple_process_cmd(VirtIOGPU *g,
+                              struct virtio_gpu_ctrl_command *cmd)
 {
     VIRTIO_GPU_FILL_CMD(cmd->cmd_hdr);
     virtio_gpu_ctrl_hdr_bswap(&cmd->cmd_hdr);

@@ -361,10 +361,6 @@ void virtio_gpu_cleanup_mapping(VirtIOGPU *g,
 void virtio_gpu_process_cmdq(VirtIOGPU *g);
 void virtio_gpu_device_realize(DeviceState *qdev, Error **errp);
 void virtio_gpu_reset(VirtIODevice *vdev);
-void virtio_gpu_simple_process_cmd(VirtIOGPU *g, struct virtio_gpu_ctrl_command *cmd);
-void virtio_gpu_update_cursor_data(VirtIOGPU *g,
-                                   struct virtio_gpu_scanout *s,
-                                   uint32_t resource_id);
 
 bool virtio_gpu_check_scanout_bounds(uint32_t scanout_id, uint32_t resource_id,
                                      uint32_t width, uint32_t height,
