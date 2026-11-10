@@ -691,8 +691,10 @@ static void tlb_flush_range_locked(CPUState *cpu, int midx,
      * Check if we need to flush due to large pages.
      * Because large_page_mask contains all 1's from the msb,
      * we only need to test the end of the range.
+     * Compare under @mask, ignoring bits above @bits.
      */
-    if (((addr + len - 1) & d->large_page_mask) == d->large_page_addr) {
+    if (((addr + len - 1) & d->large_page_mask & mask) ==
+        (d->large_page_addr & mask)) {
         tlb_debug("forcing full flush midx %d ("
                   "%016" VADDR_PRIx "/%016" VADDR_PRIx ")\n",
                   midx, d->large_page_addr, d->large_page_mask);
