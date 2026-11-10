@@ -1216,6 +1216,7 @@ static void rdma_nbsent_zero(RDMAContext *rdma);
 
 static void rdma_consumer_start(RDMAContext *rdma);
 static void rdma_consumer_stop(RDMAContext *rdma);
+static void rdma_nbsent_stats_dump(RDMAContext *rdma);
 
 /*
  * Consult the connection manager to see a work request
@@ -1983,6 +1984,33 @@ static int qemu_rdma_write_one(RDMAContext *rdma,
     ram_transferred_add(sge.length);
     rdma->total_writes++;
 
+    return 0;
+}
+
+/* Consumer: write one whole chunk */
+static int qemu_rdma_write_chunk(RDMAContext *rdma, uint32_t block_index,
+                                 uint32_t chunk_index, Error **errp)
+{
+    RDMALocalBlock *block = &rdma->local_ram_blocks.block[block_index];
+    uint64_t chunk_off = (uint64_t)chunk_index * migrate_rdma_chunk_size();
+    uint64_t len = block->length - chunk_off;
+    int ret;
+
+    if (len > migrate_rdma_chunk_size()) {
+        len = migrate_rdma_chunk_size();
+    }
+
+    /* write_one wants current_addr in ram_addr_t space (block->offset based) */
+    ret = qemu_rdma_write_one(rdma, block_index, block->offset + chunk_off,
+                              len, errp);
+    if (ret < 0) {
+        return -1;
+    }
+    if (ret == 0) {
+        rdma->nb_sent++;
+        trace_rdma_write_flush(rdma->nb_sent);
+        rdma_nbsent_inc(rdma, rdma->nb_sent);
+    }
     return 0;
 }
 
@@ -2846,6 +2874,13 @@ static void ring_advance_tail(RDMASendRing *r)
     ring_wake_producer(r);
 }
 
+/* Consumer: publish barrier completion. */
+static void ring_barrier_complete(RDMASendRing *r, unsigned seq)
+{
+    qatomic_store_release(&r->barrier_done_seq, seq);
+    ring_wake_producer(r);
+}
+
 /* Consumer: sleep until the ring is non-empty or aborted. */
 static void ring_idle_wait(RDMASendRing *r)
 {
@@ -2859,6 +2894,23 @@ static void ring_idle_wait(RDMASendRing *r)
     qemu_mutex_unlock(&r->wait_lock);
 }
 
+/* Consumer: send REGISTER_FINISHED; for FINISH drain and dump stats first. */
+static int rdma_consumer_reg_stop(RDMAContext *rdma, uint64_t flags,
+                                  Error **errp)
+{
+    RDMAControlHeader head = { .len = 0,
+                               .type = RDMA_CONTROL_REGISTER_FINISHED,
+                               .repeat = 1 };
+
+    if (flags == RAM_CONTROL_FINISH) {
+        if (qemu_rdma_drain_cq(rdma, errp) < 0) {
+            return -1;
+        }
+        rdma_nbsent_stats_dump(rdma);
+    }
+    return qemu_rdma_exchange_send(rdma, &head, NULL, NULL, NULL, NULL, errp);
+}
+
 static int rdma_consumer_dispatch(RDMAContext *rdma, const RDMACmd *cmd,
                                   bool *stop)
 {
@@ -2866,6 +2918,16 @@ static int rdma_consumer_dispatch(RDMAContext *rdma, const RDMACmd *cmd,
     int ret = 0;
 
     switch (cmd->type) {
+    case RDMA_CMD_WRITE:
+        ret = qemu_rdma_write_chunk(rdma, cmd->block_index,
+                                    cmd->chunk_index, &err);
+        break;
+    case RDMA_CMD_FLUSH:
+        ret = qemu_rdma_drain_cq(rdma, &err);
+        break;
+    case RDMA_CMD_REG_STOP:
+        ret = rdma_consumer_reg_stop(rdma, cmd->flags, &err);
+        break;
     case RDMA_CMD_FINISH:
         ret = qemu_rdma_drain_cq(rdma, &err);
         *stop = true;
@@ -2894,6 +2956,9 @@ static void *rdma_consumer_thread(void *opaque)
             if (rdma_consumer_dispatch(rdma, &cmd, &stop) < 0) {
                 ring_set_abort(rdma);
                 break;
+            }
+            if (cmd.seq) {
+                ring_barrier_complete(r, cmd.seq);
             }
             ring_advance_tail(r);
             continue;
