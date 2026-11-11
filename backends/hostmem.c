@@ -335,6 +335,7 @@ size_t host_memory_backend_pagesize(HostMemoryBackend *memdev)
 static void
 host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
 {
+    ERRP_GUARD();
     HostMemoryBackend *backend = MEMORY_BACKEND(uc);
     HostMemoryBackendClass *bc = MEMORY_BACKEND_GET_CLASS(uc);
     void *ptr;
@@ -346,6 +347,8 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
         return;
     }
     if (!bc->alloc(backend, errp)) {
+        error_prepend(errp, "can't create '%s': ",
+                      object_get_typename(OBJECT(uc)));
         return;
     }
 

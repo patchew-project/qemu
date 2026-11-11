@@ -31,7 +31,7 @@ shm_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
     int fd = cpr_find_fd(backend_name, 0);
 
     if (!backend->share) {
-        error_setg(errp, "can't create shm backend with `share=off`");
+        error_setg(errp, "backend requires 'share=on'");
         return false;
     }
 
