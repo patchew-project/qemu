@@ -3,6 +3,8 @@ include $(BUILD_DIR)/linux-user/arm/config-target.mak
 SUBDIR = $(SRC_PATH)/linux-user/arm
 VPATH += $(SUBDIR)
 
+REPRODUCIBLE = -pipe
+
 all: $(SUBDIR)/vdso-be8.so $(SUBDIR)/vdso-be32.so $(SUBDIR)/vdso-le.so
 
 # Adding -use-blx disables unneeded interworking without actually using blx.
@@ -11,10 +13,10 @@ LDFLAGS = -nostdlib -shared -Wl,-use-blx -Wl,-z,max-page-size=4096 \
 	  -Wl,--hash-style=both -Wl,-T,$(SUBDIR)/vdso.ld
 
 $(SUBDIR)/vdso-be8.so: vdso.S vdso.ld vdso-asmoffset.h
-	$(CC) -o $@ $(LDFLAGS) -mbig-endian -mbe8 $<
+	$(CC) $(REPRODUCIBLE) -o $@ $(LDFLAGS) -mbig-endian -mbe8 $<
 
 $(SUBDIR)/vdso-be32.so: vdso.S vdso.ld vdso-asmoffset.h
-	$(CC) -o $@ $(LDFLAGS) -mbig-endian -mbe32 $<
+	$(CC) $(REPRODUCIBLE) -o $@ $(LDFLAGS) -mbig-endian -mbe32 $<
 
 $(SUBDIR)/vdso-le.so: vdso.S vdso.ld vdso-asmoffset.h
-	$(CC) -o $@ $(LDFLAGS) -mlittle-endian $<
+	$(CC) $(REPRODUCIBLE) -o $@ $(LDFLAGS) -mlittle-endian $<
