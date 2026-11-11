@@ -22,7 +22,6 @@
 #include "system/kvm.h"
 #include "system/tcg.h"
 #include "migration/cpu.h"
-#include "exec/icount.h"
 #include "target/riscv/tcg/debug.h"
 #ifdef CONFIG_KVM
 #include "kvm/kvm_riscv.h"
@@ -339,9 +338,7 @@ static int debug_post_load(void *opaque, int version_id)
     RISCVCPU *cpu = opaque;
     CPURISCVState *env = &cpu->env;
 
-    if (icount_enabled()) {
-        env->itrigger_enabled = riscv_itrigger_enabled(env);
-    }
+    env->itrigger_enabled = riscv_itrigger_enabled(env);
 
     return 0;
 }
