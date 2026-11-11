@@ -786,7 +786,7 @@ typedef struct CPUArchState {
 /*
  * CP0 Register 9
  */
-    int32_t CP0_Count;
+    int32_t CP0_Count; /* Use qatomic for concurrent accesses. */
 #define CP0SAARI_TARGET 0    /*  5..0  */
 #define CP0SAAR_BASE    12   /* 43..12 */
 #define CP0SAAR_SIZE    1    /*  5..1  */
@@ -804,7 +804,7 @@ typedef struct CPUArchState {
 /*
  * CP0 Register 12
  */
-    int32_t CP0_Status;
+    int32_t CP0_Status; /* Use qatomic for concurrent accesses. */
 #define CP0St_CU3   31
 #define CP0St_CU2   30
 #define CP0St_CU1   29
@@ -848,7 +848,7 @@ typedef struct CPUArchState {
 /*
  * CP0 Register 13
  */
-    int32_t CP0_Cause;
+    int32_t CP0_Cause; /* Use qatomic for concurrent accesses. */
 #define CP0Ca_BD   31
 #define CP0Ca_TI   30
 #define CP0Ca_CE   28
