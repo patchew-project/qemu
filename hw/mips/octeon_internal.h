@@ -14,6 +14,20 @@
 #include "target/mips/cpu.h"
 
 #define OCTEON_MAX_CPUS             16
+#define OCTEON_CIU3_CP0_IRQ_COUNT   4
+#define OCTEON_CIU3_IDT_COUNT       (OCTEON_MAX_CPUS * 4)
+
+typedef enum OcteonIRQ {
+    OCTEON_IRQ_UART,
+    OCTEON_IRQ_COUNT,
+} OcteonIRQ;
+
+typedef enum OcteonCiu3Source {
+    OCTEON_CIU3_SRC_UART0,
+    OCTEON_CIU3_SRC_MBOX0,
+    OCTEON_CIU3_SRC_COUNT = OCTEON_CIU3_SRC_MBOX0 + OCTEON_MAX_CPUS,
+} OcteonCiu3Source;
+
 typedef struct OcteonState OcteonState;
 typedef struct OcteonRstState OcteonRstState;
 typedef struct OcteonIntcState OcteonIntcState;
@@ -48,5 +62,6 @@ struct OcteonState {
 uint64_t octeon_read64(uint64_t value, hwaddr addr, unsigned size);
 uint64_t octeon_write64(uint64_t old, hwaddr addr,
                         uint64_t value, unsigned size);
+void octeon_irq_set(void *opaque, int irq, int level);
 
 #endif
