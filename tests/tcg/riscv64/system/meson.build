@@ -89,6 +89,15 @@ tests += {
   }
 }
 
+tests += {
+  'test-hvip-read.S': {
+    'exe_name': 'test-hvip-read',
+    'cflags': cflags + ['-march=rv64gcv'],
+    'qemu_args': ['-cpu', 'max,smpmpmt=false,pmu-mask=0xfffffff8,smdbltrp=true,ssdbltrp=true', qemu_args],
+  }
+}
+
+
 if 'qemu-system-riscv64' in emulators
   tcg_tests += {
     'riscv64-softmmu': {
