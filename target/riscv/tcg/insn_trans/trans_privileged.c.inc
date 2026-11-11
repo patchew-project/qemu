@@ -167,8 +167,14 @@ static bool trans_wfi(DisasContext *ctx, arg_wfi *a)
 {
 #ifndef CONFIG_USER_ONLY
     decode_save_opc(ctx, 0);
-    gen_update_pc(ctx, ctx->cur_insn_len);
-    gen_helper_wfi(tcg_env);
+    /*
+     * Deliberately leave env->pc on the WFI: helper_wfi() may raise an
+     * exception, and with CF_PCREL the exception PC is restored from
+     * env->pc's page base. The helper advances env->pc itself only after
+     * all exception checks pass.
+     */
+    gen_update_pc(ctx, 0);
+    gen_helper_wfi(tcg_env, tcg_constant_i32(ctx->cur_insn_len));
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
 #else

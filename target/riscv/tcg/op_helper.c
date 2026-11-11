@@ -625,7 +625,7 @@ void HELPER(ctr_clear)(CPURISCVState *env)
     riscv_ctr_clear(env);
 }
 
-void HELPER(wfi)(CPURISCVState *env)
+void HELPER(wfi)(CPURISCVState *env, uint32_t advance_pc)
 {
     CPUState *cs = env_cpu(env);
     bool rvs = riscv_has_ext(env, RVS);
@@ -639,6 +639,10 @@ void HELPER(wfi)(CPURISCVState *env)
                (prv_u || (prv_s && get_field(env->hstatus, HSTATUS_VTW)))) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
     } else {
+        env->pc += advance_pc;
+        if (env->xl == MXL_RV32) {
+            env->pc = (int32_t)env->pc;
+        }
         if (riscv_cpu_cfg(env)->ext_sdext && !env->debug_mode &&
             (env->dcsr & DCSR_STEP)) {
             return;
