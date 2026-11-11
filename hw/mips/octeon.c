@@ -10,6 +10,7 @@
 #include "qemu/units.h"
 #include "qemu/datadir.h"
 #include "qemu/host-utils.h"
+#include "qemu/timer.h"
 #include "qapi/error.h"
 #include "hw/char/serial-mm.h"
 #include "hw/core/clock.h"
@@ -49,6 +50,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(OcteonEmmState, OCTEON_EMM)
 OBJECT_DECLARE_SIMPLE_TYPE(OcteonRstState, OCTEON_RST)
 #define TYPE_OCTEON_INTC "octeon-intc"
 OBJECT_DECLARE_SIMPLE_TYPE(OcteonIntcState, OCTEON_INTC)
+#define TYPE_OCTEON_LMC "octeon-lmc"
+OBJECT_DECLARE_SIMPLE_TYPE(OcteonLmcState, OCTEON_LMC)
 #define TYPE_OCTEON_CSR_BANK "octeon-csr-bank"
 OBJECT_DECLARE_SIMPLE_TYPE(OcteonCsrBankState, OCTEON_CSR_BANK)
 
@@ -243,6 +246,24 @@ OBJECT_DECLARE_SIMPLE_TYPE(OcteonCsrBankState, OCTEON_CSR_BANK)
 #define OCTEON_RST_SOFT_RST         0x6001680
 /* U-Boot uses the reset controller to park and release secondary cores. */
 #define OCTEON_RST_PP_POWER         0x6001700
+#define OCTEON_LMC_BASE             0x88000000
+#define OCTEON_LMC_SEQ_CTL          0x48
+#define OCTEON_LMC_SEQ_COMPLETE     (1ULL << 5)
+#define OCTEON_LMC_MPR_DATA0        0x70
+#define OCTEON_LMC_MPR_DATA1        0x78
+#define OCTEON_LMC_DCLK_CNT         0x1e0
+#define OCTEON_LMC_PHY_CTL          0x210
+#define OCTEON_LMC_PHY_DSK_COMPLETE (1ULL << 49)
+#define OCTEON_LMC_RLEVEL_RANK      0x280
+#define OCTEON_LMC_RLEVEL_STATUS    (3ULL << 54)
+#define OCTEON_LMC_RLEVEL_DBG       0x2a8
+#define OCTEON_LMC_RLEVEL_MASK      0x3f0
+#define OCTEON_LMC_WLEVEL_RANK      0x2c0
+#define OCTEON_LMC_RANK_COUNT       4
+#define OCTEON_LMC_WLEVEL_STATUS    (3ULL << 45)
+#define OCTEON_LMC_WLEVEL_DBG       0x308
+#define OCTEON_LMC_WLEVEL_MASK      (0x0fULL << 4)
+#define OCTEON_LMC_STRIDE           0x1000000
 #define OCTEON_RST_BOOT_C_MUL_SHIFT 30
 #define OCTEON_RST_BOOT_PNR_MUL_SHIFT 24
 
@@ -351,6 +372,11 @@ struct OcteonIntcState {
     uint8_t ciu3_irq_line[OCTEON_MAX_CPUS][OCTEON_CIU3_CP0_IRQ_COUNT];
 };
 
+struct OcteonLmcState {
+    OcteonPeripheralState parent_obj;
+    GHashTable *regs;
+};
+
 struct OcteonCsrBankState {
     OcteonPeripheralState parent_obj;
     MemoryRegion csr;
@@ -414,6 +440,13 @@ static uint64_t octeon_atomic_write64(uint64_t *ptr, hwaddr addr,
     }
 
     return new;
+}
+
+static uint64_t octeon_clock_count(uint64_t hz)
+{
+    uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    return muldiv64(now, hz, NANOSECONDS_PER_SECOND);
 }
 
 static void octeon_validate_clocks(OcteonMachineState *oms)
@@ -882,6 +915,94 @@ static void octeon_mio_emm_write(OcteonState *s, hwaddr reg,
         octeon_csr_store(s, reg, value);
         return;
     }
+}
+
+static bool octeon_lmc_decode(hwaddr reg, OcteonLmcState **lmc, hwaddr *lreg,
+                              OcteonState *s)
+{
+    hwaddr offset;
+    unsigned int index;
+
+    if (reg < OCTEON_LMC_BASE) {
+        return false;
+    }
+
+    offset = reg - OCTEON_LMC_BASE;
+    index = offset / OCTEON_LMC_STRIDE;
+    if (index >= OCTEON_LMC_COUNT) {
+        return false;
+    }
+
+    *lmc = s->lmc[index];
+    *lreg = offset % OCTEON_LMC_STRIDE;
+    return true;
+}
+
+static uint64_t octeon_lmc_get(OcteonLmcState *lmc, hwaddr reg)
+{
+    uint64_t value;
+
+    if (!octeon_reg_lookup(lmc->regs, reg, &value)) {
+        return 0;
+    }
+    return value;
+}
+
+static bool octeon_lmc_rank_reg(hwaddr reg, hwaddr base)
+{
+    return reg >= base &&
+           reg < base + OCTEON_LMC_RANK_COUNT * 8 &&
+           ((reg - base) & 7) == 0;
+}
+
+static uint64_t octeon_lmc_read(OcteonState *s, OcteonLmcState *lmc,
+                                hwaddr reg, hwaddr addr, unsigned size)
+{
+    uint64_t value;
+
+    switch (reg) {
+    case OCTEON_LMC_SEQ_CTL:
+        value = octeon_lmc_get(lmc, reg) | OCTEON_LMC_SEQ_COMPLETE;
+        break;
+    case OCTEON_LMC_MPR_DATA0:
+        value = ~0ULL;
+        break;
+    case OCTEON_LMC_MPR_DATA1:
+        value = 0xff;
+        break;
+    case OCTEON_LMC_DCLK_CNT:
+        value = octeon_clock_count(s->ddr_hz);
+        break;
+    case OCTEON_LMC_PHY_CTL:
+        value = octeon_lmc_get(lmc, reg) | OCTEON_LMC_PHY_DSK_COMPLETE;
+        break;
+    case OCTEON_LMC_RLEVEL_DBG:
+        value = OCTEON_LMC_RLEVEL_MASK;
+        break;
+    case OCTEON_LMC_WLEVEL_DBG:
+        value = OCTEON_LMC_WLEVEL_MASK;
+        break;
+    default:
+        if (octeon_lmc_rank_reg(reg, OCTEON_LMC_RLEVEL_RANK)) {
+            value = octeon_lmc_get(lmc, reg) | OCTEON_LMC_RLEVEL_STATUS;
+        } else if (octeon_lmc_rank_reg(reg, OCTEON_LMC_WLEVEL_RANK)) {
+            value = octeon_lmc_get(lmc, reg) | OCTEON_LMC_WLEVEL_STATUS;
+        } else {
+            value = octeon_lmc_get(lmc, reg);
+        }
+        break;
+    }
+
+    return octeon_read64(value, addr, size);
+}
+
+static void octeon_lmc_write(OcteonLmcState *lmc, hwaddr reg,
+                             hwaddr addr, uint64_t value, unsigned size)
+{
+    uint64_t old = octeon_lmc_get(lmc, reg);
+
+    value = octeon_write64(old, addr, value, size);
+    octeon_reg_store(lmc->regs, reg, value);
 }
 
 static bool octeon_ciu3_source_from_intsn(uint32_t intsn,
@@ -1688,7 +1809,9 @@ static const MemoryRegionOps octeon_ciu3_ops = {
 static uint64_t octeon_csr_read(void *opaque, hwaddr addr, unsigned size)
 {
     OcteonState *s = opaque;
+    OcteonLmcState *lmc;
     hwaddr reg = addr & ~7ULL;
+    hwaddr lreg;
     hwaddr ereg;
     uint64_t value;
 
@@ -1726,6 +1849,10 @@ static uint64_t octeon_csr_read(void *opaque, hwaddr addr, unsigned size)
         break;
     }
 
+    if (octeon_lmc_decode(reg, &lmc, &lreg, s)) {
+        return octeon_lmc_read(s, lmc, lreg, addr, size);
+    }
+
     if (octeon_mio_emm_decode(reg, &ereg)) {
         return octeon_mio_emm_read(s, ereg, addr, size);
     }
@@ -1740,9 +1867,16 @@ static void octeon_csr_write(void *opaque, hwaddr addr,
                              uint64_t value, unsigned size)
 {
     OcteonState *s = opaque;
+    OcteonLmcState *lmc;
     hwaddr reg = addr & ~7ULL;
+    hwaddr lreg;
     hwaddr ereg;
     uint64_t old;
+
+    if (octeon_lmc_decode(reg, &lmc, &lreg, s)) {
+        octeon_lmc_write(lmc, lreg, addr, value, size);
+        return;
+    }
 
     if (octeon_mio_emm_decode(reg, &ereg)) {
         octeon_mio_emm_write(s, ereg, addr, value, size);
@@ -2209,6 +2343,18 @@ static void octeon_intc_reset_hold(Object *obj, ResetType type)
     octeon_intc_update_all_cpus(s);
 }
 
+static void octeon_lmc_reset_hold(Object *obj, ResetType type)
+{
+    OcteonPeripheralClass *opc = OCTEON_PERIPHERAL_GET_CLASS(obj);
+    OcteonLmcState *lmc = OCTEON_LMC(obj);
+
+    if (opc->parent_phases.hold) {
+        opc->parent_phases.hold(obj, type);
+    }
+
+    g_hash_table_remove_all(lmc->regs);
+}
+
 static void octeon_csr_bank_reset_hold(Object *obj, ResetType type)
 {
     OcteonPeripheralClass *opc = OCTEON_PERIPHERAL_GET_CLASS(obj);
@@ -2254,6 +2400,16 @@ static void octeon_rst_init(Object *obj)
 static void octeon_rst_finalize(Object *obj)
 {
     g_hash_table_destroy(OCTEON_RST(obj)->regs);
+}
+
+static void octeon_lmc_init(Object *obj)
+{
+    OCTEON_LMC(obj)->regs = octeon_reg_table_new();
+}
+
+static void octeon_lmc_finalize(Object *obj)
+{
+    g_hash_table_destroy(OCTEON_LMC(obj)->regs);
 }
 
 static void octeon_csr_bank_init(Object *obj)
@@ -2302,6 +2458,15 @@ static void octeon_intc_class_init(ObjectClass *klass, const void *data)
                                        NULL, &opc->parent_phases);
 }
 
+static void octeon_lmc_class_init(ObjectClass *klass, const void *data)
+{
+    OcteonPeripheralClass *opc = OCTEON_PERIPHERAL_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+
+    resettable_class_set_parent_phases(rc, NULL, octeon_lmc_reset_hold,
+                                       NULL, &opc->parent_phases);
+}
+
 static void octeon_csr_bank_class_init(ObjectClass *klass, const void *data)
 {
     OcteonPeripheralClass *opc = OCTEON_PERIPHERAL_CLASS(klass);
@@ -2326,10 +2491,16 @@ static OcteonPeripheralState *octeon_new_peripheral(OcteonState *s,
 
 static void octeon_create_peripherals(OcteonState *s)
 {
+    unsigned int i;
+
     s->mio = OCTEON_MIO(octeon_new_peripheral(s, TYPE_OCTEON_MIO, 0));
     s->emm = OCTEON_EMM(octeon_new_peripheral(s, TYPE_OCTEON_EMM, 0));
     s->rst = OCTEON_RST(octeon_new_peripheral(s, TYPE_OCTEON_RST, 0));
     s->intc = OCTEON_INTC(octeon_new_peripheral(s, TYPE_OCTEON_INTC, 0));
+    for (i = 0; i < OCTEON_LMC_COUNT; i++) {
+        s->lmc[i] = OCTEON_LMC(octeon_new_peripheral(s, TYPE_OCTEON_LMC,
+                                                      i));
+    }
     s->csr_bank = OCTEON_CSR_BANK(octeon_new_peripheral(
                                       s, TYPE_OCTEON_CSR_BANK, 0));
 }
@@ -2341,7 +2512,12 @@ static void octeon_realize_peripheral(OcteonPeripheralState *dev)
 
 static void octeon_realize_peripherals(OcteonState *s)
 {
+    int i;
+
     octeon_realize_peripheral(&s->csr_bank->parent_obj);
+    for (i = OCTEON_LMC_COUNT - 1; i >= 0; i--) {
+        octeon_realize_peripheral(&s->lmc[i]->parent_obj);
+    }
     octeon_realize_peripheral(&s->intc->parent_obj);
     octeon_realize_peripheral(&s->rst->parent_obj);
     octeon_realize_peripheral(&s->emm->parent_obj);
@@ -2490,6 +2666,14 @@ static const TypeInfo octeon_machine_types[] = {
         .parent = TYPE_OCTEON_PERIPHERAL,
         .instance_size = sizeof(OcteonIntcState),
         .class_init = octeon_intc_class_init,
+    },
+    {
+        .name = TYPE_OCTEON_LMC,
+        .parent = TYPE_OCTEON_PERIPHERAL,
+        .instance_size = sizeof(OcteonLmcState),
+        .instance_init = octeon_lmc_init,
+        .instance_finalize = octeon_lmc_finalize,
+        .class_init = octeon_lmc_class_init,
     },
     {
         .name = TYPE_OCTEON_CSR_BANK,
