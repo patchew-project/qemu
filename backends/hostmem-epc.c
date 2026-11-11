@@ -62,12 +62,7 @@ static const TypeInfo sgx_epc_backed_info = {
 
 static void register_types(void)
 {
-    int fd = qemu_open_old("/dev/sgx_vepc", O_RDWR);
-    if (fd >= 0) {
-        close(fd);
-
-        type_register_static(&sgx_epc_backed_info);
-    }
+    type_register_static(&sgx_epc_backed_info);
 }
 
 type_init(register_types);
