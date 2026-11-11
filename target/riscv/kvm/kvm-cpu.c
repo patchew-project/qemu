@@ -1699,7 +1699,11 @@ static void kvm_riscv_handle_sbi_dbcn(CPUState *cs, struct kvm_run *run)
     switch (run->riscv_sbi.function_id) {
     case SBI_EXT_DBCN_CONSOLE_READ:
     case SBI_EXT_DBCN_CONSOLE_WRITE:
-        num_bytes = run->riscv_sbi.args[0];
+        /*
+         * DBCN allows partial transfers. Limit each call to 4 KiB so the
+         * guest cannot request an unbounded host allocation.
+         */
+        num_bytes = MIN(run->riscv_sbi.args[0], 4096);
 
         if (num_bytes == 0) {
             run->riscv_sbi.ret[0] = SBI_SUCCESS;
