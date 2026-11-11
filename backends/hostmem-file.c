@@ -48,11 +48,6 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
     g_autofree gchar *name = NULL;
     uint32_t ram_flags;
 
-    if (!fb->mem_path) {
-        error_setg(errp, "mem-path property not set");
-        return false;
-    }
-
     switch (fb->rom) {
     case ON_OFF_AUTO_AUTO:
         /* Traditionally, opening the file readonly always resulted in ROM. */
