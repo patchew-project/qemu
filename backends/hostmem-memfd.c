@@ -184,20 +184,18 @@ memfd_backend_class_init(ObjectClass *oc, const void *data)
 
     bc->alloc = memfd_backend_memory_alloc;
 
-    if (qemu_memfd_check(MFD_HUGETLB)) {
-        object_class_property_add_bool(oc, "hugetlb",
-                                       memfd_backend_get_hugetlb,
-                                       memfd_backend_set_hugetlb);
-        object_class_property_set_description(oc, "hugetlb",
-                                              "Use huge pages");
-        object_class_property_add(oc, "hugetlbsize", "uint64",
-                                  &uint64_type_info,
-                                  memfd_backend_get_hugetlbsize,
-                                  memfd_backend_set_hugetlbsize,
-                                  NULL, NULL);
-        object_class_property_set_description(oc, "hugetlbsize",
-                                              "Huge pages size (ex: 2M, 1G)");
-    }
+    object_class_property_add_bool(oc, "hugetlb",
+                                   memfd_backend_get_hugetlb,
+                                   memfd_backend_set_hugetlb);
+    object_class_property_set_description(oc, "hugetlb",
+                                          "Use huge pages");
+    object_class_property_add(oc, "hugetlbsize", "uint64",
+                              &uint64_type_info,
+                              memfd_backend_get_hugetlbsize,
+                              memfd_backend_set_hugetlbsize,
+                              NULL, NULL);
+    object_class_property_set_description(oc, "hugetlbsize",
+                                          "Huge pages size (ex: 2M, 1G)");
 
     object_class_property_add_enum(oc, "guest-memfd", "OnOffAuto",
                                    &OnOffAuto_type_info,
