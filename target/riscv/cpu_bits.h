@@ -1161,6 +1161,8 @@ typedef enum CTRType {
 #define MHPMEVENTH_BIT_VSINH               BIT(27)
 #define MHPMEVENT_BIT_VUINH                BIT_ULL(58)
 #define MHPMEVENTH_BIT_VUINH               BIT(26)
+#define MHPMEVENT_WPRI                     (BIT_ULL(57) | BIT_ULL(56))
+#define MHPMEVENTH_WPRI                    (BIT(25) | BIT(24))
 
 #define MHPMEVENT_FILTER_MASK              (MHPMEVENT_BIT_MINH  | \
                                             MHPMEVENT_BIT_SINH  | \
