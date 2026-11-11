@@ -71,6 +71,9 @@ config MIPS_OCTEON
     bool
     default y
     depends on MIPS64 && TARGET_BIG_ENDIAN
+    imply E1000_PCI
+    imply PCI_DEVICES
+    select PCI
     select PFLASH_CFI02
     select SERIAL_MM
     select USB_DWC3
