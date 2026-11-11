@@ -287,6 +287,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(OcteonCsrBankState, OCTEON_CSR_BANK)
 #define OCTEON_POW_BASE             0x1670000000000ULL
 #define OCTEON_POW_SIZE             0x2000
 
+#define OCTEON_CIU3_USB0_INTSN      0x68080
+#define OCTEON_CIU3_USB1_INTSN      0x69080
+
 #define OCTEON_UART0_BASE           0x1180000000800ULL
 #define OCTEON_UART0_ALIAS_BASE     0x1180000000c00ULL
 #define OCTEON_UART_TX_REG          0x40
@@ -1032,6 +1035,15 @@ static bool octeon_ciu3_source_from_intsn(uint32_t intsn,
         *source = OCTEON_CIU3_SRC_UART0;
         return true;
     }
+    if (intsn == OCTEON_CIU3_USB0_INTSN) {
+        *source = OCTEON_CIU3_SRC_USB0;
+        return true;
+    }
+    if (intsn == OCTEON_CIU3_USB1_INTSN) {
+        *source = OCTEON_CIU3_SRC_USB1;
+        return true;
+    }
+
     if (intsn >= OCTEON_CIU3_MBOX_INTSN(0) &&
         intsn < OCTEON_CIU3_MBOX_INTSN(OCTEON_MAX_CPUS)) {
         *source = OCTEON_CIU3_SRC_MBOX0 +
@@ -1047,6 +1059,10 @@ static uint32_t octeon_ciu3_source_intsn(unsigned int source)
     switch (source) {
     case OCTEON_CIU3_SRC_UART0:
         return OCTEON_CIU3_UART0_INTSN;
+    case OCTEON_CIU3_SRC_USB0:
+        return OCTEON_CIU3_USB0_INTSN;
+    case OCTEON_CIU3_SRC_USB1:
+        return OCTEON_CIU3_USB1_INTSN;
     }
 
     if (source >= OCTEON_CIU3_SRC_MBOX0 &&
@@ -1061,6 +1077,8 @@ static bool octeon_ciu3_source_is_level(unsigned int source)
 {
     switch (source) {
     case OCTEON_CIU3_SRC_UART0:
+    case OCTEON_CIU3_SRC_USB0:
+    case OCTEON_CIU3_SRC_USB1:
         return true;
     }
 
@@ -2156,6 +2174,18 @@ void octeon_irq_set(void *opaque, int irq, int level)
         }
         qatomic_set(&s->intc->uart_pending, level);
         break;
+    case OCTEON_IRQ_USB0:
+        src = OCTEON_CIU3_SRC_USB0;
+        if (!octeon_ciu3_set_level(s, src, level)) {
+            return;
+        }
+        break;
+    case OCTEON_IRQ_USB1:
+        src = OCTEON_CIU3_SRC_USB1;
+        if (!octeon_ciu3_set_level(s, src, level)) {
+            return;
+        }
+        break;
     default:
         return;
     }
@@ -2791,6 +2821,7 @@ static void mips_octeon_init(MachineState *machine)
     memory_region_add_subregion(get_system_memory(), OCTEON_POW_BASE,
                                 &s->pow);
 
+    octeon_init_usb(s);
     octeon_realize_peripherals(s);
 }
 
