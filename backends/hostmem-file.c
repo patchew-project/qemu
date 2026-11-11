@@ -48,10 +48,6 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
     g_autofree gchar *name = NULL;
     uint32_t ram_flags;
 
-    if (!backend->size) {
-        error_setg(errp, "can't create backend with size 0");
-        return false;
-    }
     if (!fb->mem_path) {
         error_setg(errp, "mem-path property not set");
         return false;

@@ -24,11 +24,6 @@ sgx_epc_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
     uint32_t ram_flags;
     int fd;
 
-    if (!backend->size) {
-        error_setg(errp, "can't create backend with size 0");
-        return false;
-    }
-
     fd = qemu_open("/dev/sgx_vepc", O_RDWR, errp);
     if (fd < 0) {
         return false;

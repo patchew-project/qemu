@@ -49,11 +49,6 @@ memfd_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
     int fd = cpr_find_fd(name, 0);
     uint32_t ram_flags;
 
-    if (!backend->size) {
-        error_setg(errp, "can't create backend with size 0");
-        return false;
-    }
-
     if (fd >= 0) {
         goto have_fd;
     }
