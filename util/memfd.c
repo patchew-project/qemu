@@ -73,7 +73,10 @@ int qemu_memfd_create(const char *name, size_t size, bool hugetlb,
     mfd = memfd_create(name, flags);
     if (mfd < 0) {
         error_setg_errno(errp, errno,
-                         "failed to create memfd with flags 0x%x", flags);
+                         "failed to create memfd %s sealing"
+                         " and %s huge pages",
+                         seals ? "with" : "without",
+                         hugetlb ? "with" : "without");
         goto err;
     }
 
