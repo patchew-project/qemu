@@ -852,7 +852,7 @@ static ObjectClass *find_machine(const char *name, GSList *machines,
     for (el = machines; el; el = el->next) {
         MachineClass *mc = el->data;
 
-        if (!strcmp(mc->name, name) || !g_strcmp0(mc->alias, name)) {
+        if (!strcmp(mc->name, name)) {
             return OBJECT_CLASS(mc);
         }
     }
@@ -1598,8 +1598,6 @@ static void machine_help_func(const QDict *qdict)
                              strlen(TYPE_MACHINE_SUFFIX)),
                        alc->aliases[i], mc->desc, mc->name);
             }
-        } else if (mc->alias) {
-            printf("%-25s %s (alias of %s)\n", mc->alias, mc->desc, mc->name);
         }
         printf("%-25s %s%s%s%s\n", mc->name, mc->desc,
                mc->is_default ? " (default)" : "",

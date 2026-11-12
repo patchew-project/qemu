@@ -175,6 +175,7 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
         if (alc->aliases) {
             strList **aliases = &info->aliases;
             size_t i;
+            int len;
             info->has_aliases = true;
             for (i = 0; alc->aliases[i] != NULL; i++) {
                 /*
@@ -182,21 +183,12 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
                  * we report machine types to the user, hence must
                  * strip the typename suffix
                  */
-                int len = strlen(alc->aliases[i]) - strlen(TYPE_MACHINE_SUFFIX);
+                len = strlen(alc->aliases[i]) - strlen(TYPE_MACHINE_SUFFIX);
                 QAPI_LIST_APPEND(aliases,
                                  g_strndup(alc->aliases[i], len));
             }
-            if (!mc->alias) {
-                int len = strlen(alc->aliases[0]) - strlen(TYPE_MACHINE_SUFFIX);
-                info->alias = g_strndup(alc->aliases[0], len);
-            }
-        }
-        if (mc->alias) {
-            info->alias = g_strdup(mc->alias);
-            if (!info->aliases) {
-                strList **aliases = &info->aliases;
-                QAPI_LIST_APPEND(aliases, g_strdup(mc->alias));
-            }
+            len = strlen(alc->aliases[0]) - strlen(TYPE_MACHINE_SUFFIX);
+            info->alias = g_strndup(alc->aliases[0], len);
         }
 
         info->name = g_strdup(mc->name);

@@ -270,7 +270,6 @@ struct MachineClass {
 
     const char *family; /* NULL iff @name identifies a standalone machtype */
     char *name;
-    const char *alias;
     const char *desc;
     const char *deprecation_reason;
 
