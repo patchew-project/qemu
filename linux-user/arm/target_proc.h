@@ -18,12 +18,6 @@ static int open_cpuinfo(CPUArchState *cpu_env, int fd)
     const char *elf_name;
     int num_cpus, len_part, len_var;
 
-#if TARGET_BIG_ENDIAN
-# define END_SUFFIX "b"
-#else
-# define END_SUFFIX "l"
-#endif
-
     arch = 8;
     elf_name = target_big_endian() ? "v8b" : "v8l";
     midr_rev = FIELD_EX32(midr, MIDR_EL1, REVISION);
@@ -41,28 +35,26 @@ static int open_cpuinfo(CPUArchState *cpu_env, int fd)
             midr_var = (midr >> 16) & 0x7f;
             len_var = 2;
             if (arm_feature(&cpu->env, ARM_FEATURE_M)) {
-                elf_name = "armv7m" END_SUFFIX;
+                elf_name = target_big_endian() ? "armv7mb" : "armv7ml";
             } else {
-                elf_name = "armv7" END_SUFFIX;
+                elf_name = target_big_endian() ? "armv7b" : "armv7l";
             }
         } else {
             midr_part = midr >> 4;
             len_part = 7;
             if (arm_feature(&cpu->env, ARM_FEATURE_V6)) {
                 arch = 6;
-                elf_name = "armv6" END_SUFFIX;
+                elf_name = target_big_endian() ? "armv6b" : "armv6l";
             } else if (arm_feature(&cpu->env, ARM_FEATURE_V5)) {
                 arch = 5;
-                elf_name = "armv5t" END_SUFFIX;
+                elf_name = target_big_endian() ? "armv5tb" : "armv5tl";
             } else {
                 arch = 4;
-                elf_name = "armv4" END_SUFFIX;
+                elf_name = target_big_endian() ? "armv4b" : "armv4l";
             }
         }
     }
 #endif
-
-#undef END_SUFFIX
 
     num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
     for (int i = 0; i < num_cpus; i++) {

@@ -179,29 +179,21 @@ const char *get_elf_platform(CPUState *cs)
 {
     CPUARMState *env = cpu_env(cs);
 
-#if TARGET_BIG_ENDIAN
-# define END  "b"
-#else
-# define END  "l"
-#endif
-
     if (arm_feature(env, ARM_FEATURE_V8)) {
-        return "v8" END;
+        return target_big_endian() ? "v8b" : "v8l";
     } else if (arm_feature(env, ARM_FEATURE_V7)) {
         if (arm_feature(env, ARM_FEATURE_M)) {
-            return "v7m" END;
+            return target_big_endian() ? "v7mb" : "v7ml";
         } else {
-            return "v7" END;
+            return target_big_endian() ? "v7b" : "v7l";
         }
     } else if (arm_feature(env, ARM_FEATURE_V6)) {
-        return "v6" END;
+        return target_big_endian() ? "v6b" : "v6l";
     } else if (arm_feature(env, ARM_FEATURE_V5)) {
-        return "v5" END;
+        return target_big_endian() ? "v5b" : "v5l";
     } else {
-        return "v4" END;
+        return target_big_endian() ? "v4b" : "v4l";
     }
-
-#undef END
 }
 
 bool init_guest_commpage(void)
@@ -257,21 +249,17 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPUARMState *env)
     r->pt.orig_r0 = tswapal(env->regs[0]); /* FIXME */
 }
 
-#if TARGET_BIG_ENDIAN
 # include "vdso-be8.c.inc"
 # include "vdso-be32.c.inc"
-#else
 # include "vdso-le.c.inc"
-#endif
 
 const VdsoImageInfo *get_vdso_image_info(uint32_t elf_flags)
 {
-#if TARGET_BIG_ENDIAN
-    return (EF_ARM_EABI_VERSION(elf_flags) >= EF_ARM_EABI_VER4
-            && (elf_flags & EF_ARM_BE8)
-            ? &vdso_be8_image_info
-            : &vdso_be32_image_info);
-#else
+    if (target_big_endian()) {
+        return (EF_ARM_EABI_VERSION(elf_flags) >= EF_ARM_EABI_VER4
+                && (elf_flags & EF_ARM_BE8)
+                ? &vdso_be8_image_info
+                : &vdso_be32_image_info);
+    }
     return &vdso_image_info;
-#endif
 }

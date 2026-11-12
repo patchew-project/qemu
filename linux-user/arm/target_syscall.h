@@ -10,11 +10,7 @@
 #define ARM_NR_set_tls	  (ARM_NR_BASE + 5)
 #define ARM_NR_get_tls    (ARM_NR_BASE + 6)
 
-#if TARGET_BIG_ENDIAN
-#define UNAME_MACHINE "armv5teb"
-#else
-#define UNAME_MACHINE "armv5tel"
-#endif
+#define UNAME_MACHINE (target_big_endian() ? "armv5teb" : "armv5tel")
 #define UNAME_MINIMUM_RELEASE "2.6.32"
 
 #define TARGET_CLONE_BACKWARDS

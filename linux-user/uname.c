@@ -38,20 +38,13 @@ const char *cpu_to_uname_machine(CPUArchState *cpu_env)
      * see arch/arm/kernel/setup.c: setup_processor()
      */
 
-    /* in theory, endianness is configurable on some ARM CPUs, but this isn't
-     * used in user mode emulation */
-#if TARGET_BIG_ENDIAN
-#define utsname_suffix "b"
-#else
-#define utsname_suffix "l"
-#endif
     if (arm_feature(cpu_env, ARM_FEATURE_V7))
-        return "armv7" utsname_suffix;
+        return target_big_endian() ? "armv7b" : "armv7l";
     if (arm_feature(cpu_env, ARM_FEATURE_V6))
-        return "armv6" utsname_suffix;
+        return target_big_endian() ? "armv6b" : "armv6l";
     /* earliest emulated CPU is ARMv5TE; qemu can emulate the 1026, but not its
      * Jazelle support */
-    return "armv5te" utsname_suffix;
+    return target_big_endian() ? "armv5teb" : "armv5tel";
 #elif defined(TARGET_I386) && !defined(TARGET_X86_64)
     /* see arch/x86/kernel/cpu/bugs.c: check_bugs(), 386, 486, 586, 686 */
     CPUState *cpu = env_cpu(cpu_env);
