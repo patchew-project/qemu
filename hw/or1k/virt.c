@@ -28,13 +28,14 @@
 #include "system/system.h"
 #include "system/qtest.h"
 #include "system/reset.h"
+#include "qom/object_interfaces.h"
 
 #include <libfdt.h>
 
 #define VIRT_CPUS_MAX 4
 #define VIRT_CLK_MHZ 20000000
 
-#define TYPE_VIRT_MACHINE MACHINE_TYPE_NAME("virt")
+#define TYPE_VIRT_MACHINE MACHINE_TYPE_NAME("or1k-virt")
 #define VIRT_MACHINE(obj) \
     OBJECT_CHECK(OR1KVirtState, (obj), TYPE_VIRT_MACHINE)
 
@@ -546,7 +547,12 @@ static void openrisc_virt_init(MachineState *machine)
 static void openrisc_virt_machine_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    AliasedClass *alc = ALIASED_CLASS(oc);
+    static const char *const aliases[] = {
+        MACHINE_TYPE_NAME("virt"), NULL,
+    };
 
+    alc->aliases = aliases;
     mc->desc = "or1k virtual machine";
     mc->init = openrisc_virt_init;
     mc->max_cpus = VIRT_CPUS_MAX;
