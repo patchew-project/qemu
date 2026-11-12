@@ -37,6 +37,7 @@
 #include "qemu/error-report.h"
 #include "xtensa_memory.h"
 #include "xtensa_sim.h"
+#include "qom/object_interfaces.h"
 
 static void create_pcie(MachineState *ms, CPUXtensaState *env, int irq_base,
                         hwaddr addr_base)
@@ -117,6 +118,12 @@ static void xtensa_virt_init(MachineState *machine)
 
 static void xtensa_virt_machine_init(MachineClass *mc)
 {
+    AliasedClass *alc = ALIASED_CLASS(mc);
+    static const char *const aliases[] = {
+        MACHINE_TYPE_NAME("virt"), NULL,
+    };
+
+    alc->aliases = aliases;
     mc->desc = "virt machine (" XTENSA_DEFAULT_CPU_MODEL ")";
     mc->init = xtensa_virt_init;
     mc->max_cpus = 32;
@@ -124,4 +131,4 @@ static void xtensa_virt_machine_init(MachineClass *mc)
     mc->default_nic = "virtio-net-pci";
 }
 
-DEFINE_MACHINE("virt", xtensa_virt_machine_init)
+DEFINE_MACHINE("xtensa-virt", xtensa_virt_machine_init)
