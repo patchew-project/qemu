@@ -1890,9 +1890,9 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
 static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
 {
     MTPState *s = USB_MTP(dev);
-    MTPControl cmd;
+    MTPControl cmd = { 0 };
     mtp_container container;
-    uint32_t params[5];
+    uint32_t params[5] = { 0 };
     uint16_t container_type;
     int i, rc;
 
