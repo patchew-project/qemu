@@ -9,6 +9,8 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qom/object.h"
+#include "qemu/base-arch-defs.h"
+#include "qemu/target-info.h"
 #include "qemu/target-info-def.h"
 #include "qemu/target-info-init.h"
 #include "qemu/target-info-qom.h"
@@ -38,6 +40,14 @@ static const TargetInfo *target_info_ptr;
 const TargetInfo *target_info(void)
 {
     return target_info_ptr;
+}
+
+uint64_t target_mask_selected(void)
+{
+    if (!target_info_ptr) {
+        return QEMU_ARCH_ALL;
+    }
+    return QEMU_ARCH_BIT(target_info_ptr->target_arch);
 }
 
 void target_info_qom_set_target(void)
