@@ -242,13 +242,13 @@ void init_main_thread(CPUState *cs, struct image_info *info)
     env->pc = info->entry & ~0x3ULL;
     env->xregs[31] = info->start_stack;
 
-#if TARGET_BIG_ENDIAN
-    env->cp15.sctlr_el[1] |= SCTLR_E0E;
-    for (int i = 1; i < 4; ++i) {
-        env->cp15.sctlr_el[i] |= SCTLR_EE;
+    if (target_big_endian()) {
+        env->cp15.sctlr_el[1] |= SCTLR_E0E;
+        for (int i = 1; i < 4; ++i) {
+            env->cp15.sctlr_el[i] |= SCTLR_EE;
+        }
+        arm_rebuild_hflags(env);
     }
-    arm_rebuild_hflags(env);
-#endif
 
     if (cpu_isar_feature(aa64_pauth, cpu)) {
         qemu_guest_getrandom_nofail(&env->keys, sizeof(env->keys));

@@ -208,6 +208,7 @@ static void target_setup_fpsimd_record(struct target_fpsimd_context *fpsimd,
                                        CPUARMState *env)
 {
     int i;
+    int big_endian = target_big_endian();
 
     __put_user(TARGET_FPSIMD_MAGIC, &fpsimd->head.magic);
     __put_user(sizeof(struct target_fpsimd_context), &fpsimd->head.size);
@@ -216,13 +217,8 @@ static void target_setup_fpsimd_record(struct target_fpsimd_context *fpsimd,
 
     for (i = 0; i < 32; i++) {
         uint64_t *q = aa64_vfp_qreg(env, i);
-#if TARGET_BIG_ENDIAN
-        __put_user(q[0], &fpsimd->vregs[i * 2 + 1]);
-        __put_user(q[1], &fpsimd->vregs[i * 2]);
-#else
-        __put_user(q[0], &fpsimd->vregs[i * 2]);
-        __put_user(q[1], &fpsimd->vregs[i * 2 + 1]);
-#endif
+        __put_user(q[0], &fpsimd->vregs[i * 2 + big_endian]);
+        __put_user(q[1], &fpsimd->vregs[i * 2 + !big_endian]);
     }
 }
 
@@ -402,6 +398,7 @@ static void target_restore_fpsimd_record(CPUARMState *env,
 {
     uint32_t fpsr, fpcr;
     int i;
+    int big_endian = target_big_endian();
 
     __get_user(fpsr, &fpsimd->fpsr);
     vfp_set_fpsr(env, fpsr);
@@ -410,13 +407,8 @@ static void target_restore_fpsimd_record(CPUARMState *env,
 
     for (i = 0; i < 32; i++) {
         uint64_t *q = aa64_vfp_qreg(env, i);
-#if TARGET_BIG_ENDIAN
-        __get_user(q[0], &fpsimd->vregs[i * 2 + 1]);
-        __get_user(q[1], &fpsimd->vregs[i * 2]);
-#else
-        __get_user(q[0], &fpsimd->vregs[i * 2]);
-        __get_user(q[1], &fpsimd->vregs[i * 2 + 1]);
-#endif
+        __get_user(q[0], &fpsimd->vregs[i * 2 + big_endian]);
+        __get_user(q[1], &fpsimd->vregs[i * 2 + !big_endian]);
     }
 }
 

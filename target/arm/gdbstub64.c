@@ -122,8 +122,8 @@ int aarch64_gdb_set_fpu_reg(CPUState *cs, uint8_t *buf, int reg)
              * On the wire these are target-endian 128 bit values.
              * In the CPU state these are host-order uint64_t values
              * with the least-significant one first. This means they're
-             * the other way around for target_big_endian() (which is
-             * only true for us for aarch64_be-linux-user).
+             * the other way around for target_big_endian(), which reflects
+             * the executable's byte order in Linux-user emulation.
              */
             if (target_big_endian()) {
                 q[1] = ldq_p(buf);
