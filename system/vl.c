@@ -1587,15 +1587,15 @@ static void machine_help_func(const QDict *qdict)
         if (alc->aliases) {
             size_t i;
             for (i = 0; alc->aliases[i] != NULL; i++) {
-                printf("%-*.20s %s (alias of %s)\n",
+                printf("%-*.25s %s (alias of %s)\n",
                        (int)(strlen(alc->aliases[i]) -
                              strlen(TYPE_MACHINE_SUFFIX)),
                        alc->aliases[i], mc->desc, mc->name);
             }
         } else if (mc->alias) {
-            printf("%-20s %s (alias of %s)\n", mc->alias, mc->desc, mc->name);
+            printf("%-25s %s (alias of %s)\n", mc->alias, mc->desc, mc->name);
         }
-        printf("%-20s %s%s%s%s\n", mc->name, mc->desc,
+        printf("%-25s %s%s%s%s\n", mc->name, mc->desc,
                mc->is_default ? " (default)" : "",
                mc->deprecation_reason ? " (deprecated)" : "",
                object_class_is_secure(OBJECT_CLASS(mc)) ? " (secure)" : "");
