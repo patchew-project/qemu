@@ -1277,12 +1277,17 @@ fi
 ##########################################
 # functions to probe cross compilers
 
-if test "$container_command" = ""; then
-    container_command=$($python "$source_path"/tests/docker/docker.py probe)
-    test "$container_command" = "no" && container_command=""
-fi
-if test $use_containers = "yes" && test "$container_command" != ""; then
-    docker_py="$python $source_path/tests/docker/docker.py --command $container_command"
+if test $use_containers = "yes"; then
+    if test "$container_command" = ""; then
+        container_command=$($python "$source_path"/tests/docker/docker.py probe)
+        test "$container_command" = "no" && container_command=""
+    fi
+    if test "$container_command" != ""; then
+        docker_py="$python $source_path/tests/docker/docker.py --command $container_command"
+    fi
+else
+    # the option --disable-containers should override and disable --container-command
+    container_command=""
 fi
 
 # cross compilers defaults, can be overridden with --cross-cc-ARCH
