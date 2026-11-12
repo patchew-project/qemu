@@ -5165,7 +5165,7 @@ void gen_sve_str(DisasContext *s, TCGv_ptr base, int vofs,
     /* Note that unpredicated load/store of vector/predicate registers
      * are defined as a stream of bytes, which equates to little-endian
      * operations on larger quantities.  There is no nice way to force
-     * a little-endian store for aarch64_be-linux-user out of line.
+     * a little-endian store for big-endian Linux-user guests out of line.
      *
      * Attempt to keep code expansion to a minimum by limiting the
      * amount of unrolling done.

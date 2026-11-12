@@ -588,7 +588,7 @@ static inline bool arm_cpu_data_is_big_endian(CPUARMState *env)
 #ifdef CONFIG_USER_ONLY
 static inline bool arm_cpu_bswap_data(CPUARMState *env)
 {
-    return TARGET_BIG_ENDIAN ^ arm_cpu_data_is_big_endian(env);
+    return target_big_endian() ^ arm_cpu_data_is_big_endian(env);
 }
 #endif
 
