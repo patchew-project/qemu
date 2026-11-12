@@ -33,16 +33,27 @@
 static int dmg_uncompress_lzfse_do(char *next_in, unsigned int avail_in,
                                    char *next_out, unsigned int avail_out)
 {
-    size_t out_size = lzfse_decode_buffer((uint8_t *) next_out, avail_out,
-                                          (uint8_t *) next_in, avail_in,
-                                          NULL);
+    size_t out_size;
 
-    /* We need to decode the single chunk only. */
-    /* So, out_size == avail_out is not an error here. */
-    if (out_size > 0) {
-        return out_size;
+    /*
+     * lzfse_decode_buffer() returns the destination capacity both on an
+     * exact decode and when the destination is too small, so on its own it
+     * cannot tell a full chunk from a short one. The caller allocates
+     * next_out one byte larger than avail_out (see dmg_open() in dmg.c);
+     * decoding with that extra byte of capacity lets an exact decode
+     * (out_size == avail_out) be distinguished from a short or oversized
+     * stream, without a per-chunk scratch allocation or memcpy.
+     *
+     * next_out MUST have room for avail_out + 1 bytes.
+     */
+    out_size = lzfse_decode_buffer((uint8_t *) next_out, avail_out + 1,
+                                   (uint8_t *) next_in, avail_in,
+                                   NULL);
+
+    if (out_size != avail_out) {
+        return -1;
     }
-    return -1;
+    return out_size;
 }
 
 __attribute__((constructor))

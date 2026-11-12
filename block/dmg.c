@@ -587,8 +587,14 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     /* initialize zlib engine */
     s->compressed_chunk = qemu_try_blockalign(bs->file->bs,
                                               ds.max_compressed_size + 1);
+    /*
+     * One extra byte so dmg-lzfse.c can decode a chunk in place with a
+     * capacity of avail_out + 1 and still tell an exact decode from a
+     * short or oversized LZFSE stream. See dmg_uncompress_lzfse_do().
+     */
     s->uncompressed_chunk = qemu_try_blockalign(bs->file->bs,
-                                                512 * ds.max_sectors_per_chunk);
+                                                512 * ds.max_sectors_per_chunk
+                                                + 1);
     if (s->compressed_chunk == NULL || s->uncompressed_chunk == NULL) {
         ret = -ENOMEM;
         goto fail;
