@@ -27,6 +27,17 @@ DECLARE_CLASS_CHECKERS(TargetSpecificClass, TARGET_SPECIFIC,
 
 typedef struct TargetSpecific TargetSpecific;
 
+#define TYPE_ALIASED "aliased"
+
+typedef struct AliasedClass AliasedClass;
+DECLARE_CLASS_CHECKERS(AliasedClass, ALIASED,
+                       TYPE_ALIASED)
+#define ALIASED(obj) \
+     INTERFACE_CHECK(Aliased, (obj), \
+                     TYPE_ALIASED)
+
+typedef struct Aliased Aliased;
+
 /**
  * UserCreatableClass:
  * @parent_class: the base class
@@ -241,5 +252,71 @@ bool target_specific_class_creatable(ObjectClass *oc);
  */
 ObjectClass *target_specific_class_check(ObjectClass *oc,
                                          Error **errp);
+
+/**
+ * AliasedClass
+ * @parent_class: the base class
+ *
+ * Interface for classes that want to declare they have aliases
+ * for their primary type name.
+ *
+ * While QOM type names are required to be unique, aliases allow
+ * for ambiguity across classes. The ambiguity is resolved at
+ * runtime based on system state, typically by the selection of
+ * a specific target. If ambiguity cannot be resolved, the user
+ * will need to use the unique QOM type name instead.
+ */
+struct AliasedClass {
+    InterfaceClass parent_class;
+
+    const char *const *aliases; /* NULL terminated list of typenames */
+};
+
+
+/**
+ * aliased_class_matches:
+ * @oc: the class object to check
+ * @typename: the possible type name alias to check
+ *
+ * Determine whether @oc implements the Aliased interface
+ * and has declared an alias that matches @typename.
+ *
+ * Returns: true if @oc implements Aliased and has an
+ * alias named @typename, false otherwise
+ */
+bool aliased_class_matches(ObjectClass *oc,
+                           const char *typename);
+
+
+/**
+ * aliased_class_resolve:
+ * @implements: a parent type to validate
+ * @typename: a type name to search for
+ * @errp: pointer to a NULL initialized error object
+ *
+ * Search all registered QOM types that implement
+ * both @implements and the Aliased interface for
+ * one that declares an alias @typename.
+ *
+ * If there is a single QOM class with a matching alias
+ * it will be returned.
+ *
+ * If there are multiple QOM classes with a matching
+ * alias an error will be raised about the ambiguous
+ * match.
+ *
+ * If the QOM class also implements the TargetSpecific
+ * interface and the current system target does not
+ * match the declared supported targets, aliases for
+ * that QOM class will be ignored. This is usually
+ * sufficient to resolve ambiguity between types.
+ *
+ * Returns: a unique QOM class with an alias @typename,
+ * or NULL if zero or multiple aliases match, with @errp
+ * set.
+ */
+ ObjectClass *aliased_class_resolve(const char *implements,
+                                    const char *typename,
+                                    Error **errp);
 
 #endif

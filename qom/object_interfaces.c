@@ -305,6 +305,57 @@ ObjectClass *target_specific_class_check(ObjectClass *oc,
 }
 
 
+bool aliased_class_matches(ObjectClass *oc, const char *typename)
+{
+    AliasedClass *alc =
+        (AliasedClass *)object_class_dynamic_cast(
+            oc, TYPE_ALIASED);
+
+    return alc && alc->aliases && g_strv_contains(alc->aliases, typename);
+}
+
+
+ObjectClass *aliased_class_resolve(const char *implements,
+                                   const char *typename,
+                                   Error **errp)
+{
+    g_autoptr(GSList) objs = object_class_get_list(implements, false);
+    GSList *el;
+    ObjectClass *ret = NULL;
+    g_autofree const char **matches = NULL;
+    size_t nmatches = 0;
+
+    for (el = objs; el; el = el->next) {
+        ObjectClass *oc = el->data;
+
+        if (aliased_class_matches(oc, typename) &&
+            target_specific_class_creatable(oc)) {
+            matches = g_renew(const char *, matches, nmatches + 2);
+            matches[nmatches] = object_class_get_name(oc);
+            matches[nmatches + 1] = NULL;
+
+            ret = oc;
+        }
+    }
+
+    if (nmatches > 1) {
+        g_autofree char *matchesstr = g_strjoinv(", ", (char **)matches);
+        error_setg(errp,
+                   "Object alias '%s' is not unique, matches %s",
+                   typename, matchesstr);
+        return NULL;
+    }
+
+    if (!ret) {
+        error_setg(errp, "Object '%s' not found, no child of '%s' registered",
+                   typename, implements);
+        return NULL;
+    }
+
+    return ret;
+}
+
+
 static void register_types(void)
 {
     static const TypeInfo uc_interface_info = {
@@ -317,9 +368,15 @@ static void register_types(void)
         .parent        = TYPE_INTERFACE,
         .class_size = sizeof(TargetSpecificClass),
     };
+    static const TypeInfo al_interface_info = {
+        .name          = TYPE_ALIASED,
+        .parent        = TYPE_INTERFACE,
+        .class_size = sizeof(AliasedClass),
+    };
 
     type_register_static(&uc_interface_info);
     type_register_static(&ts_interface_info);
+    type_register_static(&al_interface_info);
 }
 
 type_init(register_types)
