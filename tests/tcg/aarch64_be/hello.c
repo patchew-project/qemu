@@ -14,9 +14,10 @@ int write(int fd, char *buf, int len)
     register int x2 __asm__("x2") = len;
     register int x8 __asm__("x8") = __NR_write;
 
-    asm volatile("svc #0" : : "r"(x0), "r"(x1), "r"(x2), "r"(x8));
+    asm volatile("svc #0" : "+r"(x0) : "r"(x1), "r"(x2), "r"(x8)
+                 : "memory");
 
-    return len;
+    return x0;
 }
 
 void exit(int ret)
@@ -30,6 +31,8 @@ void exit(int ret)
 
 void _start(void)
 {
-    write(1, "Hello World\n", 12);
-    exit(0);
+    /* Force a data load to check CPU data byte order. */
+    static volatile int len = 12;
+
+    exit(write(1, "Hello World\n", len) != 12);
 }
