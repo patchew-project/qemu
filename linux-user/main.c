@@ -22,6 +22,7 @@
 #include "qemu/units.h"
 #include "qemu/accel.h"
 #include "qemu/version.h"
+#include "elf.h"
 #include <sys/syscall.h>
 #include <sys/resource.h>
 #include <sys/shm.h>
@@ -768,6 +769,31 @@ int main(int argc, char **argv, char **envp)
             exit(EXIT_FAILURE);
         }
     }
+
+#ifdef TARGET_RUNTIME_ENDIAN
+    {
+        unsigned char ident[EI_NIDENT];
+        ssize_t len = pread(execfd, ident, sizeof(ident), 0);
+
+        if (len < 0) {
+            error_report("Error reading %s: %s", exec_path, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        if (len == sizeof(ident) && memcmp(ident, ELFMAG, SELFMAG) == 0) {
+            switch (ident[EI_DATA]) {
+            case ELFDATA2LSB:
+                target_set_big_endian(false);
+                break;
+            case ELFDATA2MSB:
+                target_set_big_endian(true);
+                break;
+            default:
+                error_report("%s: Invalid ELF byte order", exec_path);
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+#endif
 
     /* Resolve executable file name to full path name */
     /* Keep how we started the program in exec_path, e.g. "./my_program" */
