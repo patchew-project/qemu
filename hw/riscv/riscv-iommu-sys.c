@@ -219,6 +219,7 @@ static void riscv_iommu_sys_init(Object *obj)
 
 DeviceState *riscv_create_iommu_sys(DeviceState *mmio_irqchip,
                                     hwaddr addr, int base_irq,
+                                    int hpm_counters,
                                     bool is_32_bit)
 {
     DeviceState *iommu_sys = qdev_new(TYPE_RISCV_IOMMU_SYS);
@@ -236,6 +237,9 @@ DeviceState *riscv_create_iommu_sys(DeviceState *mmio_irqchip,
     object_property_set_uint(OBJECT(iommu_sys), "pas-bits",
                              is_32_bit ? 34 : 56,
                              &error_fatal);
+
+    object_property_set_int(OBJECT(iommu_sys), "hpm-counters",
+                            hpm_counters, &error_abort);
 
     sysbus_realize_and_unref(SYS_BUS_DEVICE(iommu_sys), &error_fatal);
 

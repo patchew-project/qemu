@@ -947,7 +947,8 @@ static void virt_machine_init(MachineState *machine)
 
     if (virt_is_iommu_sys_enabled(s)) {
         riscv_create_iommu_sys(mmio_irqchip, s->memmap[VIRT_IOMMU_SYS].base,
-                               IOMMU_SYS_IRQ, riscv_is_32bit(&s->soc[0]));
+                               IOMMU_SYS_IRQ, RISCV_IOMMU_IOCOUNT_NUM,
+                               riscv_is_32bit(&s->soc[0]));
     }
 
     s->machine_done.notify = virt_machine_done;
