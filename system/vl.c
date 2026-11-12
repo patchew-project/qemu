@@ -843,19 +843,22 @@ static bool usb_parse(const char *cmdline, Error **errp)
 /***********************************************************/
 /* machine registration */
 
-static MachineClass *find_machine(const char *name, GSList *machines)
+static ObjectClass *find_machine(const char *name, GSList *machines,
+                                 Error **errp)
 {
     GSList *el;
+    g_autofree char *typename = NULL;
 
     for (el = machines; el; el = el->next) {
         MachineClass *mc = el->data;
 
         if (!strcmp(mc->name, name) || !g_strcmp0(mc->alias, name)) {
-            return mc;
+            return OBJECT_CLASS(mc);
         }
     }
 
-    return NULL;
+    typename = g_strdup_printf("%s" TYPE_MACHINE_SUFFIX, name);
+    return aliased_class_resolve(TYPE_MACHINE, typename, errp);
 }
 
 static MachineClass *find_default_machine(GSList *machines)
@@ -1572,11 +1575,14 @@ static void machine_help_func(const QDict *qdict)
 
     machines = object_class_get_list(TYPE_MACHINE, false);
     if (type) {
-        ObjectClass *machine_class = OBJECT_CLASS(find_machine(type, machines));
-        if (machine_class) {
-            type_print_class_properties(object_class_get_name(machine_class));
+        Error *local_err = NULL;
+        ObjectClass *machine_class = find_machine(type, machines, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
             return;
         }
+        type_print_class_properties(object_class_get_name(machine_class));
+        return;
     }
 
     printf("Supported machines are:\n");
@@ -1696,10 +1702,8 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
     MachineClass *machine_class = NULL;
 
     if (machine_type) {
-        machine_class = find_machine(machine_type, machines);
-        if (!machine_class) {
-            error_setg(errp, "unsupported machine type: \"%s\"", machine_type);
-        }
+        machine_class = MACHINE_CLASS(
+            find_machine(machine_type, machines, errp));
         qdict_del(qdict, "type");
     } else {
         machine_class = find_default_machine(machines);
