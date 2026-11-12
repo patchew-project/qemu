@@ -120,7 +120,9 @@ virgl_cmd_resource_unref(VuGpu *g,
                 .size = sizeof(VhostUserGpuDMABUFScanout),
                 .payload.dmabuf_scanout.scanout_id = i,
             };
-            vg_send_msg(g, &msg, -1);
+            if (!vg_send_msg(g, &msg, -1)) {
+                cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+            }
             g->scanout[i].resource_id = 0;
         }
     }
@@ -439,7 +441,9 @@ virgl_cmd_set_scanout(VuGpu *g,
             msg.size = sizeof(VhostUserGpuDMABUFScanout);
         }
 
-        vg_send_msg(g, &msg, fd);
+        if (!vg_send_msg(g, &msg, fd)) {
+            cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+        }
         close(fd);
     } else {
         VhostUserGpuMsg msg = {
@@ -448,7 +452,9 @@ virgl_cmd_set_scanout(VuGpu *g,
             .payload.dmabuf_scanout.scanout_id = ss.scanout_id,
         };
         g_debug("disable scanout");
-        vg_send_msg(g, &msg, -1);
+        if (!vg_send_msg(g, &msg, -1)) {
+            cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+        }
     }
     g->scanout[ss.scanout_id].resource_id = ss.resource_id;
 }
@@ -480,8 +486,10 @@ virgl_cmd_resource_flush(VuGpu *g,
             .payload.update.width = rf.r.width,
             .payload.update.height = rf.r.height
         };
-        vg_send_msg(g, &msg, -1);
-        vg_wait_ok(g);
+        if (!vg_send_msg(g, &msg, -1) || !vg_wait_ok(g)) {
+            cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+            return;
+        }
     }
 }
 
