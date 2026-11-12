@@ -17,7 +17,7 @@ from qemu_test.tuxruntest import TuxRunBaselineTest
 class TuxRunRiscV64Test(TuxRunBaselineTest):
 
     ASSET_RISCV64_KERNEL = Asset(
-        'https://storage.tuxboot.com/kernels/6.11.9/riscv64/Image',
+        'https://storage.tuxboot.com/kernels/20241122/6.11.9/riscv64/Image',
         '174f8bb87f08961e54fa3fcd954a8e31f4645f6d6af4dd43983d5e9841490fb0')
     ASSET_RISCV64_ROOTFS = Asset(
         'https://storage.tuxboot.com/buildroot/20241119/riscv64/rootfs.ext4.zst',
