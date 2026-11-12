@@ -29,6 +29,7 @@
 #include "system/qtest.h"
 #include "system/reset.h"
 #include "qom/object_interfaces.h"
+#include "qemu/base-arch-defs.h"
 
 #include <libfdt.h>
 
@@ -548,11 +549,13 @@ static void openrisc_virt_machine_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     AliasedClass *alc = ALIASED_CLASS(oc);
+    TargetSpecificClass *tsc = TARGET_SPECIFIC_CLASS(oc);
     static const char *const aliases[] = {
         MACHINE_TYPE_NAME("virt"), NULL,
     };
 
     alc->aliases = aliases;
+    tsc->targets = QEMU_ARCH_BIT(SYS_EMU_TARGET_OR1K);
     mc->desc = "or1k virtual machine";
     mc->init = openrisc_virt_init;
     mc->max_cpus = VIRT_CPUS_MAX;
@@ -565,7 +568,6 @@ static const TypeInfo or1ksim_machine_typeinfo = {
     .parent     = TYPE_MACHINE,
     .class_init = openrisc_virt_machine_init,
     .instance_size = sizeof(OR1KVirtState),
-    .is_available = target_or1k,
 };
 
 static void or1ksim_machine_init_register_types(void)
