@@ -76,9 +76,8 @@ host_memory_backend_set_size(Object *obj, Visitor *v, const char *name,
         return;
     }
     if (!value) {
-        error_setg(errp,
-                   "property '%s' of %s doesn't take value '%" PRIu64 "'",
-                   name, object_get_typename(obj), value);
+        error_setg(errp, "cannot set property '%s' of '%s' to zero",
+                   name, object_get_typename(obj));
         return;
     }
     backend->size = value;
@@ -275,9 +274,9 @@ static void host_memory_backend_set_prealloc_threads(Object *obj, Visitor *v,
     if (!visit_type_uint32(v, name, &value, errp)) {
         return;
     }
-    if (value <= 0) {
-        error_setg(errp, "property '%s' of %s doesn't take value '%d'", name,
-                   object_get_typename(obj), value);
+    if (!value) {
+        error_setg(errp, "cannot set property '%s' of '%s' to zero",
+                   name, object_get_typename(obj));
         return;
     }
     backend->prealloc_threads = value;

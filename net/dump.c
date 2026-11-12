@@ -199,8 +199,8 @@ static void filter_dump_set_maxlen(Object *obj, Visitor *v, const char *name,
         return;
     }
     if (value == 0) {
-        error_setg(errp, "Property '%s.%s' doesn't take value '%u'",
-                   object_get_typename(obj), name, value);
+        error_setg(errp, "cannot set property '%s' of '%s' to zero",
+                   name, object_get_typename(obj));
         return;
     }
     nfds->maxlen = value;
