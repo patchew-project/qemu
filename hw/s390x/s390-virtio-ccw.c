@@ -52,6 +52,7 @@
 #include "hw/virtio/virtio-md-pci.h"
 #include "hw/s390x/virtio-ccw-md.h"
 #include "system/replay.h"
+#include "qom/object_interfaces.h"
 #include CONFIG_DEVICES
 
 static Error *pv_mig_blocker;
@@ -995,9 +996,18 @@ static const TypeInfo ccw_machine_info = {
     }                                                                         \
     type_init(MACHINE_VER_SYM(register, ccw, __VA_ARGS__))
 
+#define DEFINE_CCW_MACHINE_ALIASES_LATEST(...) \
+    AliasedClass *alc = ALIASED_CLASS(oc); \
+    static const char *const MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)[] = \
+    { \
+        MACHINE_TYPE_NAME("s390-ccw-virtio"), \
+        NULL, \
+    }; \
+    alc->aliases = MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)
+
 #define DEFINE_CCW_MACHINE_AS_LATEST(major, minor) \
     DEFINE_CCW_MACHINE_IMPL({ \
-            mc->alias = "s390-ccw-virtio"; \
+            DEFINE_CCW_MACHINE_ALIASES_LATEST(major, minor); \
             mc->is_default = true; \
         }, major, minor)
 
