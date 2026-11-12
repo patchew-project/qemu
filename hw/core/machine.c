@@ -1804,6 +1804,7 @@ static const TypeInfo machine_info = {
     .instance_finalize = machine_finalize,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_ALIASED },
+        { TYPE_TARGET_SPECIFIC },
         { }
     }
 };
