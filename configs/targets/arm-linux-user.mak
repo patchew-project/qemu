@@ -1,6 +1,8 @@
 TARGET_ARCH=arm
 TARGET_SYSTBL_ABI=common,oabi
 TARGET_SYSTBL=syscall.tbl
+TARGET_RUNTIME_ENDIAN=y
+TARGET_USER_ALIASES=armeb
 TARGET_XML_FILES= arm-core.xml arm-vfp.xml arm-vfp3.xml arm-vfp-sysregs.xml arm-neon.xml arm-m-profile.xml arm-m-profile-mve.xml
 TARGET_HAS_BFLT=y
 CONFIG_SEMIHOSTING=y

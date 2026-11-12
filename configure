@@ -1111,6 +1111,9 @@ else
                     aarch64_be-linux-user)
                         error_exit "Target '$target' is no longer supported; use 'aarch64-linux-user' instead"
                         ;;
+                    armeb-linux-user)
+                        error_exit "Target '$target' is no longer supported; use 'arm-linux-user' instead"
+                        ;;
                     *)
                         error_exit "Unknown target name '$target'"
                         ;;

@@ -152,11 +152,17 @@ Other binaries
 
 -  user mode (Arm)
 
-   * ``qemu-armeb`` TODO.
+   ``qemu-arm`` runs both little- and big-endian Linux ELF executables,
+   selecting the byte order from the ELF header. ``qemu-armeb`` is a
+   :ref:`deprecated compatibility symlink <deprecated-qemu-armeb>` to the
+   same emulator; its name does not override the ELF byte order. Build both
+   names with ``--target-list=arm-linux-user``; the separate
+   ``armeb-linux-user`` build target is no longer supported.
 
    * ``qemu-arm`` is also capable of running Arm \"Angel\" semihosted ELF
      binaries (as implemented by the arm-elf and arm-eabi Newlib/GDB
-     configurations), and arm-uclinux bFLT format binaries.
+     configurations), and arm-uclinux bFLT format binaries. bFLT has no
+     byte-order marker and uses the little-endian default.
 
 -  user mode (ColdFire)
 

@@ -451,6 +451,16 @@ Use ``qemu-aarch64`` instead for both little- and big-endian
 Linux ELF executables. The emulator selects the endianness from
 the ELF header, regardless of the executable name used to invoke it.
 
+.. _deprecated-qemu-armeb:
+
+``qemu-armeb`` executable name (since 12.0)
+'''''''''''''''''''''''''''''''''''''''''''
+
+The ``qemu-armeb`` compatibility symlink is deprecated.
+Use ``qemu-arm`` instead for both little- and big-endian Linux
+ELF executables. The emulator selects the endianness from the
+ELF header, regardless of the executable name used to invoke it.
+
 linux-user mode CPUs
 --------------------
 
