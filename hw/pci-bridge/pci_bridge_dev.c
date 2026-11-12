@@ -31,11 +31,18 @@
 #include "system/memory.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/core/hotplug.h"
+#include "hw/core/resettable.h"
 #include "qom/object.h"
 
 #define TYPE_PCI_BRIDGE_DEV      "pci-bridge"
 #define TYPE_PCI_BRIDGE_SEAT_DEV "pci-bridge-seat"
-OBJECT_DECLARE_SIMPLE_TYPE(PCIBridgeDev, PCI_BRIDGE_DEV)
+OBJECT_DECLARE_TYPE(PCIBridgeDev, PCIBridgeDevClass, PCI_BRIDGE_DEV)
+
+struct PCIBridgeDevClass {
+    PCIDeviceClass parent_class;
+
+    ResettablePhases parent_phases;
+};
 
 struct PCIBridgeDev {
     /*< private >*/
@@ -158,11 +165,15 @@ static void pci_bridge_dev_write_config(PCIDevice *d,
     }
 }
 
-static void qdev_pci_bridge_dev_reset(DeviceState *qdev)
+static void pci_bridge_dev_reset_hold(Object *obj, ResetType type)
 {
-    PCIDevice *dev = PCI_DEVICE(qdev);
+    PCIDevice *dev = PCI_DEVICE(obj);
+    PCIBridgeDevClass *bdc = PCI_BRIDGE_DEV_GET_CLASS(obj);
 
-    pci_bridge_reset(qdev);
+    if (bdc->parent_phases.hold) {
+        bdc->parent_phases.hold(obj, type);
+    }
+    pci_bridge_reset(DEVICE(obj));
     if (shpc_present(dev)) {
         shpc_reset(dev);
     }
@@ -245,6 +256,8 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    PCIBridgeDevClass *bdc = PCI_BRIDGE_DEV_CLASS(klass);
 
     k->realize = pci_bridge_dev_realize;
     k->exit = pci_bridge_dev_exitfn;
@@ -253,7 +266,8 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, const void *data)
     k->device_id = PCI_DEVICE_ID_REDHAT_BRIDGE;
     k->class_id = PCI_CLASS_BRIDGE_PCI;
     dc->desc = "Standard PCI Bridge";
-    device_class_set_legacy_reset(dc, qdev_pci_bridge_dev_reset);
+    resettable_class_set_parent_phases(rc, NULL, pci_bridge_dev_reset_hold,
+                                       NULL, &bdc->parent_phases);
     device_class_set_props(dc, pci_bridge_dev_properties);
     dc->vmsd = &pci_bridge_dev_vmstate;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
@@ -266,6 +280,7 @@ static const TypeInfo pci_bridge_dev_info = {
     .name              = TYPE_PCI_BRIDGE_DEV,
     .parent            = TYPE_PCI_BRIDGE,
     .instance_size     = sizeof(PCIBridgeDev),
+    .class_size        = sizeof(PCIBridgeDevClass),
     .class_init        = pci_bridge_dev_class_init,
     .instance_finalize = pci_bridge_dev_instance_finalize,
     .interfaces = (const InterfaceInfo[]) {
