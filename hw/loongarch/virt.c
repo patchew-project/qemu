@@ -51,6 +51,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "kvm/kvm_loongarch.h"
+#include "qom/object_interfaces.h"
 
 static int virt_get_dmsi(Object *obj, Error **errp)
 {
@@ -1546,9 +1547,18 @@ static void virt_class_init(ObjectClass *oc, const void *data)
     } \
     type_init(MACHINE_VER_SYM(register, virt, __VA_ARGS__));
 
+#define DEFINE_VIRT_MACHINE_ALIASES_LATEST(...) \
+    AliasedClass *alc = ALIASED_CLASS(oc); \
+    static const char *const MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)[] = \
+    { \
+        MACHINE_TYPE_NAME("virt"), \
+        NULL, \
+    }; \
+    alc->aliases = MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)
+
 #define DEFINE_VIRT_MACHINE_AS_LATEST(major, minor) \
     DEFINE_VIRT_MACHINE_VERSION({ \
-            mc->alias = "virt"; \
+            DEFINE_VIRT_MACHINE_ALIASES_LATEST(major, minor); \
             mc->is_default = true; \
         }, major, minor)
 #define DEFINE_VIRT_MACHINE(major, minor) \
