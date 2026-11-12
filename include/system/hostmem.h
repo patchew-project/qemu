@@ -86,6 +86,8 @@ struct HostMemoryBackend {
 };
 
 bool host_memory_backend_mr_inited(HostMemoryBackend *backend);
+bool host_memory_backend_settable(HostMemoryBackend *backend,
+                                  const char *prop_name, Error **errp);
 MemoryRegion *host_memory_backend_get_memory(HostMemoryBackend *backend);
 
 void host_memory_backend_set_mapped(HostMemoryBackend *backend, bool mapped);

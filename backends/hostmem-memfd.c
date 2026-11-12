@@ -134,8 +134,7 @@ memfd_backend_set_hugetlbsize(Object *obj, Visitor *v, const char *name,
     HostMemoryBackendMemfd *m = MEMORY_BACKEND_MEMFD(obj);
     uint64_t value;
 
-    if (host_memory_backend_mr_inited(MEMORY_BACKEND(obj))) {
-        error_setg(errp, "cannot change property value");
+    if (!host_memory_backend_settable(MEMORY_BACKEND(m), name, errp)) {
         return;
     }
 

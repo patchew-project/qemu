@@ -66,9 +66,7 @@ host_memory_backend_set_size(Object *obj, Visitor *v, const char *name,
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
     uint64_t value;
 
-    if (host_memory_backend_mr_inited(backend)) {
-        error_setg(errp, "cannot change property %s of %s ", name,
-                   object_get_typename(obj));
+    if (!host_memory_backend_settable(backend, name, errp)) {
         return;
     }
 
@@ -310,6 +308,17 @@ bool host_memory_backend_mr_inited(HostMemoryBackend *backend)
     return memory_region_size(&backend->mr) != 0;
 }
 
+bool host_memory_backend_settable(HostMemoryBackend *backend,
+                                  const char *prop_name, Error **errp)
+{
+    if (host_memory_backend_mr_inited(backend)) {
+        error_setg(errp, "cannot change property '%s' of '%s'",
+                   prop_name, object_get_typename(OBJECT(backend)));
+        return false;
+    }
+    return true;
+}
+
 MemoryRegion *host_memory_backend_get_memory(HostMemoryBackend *backend)
 {
     return host_memory_backend_mr_inited(backend) ? &backend->mr : NULL;
@@ -458,8 +467,7 @@ static void host_memory_backend_set_share(Object *o, bool value, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(o);
 
-    if (host_memory_backend_mr_inited(backend)) {
-        error_setg(errp, "cannot change property value");
+    if (!host_memory_backend_settable(backend, "share", errp)) {
         return;
     }
     backend->share = value;
@@ -477,8 +485,7 @@ static void host_memory_backend_set_reserve(Object *o, bool value, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(o);
 
-    if (host_memory_backend_mr_inited(backend)) {
-        error_setg(errp, "cannot change property value");
+    if (!host_memory_backend_settable(backend, "reserve", errp)) {
         return;
     }
     if (backend->prealloc && !value) {
