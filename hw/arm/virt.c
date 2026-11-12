@@ -127,7 +127,7 @@ static void arm_virt_compat_default_set(MachineClass *mc)
     } \
     static const TypeInfo MACHINE_VER_SYM(info, virt, __VA_ARGS__) = \
     { \
-        .name = MACHINE_VER_TYPE_NAME("virt", __VA_ARGS__), \
+        .name = MACHINE_VER_TYPE_NAME("arm-virt", __VA_ARGS__), \
         .parent = TYPE_VIRT_MACHINE, \
         .class_init = MACHINE_VER_SYM(class_init, virt, __VA_ARGS__), \
         .is_available = target_base_arm, \
@@ -145,6 +145,17 @@ static void arm_virt_compat_default_set(MachineClass *mc)
     static const char *const MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)[] = \
     { \
         MACHINE_TYPE_NAME("virt"), \
+        MACHINE_VER_TYPE_NAME("virt", __VA_ARGS__), \
+        MACHINE_TYPE_NAME("arm-virt"), \
+        NULL, \
+    }; \
+    alc->aliases = MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)
+
+#define DEFINE_VIRT_MACHINE_ALIASES(...) \
+    AliasedClass *alc = ALIASED_CLASS(oc); \
+    static const char *const MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)[] = \
+    { \
+        MACHINE_VER_TYPE_NAME("virt", __VA_ARGS__), \
         NULL, \
     }; \
     alc->aliases = MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)
@@ -154,7 +165,9 @@ static void arm_virt_compat_default_set(MachineClass *mc)
             DEFINE_VIRT_MACHINE_ALIASES_LATEST(major, minor); \
         }, major, minor)
 #define DEFINE_VIRT_MACHINE(major, minor) \
-    DEFINE_VIRT_MACHINE_IMPL({}, major, minor)
+    DEFINE_VIRT_MACHINE_IMPL({ \
+            DEFINE_VIRT_MACHINE_ALIASES(major, minor);  \
+        }, major, minor)
 
 
 /* Number of external interrupt lines to configure the GIC with */
