@@ -92,6 +92,7 @@
 #include "hw/ppc/spapr_tpm_proxy.h"
 #include "hw/ppc/spapr_nvdimm.h"
 #include "hw/ppc/spapr_numa.h"
+#include "qom/object_interfaces.h"
 
 #include <libfdt.h>
 
@@ -4752,9 +4753,18 @@ static const TypeInfo spapr_machine_info = {
     }                                                                \
     type_init(MACHINE_VER_SYM(register, spapr, __VA_ARGS__))
 
-#define DEFINE_SPAPR_MACHINE_AS_LATEST(major, minor) \
+#define DEFINE_SPAPR_MACHINE_ALIASES_LATEST(...) \
+    AliasedClass *alc = ALIASED_CLASS(oc); \
+    static const char *const MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)[] = \
+    { \
+        MACHINE_TYPE_NAME("pseries"), \
+        NULL, \
+    }; \
+    alc->aliases = MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)
+
+#define DEFINE_SPAPR_MACHINE_AS_LATEST(major, minor)    \
     DEFINE_SPAPR_MACHINE_IMPL({ \
-            mc->alias = "pseries"; \
+            DEFINE_SPAPR_MACHINE_ALIASES_LATEST(major, minor);   \
             mc->is_default = true; \
         }, major, minor)
 #define DEFINE_SPAPR_MACHINE(major, minor) \

@@ -62,6 +62,7 @@
 #include "hw/char/serial-isa.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "exec/cpu-common.h"
+#include "qom/object_interfaces.h"
 
 #include <libfdt.h>
 
@@ -3472,6 +3473,10 @@ static void pnv_machine_power11_class_init(ObjectClass *oc, const void *data)
     PnvMachineClass *pmc = PNV_MACHINE_CLASS(oc);
     XiveFabricClass *xfc = XIVE_FABRIC_CLASS(oc);
     static const char compat[] = "qemu,powernv11\0ibm,powernv";
+    AliasedClass *alc = ALIASED_CLASS(oc);
+    static const char *const aliases[] = {
+        MACHINE_TYPE_NAME("powernv"), NULL
+    };
 
     static GlobalProperty phb_compat[] = {
         { TYPE_PNV_PHB, "version", "5" },
@@ -3493,7 +3498,7 @@ static void pnv_machine_power11_class_init(ObjectClass *oc, const void *data)
     mc->desc = "IBM PowerNV (Non-Virtualized) Power11";
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power11_v2.0");
 
-    mc->alias = "powernv";
+    alc->aliases = aliases;
 
     object_class_property_add_bool(oc, "big-core",
                                    pnv_machine_get_big_core,
