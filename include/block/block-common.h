@@ -126,6 +126,23 @@ typedef struct BlockZoneDescriptor {
 } BlockZoneDescriptor;
 
 /*
+ * Errors that zoned block drivers report for zone protocol violations, as
+ * positive errno values (drivers return them negated). Each condition has an
+ * errno of its own that zoned block drivers do not return for anything else,
+ * so that device models can report the matching zone error to the guest
+ * whichever request failed. In particular, EINVAL is not used, as it also
+ * reports invalid requests, such as an invalid zone state transition. The
+ * zone resource errors are the errnos Linux uses for BLK_STS_ZONE_OPEN_RESOURCE
+ * and BLK_STS_ZONE_ACTIVE_RESOURCE, so a host zoned device accessed through
+ * file-posix reports the same values.
+ */
+#define BLK_ZE_UNALIGNED_WRITE  ESPIPE       /* write not at write pointer */
+#define BLK_ZE_BOUNDARY         ERANGE       /* write past zone capacity */
+#define BLK_ZE_OPEN_RESOURCE    ETOOMANYREFS /* open zone limit reached */
+#define BLK_ZE_ACTIVE_RESOURCE  EOVERFLOW    /* active zone limit reached */
+#define BLK_ZE_FULL             EXFULL       /* write to a full zone */
+
+/*
  * Track write pointers of a zone in bytes.
  */
 typedef struct BlockZoneWps {
