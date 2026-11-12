@@ -17,10 +17,10 @@ from qemu_test.tuxruntest import TuxRunBaselineTest
 class TuxRunAarch64Test(TuxRunBaselineTest):
 
     ASSET_ARM64_KERNEL = Asset(
-        'https://storage.tuxboot.com/kernels/6.18.54/arm64/Image.gz',
+        'https://storage.tuxboot.com/kernels/20260930/6.18.54/arm64/Image.gz',
         '39f4633bbcb444267d4d829bd28d8868a287c4c160cda64b0fd23fb090571c4e')
     ASSET_ARM64_VMLINUX = Asset(
-        'https://storage.tuxboot.com/kernels/6.18.54/arm64/vmlinux.xz',
+        'https://storage.tuxboot.com/kernels/20260930/6.18.54/arm64/vmlinux.xz',
         '6487eb113ef6e841aedab6cb6fa704006377d68f64dd544570aa42f462a52b85')
     ASSET_ARM64_ROOTFS = Asset(
         'https://storage.tuxboot.com/buildroot/20260924/arm64/rootfs.ext4.zst',
