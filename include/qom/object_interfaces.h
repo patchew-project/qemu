@@ -16,6 +16,17 @@ DECLARE_CLASS_CHECKERS(UserCreatableClass, USER_CREATABLE,
 
 typedef struct UserCreatable UserCreatable;
 
+#define TYPE_TARGET_SPECIFIC "target-specific"
+
+typedef struct TargetSpecificClass TargetSpecificClass;
+DECLARE_CLASS_CHECKERS(TargetSpecificClass, TARGET_SPECIFIC,
+                       TYPE_TARGET_SPECIFIC)
+#define TARGET_SPECIFIC(obj) \
+     INTERFACE_CHECK(TargetSpecific, (obj), \
+                     TYPE_TARGET_SPECIFIC)
+
+typedef struct TargetSpecific TargetSpecific;
+
 /**
  * UserCreatableClass:
  * @parent_class: the base class
@@ -166,5 +177,69 @@ bool user_creatable_del(const char *id, Error **errp);
  * objects container.
  */
 void user_creatable_cleanup(void);
+
+/**
+ * TargetSpecificClass:
+ * @parent_class: the base class
+ *
+ * Interface for classes that want to declare they have target
+ * specific restrictions. This is intended to allow classes to
+ * be registered and introspected unconditionally, while
+ * preventing creation of instances unless a compatible target
+ * is selected.
+ */
+struct TargetSpecificClass {
+    InterfaceClass parent_class;
+
+    /*
+     * Leave as 0 to indicate no target specific creation restrictions,
+     * or set to a bitmask of QEMU_ARCH_nnn constants to limit what
+     * targets it can be created under.
+     */
+    int targets;
+};
+
+
+/**
+ * target_specific_class_creatable:
+ * @oc: the object class to check
+ *
+ * Determine whether @oc implements the TargetSpecific
+ * interface and if so, whether its declared targets
+ * allow creation in the current system state.
+ *
+ * If @oc does not implement the TargetSpecific interface
+ * it is assumed there are no creation restrictions.
+ *
+ * If @oc implements the TargetSpecific interface but leaves
+ * the 'targets' field as zero, it is assumed there are
+ * no creation restrictions.
+ *
+ * If @oc implements the TargetSpecific interface and the
+ * 'targets' field is non-zero, it is compared to
+ * target_mask_selected() to determine if it is valid to
+ * create an instance of @oc.
+ *
+ * Returns: true if it is valid to create an instance of @oc
+ * in the current system state, false otherwise.
+ */
+bool target_specific_class_creatable(ObjectClass *oc);
+
+
+/**
+ * target_specific_class_check:
+ * @oc: the object class to check
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Check whether it is permitted to create an instance
+ * of @oc in the current system target state.
+ *
+ * This validates @oc against target_specific_class_creatable
+ * and sets @errp if it is not creatable.
+ *
+ * Returns: @oc if it is creatable, NULL otherwise with @errp set.
+ */
+ObjectClass *target_specific_class_check(ObjectClass *oc,
+                                         Error **errp);
 
 #endif

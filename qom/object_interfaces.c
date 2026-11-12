@@ -20,6 +20,7 @@
 #include "qapi/opts-visitor.h"
 #include "qemu/config-file.h"
 #include "qemu/keyval.h"
+#include "qemu/target-info.h"
 #include "trace.h"
 
 bool user_creatable_complete(UserCreatable *uc, Error **errp)
@@ -280,6 +281,30 @@ void user_creatable_cleanup(void)
     object_unparent(object_get_objects_root());
 }
 
+
+bool target_specific_class_creatable(ObjectClass *oc)
+{
+    TargetSpecificClass *tsc =
+        (TargetSpecificClass *)object_class_dynamic_cast(
+            oc, TYPE_TARGET_SPECIFIC);
+
+    return !tsc || !tsc->targets || (tsc->targets & target_mask_selected());
+}
+
+
+ObjectClass *target_specific_class_check(ObjectClass *oc,
+                                         Error **errp)
+{
+    if (!target_specific_class_creatable(oc)) {
+        error_setg(errp, "Object '%s' not compatible with selected target",
+                   object_class_get_name(oc));
+        return NULL;
+    }
+
+    return oc;
+}
+
+
 static void register_types(void)
 {
     static const TypeInfo uc_interface_info = {
@@ -287,8 +312,14 @@ static void register_types(void)
         .parent        = TYPE_INTERFACE,
         .class_size = sizeof(UserCreatableClass),
     };
+    static const TypeInfo ts_interface_info = {
+        .name          = TYPE_TARGET_SPECIFIC,
+        .parent        = TYPE_INTERFACE,
+        .class_size = sizeof(TargetSpecificClass),
+    };
 
     type_register_static(&uc_interface_info);
+    type_register_static(&ts_interface_info);
 }
 
 type_init(register_types)
