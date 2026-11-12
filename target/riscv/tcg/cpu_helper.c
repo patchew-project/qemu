@@ -982,6 +982,8 @@ void riscv_cpu_set_mode(CPURISCVState *env, privilege_mode_t newpriv,
             riscv_cpu_interrupt(env);
         }
     }
+
+    riscv_pmu_rebuild_timer(env);
 }
 
 /*

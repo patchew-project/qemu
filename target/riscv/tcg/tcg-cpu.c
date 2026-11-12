@@ -280,14 +280,17 @@ static void riscv_cpu_exec_enter(CPUState *cs)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
-    target_ulong pc = env->dpc;
 
-    if (!cpu->cfg.ext_sdext || !env->debug_mode) {
-        return;
+    if (cpu->cfg.ext_sdext && env->debug_mode) {
+        target_ulong pc = env->dpc;
+
+        riscv_cpu_leave_debug_mode(env);
+        env->pc = pc;
     }
 
-    riscv_cpu_leave_debug_mode(env);
-    env->pc = pc;
+    if (cpu->pmu_timer_stalled) {
+        riscv_pmu_rebuild_timer(env);
+    }
 }
 #endif
 
