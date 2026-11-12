@@ -1802,6 +1802,10 @@ static const TypeInfo machine_info = {
     .instance_size = sizeof(MachineState),
     .instance_init = machine_initfn,
     .instance_finalize = machine_finalize,
+    .interfaces = (const InterfaceInfo[]) {
+        { TYPE_ALIASED },
+        { }
+    }
 };
 
 static void machine_register_types(void)
