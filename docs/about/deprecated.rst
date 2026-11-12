@@ -438,6 +438,19 @@ It was implemented as a no-op instruction in TCG up to QEMU 9.0, but
 only with ``-cpu max`` (which does not guarantee migration compatibility
 across versions).
 
+linux-user mode executables
+---------------------------
+
+.. _deprecated-qemu-aarch64-be:
+
+``qemu-aarch64_be`` executable name (since 12.0)
+''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``qemu-aarch64_be`` compatibility symlink is deprecated.
+Use ``qemu-aarch64`` instead for both little- and big-endian
+Linux ELF executables. The emulator selects the byte order from
+the ELF header, regardless of the executable name used to invoke it.
+
 linux-user mode CPUs
 --------------------
 
