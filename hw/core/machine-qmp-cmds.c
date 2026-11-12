@@ -35,6 +35,7 @@
 #include "hw/s390x/storage-keys.h"
 #include "qom/object_interfaces.h"
 #include "qemu/target-info-def.h"
+#include "qemu/base-arch-defs.h"
 
 /*
  * QMP query for enabled and present accelerators
@@ -155,10 +156,15 @@ qmp_query_cpu_model_expansion(CpuModelExpansionType type,
 }
 
 MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
+                                    bool has_all_targets, bool all_targets,
                                     Error **errp)
 {
     GSList *el, *machines;
     MachineInfoList *mach_list = NULL;
+
+    if (target_mask_selected() == QEMU_ARCH_ALL) {
+        all_targets = true;
+    }
 
     machines = object_class_get_list(TYPE_MACHINE, false);
     for (el = machines; el; el = el->next) {
@@ -167,6 +173,7 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
         const char *default_cpu_type = machine_class_default_cpu_type(mc);
         MachineInfo *info;
         AliasedClass *alc = ALIASED_CLASS(oc);
+        TargetSpecificClass *tsc = TARGET_SPECIFIC_CLASS(oc);
 
         /*
          * If we've selected a specific target, then filter
@@ -200,6 +207,17 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
             }
             len = strlen(alc->aliases[0]) - strlen(TYPE_MACHINE_SUFFIX);
             info->alias = g_strndup(alc->aliases[0], len);
+        }
+
+        if (tsc->targets && all_targets) {
+            SysEmuTargetList **targets = &info->targets;
+            size_t i;
+            info->has_targets = true;
+            for (i = 0; i < SYS_EMU_TARGET__MAX; i++) {
+                if (tsc->targets & QEMU_ARCH_BIT(i)) {
+                    QAPI_LIST_APPEND(targets, i);
+                }
+            }
         }
 
         info->name = g_strdup(mc->name);
