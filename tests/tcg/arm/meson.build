@@ -30,6 +30,17 @@ tests += {
   'hello-arm.c': {
     'cflags': ['-marm', '-nostdlib', '-ffreestanding', '-fno-stack-protector'],
   },
+  # The cross compiler emits BE8 for -mbig-endian; test legacy BE32 too.
+  'hello-arm-be.c': {
+    'cflags': ['-marm', '-mbig-endian', '-nostdlib', '-static', '-ffreestanding',
+               '-fno-stack-protector'],
+    'expected_output': 'hello-arm.ref',
+  },
+  'hello-arm-be32.c': {
+    'cflags': ['-marm', '-mbig-endian', '-mbe32', '-nostdlib', '-static',
+               '-ffreestanding', '-fno-stack-protector'],
+    'expected_output': 'hello-arm.ref',
+  },
   'fcvt.c': {
     'cflags': ['-lm', '-march=armv8.2-a+fp16', '-mfpu=neon-fp-armv8'],
     'expected_output': 'fcvt.ref',
