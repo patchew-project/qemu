@@ -20,4 +20,6 @@ typedef struct AccelCPUClass {
     bool (*cpu_target_realize)(CPUState *cpu, Error **errp);
 } AccelCPUClass;
 
+#define TYPE_ACCEL_CPU "accel-cpu"
+
 #endif /* ACCEL_CPU_H */

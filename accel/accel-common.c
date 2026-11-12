@@ -132,9 +132,8 @@ DEFINE_TYPES(accel_types)
 
 static void register_accel_target_type(void)
 {
-    g_autofree char *name = g_strconcat("accel-", target_cpu_type(), NULL);
     const TypeInfo accel_cpu_type = {
-        .name = name,
+        .name = TYPE_ACCEL_CPU,
         .parent = TYPE_OBJECT,
         .abstract = true,
         .class_size = sizeof(AccelCPUClass),
