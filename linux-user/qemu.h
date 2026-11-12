@@ -254,7 +254,22 @@ static inline bool access_ok(CPUState *cpu, int type,
     } while (0)
 
 
-#if TARGET_BIG_ENDIAN
+#ifdef TARGET_RUNTIME_ENDIAN
+# define __put_user(x, hptr) do { \
+    if (target_big_endian()) { \
+        __put_user_e(x, hptr, be); \
+    } else { \
+        __put_user_e(x, hptr, le); \
+    } \
+} while (0)
+# define __get_user(x, hptr) do { \
+    if (target_big_endian()) { \
+        __get_user_e(x, hptr, be); \
+    } else { \
+        __get_user_e(x, hptr, le); \
+    } \
+} while (0)
+#elif TARGET_BIG_ENDIAN
 # define __put_user(x, hptr)  __put_user_e(x, hptr, be)
 # define __get_user(x, hptr)  __get_user_e(x, hptr, be)
 #else

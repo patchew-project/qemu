@@ -8778,7 +8778,7 @@ void target_exception_dump(CPUArchState *env, const char *fmt, int code)
 
 #include "target_proc.h"
 
-#if HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN || \
+#if defined(TARGET_RUNTIME_ENDIAN) || HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN || \
     defined(HAVE_ARCH_PROC_CPUINFO) || \
     defined(HAVE_ARCH_PROC_HARDWARE)
 static int is_proc(const char *filename, const char *entry)
@@ -8787,7 +8787,7 @@ static int is_proc(const char *filename, const char *entry)
 }
 #endif
 
-#if HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN
+#if defined(TARGET_RUNTIME_ENDIAN) || HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN
 static int open_net_route(CPUArchState *cpu_env, int fd)
 {
     FILE *fp;
@@ -8850,7 +8850,7 @@ static int maybe_do_fake_open(CPUArchState *cpu_env, int dirfd,
         { "stat", open_self_stat, is_proc_myself },
         { "auxv", open_self_auxv, is_proc_myself },
         { "cmdline", open_self_cmdline, is_proc_myself },
-#if HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN
+#if defined(TARGET_RUNTIME_ENDIAN) || HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN
         { "/proc/net/route", open_net_route, is_proc },
 #endif
 #if defined(HAVE_ARCH_PROC_CPUINFO)

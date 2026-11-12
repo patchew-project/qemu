@@ -462,19 +462,12 @@ typedef struct {
     abi_ulong sig[TARGET_NSIG_WORDS];
 } target_sigset_t;
 
-#if HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN
 static inline void tswap_sigset(target_sigset_t *d, const target_sigset_t *s)
 {
     int i;
     for(i = 0;i < TARGET_NSIG_WORDS; i++)
         d->sig[i] = tswapal(s->sig[i]);
 }
-#else
-static inline void tswap_sigset(target_sigset_t *d, const target_sigset_t *s)
-{
-    *d = *s;
-}
-#endif
 
 static inline void target_siginitset(target_sigset_t *d, abi_ulong set)
 {
