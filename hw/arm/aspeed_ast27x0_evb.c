@@ -12,6 +12,7 @@
 #include "hw/arm/aspeed_soc.h"
 #include "hw/sensor/tmp105.h"
 #include "qom/object_interfaces.h"
+#include "qemu/base-arch-defs.h"
 
 /* AST2700 evb hardware value */
 /* SCU HW Strap1 */
@@ -33,7 +34,9 @@ static void aspeed_machine_ast2700a1_evb_class_init(ObjectClass *oc,
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
+    TargetSpecificClass *tsc = TARGET_SPECIFIC_CLASS(oc);
 
+    tsc->targets = QEMU_ARCH_BIT(SYS_EMU_TARGET_AARCH64);
     mc->desc = "Aspeed AST2700 A1 EVB (Cortex-A35)";
     amc->soc_name  = "ast2700-a1";
     amc->hw_strap1 = AST2700_EVB_HW_STRAP1;
@@ -55,11 +58,13 @@ static void aspeed_machine_ast2700a2_evb_class_init(ObjectClass *oc,
     MachineClass *mc = MACHINE_CLASS(oc);
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
     AliasedClass *alc = ALIASED_CLASS(oc);
+    TargetSpecificClass *tsc = TARGET_SPECIFIC_CLASS(oc);
     static const char *const aliases[] = {
         MACHINE_TYPE_NAME("ast2700-evb"), NULL,
     };
 
     alc->aliases = aliases;
+    tsc->targets = QEMU_ARCH_BIT(SYS_EMU_TARGET_AARCH64);
     mc->desc = "Aspeed AST2700 A2 EVB (Cortex-A35)";
     amc->soc_name  = "ast2700-a2";
     amc->hw_strap1 = AST2700_EVB_HW_STRAP1;
@@ -80,13 +85,11 @@ static const TypeInfo aspeed_ast27x0_evb_types[] = {
         .name          = MACHINE_TYPE_NAME("ast2700a1-evb"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_ast2700a1_evb_class_init,
-        .is_available  = target_aarch64,
     },
     {
         .name          = MACHINE_TYPE_NAME("ast2700a2-evb"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_ast2700a2_evb_class_init,
-        .is_available  = target_aarch64,
     }
 };
 

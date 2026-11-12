@@ -24,7 +24,8 @@
 #include "qemu/error-report.h"
 #include "hw/core/boards.h"
 #include "hw/core/loader.h"
-#include "qom/object.h"
+#include "qom/object_interfaces.h"
+#include "qemu/base-arch-defs.h"
 
 #define TYPE_RASPI_MACHINE  MACHINE_TYPE_NAME("raspi-common")
 OBJECT_DECLARE_SIMPLE_TYPE(RaspiMachineState, RASPI_MACHINE)
@@ -370,9 +371,11 @@ static void raspi3ap_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     RaspiBaseMachineClass *rmc = RASPI_BASE_MACHINE_CLASS(oc);
+    TargetSpecificClass *tsc = TARGET_SPECIFIC_CLASS(oc);
 
     mc->auto_create_sdcard = true;
     rmc->board_rev = 0x9020e0; /* Revision 1.0 */
+    tsc->targets = QEMU_ARCH_BIT(SYS_EMU_TARGET_AARCH64);
     raspi_machine_class_init(mc, rmc->board_rev);
 };
 
@@ -380,9 +383,11 @@ static void raspi3b_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     RaspiBaseMachineClass *rmc = RASPI_BASE_MACHINE_CLASS(oc);
+    TargetSpecificClass *tsc = TARGET_SPECIFIC_CLASS(oc);
 
     mc->auto_create_sdcard = true;
     rmc->board_rev = 0xa02082;
+    tsc->targets = QEMU_ARCH_BIT(SYS_EMU_TARGET_AARCH64);
     raspi_machine_class_init(mc, rmc->board_rev);
 };
 
@@ -403,12 +408,10 @@ static const TypeInfo raspi_machine_types[] = {
         .name           = MACHINE_TYPE_NAME("raspi3ap"),
         .parent         = TYPE_RASPI_MACHINE,
         .class_init     = raspi3ap_machine_class_init,
-        .is_available   = target_aarch64,
     }, {
         .name           = MACHINE_TYPE_NAME("raspi3b"),
         .parent         = TYPE_RASPI_MACHINE,
         .class_init     = raspi3b_machine_class_init,
-        .is_available   = target_aarch64,
     }, {
         .name           = TYPE_RASPI_MACHINE,
         .parent         = TYPE_RASPI_BASE_MACHINE,

@@ -22,6 +22,8 @@
 #include "hw/arm/boot.h"
 #include "hw/block/flash.h"
 #include "hw/arm/aspeed_coprocessor.h"
+#include "qom/object_interfaces.h"
+#include "qemu/base-arch-defs.h"
 
 #define TYPE_AST2700FC MACHINE_TYPE_NAME("ast2700fc")
 OBJECT_DECLARE_SIMPLE_TYPE(Ast2700FCState, AST2700FC);
@@ -220,12 +222,14 @@ static void ast2700fc_init(MachineState *machine)
 static void ast2700fc_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    TargetSpecificClass *tsc = TARGET_SPECIFIC_CLASS(oc);
 
     mc->desc = "ast2700 full core support";
     mc->init = ast2700fc_init;
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
     mc->min_cpus = mc->max_cpus = mc->default_cpus = 6;
+    tsc->targets = QEMU_ARCH_BIT(SYS_EMU_TARGET_AARCH64);
 }
 
 static const TypeInfo ast2700fc_types[] = {
@@ -234,7 +238,6 @@ static const TypeInfo ast2700fc_types[] = {
         .parent         = TYPE_MACHINE,
         .class_init     = ast2700fc_class_init,
         .instance_size  = sizeof(Ast2700FCState),
-        .is_available   = target_aarch64,
     },
 };
 

@@ -19,8 +19,9 @@
 #include "hw/core/boards.h"
 #include "hw/core/loader.h"
 #include "hw/arm/boot.h"
-#include "qom/object.h"
+#include "qom/object_interfaces.h"
 #include "hw/arm/bcm2838.h"
+#include "qemu/base-arch-defs.h"
 #include <libfdt.h>
 
 #define TYPE_RASPI4B_MACHINE MACHINE_TYPE_NAME("raspi4b")
@@ -88,11 +89,13 @@ static void raspi4b_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     RaspiBaseMachineClass *rmc = RASPI_BASE_MACHINE_CLASS(oc);
+    TargetSpecificClass *tsc = TARGET_SPECIFIC_CLASS(oc);
 
     rmc->board_rev = 0xb03115; /* Revision 1.5, 2 Gb RAM */
     raspi_machine_class_common_init(mc, rmc->board_rev);
     mc->auto_create_sdcard = true;
     mc->init = raspi4b_machine_init;
+    tsc->targets = QEMU_ARCH_BIT(SYS_EMU_TARGET_AARCH64);
 }
 
 static const TypeInfo raspi4b_machine_type = {
@@ -100,7 +103,6 @@ static const TypeInfo raspi4b_machine_type = {
     .parent         = TYPE_RASPI_BASE_MACHINE,
     .instance_size  = sizeof(Raspi4bMachineState),
     .class_init     = raspi4b_machine_class_init,
-    .is_available   = target_aarch64,
 };
 
 static void raspi4b_machine_register_type(void)
