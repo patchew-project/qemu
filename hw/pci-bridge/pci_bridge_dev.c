@@ -31,6 +31,7 @@
 #include "system/memory.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/core/hotplug.h"
+#include "hw/core/resettable.h"
 #include "qom/object.h"
 
 #define TYPE_PCI_BRIDGE_DEV      "pci-bridge"
@@ -158,11 +159,11 @@ static void pci_bridge_dev_write_config(PCIDevice *d,
     }
 }
 
-static void qdev_pci_bridge_dev_reset(DeviceState *qdev)
+static void pci_bridge_dev_reset_hold(Object *obj, ResetType type)
 {
-    PCIDevice *dev = PCI_DEVICE(qdev);
+    PCIDevice *dev = PCI_DEVICE(obj);
 
-    pci_bridge_reset(qdev);
+    pci_bridge_reset(DEVICE(obj));
     if (shpc_present(dev)) {
         shpc_reset(dev);
     }
@@ -245,6 +246,7 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     k->realize = pci_bridge_dev_realize;
     k->exit = pci_bridge_dev_exitfn;
@@ -253,7 +255,7 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, const void *data)
     k->device_id = PCI_DEVICE_ID_REDHAT_BRIDGE;
     k->class_id = PCI_CLASS_BRIDGE_PCI;
     dc->desc = "Standard PCI Bridge";
-    device_class_set_legacy_reset(dc, qdev_pci_bridge_dev_reset);
+    rc->phases.hold = pci_bridge_dev_reset_hold;
     device_class_set_props(dc, pci_bridge_dev_properties);
     dc->vmsd = &pci_bridge_dev_vmstate;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
