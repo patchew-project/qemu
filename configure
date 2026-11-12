@@ -1114,6 +1114,9 @@ else
                     armeb-linux-user)
                         error_exit "Target '$target' is no longer supported; use 'arm-linux-user' instead"
                         ;;
+                    microblazeel-linux-user)
+                        error_exit "Target '$target' is no longer supported; use 'microblaze-linux-user' instead"
+                        ;;
                     *)
                         error_exit "Unknown target name '$target'"
                         ;;
