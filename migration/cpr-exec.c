@@ -44,7 +44,7 @@ bool cpr_exec_persist_state(QEMUFile *f, Error **errp)
 {
     QIOChannelFile *fioc = QIO_CHANNEL_FILE(qemu_file_get_ioc(f));
     /* coverity[leaked_storage] - mfd intentionally kept open across exec() */
-    int mfd = dup(fioc->fd);
+    int mfd = qemu_dup(fioc->fd);
     char val[16];
 
     /* Remember mfd in environment for post-exec load */

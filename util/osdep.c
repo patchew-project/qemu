@@ -117,6 +117,20 @@ int qemu_mprotect_none(void *addr, size_t size)
 #endif
 }
 
+int qemu_dup(int fd)
+{
+    int ret;
+#ifdef F_DUPFD_CLOEXEC
+    ret = fcntl(fd, F_DUPFD_CLOEXEC, 0);
+#else
+    ret = dup(fd);
+    if (ret != -1) {
+        qemu_set_cloexec(ret);
+    }
+#endif
+    return ret;
+}
+
 #ifndef _WIN32
 
 static int fcntl_op_setlk = -1;
@@ -168,20 +182,6 @@ fail:
     }
     errno = serrno;
     return -1;
-}
-
-int qemu_dup(int fd)
-{
-    int ret;
-#ifdef F_DUPFD_CLOEXEC
-    ret = fcntl(fd, F_DUPFD_CLOEXEC, 0);
-#else
-    ret = dup(fd);
-    if (ret != -1) {
-        qemu_set_cloexec(ret);
-    }
-#endif
-    return ret;
 }
 
 static int qemu_parse_fdset(const char *param)

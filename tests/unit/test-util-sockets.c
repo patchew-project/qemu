@@ -62,7 +62,7 @@ int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
         error_setg(errp, "No fd named %s", fdname);
         return -1;
     }
-    return dup(mon_fd);
+    return qemu_dup(mon_fd);
 }
 
 /*
@@ -115,7 +115,7 @@ static void test_socket_fd_pass_name_bad(void)
 
     cur_mon = g_malloc(1); /* Fake a monitor */
     mon_fdname = "myfd";
-    mon_fd = dup(STDOUT_FILENO);
+    mon_fd = qemu_dup(STDOUT_FILENO);
     g_assert_cmpint(mon_fd, >, STDERR_FILENO);
 
     addr.type = SOCKET_ADDRESS_TYPE_FD;
@@ -189,7 +189,7 @@ static void test_socket_fd_pass_num_bad(void)
     int fd, sfd;
 
     g_assert(cur_mon == NULL);
-    sfd = dup(STDOUT_FILENO);
+    sfd = qemu_dup(STDOUT_FILENO);
 
     addr.type = SOCKET_ADDRESS_TYPE_FD;
     addr.u.fd.str = g_strdup_printf("%d", sfd);

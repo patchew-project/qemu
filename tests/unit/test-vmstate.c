@@ -42,7 +42,7 @@ static QEMUFile *open_test_file(bool write)
     QIOChannel *ioc;
     QEMUFile *f;
 
-    fd = dup(temp_fd);
+    fd = qemu_dup(temp_fd);
     g_assert(fd >= 0);
     lseek(fd, 0, SEEK_SET);
     if (write) {
