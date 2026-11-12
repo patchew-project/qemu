@@ -102,11 +102,7 @@ int info_is_fdpic(struct image_info *info)
     return info->personality == PER_LINUX_FDPIC;
 }
 
-#if TARGET_BIG_ENDIAN
-#define ELF_DATA        ELFDATA2MSB
-#else
-#define ELF_DATA        ELFDATA2LSB
-#endif
+#define ELF_DATA (target_big_endian() ? ELFDATA2MSB : ELFDATA2LSB)
 
 #ifdef USE_UID16
 typedef abi_ushort      target_uid_t;
