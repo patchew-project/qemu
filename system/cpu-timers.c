@@ -118,8 +118,8 @@ void cpu_enable_ticks(void)
 }
 
 /*
- * disable cpu_get_ticks() : the clock is stopped. You must not call
- * cpu_get_ticks() after that.
+ * Freeze VM ticks. While disabled, cpu_get_ticks() returns the stored tick
+ * value instead of sampling the advancing host counter.
  * Caller must hold BQL which serves as mutex for vm_clock_seqlock.
  */
 void cpu_disable_ticks(void)
