@@ -1536,33 +1536,7 @@ static bool debugcon_parse(const char *devname, Error **errp)
 static gint machine_class_cmp(gconstpointer a, gconstpointer b, gpointer d)
 {
     const MachineClass *mc1 = a, *mc2 = b;
-    int res;
 
-    if (mc1->family == NULL) {
-        if (mc2->family == NULL) {
-            /* Compare standalone machine types against each other; they sort
-             * in increasing order.
-             */
-            return strcmp(object_class_get_name(OBJECT_CLASS(mc1)),
-                          object_class_get_name(OBJECT_CLASS(mc2)));
-        }
-
-        /* Standalone machine types sort after families. */
-        return 1;
-    }
-
-    if (mc2->family == NULL) {
-        /* Families sort before standalone machine types. */
-        return -1;
-    }
-
-    /* Families sort between each other alphabetically increasingly. */
-    res = strcmp(mc1->family, mc2->family);
-    if (res != 0) {
-        return res;
-    }
-
-    /* Within the same family, machine types sort in decreasing order. */
     return strcmp(object_class_get_name(OBJECT_CLASS(mc2)),
                   object_class_get_name(OBJECT_CLASS(mc1)));
 }
