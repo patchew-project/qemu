@@ -144,6 +144,7 @@
 #include "qemu/guest-random.h"
 #include "qemu/keyval.h"
 #include "memory-internal.h"
+#include "qemu/target-info-def.h"
 
 #define MAX_VIRTIO_CONSOLES 1
 
@@ -1561,8 +1562,18 @@ static void machine_help_func(const QDict *qdict)
 
     printf("Supported machines are:\n");
     for (el = machines; el; el = el->next) {
-        MachineClass *mc = el->data;
-        AliasedClass *alc = ALIASED_CLASS(mc);
+        ObjectClass *oc = el->data;
+        MachineClass *mc = MACHINE_CLASS(oc);
+        AliasedClass *alc = ALIASED_CLASS(oc);
+        /*
+         * If we've selected a specific target, then filter
+         * based on what is creatable, otherwise report
+         * everything that is registered
+         */
+        if (target_info() && !target_specific_class_creatable(oc)) {
+            continue;
+        }
+
         if (alc->aliases) {
             for (i = 0; alc->aliases[i] != NULL; i++) {
                 g_autofree char *name = g_strndup(
@@ -1580,7 +1591,7 @@ static void machine_help_func(const QDict *qdict)
             "%-25s %s%s%s%s\n", mc->name, mc->desc,
             mc->is_default ? " (default)" : "",
             mc->deprecation_reason ? " (deprecated)" : "",
-            object_class_is_secure(OBJECT_CLASS(mc)) ? " (secure)" : "");
+            object_class_is_secure(oc) ? " (secure)" : "");
         lines[nlines + 1] = NULL;
         nlines++;
     }
