@@ -1533,12 +1533,9 @@ static bool debugcon_parse(const char *devname, Error **errp)
     return true;
 }
 
-static gint machine_class_cmp(gconstpointer a, gconstpointer b, gpointer d)
+static int sort_lines(const void *p1, const void *p2)
 {
-    const MachineClass *mc1 = a, *mc2 = b;
-
-    return strcmp(object_class_get_name(OBJECT_CLASS(mc2)),
-                  object_class_get_name(OBJECT_CLASS(mc1)));
+    return strcmp(*(const char **) p1, *(const char **) p2);
 }
 
 static void machine_help_func(const QDict *qdict)
@@ -1546,6 +1543,9 @@ static void machine_help_func(const QDict *qdict)
     g_autoptr(GSList) machines = NULL;
     GSList *el;
     const char *type = qdict_get_try_str(qdict, "type");
+    g_auto(GStrv) lines = NULL;
+    size_t nlines = 0;
+    size_t i;
 
     machines = object_class_get_list(TYPE_MACHINE, false);
     if (type) {
@@ -1560,23 +1560,34 @@ static void machine_help_func(const QDict *qdict)
     }
 
     printf("Supported machines are:\n");
-    machines = g_slist_sort_with_data(machines, machine_class_cmp, NULL);
     for (el = machines; el; el = el->next) {
         MachineClass *mc = el->data;
         AliasedClass *alc = ALIASED_CLASS(mc);
         if (alc->aliases) {
-            size_t i;
             for (i = 0; alc->aliases[i] != NULL; i++) {
-                printf("%-*.25s %s (alias of %s)\n",
-                       (int)(strlen(alc->aliases[i]) -
-                             strlen(TYPE_MACHINE_SUFFIX)),
-                       alc->aliases[i], mc->desc, mc->name);
+                g_autofree char *name = g_strndup(
+                    alc->aliases[i],
+                    strlen(alc->aliases[i]) - strlen(TYPE_MACHINE_SUFFIX));
+                lines = g_renew(char *, lines, nlines + 2);
+                lines[nlines] = g_strdup_printf("%-25s %s (alias of %s)\n",
+                                                name, mc->desc, mc->name);
+                lines[nlines + 1] = NULL;
+                nlines++;
             }
         }
-        printf("%-25s %s%s%s%s\n", mc->name, mc->desc,
-               mc->is_default ? " (default)" : "",
-               mc->deprecation_reason ? " (deprecated)" : "",
-               object_class_is_secure(OBJECT_CLASS(mc)) ? " (secure)" : "");
+        lines = g_renew(char *, lines, nlines + 2);
+        lines[nlines] = g_strdup_printf(
+            "%-25s %s%s%s%s\n", mc->name, mc->desc,
+            mc->is_default ? " (default)" : "",
+            mc->deprecation_reason ? " (deprecated)" : "",
+            object_class_is_secure(OBJECT_CLASS(mc)) ? " (secure)" : "");
+        lines[nlines + 1] = NULL;
+        nlines++;
+    }
+    qsort(lines, nlines, sizeof(lines[0]), sort_lines);
+
+    for (i = 0; i < nlines; i++) {
+        fputs(lines[i], stdout);
     }
 }
 
