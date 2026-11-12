@@ -61,6 +61,7 @@
 #include "qapi/qapi-type-infos-common.h"
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/uefi/var-service-api.h"
+#include "qom/object_interfaces.h"
 
 #include "aia.h"
 
@@ -1123,6 +1124,10 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
+    AliasedClass *alc = ALIASED_CLASS(oc);
+    static const char *const aliases[] = {
+        MACHINE_TYPE_NAME("virt"), NULL,
+    };
 
     mc->desc = "RISC-V VirtIO board";
     mc->init = virt_machine_init;
@@ -1140,6 +1145,8 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_id = "riscv_virt_board.ram";
     assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
+
+    alc->aliases = aliases;
 
     hc->plug = virt_machine_device_plug_cb;
 
@@ -1188,7 +1195,7 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
 }
 
 static const TypeInfo virt_machine_typeinfo = {
-    .name       = MACHINE_TYPE_NAME("virt"),
+    .name       = MACHINE_TYPE_NAME("riscv-virt"),
     .parent     = TYPE_MACHINE,
     .class_init = virt_machine_class_init,
     .secure     = true,
