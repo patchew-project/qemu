@@ -3342,6 +3342,11 @@ foreach target : target_dirs
 
   config_target += keyval.load('configs/targets' / target + '.mak')
 
+  if 'TARGET_RUNTIME_ENDIAN' in config_target
+    assert(target.endswith('linux-user'),
+           'Runtime target endianness is only supported for Linux-user')
+  endif
+
   target_kconfig = []
   foreach sym: accelerators
     if sym == 'CONFIG_TCG' or target in accelerator_targets.get(sym, [])
@@ -4400,8 +4405,6 @@ foreach target : target_dirs
     endif
   endif
 
-  arch_srcs += files('target-info-def.c')
-
   if target_base_arch in target_arch
     t = target_arch[target_base_arch].apply(config_target, strict: false)
     arch_srcs += t.sources()
@@ -4469,6 +4472,25 @@ foreach target : target_dirs
   foreach dep : arch_deps
     lib_deps += dep.partial_dependency(compile_args: true, includes: true)
   endforeach
+
+  # Keep the writable runtime-endian definition opaque to const readers,
+  # as for page-vary-common.c above.
+  target_info = files('target-info-def.c')
+  if get_option('b_lto') and 'TARGET_RUNTIME_ENDIAN' in config_target
+    target_info_flags = ['-fno-lto']
+    if get_option('cfi')
+      target_info_flags += '-fno-sanitize=cfi-icall'
+    endif
+    target_info = static_library('target-info-' + target,
+                                sources: target_info + genh + config_target_h[target],
+                                dependencies: lib_deps,
+                                include_directories: target_inc,
+                                c_args: c_args + target_info_flags,
+                                build_by_default: false)
+    objects += target_info.extract_all_objects(recursive: false)
+  else
+    arch_srcs += target_info
+  endif
 
   lib = static_library('qemu-' + target,
                  sources: arch_srcs + genh,

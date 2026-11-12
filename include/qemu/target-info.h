@@ -9,6 +9,12 @@
 #ifndef QEMU_TARGET_INFO_H
 #define QEMU_TARGET_INFO_H
 
+#ifdef COMPILING_PER_TARGET
+#ifdef TARGET_RUNTIME_ENDIAN
+#include "qemu/target-info-def.h"
+#endif
+#endif
+
 /**
  * target_name:
  *
@@ -40,7 +46,21 @@ const char *target_cpu_type(void);
  * the target, so please do *not* use this function unless you  know very
  * well what you are doing!
  */
+#ifdef COMPILING_PER_TARGET
+#ifdef TARGET_RUNTIME_ENDIAN
+static inline bool target_big_endian(void)
+{
+    return target_info_stub.endianness == ENDIAN_MODE_BIG;
+}
+
+/* Select the Linux-user ABI byte order once, before CPUs or guest threads. */
+void target_set_big_endian(bool big_endian);
+#else
 bool target_big_endian(void);
+#endif
+#else
+bool target_big_endian(void);
+#endif
 
 /**
  * target_heterogeneous:
