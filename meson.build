@@ -3297,7 +3297,7 @@ host_kconfig = \
   (hv_balloon ? ['CONFIG_HV_BALLOON_POSSIBLE=y'] : []) + \
   (have_rust ? ['CONFIG_HAVE_RUST=y'] : [])
 
-ignored = [ 'TARGET_XML_FILES', 'TARGET_ABI_DIR' ]
+ignored = [ 'TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_USER_ALIASES' ]
 
 default_targets = 'CONFIG_DEFAULT_TARGETS' in config_host
 actual_target_dirs = []
@@ -4579,6 +4579,17 @@ foreach target : target_dirs
     else
       emulators += {exe['name']: emulator}
     endif
+
+    foreach alias : config_target.get('TARGET_USER_ALIASES', '').split()
+      alias_name = 'qemu-' + alias
+      custom_target(alias_name,
+                    output: alias_name,
+                    depends: emulator,
+                    build_by_default: true,
+                    command: [find_program('ln'), '-sf', exe['name'], '@OUTPUT@'])
+      install_symlink(alias_name, pointing_to: exe['name'],
+                      install_dir: get_option('bindir'))
+    endforeach
 
     traceable += [{
       'exe': exe['name'],
