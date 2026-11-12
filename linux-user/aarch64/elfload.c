@@ -379,7 +379,15 @@ const char *elf_hwcap2_str(uint32_t bit)
 
 const char *get_elf_platform(CPUState *cs)
 {
-    return TARGET_BIG_ENDIAN ? "aarch64_be" : "aarch64";
+    return target_big_endian() ? "aarch64_be" : "aarch64";
+}
+
+#include "vdso-be.c.inc"
+#include "vdso-le.c.inc"
+
+const VdsoImageInfo *get_vdso_image_info(uint32_t elf_flags)
+{
+    return target_big_endian() ? &vdso_be_image_info : &vdso_le_image_info;
 }
 
 bool arch_parse_elf_property(uint32_t pr_type, uint32_t pr_datasz,
