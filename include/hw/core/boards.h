@@ -490,10 +490,20 @@ struct MachineState {
  * Following this, one (or more) helpers can be added for
  * whichever scenarios need to be catered for with a machine:
  *
+ *
+ *  #define DEFINE_VIRT_MACHINE_ALIASES_LATEST(...) \
+ *      AliasedClass *alc = ALIASED_CLASS(oc); \
+ *      static const char *const MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)[] = \
+ *      { \
+ *          MACHINE_TYPE_NAME("virt"), \
+ *          NULL, \
+ *      }; \
+ *      alc->aliases = MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)
+ *
  *  // Normal 2 digit, marked as latest e.g. 'virt-9.0'
  *  #define DEFINE_VIRT_MACHINE_LATEST(major, minor) \
  *      DEFINE_VIRT_MACHINE_IMPL({ \
- *              mc->alias = "virt"; \
+ *              DEFINE_VIRT_MACHINE_ALIASES_LATEST(major, minor);  \
  *          }, major, minor)
  *
  *  // Normal 2 digit e.g. 'virt-9.0'
