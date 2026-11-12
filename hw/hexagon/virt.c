@@ -19,6 +19,7 @@
 #include "qemu/units.h"
 #include "machine_cfg_v68n_1024.h.inc"
 #include "system/device_tree.h"
+#include "qom/object_interfaces.h"
 
 enum {
     VIRT_UART0,
@@ -139,7 +140,12 @@ static void virt_init(MachineState *ms)
 static void virt_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    AliasedClass *alc = ALIASED_CLASS(mc);
+    static const char *const aliases[] = {
+        MACHINE_TYPE_NAME("virt"), NULL,
+    };
 
+    alc->aliases = aliases;
     mc->desc = "Hexagon Virtual Machine";
     mc->init = virt_init;
     mc->default_cpu_type = HEXAGON_CPU_TYPE_NAME("v68");
