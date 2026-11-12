@@ -23,6 +23,7 @@
 #include "hw/arm/boot.h"
 #include "qom/object.h"
 #include "target/arm/cpu.h"
+#include "qom/object_interfaces.h"
 
 #define TYPE_XLNX_VERSAL_VIRT_BASE_MACHINE \
     MACHINE_TYPE_NAME("amd-versal-virt-base")
@@ -368,9 +369,13 @@ static void versal_virt_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     VersalVirtClass *vvc = XLNX_VERSAL_VIRT_BASE_MACHINE_CLASS(oc);
+    AliasedClass *alc = ALIASED_CLASS(oc);
+    static const char *const aliases[] = {
+        MACHINE_TYPE_NAME("xlnx-versal-virt"), NULL,
+    };
 
     mc->desc = "AMD Versal Virtual development board";
-    mc->alias = "xlnx-versal-virt";
+    alc->aliases = aliases;
     vvc->version = VERSAL_VER_VERSAL;
 
     versal_virt_machine_class_init_common(oc);

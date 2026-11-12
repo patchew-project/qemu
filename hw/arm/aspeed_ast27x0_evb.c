@@ -11,6 +11,7 @@
 #include "hw/arm/aspeed.h"
 #include "hw/arm/aspeed_soc.h"
 #include "hw/sensor/tmp105.h"
+#include "qom/object_interfaces.h"
 
 /* AST2700 evb hardware value */
 /* SCU HW Strap1 */
@@ -53,8 +54,12 @@ static void aspeed_machine_ast2700a2_evb_class_init(ObjectClass *oc,
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
+    AliasedClass *alc = ALIASED_CLASS(oc);
+    static const char *const aliases[] = {
+        MACHINE_TYPE_NAME("ast2700-evb"), NULL,
+    };
 
-    mc->alias = "ast2700-evb";
+    alc->aliases = aliases;
     mc->desc = "Aspeed AST2700 A2 EVB (Cortex-A35)";
     amc->soc_name  = "ast2700-a2";
     amc->hw_strap1 = AST2700_EVB_HW_STRAP1;

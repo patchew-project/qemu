@@ -94,6 +94,7 @@
 #include "hw/cxl/cxl_host.h"
 #include "qemu/guest-random.h"
 #include "hw/watchdog/sbsa_gwdt.h"
+#include "qom/object_interfaces.h"
 
 static GlobalProperty arm_virt_compat_defaults[] = {
     { TYPE_VIRTIO_IOMMU_PCI, "aw-bits", "48" },
@@ -139,9 +140,18 @@ static void arm_virt_compat_default_set(MachineClass *mc)
     } \
     type_init(MACHINE_VER_SYM(register, virt, __VA_ARGS__));
 
+#define DEFINE_VIRT_MACHINE_ALIASES_LATEST(...) \
+    AliasedClass *alc = ALIASED_CLASS(oc); \
+    static const char *const MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)[] = \
+    { \
+        MACHINE_TYPE_NAME("virt"), \
+        NULL, \
+    }; \
+    alc->aliases = MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)
+
 #define DEFINE_VIRT_MACHINE_AS_LATEST(major, minor) \
     DEFINE_VIRT_MACHINE_IMPL({ \
-            mc->alias = "virt"; \
+            DEFINE_VIRT_MACHINE_ALIASES_LATEST(major, minor); \
         }, major, minor)
 #define DEFINE_VIRT_MACHINE(major, minor) \
     DEFINE_VIRT_MACHINE_IMPL({}, major, minor)
