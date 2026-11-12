@@ -258,6 +258,48 @@ typedef struct Qcow2ZonedHeaderExtension {
     uint32_t max_open_zones;
 } QEMU_PACKED Qcow2ZonedHeaderExtension;
 
+typedef struct Qcow2ZoneListEntry {
+    QTAILQ_ENTRY(Qcow2ZoneListEntry) exp_open_zone_entry;
+    QTAILQ_ENTRY(Qcow2ZoneListEntry) imp_open_zone_entry;
+    QTAILQ_ENTRY(Qcow2ZoneListEntry) closed_zone_entry;
+} Qcow2ZoneListEntry;
+
+/*
+ * Per-zone tracking for write pointer (WP) advance. A submitter
+ * reserves an LBA range, performs the data write outside the zone
+ * lock, then waits until the persisted WP catches up to its end
+ * offset before returning success to the guest. A failure aborts
+ * all higher-LBA peers in the same zone.
+ */
+typedef enum Qcow2WPReqState {
+    /* data write submitted, awaiting completion */
+    QCOW2_WP_REQ_INFLIGHT,
+    /* data write completed, persisted WP not yet advanced past lba + len */
+    QCOW2_WP_REQ_PENDING,
+    /* persisted WP covers this range, submitter may ack success */
+    QCOW2_WP_REQ_RESOLVED,
+    /* data write failed, or a lower-LBA peer in the same zone failed */
+    QCOW2_WP_REQ_ABORTED,
+} Qcow2WPReqState;
+
+typedef struct Qcow2WPReq {
+    uint64_t lba;                       /* start offset of the data write */
+    uint64_t len;                       /* length in bytes */
+    Qcow2WPReqState state;
+    /* submitter waits for the data write to reach a terminal state */
+    CoQueue wait;
+    QTAILQ_ENTRY(Qcow2WPReq) entry;
+} Qcow2WPReq;
+
+typedef struct Qcow2ZoneWPState {
+    /* INFLIGHT reqs */
+    QTAILQ_HEAD(, Qcow2WPReq) in_flight;
+    /* PENDING reqs, sorted by lba */
+    QTAILQ_HEAD(, Qcow2WPReq) completed_pending;
+    /* zone mgmt ops wait here until in_flight has drained */
+    CoQueue drain;
+} Qcow2ZoneWPState;
+
 typedef struct Qcow2UnknownHeaderExtension {
     uint32_t magic;
     uint32_t len;
@@ -453,6 +495,21 @@ typedef struct BDRVQcow2State {
 
     /* States of zoned device */
     Qcow2ZonedHeaderExtension zoned_header;
+    QTAILQ_HEAD(, Qcow2ZoneListEntry) exp_open_zones;
+    QTAILQ_HEAD(, Qcow2ZoneListEntry) imp_open_zones;
+    QTAILQ_HEAD(, Qcow2ZoneListEntry) closed_zones;
+    Qcow2ZoneListEntry *zone_list_entries;
+    uint32_t nr_zones_exp_open;
+    uint32_t nr_zones_imp_open;
+    uint32_t nr_zones_closed;
+
+    /* Per-zone in-memory WP tracking for zoned images. */
+    Qcow2ZoneWPState *zone_wp_state;
+    /*
+     * Cache holding the on-disk zonedmeta cluster(s) for zoned image.
+     * WP advances go through this cache.
+     */
+    Qcow2Cache *wp_cache;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {
