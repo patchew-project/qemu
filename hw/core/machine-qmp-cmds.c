@@ -33,6 +33,7 @@
 #include "system/runstate.h"
 #include "system/system.h"
 #include "hw/s390x/storage-keys.h"
+#include "qom/object_interfaces.h"
 
 /*
  * QMP query for enabled and present accelerators
@@ -163,6 +164,7 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
         MachineClass *mc = el->data;
         const char *default_cpu_type = machine_class_default_cpu_type(mc);
         MachineInfo *info;
+        AliasedClass *alc = ALIASED_CLASS(mc);
 
         info = g_malloc0(sizeof(*info));
         if (mc->is_default) {
@@ -170,8 +172,31 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
             info->is_default = true;
         }
 
+        if (alc->aliases) {
+            strList **aliases = &info->aliases;
+            size_t i;
+            info->has_aliases = true;
+            for (i = 0; alc->aliases[i] != NULL; i++) {
+                /*
+                 * We record type names internally, but publically
+                 * we report machine types to the user, hence must
+                 * strip the typename suffix
+                 */
+                int len = strlen(alc->aliases[i]) - strlen(TYPE_MACHINE_SUFFIX);
+                QAPI_LIST_APPEND(aliases,
+                                 g_strndup(alc->aliases[i], len));
+            }
+            if (!mc->alias) {
+                int len = strlen(alc->aliases[0]) - strlen(TYPE_MACHINE_SUFFIX);
+                info->alias = g_strndup(alc->aliases[0], len);
+            }
+        }
         if (mc->alias) {
             info->alias = g_strdup(mc->alias);
+            if (!info->aliases) {
+                strList **aliases = &info->aliases;
+                QAPI_LIST_APPEND(aliases, g_strdup(mc->alias));
+            }
         }
 
         info->name = g_strdup(mc->name);

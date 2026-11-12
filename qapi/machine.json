@@ -163,6 +163,8 @@
 #
 # @alias: an alias for the machine name
 #
+# @aliases: a list of aliases for the machine type name (since 12.0)
+#
 # @is-default: whether the machine is default
 #
 # @cpu-max: maximum number of CPUs supported by the machine type
@@ -202,6 +204,7 @@
 ##
 { 'struct': 'MachineInfo',
   'data': { 'name': 'str', '*alias': 'str',
+            '*aliases': ['str'],
             '*is-default': 'bool', 'cpu-max': 'int',
             'hotpluggable-cpus': 'bool',  'numa-mem-supported': 'bool',
             'deprecated': 'bool', '*default-cpu-type': 'str',
