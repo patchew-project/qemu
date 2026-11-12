@@ -18,10 +18,10 @@ class TuxRunS390xTest(TuxRunBaselineTest):
 
     ASSET_S390X_KERNEL = Asset(
         'https://storage.tuxboot.com/kernels/6.18.54/s390/bzImage',
-        '5efeb31754b211440e1595ab11355bb006fe78a2c0604ed0a8c55c4598b71aec')
+        'b5022f97e243b8ecd51fc7ce4290a15806ecc51a41edbe777fc0fcdda567269e')
     ASSET_S390X_VMLINUX = Asset(
         'https://storage.tuxboot.com/kernels/6.18.54/s390/vmlinux.xz',
-        '5bbd4d34e0950f88053a9bfd16078896df4b1ee1696fc2ad62488e681a6bdd8e')
+        'cd70050ddb638e81c2f1b96a4629c224aedd36bf8ae3b56b264b070e94642e25')
     ASSET_S390X_ROOTFS = Asset(
         'https://storage.tuxboot.com/buildroot/20260924/s390/rootfs.ext4.zst',
         '5ba18c4d18831c50a0c743990f7bdee1d3b520629d423c55b668d8fbbac9c6f5')

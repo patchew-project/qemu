@@ -18,10 +18,10 @@ class TuxRunX86Test(TuxRunBaselineTest):
 
     ASSET_X86_64_KERNEL = Asset(
         'https://storage.tuxboot.com/kernels/6.18.54/x86_64/bzImage',
-        '24a3ade610c2cc426ff821050de8a35930b0371357d94cc2c334abac6658552b')
+        'ba98a8a07d5f3f3e20119341059c0f0096fda499d30e30049c1ea64553b7e7c2')
     ASSET_X86_64_VMLINUX = Asset(
         'https://storage.tuxboot.com/kernels/6.18.54/x86_64/vmlinux.xz',
-        '77bf44cca48c9c1b9c142e16a2311d58b8ae3462b61bce44bcaf9243b5f26628')
+        'bc8af37608753c6ba47c6fe85f4034188b5f15bb757a0cbd79672c65122278ab')
     ASSET_X86_64_ROOTFS = Asset(
         'https://storage.tuxboot.com/buildroot/20260924/x86_64/rootfs.ext4.zst',
         '8e310455b0244414ccff29c507f7ccfd4032e3587cc405e49ab0322738e3e27c')
