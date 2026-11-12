@@ -961,7 +961,7 @@ static const TypeInfo ccw_machine_info = {
     },
 };
 
-#define DEFINE_CCW_MACHINE_IMPL(latest, ...)                                  \
+#define DEFINE_CCW_MACHINE_IMPL(classinitextra, ...)                          \
     static void MACHINE_VER_SYM(mach_init, ccw, __VA_ARGS__)(MachineState *mach) \
     {                                                                         \
         MACHINE_VER_SYM(instance_options, ccw, __VA_ARGS__)(mach);            \
@@ -979,10 +979,7 @@ static const TypeInfo ccw_machine_info = {
         mc->desc = "Virtual s390x machine (version " MACHINE_VER_STR(__VA_ARGS__) ")"; \
         mc->init = MACHINE_VER_SYM(mach_init, ccw, __VA_ARGS__);              \
         MACHINE_VER_DEPRECATION(__VA_ARGS__);                                 \
-        if (latest) {                                                         \
-            mc->alias = "s390-ccw-virtio";                                    \
-            mc->is_default = true;                                            \
-        }                                                                     \
+        classinitextra                                                        \
     }                                                                         \
     static const TypeInfo MACHINE_VER_SYM(info, ccw, __VA_ARGS__) =           \
     {                                                                         \
@@ -999,10 +996,13 @@ static const TypeInfo ccw_machine_info = {
     type_init(MACHINE_VER_SYM(register, ccw, __VA_ARGS__))
 
 #define DEFINE_CCW_MACHINE_AS_LATEST(major, minor) \
-    DEFINE_CCW_MACHINE_IMPL(true, major, minor)
+    DEFINE_CCW_MACHINE_IMPL({ \
+            mc->alias = "s390-ccw-virtio"; \
+            mc->is_default = true; \
+        }, major, minor)
 
 #define DEFINE_CCW_MACHINE(major, minor) \
-    DEFINE_CCW_MACHINE_IMPL(false, major, minor)
+    DEFINE_CCW_MACHINE_IMPL({}, major, minor)
 
 
 static void ccw_machine_11_2_instance_options(MachineState *machine)

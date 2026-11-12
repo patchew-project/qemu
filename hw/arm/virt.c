@@ -112,7 +112,7 @@ static void arm_virt_compat_default_set(MachineClass *mc)
                      arm_virt_compat_defaults_len);
 }
 
-#define DEFINE_VIRT_MACHINE_IMPL(latest, ...) \
+#define DEFINE_VIRT_MACHINE_IMPL(classinitextra, ...) \
     static void MACHINE_VER_SYM(class_init, virt, __VA_ARGS__)( \
         ObjectClass *oc, \
         const void *data) \
@@ -122,9 +122,7 @@ static void arm_virt_compat_default_set(MachineClass *mc)
         MACHINE_VER_SYM(options, virt, __VA_ARGS__)(mc); \
         mc->desc = "QEMU " MACHINE_VER_STR(__VA_ARGS__) " ARM Virtual Machine"; \
         MACHINE_VER_DEPRECATION(__VA_ARGS__); \
-        if (latest) { \
-            mc->alias = "virt"; \
-        } \
+        classinitextra \
     } \
     static const TypeInfo MACHINE_VER_SYM(info, virt, __VA_ARGS__) = \
     { \
@@ -142,9 +140,11 @@ static void arm_virt_compat_default_set(MachineClass *mc)
     type_init(MACHINE_VER_SYM(register, virt, __VA_ARGS__));
 
 #define DEFINE_VIRT_MACHINE_AS_LATEST(major, minor) \
-    DEFINE_VIRT_MACHINE_IMPL(true, major, minor)
+    DEFINE_VIRT_MACHINE_IMPL({ \
+            mc->alias = "virt"; \
+        }, major, minor)
 #define DEFINE_VIRT_MACHINE(major, minor) \
-    DEFINE_VIRT_MACHINE_IMPL(false, major, minor)
+    DEFINE_VIRT_MACHINE_IMPL({}, major, minor)
 
 
 /* Number of external interrupt lines to configure the GIC with */

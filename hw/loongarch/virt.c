@@ -1521,7 +1521,7 @@ static void virt_class_init(ObjectClass *oc, const void *data)
                                           "for PCI MMIO");
 }
 
-#define DEFINE_VIRT_MACHINE_VERSION(latest, ...) \
+#define DEFINE_VIRT_MACHINE_VERSION(classinitextra, ...) \
     static void MACHINE_VER_SYM(class_init, virt, __VA_ARGS__)( \
         ObjectClass *oc, \
         const void *data) \
@@ -1530,10 +1530,7 @@ static void virt_class_init(ObjectClass *oc, const void *data)
         MACHINE_VER_SYM(options, virt, __VA_ARGS__)(mc); \
         mc->desc = "QEMU " MACHINE_VER_STR(__VA_ARGS__) " LoongArch Virtual Machine"; \
         MACHINE_VER_DEPRECATION(__VA_ARGS__); \
-        if (latest) { \
-            mc->alias = "virt"; \
-            mc->is_default = true; \
-        } \
+        classinitextra \
     } \
     static const TypeInfo MACHINE_VER_SYM(info, virt, __VA_ARGS__) = \
     { \
@@ -1550,9 +1547,12 @@ static void virt_class_init(ObjectClass *oc, const void *data)
     type_init(MACHINE_VER_SYM(register, virt, __VA_ARGS__));
 
 #define DEFINE_VIRT_MACHINE_AS_LATEST(major, minor) \
-    DEFINE_VIRT_MACHINE_VERSION(true, major, minor)
+    DEFINE_VIRT_MACHINE_VERSION({ \
+            mc->alias = "virt"; \
+            mc->is_default = true; \
+        }, major, minor)
 #define DEFINE_VIRT_MACHINE(major, minor) \
-    DEFINE_VIRT_MACHINE_VERSION(false, major, minor)
+    DEFINE_VIRT_MACHINE_VERSION({}, major, minor)
 
 static void virt_instance_finalize(Object *obj)
 {

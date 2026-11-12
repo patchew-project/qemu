@@ -337,7 +337,7 @@ static void virt_machine_register_types(void)
 
 type_init(virt_machine_register_types)
 
-#define DEFINE_VIRT_MACHINE_IMPL(latest, ...) \
+#define DEFINE_VIRT_MACHINE_IMPL(classinitextra, ...) \
     static void MACHINE_VER_SYM(class_init, virt, __VA_ARGS__)( \
         ObjectClass *oc, \
         const void *data) \
@@ -346,9 +346,7 @@ type_init(virt_machine_register_types)
         MACHINE_VER_SYM(options, virt, __VA_ARGS__)(mc); \
         mc->desc = "QEMU " MACHINE_VER_STR(__VA_ARGS__) " M68K Virtual Machine"; \
         MACHINE_VER_DEPRECATION(__VA_ARGS__); \
-        if (latest) { \
-            mc->alias = "virt"; \
-        } \
+        classinitextra \
     } \
     static const TypeInfo MACHINE_VER_SYM(info, virt, __VA_ARGS__) = \
     { \
@@ -365,9 +363,11 @@ type_init(virt_machine_register_types)
     type_init(MACHINE_VER_SYM(register, virt, __VA_ARGS__));
 
 #define DEFINE_VIRT_MACHINE_AS_LATEST(major, minor) \
-    DEFINE_VIRT_MACHINE_IMPL(true, major, minor)
+    DEFINE_VIRT_MACHINE_IMPL({ \
+            mc->alias = "virt"; \
+    }, major, minor)
 #define DEFINE_VIRT_MACHINE(major, minor) \
-    DEFINE_VIRT_MACHINE_IMPL(false, major, minor)
+    DEFINE_VIRT_MACHINE_IMPL({}, major, minor)
 
 static void virt_machine_11_2_options(MachineClass *mc)
 {

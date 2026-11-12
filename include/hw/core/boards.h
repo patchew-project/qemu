@@ -464,7 +464,7 @@ struct MachineState {
  * For example, a macro that can be used to define versioned
  * 'virt' machine types would look like:
  *
- *  #define DEFINE_VIRT_MACHINE_IMPL(latest, ...) \
+ *  #define DEFINE_VIRT_MACHINE_IMPL(classinitextra, ...) \
  *      static void MACHINE_VER_SYM(class_init, virt, __VA_ARGS__)( \
  *          ObjectClass *oc, \
  *          void *data) \
@@ -473,9 +473,7 @@ struct MachineState {
  *          MACHINE_VER_SYM(options, virt, __VA_ARGS__)(mc); \
  *          mc->desc = "QEMU " MACHINE_VER_STR(__VA_ARGS__) " Virtual Machine"; \
  *          MACHINE_VER_DEPRECATION(__VA_ARGS__); \
- *          if (latest) { \
- *              mc->alias = "virt"; \
- *          } \
+ *          classinitextra \
  *      } \
  *      static const TypeInfo MACHINE_VER_SYM(info, virt, __VA_ARGS__) = { \
  *          .name = MACHINE_VER_TYPE_NAME("virt", __VA_ARGS__), \
@@ -494,23 +492,25 @@ struct MachineState {
  *
  *  // Normal 2 digit, marked as latest e.g. 'virt-9.0'
  *  #define DEFINE_VIRT_MACHINE_LATEST(major, minor) \
- *      DEFINE_VIRT_MACHINE_IMPL(true, major, minor)
+ *      DEFINE_VIRT_MACHINE_IMPL({ \
+ *              mc->alias = "virt"; \
+ *          }, major, minor)
  *
  *  // Normal 2 digit e.g. 'virt-9.0'
  *  #define DEFINE_VIRT_MACHINE(major, minor) \
- *      DEFINE_VIRT_MACHINE_IMPL(false, major, minor)
+ *      DEFINE_VIRT_MACHINE_IMPL({}, major, minor)
  *
  *  // Bugfix 3 digit e.g. 'virt-9.0.1'
  *  #define DEFINE_VIRT_MACHINE_BUGFIX(major, minor, micro) \
- *      DEFINE_VIRT_MACHINE_IMPL(false, major, minor, micro)
+ *      DEFINE_VIRT_MACHINE_IMPL({}, major, minor, micro)
  *
  *  // Tagged 2 digit e.g. 'virt-9.0-extra'
  *  #define DEFINE_VIRT_MACHINE_TAGGED(major, minor, tag) \
- *      DEFINE_VIRT_MACHINE_IMPL(false, major, minor, _, tag)
+ *      DEFINE_VIRT_MACHINE_IMPL({}, major, minor, _, tag)
  *
  *  // Tagged bugfix 2 digit e.g. 'virt-9.0.1-extra'
  *  #define DEFINE_VIRT_MACHINE_TAGGED(major, minor, micro, tag) \
- *      DEFINE_VIRT_MACHINE_IMPL(false, major, minor, micro, _, tag)
+ *      DEFINE_VIRT_MACHINE_IMPL({}, major, minor, micro, _, tag)
  */
 
 #define DEFINE_MACHINE_EXTENDED(namestr, PARENT_NAME, InstanceName, \

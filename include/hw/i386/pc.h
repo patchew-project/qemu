@@ -308,7 +308,7 @@ extern const size_t pc_compat_4_1_len;
     DEFINE_PC_MACHINE_EXTENDED(suffix, namestr, initfn, optsfn, true)
 
 
-#define DEFINE_PC_VER_MACHINE(namesym, namestr, initfn, isdefault, malias, ...) \
+#define DEFINE_PC_VER_MACHINE(namesym, namestr, initfn, classinitextra, ...) \
     static void MACHINE_VER_SYM(init, namesym, __VA_ARGS__)( \
         MachineState *machine) \
     { \
@@ -322,8 +322,7 @@ extern const size_t pc_compat_4_1_len;
         MACHINE_VER_SYM(options, namesym, __VA_ARGS__)(mc); \
         mc->init = MACHINE_VER_SYM(init, namesym, __VA_ARGS__); \
         MACHINE_VER_DEPRECATION(__VA_ARGS__); \
-        mc->is_default = isdefault; \
-        mc->alias = malias; \
+        classinitextra \
     } \
     static const TypeInfo MACHINE_VER_SYM(info, namesym, __VA_ARGS__) = \
     { \
