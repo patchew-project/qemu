@@ -62,6 +62,7 @@
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/uefi/var-service-api.h"
 #include "qom/object_interfaces.h"
+#include "qemu/base-arch-defs.h"
 
 #include "aia.h"
 
@@ -1125,6 +1126,7 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
     AliasedClass *alc = ALIASED_CLASS(oc);
+    TargetSpecificClass *tsc = TARGET_SPECIFIC_CLASS(oc);
     static const char *const aliases[] = {
         MACHINE_TYPE_NAME("virt"), NULL,
     };
@@ -1147,6 +1149,8 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
     mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
 
     alc->aliases = aliases;
+    tsc->targets = QEMU_ARCH_BIT(SYS_EMU_TARGET_RISCV32) |
+        QEMU_ARCH_BIT(SYS_EMU_TARGET_RISCV64);
 
     hc->plug = virt_machine_device_plug_cb;
 
@@ -1202,7 +1206,6 @@ static const TypeInfo virt_machine_typeinfo = {
     .instance_init = virt_machine_instance_init,
     .instance_finalize = virt_machine_instance_finalize,
     .instance_size = sizeof(RISCVVirtState),
-    .is_available = target_base_riscv,
     .interfaces = (const InterfaceInfo[]) {
          { TYPE_HOTPLUG_HANDLER },
          { }
