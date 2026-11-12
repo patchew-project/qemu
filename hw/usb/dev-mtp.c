@@ -1723,7 +1723,7 @@ static void usb_mtp_write_metadata(MTPState *s)
     uint32_t next_handle = s->next_handle;
     size_t filename_chars;
 
-    if (d->length <= offsetof(ObjectInfo, filename)) {
+    if (d->length <= offsetof(ObjectInfo, filename) || s->write_pending || !p) {
         usb_mtp_queue_result(s, RES_INVALID_OBJECTINFO, d->trans,
                              0, 0, 0, 0);
         return;
@@ -1737,9 +1737,6 @@ static void usb_mtp_write_metadata(MTPState *s)
      * sent an odd number of bytes.
      */
     filename_chars /= 2;
-
-    assert(!s->write_pending);
-    assert(p != NULL);
 
     filename = utf16_to_str(MIN(dataset->length, filename_chars),
                             dataset->filename);
