@@ -2338,6 +2338,39 @@ uint64_t blk_get_zone_size(BlockBackend *blk)
     return bs ? bs->bl.zone_size : 0;
 }
 
+/*
+ * Returns the zoned model of @blk (BLK_Z_HM, BLK_Z_HA), or BLK_Z_NONE if
+ * @blk does not present zoned geometry.
+ */
+BlockZoneModel blk_get_zone_model(BlockBackend *blk)
+{
+    BlockDriverState *bs = blk_bs(blk);
+    IO_CODE();
+    return bs ? bs->bl.zoned : BLK_Z_NONE;
+}
+
+/*
+ * Returns the maximum number of simultaneously open zones for a zoned
+ * backend, or 0 if there is no limit or @blk is not zoned.
+ */
+uint32_t blk_get_max_open_zones(BlockBackend *blk)
+{
+    BlockDriverState *bs = blk_bs(blk);
+    IO_CODE();
+    return bs ? bs->bl.max_open_zones : 0;
+}
+
+/*
+ * Returns how many bytes of each zone of @blk can be written (the zone
+ * capacity), or 0 if that is not known.
+ */
+uint64_t blk_get_zone_capacity(BlockBackend *blk)
+{
+    BlockDriverState *bs = blk_bs(blk);
+    IO_CODE();
+    return bs ? bs->bl.zone_capacity : 0;
+}
+
 /* Returns the optimal write zeroes alignment, in bytes; guaranteed nonzero */
 uint32_t blk_get_pwrite_zeroes_alignment(BlockBackend *blk)
 {
