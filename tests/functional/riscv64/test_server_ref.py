@@ -71,6 +71,9 @@ class RiscvServerRefTest(QemuSystemTest):
         wait_for_console_pattern(self, 'Linux version')
         wait_for_console_pattern(self, 'Machine model: RISC-V Server Platform')
 
+        # Check that we have the intended base baud for the serial
+        wait_for_console_pattern(self, 'base_baud = 115200')
+
         # Test e1000e network card functionality
         wait_for_console_pattern(self, 'e1000e')
         wait_for_console_pattern(self, 'Network Connection')
