@@ -89,6 +89,13 @@ tests += {
   }
 }
 
+tests += {
+  'test-amocas-x0.S': {
+    'cflags': cflags + ['-march=rv64gc'],
+    'qemu_args': ['-cpu', 'max', qemu_args],
+  }
+}
+
 if 'qemu-system-riscv64' in emulators
   tcg_tests += {
     'riscv64-softmmu': {
