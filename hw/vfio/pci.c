@@ -2062,6 +2062,7 @@ static void vfio_bars_finalize(VFIOPCIDevice *vdev)
         vfio_region_finalize(&bar->region);
         if (bar->mr) {
             assert(bar->size);
+            object_unparent(OBJECT(bar->mr));
             g_free(bar->mr);
             bar->mr = NULL;
         }

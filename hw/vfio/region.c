@@ -523,6 +523,7 @@ void vfio_region_finalize(VFIORegion *region)
         }
     }
 
+    object_unparent(OBJECT(region->mem));
     g_free(region->mem);
     g_free(region->mmaps);
 
