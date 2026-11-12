@@ -1,5 +1,7 @@
 TARGET_ARCH=aarch64
 TARGET_BASE_ARCH=arm
+TARGET_RUNTIME_ENDIAN=y
+TARGET_USER_ALIASES=aarch64_be
 TARGET_XML_FILES= aarch64-core.xml aarch64-fpu.xml aarch64-pauth.xml aarch64-mte.xml aarch64-sme2.xml
 TARGET_HAS_BFLT=y
 CONFIG_SEMIHOSTING=y

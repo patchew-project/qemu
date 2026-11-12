@@ -6,7 +6,7 @@ tests += {
   'hello.c': {'cflags': ['-mbig-endian', '-ffreestanding', '-nostdlib']},
 }
 
-if 'qemu-aarch64_be' in emulators
+if 'qemu-aarch64' in emulators
   tcg_tests += {
     'aarch64_be-linux-user': {
       'cc': 'aarch64-linux-gnu-gcc',
@@ -14,7 +14,7 @@ if 'qemu-aarch64_be' in emulators
       'cc_dockerfile': 'debian-all-test-cross',
       'folder': 'aarch64_be',
       'gdb_arch': 'aarch64_be',
-      'qemu': emulators['qemu-aarch64_be'],
+      'qemu': emulators['qemu-aarch64'],
       'tests': tests,
     }
   }

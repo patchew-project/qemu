@@ -65,6 +65,14 @@ emulator.
 Linux User space emulator
 -------------------------
 
+For AArch64, ``qemu-aarch64`` runs both little- and big-endian Linux ELF
+executables, selecting the byte order from the ELF header. ``qemu-aarch64_be``
+is a :ref:`deprecated compatibility symlink <deprecated-qemu-aarch64-be>`
+to the same emulator; its name does not override the ELF byte order.
+Build both names with ``--target-list=aarch64-linux-user``; the separate
+``aarch64_be-linux-user`` build target is no longer supported.
+For bFLT, which has no byte-order marker, QEMU uses the little-endian default.
+
 Command line options
 ~~~~~~~~~~~~~~~~~~~~
 
