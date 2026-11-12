@@ -379,10 +379,10 @@ static void pmu_timer_trigger_irq_counter(RISCVCPU *cpu, uint32_t ctr_idx)
      * 64 bit value explicitly instead of passing a cast uint64_t pointer,
      * which would leave the upper half uninitialised.
      */
-    riscv_pmu_read_ctr(env, &ctr_lo, false, ctr_idx);
+    riscv_pmu_read_ctr(env, &ctr_lo, false, ctr_idx, riscv_cpu_mxl(env));
     curr_ctr_val = ctr_lo;
     if (riscv_cpu_mxl(env) == MXL_RV32) {
-        riscv_pmu_read_ctr(env, &ctr_hi, true, ctr_idx);
+        riscv_pmu_read_ctr(env, &ctr_hi, true, ctr_idx, riscv_cpu_mxl(env));
         curr_ctr_val |= (uint64_t)ctr_hi << 32;
     }
     ctr_val = counter->mhpmcounter_val;
