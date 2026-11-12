@@ -25,7 +25,7 @@ static int open_cpuinfo(CPUArchState *cpu_env, int fd)
 #endif
 
     arch = 8;
-    elf_name = "v8" END_SUFFIX;
+    elf_name = target_big_endian() ? "v8b" : "v8l";
     midr_rev = FIELD_EX32(midr, MIDR_EL1, REVISION);
     midr_part = FIELD_EX32(midr, MIDR_EL1, PARTNUM);
     midr_var = FIELD_EX32(midr, MIDR_EL1, VARIANT);

@@ -1,11 +1,7 @@
 #ifndef AARCH64_TARGET_SYSCALL_H
 #define AARCH64_TARGET_SYSCALL_H
 
-#if TARGET_BIG_ENDIAN
-#define UNAME_MACHINE "aarch64_be"
-#else
-#define UNAME_MACHINE "aarch64"
-#endif
+#define UNAME_MACHINE (target_big_endian() ? "aarch64_be" : "aarch64")
 #define UNAME_MINIMUM_RELEASE "3.8.0"
 #define TARGET_CLONE_BACKWARDS
 #define TARGET_MCL_CURRENT 1
