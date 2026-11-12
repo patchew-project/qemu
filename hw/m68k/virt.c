@@ -37,6 +37,7 @@
 #include "hw/virtio/virtio-mmio.h"
 #include "hw/virtio/virtio-blk.h"
 #include "qom/object_interfaces.h"
+#include "qemu/base-arch-defs.h"
 
 /*
  * 6 goldfish-pic for CPU IRQ #1 to IRQ #6
@@ -328,7 +329,6 @@ static const TypeInfo virt_machine_info = {
     .parent       = TYPE_MACHINE,
     .abstract     = true,
     .class_init   = virt_machine_class_init,
-    .is_available = target_m68k,
 };
 
 static void virt_machine_register_types(void)
@@ -344,8 +344,10 @@ type_init(virt_machine_register_types)
         const void *data) \
     { \
         MachineClass *mc = MACHINE_CLASS(oc); \
+        TargetSpecificClass *tsc = TARGET_SPECIFIC_CLASS(oc); \
         MACHINE_VER_SYM(options, virt, __VA_ARGS__)(mc); \
         mc->desc = "QEMU " MACHINE_VER_STR(__VA_ARGS__) " M68K Virtual Machine"; \
+        tsc->targets = QEMU_ARCH_BIT(SYS_EMU_TARGET_M68K); \
         MACHINE_VER_DEPRECATION(__VA_ARGS__); \
         classinitextra \
     } \
@@ -354,7 +356,6 @@ type_init(virt_machine_register_types)
         .name = MACHINE_VER_TYPE_NAME("m68k-virt", __VA_ARGS__), \
         .parent = MACHINE_TYPE_NAME("m68k-virt"), \
         .class_init = MACHINE_VER_SYM(class_init, virt, __VA_ARGS__), \
-        .is_available = target_m68k, \
     }; \
     static void MACHINE_VER_SYM(register, virt, __VA_ARGS__)(void) \
     { \
