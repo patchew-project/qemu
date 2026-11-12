@@ -4537,6 +4537,7 @@ L: qemu-block@nongnu.org
 S: Supported
 F: block/qcow2*
 F: docs/interop/qcow2.rst
+F: tests/qemu-iotests/tests/zoned-qcow2*
 
 qcow
 M: Kevin Wolf <kwolf@redhat.com>
