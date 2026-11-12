@@ -199,11 +199,13 @@
 # Features:
 #
 # @unstable: Member @compat-props is experimental.
+# @deprecated: Member @alias is replaced by @aliases.
 #
 # Since: 1.2
 ##
 { 'struct': 'MachineInfo',
-  'data': { 'name': 'str', '*alias': 'str',
+  'data': { 'name': 'str',
+            '*alias': { 'type': 'str', 'features': ['deprecated'] },
             '*aliases': ['str'],
             '*is-default': 'bool', 'cpu-max': 'int',
             'hotpluggable-cpus': 'bool',  'numa-mem-supported': 'bool',

@@ -182,6 +182,13 @@ execution.  This special treatment of ``"no"`` is deprecated.  Use an
 empty string instead.  In a future version, ``"no"`` will be treated as
 a plain file name.
 
+``alias`` field of ``MachineInfo`` (since 12.0)
+'''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``MachineInfo`` struct now has an ``aliases`` field which
+can report multiple aliases per machine, thus the ``alias``
+field is now redundant.
+
 Human Machine Protocol (HMP) commands
 -------------------------------------
 
