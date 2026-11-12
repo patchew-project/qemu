@@ -34,6 +34,7 @@
 #include "system/system.h"
 #include "hw/s390x/storage-keys.h"
 #include "qom/object_interfaces.h"
+#include "qemu/target-info-def.h"
 
 /*
  * QMP query for enabled and present accelerators
@@ -161,10 +162,20 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
 
     machines = object_class_get_list(TYPE_MACHINE, false);
     for (el = machines; el; el = el->next) {
-        MachineClass *mc = el->data;
+        ObjectClass *oc = el->data;
+        MachineClass *mc = MACHINE_CLASS(oc);
         const char *default_cpu_type = machine_class_default_cpu_type(mc);
         MachineInfo *info;
-        AliasedClass *alc = ALIASED_CLASS(mc);
+        AliasedClass *alc = ALIASED_CLASS(oc);
+
+        /*
+         * If we've selected a specific target, then filter
+         * based on what is creatable, otherwise report
+         * everything that is registered
+         */
+        if (target_info() && !target_specific_class_creatable(oc)) {
+            continue;
+        }
 
         info = g_malloc0(sizeof(*info));
         if (mc->is_default) {
