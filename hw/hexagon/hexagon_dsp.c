@@ -38,6 +38,7 @@
 #include "machine_cfg_v81qa_1.h.inc"
 #include "machine_cfg_v85na_1.h.inc"
 #include "machine_cfg_v85qa_1.h.inc"
+#include "qom/object_interfaces.h"
 
 #define TYPE_HEXAGON_DSP_MACHINE "hexagon-dsp-machine"
 #define HEXAGON_DSP_SUBSYSTEM_BASE 0xfc900000
@@ -365,9 +366,13 @@ static void v85na_1_config_init(MachineState *machine)
 static void v85na_1_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    AliasedClass *alc = ALIASED_CLASS(oc);
+    static const char *const aliases[] = {
+        MACHINE_TYPE_NAME("sim"), NULL,
+    };
 
     mc->desc = "Hexagon V85NA_1";
-    mc->alias = "sim";
+    alc->aliases = aliases;
     mc->init = v85na_1_config_init;
     init_mc(mc);
     mc->default_cpu_type = TYPE_HEXAGON_CPU_V85;
