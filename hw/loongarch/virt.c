@@ -1535,7 +1535,7 @@ static void virt_class_init(ObjectClass *oc, const void *data)
     } \
     static const TypeInfo MACHINE_VER_SYM(info, virt, __VA_ARGS__) = \
     { \
-        .name = MACHINE_VER_TYPE_NAME("virt", __VA_ARGS__), \
+        .name = MACHINE_VER_TYPE_NAME("loongarch-virt", __VA_ARGS__), \
         .parent = TYPE_LOONGARCH_VIRT_MACHINE, \
         .class_init = MACHINE_VER_SYM(class_init, virt, __VA_ARGS__), \
         .secure = true, \
@@ -1552,6 +1552,17 @@ static void virt_class_init(ObjectClass *oc, const void *data)
     static const char *const MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)[] = \
     { \
         MACHINE_TYPE_NAME("virt"), \
+        MACHINE_VER_TYPE_NAME("virt", __VA_ARGS__), \
+        MACHINE_TYPE_NAME("m68k-virt"), \
+        NULL, \
+    }; \
+    alc->aliases = MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)
+
+#define DEFINE_VIRT_MACHINE_ALIASES(...)   \
+    AliasedClass *alc = ALIASED_CLASS(oc); \
+    static const char *const MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)[] = \
+    { \
+        MACHINE_VER_TYPE_NAME("virt", __VA_ARGS__), \
         NULL, \
     }; \
     alc->aliases = MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)
@@ -1562,7 +1573,9 @@ static void virt_class_init(ObjectClass *oc, const void *data)
             mc->is_default = true; \
         }, major, minor)
 #define DEFINE_VIRT_MACHINE(major, minor) \
-    DEFINE_VIRT_MACHINE_VERSION({}, major, minor)
+    DEFINE_VIRT_MACHINE_VERSION({ \
+            DEFINE_VIRT_MACHINE_ALIASES(major, minor); \
+        }, major, minor)
 
 static void virt_instance_finalize(Object *obj)
 {
