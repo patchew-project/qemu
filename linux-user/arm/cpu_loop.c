@@ -505,7 +505,7 @@ void init_main_thread(CPUState *cs, struct image_info *info)
         }
     }
 
-    if (TARGET_BIG_ENDIAN) {
+    if (target_big_endian()) {
         /* Enable BE8.  */
         if (EF_ARM_EABI_VERSION(info->elf_flags) >= EF_ARM_EABI_VER4
             && (info->elf_flags & EF_ARM_BE8)) {

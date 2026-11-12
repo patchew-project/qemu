@@ -22,6 +22,7 @@
 
 #include "kvm-consts.h"
 #include "qemu/cpu-float.h"
+#include "qemu/target-info.h"
 #include "hw/core/registerfields.h"
 #include "cpu-qom.h"
 #include "exec/cpu-common.h"
@@ -2660,11 +2661,16 @@ static inline int sme_vq(CPUARMState *env)
 static inline bool bswap_code(bool sctlr_b)
 {
 #ifdef CONFIG_USER_ONLY
-    /* BE8 (SCTLR.B = 0, TARGET_BIG_ENDIAN = 1) is mixed endian.
-     * The invalid combination SCTLR.B=1/CPSR.E=1/TARGET_BIG_ENDIAN=0
+    /*
+     * BE8 (SCTLR.B = 0, big-endian target) is mixed endian.
+     * The invalid combination SCTLR.B=1/CPSR.E=1/little-endian target
      * would also end up as a mixed-endian mode with BE code, LE data.
      */
+#ifdef TARGET_RUNTIME_ENDIAN
+    return target_big_endian() ^ sctlr_b;
+#else
     return TARGET_BIG_ENDIAN ^ sctlr_b;
+#endif
 #else
     /* All code access in ARM is little endian, and there are no loaders
      * doing swaps that need to be reversed
