@@ -62,6 +62,7 @@ void net_checksum_calculate(void *data, int length, int csum_flag)
     int mac_hdr_len, ip_len, ip_hdr_len;
     struct ip_header *ip;
     uint16_t csum;
+    uint8_t *ip_payload;
 
     /*
      * Note: We cannot assume "data" is aligned, so the all code uses
@@ -142,19 +143,22 @@ void net_checksum_calculate(void *data, int length, int csum_flag)
     }
 
     ip_len -= ip_hdr_len;
+    ip_payload = (uint8_t *)ip + ip_hdr_len;
 
     switch (ip->ip_p) {
     case IP_PROTO_TCP:
     {
+        tcp_header *tcp;
+
         if (!(csum_flag & CSUM_TCP)) {
             return;
         }
 
-        tcp_header *tcp = (tcp_header *)(ip + 1);
-
         if (ip_len < sizeof(tcp_header)) {
             return;
         }
+
+        tcp = (tcp_header *)ip_payload;
 
         /* Set csum to 0 */
         stw_he_p(&tcp->th_sum, 0);
@@ -170,15 +174,17 @@ void net_checksum_calculate(void *data, int length, int csum_flag)
     }
     case IP_PROTO_UDP:
     {
+        udp_header *udp;
+
         if (!(csum_flag & CSUM_UDP)) {
             return;
         }
 
-        udp_header *udp = (udp_header *)(ip + 1);
-
         if (ip_len < sizeof(udp_header)) {
             return;
         }
+
+        udp = (udp_header *)ip_payload;
 
         /* Set csum to 0 */
         stw_he_p(&udp->uh_sum, 0);
