@@ -226,11 +226,20 @@ hexagon_h2_booters := hexagon-booter-qcs6490-cdsp \
 hexagon_h2_loadlinux := hexagon-loadlinux-qcs6490-cdsp \
 	hexagon-loadlinux-sm8975-nsp hexagon-loadlinux-sa8775p-cdsp \
 	hexagon-loadlinux-sc8480xp-nsp0 hexagon-loadlinux-sa8797p-nsp0
+-include hexagon-hypervisor-version
+
+hexagon-hypervisor-version: hexagon-hypervisor
+	if test -e hexagon-hypervisor/.git; then \
+		echo "H2K_COMMIT = $$(git -C hexagon-hypervisor rev-parse HEAD)" > $@; \
+	else \
+		touch $@; \
+	fi
+
 hexagon_h2_common_flags = USE_PKW=0 TARGET=opt NULL_ANGEL_TRAP=1 \
 	HMX_HLX_SUPPORT=1 \
 	H2K_LOAD_ADDR=0x9b800000 H2K_GUEST_START=0xa2000000 \
-	H2K_GIT_COMMIT=0x$(shell git -C hexagon-hypervisor rev-parse --short=8 HEAD) \
-	H2K_GIT_COMMIT_LONG=0x$(shell git -C hexagon-hypervisor rev-parse HEAD) \
+	H2K_GIT_COMMIT=0x$(shell echo $(H2K_COMMIT) | cut -c1-8) \
+	H2K_GIT_COMMIT_LONG=0x$(H2K_COMMIT) \
 	JFLAG=-j$(shell nproc)
 
 .PHONY: hexagon-qcs6490-cdsp hexagon-sm8975-nsp \
