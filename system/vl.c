@@ -845,16 +845,21 @@ static bool usb_parse(const char *cmdline, Error **errp)
 /* machine registration */
 
 static ObjectClass *find_machine(const char *name, GSList *machines,
-                                 Error **errp)
+                                 bool creatable, Error **errp)
 {
     GSList *el;
     g_autofree char *typename = NULL;
 
     for (el = machines; el; el = el->next) {
-        MachineClass *mc = el->data;
+        ObjectClass *oc = el->data;
+        MachineClass *mc = MACHINE_CLASS(oc);
 
         if (!strcmp(mc->name, name)) {
-            return OBJECT_CLASS(mc);
+            if (creatable) {
+                return target_specific_class_check(oc, errp);
+            } else {
+                return oc;
+            }
         }
     }
 
@@ -1551,7 +1556,8 @@ static void machine_help_func(const QDict *qdict)
     machines = object_class_get_list(TYPE_MACHINE, false);
     if (type) {
         Error *local_err = NULL;
-        ObjectClass *machine_class = find_machine(type, machines, &local_err);
+        ObjectClass *machine_class =
+            find_machine(type, machines, false, &local_err);
         if (local_err) {
             error_report_err(local_err);
             return;
@@ -1697,7 +1703,7 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
 
     if (machine_type) {
         machine_class = MACHINE_CLASS(
-            find_machine(machine_type, machines, errp));
+            find_machine(machine_type, machines, true, errp));
         qdict_del(qdict, "type");
     } else {
         machine_class = find_default_machine(machines);
