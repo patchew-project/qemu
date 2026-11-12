@@ -171,6 +171,17 @@ void riscv_pmu_update_fixed_ctrs(CPURISCVState *env,
     riscv_pmu_update_fixed_ctrs_snapshot(env, newpriv, new_virt, &snapshot);
 }
 
+void riscv_pmu_init_fixed_counter_baselines(CPURISCVState *env)
+{
+    RISCVPMUFixedSnapshot snapshot;
+
+    riscv_pmu_take_fixed_snapshot(env, &snapshot);
+    env->pmu_fixed_ctrs[RISCV_PMU_FIXED_DOMAIN_CYCLE]
+        .counter_prev[PRV_M] = snapshot.cycle;
+    env->pmu_fixed_ctrs[RISCV_PMU_FIXED_DOMAIN_INSTRET]
+        .counter_prev[PRV_M] = snapshot.instret;
+}
+
 uint64_t
 riscv_pmu_ctr_get_fixed_value(CPURISCVState *env, uint32_t ctr_idx,
                               const RISCVPMUFixedSnapshot *snapshot)
