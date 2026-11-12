@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+# group: rw quick
+#
+# Regression test for the dmg LZFSE short-decode heap disclosure.
+#
+# Copyright (C) 2026 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# A crafted DMG can declare a chunk output size larger than its LZFSE
+# stream actually produces.  dmg_uncompress_lzfse_do() used to accept
+# such a short decode and hand the untouched tail of the (unzeroed)
+# uncompressed chunk buffer to the guest -- a heap disclosure.  Reading
+# such a chunk must now fail with an I/O error instead.
+
+import base64
+import os
+import struct
+import sys
+
+import iotests
+
+ULFO = 0x80000007  # LZFSE compressed block type
+SECTOR = 512
+
+
+def lzfse_uncompressed_stream(payload: bytes) -> bytes:
+    """A valid LZFSE stream: one uncompressed block + end-of-stream marker."""
+    return (b'bvx-' + struct.pack('<I', len(payload))  # uncompressed block
+            + payload
+            + b'bvx$')                                   # end of stream
+
+
+def build_dmg(stream: bytes, decl_sectors: int, total_sectors: int) -> bytes:
+    """
+    Build a minimal DMG with a single LZFSE chunk.  The chunk declares
+    decl_sectors sectors of output; when that exceeds what 'stream'
+    decodes to, the decode is short.
+    """
+    data_fork = stream
+
+    # BLKX ("mish") block: 204-byte header followed by one 40-byte entry.
+    mish = bytearray(204)
+    struct.pack_into('>I', mish, 0x00, 0x6d697368)        # 'mish' magic
+    struct.pack_into('>I', mish, 0x04, 1)                 # version
+    struct.pack_into('>Q', mish, 0x08, 0)                 # first sector number
+    struct.pack_into('>Q', mish, 0x10, total_sectors)     # sector count
+    struct.pack_into('>Q', mish, 0x18, 0)                 # data fork offset
+
+    entry = bytearray(40)
+    struct.pack_into('>I', entry, 0x00, ULFO)             # entry type
+    struct.pack_into('>Q', entry, 0x08, 0)               # sector number
+    struct.pack_into('>Q', entry, 0x10, decl_sectors)    # sector count
+    struct.pack_into('>Q', entry, 0x18, 0)               # compressed offset
+    struct.pack_into('>Q', entry, 0x20, len(data_fork))  # compressed length
+    mish += entry
+
+    xml = (b'<plist><dict><data>'
+           + base64.b64encode(bytes(mish))
+           + b'</data></dict></plist>')
+
+    buf = bytearray()
+    buf += data_fork
+    xml_off = len(buf)
+    buf += xml
+    koly_off = len(buf)
+
+    # UDIF trailer ("koly" block), 512 bytes, big-endian.
+    koly = bytearray(512)
+    struct.pack_into('>4s', koly, 0x000, b'koly')         # signature
+    struct.pack_into('>I', koly, 0x004, 4)               # version
+    struct.pack_into('>I', koly, 0x008, 512)             # header size
+    struct.pack_into('>Q', koly, 0x018, 0)               # DataForkOffset
+    struct.pack_into('>Q', koly, 0x020, len(data_fork))  # DataForkLength
+    struct.pack_into('>Q', koly, 0x028, 0)               # RsrcForkOffset
+    struct.pack_into('>Q', koly, 0x030, 0)               # RsrcForkLength
+    struct.pack_into('>Q', koly, 0x0d8, xml_off)         # XMLOffset
+    struct.pack_into('>Q', koly, 0x0e0, len(xml))        # XMLLength
+    struct.pack_into('>q', koly, 0x1ec, total_sectors)   # SectorCount
+    buf += koly
+
+    assert koly_off == len(buf) - 512
+    return bytes(buf)
+
+
+def convert_to_raw(dmg: bytes, name: str):
+    dmg_path = os.path.join(iotests.test_dir, name)
+    raw_path = dmg_path + '.raw'
+    with open(dmg_path, 'wb') as f:
+        f.write(dmg)
+    res = iotests.qemu_img('convert', '-f', 'dmg', '-O', 'raw',
+                           dmg_path, raw_path, check=False)
+    return res, dmg_path, raw_path
+
+
+def main() -> None:
+    payload = b'\xab' * SECTOR
+
+    # A well-formed single-sector chunk must convert cleanly.  Skip only
+    # when QEMU was built without the LZFSE module (so this would never
+    # work); treat any other failure as a real regression.
+    good = build_dmg(lzfse_uncompressed_stream(payload),
+                     decl_sectors=1, total_sectors=1)
+    res, _, raw_path = convert_to_raw(good, 'good.dmg')
+    if res.returncode != 0:
+        if 'dmg-lzfse module is missing' in res.stdout:
+            iotests.notrun('LZFSE decompression not available')
+        iotests.log('FAIL: valid LZFSE chunk failed to convert')
+        iotests.log(res.stdout)
+        sys.exit(1)
+
+    with open(raw_path, 'rb') as f:
+        if f.read() != payload:
+            iotests.log('FAIL: valid LZFSE chunk decoded incorrectly')
+            return
+    iotests.log('valid LZFSE chunk converts: ok')
+
+    # Same 512-byte stream, but the chunk claims two sectors (1024 bytes).
+    # The decode is short and must be rejected with an I/O error.
+    evil = build_dmg(lzfse_uncompressed_stream(payload),
+                     decl_sectors=2, total_sectors=2)
+    res, _, _ = convert_to_raw(evil, 'evil.dmg')
+    if res.returncode == 0:
+        iotests.log('FAIL: short LZFSE decode was accepted')
+        return
+    iotests.log('short LZFSE decode rejected: ok')
+
+
+iotests.script_main(main, supported_fmts=['dmg'],
+                    supported_protocols=['file'],
+                    supported_platforms=['linux'])
