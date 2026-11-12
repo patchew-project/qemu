@@ -608,6 +608,10 @@ virgl_write_fence(void *opaque, uint32_t fence)
          * the guest can end up emitting fences out of order
          * so we should check all fenced cmds not just the first one.
          */
+        if (cmd->state == VG_CMD_STATE_PENDING) {
+            /* not fenced, completed by the frontend reply */
+            continue;
+        }
         if (cmd->cmd_hdr.fence_id > fence) {
             continue;
         }

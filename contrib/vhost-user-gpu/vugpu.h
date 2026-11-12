@@ -147,6 +147,9 @@ typedef struct VuGpu {
     struct virtio_gpu_scanout scanout[VIRTIO_GPU_MAX_SCANOUTS];
     QTAILQ_HEAD(, virtio_gpu_simple_resource) reslist;
     QTAILQ_HEAD(, virtio_gpu_ctrl_command) fenceq;
+
+    /* command waiting for a reply from the frontend */
+    struct virtio_gpu_ctrl_command *pending_cmd;
 } VuGpu;
 
 enum {
