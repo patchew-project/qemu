@@ -63,6 +63,7 @@
 #include "hw/uefi/var-service-api.h"
 #include "hw/i386/acpi-build.h"
 #include "target/i386/cpu.h"
+#include "qom/object_interfaces.h"
 
 /* ICH9 AHCI has 6 ports */
 #define MAX_SATA_PORTS     6
@@ -338,13 +339,22 @@ static void pc_q35_machine_set_wdat(Object *o, bool value, Error **errp)
     pcms->wdat_enabled = value;
 }
 
+#define DEFINE_Q35_MACHINE_ALIASES_LATEST(...) \
+    AliasedClass *alc = ALIASED_CLASS(oc); \
+    static const char *const MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)[] = \
+    { \
+        MACHINE_TYPE_NAME("q35"), \
+        NULL, \
+    }; \
+    alc->aliases = MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)
+
 #define DEFINE_Q35_MACHINE(major, minor) \
     DEFINE_PC_VER_MACHINE(pc_q35, "pc-q35", pc_q35_init, {}, \
                           major, minor);
 
 #define DEFINE_Q35_MACHINE_AS_LATEST(major, minor) \
     DEFINE_PC_VER_MACHINE(pc_q35, "pc-q35", pc_q35_init, { \
-            mc->alias = "q35"; \
+            DEFINE_Q35_MACHINE_ALIASES_LATEST(major, minor); \
         }, major, minor);
 
 #define DEFINE_Q35_MACHINE_BUGFIX(major, minor, micro) \

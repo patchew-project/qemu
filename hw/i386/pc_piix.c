@@ -66,6 +66,7 @@
 #include "hw/uefi/var-service-api.h"
 #include "hw/i386/acpi-build.h"
 #include "target/i386/cpu.h"
+#include "qom/object_interfaces.h"
 
 #define XEN_IOAPIC_NUM_PIRQS 128ULL
 
@@ -362,13 +363,23 @@ static void pc_i440fx_init(MachineState *machine)
     pc_init1(machine, TYPE_I440FX_PCI_DEVICE);
 }
 
+#define DEFINE_I440FX_MACHINE_ALIASES_LATEST(...) \
+    AliasedClass *alc = ALIASED_CLASS(oc); \
+    static const char *const MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)[] = \
+    { \
+        MACHINE_TYPE_NAME("pc"), \
+        NULL, \
+    }; \
+    alc->aliases = MACHINE_VER_SYM(aliases, virt, __VA_ARGS__)
+
 #define DEFINE_I440FX_MACHINE(major, minor) \
     DEFINE_PC_VER_MACHINE(pc_i440fx, "pc-i440fx", pc_i440fx_init, \
                           {}, major, minor);
 
 #define DEFINE_I440FX_MACHINE_AS_LATEST(major, minor) \
     DEFINE_PC_VER_MACHINE(pc_i440fx, "pc-i440fx", pc_i440fx_init, { \
-            mc->is_default = true; mc->alias = "pc"; \
+            DEFINE_I440FX_MACHINE_ALIASES_LATEST(major, minor); \
+            mc->is_default = true; \
         }, major, minor);
 
 static void pc_i440fx_machine_options(MachineClass *m)
@@ -637,9 +648,14 @@ DEFINE_I440FX_MACHINE(4, 1);
 #ifdef CONFIG_XEN
 static void xenfv_machine_4_2_options(MachineClass *m)
 {
+    AliasedClass *alc = ALIASED_CLASS(m);
+    static const char *const aliases[] = {
+        MACHINE_TYPE_NAME("xenfv"), NULL,
+    };
+
     pc_i440fx_machine_4_2_options(m);
     m->desc = "Xen Fully-virtualized PC";
-    m->alias = "xenfv";
+    alc->aliases = aliases;
     m->max_cpus = HVM_MAX_VCPUS;
     m->default_machine_opts = "accel=xen,suppress-vmdesc=on";
 }
