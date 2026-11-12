@@ -28,18 +28,42 @@ from findtests import TestFinder
 from testenv import TestEnv
 from testrunner import TestRunner
 
-def get_default_path(follow_link=False):
-    """
-    Try to automagically figure out the path we are running from.
-    """
-    # called from the build tree?
-    if os.path.islink(sys.argv[0]):
-        if follow_link:
-            return os.path.dirname(os.readlink(sys.argv[0]))
+
+def get_build_dir():
+    if "MESON_BUILD_ROOT" in os.environ:
+        br = os.environ["MESON_BUILD_ROOT"]
+        return os.path.join(br, "tests", "qemu-iotests")
+    else:
+        if os.path.islink(sys.argv[0]):
+            iobr = os.path.dirname(sys.argv[0])
         else:
-            return os.path.dirname(os.path.abspath(sys.argv[0]))
-    else:  # or source tree?
-        return os.getcwd()
+            iobr = os.path.join(os.path.dirname(sys.argv[0]),
+                                "..", "..", "build", "tests", "qemu-iotests")
+        if (not os.path.exists(os.path.join(iobr, "check")) or
+            os.path.exists(os.path.join(iobr, "testenv.py"))):
+            raise Exception(f"MESON_BUILD_ROOT is not set, and guessed "
+                            "I/O tests build root {iobr} does not look "
+                            "valid. Please use the 'run' script to invoke "
+                            "the I/O tests")
+        return os.path.abspath(iobr)
+
+
+def get_source_dir():
+    if "MESON_SOURCE_ROOT" in os.environ:
+        sr = os.environ["MESON_SOURCE_ROOT"]
+        return os.path.join(sr, "tests", "qemu-iotests")
+    else:
+        if os.path.islink(sys.argv[0]):
+            iosr = os.path.dirname(os.readlink(sys.argv[0]))
+        else:
+            iosr = os.path.dirname(sys.argv[0])
+        if not os.path.exists(os.path.join(iosr, "testenv.py")):
+            raise Exception(f"MESON_SOURCE_ROOT is not set, and guessed "
+                            "I/O tests source root {iosr} does not look "
+                            "valid. Please use the 'run' script to invoke "
+                            "the I/O tests")
+        return os.path.abspath(iosr)
+
 
 def make_argparser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
@@ -131,11 +155,11 @@ def make_argparser() -> argparse.ArgumentParser:
                        'middle of the process.')
     g_sel.add_argument('tests', metavar='TEST_FILES', nargs='*',
                        help='tests to run, or "--" followed by a command')
-    g_sel.add_argument('--build-dir', default=get_default_path(),
+    g_sel.add_argument('--build-dir', default=get_build_dir(),
                        help='Path to iotests build directory')
     g_sel.add_argument('--source-dir',
-                       default=get_default_path(follow_link=True),
-                       help='Path to iotests build directory')
+                       default=get_source_dir(),
+                       help='Path to iotests source directory')
 
     return p
 

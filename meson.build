@@ -3502,6 +3502,7 @@ genh += config_host_h
 
 devenv = environment()
 devenv.set('MESON_BUILD_ROOT', meson.project_build_root())
+devenv.set('MESON_SOURCE_ROOT', meson.project_source_root())
 devenv.set('VIRTUAL_ENV', meson.project_build_root() / 'pyvenv')
 devenv.prepend('PATH', meson.project_build_root() / 'pyvenv'/ 'bin')
 devenv.prepend('PYTHONPATH', meson.current_source_dir() / 'tests' / 'functional')
