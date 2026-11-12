@@ -32,6 +32,20 @@ typedef struct TargetInfo {
     bool page_bits_vary;
 } TargetInfo;
 
+#ifdef COMPILING_PER_TARGET
+#ifdef TARGET_RUNTIME_ENDIAN
+/*
+ * Linux-user selects the ELF byte order before creating CPUs or guest threads.
+ * The data is then immutable; its writable definition must stay outside LTO.
+ */
+#ifdef IN_TARGET_INFO_DEF
+extern TargetInfo target_info_stub;
+#else
+extern const TargetInfo target_info_stub;
+#endif
+#endif
+#endif
+
 /**
  * target_info:
  *

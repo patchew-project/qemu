@@ -13,14 +13,17 @@
 #include "hw/core/cpu.h"
 
 /*
- * If we're in target-specific code, we can hard-code the swapping
- * condition, otherwise we have to do (slower) run-time checks.
+ * For fixed-endian target-specific code, hard-code the swapping condition.
+ * Otherwise use run-time checks.
  */
 #ifdef COMPILING_PER_TARGET
+#ifndef TARGET_RUNTIME_ENDIAN
 #define target_needs_bswap()  (HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN)
-#else
+#endif
+#endif
+#ifndef target_needs_bswap
 #define target_needs_bswap()  (HOST_BIG_ENDIAN != target_big_endian())
-#endif /* COMPILING_PER_TARGET */
+#endif
 
 #if defined(CONFIG_USER_ONLY) \
     || !defined(TARGET_NOT_USING_LEGACY_NATIVE_ENDIAN_API)
