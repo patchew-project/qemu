@@ -270,11 +270,27 @@ static void loongarch_set_ptw(Object *obj, bool value, Error **errp)
     cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, HPTW, value);
 }
 
+static bool loongarch_get_lvz(Object *obj, Error **errp)
+{
+    return LOONGARCH_CPU(obj)->lvz != ON_OFF_AUTO_OFF;
+}
+
+static void loongarch_set_lvz(Object *obj, bool value, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    cpu->lvz = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+    cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LVZ, value);
+    cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LVZ_VER,
+                                    value ? 1 : 0);
+}
+
 static void loongarch_cpu_post_init(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
 
     cpu->lbt = ON_OFF_AUTO_OFF;
+    cpu->lvz = ON_OFF_AUTO_AUTO;
     cpu->pmu = ON_OFF_AUTO_OFF;
     cpu->lsx = ON_OFF_AUTO_AUTO;
     cpu->lasx = ON_OFF_AUTO_AUTO;
@@ -286,6 +302,11 @@ static void loongarch_cpu_post_init(Object *obj)
                              loongarch_set_msgint);
     object_property_add_bool(obj, "ptw", loongarch_get_ptw,
                              loongarch_set_ptw);
+    if (tcg_enabled()) {
+        object_property_add_bool(obj, "lvz", loongarch_get_lvz,
+                                loongarch_set_lvz);
+       }
+
     /* lbt is enabled only in kvm mode, not supported in tcg mode */
 
     if (kvm_enabled()) {
@@ -339,8 +360,12 @@ static void loongarch_la464_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG2, FP_SP, 1);
     data = FIELD_DP32(data, CPUCFG2, FP_DP, 1);
     data = FIELD_DP32(data, CPUCFG2, FP_VER, 1);
-    data = FIELD_DP32(data, CPUCFG2, LSX, 1),
-    data = FIELD_DP32(data, CPUCFG2, LASX, 1),
+    data = FIELD_DP32(data, CPUCFG2, LSX, 1);
+    data = FIELD_DP32(data, CPUCFG2, LASX, 1);
+    if (tcg_enabled()) {
+        data = FIELD_DP32(data, CPUCFG2, LVZ, 1);
+        data = FIELD_DP32(data, CPUCFG2, LVZ_VER, 1);
+    }
     data = FIELD_DP32(data, CPUCFG2, LLFTP, 1);
     data = FIELD_DP32(data, CPUCFG2, LLFTP_VER, 1);
     data = FIELD_DP32(data, CPUCFG2, LSPW, 1);

@@ -462,6 +462,7 @@ struct ArchCPU {
     CPULoongArchState env;
     uint32_t  phy_id;
     OnOffAuto lbt;
+    OnOffAuto lvz;
     OnOffAuto pmu;
     OnOffAuto ptw;
     OnOffAuto lsx;
@@ -523,6 +524,11 @@ static inline void set_sys(CPULoongArchState *env, int vm_level)
 static inline CPUSysState *get_sys(CPULoongArchState *env, int vm_level)
 {
     return &env->sys_states[vm_level];
+}
+
+static inline bool cpu_has_lvz(CPULoongArchState *env)
+{
+    return FIELD_EX32(env->cpucfg[2], CPUCFG2, LVZ);
 }
 
 static inline CPUTimerState *env_timer(CPULoongArchState *env)
