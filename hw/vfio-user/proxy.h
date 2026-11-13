@@ -70,6 +70,7 @@ typedef struct VFIOUserProxy {
     uint32_t wait_time;
     QemuCond close_cv;
     AioContext *ctx;
+    char *qom_path;
     QEMUBH *req_bh;
     bool async_ops;
     VFIOUserFDs *region_fds[VFIO_USER_MAX_REGIONS];
@@ -103,7 +104,8 @@ typedef struct VFIOUserProxy {
 
 typedef struct VFIODevice VFIODevice;
 
-VFIOUserProxy *vfio_user_connect_dev(SocketAddress *addr, Error **errp);
+VFIOUserProxy *vfio_user_connect_dev(SocketAddress *addr, Object *owner,
+                                   Error **errp);
 void vfio_user_disconnect(VFIOUserProxy *proxy);
 void vfio_user_set_handler(VFIODevice *vbasedev,
                            void (*handler)(void *opaque, VFIOUserMsg *msg),
