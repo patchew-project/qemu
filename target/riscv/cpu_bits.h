@@ -744,6 +744,15 @@ typedef enum {
 #define SATP64_ASID         0x0FFFF00000000000ULL
 #define SATP64_PPN          0x00000FFFFFFFFFFFULL
 
+/*
+ * Priv spec, hgatp section: "An implementation that supports only the
+ * defined paged virtual-memory schemes and/or Bare may make PPN[1:0]
+ * read-only zero.".  This is our case so we're choosing to clear
+ * PPN[1:0] all the time.
+ */
+#define HGATP32_ZERO        (MAKE_64BIT_MASK(29, 2) | 0b11)
+#define HGATP64_ZERO        (MAKE_64BIT_MASK(58, 2) | 0b11)
+
 /* RNMI mnstatus CSR mask */
 #define MNSTATUS_NMIE       0x00000008
 #define MNSTATUS_MNPV       0x00000080

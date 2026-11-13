@@ -5275,6 +5275,14 @@ static RISCVException write_hgatp(CPURISCVState *env, int csrno,
                                   target_ulong val, uintptr_t ra)
 {
     env->hgatp = legalize_xatp(env, env->hgatp, val);
+
+    /* Clear HGATP zero fields.  */
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
+        env->hgatp &= ~HGATP32_ZERO;
+    } else {
+        env->hgatp &= ~HGATP64_ZERO;
+    }
+
     return RISCV_EXCP_NONE;
 }
 
