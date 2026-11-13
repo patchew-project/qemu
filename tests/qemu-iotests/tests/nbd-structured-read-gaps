@@ -1,0 +1,215 @@
+#!/usr/bin/env python3
+# group: rw quick
+#
+# Test that NBD client zero-initializes any regions omitted by a server
+# sending incomplete or out-of-order structured read replies.
+#
+# Copyright (C) 2026 Red Hat, Inc.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+import os
+import socket
+import struct
+import threading
+import iotests
+
+NBD_INIT_MAGIC = 0x4E42444D41474943
+NBD_OPTS_MAGIC = 0x49484156454F5054
+NBD_REP_MAGIC = 0x0003E889045565A9
+NBD_REQUEST_MAGIC = 0x25609513
+NBD_STRUCTURED_REPLY_MAGIC = 0x668E33EF
+
+NBD_FLAG_FIXED_NEWSTYLE = 1 << 0
+NBD_FLAG_NO_ZEROES = 1 << 1
+NBD_FLAG_HAS_FLAGS = 1 << 0
+
+NBD_OPT_ABORT = 2
+NBD_OPT_GO = 7
+NBD_OPT_STRUCTURED_REPLY = 8
+
+NBD_REP_ACK = 1
+NBD_REP_INFO = 3
+NBD_REP_ERR_UNSUP = (1 << 31) | 1
+NBD_INFO_EXPORT = 0
+
+NBD_CMD_READ = 0
+NBD_CMD_DISC = 2
+
+NBD_REPLY_FLAG_DONE = 1 << 0
+NBD_REPLY_TYPE_NONE = 0
+NBD_REPLY_TYPE_OFFSET_DATA = 1
+NBD_REPLY_TYPE_OFFSET_HOLE = 2
+
+
+def recvall(conn, size):
+    data = bytearray()
+    while len(data) < size:
+        chunk = conn.recv(size - len(data))
+        if not chunk:
+            raise EOFError("unexpected EOF")
+        data.extend(chunk)
+    return bytes(data)
+
+
+def send_option_reply(conn, option, reply_type, payload=b""):
+    conn.sendall(struct.pack(">QII", NBD_REP_MAGIC, option, reply_type))
+    conn.sendall(struct.pack(">I", len(payload)) + payload)
+
+
+def send_chunk(conn, flags, chunk_type, cookie, payload=b""):
+    hdr = struct.pack(">IHHQI", NBD_STRUCTURED_REPLY_MAGIC,
+                      flags, chunk_type, cookie, len(payload))
+    conn.sendall(hdr + payload)
+
+
+# Emulate a simple NBD server that only knows how to respond to 512-byte
+# structured reads from fixed offsets.
+class StructuredReadServer(threading.Thread):
+    def __init__(self, sock_path):
+        super().__init__(daemon=True)
+        self.sock_path = sock_path
+        self.ready = threading.Event()
+        self.error = None
+
+    def run(self):
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as srv:
+                srv.bind(self.sock_path)
+                srv.listen(1)
+                self.ready.set()
+                conn, _ = srv.accept()
+                with conn:
+                    conn.settimeout(10)
+                    self.negotiate(conn)
+                    self.transmission(conn)
+        except (OSError, EOFError, AssertionError, struct.error) as exc:
+            self.error = exc
+
+    def negotiate(self, conn):
+        conn.sendall(struct.pack(">QQH", NBD_INIT_MAGIC, NBD_OPTS_MAGIC,
+                                 NBD_FLAG_FIXED_NEWSTYLE | NBD_FLAG_NO_ZEROES))
+        recvall(conn, 4)  # client flags
+
+        while True:
+            magic, option, length = struct.unpack(">QII", recvall(conn, 16))
+            assert magic == NBD_OPTS_MAGIC
+            if length:
+                recvall(conn, length)
+
+            if option == NBD_OPT_STRUCTURED_REPLY:
+                send_option_reply(conn, option, NBD_REP_ACK)
+            elif option == NBD_OPT_GO:
+                info = struct.pack(">HQH", NBD_INFO_EXPORT, 65536,
+                                   NBD_FLAG_HAS_FLAGS)
+                send_option_reply(conn, option, NBD_REP_INFO, info)
+                send_option_reply(conn, option, NBD_REP_ACK)
+                return
+            elif option == NBD_OPT_ABORT:
+                send_option_reply(conn, option, NBD_REP_ACK)
+                return
+            else:
+                send_option_reply(conn, option, NBD_REP_ERR_UNSUP)
+
+    def transmission(self, conn):
+        """Trigger several non-compliant server behaviors based on the
+        client's offset. A compliant server would supply all 512 bytes."""
+        while True:
+            try:
+                hdr = recvall(conn, 28)
+            except EOFError:
+                return
+            magic, _flags, cmd, cookie, offset, length = struct.unpack(
+                ">IHHQQI", hdr)
+            assert magic == NBD_REQUEST_MAGIC
+
+            if cmd == NBD_CMD_DISC:
+                return
+            assert cmd == NBD_CMD_READ and length == 512
+
+            if offset == 0:
+                # Case 1: Short prefix with FLAG_DONE
+                payload = struct.pack(">Q", offset) + b"QEMU_NBD_PREFIX_DATA"
+                send_chunk(conn, NBD_REPLY_FLAG_DONE,
+                           NBD_REPLY_TYPE_OFFSET_DATA, cookie, payload)
+            elif offset == 512:
+                # Case 2: Out-of-order chunks with gaps + NONE|DONE
+                send_chunk(conn, 0, NBD_REPLY_TYPE_OFFSET_DATA, cookie,
+                           struct.pack(">Q", 768) + (b"\x11" * 128))
+                send_chunk(conn, 0, NBD_REPLY_TYPE_OFFSET_DATA, cookie,
+                           struct.pack(">Q", 576) + (b"\x22" * 64))
+                send_chunk(conn, NBD_REPLY_FLAG_DONE,
+                           NBD_REPLY_TYPE_NONE, cookie)
+            elif offset == 1024:
+                # Case 3: Leading & trailing gaps around OFFSET_HOLE
+                send_chunk(conn, NBD_REPLY_FLAG_DONE,
+                           NBD_REPLY_TYPE_OFFSET_HOLE, cookie,
+                           struct.pack(">QI", 1280, 128))
+            elif offset == 1536:
+                # Case 4: Immediate NONE|DONE with zero chunks
+                send_chunk(conn, NBD_REPLY_FLAG_DONE,
+                           NBD_REPLY_TYPE_NONE, cookie)
+
+
+class TestNBDStructuredReadGaps(iotests.QMPTestCase):
+    def setUp(self):
+        self.sock_path = os.path.join(iotests.sock_dir, "nbd.sock")
+        self.server = StructuredReadServer(self.sock_path)
+        self.server.start()
+        self.assertTrue(self.server.ready.wait(5))
+
+    def tearDown(self):
+        self.server.join(timeout=5)
+        self.assertIsNone(self.server.error)
+        if os.path.exists(self.sock_path):
+            os.unlink(self.sock_path)
+
+    @staticmethod
+    def parse_read_v(out):
+        """Reconstruct raw bytes from `qemu-io -c 'read -v ...'` output."""
+        buf = bytearray()
+        for line in out.splitlines():
+            # Format: "00000000:  51 45 4d 55 ...  QEMU_NBD_PREFIX_"
+            if ":  " not in line:
+                continue
+            hex_col = line.split(":  ", 1)[1][:49]
+            buf.extend(int(b, 16) for b in hex_col.split())
+        return bytes(buf)
+
+    def test_incomplete_and_out_of_order_reads(self):
+        # Force heap perturbation so uninitialized bytes show up (if not
+        # already set in caller, this favors values of 0x5A in unused heap)
+        os.environ.setdefault("MALLOC_PERTURB_", "165")
+        nbd_uri = f"nbd+unix:///?socket={self.sock_path}"
+        out = iotests.qemu_io(
+            "-f", "raw",
+            "-c", "read -v 0 512",
+            "-c", "read -v 512 512",
+            "-c", "read -v 1024 512",
+            "-c", "read -v 1536 512",
+            nbd_uri
+        )
+        data = self.parse_read_v(out.stdout)
+        self.assertEqual(len(data), 2048)
+
+        # Case 1 [0..512): 20-byte prefix + 492 zeroed bytes
+        self.assertEqual(data[0:20], b"QEMU_NBD_PREFIX_DATA")
+        self.assertEqual(data[20:512], b"\x00" * 492)
+
+        # Case 2 [512..1024): 0x22 at [576..640), 0x11 at [768..896),
+        # zeroes elsewhere
+        self.assertEqual(data[512:576], b"\x00" * 64)
+        self.assertEqual(data[576:640], b"\x22" * 64)
+        self.assertEqual(data[640:768], b"\x00" * 128)
+        self.assertEqual(data[768:896], b"\x11" * 128)
+        self.assertEqual(data[896:1024], b"\x00" * 128)
+
+        # Case 3 [1024..1536): OFFSET_HOLE + leading/trailing gaps all zeroed
+        self.assertEqual(data[1024:1536], b"\x00" * 512)
+
+        # Case 4 [1536..2048): empty NONE|DONE all zeroed
+        self.assertEqual(data[1536:2048], b"\x00" * 512)
+
+
+if __name__ == "__main__":
+    iotests.main(supported_protocols=["nbd"])
