@@ -18,6 +18,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/core/sysbus.h"
 #include "hw/cpu/cluster.h"
+#include "hw/misc/unimp.h"
 #include "hw/timer/rockchip-hptimer.h"
 #include "migration/vmstate.h"
 
@@ -25,6 +26,71 @@
 #define RK3588_MPIDR_AFF0_PER_AFF1   (1)
 
 #define RK3588_CNTFRQ                24000000
+
+#define RK3588_UNIMPLEMENTED(name, base, size) \
+    { "unimpl-" name, "rk3588." name, base, size, -1000 }
+
+/* Peripheral windows from RK3588 TRM v1.0, Table 1-1. */
+static const UnimplementedDeviceConfig rk3588_unimpl_devices[] = {
+    RK3588_UNIMPLEMENTED("firewall-ddr", 0xfe030000, 32 * KiB),
+    RK3588_UNIMPLEMENTED("firewall-sysmem", 0xfe038000, 32 * KiB),
+    RK3588_UNIMPLEMENTED("usb3-2", 0xfcd00000, 4 * MiB),
+    RK3588_UNIMPLEMENTED("pmu0-grf", 0xfd588000, 8 * KiB),
+    RK3588_UNIMPLEMENTED("pmu1-grf", 0xfd58a000, 8 * KiB),
+    RK3588_UNIMPLEMENTED("sys-grf", 0xfd58c000, 16 * KiB),
+    RK3588_UNIMPLEMENTED("usb2phy1-grf", 0xfd5d4000, 16 * KiB),
+    RK3588_UNIMPLEMENTED("usb2phy2-grf", 0xfd5d8000, 16 * KiB),
+    RK3588_UNIMPLEMENTED("usb2phy3-grf", 0xfd5dc000, 16 * KiB),
+    RK3588_UNIMPLEMENTED("pmu1-ioc", 0xfd5f0000, 16 * KiB),
+    RK3588_UNIMPLEMENTED("pmu2-ioc", 0xfd5f4000, 16 * KiB),
+    RK3588_UNIMPLEMENTED("bus-ioc", 0xfd5f8000, 4 * KiB),
+    RK3588_UNIMPLEMENTED("vccio1-4-ioc", 0xfd5f9000, 4 * KiB),
+    RK3588_UNIMPLEMENTED("vccio3-5-ioc", 0xfd5fa000, 4 * KiB),
+    RK3588_UNIMPLEMENTED("vccio2-ioc", 0xfd5fb000, 4 * KiB),
+    RK3588_UNIMPLEMENTED("vccio6-ioc", 0xfd5fc000, 4 * KiB),
+    RK3588_UNIMPLEMENTED("emmc-ioc", 0xfd5fd000, 4 * KiB),
+    RK3588_UNIMPLEMENTED("cru-ns", 0xfd7c0000, 32 * KiB),
+    RK3588_UNIMPLEMENTED("php-ppll-cru", 0xfd7c8000, 32 * KiB),
+    RK3588_UNIMPLEMENTED("pmu1-cru", 0xfd7f0000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("bigcore0-cru", 0xfd810000, 8 * KiB),
+    RK3588_UNIMPLEMENTED("bigcore1-cru", 0xfd812000, 8 * KiB),
+    RK3588_UNIMPLEMENTED("dsu-cru", 0xfd818000, 16 * KiB),
+    RK3588_UNIMPLEMENTED("i2c0", 0xfd880000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("gpio0", 0xfd8a0000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("pwm0", 0xfd8b0000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("fspi", 0xfe2b0000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("sdmmc", 0xfe2c0000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("sdio", 0xfe2d0000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("emmc", 0xfe2e0000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("trng-ns", 0xfe378000, 32 * KiB),
+    RK3588_UNIMPLEMENTED("gic600", 0xfe600000, 4 * MiB),
+    RK3588_UNIMPLEMENTED("dmac0", 0xfea10000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("dmac1", 0xfea30000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("i2c4", 0xfeac0000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("timer-ns0", 0xfeae0000, 32 * KiB),
+    RK3588_UNIMPLEMENTED("wdt-ns", 0xfeaf0000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("spi2", 0xfeb20000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("uart1", 0xfeb40000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("uart2", 0xfeb50000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("uart3", 0xfeb60000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("uart4", 0xfeb70000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("uart5", 0xfeb80000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("uart6", 0xfeb90000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("uart7", 0xfeba0000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("uart8", 0xfebb0000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("uart9", 0xfebc0000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("gpio1", 0xfec20000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("gpio2", 0xfec30000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("gpio3", 0xfec40000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("gpio4", 0xfec50000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("i2c6", 0xfec80000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("i2c7", 0xfec90000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("otp-ns", 0xfecc0000, 64 * KiB),
+    RK3588_UNIMPLEMENTED("dmac2", 0xfed10000, 64 * KiB),
+    { }
+};
+
+#undef RK3588_UNIMPLEMENTED
 
 /* The RK3588 CPU map has one A55 quad cluster and two A76 dual clusters. */
 static const struct {
@@ -100,6 +166,8 @@ static void rk3588_soc_realize(DeviceState *dev, Error **errp)
     if (!rk3588_soc_create_hptimer(s, errp)) {
         return;
     }
+
+    create_unimplemented_devices(OBJECT(s), s->memory, rk3588_unimpl_devices);
 
     if (!memory_region_init_ram(&s->sram, OBJECT(s), "rk3588.sram",
                                 MiB, errp)) {

@@ -778,3 +778,4 @@ config AXIADO_EVK
 config RK3588
     bool
     select CPU_CLUSTER
+    select UNIMP
