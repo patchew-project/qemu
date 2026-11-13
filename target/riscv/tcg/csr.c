@@ -5732,6 +5732,9 @@ static RISCVException write_mcontext(CPURISCVState *env, int csrno,
     }
 
     env->mcontext = val & mask;
+#if !defined(CONFIG_USER_ONLY)
+    env->itrigger_enabled = riscv_itrigger_enabled(env);
+#endif
     return RISCV_EXCP_NONE;
 }
 
