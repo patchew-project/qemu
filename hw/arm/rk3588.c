@@ -29,7 +29,7 @@
 #define RK3588_MPIDR_AFF0_PER_AFF1   (1)
 
 #define RK3588_CNTFRQ                24000000
-
+#define RK3588_SFC_SPI               206
 #define RK3588_GIC_NUM_IRQS          512
 
 /* UART1-UART9 are modeled; UART0 in the PMU power domain is unimplemented. */
@@ -43,6 +43,7 @@ enum {
     RK3588_DEV_GIC_REDIST,
     RK3588_DEV_CRU,
     RK3588_DEV_OTP,
+    RK3588_DEV_SFC,
     RK3588_DEV_UART1,
     RK3588_DEV_UART2,
     RK3588_DEV_UART3,
@@ -60,6 +61,7 @@ static const MemMapEntry rk3588_memmap[] = {
     [RK3588_DEV_GIC_REDIST] = { 0xfe680000, 0x00100000 },
     [RK3588_DEV_CRU]        = { 0xfd7c0000, 0x0005c000 },
     [RK3588_DEV_OTP]        = { 0xfecc0000, 0x00000400 },
+    [RK3588_DEV_SFC]        = { 0xfe2b0000, 0x00004000 },
     [RK3588_DEV_UART1]      = { 0xfeb40000, 0x00010000 },
     [RK3588_DEV_UART2]      = { 0xfeb50000, 0x00010000 },
     [RK3588_DEV_UART3]      = { 0xfeb60000, 0x00010000 },
@@ -96,7 +98,6 @@ static const UnimplementedDeviceConfig rk3588_unimpl_devices[] = {
     RK3588_UNIMPLEMENTED("i2c0", 0xfd880000, 64 * KiB),
     RK3588_UNIMPLEMENTED("gpio0", 0xfd8a0000, 64 * KiB),
     RK3588_UNIMPLEMENTED("pwm0", 0xfd8b0000, 64 * KiB),
-    RK3588_UNIMPLEMENTED("fspi", 0xfe2b0000, 64 * KiB),
     RK3588_UNIMPLEMENTED("sdmmc", 0xfe2c0000, 64 * KiB),
     RK3588_UNIMPLEMENTED("sdio", 0xfe2d0000, 64 * KiB),
     RK3588_UNIMPLEMENTED("emmc", 0xfe2e0000, 64 * KiB),
@@ -233,6 +234,25 @@ static bool rk3588_soc_create_otp(RK3588SoCState *s, Error **errp)
     return true;
 }
 
+static bool rk3588_soc_create_sfc(RK3588SoCState *s, Error **errp)
+{
+    SysBusDevice *sfc = SYS_BUS_DEVICE(s->sfc);
+
+    object_property_set_link(OBJECT(s->sfc), "dma-memory",
+                             OBJECT(s->memory), &error_abort);
+    if (!sysbus_realize(sfc, errp)) {
+        return false;
+    }
+
+    memory_region_add_subregion(s->memory,
+        rk3588_memmap[RK3588_DEV_SFC].base,
+        sysbus_mmio_get_region(sfc, 0));
+    sysbus_connect_irq(sfc, 0,
+                       qdev_get_gpio_in(DEVICE(&s->gic), RK3588_SFC_SPI));
+
+    return true;
+}
+
 static bool rk3588_soc_create_uart(RK3588SoCState *s, Error **errp)
 {
     for (unsigned int i = RK3588_FIRST_UART; i < RK3588_NUM_UARTS; i++) {
@@ -308,6 +328,7 @@ static void rk3588_soc_realize(DeviceState *dev, Error **errp)
     if (!rk3588_soc_create_gic(s, errp) ||
         !rk3588_soc_create_cru(s, errp) ||
         !rk3588_soc_create_otp(s, errp) ||
+        !rk3588_soc_create_sfc(s, errp) ||
         !rk3588_soc_create_uart(s, errp) ||
         !rk3588_soc_create_hptimer(s, errp)) {
         return;
@@ -362,6 +383,10 @@ static void rk3588_soc_instance_init(Object *obj)
     s->otp = qdev_new("rockchip-otp");
     object_property_add_child(obj, "otp", OBJECT(s->otp));
     object_unref(OBJECT(s->otp));
+
+    s->sfc = qdev_new("rockchip-sfc");
+    object_property_add_child(obj, "sfc", OBJECT(s->sfc));
+    object_unref(OBJECT(s->sfc));
 
     s->hptimer = qdev_new(TYPE_ROCKCHIP_HPTIMER);
     object_property_add_child(obj, "hptimer", OBJECT(s->hptimer));

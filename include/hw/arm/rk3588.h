@@ -54,6 +54,7 @@ struct RK3588SoCState {
     DW8250State uart[RK3588_NUM_UARTS];
     DeviceState *cru;
     DeviceState *otp;
+    DeviceState *sfc;
     MemoryRegion *memory;
     MemoryRegion sram;
     DeviceState *hptimer;

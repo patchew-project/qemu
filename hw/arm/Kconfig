@@ -781,4 +781,5 @@ config RK3588
     select CPU_CLUSTER
     select DW8250
     select REGISTER
+    select ROCKCHIP_SFC
     select UNIMP
