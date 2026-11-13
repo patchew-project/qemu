@@ -42,6 +42,7 @@ enum {
     RK3588_DEV_GIC_DIST,
     RK3588_DEV_GIC_REDIST,
     RK3588_DEV_CRU,
+    RK3588_DEV_OTP,
     RK3588_DEV_UART1,
     RK3588_DEV_UART2,
     RK3588_DEV_UART3,
@@ -58,6 +59,7 @@ static const MemMapEntry rk3588_memmap[] = {
     [RK3588_DEV_GIC_DIST]   = { 0xfe600000, 0x00010000 },
     [RK3588_DEV_GIC_REDIST] = { 0xfe680000, 0x00100000 },
     [RK3588_DEV_CRU]        = { 0xfd7c0000, 0x0005c000 },
+    [RK3588_DEV_OTP]        = { 0xfecc0000, 0x00000400 },
     [RK3588_DEV_UART1]      = { 0xfeb40000, 0x00010000 },
     [RK3588_DEV_UART2]      = { 0xfeb50000, 0x00010000 },
     [RK3588_DEV_UART3]      = { 0xfeb60000, 0x00010000 },
@@ -111,7 +113,6 @@ static const UnimplementedDeviceConfig rk3588_unimpl_devices[] = {
     RK3588_UNIMPLEMENTED("gpio4", 0xfec50000, 64 * KiB),
     RK3588_UNIMPLEMENTED("i2c6", 0xfec80000, 64 * KiB),
     RK3588_UNIMPLEMENTED("i2c7", 0xfec90000, 64 * KiB),
-    RK3588_UNIMPLEMENTED("otp-ns", 0xfecc0000, 64 * KiB),
     RK3588_UNIMPLEMENTED("dmac2", 0xfed10000, 64 * KiB),
     { }
 };
@@ -217,6 +218,21 @@ static bool rk3588_soc_create_cru(RK3588SoCState *s, Error **errp)
     return true;
 }
 
+static bool rk3588_soc_create_otp(RK3588SoCState *s, Error **errp)
+{
+    SysBusDevice *otp = SYS_BUS_DEVICE(s->otp);
+
+    if (!sysbus_realize(otp, errp)) {
+        return false;
+    }
+
+    memory_region_add_subregion(s->memory,
+        rk3588_memmap[RK3588_DEV_OTP].base,
+        sysbus_mmio_get_region(otp, 0));
+
+    return true;
+}
+
 static bool rk3588_soc_create_uart(RK3588SoCState *s, Error **errp)
 {
     for (unsigned int i = RK3588_FIRST_UART; i < RK3588_NUM_UARTS; i++) {
@@ -291,6 +307,7 @@ static void rk3588_soc_realize(DeviceState *dev, Error **errp)
 
     if (!rk3588_soc_create_gic(s, errp) ||
         !rk3588_soc_create_cru(s, errp) ||
+        !rk3588_soc_create_otp(s, errp) ||
         !rk3588_soc_create_uart(s, errp) ||
         !rk3588_soc_create_hptimer(s, errp)) {
         return;
@@ -341,6 +358,10 @@ static void rk3588_soc_instance_init(Object *obj)
     s->cru = qdev_new("rockchip-cru");
     object_property_add_child(obj, "cru", OBJECT(s->cru));
     object_unref(OBJECT(s->cru));
+
+    s->otp = qdev_new("rockchip-otp");
+    object_property_add_child(obj, "otp", OBJECT(s->otp));
+    object_unref(OBJECT(s->otp));
 
     s->hptimer = qdev_new(TYPE_ROCKCHIP_HPTIMER);
     object_property_add_child(obj, "hptimer", OBJECT(s->hptimer));
