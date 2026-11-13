@@ -34,6 +34,11 @@ static bool tlb_match_asid(bool global, int asid, int tlb_asid)
     return !global && tlb_asid == asid;
 }
 
+static inline bool tlb_entry_matches_gid(const LoongArchTLB *tlb, uint8_t gid)
+{
+    return FIELD_EX64(tlb->tlb_misc, TLB_MISC, GID) == gid;
+}
+
 bool check_ps(CPULoongArchState *env, uint8_t tlb_ps)
 {
     CPUSysState *sys = env_sys(env);
