@@ -72,6 +72,9 @@ static bool iommufd_backend_prepare_delete(UserCreatable *uc, Error **errp)
                    object_get_canonical_path_component(OBJECT(uc)), be->users);
         return false;
     }
+    if (!be->owned) {
+        cpr_delete_fd(iommufd_fd_name(be), 0);
+    }
     return true;
 }
 
