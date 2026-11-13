@@ -279,7 +279,7 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
     memset(&addr, 0, sizeof(addr));
     addr.type = SOCKET_ADDRESS_TYPE_UNIX;
     addr.u.q_unix.path = (char *)sock_name;
-    proxy = vfio_user_connect_dev(&addr, errp);
+    proxy = vfio_user_connect_dev(&addr, OBJECT(pdev), errp);
     if (!proxy) {
         return;
     }
