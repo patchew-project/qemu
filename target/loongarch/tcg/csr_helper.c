@@ -111,7 +111,7 @@ target_ulong HELPER(csrwr_estat)(CPULoongArchState *env, target_ulong val)
      */
     if (sys->CSR_ESTAT != old_v) {
         bql_lock();
-        loongarch_cpu_update_irq(env_archcpu(env));
+        loongarch_cpu_update_irq(env_archcpu(env), false);
         bql_unlock();
     }
 

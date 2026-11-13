@@ -198,10 +198,10 @@ static void loongarch_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     }
 }
 
-static inline bool cpu_loongarch_hw_interrupts_enabled(CPULoongArchState *env)
+static inline bool cpu_loongarch_hw_interrupts_enabled(CPULoongArchState *env, int vm_level)
 {
     bool ret = 0;
-    CPUSysState *sys = env_sys(env);
+    CPUSysState *sys = get_sys(env, vm_level);
 
     ret = (FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, IE) &&
           !(FIELD_EX64(sys->CSR_DBG, CSR_DBG, DST)));
@@ -211,17 +211,33 @@ static inline bool cpu_loongarch_hw_interrupts_enabled(CPULoongArchState *env)
 
 static bool loongarch_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
-    if (interrupt_request & CPU_INTERRUPT_HARD) {
-        CPULoongArchState *env = cpu_env(cs);
+    CPULoongArchState *env = cpu_env(cs);
+    bool has_interrupt = false;
 
-        if (cpu_loongarch_hw_interrupts_enabled(env) &&
-            cpu_loongarch_hw_interrupts_pending(env)) {
-            /* Raise it */
-            cs->exception_index = EXCCODE_INT;
-            loongarch_cpu_do_interrupt(cs);
-            return true;
+    if (interrupt_request & CPU_INTERRUPT_HARD) {
+
+        if (cpu_loongarch_hw_interrupts_enabled(env, VM_LEVEL0) &&
+            cpu_loongarch_hw_interrupts_pending(env, VM_LEVEL0)) {
+            if (env_vm_level(env) != VM_LEVEL0) {
+                trigger_vm_exit(env);
+            }
+            has_interrupt = true;
+        }
+    } else if (interrupt_request & CPU_INTERRUPT_GUEST) {
+        if (cpu_loongarch_hw_interrupts_enabled(env, VM_LEVEL1) &&
+            cpu_loongarch_hw_interrupts_pending(env, VM_LEVEL1) &&
+            env_vm_level(env) == VM_LEVEL1) {
+            has_interrupt = true;
         }
     }
+
+    if (has_interrupt) {
+        /* Raise it */
+        cs->exception_index = EXCCODE_INT;
+        loongarch_cpu_do_interrupt(cs);
+        return true;
+    }
+
     return false;
 }
 

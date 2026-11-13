@@ -20,6 +20,8 @@
 #include "cpu-csr.h"
 #include "cpu-qom.h"
 
+#define CPU_INTERRUPT_GUEST CPU_INTERRUPT_TGT_EXT_0
+
 #define FCSR0_M1    0x1f         /* FCSR1 mask, Enables */
 #define FCSR0_M2    0x1f1f0000   /* FCSR2 mask, Cause and Flags */
 #define FCSR0_M3    0x300        /* FCSR3 mask, Round Mode */
@@ -242,6 +244,7 @@ extern const char * const fregnames[32];
 #define IRQ_TIMER   11
 #define IRQ_IPI     12
 #define INT_DMSI    14
+#define N_VIRQS     (N_IRQS * 2)
 
 #define MAX_PERF_EVENTS        16
 #define LOONGARCH_STLB         2048 /* 2048 STLB */

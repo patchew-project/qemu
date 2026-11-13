@@ -31,14 +31,14 @@ void restore_fp_status(CPULoongArchState *env);
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_loongarch_cpu;
 
-void loongarch_cpu_update_irq(LoongArchCPU *cpu);
+void loongarch_cpu_update_irq(LoongArchCPU *cpu, int vm_level);
 void loongarch_cpu_set_irq(void *opaque, int irq, int level);
 
 void cpu_loongarch_timer_cb(void *opaque);
 uint64_t cpu_loongarch_get_timer_counter(CPUTimerState *timer);
 uint64_t cpu_loongarch_get_timer_ticks(CPUTimerState *timer);
 void cpu_loongarch_set_timer_config(CPUTimerState *timer, uint64_t value);
-bool cpu_loongarch_hw_interrupts_pending(CPULoongArchState *env);
+bool cpu_loongarch_hw_interrupts_pending(CPULoongArchState *env, int vm_level);
 #endif /* !CONFIG_USER_ONLY */
 
 const char *loongarch_exception_name(int exception);

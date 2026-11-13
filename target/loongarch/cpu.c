@@ -58,16 +58,20 @@ static vaddr loongarch_cpu_get_pc(CPUState *cs)
 #ifndef CONFIG_USER_ONLY
 #include "hw/loongarch/virt.h"
 
-void loongarch_cpu_update_irq(LoongArchCPU *cpu)
+void loongarch_cpu_update_irq(LoongArchCPU *cpu, int vm_level)
 {
     CPULoongArchState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
-    CPUSysState *sys = env_sys(env);
+    CPUSysState *sys = get_sys(env, vm_level);
+    int interrupt = vm_level ? CPU_INTERRUPT_GUEST : CPU_INTERRUPT_HARD;
 
+    if (vm_level == VM_LEVEL1 && env_vm_level(env) != VM_LEVEL1) {
+        return;
+    }
     if (FIELD_EX64(sys->CSR_ESTAT, CSR_ESTAT, IS)) {
-        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+        cpu_interrupt(cs, interrupt);
     } else {
-        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(cs, interrupt);
     }
 }
 
@@ -75,13 +79,19 @@ static void loongarch_cpu_self_set_irq(CPUState *cs, run_on_cpu_data data)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(cs);
     CPULoongArchState *env = cpu_env(cs);
-    CPUSysState *sys = env_sys(env);
+    CPUSysState *sys;
+    int vm_level = 0;
     int irq, level;
 
     irq = data.host_int & ~BIT(31);
     level = (data.host_int >> 31) & 1;
+    if (irq >= N_IRQS) {
+        irq -= N_IRQS;
+        vm_level = 1;
+    }
+    sys = get_sys(env, vm_level);
     sys->CSR_ESTAT = deposit64(sys->CSR_ESTAT, irq, 1, level != 0);
-    loongarch_cpu_update_irq(cpu);
+    loongarch_cpu_update_irq(cpu, vm_level);
 }
 
 void loongarch_cpu_set_irq(void *opaque, int irq, int level)
@@ -104,11 +114,11 @@ void loongarch_cpu_set_irq(void *opaque, int irq, int level)
 }
 
 /* Check if there is pending and not masked out interrupt */
-bool cpu_loongarch_hw_interrupts_pending(CPULoongArchState *env)
+bool cpu_loongarch_hw_interrupts_pending(CPULoongArchState *env, int vm_level)
 {
     uint32_t pending;
     uint32_t status;
-    CPUSysState *sys = env_sys(env);
+    CPUSysState *sys = get_sys(env, vm_level);
 
     pending = FIELD_EX64(sys->CSR_ESTAT, CSR_ESTAT, IS);
     status  = FIELD_EX64(sys->CSR_ECFG, CSR_ECFG, LIE);
@@ -123,7 +133,11 @@ static bool loongarch_cpu_has_work(CPUState *cs)
     bool has_work = false;
 
     if (cpu_test_interrupt(cs, CPU_INTERRUPT_HARD) &&
-        cpu_loongarch_hw_interrupts_pending(cpu_env(cs))) {
+        cpu_loongarch_hw_interrupts_pending(cpu_env(cs), VM_LEVEL0)) {
+        has_work = true;
+    }
+    if (cpu_test_interrupt(cs, CPU_INTERRUPT_GUEST) &&
+        cpu_loongarch_hw_interrupts_pending(cpu_env(cs), VM_LEVEL1)) {
         has_work = true;
     }
 
