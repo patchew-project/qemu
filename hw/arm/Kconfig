@@ -783,3 +783,9 @@ config RK3588
     select REGISTER
     select ROCKCHIP_SFC
     select UNIMP
+
+config ROCK5B
+    bool
+    default y
+    depends on TCG && AARCH64
+    select RK3588

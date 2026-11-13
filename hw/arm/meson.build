@@ -121,5 +121,6 @@ arm_common_ss.add(when: ['CONFIG_AXIADO_EVK', 'TARGET_AARCH64'], if_true: files(
 arm_common_ss.add(files('boot.c'))
 
 arm_common_ss.add(when: 'CONFIG_RK3588', if_true: files('rk3588.c'))
+arm_common_ss.add(when: 'CONFIG_ROCK5B', if_true: files('rock-5b.c'))
 
 hw_common_arch += {'arm': arm_common_ss}
