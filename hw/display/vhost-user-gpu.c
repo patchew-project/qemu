@@ -638,6 +638,20 @@ static void
 vhost_user_gpu_reset(VirtIODevice *vdev)
 {
     VhostUserGPU *g = VHOST_USER_GPU(vdev);
+    int i;
+
+    /* release the scanouts before virtio_gpu_base_reset() drops ds */
+    for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
+        struct virtio_gpu_scanout *scanout = &g->parent_obj.scanout[i];
+
+        /* the guest may have left a GL scanout behind */
+        if (g->dmabuf[i]) {
+            qemu_console_gl_release_dmabuf(scanout->con, g->dmabuf[i]);
+            g_clear_pointer(&g->dmabuf[i], qemu_dmabuf_free);
+        }
+        qemu_console_gl_scanout_disable(scanout->con);
+        qemu_console_set_surface(scanout->con, NULL);
+    }
 
     virtio_gpu_base_reset(VIRTIO_GPU_BASE(vdev));
 
