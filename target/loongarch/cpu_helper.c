@@ -124,11 +124,11 @@ TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
     uint64_t dir_base, dir_width;
     uint64_t base, pte, old;
     int vm_level = mmu_idx_vm_level(mmu_idx);
-    int level, ptw_idx = MMU_DA_IDX;
+    int level, ptw_idx = vm_level ? MMU_GUEST_DA_IDX : MMU_DA_IDX;
     vaddr address;
     TLBRet ret;
-    CPUSysState *sys = env_sys(env);
     MemOpIdx oi;
+    CPUSysState *sys = get_sys(env, vm_level);
 
     address = context->addr;
     if ((address >> 63) & 0x1) {
@@ -148,7 +148,7 @@ TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
         /* get next level page directory */
         index = (address >> dir_base) & ((1 << dir_width) - 1);
         phys = base | index << 3;
-        base = cpu_ldq_le_mmuidx_ra(env, phys, ptw_idx, GETPC());
+		base = cpu_ldq_le_mmuidx_ra(env, phys, ptw_idx, GETPC());
         if (level) {
             if (FIELD_EX64(base, TLBENTRY, HUGE)) {
                 /* base is a huge pte */

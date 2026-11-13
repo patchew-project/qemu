@@ -40,7 +40,7 @@ typedef struct MMUContext {
 
 static inline bool cpu_has_ptw(CPULoongArchState *env, int vm_level)
 {
-    CPUSysState *sys = env_sys(env);
+    CPUSysState *sys = get_sys(env, vm_level);
 
     return !!FIELD_EX64(sys->CSR_PWCH, CSR_PWCH, HPTW_EN);
 }

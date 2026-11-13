@@ -717,6 +717,40 @@ static void ptw_update_tlb(CPULoongArchState *env, MMUContext *context,
     update_tlb_index(env, context, index, vm_level);
 }
 
+static void loongarch_try_ptw(CPULoongArchState *env, MMUContext *context,
+                              MMUAccessType access_type, int mmu_index,
+                              TLBRet *status, uintptr_t retaddr)
+{
+    int vm_level = mmu_idx_vm_level(mmu_index);
+
+    if (*status == TLBRET_MATCH && context->mmu_index != MMU_DA_IDX
+        && cpu_has_ptw(env, vm_level)) {
+        bool need_update = true;
+
+        if (access_type == MMU_DATA_STORE && pte_dirty(context->pte)) {
+            need_update = false;
+        } else if (access_type != MMU_DATA_STORE && pte_access(context->pte)) {
+            need_update = false;
+        }
+
+        if (need_update) {
+            *status = TLBRET_NOMATCH;
+        }
+    }
+
+    if (*status != TLBRET_MATCH && cpu_has_ptw(env, vm_level)) {
+        if (*status == TLBRET_NOMATCH || *status == TLBRET_INVALID) {
+            *status = loongarch_ptw(env, context, access_type, mmu_index, 0,
+                                    retaddr);
+            if (*status == TLBRET_MATCH) {
+                ptw_update_tlb(env, context, vm_level);
+            }
+        } else if (context->tlb_index >= 0) {
+            invalidate_tlb(env, context->tlb_index, vm_level);
+        }
+    }
+}
+
 bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                             MMUAccessType access_type, int mmu_idx,
                             bool probe, uintptr_t retaddr)
@@ -732,11 +766,11 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     context.tlb_index = -1;
     context.prot = PAGE_RWX;
     int curr_mmu_idx = mmu_idx;
-
     while (1) {
         prot = context.prot;
         ret = get_physical_address(env, &context, access_type, curr_mmu_idx, 0,
                                    retaddr);
+        loongarch_try_ptw(env, &context, access_type, curr_mmu_idx, &ret, retaddr);
         if (ret != TLBRET_MATCH) {
             address = context.addr;
             ret += TLBRET_HOST_MATCH *
@@ -763,34 +797,6 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
             curr_mmu_idx = (mmu_idx_vm_level(curr_mmu_idx) - 1) * MMU_KERNEL_IDX;
         } else {
             break;
-        }
-    }
-
-    if (ret == TLBRET_MATCH && context.mmu_index != MMU_DA_IDX
-        && cpu_has_ptw(env, env_vm_level(env))) {
-        bool need_update = true;
-
-        if (access_type == MMU_DATA_STORE && pte_dirty(context.pte)) {
-            need_update = false;
-        } else if (access_type != MMU_DATA_STORE && pte_access(context.pte)) {
-            need_update = false;
-        }
-
-        if (need_update) {
-            /* Need update bit A/D in PTE entry, take PTW again */
-            ret = TLBRET_NOMATCH;
-        }
-    }
-
-    if (ret != TLBRET_MATCH && cpu_has_ptw(env, env_vm_level(env))) {
-        /* Take HW PTW if TLB missed or bit P is zero */
-        if (ret == TLBRET_NOMATCH || ret == TLBRET_INVALID) {
-            ret = loongarch_ptw(env, &context, access_type, mmu_idx, 0, retaddr);
-            if (ret == TLBRET_MATCH) {
-                ptw_update_tlb(env, &context, env_vm_level(env));
-            }
-        } else if (context.tlb_index >= 0) {
-            invalidate_tlb(env, context.tlb_index, env_vm_level(env));
         }
     }
 
