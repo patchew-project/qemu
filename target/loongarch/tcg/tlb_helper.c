@@ -695,7 +695,42 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     /* Data access */
     context.addr = address;
     context.tlb_index = -1;
-    ret = get_physical_address(env, &context, access_type, mmu_idx, 0, retaddr);
+    context.prot = PAGE_RWX;
+    int curr_mmu_idx = mmu_idx;
+
+    while (1) {
+        prot = context.prot;
+        ret = get_physical_address(env, &context, access_type, curr_mmu_idx, 0,
+                                   retaddr);
+        if (ret != TLBRET_MATCH) {
+            address = context.addr;
+            ret += TLBRET_HOST_MATCH *
+            (mmu_idx_vm_level(mmu_idx) - mmu_idx_vm_level(curr_mmu_idx));
+            break;
+        } else {
+            /*
+            * Loads or instruction fetches must not cache write access to a
+            * clean PTE. The first store must enter PTW to set D, whether this
+            * translation came from the LoongArch TLB or a page table walk.
+            * Store walks have already handled D, but context.pte may still
+            * contain its old value. Direct mappings have no PTE to check.
+            */
+            if (cpu_has_ptw(env, mmu_idx_vm_level(curr_mmu_idx)) &&
+                context.mmu_index != MMU_DA_IDX &&
+                access_type != MMU_DATA_STORE && !pte_dirty(context.pte)) {
+                prot &= ~PAGE_WRITE;
+            }
+        }
+        context.addr = context.physical;
+        context.tlb_index = -1;
+        context.prot &= prot;
+        if (mmu_idx_vm_level(curr_mmu_idx)) {
+            curr_mmu_idx = (mmu_idx_vm_level(curr_mmu_idx) - 1) * MMU_KERNEL_IDX;
+        } else {
+            break;
+        }
+    }
+
     if (ret == TLBRET_MATCH && context.mmu_index != MMU_DA_IDX
         && cpu_has_ptw(env, env_vm_level(env))) {
         bool need_update = true;
@@ -727,18 +762,6 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     if (ret == TLBRET_MATCH) {
         physical = context.physical;
         prot = context.prot;
-
-        /*
-         * Loads or instruction fetches must not cache write access to a
-         * clean PTE. The first store must enter PTW to set D, whether this
-         * translation came from the LoongArch TLB or a page table walk.
-         * Store walks have already handled D, but context.pte may still
-         * contain its old value. Direct mappings have no PTE to check.
-         */
-        if (cpu_has_ptw(env, env_vm_level(env)) && context.mmu_index != MMU_DA_IDX &&
-            access_type != MMU_DATA_STORE && !pte_dirty(context.pte)) {
-            prot &= ~PAGE_WRITE;
-        }
 
         tlb_set_page(cs, address & TARGET_PAGE_MASK,
                      physical & TARGET_PAGE_MASK, prot,
