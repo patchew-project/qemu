@@ -276,6 +276,10 @@ struct VhostUserGPU {
     CharFrontend vhost_chr;
     QemuDmaBuf *dmabuf[VIRTIO_GPU_MAX_SCANOUTS];
     bool backend_blocked;
+
+    QEMUBH *reset_bh;
+    QemuCond reset_cond;
+    bool reset_finished;
 };
 
 #define MAX_SLOTS 4096
