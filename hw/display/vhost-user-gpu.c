@@ -193,6 +193,19 @@ vhost_user_gpu_unblock(VhostUserGPU *g)
     vhost_user_gpu_send_msg(g, &msg);
 }
 
+/*
+ * A surface not installed on the console is owned by the device, the
+ * installed one is freed by qemu_console_set_surface().
+ */
+static void
+vhost_user_gpu_clear_scanout_ds(struct virtio_gpu_scanout *s)
+{
+    if (s->ds && s->ds != qemu_console_surface(s->con)) {
+        qemu_free_displaysurface(s->ds);
+    }
+    s->ds = NULL;
+}
+
 static void
 vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
 {
@@ -263,6 +276,13 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
         s = &g->parent_obj.scanout[m->scanout_id];
         con = s->con;
 
+        if (g->dmabuf[m->scanout_id]) {
+            qemu_console_gl_release_dmabuf(con, g->dmabuf[m->scanout_id]);
+            g_clear_pointer(&g->dmabuf[m->scanout_id], qemu_dmabuf_free);
+        }
+
+        vhost_user_gpu_clear_scanout_ds(s);
+
         if (m->width == 0) {
             qemu_console_set_surface(con, NULL);
         } else {
@@ -290,7 +310,8 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
         }
 
         g->parent_obj.enable = 1;
-        con = g->parent_obj.scanout[m->scanout_id].con;
+        s = &g->parent_obj.scanout[m->scanout_id];
+        con = s->con;
         old = g->dmabuf[m->scanout_id];
 
         if (fd == -1) {
@@ -298,6 +319,7 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
                 qemu_console_gl_release_dmabuf(con, old);
                 g_clear_pointer(&g->dmabuf[m->scanout_id], qemu_dmabuf_free);
             }
+            vhost_user_gpu_clear_scanout_ds(s);
             qemu_console_gl_scanout_disable(con);
             break;
         }
@@ -306,6 +328,8 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
             VhostUserGpuDMABUFScanout2 *m2 = &msg->payload.dmabuf_scanout2;
             modifier = m2->modifier;
         }
+
+        vhost_user_gpu_clear_scanout_ds(s);
 
         dmabuf = qemu_dmabuf_new(m->width, m->height,
                                  &offset, &stride, 0, 0,
@@ -361,6 +385,11 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
 
         s = &g->parent_obj.scanout[m->scanout_id];
         con = s->con;
+        if (!s->ds) {
+            error_report("vhost-user-gpu: no 2D scanout surface"
+                         " for scanout %d", m->scanout_id);
+            break;
+        }
         pixman_image_t *image =
             pixman_image_create_bits(PIXMAN_x8r8g8b8,
                                      m->width,
@@ -663,6 +692,7 @@ vhost_user_gpu_reset_bh(void *opaque)
             g_clear_pointer(&g->dmabuf[i], qemu_dmabuf_free);
         }
         qemu_console_gl_scanout_disable(scanout->con);
+        vhost_user_gpu_clear_scanout_ds(scanout);
         qemu_console_set_surface(scanout->con, NULL);
     }
 
