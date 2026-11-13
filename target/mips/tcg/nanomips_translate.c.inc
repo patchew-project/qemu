@@ -4756,6 +4756,10 @@ static int decode_isa_nanomips(CPUMIPSState *env, DisasContext *ctx)
                 /* P16.BRI */
                 uint32_t opc = extract32(ctx->opcode, 4, 3) <
                                extract32(ctx->opcode, 7, 3) ? OPC_BEQ : OPC_BNE;
+                check_nms(ctx);
+                if (rs == rt) {
+                    break;
+                }
                 gen_compute_branch_nm(ctx, opc, 2, rs, rt,
                                       extract32(ctx->opcode, 0, 4) << 1);
             }
