@@ -780,4 +780,5 @@ config RK3588
     select ARM_GIC
     select CPU_CLUSTER
     select DW8250
+    select REGISTER
     select UNIMP

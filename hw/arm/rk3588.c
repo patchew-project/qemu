@@ -41,6 +41,7 @@
 enum {
     RK3588_DEV_GIC_DIST,
     RK3588_DEV_GIC_REDIST,
+    RK3588_DEV_CRU,
     RK3588_DEV_UART1,
     RK3588_DEV_UART2,
     RK3588_DEV_UART3,
@@ -56,6 +57,7 @@ enum {
 static const MemMapEntry rk3588_memmap[] = {
     [RK3588_DEV_GIC_DIST]   = { 0xfe600000, 0x00010000 },
     [RK3588_DEV_GIC_REDIST] = { 0xfe680000, 0x00100000 },
+    [RK3588_DEV_CRU]        = { 0xfd7c0000, 0x0005c000 },
     [RK3588_DEV_UART1]      = { 0xfeb40000, 0x00010000 },
     [RK3588_DEV_UART2]      = { 0xfeb50000, 0x00010000 },
     [RK3588_DEV_UART3]      = { 0xfeb60000, 0x00010000 },
@@ -89,12 +91,6 @@ static const UnimplementedDeviceConfig rk3588_unimpl_devices[] = {
     RK3588_UNIMPLEMENTED("vccio2-ioc", 0xfd5fb000, 4 * KiB),
     RK3588_UNIMPLEMENTED("vccio6-ioc", 0xfd5fc000, 4 * KiB),
     RK3588_UNIMPLEMENTED("emmc-ioc", 0xfd5fd000, 4 * KiB),
-    RK3588_UNIMPLEMENTED("cru-ns", 0xfd7c0000, 32 * KiB),
-    RK3588_UNIMPLEMENTED("php-ppll-cru", 0xfd7c8000, 32 * KiB),
-    RK3588_UNIMPLEMENTED("pmu1-cru", 0xfd7f0000, 64 * KiB),
-    RK3588_UNIMPLEMENTED("bigcore0-cru", 0xfd810000, 8 * KiB),
-    RK3588_UNIMPLEMENTED("bigcore1-cru", 0xfd812000, 8 * KiB),
-    RK3588_UNIMPLEMENTED("dsu-cru", 0xfd818000, 16 * KiB),
     RK3588_UNIMPLEMENTED("i2c0", 0xfd880000, 64 * KiB),
     RK3588_UNIMPLEMENTED("gpio0", 0xfd8a0000, 64 * KiB),
     RK3588_UNIMPLEMENTED("pwm0", 0xfd8b0000, 64 * KiB),
@@ -206,6 +202,21 @@ static bool rk3588_soc_create_gic(RK3588SoCState *s, Error **errp)
     return true;
 }
 
+static bool rk3588_soc_create_cru(RK3588SoCState *s, Error **errp)
+{
+    SysBusDevice *cru = SYS_BUS_DEVICE(s->cru);
+
+    if (!sysbus_realize(cru, errp)) {
+        return false;
+    }
+
+    memory_region_add_subregion(s->memory,
+        rk3588_memmap[RK3588_DEV_CRU].base,
+        sysbus_mmio_get_region(cru, 0));
+
+    return true;
+}
+
 static bool rk3588_soc_create_uart(RK3588SoCState *s, Error **errp)
 {
     for (unsigned int i = RK3588_FIRST_UART; i < RK3588_NUM_UARTS; i++) {
@@ -279,11 +290,9 @@ static void rk3588_soc_realize(DeviceState *dev, Error **errp)
     }
 
     if (!rk3588_soc_create_gic(s, errp) ||
+        !rk3588_soc_create_cru(s, errp) ||
+        !rk3588_soc_create_uart(s, errp) ||
         !rk3588_soc_create_hptimer(s, errp)) {
-        return;
-    }
-
-    if (!rk3588_soc_create_uart(s, errp)) {
         return;
     }
 
@@ -328,6 +337,10 @@ static void rk3588_soc_instance_init(Object *obj)
         object_property_add_alias(obj, alias, OBJECT(&s->uart[i]),
                                   "chardev");
     }
+
+    s->cru = qdev_new("rockchip-cru");
+    object_property_add_child(obj, "cru", OBJECT(s->cru));
+    object_unref(OBJECT(s->cru));
 
     s->hptimer = qdev_new(TYPE_ROCKCHIP_HPTIMER);
     object_property_add_child(obj, "hptimer", OBJECT(s->hptimer));

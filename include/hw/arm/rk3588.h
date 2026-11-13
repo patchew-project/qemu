@@ -52,6 +52,7 @@ struct RK3588SoCState {
     CPUClusterState cluster[RK3588_CLUSTER_COUNT];
     GICv3State gic;
     DW8250State uart[RK3588_NUM_UARTS];
+    DeviceState *cru;
     MemoryRegion *memory;
     MemoryRegion sram;
     DeviceState *hptimer;
