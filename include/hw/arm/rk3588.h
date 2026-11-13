@@ -36,6 +36,7 @@ typedef enum RK3588CpuClusterId {
     RK3588_A76_CPUS_PER_CLUSTER * (RK3588_CLUSTER_COUNT - 1))
 
 #define RK3588_SRAM_BASE             0xff000000
+#define RK3588_HPTIMER_BASE          0xfd8c8000
 
 struct RK3588SoCState {
     /*< private >*/
@@ -46,6 +47,7 @@ struct RK3588SoCState {
     CPUClusterState cluster[RK3588_CLUSTER_COUNT];
     MemoryRegion *memory;
     MemoryRegion sram;
+    DeviceState *hptimer;
 };
 
 #endif /* HW_ARM_RK3588_H */

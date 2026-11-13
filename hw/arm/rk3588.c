@@ -18,6 +18,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/core/sysbus.h"
 #include "hw/cpu/cluster.h"
+#include "hw/timer/rockchip-hptimer.h"
 #include "migration/vmstate.h"
 
 /* MPIDR Aff0 values per Aff1: 1 (one CPU per RK3588 cluster). */
@@ -45,6 +46,20 @@ static const struct {
 };
 
 G_STATIC_ASSERT(ARRAY_SIZE(rk3588_cpu_clusters) == RK3588_CLUSTER_COUNT);
+
+static bool rk3588_soc_create_hptimer(RK3588SoCState *s, Error **errp)
+{
+    SysBusDevice *hptimer = SYS_BUS_DEVICE(s->hptimer);
+
+    if (!sysbus_realize(hptimer, errp)) {
+        return false;
+    }
+
+    memory_region_add_subregion(s->memory, RK3588_HPTIMER_BASE,
+                                sysbus_mmio_get_region(hptimer, 0));
+
+    return true;
+}
 
 static void rk3588_soc_realize(DeviceState *dev, Error **errp)
 {
@@ -82,6 +97,10 @@ static void rk3588_soc_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    if (!rk3588_soc_create_hptimer(s, errp)) {
+        return;
+    }
+
     if (!memory_region_init_ram(&s->sram, OBJECT(s), "rk3588.sram",
                                 MiB, errp)) {
         return;
@@ -110,6 +129,10 @@ static void rk3588_soc_instance_init(Object *obj)
             n++;
         }
     }
+
+    s->hptimer = qdev_new(TYPE_ROCKCHIP_HPTIMER);
+    object_property_add_child(obj, "hptimer", OBJECT(s->hptimer));
+    object_unref(OBJECT(s->hptimer));
 }
 
 static const Property rk3588_soc_properties[] = {

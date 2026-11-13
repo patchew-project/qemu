@@ -1065,7 +1065,9 @@ M: Yifan Wang <w-yf22@mails.tsinghua.edu.cn>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/rk3588.c
+F: hw/timer/rockchip-hptimer.c
 F: include/hw/arm/rk3588.h
+F: include/hw/timer/rockchip-hptimer.h
 
 SABRELITE / i.MX6
 M: Peter Maydell <peter.maydell@linaro.org>
