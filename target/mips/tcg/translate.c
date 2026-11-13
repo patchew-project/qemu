@@ -13301,6 +13301,10 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
         MIPS_INVAL("PMON / selsl");
         gen_reserved_instruction(ctx);
 #else
+        if (ctx->insn_flags & ISA_MIPS_R6) {
+            gen_reserved_instruction(ctx);
+            break;
+        }
         gen_helper_pmon(tcg_env, tcg_constant_i32(sa));
 #endif
         break;
