@@ -1074,6 +1074,7 @@ F: hw/timer/rockchip-hptimer.c
 F: include/hw/arm/rk3588.h
 F: include/hw/misc/rk3588-scmci.h
 F: include/hw/timer/rockchip-hptimer.h
+F: tests/functional/aarch64/test_rock_5b.py
 
 SABRELITE / i.MX6
 M: Peter Maydell <peter.maydell@linaro.org>
