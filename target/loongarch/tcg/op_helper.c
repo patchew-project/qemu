@@ -20,9 +20,29 @@
 /* Exceptions helpers */
 void HELPER(raise_exception)(CPULoongArchState *env, uint32_t exception)
 {
+    CPUSysState *host;
+    int vm_exit = 0;
+
     if (exception == EXCCODE_GSPR || exception == EXCCODE_HVC) {
+        vm_exit = 1;
+    } else if (env_vm_level(env)) {
+        host = get_sys(env, VM_LEVEL0);
+        if (exception == EXCCODE_FPD &&
+            FIELD_EX64(host->CSR_EUEN, CSR_EUEN, FPE) == 0) {
+            vm_exit = 1;
+        } else if (exception == EXCCODE_SXD &&
+            FIELD_EX64(host->CSR_EUEN, CSR_EUEN, SXE) == 0) {
+            vm_exit = 1;
+        }
+        if (exception == EXCCODE_ASXD &&
+            FIELD_EX64(host->CSR_EUEN, CSR_EUEN, ASXE) == 0) {
+            vm_exit = 1;
+        }
+    }
+    if (vm_exit) {
         trigger_vm_exit(env);
     }
+
     do_raise_exception(env, exception, GETPC());
 }
 

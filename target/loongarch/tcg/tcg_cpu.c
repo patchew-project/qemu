@@ -261,16 +261,23 @@ static vaddr loongarch_pointer_wrap(CPUState *cs, int mmu_idx,
 static TCGTBCPUState loongarch_get_tb_cpu_state(CPUState *cs)
 {
     CPULoongArchState *env = cpu_env(cs);
-    CPUSysState *sys = env_sys(env);
-    uint32_t flags;
+    CPUSysState *sys = env_sys(env), *host;
+    uint32_t flags, fpe, sxe, asxe;
 
     flags = sys->CSR_CRMD & (R_CSR_CRMD_PLV_MASK | R_CSR_CRMD_PG_MASK);
+    fpe = FIELD_EX64(sys->CSR_EUEN, CSR_EUEN, FPE);
+    sxe = FIELD_EX64(sys->CSR_EUEN, CSR_EUEN, SXE);
+    asxe = FIELD_EX64(sys->CSR_EUEN, CSR_EUEN, ASXE);
     if (env_vm_level(env) == VM_LEVEL1) {
         flags |= HW_FLAGS_GUEST_MODE;
+        host = get_sys(env, VM_LEVEL0);
+        fpe &= FIELD_EX64(host->CSR_EUEN, CSR_EUEN, FPE);
+        sxe &= FIELD_EX64(host->CSR_EUEN, CSR_EUEN, SXE);
+        asxe &= FIELD_EX64(host->CSR_EUEN, CSR_EUEN, ASXE);
     }
-    flags |= FIELD_EX64(sys->CSR_EUEN, CSR_EUEN, FPE) * HW_FLAGS_EUEN_FPE;
-    flags |= FIELD_EX64(sys->CSR_EUEN, CSR_EUEN, SXE) * HW_FLAGS_EUEN_SXE;
-    flags |= FIELD_EX64(sys->CSR_EUEN, CSR_EUEN, ASXE) * HW_FLAGS_EUEN_ASXE;
+    flags |= fpe * HW_FLAGS_EUEN_FPE;
+    flags |= sxe * HW_FLAGS_EUEN_SXE;
+    flags |= asxe * HW_FLAGS_EUEN_ASXE;
     flags |= is_va32(env) * HW_FLAGS_VA32;
 
     return (TCGTBCPUState){ .pc = env->pc, .flags = flags };
