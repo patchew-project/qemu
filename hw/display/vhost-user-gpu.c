@@ -18,6 +18,7 @@
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
 #include "migration/blocker.h"
+#include "system/cpus.h"
 #include "standard-headers/drm/drm_fourcc.h"
 
 typedef enum VhostUserGpuRequest {
@@ -635,9 +636,9 @@ vhost_user_gpu_instance_finalize(Object *obj)
 }
 
 static void
-vhost_user_gpu_reset(VirtIODevice *vdev)
+vhost_user_gpu_reset_bh(void *opaque)
 {
-    VhostUserGPU *g = VHOST_USER_GPU(vdev);
+    VhostUserGPU *g = VHOST_USER_GPU(opaque);
     int i;
 
     /* release the scanouts before virtio_gpu_base_reset() drops ds */
@@ -651,6 +652,25 @@ vhost_user_gpu_reset(VirtIODevice *vdev)
         }
         qemu_console_gl_scanout_disable(scanout->con);
         qemu_console_set_surface(scanout->con, NULL);
+    }
+
+    g->reset_finished = true;
+    qemu_cond_signal(&g->reset_cond);
+}
+
+static void
+vhost_user_gpu_reset(VirtIODevice *vdev)
+{
+    VhostUserGPU *g = VHOST_USER_GPU(vdev);
+
+    if (qemu_in_vcpu_thread()) {
+        g->reset_finished = false;
+        qemu_bh_schedule(g->reset_bh);
+        while (!g->reset_finished) {
+            qemu_cond_wait_bql(&g->reset_cond);
+        }
+    } else {
+        aio_bh_call(g->reset_bh);
     }
 
     virtio_gpu_base_reset(VIRTIO_GPU_BASE(vdev));
@@ -699,7 +719,21 @@ vhost_user_gpu_device_realize(DeviceState *qdev, Error **errp)
         return;
     }
 
+    g->reset_bh = virtio_bh_io_new_guarded(qdev, vhost_user_gpu_reset_bh, g);
+    qemu_cond_init(&g->reset_cond);
+
     g->vhost_gpu_fd = -1;
+}
+
+static void
+vhost_user_gpu_device_unrealize(DeviceState *qdev)
+{
+    VhostUserGPU *g = VHOST_USER_GPU(qdev);
+
+    g_clear_pointer(&g->reset_bh, qemu_bh_delete);
+    qemu_cond_destroy(&g->reset_cond);
+
+    virtio_gpu_base_device_unrealize(qdev);
 }
 
 static struct vhost_dev *vhost_user_gpu_get_vhost(VirtIODevice *vdev)
@@ -722,6 +756,7 @@ vhost_user_gpu_class_init(ObjectClass *klass, const void *data)
     vgc->gl_flushed = vhost_user_gpu_gl_flushed;
 
     vdc->realize = vhost_user_gpu_device_realize;
+    vdc->unrealize = vhost_user_gpu_device_unrealize;
     vdc->reset = vhost_user_gpu_reset;
     vdc->set_status   = vhost_user_gpu_set_status;
     vdc->guest_notifier_mask = vhost_user_gpu_guest_notifier_mask;
