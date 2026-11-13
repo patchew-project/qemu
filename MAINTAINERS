@@ -1067,9 +1067,11 @@ S: Maintained
 F: hw/arm/rk3588.c
 F: hw/misc/rockchip_cru.c
 F: hw/misc/rockchip_otp.c
+F: hw/misc/rk3588-scmci.c
 F: hw/ssi/rockchip_sfc.c
 F: hw/timer/rockchip-hptimer.c
 F: include/hw/arm/rk3588.h
+F: include/hw/misc/rk3588-scmci.h
 F: include/hw/timer/rockchip-hptimer.h
 
 SABRELITE / i.MX6
