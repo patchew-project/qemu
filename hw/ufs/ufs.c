@@ -2577,9 +2577,6 @@ static UfsReqResult ufs_exec_query_cmd(UfsRequest *req)
                           data_segment_length);
     ufs_build_query_response(req);
 
-    if (status != UFS_QUERY_RESULT_SUCCESS) {
-        return UFS_REQUEST_FAIL;
-    }
     return UFS_REQUEST_SUCCESS;
 }
 

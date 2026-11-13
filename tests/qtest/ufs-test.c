@@ -1106,7 +1106,7 @@ static void ufstest_query_flag_request(void *obj, void *data,
     ocs = ufs_send_query(ufs, UFS_UPIU_QUERY_FUNC_STANDARD_READ_REQUEST,
                          UFS_UPIU_QUERY_OPCODE_READ_FLAG,
                          UFS_QUERY_FLAG_IDN_PURGE_ENABLE, 0, 0, 0, &rsp_upiu);
-    g_assert_cmpuint(ocs, ==, UFS_OCS_INVALID_CMD_TABLE_ATTR);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp_upiu.header.response, ==,
                      UFS_QUERY_RESULT_NOT_READABLE);
 
@@ -1114,7 +1114,7 @@ static void ufstest_query_flag_request(void *obj, void *data,
     ocs = ufs_send_query(ufs, UFS_UPIU_QUERY_FUNC_STANDARD_WRITE_REQUEST,
                          UFS_UPIU_QUERY_OPCODE_SET_FLAG,
                          UFS_QUERY_FLAG_IDN_BUSY_RTC, 0, 0, 0, &rsp_upiu);
-    g_assert_cmpuint(ocs, ==, UFS_OCS_INVALID_CMD_TABLE_ATTR);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp_upiu.header.response, ==,
                      UFS_QUERY_RESULT_NOT_WRITEABLE);
 
@@ -1206,7 +1206,7 @@ static void ufstest_query_attr_request(void *obj, void *data,
                          UFS_UPIU_QUERY_OPCODE_WRITE_ATTR,
                          UFS_QUERY_ATTR_IDN_ACTIVE_ICC_LVL, 0, 0, 0x10,
                          &rsp_upiu);
-    g_assert_cmpuint(ocs, ==, UFS_OCS_INVALID_CMD_TABLE_ATTR);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp_upiu.header.response, ==,
                      UFS_QUERY_RESULT_INVALID_VALUE);
 
@@ -1221,7 +1221,7 @@ static void ufstest_query_attr_request(void *obj, void *data,
     ocs = ufs_send_query(ufs, UFS_UPIU_QUERY_FUNC_STANDARD_READ_REQUEST,
                          UFS_UPIU_QUERY_OPCODE_READ_ATTR,
                          UFS_QUERY_ATTR_IDN_SECONDS_PASSED, 0, 0, 0, &rsp_upiu);
-    g_assert_cmpuint(ocs, ==, UFS_OCS_INVALID_CMD_TABLE_ATTR);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp_upiu.header.response, ==,
                      UFS_QUERY_RESULT_NOT_READABLE);
 
@@ -1229,7 +1229,7 @@ static void ufstest_query_attr_request(void *obj, void *data,
     ocs = ufs_send_query(ufs, UFS_UPIU_QUERY_FUNC_STANDARD_WRITE_REQUEST,
                          UFS_UPIU_QUERY_OPCODE_WRITE_ATTR,
                          UFS_QUERY_ATTR_IDN_POWER_MODE, 0, 0, 0x01, &rsp_upiu);
-    g_assert_cmpuint(ocs, ==, UFS_OCS_INVALID_CMD_TABLE_ATTR);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp_upiu.header.response, ==,
                      UFS_QUERY_RESULT_NOT_WRITEABLE);
 
@@ -1391,14 +1391,14 @@ static void ufstest_query_desc_request(void *obj, void *data,
     ocs = ufs_send_query(ufs, UFS_UPIU_QUERY_FUNC_STANDARD_READ_REQUEST,
                          UFS_UPIU_QUERY_OPCODE_READ_DESC,
                          UFS_QUERY_DESC_IDN_UNIT, 4, 0, 0, &rsp_upiu);
-    g_assert_cmpuint(ocs, ==, UFS_OCS_INVALID_CMD_TABLE_ATTR);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp_upiu.header.response, ==,
                      UFS_QUERY_RESULT_INVALID_INDEX);
 
     ocs = ufs_send_query(ufs, UFS_UPIU_QUERY_FUNC_STANDARD_READ_REQUEST,
                          UFS_UPIU_QUERY_OPCODE_READ_DESC,
                          UFS_QUERY_DESC_IDN_STRING, 5, 0, 0, &rsp_upiu);
-    g_assert_cmpuint(ocs, ==, UFS_OCS_INVALID_CMD_TABLE_ATTR);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp_upiu.header.response, ==,
                      UFS_QUERY_RESULT_INVALID_INDEX);
 
@@ -1406,14 +1406,14 @@ static void ufstest_query_desc_request(void *obj, void *data,
     ocs = ufs_send_query(ufs, UFS_UPIU_QUERY_FUNC_STANDARD_READ_REQUEST,
                          UFS_UPIU_QUERY_OPCODE_READ_DESC,
                          UFS_QUERY_DESC_IDN_DEVICE, 0, 1, 0, &rsp_upiu);
-    g_assert_cmpuint(ocs, ==, UFS_OCS_INVALID_CMD_TABLE_ATTR);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp_upiu.header.response, ==,
                      UFS_QUERY_RESULT_INVALID_SELECTOR);
 
     ocs = ufs_send_query(ufs, UFS_UPIU_QUERY_FUNC_STANDARD_READ_REQUEST,
                          UFS_UPIU_QUERY_OPCODE_READ_DESC,
                          UFS_QUERY_DESC_IDN_STRING, 0, 1, 0, &rsp_upiu);
-    g_assert_cmpuint(ocs, ==, UFS_OCS_INVALID_CMD_TABLE_ATTR);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp_upiu.header.response, ==,
                      UFS_QUERY_RESULT_INVALID_SELECTOR);
 
@@ -1748,19 +1748,19 @@ static void ufstest_hid(void *obj, void *data, QGuestAllocator *alloc)
     ocs = ufs_send_query(ufs, UFS_UPIU_QUERY_FUNC_STANDARD_WRITE_REQUEST,
                          UFS_UPIU_QUERY_OPCODE_WRITE_ATTR,
                          UFS_QUERY_ATTR_IDN_HID_AVAIL_SIZE, 0, 0, 0x100, &rsp);
-    g_assert_cmpuint(ocs, ==, UFS_OCS_INVALID_CMD_TABLE_ATTR);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp.header.response, ==, UFS_QUERY_RESULT_NOT_WRITEABLE);
 
     ocs = ufs_send_query(ufs, UFS_UPIU_QUERY_FUNC_STANDARD_WRITE_REQUEST,
                          UFS_UPIU_QUERY_OPCODE_WRITE_ATTR,
                          UFS_QUERY_ATTR_IDN_HID_PROG_RATIO, 0, 0, 50, &rsp);
-    g_assert_cmpuint(ocs, ==, UFS_OCS_INVALID_CMD_TABLE_ATTR);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp.header.response, ==, UFS_QUERY_RESULT_NOT_WRITEABLE);
 
     ocs = ufs_send_query(ufs, UFS_UPIU_QUERY_FUNC_STANDARD_WRITE_REQUEST,
                          UFS_UPIU_QUERY_OPCODE_WRITE_ATTR,
                          UFS_QUERY_ATTR_IDN_HID_STATE, 0, 0, 0x01, &rsp);
-    g_assert_cmpuint(ocs, ==, UFS_OCS_INVALID_CMD_TABLE_ATTR);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp.header.response, ==, UFS_QUERY_RESULT_NOT_WRITEABLE);
 
     /*
@@ -1769,7 +1769,7 @@ static void ufstest_hid(void *obj, void *data, QGuestAllocator *alloc)
     ocs = ufs_send_query(ufs, UFS_UPIU_QUERY_FUNC_STANDARD_WRITE_REQUEST,
                          UFS_UPIU_QUERY_OPCODE_WRITE_ATTR,
                          UFS_QUERY_ATTR_IDN_DEFRAG_OP, 0, 0, 0x03, &rsp);
-    g_assert_cmpuint(ocs, ==, UFS_OCS_INVALID_CMD_TABLE_ATTR);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp.header.response, ==, UFS_QUERY_RESULT_INVALID_VALUE);
 
     /*
