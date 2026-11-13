@@ -4131,6 +4131,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                     }
                     break;
                 case NM_CACHE:
+                    check_nms_dl_il_sl_tl_l2c(ctx);
                     check_cp0_enabled(ctx);
                     if (ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
                         gen_cache_operation(ctx, rt, rs, s);
