@@ -18,6 +18,7 @@
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
 #include "migration/blocker.h"
+#include "system/cpus.h"
 #include "standard-headers/drm/drm_fourcc.h"
 
 typedef enum VhostUserGpuRequest {
@@ -631,13 +632,16 @@ vhost_user_gpu_instance_finalize(Object *obj)
 {
     VhostUserGPU *g = VHOST_USER_GPU(obj);
 
+    g_clear_pointer(&g->reset_bh, qemu_bh_delete);
+    qemu_cond_destroy(&g->reset_cond);
+
     object_unref(OBJECT(g->vhost));
 }
 
 static void
-vhost_user_gpu_reset(VirtIODevice *vdev)
+vhost_user_gpu_reset_bh(void *opaque)
 {
-    VhostUserGPU *g = VHOST_USER_GPU(vdev);
+    VhostUserGPU *g = VHOST_USER_GPU(opaque);
     int i;
 
     /* release the scanouts before virtio_gpu_base_reset() drops ds */
@@ -651,6 +655,25 @@ vhost_user_gpu_reset(VirtIODevice *vdev)
         }
         qemu_console_gl_scanout_disable(scanout->con);
         qemu_console_set_surface(scanout->con, NULL);
+    }
+
+    g->reset_finished = true;
+    qemu_cond_signal(&g->reset_cond);
+}
+
+static void
+vhost_user_gpu_reset(VirtIODevice *vdev)
+{
+    VhostUserGPU *g = VHOST_USER_GPU(vdev);
+
+    if (qemu_in_vcpu_thread()) {
+        g->reset_finished = false;
+        qemu_bh_schedule(g->reset_bh);
+        while (!g->reset_finished) {
+            qemu_cond_wait_bql(&g->reset_cond);
+        }
+    } else {
+        aio_bh_call(g->reset_bh);
     }
 
     virtio_gpu_base_reset(VIRTIO_GPU_BASE(vdev));
@@ -698,6 +721,9 @@ vhost_user_gpu_device_realize(DeviceState *qdev, Error **errp)
     if (!virtio_gpu_base_device_realize(qdev, NULL, NULL, errp)) {
         return;
     }
+
+    g->reset_bh = virtio_bh_io_new_guarded(qdev, vhost_user_gpu_reset_bh, g);
+    qemu_cond_init(&g->reset_cond);
 
     g->vhost_gpu_fd = -1;
 }
