@@ -109,6 +109,12 @@ PCI devices (other than virtio):
   PCIe Upstream Switch Port (``-device pcie-upstream-port``)
 1b36:0016
   PCIe Downstream Switch Port (``-device pcie-downstream-port``)
+1b36:0017
+  Cnuas virtual RDMA network adapter (vfio-user device, out of tree),
+  https://cnuas.io/cnuas/docs/datasheets/CnuasNIC_Datasheet/
+1b36:0018
+  CnuasGPU virtual accelerator (vfio-user device, out of tree),
+  https://cnuas.io/cnuas/docs/datasheets/CnuasGPU_Datasheet/
 
 All these devices are documented in :doc:`index`.
 
