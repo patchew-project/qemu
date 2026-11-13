@@ -2419,18 +2419,8 @@ static void gen_compute_compact_branch_nm(DisasContext *ctx, uint32_t opc,
     /* compact branch */
     case OPC_BGEC:
     case OPC_BLTC:
-        gen_load_gpr(t0, rs);
-        gen_load_gpr(t1, rt);
-        bcond_compute = 1;
-        ctx->btarget = addr_add(ctx, ctx->base.pc_next + 4, offset);
-        break;
     case OPC_BGEUC:
     case OPC_BLTUC:
-        if (rs == 0 || rs == rt) {
-            /* OPC_BLEZALC, OPC_BGEZALC */
-            /* OPC_BGTZALC, OPC_BLTZALC */
-            tcg_gen_movi_tl(cpu_gpr[31], ctx->base.pc_next + 4);
-        }
         gen_load_gpr(t0, rs);
         gen_load_gpr(t1, rt);
         bcond_compute = 1;
@@ -2476,28 +2466,10 @@ static void gen_compute_compact_branch_nm(DisasContext *ctx, uint32_t opc,
 
         switch (opc) {
         case OPC_BGEUC:
-            if (rs == 0 && rt != 0) {
-                /* OPC_BLEZALC */
-                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_LE), t1, 0, fs);
-            } else if (rs != 0 && rt != 0 && rs == rt) {
-                /* OPC_BGEZALC */
-                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_GE), t1, 0, fs);
-            } else {
-                /* OPC_BGEUC */
-                tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_GEU), t0, t1, fs);
-            }
+            tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_GEU), t0, t1, fs);
             break;
         case OPC_BLTUC:
-            if (rs == 0 && rt != 0) {
-                /* OPC_BGTZALC */
-                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_GT), t1, 0, fs);
-            } else if (rs != 0 && rt != 0 && rs == rt) {
-                /* OPC_BLTZALC */
-                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_LT), t1, 0, fs);
-            } else {
-                /* OPC_BLTUC */
-                tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_LTU), t0, t1, fs);
-            }
+            tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_LTU), t0, t1, fs);
             break;
         case OPC_BGEC:
             if (rs == 0 && rt != 0) {
@@ -4414,7 +4386,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                 }
                 break;
             case NM_BLTUC:
-                if (rs == 0 || rs == rt) {
+                if (rs == rt) {
                     /* NOP */
                     ctx->hflags |= MIPS_HFLAG_FBNSLOT;
                 } else {
