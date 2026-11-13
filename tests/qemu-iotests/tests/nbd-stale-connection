@@ -12,13 +12,20 @@ import iotests
 from iotests import qemu_nbd_popen, qemu_img_create, file_path, log
 
 
-# estimated duration required by the connect thread to reach a running server
-MAX_NBD_CONNECT_DURATION = 1
-
 iotests.script_initialize(supported_fmts=['qcow2'])
 nbd_sock = file_path('nbd-sock', base_dir=iotests.sock_dir)
 disk = file_path('disk')
 qemu_img_create('-f', iotests.imgfmt, disk, '1M')
+
+
+def wait_for_parked_connection(virtm, node_name):
+    with iotests.Timeout(30, "connect-thread did not reach 'parked' state"):
+        while True:
+            client = virtm.qmp('x-debug-query-nbd-client', node_name=node_name)
+            if client['return']['connector']['state'] == 'parked':
+                return
+            time.sleep(0.1)
+
 
 with iotests.VM() as vm:
 
@@ -44,7 +51,7 @@ with iotests.VM() as vm:
         # in CONNECTING, the operation starts the connect thread
         log(vm.qmp('x-qemu-io', device='nbd0', command='write -P 0x5a 0 64k'))
         # wait for the connect thread to get a new channel and stop
-        time.sleep(MAX_NBD_CONNECT_DURATION)
+        wait_for_parked_connection(vm, 'nbd0')
 
     iotests.log('=== NBD server down. The parked channel is closed ===')
 
@@ -56,5 +63,5 @@ with iotests.VM() as vm:
         # Wait for it to succeed
         iotests.log('=== Wait for the connect thread to park the new channel. '
                     'Subsequent operations are successful ===')
-        time.sleep(MAX_NBD_CONNECT_DURATION)
+        wait_for_parked_connection(vm, 'nbd0')
         log(vm.qmp('x-qemu-io', device='nbd0', command='write -P 0x5a 0 64k'))
