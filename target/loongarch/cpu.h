@@ -578,6 +578,14 @@ static inline void trigger_vm_exit(CPULoongArchState *env)
     env->vm_exit = true;
 }
 
+static inline bool will_return_to_guest(CPULoongArchState *env)
+{
+    if (!cpu_has_lvz(env) || env_vm_level(env) == VM_LEVEL1) {
+        return false;
+    }
+    return FIELD_EX64(get_sys(env, VM_LEVEL0)->CSR_GSTAT, CSR_GSTAT, PVM);
+}
+
 static inline CPUTimerState *env_timer(CPULoongArchState *env)
 {
     return &env->sys_states[0].timer_state;
