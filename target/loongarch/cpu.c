@@ -332,7 +332,7 @@ static void loongarch_la464_initfn(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
     CPULoongArchState *env = &cpu->env;
-    CPUSysState *sys;
+    CPUSysState *sys, *guest;
     uint32_t data = 0, field;
     int i;
 
@@ -446,6 +446,9 @@ static void loongarch_la464_initfn(Object *obj)
 
     sys = env_sys(env);
     sys->CSR_ASID = FIELD_DP64(0, CSR_ASID, ASIDBITS, 0xa);
+    sys->CSR_GSTAT = FIELD_DP64(0, CSR_GSTAT, GIDBITS, 8);
+    guest = get_sys(env, VM_LEVEL1);
+    guest->CSR_ASID = FIELD_DP64(0, CSR_ASID, ASIDBITS, 0xa);
 
     sys->CSR_PRCFG1 = FIELD_DP64(sys->CSR_PRCFG1, CSR_PRCFG1, SAVE_NUM, 8);
     sys->CSR_PRCFG1 = FIELD_DP64(sys->CSR_PRCFG1, CSR_PRCFG1, TIMER_BITS, 0x2f);
