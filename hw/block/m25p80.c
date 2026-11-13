@@ -639,6 +639,19 @@ static void flash_erase(Flash *s, int offset, FlashCMD cmd)
         abort();
     }
 
+    /*
+     * The flash ignores the low address bits of erase commands and erases
+     * the containing erase unit. Reject requests whose erase unit is not
+     * entirely within the device.
+     */
+    offset &= ~(len - 1);
+    if (offset + len > s->size) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "M25P80: erase at 0x%x for %u bytes is outside the "
+                      "device (size 0x%x)\n", offset, len, s->size);
+        return;
+    }
+
     trace_m25p80_flash_erase(s, offset, len);
 
     if ((s->pi->flags & capa_to_assert) != capa_to_assert) {
