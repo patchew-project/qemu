@@ -624,7 +624,7 @@ static void loongarch_cpu_reset_hold(Object *obj, ResetType type)
     CPUState *cs = CPU(obj);
     LoongArchCPUClass *lacc = LOONGARCH_CPU_GET_CLASS(obj);
     CPULoongArchState *env = cpu_env(cs);
-    CPUSysState *sys = env_sys(env);
+    CPUSysState *sys = get_sys(env, VM_LEVEL0);
 
     if (lacc->parent_phases.hold) {
         lacc->parent_phases.hold(obj, type);
