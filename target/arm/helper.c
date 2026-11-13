@@ -36,6 +36,7 @@
 #include "cpregs.h"
 #include "target/arm/gtimer.h"
 #include "qemu/plugin.h"
+#include "hw/arm/arm-smc.h"
 
 static void switch_mode(CPUARMState *env, int mode);
 #ifndef CONFIG_USER_ONLY
@@ -9815,6 +9816,78 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
                   new_el, env->pc, pstate_read(env));
 }
 
+typedef struct ARMSCMCHandlerEntry {
+    uint64_t func_id;
+    ARMSCMCHandler handler;
+    void *opaque;
+    QTAILQ_ENTRY(ARMSCMCHandlerEntry) node;
+} ARMSCMCHandlerEntry;
+
+static QTAILQ_HEAD(, ARMSCMCHandlerEntry) arm_smc_handlers =
+    QTAILQ_HEAD_INITIALIZER(arm_smc_handlers);
+
+int arm_register_smc_handler(uint64_t func_id, ARMSCMCHandler handler,
+                             void *opaque)
+{
+    ARMSCMCHandlerEntry *entry;
+
+    QTAILQ_FOREACH(entry, &arm_smc_handlers, node) {
+        if (entry->func_id == func_id) {
+            return -1;
+        }
+    }
+
+    entry = g_new0(ARMSCMCHandlerEntry, 1);
+    entry->func_id = func_id;
+    entry->handler = handler;
+    entry->opaque = opaque;
+    QTAILQ_INSERT_TAIL(&arm_smc_handlers, entry, node);
+
+    return 0;
+}
+
+void arm_unregister_smc_handler(uint64_t func_id, ARMSCMCHandler handler)
+{
+    ARMSCMCHandlerEntry *entry, *next;
+
+    QTAILQ_FOREACH_SAFE(entry, &arm_smc_handlers, node, next) {
+        if (entry->func_id == func_id && entry->handler == handler) {
+            QTAILQ_REMOVE(&arm_smc_handlers, entry, node);
+            g_free(entry);
+            return;
+        }
+    }
+}
+
+bool arm_smc_handle_call(ARMCPU *cpu)
+{
+    CPUARMState *env = &cpu->env;
+    uint64_t func_id = is_a64(env) ? env->xregs[0] : env->regs[0];
+    ARMSCMCHandlerEntry *entry;
+
+    QTAILQ_FOREACH(entry, &arm_smc_handlers, node) {
+        uint64_t args[8], ret;
+
+        if (entry->func_id != func_id) {
+            continue;
+        }
+        for (size_t i = 0; i < ARRAY_SIZE(args); i++) {
+            args[i] = is_a64(env) ? env->xregs[i] : env->regs[i];
+        }
+        if (!entry->handler(args, &ret, entry->opaque)) {
+            return false;
+        }
+        if (is_a64(env)) {
+            env->xregs[0] = ret;
+        } else {
+            env->regs[0] = ret;
+        }
+        return true;
+    }
+
+    return false;
+}
+
 /*
  * Do semihosting call and set the appropriate return value. All the
  * permission and validity checks have been done at translate time.
@@ -9871,6 +9944,13 @@ void arm_cpu_do_interrupt(CPUState *cs)
         qemu_log_mask(CPU_LOG_INT, "...with ESR 0x%x/0x%" PRIx64 "\n",
                       syn_get_ec(env->exception.syndrome),
                       env->exception.syndrome);
+    }
+
+    if (tcg_enabled() && cs->exception_index == EXCP_SMC &&
+        arm_smc_handle_call(cpu)) {
+        qemu_log_mask(CPU_LOG_INT, "...handled as SMC handler call\n");
+        qemu_plugin_vcpu_hostcall_cb(cs, last_pc);
+        return;
     }
 
     if (tcg_enabled() && arm_is_psci_call(cpu, cs->exception_index)) {

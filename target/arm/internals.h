@@ -717,6 +717,9 @@ bool arm_is_psci_call(ARMCPU *cpu, int excp_type);
 /* Actually handle a PSCI call */
 void arm_handle_psci_call(ARMCPU *cpu);
 
+/* Dispatch a registered SMC handler call, if any. */
+bool arm_smc_handle_call(ARMCPU *cpu);
+
 /**
  * arm_clear_exclusive: clear the exclusive monitor
  * @env: CPU env
