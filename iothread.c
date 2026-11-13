@@ -377,12 +377,25 @@ static void iothread_set_poll_param(Object *obj, Visitor *v,
     }
 }
 
+static bool iothread_prepare_delete(EventLoopBase *base, Error **errp)
+{
+    IOThread *iothread = IOTHREAD(base);
+
+    if (iothread->holders) {
+        error_setg(errp, "Cannot delete IOThread '%s' while it is in use",
+                   object_get_canonical_path_component(OBJECT(iothread)));
+        return false;
+    }
+    return true;
+}
+
 static void iothread_class_init(ObjectClass *klass, const void *class_data)
 {
     EventLoopBaseClass *bc = EVENT_LOOP_BASE_CLASS(klass);
 
     bc->init = iothread_init;
     bc->update_params = iothread_set_aio_context_params;
+    bc->prepare_delete = iothread_prepare_delete;
 
     object_class_property_add(klass, "poll-max-ns", "int64", &int64_type_info,
                               iothread_get_poll_param,
