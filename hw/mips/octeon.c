@@ -11,6 +11,7 @@
 #include "qemu/datadir.h"
 #include "qapi/error.h"
 #include "hw/core/clock.h"
+#include "hw/core/irq.h"
 #include "hw/core/boards.h"
 #include "hw/core/qdev-clock.h"
 #include "hw/core/qdev-properties.h"
@@ -74,6 +75,28 @@ OBJECT_DECLARE_SIMPLE_TYPE(OcteonIntcState, OCTEON_INTC)
 #define OCTEON_CIU3_PP_RST_PENDING  0x110
 #define OCTEON_CIU3_NMI             0x160
 #define OCTEON_CIU3_FUSE            0x1a0
+#define OCTEON_CIU3_IDT_CTL(idt)    ((idt) * 8 + 0x110000U)
+#define OCTEON_CIU3_IDT_PP(idt)     ((idt) * 32 + 0x120000U)
+#define OCTEON_CIU3_IDT_IO(idt)     ((idt) * 8 + 0x130000U)
+#define OCTEON_CIU3_DEST_PP_INT(cpu) ((cpu) * 8 + 0x200000U)
+#define OCTEON_CIU3_DEST_PP_INT_INTSN_SHIFT 32
+#define OCTEON_CIU3_DEST_PP_INT_INTR 0x0000000000000001ULL
+#define OCTEON_CIU3_IDT_CTL_IP_NUM  0x7
+#define OCTEON_CIU3_CP0_IRQ_BASE    2
+#define OCTEON_CIU3_ISC_CTL_BASE    0x80000000U
+#define OCTEON_CIU3_ISC_W1C_BASE    0x90000000U
+#define OCTEON_CIU3_ISC_W1S_BASE    0xa0000000U
+#define OCTEON_CIU3_ISC_CTL_IDT     0x0000000000ff0000ULL
+#define OCTEON_CIU3_ISC_CTL_IDT_SHIFT 16
+#define OCTEON_CIU3_ISC_CTL_IMP     0x0000000000008000ULL
+#define OCTEON_CIU3_ISC_CTL_EN      0x0000000000000002ULL
+#define OCTEON_CIU3_ISC_CTL_RAW     0x0000000000000001ULL
+#define OCTEON_CIU3_SRC_LEVEL       0x00000001U
+#define OCTEON_CIU3_SRC_RAW         0x00000002U
+#define OCTEON_CIU3_NINTSN          (1U << 20)
+#define OCTEON_CIU3_ISC_SIZE        (OCTEON_CIU3_NINTSN * 8)
+#define OCTEON_CIU3_MBOX_INTSN(cpu) ((cpu) + 0x4000U)
+#define OCTEON_CIU3_UART0_INTSN     0x8000
 
 /*
  * QEMU-only backing for per-core CVMSEG. Keep it outside guest DRAM;
@@ -126,6 +149,13 @@ struct OcteonIntcState {
     OcteonPeripheralState parent_obj;
     MemoryRegion ciu3;
     uint64_t ciu3_pp_rst;
+    uint32_t ciu3_src_state[OCTEON_CIU3_SRC_COUNT];
+    uint64_t ciu3_src_ctl[OCTEON_CIU3_SRC_COUNT];
+    uint64_t ciu3_idt_ctl[OCTEON_CIU3_IDT_COUNT];
+    uint64_t ciu3_idt_pp[OCTEON_CIU3_IDT_COUNT];
+    uint64_t ciu3_idt_io[OCTEON_CIU3_IDT_COUNT];
+    uint16_t ciu3_src_cursor[OCTEON_MAX_CPUS][OCTEON_CIU3_CP0_IRQ_COUNT];
+    uint8_t ciu3_irq_line[OCTEON_MAX_CPUS][OCTEON_CIU3_CP0_IRQ_COUNT];
 };
 
 uint64_t octeon_read64(uint64_t value, hwaddr addr, unsigned size)
@@ -189,6 +219,286 @@ static void octeon_validate_clocks(OcteonMachineState *oms)
     }
 }
 
+static bool octeon_ciu3_source_from_intsn(uint32_t intsn,
+                                          unsigned int *source)
+{
+    if (intsn == OCTEON_CIU3_UART0_INTSN) {
+        *source = OCTEON_CIU3_SRC_UART0;
+        return true;
+    }
+    if (intsn >= OCTEON_CIU3_MBOX_INTSN(0) &&
+        intsn < OCTEON_CIU3_MBOX_INTSN(OCTEON_MAX_CPUS)) {
+        *source = OCTEON_CIU3_SRC_MBOX0 +
+                  intsn - OCTEON_CIU3_MBOX_INTSN(0);
+        return true;
+    }
+
+    return false;
+}
+
+static uint32_t octeon_ciu3_source_intsn(unsigned int source)
+{
+    switch (source) {
+    case OCTEON_CIU3_SRC_UART0:
+        return OCTEON_CIU3_UART0_INTSN;
+    }
+
+    if (source >= OCTEON_CIU3_SRC_MBOX0 &&
+        source < OCTEON_CIU3_SRC_COUNT) {
+        return OCTEON_CIU3_MBOX_INTSN(source - OCTEON_CIU3_SRC_MBOX0);
+    }
+
+    g_assert_not_reached();
+}
+
+static bool octeon_ciu3_source_is_level(unsigned int source)
+{
+    switch (source) {
+    case OCTEON_CIU3_SRC_UART0:
+        return true;
+    }
+
+    return false;
+}
+
+static bool octeon_ciu3_set_level(OcteonState *s, unsigned int source,
+                                  int level)
+{
+    uint32_t old;
+    uint32_t new;
+    uint32_t cmp = qatomic_read(&s->intc->ciu3_src_state[source]);
+
+    do {
+        old = cmp;
+        if (level) {
+            new = old | OCTEON_CIU3_SRC_LEVEL | OCTEON_CIU3_SRC_RAW;
+        } else {
+            new = old & ~(OCTEON_CIU3_SRC_LEVEL | OCTEON_CIU3_SRC_RAW);
+        }
+        if (new == old) {
+            return false;
+        }
+        cmp = qatomic_cmpxchg(&s->intc->ciu3_src_state[source], old, new);
+    } while (old != cmp);
+
+    return true;
+}
+
+static void octeon_ciu3_clear_raw(OcteonState *s, unsigned int source)
+{
+    uint32_t old;
+    uint32_t new;
+    uint32_t cmp = qatomic_read(&s->intc->ciu3_src_state[source]);
+
+    do {
+        old = cmp;
+        if (octeon_ciu3_source_is_level(source) &&
+            (old & OCTEON_CIU3_SRC_LEVEL)) {
+            new = old | OCTEON_CIU3_SRC_RAW;
+        } else {
+            new = old & ~OCTEON_CIU3_SRC_RAW;
+        }
+        if (new == old) {
+            return;
+        }
+        cmp = qatomic_cmpxchg(&s->intc->ciu3_src_state[source], old, new);
+    } while (old != cmp);
+}
+
+static bool octeon_ciu3_isc_decode(hwaddr reg, uint32_t base,
+                                   uint32_t *intsn)
+{
+    if (reg < base || reg >= base + OCTEON_CIU3_ISC_SIZE) {
+        return false;
+    }
+
+    *intsn = (reg - base) >> 3;
+    return true;
+}
+
+static uint64_t octeon_ciu3_isc_read(OcteonState *s, uint32_t intsn)
+{
+    unsigned int src;
+    uint64_t value;
+
+    if (!octeon_ciu3_source_from_intsn(intsn, &src)) {
+        return 0;
+    }
+
+    value = qatomic_read(&s->intc->ciu3_src_ctl[src]) | OCTEON_CIU3_ISC_CTL_IMP;
+    if (qatomic_read(&s->intc->ciu3_src_state[src]) & OCTEON_CIU3_SRC_RAW) {
+        value |= OCTEON_CIU3_ISC_CTL_RAW;
+    }
+    return value;
+}
+
+static bool octeon_ciu3_source_pending(OcteonState *s, unsigned int cpu_index,
+                                       unsigned int irq, unsigned int src)
+{
+    uint64_t ctl = qatomic_read(&s->intc->ciu3_src_ctl[src]);
+    unsigned int idt;
+    unsigned int output;
+
+    if (!(qatomic_read(&s->intc->ciu3_src_state[src]) & OCTEON_CIU3_SRC_RAW) ||
+        !(ctl & OCTEON_CIU3_ISC_CTL_EN)) {
+        return false;
+    }
+
+    idt = (ctl & OCTEON_CIU3_ISC_CTL_IDT) >>
+          OCTEON_CIU3_ISC_CTL_IDT_SHIFT;
+    if (idt >= OCTEON_CIU3_IDT_COUNT) {
+        return false;
+    }
+
+    output = qatomic_read(&s->intc->ciu3_idt_ctl[idt]) &
+             OCTEON_CIU3_IDT_CTL_IP_NUM;
+    if (output >= OCTEON_CIU3_CP0_IRQ_COUNT ||
+        irq != OCTEON_CIU3_CP0_IRQ_BASE + output) {
+        return false;
+    }
+
+    return qatomic_read(&s->intc->ciu3_idt_pp[idt]) & (1ULL << cpu_index);
+}
+
+static bool octeon_ciu3_pending_intsn(OcteonState *s, unsigned int cpu_index,
+                                      unsigned int irq, uint32_t *intsn)
+{
+    unsigned int src;
+
+    for (src = 0; src < OCTEON_CIU3_SRC_COUNT; src++) {
+        if (octeon_ciu3_source_pending(s, cpu_index, irq, src)) {
+            *intsn = octeon_ciu3_source_intsn(src);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool octeon_ciu3_pending_intsn_from(OcteonState *s,
+                                           unsigned int cpu_index,
+                                           unsigned int irq,
+                                           unsigned int first_src,
+                                           uint32_t *intsn,
+                                           unsigned int *source)
+{
+    unsigned int i;
+    unsigned int src;
+
+    for (i = 0; i < OCTEON_CIU3_SRC_COUNT; i++) {
+        src = (first_src + i) % OCTEON_CIU3_SRC_COUNT;
+        if (octeon_ciu3_source_pending(s, cpu_index, irq, src)) {
+            *intsn = octeon_ciu3_source_intsn(src);
+            *source = src;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool octeon_ciu3_pending_dest_intsn(OcteonState *s,
+                                           unsigned int cpu_index,
+                                           uint32_t *intsn)
+{
+    unsigned int irq;
+    unsigned int irq_index;
+    unsigned int src;
+
+    for (irq = OCTEON_CIU3_CP0_IRQ_BASE;
+         irq < OCTEON_CIU3_CP0_IRQ_BASE + OCTEON_CIU3_CP0_IRQ_COUNT;
+         irq++) {
+        irq_index = irq - OCTEON_CIU3_CP0_IRQ_BASE;
+        if (octeon_ciu3_pending_intsn_from(s, cpu_index, irq,
+                qatomic_read(&s->intc->ciu3_src_cursor[cpu_index][irq_index]),
+                intsn, &src)) {
+            qatomic_set(&s->intc->ciu3_src_cursor[cpu_index][irq_index],
+                        (src + 1) % OCTEON_CIU3_SRC_COUNT);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void octeon_ciu3_set_cpu_irq(OcteonState *s, unsigned int cpu_index,
+                                    unsigned int irq, bool level)
+{
+    CPUMIPSState *env = &s->cpu[cpu_index].cpu->env;
+    unsigned int irq_index = irq - OCTEON_CIU3_CP0_IRQ_BASE;
+    uint8_t new_level = level;
+    uint8_t old_level;
+
+    old_level = qatomic_xchg(&s->intc->ciu3_irq_line[cpu_index][irq_index],
+                             new_level);
+    if (old_level == new_level) {
+        return;
+    }
+
+    qemu_set_irq(env->irq[irq], level);
+}
+
+static void octeon_intc_update_cpu(OcteonState *s, unsigned int cpu_index)
+{
+    uint32_t intsn;
+    unsigned int irq;
+    bool level;
+
+    if (cpu_index >= s->cpu_count || !s->cpu[cpu_index].cpu) {
+        return;
+    }
+
+    if (qatomic_read(&s->intc->ciu3_pp_rst) & (1ULL << cpu_index)) {
+        for (irq = OCTEON_CIU3_CP0_IRQ_BASE;
+             irq < OCTEON_CIU3_CP0_IRQ_BASE + OCTEON_CIU3_CP0_IRQ_COUNT;
+             irq++) {
+            octeon_ciu3_set_cpu_irq(s, cpu_index, irq, false);
+        }
+        return;
+    }
+
+    for (irq = OCTEON_CIU3_CP0_IRQ_BASE;
+         irq < OCTEON_CIU3_CP0_IRQ_BASE + OCTEON_CIU3_CP0_IRQ_COUNT;
+         irq++) {
+        level = false;
+        if (octeon_ciu3_pending_intsn(s, cpu_index, irq, &intsn)) {
+            level = true;
+        }
+
+        octeon_ciu3_set_cpu_irq(s, cpu_index, irq, level);
+    }
+}
+
+static void octeon_intc_request_cpu_update(OcteonState *s,
+                                           unsigned int cpu_index)
+{
+    if (cpu_index >= s->cpu_count || !s->cpu[cpu_index].cpu) {
+        return;
+    }
+
+    octeon_intc_update_cpu(s, cpu_index);
+}
+
+static void octeon_intc_update_cpu_mask(OcteonState *s, uint64_t cpu_mask)
+{
+    unsigned int cpu;
+
+    for (cpu = 0; cpu < s->cpu_count; cpu++) {
+        if (cpu_mask & (1ULL << cpu)) {
+            octeon_intc_request_cpu_update(s, cpu);
+        }
+    }
+}
+
+static void octeon_intc_update_all_cpus(OcteonState *s)
+{
+    unsigned int cpu;
+
+    for (cpu = 0; cpu < s->cpu_count; cpu++) {
+        octeon_intc_request_cpu_update(s, cpu);
+    }
+}
+
 static uint64_t octeon_present_cpu_mask(OcteonState *s)
 {
     return (1ULL << s->cpu_count) - 1;
@@ -197,6 +507,24 @@ static uint64_t octeon_present_cpu_mask(OcteonState *s)
 static uint64_t octeon_secondary_cpu_mask(OcteonState *s)
 {
     return octeon_present_cpu_mask(s) & ~1ULL;
+}
+
+static uint64_t octeon_ciu3_ctl_cpu_mask(OcteonState *s, uint64_t ctl)
+{
+    unsigned int idt = (ctl & OCTEON_CIU3_ISC_CTL_IDT) >>
+                       OCTEON_CIU3_ISC_CTL_IDT_SHIFT;
+
+    if (idt >= OCTEON_CIU3_IDT_COUNT) {
+        return 0;
+    }
+
+    return qatomic_read(&s->intc->ciu3_idt_pp[idt]);
+}
+
+static uint64_t octeon_ciu3_source_cpu_mask(OcteonState *s, unsigned int src)
+{
+    return octeon_ciu3_ctl_cpu_mask(
+        s, qatomic_read(&s->intc->ciu3_src_ctl[src]));
 }
 
 static void octeon_cpu_park_now(MIPSCPU *cpu)
@@ -268,6 +596,9 @@ static uint64_t octeon_ciu3_read(void *opaque, hwaddr addr, unsigned size)
     OcteonState *s = opaque;
     hwaddr reg = addr & ~7ULL;
     uint64_t value;
+    uint32_t intsn;
+    unsigned int cpu;
+    unsigned int idt;
 
     if (reg == OCTEON_CIU3_PP_RST) {
         return octeon_read64(qatomic_read(&s->intc->ciu3_pp_rst), addr, size);
@@ -286,6 +617,51 @@ static uint64_t octeon_ciu3_read(void *opaque, hwaddr addr, unsigned size)
         return octeon_read64(value, addr, size);
     }
 
+    if (reg >= OCTEON_CIU3_IDT_CTL(0) &&
+        reg < OCTEON_CIU3_IDT_CTL(OCTEON_CIU3_IDT_COUNT)) {
+        idt = (reg - OCTEON_CIU3_IDT_CTL(0)) >> 3;
+        return octeon_read64(qatomic_read(&s->intc->ciu3_idt_ctl[idt]),
+                             addr, size);
+    }
+
+    if (reg >= OCTEON_CIU3_IDT_PP(0) &&
+        reg < OCTEON_CIU3_IDT_PP(OCTEON_CIU3_IDT_COUNT)) {
+        idt = (reg - OCTEON_CIU3_IDT_PP(0)) >> 5;
+        return octeon_read64(qatomic_read(&s->intc->ciu3_idt_pp[idt]),
+                             addr, size);
+    }
+
+    if (reg >= OCTEON_CIU3_IDT_IO(0) &&
+        reg < OCTEON_CIU3_IDT_IO(OCTEON_CIU3_IDT_COUNT)) {
+        idt = (reg - OCTEON_CIU3_IDT_IO(0)) >> 3;
+        return octeon_read64(qatomic_read(&s->intc->ciu3_idt_io[idt]),
+                             addr, size);
+    }
+
+    if (reg >= OCTEON_CIU3_DEST_PP_INT(0) &&
+        reg < OCTEON_CIU3_DEST_PP_INT(OCTEON_MAX_CPUS)) {
+        cpu = (reg - OCTEON_CIU3_DEST_PP_INT(0)) >> 3;
+        value = 0;
+        if (cpu < s->cpu_count) {
+            if (!(qatomic_read(&s->intc->ciu3_pp_rst) & (1ULL << cpu)) &&
+                octeon_ciu3_pending_dest_intsn(s, cpu, &intsn)) {
+                value = OCTEON_CIU3_DEST_PP_INT_INTR |
+                        ((uint64_t)intsn <<
+                         OCTEON_CIU3_DEST_PP_INT_INTSN_SHIFT);
+            }
+        }
+        return octeon_read64(value, addr, size);
+    }
+
+    if (octeon_ciu3_isc_decode(reg, OCTEON_CIU3_ISC_CTL_BASE, &intsn)) {
+        return octeon_read64(octeon_ciu3_isc_read(s, intsn), addr, size);
+    }
+
+    if (octeon_ciu3_isc_decode(reg, OCTEON_CIU3_ISC_W1C_BASE, &intsn) ||
+        octeon_ciu3_isc_decode(reg, OCTEON_CIU3_ISC_W1S_BASE, &intsn)) {
+        return octeon_read64(octeon_ciu3_isc_read(s, intsn), addr, size);
+    }
+
     return 0;
 }
 
@@ -295,7 +671,10 @@ static void octeon_ciu3_write(void *opaque, hwaddr addr,
     OcteonState *s = opaque;
     hwaddr reg = addr & ~7ULL;
     uint64_t old;
+    uint32_t intsn;
     unsigned int cpu;
+    unsigned int idt;
+    unsigned int src;
 
     if (reg == OCTEON_CIU3_PP_RST) {
         value = octeon_atomic_write64(&s->intc->ciu3_pp_rst, addr, value, size,
@@ -314,12 +693,88 @@ static void octeon_ciu3_write(void *opaque, hwaddr addr,
                 octeon_ciu3_start_cpu(s, cpu);
             }
         }
+        octeon_intc_update_all_cpus(s);
         return;
     }
 
     if (reg == OCTEON_CIU3_NMI) {
         octeon_ciu3_nmi(s, octeon_write64(0, addr, value, size));
+        octeon_intc_update_all_cpus(s);
         return;
+    }
+
+    if (reg >= OCTEON_CIU3_IDT_CTL(0) &&
+        reg < OCTEON_CIU3_IDT_CTL(OCTEON_CIU3_IDT_COUNT)) {
+        idt = (reg - OCTEON_CIU3_IDT_CTL(0)) >> 3;
+        octeon_atomic_write64(&s->intc->ciu3_idt_ctl[idt], addr, value, size,
+                              UINT64_MAX, 0, NULL);
+        octeon_intc_update_cpu_mask(
+            s, qatomic_read(&s->intc->ciu3_idt_pp[idt]));
+        return;
+    }
+
+    if (reg >= OCTEON_CIU3_IDT_PP(0) &&
+        reg < OCTEON_CIU3_IDT_PP(OCTEON_CIU3_IDT_COUNT)) {
+        idt = (reg - OCTEON_CIU3_IDT_PP(0)) >> 5;
+        value = octeon_atomic_write64(&s->intc->ciu3_idt_pp[idt], addr, value,
+                                      size, UINT64_MAX, 0, &old);
+        octeon_intc_update_cpu_mask(s, old | value);
+        return;
+    }
+
+    if (reg >= OCTEON_CIU3_IDT_IO(0) &&
+        reg < OCTEON_CIU3_IDT_IO(OCTEON_CIU3_IDT_COUNT)) {
+        idt = (reg - OCTEON_CIU3_IDT_IO(0)) >> 3;
+        octeon_atomic_write64(&s->intc->ciu3_idt_io[idt], addr, value, size,
+                              UINT64_MAX, 0, NULL);
+        octeon_intc_update_cpu_mask(
+            s, qatomic_read(&s->intc->ciu3_idt_pp[idt]));
+        return;
+    }
+
+    if (octeon_ciu3_isc_decode(reg, OCTEON_CIU3_ISC_CTL_BASE, &intsn)) {
+        if (octeon_ciu3_source_from_intsn(intsn, &src)) {
+            value = octeon_atomic_write64(&s->intc->ciu3_src_ctl[src], addr,
+                                          value, size,
+                                          ~OCTEON_CIU3_ISC_CTL_RAW,
+                                          0, &old);
+            octeon_intc_update_cpu_mask(s,
+                                        octeon_ciu3_ctl_cpu_mask(s, old) |
+                                        octeon_ciu3_ctl_cpu_mask(s, value));
+        }
+        return;
+    }
+
+    if (octeon_ciu3_isc_decode(reg, OCTEON_CIU3_ISC_W1C_BASE, &intsn)) {
+        if (octeon_ciu3_source_from_intsn(intsn, &src)) {
+            old = qatomic_read(&s->intc->ciu3_src_ctl[src]);
+            if (value & OCTEON_CIU3_ISC_CTL_EN) {
+                qatomic_and(&s->intc->ciu3_src_ctl[src],
+                            ~OCTEON_CIU3_ISC_CTL_EN);
+            }
+            if (value & OCTEON_CIU3_ISC_CTL_RAW) {
+                octeon_ciu3_clear_raw(s, src);
+            }
+            octeon_intc_update_cpu_mask(s,
+                                        octeon_ciu3_ctl_cpu_mask(s, old) |
+                                        octeon_ciu3_source_cpu_mask(s, src));
+        }
+        return;
+    }
+
+    if (octeon_ciu3_isc_decode(reg, OCTEON_CIU3_ISC_W1S_BASE, &intsn)) {
+        if (octeon_ciu3_source_from_intsn(intsn, &src)) {
+            old = qatomic_read(&s->intc->ciu3_src_ctl[src]);
+            if (value & OCTEON_CIU3_ISC_CTL_EN) {
+                qatomic_or(&s->intc->ciu3_src_ctl[src], OCTEON_CIU3_ISC_CTL_EN);
+            }
+            if (value & OCTEON_CIU3_ISC_CTL_RAW) {
+                qatomic_or(&s->intc->ciu3_src_state[src], OCTEON_CIU3_SRC_RAW);
+            }
+            octeon_intc_update_cpu_mask(s,
+                                        octeon_ciu3_ctl_cpu_mask(s, old) |
+                                        octeon_ciu3_source_cpu_mask(s, src));
+        }
     }
 }
 
@@ -332,6 +787,26 @@ static const MemoryRegionOps octeon_ciu3_ops = {
         .max_access_size = 8,
     },
 };
+
+void octeon_irq_set(void *opaque, int irq, int level)
+{
+    OcteonState *s = opaque;
+    unsigned int src;
+
+    switch (irq) {
+    case OCTEON_IRQ_UART:
+        src = OCTEON_CIU3_SRC_UART0;
+        if (!octeon_ciu3_set_level(s, src, level)) {
+            return;
+        }
+        break;
+    default:
+        return;
+    }
+
+    octeon_intc_update_cpu_mask(s, octeon_ciu3_source_cpu_mask(s, src));
+}
+
 
 static void octeon_cpu_after_reset(OcteonCPUState *cs)
 {
@@ -568,6 +1043,14 @@ static void octeon_intc_reset_hold(Object *obj, ResetType type)
     }
 
     qatomic_set(&intc->ciu3_pp_rst, octeon_secondary_cpu_mask(s));
+    memset(intc->ciu3_src_state, 0, sizeof(intc->ciu3_src_state));
+    memset(intc->ciu3_src_ctl, 0, sizeof(intc->ciu3_src_ctl));
+    memset(intc->ciu3_idt_ctl, 0, sizeof(intc->ciu3_idt_ctl));
+    memset(intc->ciu3_idt_pp, 0, sizeof(intc->ciu3_idt_pp));
+    memset(intc->ciu3_idt_io, 0, sizeof(intc->ciu3_idt_io));
+    memset(intc->ciu3_src_cursor, 0, sizeof(intc->ciu3_src_cursor));
+    memset(intc->ciu3_irq_line, 0, sizeof(intc->ciu3_irq_line));
+    octeon_intc_update_all_cpus(s);
 }
 
 static void octeon_peripheral_class_init(ObjectClass *klass,
