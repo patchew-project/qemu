@@ -93,26 +93,66 @@ vg_cmd_to_string(int cmd)
     }
 }
 
-static int
+static ssize_t
 vg_sock_fd_read(int sock, void *buf, ssize_t buflen)
 {
-    int ret;
+    ssize_t ret;
 
     do {
         ret = read(sock, buf, buflen);
     } while (ret < 0 && (errno == EINTR || errno == EAGAIN));
 
-    g_warn_if_fail(ret == buflen);
+    if (ret < 0) {
+        g_debug("%s: read: %s", G_STRFUNC, g_strerror(errno));
+        return -1;
+    }
+    if (ret == 0) {
+        g_debug("%s: frontend closed the connection", G_STRFUNC);
+        return -1;
+    }
+    if (ret != buflen) {
+        g_debug("%s: short read: %zd of %zd bytes",
+                G_STRFUNC, ret, buflen);
+        return -1;
+    }
+
     return ret;
 }
 
 static void
+vg_wait_drop(VuGpu *g)
+{
+    g_clear_handle_id(&g->wait_in, g_source_remove);
+    g_clear_pointer(&g->pending_cmd, free);
+}
+
+static void
+vg_wait_cancel(VuGpu *g)
+{
+    if (g->pending_cmd) {
+        /* the reply won't come, don't leave the guest waiting for it */
+        vg_ctrl_response_nodata(g, g->pending_cmd, VIRTIO_GPU_RESP_ERR_UNSPEC);
+    }
+    vg_wait_drop(g);
+}
+
+/* stop waiting for a frontend reply and close the socket */
+static void
 vg_sock_fd_close(VuGpu *g)
 {
+    vg_wait_cancel(g);
+
     if (g->sock_fd >= 0) {
         close(g->sock_fd);
         g->sock_fd = -1;
     }
+}
+
+/* resume the control queue */
+static void
+vg_ctrl_resume(VuGpu *g)
+{
+    vg_handle_ctrl(&g->dev.parent, 0);
 }
 
 static gboolean
@@ -121,7 +161,9 @@ source_wait_cb(gint fd, GIOCondition condition, gpointer user_data)
     VuGpu *g = user_data;
 
     if (!vg_recv_msg(g, VHOST_USER_GPU_DMABUF_UPDATE, 0, NULL)) {
-        return G_SOURCE_CONTINUE;
+        /* vg_recv_msg() closed the socket */
+        vg_ctrl_resume(g);
+        return G_SOURCE_REMOVE;
     }
 
     /* resume */
@@ -131,12 +173,18 @@ source_wait_cb(gint fd, GIOCondition condition, gpointer user_data)
     return G_SOURCE_REMOVE;
 }
 
-void
+bool
 vg_wait_ok(VuGpu *g)
 {
     assert(g->wait_in == 0);
+
+    if (g->sock_fd < 0) {
+        return false;
+    }
+
     g->wait_in = g_unix_fd_add(g->sock_fd, G_IO_IN | G_IO_HUP,
                                source_wait_cb, g);
+    return true;
 }
 
 static int
@@ -169,21 +217,34 @@ vg_sock_fd_write(int sock, const void *buf, ssize_t buflen, int fd)
         *((int *)CMSG_DATA(cmsg)) = fd;
     }
 
+    /* the frontend may have gone away, don't raise SIGPIPE */
     do {
-        ret = sendmsg(sock, &msg, 0);
+        ret = sendmsg(sock, &msg, MSG_NOSIGNAL);
     } while (ret == -1 && (errno == EINTR || errno == EAGAIN));
 
-    g_warn_if_fail(ret == buflen);
+    if (ret < 0) {
+        g_debug("%s: sendmsg: %s", G_STRFUNC, g_strerror(errno));
+        return -1;
+    }
+    if (ret != buflen) {
+        g_debug("%s: short write: %zd of %zd bytes",
+                G_STRFUNC, ret, buflen);
+        return -1;
+    }
+
     return ret;
 }
 
-void
+bool
 vg_send_msg(VuGpu *vg, const VhostUserGpuMsg *msg, int fd)
 {
     if (vg_sock_fd_write(vg->sock_fd, msg,
                          VHOST_USER_GPU_HDR_SIZE + msg->size, fd) < 0) {
         vg_sock_fd_close(vg);
+        return false;
     }
+
+    return true;
 }
 
 bool
@@ -198,9 +259,14 @@ vg_recv_msg(VuGpu *g, uint32_t expect_req, uint32_t expect_size,
         goto err;
     }
 
-    g_return_val_if_fail(req == expect_req, false);
-    g_return_val_if_fail(flags & VHOST_USER_GPU_MSG_FLAG_REPLY, false);
-    g_return_val_if_fail(size == expect_size, false);
+    if (!(req == expect_req &&
+          flags & VHOST_USER_GPU_MSG_FLAG_REPLY &&
+          size == expect_size)) {
+        g_debug("%s: bad reply req=0x%x flags=0x%x size=%u "
+                "(want req=0x%x size=%u)", G_STRFUNC, req, flags, size,
+                expect_req, expect_size);
+        goto err;
+    }
 
     if (size && vg_sock_fd_read(g->sock_fd, payload, size) != size) {
         goto err;
@@ -274,7 +340,9 @@ get_display_info_cb(gint fd, GIOCondition condition, gpointer user_data)
     assert(cmd && cmd->cmd_hdr.type == VIRTIO_GPU_CMD_GET_DISPLAY_INFO);
     if (!vg_recv_msg(vg, VHOST_USER_GPU_GET_DISPLAY_INFO,
                      sizeof(dpy_info), &dpy_info)) {
-        return G_SOURCE_CONTINUE;
+        /* vg_recv_msg() closed the socket */
+        vg_ctrl_resume(vg);
+        return G_SOURCE_REMOVE;
     }
 
     vg->pending_cmd = NULL;
@@ -282,7 +350,7 @@ get_display_info_cb(gint fd, GIOCondition condition, gpointer user_data)
     free(cmd);
 
     vg->wait_in = 0;
-    vg_handle_ctrl(&vg->dev.parent, 0);
+    vg_ctrl_resume(vg);
 
     return G_SOURCE_REMOVE;
 }
@@ -297,7 +365,10 @@ vg_get_display_info(VuGpu *vg, struct virtio_gpu_ctrl_command *cmd)
 
     assert(vg->wait_in == 0);
 
-    vg_send_msg(vg, &msg, -1);
+    if (!vg_send_msg(vg, &msg, -1)) {
+        cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+        return;
+    }
     vg->pending_cmd = cmd;
     vg->wait_in = g_unix_fd_add(vg->sock_fd, G_IO_IN | G_IO_HUP,
                                get_display_info_cb, vg);
@@ -315,7 +386,9 @@ get_edid_cb(gint fd, GIOCondition condition, gpointer user_data)
     assert(cmd && cmd->cmd_hdr.type == VIRTIO_GPU_CMD_GET_EDID);
     if (!vg_recv_msg(vg, VHOST_USER_GPU_GET_EDID,
                      sizeof(resp_edid), &resp_edid)) {
-        return G_SOURCE_CONTINUE;
+        /* vg_recv_msg() closed the socket */
+        vg_ctrl_resume(vg);
+        return G_SOURCE_REMOVE;
     }
 
     vg->pending_cmd = NULL;
@@ -323,7 +396,7 @@ get_edid_cb(gint fd, GIOCondition condition, gpointer user_data)
     free(cmd);
 
     vg->wait_in = 0;
-    vg_handle_ctrl(&vg->dev.parent, 0);
+    vg_ctrl_resume(vg);
 
     return G_SOURCE_REMOVE;
 }
@@ -346,7 +419,10 @@ vg_get_edid(VuGpu *vg, struct virtio_gpu_ctrl_command *cmd)
 
     assert(vg->wait_in == 0);
 
-    vg_send_msg(vg, &msg, -1);
+    if (!vg_send_msg(vg, &msg, -1)) {
+        cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+        return;
+    }
     vg->pending_cmd = cmd;
     vg->wait_in = g_unix_fd_add(vg->sock_fd, G_IO_IN | G_IO_HUP,
                                get_edid_cb, vg);
@@ -729,7 +805,9 @@ vg_set_scanout(VuGpu *g,
         };
 
         if (vugbm_buffer_get_dmabuf_fd(buffer, &fd)) {
-            vg_send_msg(g, &msg, fd);
+            if (!vg_send_msg(g, &msg, fd)) {
+                cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+            }
             close(fd);
         }
     } else {
@@ -742,7 +820,9 @@ vg_set_scanout(VuGpu *g,
                 .height = scanout->height
             }
         };
-        vg_send_msg(g, &msg, -1);
+        if (!vg_send_msg(g, &msg, -1)) {
+            cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+        }
     }
 }
 
@@ -814,8 +894,12 @@ vg_resource_flush(VuGpu *g,
                     .height = height,
                 }
             };
-            vg_send_msg(g, &vmsg, -1);
-            vg_wait_ok(g);
+            if (!vg_send_msg(g, &vmsg, -1) || !vg_wait_ok(g)) {
+                pixman_region_fini(&region);
+                pixman_region_fini(&finalregion);
+                cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+                break;
+            }
         } else {
             size_t bpp =
                 PIXMAN_FORMAT_BPP(pixman_image_get_format(res->image)) / 8;
@@ -852,7 +936,9 @@ vg_resource_flush(VuGpu *g,
                                    0, 0, 0, 0,
                                    width, height);
             pixman_image_unref(img);
-            vg_send_msg(g, msg, -1);
+            if (!vg_send_msg(g, msg, -1)) {
+                cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+            }
             g_free(msg);
         }
         pixman_region_fini(&region);
@@ -1064,12 +1150,16 @@ vg_panic(VuDev *dev, const char *msg)
 static void
 vg_queue_set_started(VuDev *dev, int qidx, bool started)
 {
+    VuGpu *g = container_of(dev, VuGpu, dev.parent);
     VuVirtq *vq = vu_get_queue(dev, qidx);
 
     g_debug("queue started %d:%d\n", qidx, started);
 
     switch (qidx) {
     case 0:
+        if (!started) {
+            vg_wait_drop(g);
+        }
         vu_set_queue_handler(dev, vq, started ? vg_handle_ctrl : NULL);
         break;
     case 1:
@@ -1093,7 +1183,9 @@ protocol_features_cb(gint fd, GIOCondition condition, gpointer user_data)
 
     if (!vg_recv_msg(g, msg.request,
                      sizeof(protocol_features), &protocol_features)) {
-        return G_SOURCE_CONTINUE;
+        /* vg_recv_msg() closed the socket and removed this source */
+        vg_ctrl_resume(g);
+        return G_SOURCE_REMOVE;
     }
 
     protocol_features &= (protocol_edid | protocol_dmabuf2);
@@ -1126,7 +1218,9 @@ set_gpu_protocol_features(VuGpu *g)
         .request = VHOST_USER_GPU_GET_PROTOCOL_FEATURES,
     };
 
-    vg_send_msg(g, &msg, -1);
+    if (!vg_send_msg(g, &msg, -1)) {
+        return;
+    }
     assert(g->wait_in == 0);
     g->wait_in = g_unix_fd_add(g->sock_fd, G_IO_IN | G_IO_HUP,
                                protocol_features_cb, g);
@@ -1140,7 +1234,8 @@ vg_process_msg(VuDev *dev, VhostUserMsg *msg, int *do_reply)
     switch (msg->request) {
     case VHOST_USER_GPU_SET_SOCKET: {
         g_return_val_if_fail(msg->fd_num == 1, 1);
-        g_return_val_if_fail(g->sock_fd == -1, 1);
+        /* the frontend replaces the socket on device start */
+        vg_sock_fd_close(g);
         g->sock_fd = msg->fds[0];
         set_gpu_protocol_features(g);
         return 1;
@@ -1229,6 +1324,9 @@ static void
 vg_destroy(VuGpu *g)
 {
     struct virtio_gpu_simple_resource *res, *tmp;
+
+    /* the guest is gone, don't try to complete a pending command */
+    vg_wait_drop(g);
 
     vug_deinit(&g->dev);
 
