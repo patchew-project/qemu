@@ -17,6 +17,7 @@
 #include "target/arm/cpu.h"
 #include "hw/core/qdev.h"
 #include "hw/cpu/cluster.h"
+#include "hw/intc/arm_gicv3.h"
 #include "system/memory.h"
 
 #define TYPE_RK3588_SOC "rockchip.rk3588.soc"
@@ -45,6 +46,7 @@ struct RK3588SoCState {
     /*< public >*/
     ARMCPU cpu[RK3588_NUM_CPUS];
     CPUClusterState cluster[RK3588_CLUSTER_COUNT];
+    GICv3State gic;
     MemoryRegion *memory;
     MemoryRegion sram;
     DeviceState *hptimer;

@@ -777,5 +777,6 @@ config AXIADO_EVK
 
 config RK3588
     bool
+    select ARM_GIC
     select CPU_CLUSTER
     select UNIMP

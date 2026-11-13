@@ -15,17 +15,33 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/arm/rk3588.h"
+#include "hw/arm/bsa.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/sysbus.h"
 #include "hw/cpu/cluster.h"
 #include "hw/misc/unimp.h"
 #include "hw/timer/rockchip-hptimer.h"
 #include "migration/vmstate.h"
+#include "qobject/qlist.h"
+#include "target/arm/gtimer.h"
 
 /* MPIDR Aff0 values per Aff1: 1 (one CPU per RK3588 cluster). */
 #define RK3588_MPIDR_AFF0_PER_AFF1   (1)
 
 #define RK3588_CNTFRQ                24000000
+
+#define RK3588_GIC_NUM_IRQS          512
+
+enum {
+    RK3588_DEV_GIC_DIST,
+    RK3588_DEV_GIC_REDIST,
+};
+
+/* Memory map of the modeled peripherals. */
+static const MemMapEntry rk3588_memmap[] = {
+    [RK3588_DEV_GIC_DIST]   = { 0xfe600000, 0x00010000 },
+    [RK3588_DEV_GIC_REDIST] = { 0xfe680000, 0x00100000 },
+};
 
 #define RK3588_UNIMPLEMENTED(name, base, size) \
     { "unimpl-" name, "rk3588." name, base, size, -1000 }
@@ -63,7 +79,6 @@ static const UnimplementedDeviceConfig rk3588_unimpl_devices[] = {
     RK3588_UNIMPLEMENTED("sdio", 0xfe2d0000, 64 * KiB),
     RK3588_UNIMPLEMENTED("emmc", 0xfe2e0000, 64 * KiB),
     RK3588_UNIMPLEMENTED("trng-ns", 0xfe378000, 32 * KiB),
-    RK3588_UNIMPLEMENTED("gic600", 0xfe600000, 4 * MiB),
     RK3588_UNIMPLEMENTED("dmac0", 0xfea10000, 64 * KiB),
     RK3588_UNIMPLEMENTED("dmac1", 0xfea30000, 64 * KiB),
     RK3588_UNIMPLEMENTED("i2c4", 0xfeac0000, 64 * KiB),
@@ -112,6 +127,69 @@ static const struct {
 };
 
 G_STATIC_ASSERT(ARRAY_SIZE(rk3588_cpu_clusters) == RK3588_CLUSTER_COUNT);
+
+static bool rk3588_soc_create_gic(RK3588SoCState *s, Error **errp)
+{
+    DeviceState *gicdev = DEVICE(&s->gic);
+    SysBusDevice *gicsbd = SYS_BUS_DEVICE(gicdev);
+    QList *redist_region_count = qlist_new();
+
+    qdev_prop_set_uint32(gicdev, "num-cpu", RK3588_NUM_CPUS);
+    qdev_prop_set_uint32(gicdev, "num-irq", RK3588_GIC_NUM_IRQS);
+    qlist_append_int(redist_region_count, RK3588_NUM_CPUS);
+    qdev_prop_set_array(gicdev, "redist-region-count", redist_region_count);
+    object_property_set_link(OBJECT(gicdev), "sysmem",
+                             OBJECT(s->memory), &error_abort);
+
+    if (!sysbus_realize(gicsbd, errp)) {
+        return false;
+    }
+
+    memory_region_add_subregion(s->memory,
+        rk3588_memmap[RK3588_DEV_GIC_DIST].base,
+        sysbus_mmio_get_region(gicsbd, 0));
+    memory_region_add_subregion(s->memory,
+        rk3588_memmap[RK3588_DEV_GIC_REDIST].base,
+        sysbus_mmio_get_region(gicsbd, 1));
+
+    for (unsigned int i = 0; i < RK3588_NUM_CPUS; i++) {
+        DeviceState *cpudev = DEVICE(&s->cpu[i]);
+        int intidbase = RK3588_GIC_NUM_IRQS - GIC_INTERNAL + (i * GIC_INTERNAL);
+        static const int timer_irqs[] = {
+            [GTIMER_PHYS] = ARCH_TIMER_NS_EL1_IRQ,
+            [GTIMER_VIRT] = ARCH_TIMER_VIRT_IRQ,
+            [GTIMER_HYP] = ARCH_TIMER_NS_EL2_IRQ,
+            [GTIMER_SEC] = ARCH_TIMER_S_EL1_IRQ,
+            [GTIMER_HYPVIRT] = ARCH_TIMER_NS_EL2_VIRT_IRQ,
+        };
+
+        for (unsigned int j = 0; j < ARRAY_SIZE(timer_irqs); j++) {
+            qdev_connect_gpio_out(cpudev, j,
+                                  qdev_get_gpio_in(gicdev,
+                                                   intidbase + timer_irqs[j]));
+        }
+
+        qdev_connect_gpio_out_named(cpudev, "gicv3-maintenance-interrupt", 0,
+                                    qdev_get_gpio_in(gicdev,
+                                                     intidbase +
+                                                     ARCH_GIC_MAINT_IRQ));
+        qdev_connect_gpio_out_named(cpudev, "pmu-interrupt", 0,
+                                    qdev_get_gpio_in(gicdev,
+                                                     intidbase +
+                                                     VIRTUAL_PMU_IRQ));
+
+        sysbus_connect_irq(gicsbd, i,
+                           qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
+        sysbus_connect_irq(gicsbd, i + RK3588_NUM_CPUS,
+                           qdev_get_gpio_in(cpudev, ARM_CPU_FIQ));
+        sysbus_connect_irq(gicsbd, i + 2 * RK3588_NUM_CPUS,
+                           qdev_get_gpio_in(cpudev, ARM_CPU_VIRQ));
+        sysbus_connect_irq(gicsbd, i + 3 * RK3588_NUM_CPUS,
+                           qdev_get_gpio_in(cpudev, ARM_CPU_VFIQ));
+    }
+
+    return true;
+}
 
 static bool rk3588_soc_create_hptimer(RK3588SoCState *s, Error **errp)
 {
@@ -163,10 +241,10 @@ static void rk3588_soc_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    if (!rk3588_soc_create_hptimer(s, errp)) {
+    if (!rk3588_soc_create_gic(s, errp) ||
+        !rk3588_soc_create_hptimer(s, errp)) {
         return;
     }
-
     create_unimplemented_devices(OBJECT(s), s->memory, rk3588_unimpl_devices);
 
     if (!memory_region_init_ram(&s->sram, OBJECT(s), "rk3588.sram",
@@ -197,6 +275,8 @@ static void rk3588_soc_instance_init(Object *obj)
             n++;
         }
     }
+
+    object_initialize_child(obj, "gic", &s->gic, TYPE_ARM_GICV3);
 
     s->hptimer = qdev_new(TYPE_ROCKCHIP_HPTIMER);
     object_property_add_child(obj, "hptimer", OBJECT(s->hptimer));
