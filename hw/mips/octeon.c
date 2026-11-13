@@ -64,7 +64,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(OcteonCsrBankState, OCTEON_CSR_BANK)
 
 /*
  * The physical layout follows U-Boot's generic Octeon III
- * OCTEON_MAX_PHY_MEM_SIZE value. Keep 1 GiB as the tested default.
+ * OCTEON_MAX_PHY_MEM_SIZE value. The synthesized DDR4 SPD below accepts
+ * power-of-two RAM sizes from 256 MiB through 32 GiB. Keep 1 GiB as the
+ * tested default.
  */
 #define OCTEON_DEFAULT_RAM_SIZE     (1 * GiB)
 #define OCTEON_MAX_PHY_MEM_SIZE     (512 * GiB)
@@ -1884,6 +1886,8 @@ static void mips_octeon_init(MachineState *machine)
         exit(1);
     }
 
+    octeon_validate_ram_size(machine->ram_size);
+    octeon_init_spd(s);
     octeon_map_ram(s);
     octeon_init_flash(s);
     octeon_init_mio_boot_loc(s);
@@ -1902,6 +1906,8 @@ static void mips_octeon_init(MachineState *machine)
                                 &s->intc->ciu3);
 
     octeon_init_uart(s);
+    octeon_init_twsi(s);
+
     memory_region_init_io(&s->csr_bank->csr, OBJECT(s->csr_bank),
                           &octeon_csr_ops, s,
                           "octeon.csr", OCTEON_CSR_SIZE);
