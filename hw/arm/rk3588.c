@@ -19,6 +19,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/core/sysbus.h"
 #include "hw/cpu/cluster.h"
+#include "hw/misc/rk3588-scmci.h"
 #include "hw/misc/unimp.h"
 #include "hw/timer/rockchip-hptimer.h"
 #include "migration/vmstate.h"
@@ -29,6 +30,7 @@
 #define RK3588_MPIDR_AFF0_PER_AFF1   (1)
 
 #define RK3588_CNTFRQ                24000000
+#define RK3588_SCMI_SHMEM_BASE       0x0010f000
 #define RK3588_SFC_SPI               206
 #define RK3588_GIC_NUM_IRQS          512
 
@@ -253,6 +255,21 @@ static bool rk3588_soc_create_sfc(RK3588SoCState *s, Error **errp)
     return true;
 }
 
+static bool rk3588_soc_create_scmi(RK3588SoCState *s, Error **errp)
+{
+    SysBusDevice *scmi = SYS_BUS_DEVICE(s->scmi);
+
+    if (!sysbus_realize(scmi, errp)) {
+        return false;
+    }
+
+    memory_region_add_subregion_overlap(s->memory,
+        RK3588_SCMI_SHMEM_BASE,
+        sysbus_mmio_get_region(scmi, 0), 1);
+
+    return true;
+}
+
 static bool rk3588_soc_create_uart(RK3588SoCState *s, Error **errp)
 {
     for (unsigned int i = RK3588_FIRST_UART; i < RK3588_NUM_UARTS; i++) {
@@ -329,6 +346,7 @@ static void rk3588_soc_realize(DeviceState *dev, Error **errp)
         !rk3588_soc_create_cru(s, errp) ||
         !rk3588_soc_create_otp(s, errp) ||
         !rk3588_soc_create_sfc(s, errp) ||
+        !rk3588_soc_create_scmi(s, errp) ||
         !rk3588_soc_create_uart(s, errp) ||
         !rk3588_soc_create_hptimer(s, errp)) {
         return;
@@ -387,6 +405,10 @@ static void rk3588_soc_instance_init(Object *obj)
     s->sfc = qdev_new("rockchip-sfc");
     object_property_add_child(obj, "sfc", OBJECT(s->sfc));
     object_unref(OBJECT(s->sfc));
+
+    s->scmi = qdev_new(TYPE_RK3588_SCMCI);
+    object_property_add_child(obj, "scmi", OBJECT(s->scmi));
+    object_unref(OBJECT(s->scmi));
 
     s->hptimer = qdev_new(TYPE_ROCKCHIP_HPTIMER);
     object_property_add_child(obj, "hptimer", OBJECT(s->hptimer));

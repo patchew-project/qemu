@@ -55,6 +55,7 @@ struct RK3588SoCState {
     DeviceState *cru;
     DeviceState *otp;
     DeviceState *sfc;
+    DeviceState *scmi;
     MemoryRegion *memory;
     MemoryRegion sram;
     DeviceState *hptimer;
