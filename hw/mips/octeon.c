@@ -2075,6 +2075,27 @@ static void octeon_stateful_io_write(OcteonState *s, uint64_t base,
     octeon_csr_store(s, reg, octeon_write64(old, addr, value, size));
 }
 
+static uint64_t octeon_pexp_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return octeon_pci_pexp_read(opaque, addr, size);
+}
+
+static void octeon_pexp_write(void *opaque, hwaddr addr,
+                              uint64_t value, unsigned size)
+{
+    octeon_pci_pexp_write(opaque, addr, value, size);
+}
+
+static const MemoryRegionOps octeon_pexp_ops = {
+    .read = octeon_pexp_read,
+    .write = octeon_pexp_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 8,
+    },
+};
+
 static uint64_t octeon_dpi_read(void *opaque, hwaddr addr, unsigned size)
 {
     return octeon_stateful_io_read(opaque, OCTEON_DPI_BASE, addr, size);
@@ -2853,6 +2874,11 @@ static void mips_octeon_init(MachineState *machine)
                           "octeon.csr", OCTEON_CSR_SIZE);
     memory_region_add_subregion_overlap(get_system_memory(), OCTEON_CSR_BASE,
                                         &s->csr_bank->csr, -1);
+
+    memory_region_init_io(&s->pexp, NULL, &octeon_pexp_ops, s,
+                          "octeon.pexp", OCTEON_PEXP_SIZE);
+    memory_region_add_subregion(get_system_memory(), OCTEON_PEXP_BASE,
+                                &s->pexp);
 
     memory_region_init_io(&s->dpi, NULL, &octeon_dpi_ops, s,
                           "octeon.dpi", OCTEON_DPI_SIZE);
