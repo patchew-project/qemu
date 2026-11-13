@@ -789,3 +789,4 @@ config ROCK5B
     default y
     depends on TCG && AARCH64
     select RK3588
+    select SSI_M25P80

@@ -17,8 +17,12 @@
 #include "hw/arm/boot.h"
 #include "hw/arm/rk3588.h"
 #include "hw/core/boards.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-properties-system.h"
+#include "hw/ssi/ssi.h"
 #include "system/address-spaces.h"
+#include "system/block-backend.h"
+#include "system/blockdev.h"
 #include "system/device_tree.h"
 #include "system/kvm.h"
 #include "system/qtest.h"
@@ -37,6 +41,7 @@ static const MemMapEntry rock5b_memmap[] = {
     [ROCK5B_HIGH_RAM] = { 0x100000000, 0x310000000 },
 };
 
+#define ROCK5B_FLASH_SIZE (16 * MiB)
 /* Match the low-memory reservation made by Rockchip U-Boot for BL31. */
 #define ROCK5B_FIRMWARE_RESERVED_SIZE (2 * MiB)
 /* UART2 drives the board's debug header. */
@@ -68,6 +73,28 @@ static void rock5b_connect_serial(Rock5BMachineState *s)
         qdev_prop_set_chr(DEVICE(&s->soc), prop,
                           serial_hd(i == ROCK5B_CONSOLE_UART ? 0 : hd++));
     }
+}
+
+static void rock5b_create_flash(Rock5BMachineState *s)
+{
+    DriveInfo *di = drive_get(IF_MTD, 0, 0);
+    DeviceState *flash = qdev_new("xt25f128");
+
+    object_property_add_child(OBJECT(s), "spi-nor", OBJECT(flash));
+    if (di) {
+        BlockBackend *blk = blk_by_legacy_dinfo(di);
+        int64_t length = blk_getlength(blk);
+
+        if (length != ROCK5B_FLASH_SIZE) {
+            error_report("rock-5b: SPI NOR image must be exactly 16 MiB");
+            exit(EXIT_FAILURE);
+        }
+        qdev_prop_set_drive_err(flash, "drive", blk, &error_fatal);
+    }
+    qdev_realize_and_unref(flash, qdev_get_child_bus(s->soc.sfc, "spi"),
+                           &error_fatal);
+    qdev_connect_gpio_out_named(s->soc.sfc, "cs", 0,
+                                qdev_get_gpio_in_named(flash, SSI_GPIO_CS, 0));
 }
 
 /*
@@ -167,6 +194,8 @@ static void rock5b_init(MachineState *ms)
                                     rock5b_memmap[ROCK5B_HIGH_RAM].base,
                                     &s->high_ram);
     }
+
+    rock5b_create_flash(s);
 
     rock5b_direct_boot(s);
 }
