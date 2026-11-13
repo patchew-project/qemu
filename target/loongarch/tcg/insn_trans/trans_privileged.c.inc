@@ -42,8 +42,8 @@ GEN_FALSE_TRANS(idle)
 
 #else
 
-typedef void (*GenCSRRead)(TCGv dest, TCGv_ptr env);
-typedef void (*GenCSRWrite)(TCGv dest, TCGv_ptr env, TCGv src);
+typedef void (*GenCSRRead)(TCGv dest, TCGv_ptr env, TCGv_i32 vm_level);
+typedef void (*GenCSRWrite)(TCGv dest, TCGv_ptr env, TCGv src, TCGv_i32 vm_level);
 
 static bool check_plv(DisasContext *ctx)
 {
@@ -88,10 +88,14 @@ void loongarch_csr_translate_init(void)
 }
 #undef SET_CSR_FUNC
 
-static bool check_csr_flags(DisasContext *ctx, const CSRInfo *csr, bool write)
+static bool check_csr_flags(DisasContext *ctx, const CSRInfo *csr,
+                            bool write, int vm_level)
 {
     if ((csr->flags & CSRFL_READONLY) && write) {
-        return false;
+        /* host writes guest read-only CSRs is allowed */
+        if (mmu_idx_vm_level(ctx->mem_idx) || vm_level == VM_LEVEL0) {
+            return false;
+        }
     }
     if ((csr->flags & CSRFL_IO) && translator_io_start(&ctx->base)) {
         ctx->base.is_jmp = DISAS_EXIT_UPDATE;
@@ -101,7 +105,7 @@ static bool check_csr_flags(DisasContext *ctx, const CSRInfo *csr, bool write)
     return true;
 }
 
-static bool trans_csrrd(DisasContext *ctx, arg_csrrd *a)
+static bool trans_csrrd_impl(DisasContext *ctx, arg_r_csr *a, int vm_level)
 {
     TCGv dest;
     const CSRInfo *csr;
@@ -116,21 +120,29 @@ static bool trans_csrrd(DisasContext *ctx, arg_csrrd *a)
         /* CSR is undefined: read as 0. */
         dest = tcg_constant_tl(0);
     } else {
-        check_csr_flags(ctx, csr, false);
-        dest = gpr_dst(ctx, a->rd, EXT_NONE);
-        readfn = (GenCSRRead)csr->readfn;
-        if (readfn) {
-            readfn(dest, tcg_env);
+        check_csr_flags(ctx, csr, false, vm_level);
+        if (vm_level && (csr->flags & CSRFL_GSPR)) {
+            if (mmu_idx_vm_level(ctx->mem_idx)) {
+                generate_exception(ctx, EXCCODE_GSPR);
+                return true;
+            }
+            dest = tcg_constant_tl(0);
         } else {
-            offset = get_csr_offset(csr, 0);
-            tcg_gen_ld_tl(dest, tcg_env, offset);
+            dest = gpr_dst(ctx, a->rd, EXT_NONE);
+            readfn = (GenCSRRead)csr->readfn;
+            if (readfn) {
+                readfn(dest, tcg_env, tcg_constant_i32(vm_level));
+            } else {
+                offset = get_csr_offset(csr, vm_level);
+                tcg_gen_ld_tl(dest, tcg_env, offset);
+            }
         }
     }
     gen_set_gpr(a->rd, dest, EXT_NONE);
     return true;
 }
 
-static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
+static bool trans_csrwr_impl(DisasContext *ctx, arg_r_csr *a, int vm_level)
 {
     TCGv dest, src1;
     const CSRInfo *csr;
@@ -146,18 +158,26 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
         gen_set_gpr(a->rd, tcg_constant_tl(0), EXT_NONE);
         return true;
     }
-    if (!check_csr_flags(ctx, csr, true)) {
+    if (!check_csr_flags(ctx, csr, true, vm_level)) {
         /* CSR is readonly: trap. */
         return false;
+    }
+    if (vm_level && (csr->flags & CSRFL_GSPR)) {
+        if (mmu_idx_vm_level(ctx->mem_idx)) {
+            generate_exception(ctx, EXCCODE_GSPR);
+            return true;
+        }
+        gen_set_gpr(a->rd, tcg_constant_tl(0), EXT_NONE);
+        return true;
     }
     src1 = gpr_src(ctx, a->rd, EXT_NONE);
     writefn = (GenCSRWrite)csr->writefn;
     if (writefn) {
         dest = gpr_dst(ctx, a->rd, EXT_NONE);
-        writefn(dest, tcg_env, src1);
+        writefn(dest, tcg_env, src1, tcg_constant_i32(vm_level));
     } else {
         dest = tcg_temp_new();
-        offset = get_csr_offset(csr, 0);
+        offset = get_csr_offset(csr, vm_level);
         tcg_gen_ld_tl(dest, tcg_env, offset);
         tcg_gen_st_tl(src1, tcg_env, offset);
     }
@@ -165,7 +185,7 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
     return true;
 }
 
-static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
+static bool trans_csrxchg_impl(DisasContext *ctx, arg_rr_csr *a, int vm_level)
 {
     TCGv src1, mask, oldv, newv, temp;
     const CSRInfo *csr;
@@ -182,9 +202,18 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
         return true;
     }
 
-    if (!check_csr_flags(ctx, csr, true)) {
+    if (!check_csr_flags(ctx, csr, true, vm_level)) {
         /* CSR is readonly: trap. */
         return false;
+    }
+
+    if (vm_level && (csr->flags & CSRFL_GSPR)) {
+        if (mmu_idx_vm_level(ctx->mem_idx)) {
+            generate_exception(ctx, EXCCODE_GSPR);
+            return true;
+        }
+        gen_set_gpr(a->rd, tcg_constant_tl(0), EXT_NONE);
+        return true;
     }
 
     /* So far only readonly csrs have readfn. */
@@ -196,7 +225,7 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
     newv = tcg_temp_new();
     temp = tcg_temp_new();
 
-    offset = get_csr_offset(csr, 0);
+    offset = get_csr_offset(csr, vm_level);
     tcg_gen_ld_tl(oldv, tcg_env, offset);
     tcg_gen_and_tl(newv, src1, mask);
     tcg_gen_andc_tl(temp, oldv, mask);
@@ -204,12 +233,27 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
 
     writefn = (GenCSRWrite)csr->writefn;
     if (writefn) {
-        writefn(oldv, tcg_env, newv);
+        writefn(oldv, tcg_env, newv, tcg_constant_i32(vm_level));
     } else {
         tcg_gen_st_tl(newv, tcg_env, offset);
     }
     gen_set_gpr(a->rd, oldv, EXT_NONE);
     return true;
+}
+
+static bool trans_csrrd(DisasContext *ctx, arg_csrrd *a)
+{
+    return trans_csrrd_impl(ctx, a, mmu_idx_vm_level(ctx->mem_idx));
+}
+
+static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
+{
+    return trans_csrwr_impl(ctx, a, mmu_idx_vm_level(ctx->mem_idx));
+}
+
+static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
+{
+    return trans_csrxchg_impl(ctx, a, mmu_idx_vm_level(ctx->mem_idx));
 }
 
 static bool gen_iocsrrd(DisasContext *ctx, arg_rr *a,
