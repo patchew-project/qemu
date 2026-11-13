@@ -20,6 +20,7 @@ enum {
     CSRFL_IO       = (1 << 2),
     CSRFL_UNUSED   = (1 << 3),
     CSRFL_BASIC    = (1 << 4),
+    CSRFL_GSPR     = (1 << 5),
 };
 
 typedef struct {

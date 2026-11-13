@@ -255,6 +255,7 @@ FIELD(TLB_MISC, E, 0, 1)
 FIELD(TLB_MISC, ASID, 1, 10)
 FIELD(TLB_MISC, VPPN, 13, 35)
 FIELD(TLB_MISC, PS, 48, 6)
+FIELD(TLB_MISC, GID, 54, 8)
 
 /*Msg interrupt registers */
 #define N_MSGIS                4
@@ -382,6 +383,10 @@ typedef struct CPUSysState {
     uint64_t CSR_DBG;
     uint64_t CSR_DERA;
     uint64_t CSR_DSAVE;
+    uint64_t CSR_GCFG;
+    uint64_t CSR_GINTC;
+    uint64_t CSR_GCNTC;
+    uint64_t CSR_GTLBC;
     /* Msg interrupt registers */
     uint64_t CSR_MSGIS[N_MSGIS];
     uint64_t CSR_MSGIR;
@@ -390,6 +395,7 @@ typedef struct CPUSysState {
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
+    uint64_t CSR_GSTAT;
     uint64_t CSR_ASID;
     uint64_t CSR_PRCFG1;
     uint64_t CSR_PRCFG2;
