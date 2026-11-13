@@ -18,6 +18,23 @@
 
 #include <epoxy/gl.h>
 
+/*
+ * VIRGL_CHECK_VERSION available since libvirglrenderer 1.0.1 and was fixed
+ * in 1.1.0. Undefine bugged version of the macro and provide our own.
+ */
+#if defined(VIRGL_CHECK_VERSION) && \
+    VIRGL_VERSION_MAJOR == 1 && VIRGL_VERSION_MINOR < 1
+#undef VIRGL_CHECK_VERSION
+#endif
+
+#ifndef VIRGL_CHECK_VERSION
+#define VIRGL_CHECK_VERSION(major, minor, micro) \
+    (VIRGL_VERSION_MAJOR > (major) || \
+     VIRGL_VERSION_MAJOR == (major) && VIRGL_VERSION_MINOR > (minor) || \
+     VIRGL_VERSION_MAJOR == (major) && VIRGL_VERSION_MINOR == (minor) && \
+     VIRGL_VERSION_MICRO >= (micro))
+#endif
+
 void
 vg_virgl_update_cursor_data(VuGpu *g, uint32_t resource_id,
                             gpointer data)
@@ -409,12 +426,33 @@ virgl_cmd_set_scanout(VuGpu *g,
         }
 
         int fd = -1;
-        if (virgl_renderer_get_fd_for_texture(info.tex_id, &fd) < 0) {
-            g_critical("%s: failed to get fd for texture\n", __func__);
-            cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
-            return;
+        int stride = info.stride;
+        int offset = 0;
+        bool exported = false;
+
+#if VIRGL_CHECK_VERSION(0, 7, 0)
+        exported = virgl_renderer_get_fd_for_texture2(info.tex_id, &fd,
+                                                      &stride, &offset) == 0;
+#endif
+        if (!exported) {
+            stride = info.stride;
+            offset = 0;
+            if (virgl_renderer_get_fd_for_texture(info.tex_id, &fd) < 0) {
+                g_critical("%s: failed to get fd for texture\n", __func__);
+                cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+                return;
+            }
         }
         assert(fd >= 0);
+
+        if (offset) {
+            /* the scanout message has no field to carry the buffer offset */
+            g_critical("%s: unsupported dmabuf offset %d\n", __func__, offset);
+            close(fd);
+            cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+            return;
+        }
+
         VhostUserGpuMsg msg = {
             .payload.dmabuf_scanout.scanout_id = ss.scanout_id,
             .payload.dmabuf_scanout.x =  ss.r.x,
@@ -423,7 +461,7 @@ virgl_cmd_set_scanout(VuGpu *g,
             .payload.dmabuf_scanout.height = ss.r.height,
             .payload.dmabuf_scanout.fd_width = info.width,
             .payload.dmabuf_scanout.fd_height = info.height,
-            .payload.dmabuf_scanout.fd_stride = info.stride,
+            .payload.dmabuf_scanout.fd_stride = stride,
             .payload.dmabuf_scanout.fd_flags = info.flags,
             .payload.dmabuf_scanout.fd_drm_fourcc = info.drm_fourcc
         };
