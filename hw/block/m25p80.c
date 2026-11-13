@@ -194,8 +194,10 @@ static const FlashPartInfo known_devices[] = {
      * Atmel EEPROMS - it is assumed, that don't care bit in command
      * is set to 0. Block protection is not supported.
      */
-    { INFO("at25128a-nonjedec", 0x0,     0,         1, 131072, EEPROM) },
-    { INFO("at25256a-nonjedec", 0x0,     0,         1, 262144, EEPROM) },
+    { INFO("at25128a-nonjedec", 0x0,     0,         1, 131072, EEPROM),
+      .page_size = 64 },
+    { INFO("at25256a-nonjedec", 0x0,     0,         1, 262144, EEPROM),
+      .page_size = 64 },
 
     /* EON -- en25xxx */
     { INFO("en25f32",     0x1c3116,      0,  64 << 10,  64, ER_4K) },
@@ -289,10 +291,13 @@ static const FlashPartInfo known_devices[] = {
      */
     { INFO("s25sl032p",   0x010215, 0x4d00,  64 << 10,  64, ER_4K) },
     { INFO("s25sl064p",   0x010216, 0x4d00,  64 << 10, 128, ER_4K) },
-    { INFO("s25fl256s0",  0x010219, 0x4d00, 256 << 10, 128, 0) },
+    { INFO("s25fl256s0",  0x010219, 0x4d00, 256 << 10, 128, 0),
+      .page_size = 512 },
     { INFO("s25fl256s1",  0x010219, 0x4d01,  64 << 10, 512, 0) },
-    { INFO6("s25fl512s",  0x010220, 0x4d0080, 256 << 10, 256, 0) },
-    { INFO6("s70fl01gs",  0x010221, 0x4d0080, 256 << 10, 512, 0) },
+    { INFO6("s25fl512s",  0x010220, 0x4d0080, 256 << 10, 256, 0),
+      .page_size = 512 },
+    { INFO6("s70fl01gs",  0x010221, 0x4d0080, 256 << 10, 512, 0),
+      .page_size = 512 },
     { INFO("s25sl12800",  0x012018, 0x0300, 256 << 10,  64, 0) },
     { INFO("s25sl12801",  0x012018, 0x0301,  64 << 10, 256, 0) },
     { INFO("s25fl129p0",  0x012018, 0x4d00, 256 << 10,  64, 0) },
@@ -1675,7 +1680,15 @@ static uint32_t m25p80_transfer8(SSIPeripheral *ss, uint32_t tx)
     case STATE_PAGE_PROGRAM:
         trace_m25p80_page_program(s, s->cur_addr, (uint8_t)tx);
         flash_write8(s, s->cur_addr, (uint8_t)tx);
-        s->cur_addr = (s->cur_addr + 1) & (s->size - 1);
+        if (s->cmd_in_progress == AAI_WP) {
+            s->cur_addr = (s->cur_addr + 1) & (s->size - 1);
+        } else {
+            uint32_t page_size = s->pi->page_size;
+            uint32_t page_offset = (s->cur_addr + 1) % page_size;
+
+            s->cur_addr -= s->cur_addr % page_size;
+            s->cur_addr += page_offset;
+        }
 
         if (get_man(s) == MAN_SST && s->aai_enable && s->cur_addr == 0) {
             /*
