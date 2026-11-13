@@ -32,15 +32,39 @@
 
 #define RK3588_GIC_NUM_IRQS          512
 
+/* UART1-UART9 are modeled; UART0 in the PMU power domain is unimplemented. */
+#define RK3588_FIRST_UART            (1)
+#define RK3588_UART1_SPI             332
+#define RK3588_UART_CLOCK            24000000
+#define RK3588_UART_BAUD_BASE        (RK3588_UART_CLOCK / 16)
+
 enum {
     RK3588_DEV_GIC_DIST,
     RK3588_DEV_GIC_REDIST,
+    RK3588_DEV_UART1,
+    RK3588_DEV_UART2,
+    RK3588_DEV_UART3,
+    RK3588_DEV_UART4,
+    RK3588_DEV_UART5,
+    RK3588_DEV_UART6,
+    RK3588_DEV_UART7,
+    RK3588_DEV_UART8,
+    RK3588_DEV_UART9,
 };
 
 /* Memory map of the modeled peripherals. */
 static const MemMapEntry rk3588_memmap[] = {
     [RK3588_DEV_GIC_DIST]   = { 0xfe600000, 0x00010000 },
     [RK3588_DEV_GIC_REDIST] = { 0xfe680000, 0x00100000 },
+    [RK3588_DEV_UART1]      = { 0xfeb40000, 0x00010000 },
+    [RK3588_DEV_UART2]      = { 0xfeb50000, 0x00010000 },
+    [RK3588_DEV_UART3]      = { 0xfeb60000, 0x00010000 },
+    [RK3588_DEV_UART4]      = { 0xfeb70000, 0x00010000 },
+    [RK3588_DEV_UART5]      = { 0xfeb80000, 0x00010000 },
+    [RK3588_DEV_UART6]      = { 0xfeb90000, 0x00010000 },
+    [RK3588_DEV_UART7]      = { 0xfeba0000, 0x00010000 },
+    [RK3588_DEV_UART8]      = { 0xfebb0000, 0x00010000 },
+    [RK3588_DEV_UART9]      = { 0xfebc0000, 0x00010000 },
 };
 
 #define RK3588_UNIMPLEMENTED(name, base, size) \
@@ -85,15 +109,6 @@ static const UnimplementedDeviceConfig rk3588_unimpl_devices[] = {
     RK3588_UNIMPLEMENTED("timer-ns0", 0xfeae0000, 32 * KiB),
     RK3588_UNIMPLEMENTED("wdt-ns", 0xfeaf0000, 64 * KiB),
     RK3588_UNIMPLEMENTED("spi2", 0xfeb20000, 64 * KiB),
-    RK3588_UNIMPLEMENTED("uart1", 0xfeb40000, 64 * KiB),
-    RK3588_UNIMPLEMENTED("uart2", 0xfeb50000, 64 * KiB),
-    RK3588_UNIMPLEMENTED("uart3", 0xfeb60000, 64 * KiB),
-    RK3588_UNIMPLEMENTED("uart4", 0xfeb70000, 64 * KiB),
-    RK3588_UNIMPLEMENTED("uart5", 0xfeb80000, 64 * KiB),
-    RK3588_UNIMPLEMENTED("uart6", 0xfeb90000, 64 * KiB),
-    RK3588_UNIMPLEMENTED("uart7", 0xfeba0000, 64 * KiB),
-    RK3588_UNIMPLEMENTED("uart8", 0xfebb0000, 64 * KiB),
-    RK3588_UNIMPLEMENTED("uart9", 0xfebc0000, 64 * KiB),
     RK3588_UNIMPLEMENTED("gpio1", 0xfec20000, 64 * KiB),
     RK3588_UNIMPLEMENTED("gpio2", 0xfec30000, 64 * KiB),
     RK3588_UNIMPLEMENTED("gpio3", 0xfec40000, 64 * KiB),
@@ -191,6 +206,28 @@ static bool rk3588_soc_create_gic(RK3588SoCState *s, Error **errp)
     return true;
 }
 
+static bool rk3588_soc_create_uart(RK3588SoCState *s, Error **errp)
+{
+    for (unsigned int i = RK3588_FIRST_UART; i < RK3588_NUM_UARTS; i++) {
+        SysBusDevice *uart = SYS_BUS_DEVICE(&s->uart[i]);
+        unsigned int n = i - RK3588_FIRST_UART;
+
+        qdev_prop_set_uint32(DEVICE(uart), "baudbase", RK3588_UART_BAUD_BASE);
+        if (!sysbus_realize(uart, errp)) {
+            return false;
+        }
+
+        memory_region_add_subregion(s->memory,
+            rk3588_memmap[RK3588_DEV_UART1 + n].base,
+            sysbus_mmio_get_region(uart, 0));
+        sysbus_connect_irq(uart, 0,
+                           qdev_get_gpio_in(DEVICE(&s->gic),
+                                            RK3588_UART1_SPI + n));
+    }
+
+    return true;
+}
+
 static bool rk3588_soc_create_hptimer(RK3588SoCState *s, Error **errp)
 {
     SysBusDevice *hptimer = SYS_BUS_DEVICE(s->hptimer);
@@ -245,6 +282,11 @@ static void rk3588_soc_realize(DeviceState *dev, Error **errp)
         !rk3588_soc_create_hptimer(s, errp)) {
         return;
     }
+
+    if (!rk3588_soc_create_uart(s, errp)) {
+        return;
+    }
+
     create_unimplemented_devices(OBJECT(s), s->memory, rk3588_unimpl_devices);
 
     if (!memory_region_init_ram(&s->sram, OBJECT(s), "rk3588.sram",
@@ -277,6 +319,15 @@ static void rk3588_soc_instance_init(Object *obj)
     }
 
     object_initialize_child(obj, "gic", &s->gic, TYPE_ARM_GICV3);
+
+    for (unsigned int i = RK3588_FIRST_UART; i < RK3588_NUM_UARTS; i++) {
+        g_autofree char *name = g_strdup_printf("uart%u", i);
+        g_autofree char *alias = g_strdup_printf("uart%u-chardev", i);
+
+        object_initialize_child(obj, name, &s->uart[i], TYPE_DW8250);
+        object_property_add_alias(obj, alias, OBJECT(&s->uart[i]),
+                                  "chardev");
+    }
 
     s->hptimer = qdev_new(TYPE_ROCKCHIP_HPTIMER);
     object_property_add_child(obj, "hptimer", OBJECT(s->hptimer));
