@@ -89,6 +89,13 @@ tests += {
   }
 }
 
+tests += {
+  'test-zicbo-umode.S': {
+   'cflags': cflags + ['-march=rv64gcv_zicbom_zicboz'],
+    'qemu_args': ['-cpu', 'rv64,s=off,h=off,zicbom=on,zicboz=on', qemu_args],
+  }
+}
+
 if 'qemu-system-riscv64' in emulators
   tcg_tests += {
     'riscv64-softmmu': {
