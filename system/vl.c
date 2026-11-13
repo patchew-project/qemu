@@ -34,6 +34,7 @@
 #include "hw/core/qdev-properties.h"
 #include "qapi/compat-policy.h"
 #include "qapi/error.h"
+#include "qapi/qobject-output-visitor.h"
 #include "qobject/qdict.h"
 #include "qobject/qstring.h"
 #include "qobject/qjson.h"
@@ -1808,6 +1809,47 @@ static void qemu_apply_legacy_machine_options(QDict *qdict)
             qobject_type(prop) == QTYPE_QDICT &&
             qdict_haskey(qobject_to(QDict, prop), "size");
     }
+}
+
+static void qemu_complete_machine_memdev_size(void)
+{
+    QDict *backend_prop, *memory_prop;
+    g_autofree char *size_str = NULL;
+    QObject *qobj = NULL;
+    ObjectOption *opt;
+    uint64_t size;
+    Visitor *v;
+
+    if (have_custom_ram_size || !ram_memdev_id) {
+        return;
+    }
+
+    QTAILQ_FOREACH(opt, &object_opts, next) {
+        ObjectOptions *options = opt->opts;
+        const char *type = ObjectType_str(options->qom_type);
+
+        if (g_str_equal(options->id, ram_memdev_id) &&
+            g_str_has_prefix(type, "memory-backend-")) {
+            v = qobject_output_visitor_new(&qobj);
+            visit_type_ObjectOptions(v, NULL, &options, &error_abort);
+            visit_complete(v, &qobj);
+            visit_free(v);
+
+            backend_prop = qobject_to(QDict, qobj);
+            size = qdict_get_uint(backend_prop, "size");
+            size_str = g_strdup_printf("%" PRIu64, size);
+
+            memory_prop = qdict_get_qdict(machine_opts_dict, "memory");
+            assert(memory_prop);
+            qdict_put_str(memory_prop, "size", size_str);
+
+            qobject_unref(qobj);
+            return;
+        }
+    }
+
+    error_report("Memory backend '%s' not found", ram_memdev_id);
+    exit(EXIT_FAILURE);
 }
 
 static void object_option_foreach_add(bool (*type_opt_predicate)(const char *))
@@ -3821,6 +3863,7 @@ void qemu_init(int argc, char **argv)
     qemu_create_early_backends();
 
     qemu_apply_legacy_machine_options(machine_opts_dict);
+    qemu_complete_machine_memdev_size();
     qemu_apply_machine_options(machine_opts_dict);
     qobject_unref(machine_opts_dict);
     phase_advance(PHASE_MACHINE_CREATED);
