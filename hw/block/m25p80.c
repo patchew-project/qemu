@@ -356,6 +356,7 @@ static const FlashPartInfo known_devices[] = {
     { INFO("w25q32dw",    0xef6016,      0,  64 << 10,  64, ER_4K) },
     { INFO("w25q33pw",    0xef6016,      0,  64 << 10,  64, ER_4K | ER_32K),
       .sfdp_read = m25p80_sfdp_w25q33pw },
+    { INFO("xt25f128",    0x0b4018,      0,  64 << 10, 256, ER_4K) },
     { INFO("w25x64",      0xef3017,      0,  64 << 10, 128, ER_4K) },
     { INFO("w25q64",      0xef4017,      0,  64 << 10, 128, ER_4K) },
     { INFO("w25q80",      0xef5014,      0,  64 << 10,  16, ER_4K) },
@@ -468,6 +469,7 @@ typedef enum {
     MAN_MACRONIX,
     MAN_NUMONYX,
     MAN_WINBOND,
+    MAN_XTX,
     MAN_SST,
     MAN_ISSI,
     MAN_GENERIC,
@@ -545,6 +547,8 @@ static inline Manufacturer get_man(Flash *s)
         return MAN_NUMONYX;
     case 0xEF:
         return MAN_WINBOND;
+    case 0x0B:
+        return MAN_XTX;
     case 0x01:
         return MAN_SPANSION;
     case 0xC2:
@@ -652,6 +656,9 @@ static void flash_erase(Flash *s, int offset, FlashCMD cmd)
     }
     memset(s->storage + offset, 0xff, len);
     flash_sync_area(s, offset, len);
+    if (get_man(s) == MAN_XTX) {
+        s->write_enable = false;
+    }
 }
 
 static inline void flash_sync_dirty(Flash *s, int64_t newpage)
@@ -821,6 +828,7 @@ static void complete_collecting_data(Flash *s)
             }
             break;
         case MAN_WINBOND:
+        case MAN_XTX:
             if (s->len > 1) {
                 s->quad_enable = !!(s->data[1] & 0x02);
             }
@@ -835,6 +843,7 @@ static void complete_collecting_data(Flash *s)
     case WRSR2:
         switch (get_man(s)) {
         case MAN_WINBOND:
+        case MAN_XTX:
             s->quad_enable = !!(s->data[0] & 0x02);
             break;
         default:
@@ -1085,6 +1094,7 @@ static void decode_fast_read_cmd(Flash *s)
         s->needed_bytes += 1;
         break;
     case MAN_WINBOND:
+    case MAN_XTX:
         s->needed_bytes += 1;
         break;
     case MAN_NUMONYX:
@@ -1123,6 +1133,7 @@ static void decode_dio_read_cmd(Flash *s)
     /* Dummy cycles modeled with bytes writes instead of bits */
     switch (get_man(s)) {
     case MAN_WINBOND:
+    case MAN_XTX:
         s->needed_bytes += WINBOND_CONTINUOUS_READ_MODE_CMD_LEN;
         break;
     case MAN_SPANSION:
@@ -1159,6 +1170,7 @@ static void decode_qio_read_cmd(Flash *s)
     /* Dummy cycles modeled with bytes writes instead of bits */
     switch (get_man(s)) {
     case MAN_WINBOND:
+    case MAN_XTX:
         s->needed_bytes += WINBOND_CONTINUOUS_READ_MODE_CMD_LEN;
         s->needed_bytes += 2;
         break;
@@ -1337,6 +1349,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
             s->state = STATE_COLLECTING_VAR_LEN_DATA;
             break;
         case MAN_WINBOND:
+        case MAN_XTX:
             s->needed_bytes = 2;
             s->state = STATE_COLLECTING_VAR_LEN_DATA;
             break;
@@ -1363,6 +1376,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
         switch (get_man(s)) {
         case MAN_WINBOND:
+        case MAN_XTX:
             s->needed_bytes = 1;
             s->state = STATE_COLLECTING_DATA;
             s->pos = 0;
@@ -1542,6 +1556,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
             s->quad_enable = true;
             break;
         case MAN_WINBOND:
+        case MAN_XTX:
             s->data[0] = (!!s->quad_enable) << 1;
             s->pos = 0;
             s->len = 1;
@@ -1600,6 +1615,11 @@ static int m25p80_cs(SSIPeripheral *ss, bool select)
     if (select) {
         if (s->state == STATE_COLLECTING_VAR_LEN_DATA) {
             complete_collecting_data(s);
+        }
+        if (get_man(s) == MAN_XTX &&
+            s->state == STATE_PAGE_PROGRAM &&
+            s->cmd_in_progress != AAI_WP) {
+            s->write_enable = false;
         }
         s->len = 0;
         s->pos = 0;
