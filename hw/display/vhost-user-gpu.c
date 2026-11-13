@@ -279,7 +279,7 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
         uint32_t offset = 0;
         uint32_t stride = m->fd_stride;
         uint64_t modifier = DRM_FORMAT_MOD_INVALID;
-        QemuDmaBuf *dmabuf;
+        QemuDmaBuf *old, *dmabuf;
 
         if (m->scanout_id >= g->parent_obj.conf.max_outputs) {
             error_report("invalid scanout: %d", m->scanout_id);
@@ -291,16 +291,14 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
 
         g->parent_obj.enable = 1;
         con = g->parent_obj.scanout[m->scanout_id].con;
-        dmabuf = g->dmabuf[m->scanout_id];
-
-        if (dmabuf) {
-            qemu_console_gl_release_dmabuf(con, dmabuf);
-            g_clear_pointer(&dmabuf, qemu_dmabuf_free);
-        }
+        old = g->dmabuf[m->scanout_id];
 
         if (fd == -1) {
+            if (old) {
+                qemu_console_gl_release_dmabuf(con, old);
+                g_clear_pointer(&g->dmabuf[m->scanout_id], qemu_dmabuf_free);
+            }
             qemu_console_gl_scanout_disable(con);
-            g->dmabuf[m->scanout_id] = NULL;
             break;
         }
 
@@ -316,8 +314,14 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
                                  &fd, 1, false, m->fd_flags &
                                  VIRTIO_GPU_RESOURCE_FLAG_Y_0_TOP);
 
+        qemu_console_resize(con, m->width, m->height);
         qemu_console_gl_scanout_dmabuf(con, dmabuf);
         g->dmabuf[m->scanout_id] = dmabuf;
+
+        if (old) {
+            qemu_console_gl_release_dmabuf(con, old);
+            qemu_dmabuf_free(old);
+        }
         break;
     }
     case VHOST_USER_GPU_DMABUF_UPDATE: {
