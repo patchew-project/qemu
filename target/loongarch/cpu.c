@@ -721,6 +721,21 @@ static void loongarch_cpu_realizefn(DeviceState *dev, Error **errp)
     CPUState *cs = CPU(dev);
     LoongArchCPUClass *lacc = LOONGARCH_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
+    CPULoongArchState *env = cpu_env(cs);
+
+#ifdef CONFIG_TCG
+    CPUTimerState *timer;
+#endif
+
+    env->irq_nr = N_IRQS;
+    qdev_init_gpio_in(dev, loongarch_cpu_set_irq, env->irq_nr);
+#ifdef CONFIG_TCG
+    timer = env_timer(env);
+    timer->irq = IRQ_TIMER;
+    timer->cs  = cs;
+    timer_init_ns(&timer->timer, QEMU_CLOCK_VIRTUAL,
+                  &cpu_loongarch_timer_cb, timer);
+#endif
 
     cpu_common_realize(cs, &local_err);
     if (local_err != NULL) {
@@ -746,27 +761,6 @@ static void loongarch_cpu_unrealizefn(DeviceState *dev)
 #endif
 
     lacc->parent_unrealize(dev);
-}
-
-static void loongarch_cpu_init(Object *obj)
-{
-#ifndef CONFIG_USER_ONLY
-    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
-    CPULoongArchState *env = &cpu->env;
-#ifdef CONFIG_TCG
-    CPUTimerState *timer;
-#endif
-
-    env->irq_nr = N_IRQS;
-    qdev_init_gpio_in(DEVICE(cpu), loongarch_cpu_set_irq, env->irq_nr);
-#ifdef CONFIG_TCG
-    timer = env_timer(env);
-    timer->irq = IRQ_TIMER;
-    timer->cs  = CPU(obj);
-    timer_init_ns(&timer->timer, QEMU_CLOCK_VIRTUAL,
-                  &cpu_loongarch_timer_cb, timer);
-#endif
-#endif
 }
 
 static ObjectClass *loongarch_cpu_class_by_name(const char *cpu_model)
@@ -1002,7 +996,6 @@ static const TypeInfo loongarch_cpu_type_infos[] = {
         .parent = TYPE_CPU,
         .instance_size = sizeof(LoongArchCPU),
         .instance_align = __alignof(LoongArchCPU),
-        .instance_init = loongarch_cpu_init,
 
         .abstract = true,
         .class_size = sizeof(LoongArchCPUClass),
