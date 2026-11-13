@@ -39,6 +39,9 @@ GEN_FALSE_TRANS(lddir)
 GEN_FALSE_TRANS(ertn)
 GEN_FALSE_TRANS(dbcl)
 GEN_FALSE_TRANS(idle)
+GEN_FALSE_TRANS(gcsrrd)
+GEN_FALSE_TRANS(gcsrwr)
+GEN_FALSE_TRANS(gcsrxchg)
 
 #else
 
@@ -254,6 +257,30 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
 static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
 {
     return trans_csrxchg_impl(ctx, a, mmu_idx_vm_level(ctx->mem_idx));
+}
+
+static bool trans_gcsrrd(DisasContext *ctx, arg_gcsrrd *a)
+{
+    if (!avail_LVZ(ctx) || mmu_idx_vm_level(ctx->mem_idx)) {
+        return false;
+    }
+    return trans_csrrd_impl(ctx, a, VM_LEVEL1);
+}
+
+static bool trans_gcsrwr(DisasContext *ctx, arg_gcsrwr *a)
+{
+    if (!avail_LVZ(ctx) || mmu_idx_vm_level(ctx->mem_idx)) {
+        return false;
+    }
+    return trans_csrwr_impl(ctx, a, VM_LEVEL1);
+}
+
+static bool trans_gcsrxchg(DisasContext *ctx, arg_gcsrxchg *a)
+{
+    if (!avail_LVZ(ctx) || mmu_idx_vm_level(ctx->mem_idx)) {
+        return false;
+    }
+    return trans_csrxchg_impl(ctx, a, VM_LEVEL1);
 }
 
 static bool gen_iocsrrd(DisasContext *ctx, arg_rr *a,
