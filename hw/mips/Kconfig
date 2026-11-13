@@ -73,6 +73,7 @@ config MIPS_OCTEON
     depends on MIPS64 && TARGET_BIG_ENDIAN
     select PFLASH_CFI02
     select SERIAL_MM
+    select USB_DWC3
 
 config MIPS_CPS
     bool
