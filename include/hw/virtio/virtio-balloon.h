@@ -54,6 +54,7 @@ struct VirtIOBalloon {
     size_t stats_vq_offset;
     QEMUTimer *stats_timer;
     IOThread *iothread;
+    AioContext *free_page_ctx;
     QEMUBH *free_page_bh;
     /*
      * Lock to synchronize threads to access the free page reporting related
