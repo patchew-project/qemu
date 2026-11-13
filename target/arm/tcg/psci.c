@@ -95,6 +95,20 @@ void arm_handle_psci_call(ARMCPU *cpu)
     case QEMU_PSCI_0_2_FN_PSCI_VERSION:
         ret = QEMU_PSCI_VERSION_1_1;
         break;
+    case QEMU_SMCCC_VERSION_FUNC_ID:
+        ret = QEMU_SMCCC_VERSION_1_1;
+        break;
+    case QEMU_SMCCC_ARCH_FEATURES_FUNC_ID:
+        switch ((uint32_t)param[1]) {
+        case QEMU_SMCCC_VERSION_FUNC_ID:
+        case QEMU_SMCCC_ARCH_FEATURES_FUNC_ID:
+            ret = 0;
+            break;
+        default:
+            ret = QEMU_PSCI_RET_NOT_SUPPORTED;
+            break;
+        }
+        break;
     case QEMU_PSCI_0_2_FN_MIGRATE_INFO_TYPE:
         ret = QEMU_PSCI_0_2_RET_TOS_MIGRATION_NOT_REQUIRED; /* No trusted OS */
         break;
@@ -177,6 +191,7 @@ void arm_handle_psci_call(ARMCPU *cpu)
     case QEMU_PSCI_1_0_FN_PSCI_FEATURES:
         switch (param[1]) {
         case QEMU_PSCI_0_2_FN_PSCI_VERSION:
+        case QEMU_SMCCC_VERSION_FUNC_ID:
         case QEMU_PSCI_0_2_FN_MIGRATE_INFO_TYPE:
         case QEMU_PSCI_0_2_FN_AFFINITY_INFO:
         case QEMU_PSCI_0_2_FN64_AFFINITY_INFO:

@@ -88,6 +88,11 @@ MISMATCH_CHECK(QEMU_PSCI_0_2_FN64_CPU_ON, PSCI_0_2_FN64_CPU_ON);
 MISMATCH_CHECK(QEMU_PSCI_0_2_FN64_MIGRATE, PSCI_0_2_FN64_MIGRATE);
 MISMATCH_CHECK(QEMU_PSCI_1_0_FN_PSCI_FEATURES, PSCI_1_0_FN_PSCI_FEATURES);
 
+/* SMCCC architecture calls. */
+#define QEMU_SMCCC_VERSION_FUNC_ID                0x80000000
+#define QEMU_SMCCC_ARCH_FEATURES_FUNC_ID          0x80000001
+#define QEMU_SMCCC_VERSION_1_1                     QEMU_PSCI_VERSION_1_1
+
 /* PSCI v0.2 return values used by TCG emulation of PSCI */
 
 /* No Trusted OS migration to worry about when offlining CPUs */
