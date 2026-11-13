@@ -1059,6 +1059,14 @@ F: include/hw/intc/realview_gic.h
 F: docs/system/arm/realview.rst
 F: tests/functional/arm/test_realview.py
 
+Rockchip RK3588
+M: Chao Liu <chao.liu@processmission.com>
+M: Yifan Wang <w-yf22@mails.tsinghua.edu.cn>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/rk3588.c
+F: include/hw/arm/rk3588.h
+
 SABRELITE / i.MX6
 M: Peter Maydell <peter.maydell@linaro.org>
 R: Jean-Christophe Dubois <jcd@tribudubois.net>

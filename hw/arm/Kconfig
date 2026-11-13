@@ -774,3 +774,7 @@ config AXIADO_EVK
     default y
     depends on TCG && ARM
     select AXIADO_SOC
+
+config RK3588
+    bool
+    select CPU_CLUSTER
