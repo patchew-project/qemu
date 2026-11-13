@@ -39,6 +39,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(OcteonMachineState, OCTEON_MACHINE)
 OBJECT_DECLARE_TYPE(OcteonPeripheralState, OcteonPeripheralClass,
                     OCTEON_PERIPHERAL)
 
+#define TYPE_OCTEON_MIO "octeon-mio"
+OBJECT_DECLARE_SIMPLE_TYPE(OcteonMioState, OCTEON_MIO)
 #define TYPE_OCTEON_RST "octeon-rst"
 OBJECT_DECLARE_SIMPLE_TYPE(OcteonRstState, OCTEON_RST)
 #define TYPE_OCTEON_INTC "octeon-intc"
@@ -126,12 +128,33 @@ OBJECT_DECLARE_SIMPLE_TYPE(OcteonCsrBankState, OCTEON_CSR_BANK)
 #define OCTEON_CIU3_UART0_INTSN     0x8000
 #define OCTEON_CSR_BASE             0x1180000000000ULL
 #define OCTEON_CSR_SIZE             0x100000000ULL
+#define OCTEON_MIO_BOOT_REG_CFGX(x) \
+    (0x0000000 + (x) * OCTEON_CSR_64BIT_SIZE)
+#define OCTEON_MIO_BOOT_REG_CFG_INDEX(reg) \
+    ((reg) / OCTEON_CSR_64BIT_SIZE)
+#define OCTEON_MIO_BOOT_REG_CFG_BASE 0x000000000000ffffULL
+#define OCTEON_MIO_BOOT_LOC_CFGX(x) \
+    (0x0000080 + ((x) & 1) * OCTEON_CSR_64BIT_SIZE)
+#define OCTEON_MIO_BOOT_LOC_CFG_INDEX(reg) \
+    (((reg) - OCTEON_MIO_BOOT_LOC_CFGX(0)) / OCTEON_CSR_64BIT_SIZE)
+#define OCTEON_MIO_BOOT_LOC_ADR     0x0000090
+#define OCTEON_MIO_BOOT_LOC_DAT     0x0000098
+#define OCTEON_MIO_BOOT_LOC_CFG_BASE 0x000000000ffffff8ULL
+#define OCTEON_MIO_BOOT_LOC_CFG_BASE_SHIFT 3
+#define OCTEON_MIO_BOOT_LOC_CFG_EN  0x0000000080000000ULL
+#define OCTEON_MIO_BOOT_LOC_ADR_MASK 0xf8
+/* Fuses are left unprogrammed; firmware only needs reads to complete. */
+#define OCTEON_MIO_FUS_DAT2         0x0001410
+#define OCTEON_MIO_FUS_RCMD         0x0001500
+#define OCTEON_MIO_FUS_RCMD_PEND    0x0000000000001000ULL
+#define OCTEON_MIO_FUS_RCMD_DAT     0x0000000000ff0000ULL
 #define OCTEON_RST_BOOT             0x6001600
 #define OCTEON_RST_SOFT_RST         0x6001680
 /* U-Boot uses the reset controller to park and release secondary cores. */
 #define OCTEON_RST_PP_POWER         0x6001700
 #define OCTEON_RST_BOOT_C_MUL_SHIFT 30
 #define OCTEON_RST_BOOT_PNR_MUL_SHIFT 24
+
 /*
  * QEMU-only backing for per-core CVMSEG. Keep it outside guest DRAM;
  * the guest sees the virtual CVMSEG window, not this physical address.
@@ -153,6 +176,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(OcteonCsrBankState, OCTEON_CSR_BANK)
 #define OCTEON_FLASH_ENV_OFFSET     \
     (OCTEON_FLASH_SIZE - OCTEON_FLASH_ENV_SECTOR_SIZE)
 #define OCTEON_FLASH_WIDTH          2
+#define OCTEON_MIO_BOOT_REG_CFG_RESET_BASE (OCTEON_FLASH_RESET_BASE >> 16)
+#define OCTEON_BOOTBUS_LED_CS       4
+#define OCTEON_BOOTBUS_LED_SIZE     (64 * KiB)
 
 struct OcteonMachineState {
     MachineState parent_obj;
@@ -172,6 +198,21 @@ struct OcteonPeripheralState {
 struct OcteonPeripheralClass {
     SysBusDeviceClass parent_class;
     ResettablePhases parent_phases;
+};
+
+struct OcteonMioState {
+    OcteonPeripheralState parent_obj;
+    MemoryRegion bootbus_led;
+    MemoryRegion mio_boot_loc;
+    uint64_t mio_boot_reg_cfg[OCTEON_MIO_BOOT_REG_CFG_COUNT];
+    uint64_t mio_boot_loc_cfg[2];
+    uint64_t mio_boot_loc_adr;
+    uint64_t mio_fus_rcmd;
+    hwaddr mio_boot_loc_base;
+    uint8_t mio_boot_loc_data[OCTEON_MIO_BOOT_LOC_SIZE];
+    bool mio_boot_loc_mapped;
+    hwaddr bootbus_led_base;
+    bool bootbus_led_mapped;
 };
 
 struct OcteonRstState {
@@ -316,6 +357,89 @@ static void octeon_csr_store(OcteonState *s, uint64_t reg, uint64_t value)
         return;
     }
     octeon_reg_store(s->csr_bank->values, reg, value);
+}
+
+static hwaddr octeon_mio_boot_loc_base(uint64_t cfg)
+{
+    uint64_t base = (cfg & OCTEON_MIO_BOOT_LOC_CFG_BASE) >>
+                    OCTEON_MIO_BOOT_LOC_CFG_BASE_SHIFT;
+
+    return base << 7;
+}
+
+static void octeon_mio_boot_loc_update(OcteonState *s)
+{
+    MemoryRegion *sysmem = get_system_memory();
+    bool enabled = s->mio->mio_boot_loc_cfg[0] & OCTEON_MIO_BOOT_LOC_CFG_EN;
+    hwaddr base = octeon_mio_boot_loc_base(s->mio->mio_boot_loc_cfg[0]);
+
+    if (s->mio->mio_boot_loc_mapped) {
+        if (enabled && base == s->mio->mio_boot_loc_base) {
+            return;
+        }
+        memory_region_del_subregion(sysmem, &s->mio->mio_boot_loc);
+        s->mio->mio_boot_loc_mapped = false;
+    }
+
+    if (enabled) {
+        memory_region_add_subregion_overlap(sysmem, base,
+                                            &s->mio->mio_boot_loc, 1);
+        s->mio->mio_boot_loc_base = base;
+        s->mio->mio_boot_loc_mapped = true;
+    }
+}
+
+static hwaddr octeon_mio_boot_reg_cfg_base(uint64_t cfg)
+{
+    return (cfg & OCTEON_MIO_BOOT_REG_CFG_BASE) << 16;
+}
+
+static void octeon_bootbus_led_update(OcteonState *s)
+{
+    MemoryRegion *sysmem = get_system_memory();
+    hwaddr base = octeon_mio_boot_reg_cfg_base(
+        s->mio->mio_boot_reg_cfg[OCTEON_BOOTBUS_LED_CS]);
+
+    if (s->mio->bootbus_led_mapped) {
+        if (base == s->mio->bootbus_led_base) {
+            return;
+        }
+        memory_region_del_subregion(sysmem, &s->mio->bootbus_led);
+        s->mio->bootbus_led_mapped = false;
+    }
+
+    if (base) {
+        memory_region_add_subregion(sysmem, base, &s->mio->bootbus_led);
+        s->mio->bootbus_led_base = base;
+        s->mio->bootbus_led_mapped = true;
+    }
+}
+
+static uint64_t octeon_mio_boot_loc_dat_read(OcteonState *s)
+{
+    unsigned int offset = s->mio->mio_boot_loc_adr &
+                          OCTEON_MIO_BOOT_LOC_ADR_MASK;
+    uint64_t value = ldq_be_p(s->mio->mio_boot_loc_data + offset);
+
+    s->mio->mio_boot_loc_adr =
+        (s->mio->mio_boot_loc_adr + OCTEON_CSR_64BIT_SIZE) &
+        OCTEON_MIO_BOOT_LOC_ADR_MASK;
+    return value;
+}
+
+static void octeon_mio_boot_loc_dat_write(OcteonState *s, hwaddr addr,
+                                          uint64_t value, unsigned size)
+{
+    unsigned int offset = s->mio->mio_boot_loc_adr &
+                          OCTEON_MIO_BOOT_LOC_ADR_MASK;
+    uint64_t old = ldq_be_p(s->mio->mio_boot_loc_data + offset);
+
+    value = octeon_write64(old, addr, value, size);
+    stq_be_p(s->mio->mio_boot_loc_data + offset, value);
+    memory_region_set_dirty(&s->mio->mio_boot_loc, offset, sizeof(value));
+    s->mio->mio_boot_loc_adr =
+        (s->mio->mio_boot_loc_adr + OCTEON_CSR_64BIT_SIZE) &
+        OCTEON_MIO_BOOT_LOC_ADR_MASK;
 }
 
 static bool octeon_ciu3_source_from_intsn(uint32_t intsn,
@@ -1125,7 +1249,28 @@ static uint64_t octeon_csr_read(void *opaque, hwaddr addr, unsigned size)
     hwaddr reg = addr & ~7ULL;
     uint64_t value;
 
+    if (reg >= OCTEON_MIO_BOOT_REG_CFGX(0) &&
+        reg < OCTEON_MIO_BOOT_REG_CFGX(OCTEON_MIO_BOOT_REG_CFG_COUNT)) {
+        unsigned int index = OCTEON_MIO_BOOT_REG_CFG_INDEX(reg);
+
+        return octeon_read64(s->mio->mio_boot_reg_cfg[index], addr, size);
+    }
+
     switch (reg) {
+    case OCTEON_MIO_BOOT_LOC_CFGX(0):
+    case OCTEON_MIO_BOOT_LOC_CFGX(1): {
+        unsigned int index = OCTEON_MIO_BOOT_LOC_CFG_INDEX(reg);
+
+        return octeon_read64(s->mio->mio_boot_loc_cfg[index], addr, size);
+    }
+    case OCTEON_MIO_BOOT_LOC_ADR:
+        return octeon_read64(s->mio->mio_boot_loc_adr, addr, size);
+    case OCTEON_MIO_BOOT_LOC_DAT:
+        return octeon_read64(octeon_mio_boot_loc_dat_read(s), addr, size);
+    case OCTEON_MIO_FUS_DAT2:
+        return 0;
+    case OCTEON_MIO_FUS_RCMD:
+        return octeon_read64(s->mio->mio_fus_rcmd, addr, size);
     case OCTEON_RST_BOOT:
         value = ((uint64_t)(s->cpu_hz / s->ref_hz) <<
                  OCTEON_RST_BOOT_C_MUL_SHIFT) |
@@ -1156,8 +1301,53 @@ static void octeon_csr_write(void *opaque, hwaddr addr,
         return;
     }
 
+    if (reg == OCTEON_MIO_BOOT_LOC_CFGX(0) ||
+        reg == OCTEON_MIO_BOOT_LOC_CFGX(1)) {
+        unsigned int index = OCTEON_MIO_BOOT_LOC_CFG_INDEX(reg);
+
+        old = s->mio->mio_boot_loc_cfg[index];
+        s->mio->mio_boot_loc_cfg[index] =
+            octeon_write64(old, addr, value, size);
+        if (index == 0) {
+            octeon_mio_boot_loc_update(s);
+        }
+        return;
+    }
+
+    if (reg == OCTEON_MIO_BOOT_LOC_ADR) {
+        old = s->mio->mio_boot_loc_adr;
+        value = octeon_write64(old, addr, value, size);
+        s->mio->mio_boot_loc_adr = value & OCTEON_MIO_BOOT_LOC_ADR_MASK;
+        return;
+    }
+
+    if (reg == OCTEON_MIO_BOOT_LOC_DAT) {
+        octeon_mio_boot_loc_dat_write(s, addr, value, size);
+        return;
+    }
+
+    if (reg == OCTEON_MIO_FUS_RCMD) {
+        value = octeon_write64(s->mio->mio_fus_rcmd, addr, value, size);
+        s->mio->mio_fus_rcmd = value & ~(OCTEON_MIO_FUS_RCMD_PEND |
+                                    OCTEON_MIO_FUS_RCMD_DAT);
+        return;
+    }
+
     if (reg == OCTEON_RST_PP_POWER) {
         octeon_rst_pp_power_write(s, addr, value, size);
+        return;
+    }
+
+    if (reg >= OCTEON_MIO_BOOT_REG_CFGX(0) &&
+        reg < OCTEON_MIO_BOOT_REG_CFGX(OCTEON_MIO_BOOT_REG_CFG_COUNT)) {
+        unsigned int index = OCTEON_MIO_BOOT_REG_CFG_INDEX(reg);
+
+        old = s->mio->mio_boot_reg_cfg[index];
+        s->mio->mio_boot_reg_cfg[index] =
+            octeon_write64(old, addr, value, size);
+        if (index == OCTEON_BOOTBUS_LED_CS) {
+            octeon_bootbus_led_update(s);
+        }
         return;
     }
 
@@ -1411,6 +1601,42 @@ static void octeon_init_flash(OcteonState *s)
                                 &s->boot_flash_alias);
 }
 
+static void octeon_init_mio_boot_loc(OcteonState *s)
+{
+    memory_region_init_ram(&s->mio->bootbus_led, OBJECT(s->mio),
+                           "octeon.bootbus-led",
+                           OCTEON_BOOTBUS_LED_SIZE, &error_fatal);
+    memory_region_init_ram_ptr(&s->mio->mio_boot_loc, OBJECT(s->mio),
+                               "octeon.mio-boot-loc",
+                               OCTEON_MIO_BOOT_LOC_SIZE,
+                               s->mio->mio_boot_loc_data);
+}
+
+
+static void octeon_mio_reset_hold(Object *obj, ResetType type)
+{
+    OcteonPeripheralClass *opc = OCTEON_PERIPHERAL_GET_CLASS(obj);
+    OcteonMioState *mio = OCTEON_MIO(obj);
+    OcteonState *s = mio->parent_obj.board;
+
+    if (opc->parent_phases.hold) {
+        opc->parent_phases.hold(obj, type);
+    }
+
+    if (mio->bootbus_led_mapped) {
+        memory_region_del_subregion(get_system_memory(), &mio->bootbus_led);
+        mio->bootbus_led_mapped = false;
+    }
+    memset(mio->mio_boot_reg_cfg, 0, sizeof(mio->mio_boot_reg_cfg));
+    mio->mio_boot_reg_cfg[0] = OCTEON_MIO_BOOT_REG_CFG_RESET_BASE;
+    mio->mio_boot_loc_cfg[0] = 0;
+    mio->mio_boot_loc_cfg[1] = 0;
+    mio->mio_boot_loc_adr = 0;
+    mio->mio_fus_rcmd = 0;
+    memset(mio->mio_boot_loc_data, 0, sizeof(mio->mio_boot_loc_data));
+    octeon_mio_boot_loc_update(s);
+}
+
 static void octeon_rst_reset_hold(Object *obj, ResetType type)
 {
     OcteonPeripheralClass *opc = OCTEON_PERIPHERAL_GET_CLASS(obj);
@@ -1498,6 +1724,15 @@ static void octeon_csr_bank_finalize(Object *obj)
     g_hash_table_destroy(OCTEON_CSR_BANK(obj)->values);
 }
 
+static void octeon_mio_class_init(ObjectClass *klass, const void *data)
+{
+    OcteonPeripheralClass *opc = OCTEON_PERIPHERAL_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+
+    resettable_class_set_parent_phases(rc, NULL, octeon_mio_reset_hold,
+                                       NULL, &opc->parent_phases);
+}
+
 static void octeon_rst_class_init(ObjectClass *klass, const void *data)
 {
     OcteonPeripheralClass *opc = OCTEON_PERIPHERAL_CLASS(klass);
@@ -1540,10 +1775,11 @@ static OcteonPeripheralState *octeon_new_peripheral(OcteonState *s,
 
 static void octeon_create_peripherals(OcteonState *s)
 {
+    s->mio = OCTEON_MIO(octeon_new_peripheral(s, TYPE_OCTEON_MIO, 0));
     s->rst = OCTEON_RST(octeon_new_peripheral(s, TYPE_OCTEON_RST, 0));
     s->intc = OCTEON_INTC(octeon_new_peripheral(s, TYPE_OCTEON_INTC, 0));
     s->csr_bank = OCTEON_CSR_BANK(octeon_new_peripheral(
-        s, TYPE_OCTEON_CSR_BANK, 0));
+                                      s, TYPE_OCTEON_CSR_BANK, 0));
 }
 
 static void octeon_realize_peripheral(OcteonPeripheralState *dev)
@@ -1553,9 +1789,10 @@ static void octeon_realize_peripheral(OcteonPeripheralState *dev)
 
 static void octeon_realize_peripherals(OcteonState *s)
 {
+    octeon_realize_peripheral(&s->csr_bank->parent_obj);
     octeon_realize_peripheral(&s->intc->parent_obj);
     octeon_realize_peripheral(&s->rst->parent_obj);
-    octeon_realize_peripheral(&s->csr_bank->parent_obj);
+    octeon_realize_peripheral(&s->mio->parent_obj);
 }
 
 static void mips_octeon_init(MachineState *machine)
@@ -1581,6 +1818,7 @@ static void mips_octeon_init(MachineState *machine)
 
     octeon_map_ram(s);
     octeon_init_flash(s);
+    octeon_init_mio_boot_loc(s);
     octeon_load_firmware(s);
     octeon_create_cpus(s);
 
@@ -1666,6 +1904,12 @@ static const TypeInfo octeon_machine_types[] = {
         .class_size = sizeof(OcteonPeripheralClass),
         .class_init = octeon_peripheral_class_init,
         .abstract = true,
+    },
+    {
+        .name = TYPE_OCTEON_MIO,
+        .parent = TYPE_OCTEON_PERIPHERAL,
+        .instance_size = sizeof(OcteonMioState),
+        .class_init = octeon_mio_class_init,
     },
     {
         .name = TYPE_OCTEON_RST,
