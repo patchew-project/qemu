@@ -53,20 +53,6 @@
  *     1 |    2 |         tdata1, tdata2 | Address / Data Match
  */
 
-/* tdata availability of a trigger */
-typedef bool tdata_avail[TDATA_NUM];
-
-static tdata_avail tdata_mapping[TRIGGER_TYPE_NUM] = {
-    [TRIGGER_TYPE_NO_EXIST] = { false, false, false },
-    [TRIGGER_TYPE_AD_MATCH] = { true, true, true },
-    [TRIGGER_TYPE_INST_CNT] = { true, false, true },
-    [TRIGGER_TYPE_INT] = { true, true, true },
-    [TRIGGER_TYPE_EXCP] = { true, true, true },
-    [TRIGGER_TYPE_AD_MATCH6] = { true, true, true },
-    [TRIGGER_TYPE_EXT_SRC] = { true, false, false },
-    [TRIGGER_TYPE_UNAVAIL] = { true, true, true }
-};
-
 /* only breakpoint size 1/2/4/8 supported */
 static int access_size[SIZE_NUM] = {
     [SIZE_ANY] = 0,
@@ -165,13 +151,17 @@ static inline target_ulong build_tdata1(CPURISCVState *env,
 
 bool tdata_available(CPURISCVState *env, int tdata_index)
 {
-    int trigger_type = get_trigger_type(env, env->trigger_cur);
-
     if (unlikely(tdata_index >= TDATA_NUM)) {
         return false;
     }
 
-    return tdata_mapping[trigger_type][tdata_index];
+    /*
+     * tdata CSRs belong to the trigger slot, not to the currently selected
+     * trigger type.  A type-zero trigger is disabled, but the slot still
+     * exists, so software must still be able to write tdata2/tdata3 before
+     * selecting a supported trigger type.
+     */
+    return env->trigger_cur < env->num_triggers;
 }
 
 target_ulong tselect_csr_read(CPURISCVState *env)
@@ -729,6 +719,30 @@ static void type6_reg_write(CPURISCVState *env, target_ulong index,
     }
 }
 
+static void no_trigger_reg_write(CPURISCVState *env, target_ulong index,
+                                 int tdata_index, target_ulong val)
+{
+    /*
+     * OpenSBI programs DBTR slots by first writing type zero to tdata1, then
+     * writing tdata2/tdata3, and finally writing the desired trigger type.
+     */
+    switch (tdata_index) {
+    case TDATA1:
+        type2_breakpoint_remove(env, index);
+        env->tdata1[index] = 0;
+        env->itrigger_enabled = riscv_itrigger_enabled(env);
+        break;
+    case TDATA2:
+        env->tdata2[index] = val;
+        break;
+    case TDATA3:
+        env->tdata3[index] = textra_validate(env, val);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 /* icount trigger type */
 static inline int
 itrigger_get_count(CPURISCVState *env, int index)
@@ -995,6 +1009,8 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
                       trigger_type);
         break;
     case TRIGGER_TYPE_NO_EXIST:
+        no_trigger_reg_write(env, env->trigger_cur, tdata_index, val);
+        break;
     case TRIGGER_TYPE_UNAVAIL:
         qemu_log_mask(LOG_GUEST_ERROR, "trigger type: %d does not exit\n",
                       trigger_type);
