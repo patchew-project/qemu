@@ -205,9 +205,9 @@ void    vg_cleanup_mapping_iov(VuGpu *g, struct iovec *iov, uint32_t count);
 void    vg_get_display_info(VuGpu *vg, struct virtio_gpu_ctrl_command *cmd);
 void    vg_get_edid(VuGpu *vg, struct virtio_gpu_ctrl_command *cmd);
 
-void    vg_wait_ok(VuGpu *g);
+bool    vg_wait_ok(VuGpu *g);
 
-void    vg_send_msg(VuGpu *g, const VhostUserGpuMsg *msg, int fd);
+bool    vg_send_msg(VuGpu *g, const VhostUserGpuMsg *msg, int fd);
 
 bool    vg_recv_msg(VuGpu *g, uint32_t expect_req, uint32_t expect_size,
                     gpointer payload);
