@@ -4006,8 +4006,12 @@ static RISCVException rmw_mip64(CPURISCVState *env, int csrno,
         /* STIP is not writable when menvcfg.STCE is enabled. */
         mask = mask & ~MIP_STIP;
 
-        /* VSTIP is not writable when both [mh]envcfg.STCE are enabled. */
-        if (get_field(env->henvcfg, HENVCFG_STCE)) {
+        /*
+         * VSTIP is not writable when both [mh]envcfg.STCE are enabled.
+         * Note: VSTIP is writable via CSR_HVIP at all times.
+         */
+        if (csrno != CSR_HVIP
+            && get_field(env->henvcfg, HENVCFG_STCE)) {
             mask = mask & ~MIP_VSTIP;
         }
     }
