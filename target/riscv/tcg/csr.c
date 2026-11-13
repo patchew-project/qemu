@@ -1837,6 +1837,7 @@ static const uint64_t all_ints = M_MODE_INTERRUPTS | S_MODE_INTERRUPTS |
                          (1ULL << (RISCV_EXCP_LOAD_PAGE_FAULT)) | \
                          (1ULL << (RISCV_EXCP_STORE_PAGE_FAULT)) | \
                          (1ULL << (RISCV_EXCP_SW_CHECK)) | \
+                         (1ULL << (RISCV_EXCP_HW_ERR)) | \
                          (1ULL << (RISCV_EXCP_INST_GUEST_PAGE_FAULT)) | \
                          (1ULL << (RISCV_EXCP_LOAD_GUEST_ACCESS_FAULT)) | \
                          (1ULL << (RISCV_EXCP_VIRT_INSTRUCTION_FAULT)) | \
@@ -4913,6 +4914,16 @@ static RISCVException write_hedeleg(CPURISCVState *env, int csrno,
                                     target_ulong val, uintptr_t ra)
 {
     env->hedeleg = val & vs_delegable_excps;
+
+    /*
+     * delegable_excps includes bit 0, which is writable only if
+     * IALIGN = 32 (no RVC present).  Ergo clear bit 0 if we have
+     * RVC.
+     */
+    if (riscv_has_ext(env, RVC)) {
+        env->hedeleg &= ~1ULL;
+    }
+
     return RISCV_EXCP_NONE;
 }
 
