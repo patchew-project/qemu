@@ -492,6 +492,15 @@ const char *nbd_mode_lookup(NBDMode mode);
 /* nbd/client-connection.c */
 void nbd_client_connection_enable_retry(NBDClientConnection *conn);
 
+typedef enum NBDClientConnectionThreadState {
+    NBD_CLIENT_CONNECTION_THREAD_IDLE,
+    NBD_CLIENT_CONNECTION_THREAD_RUNNING,
+    NBD_CLIENT_CONNECTION_THREAD_PARKED,
+} NBDClientConnectionThreadState;
+
+NBDClientConnectionThreadState
+nbd_client_connection_get_thread_state(NBDClientConnection *conn);
+
 NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,
                                                bool do_negotiation,
                                                const char *export_name,

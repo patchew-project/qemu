@@ -2218,6 +2218,93 @@
   'allow-preconfig': true }
 
 ##
+# @XDbgNbdClientState:
+#     An enumeration of NBD client states.
+#
+# @connecting-wait: No active connection.  Reached when the client
+#     hits an I/O error.  A request waits for the connection attempt
+#     to finish, while reconnect-delay has not expired.
+#
+# @connecting-nowait: No active connection.  Reached when
+#     reconnect-delay expires.  A request fails at once if no channel
+#     is ready.
+#
+# @connected: Client has a valid connection.  Reached when a request
+#     gets a channel from the connector.
+#
+# @quit: Client stopped and will never reconnect.  New requests
+#     fail.  A running attempt or a parked channel stays until the
+#     node is closed.  Reached on fatal error, teardown or yank.
+#
+# Since: 12.0
+##
+{ 'enum': 'XDbgNbdClientState',
+  'data': [ 'connecting-wait', 'connecting-nowait', 'connected', 'quit' ] }
+
+##
+# @XDbgNbdClientConnectorState:
+#     An enumeration of NBD client connector states.
+#
+# @idle: No connection attempt running and no parked channel.  In
+#     'connecting-wait' or 'connecting-nowait', the next request
+#     starts an attempt.
+#
+# @running: Connection attempt is in progress.  A request waits or
+#     fails, as described in 'connecting-wait' and
+#     'connecting-nowait'.
+#
+# @parked: Connection was successful and channel is kept.  The next
+#     request takes the channel and the client goes to 'connected'.
+#
+# Since: 12.0
+##
+{ 'enum': 'XDbgNbdClientConnectorState',
+  'data': [ 'idle', 'running', 'parked' ] }
+
+##
+# @XDbgNbdClientConnector:
+#     The NBD connector information.
+#
+# @state: State of the connector.
+#
+# Since: 12.0
+##
+{ 'struct': 'XDbgNbdClientConnector',
+  'data': { 'state': 'XDbgNbdClientConnectorState' } }
+
+##
+# @XDbgNbdClient:
+#     The NBD connection state of the client and its connector.
+#
+# @state: The client state.
+#
+# @connector: The connector details.
+#
+# Since: 12.0
+##
+{ 'struct': 'XDbgNbdClient',
+  'data': { 'state': 'XDbgNbdClientState',
+            'connector': 'XDbgNbdClientConnector' } }
+
+##
+# @x-debug-query-nbd-client:
+#     Get the NBD client state.
+#
+# @node-name: node name of a block node using the nbd driver.
+#     Use `query-named-block-nodes` to list block nodes.
+#
+# Features:
+#
+# @unstable: This command is meant for debugging and testing.
+#
+# Since: 12.0
+##
+{ 'command': 'x-debug-query-nbd-client',
+  'data': { 'node-name': 'str' },
+  'returns': 'XDbgNbdClient',
+  'features': [ 'unstable' ] }
+
+##
 # @drive-mirror:
 #     Start mirroring a block device's writes to a new destination.
 #     target specifies the target of the new image.  If the file
