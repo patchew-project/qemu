@@ -88,11 +88,20 @@ argument, which is used to check for and prevent re-entrancy problems. For
 BHs associated with devices, the reentrancy-guard is contained in the
 corresponding ``DeviceState`` and named ``mem_reentrancy_guard``.
 
-The ``AioContext`` can be obtained from the ``IOThread`` using
-``iothread_get_aio_context()`` or for the main loop using
-``qemu_get_aio_context()``. Code that takes an ``AioContext`` argument
-works both in ``IOThread``\ s or the main loop, depending on which ``AioContext``
-instance the caller passes in.
+The ``AioContext`` can be obtained from an ``IOThread`` using
+``iothread_ref_and_get_aio_context(iothread, holder)``, or from the main loop
+using ``qemu_get_aio_context()``. Code accepting an ``AioContext`` works with
+either event loop.
+
+The ``iothread_ref_and_get_aio_context()`` registers a holder and takes
+an IOThread reference. After the caller has finished using the context,
+release the reference with ``iothread_unref_and_put_aio_context()``, passing
+the same IOThread and an equivalent holder. Both calls require the BQL.
+No matching IOThread put is needed for the main loop's context.
+
+``iothread_unsafe_get_aio_context()`` neither registers a holder nor takes a
+reference. It is for legacy callers that ensure the IOThread's lifetime
+themselves; new code must use the holder-aware API.
 
 How to synchronize with an ``IOThread``
 ---------------------------------------
