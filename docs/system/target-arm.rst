@@ -95,6 +95,7 @@ Board-specific documentation
    arm/mcimx7d-sabre
    arm/imx8m
    arm/orangepi
+   arm/rock-5b
    arm/raspi
    arm/collie
    arm/sx1
