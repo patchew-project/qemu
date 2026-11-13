@@ -217,3 +217,56 @@ target_ulong HELPER(csrwr_pwch)(CPULoongArchState *env,
     sys->CSR_PWCH = val;
     return old_v;
 }
+
+target_ulong HELPER(csrwr_gstat)(CPULoongArchState *env,
+                                target_ulong val, uint32_t vm_level)
+{
+    CPUSysState *sys = get_sys(env, VM_LEVEL0);
+    int64_t old_v = sys->CSR_GSTAT;
+    uint8_t old_gid = FIELD_EX64(sys->CSR_GSTAT, CSR_GSTAT, GID);
+
+    sys->CSR_GSTAT = FIELD_DP64(sys->CSR_GSTAT, CSR_GSTAT, PVM,
+                                 FIELD_EX64(val, CSR_GSTAT, PVM));
+    sys->CSR_GSTAT = FIELD_DP64(sys->CSR_GSTAT, CSR_GSTAT, GID,
+                                 FIELD_EX64(val, CSR_GSTAT, GID));
+
+    if (old_gid != FIELD_EX64(sys->CSR_GSTAT, CSR_GSTAT, GID)) {
+        tlb_flush(env_cpu(env));
+    }
+
+    return old_v;
+}
+
+target_ulong HELPER(csrwr_gtlbc)(CPULoongArchState *env,
+                                target_ulong val, uint32_t vm_level)
+{
+    CPUSysState *sys = get_sys(env, VM_LEVEL0);
+    int64_t old_v = sys->CSR_GTLBC;
+    uint8_t old_use_tgid = FIELD_EX64(old_v, CSR_GTLBC, USETGID);
+    uint8_t old_tgid = FIELD_EX64(old_v, CSR_GTLBC, TGID);
+
+    sys->CSR_GTLBC = val;
+    if (old_use_tgid != FIELD_EX64(sys->CSR_GTLBC, CSR_GTLBC, USETGID) ||
+        old_tgid != FIELD_EX64(sys->CSR_GTLBC, CSR_GTLBC, TGID)) {
+        tlb_flush(env_cpu(env));
+    }
+
+    return old_v;
+}
+
+target_ulong HELPER(csrwr_gintc)(CPULoongArchState *env,
+                                target_ulong val, uint32_t vm_level)
+{
+    CPUSysState *host = get_sys(env, VM_LEVEL0);
+    CPUSysState *guest = get_sys(env, VM_LEVEL1);
+    int64_t old_v = host->CSR_GINTC;
+    uint8_t hwis = FIELD_EX64(val, CSR_GINTC, HWIS);
+    /* TODO: hwip and hwic support */
+
+    host->CSR_GINTC = val & 0xffff00;
+    guest->CSR_ESTAT = deposit64(guest->CSR_ESTAT, 2, 8,
+                                 hwis);
+
+    return old_v;
+}
+
