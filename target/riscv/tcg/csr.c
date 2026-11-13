@@ -2124,7 +2124,10 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
 
     /* If cfi lp extension is available, then apply cfi lp mask */
     if (env_archcpu(env)->cfg.ext_zicfilp) {
-        mask |= (MSTATUS_MPELP | MSTATUS_SPELP);
+        mask |= MSTATUS_MPELP;
+        if (riscv_has_ext(env, RVS)) {
+            mask |= MSTATUS_SPELP;
+        }
     }
 
     mstatus = (mstatus & ~mask) | (val & mask);
