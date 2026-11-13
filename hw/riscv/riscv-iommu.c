@@ -273,18 +273,21 @@ static hwaddr riscv_iommu_napot_page_mask(hwaddr ppn, hwaddr addr, hwaddr *out)
  * Keeping them separate for now, as error reporting and flow specifics are
  * sufficiently different for separate implementation.
  *
- * @s        : IOMMU Device State
- * @ctx      : Translation context for device id and process address space id.
- * @iotlb    : translation data: physical address and access mode.
- * @return   : success or fault cause code.
+ * @s               : IOMMU Device State
+ * @ctx             : Translation context for device id and process
+ *                    address space id.
+ * @iotlb           : translation data: physical address and access mode.
+ * @fault_iotval2   : Fault address and implicit-access flags for iotval2.
+ * @return          : success or fault cause code.
  */
 static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
-    IOMMUTLBEntry *iotlb)
+    IOMMUTLBEntry *iotlb, uint64_t *fault_iotval2)
 {
     IOMMUAccessFlags trans_perm = IOMMU_NONE;
     dma_addr_t addr, base;
     uint64_t satp, gatp, pte;
     bool en_s, en_g;
+    bool implicit_read;
     struct {
         unsigned char step;
         unsigned char levels;
@@ -299,10 +302,10 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
     MemTxResult ret;
     bool pv = !!ctx->process_id;
     /*
-     * Keep the request permission separate from iotlb->perm.  G-stage
+     * Keep the request permission separate from iotlb->perm. G-stage
      * walks translate S-stage PTE addresses before the real leaf is
      * reached, but permission checks and fault types must still use the
-     * original request.  A successful walk leaves iotlb->perm with the
+     * original request. A successful walk leaves iotlb->perm with the
      * effective leaf permission for the translation cache.
      */
     const IOMMUAccessFlags req_perm = iotlb->perm;
@@ -424,6 +427,14 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
         const dma_addr_t pte_addr = base + idx * sc[pass].ptesize;
         const bool ade =
             ctx->tc & (pass ? RISCV_IOMMU_DC_TC_GADE : RISCV_IOMMU_DC_TC_SADE);
+        /*
+         * G-stage accesses to S-stage page tables are implicit reads.
+         * The original DMA permission is used for the final data access.
+         */
+        implicit_read =
+            pass == G_STAGE && en_s && sc[S_STAGE].step != sc[S_STAGE].levels;
+        const IOMMUAccessFlags acc_perm =
+            implicit_read ? IOMMU_RO : req_perm;
 
         if (ade && !(s->cap & RISCV_IOMMU_CAP_AMO_HWAD)) {
             /* GADE/SADE are reserved bits if AMO_HWAD is cleared.  */
@@ -442,15 +453,11 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
                 masked_msbs = (addr >> (va_len - 1)) & mask;
 
                 if (masked_msbs != 0 && masked_msbs != mask) {
-                    return (req_perm & IOMMU_WO) ?
-                                RISCV_IOMMU_FQ_CAUSE_WR_FAULT_S :
-                                RISCV_IOMMU_FQ_CAUSE_RD_FAULT_S;
+                    goto page_fault;
                 }
             } else {
                 if ((addr & va_mask) != addr) {
-                    return (req_perm & IOMMU_WO) ?
-                                RISCV_IOMMU_FQ_CAUSE_WR_FAULT_VS :
-                                RISCV_IOMMU_FQ_CAUSE_RD_FAULT_VS;
+                    goto page_fault;
                 }
             }
         }
@@ -499,13 +506,13 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
              * non-user mode leaf PTE and !pv we need to fault.
              */
             break;
-        } else if ((req_perm & IOMMU_RO) && !(pte & PTE_R)) {
+        } else if ((acc_perm & IOMMU_RO) && !(pte & PTE_R)) {
             break;                /* Read access check failed */
-        } else if ((req_perm & IOMMU_WO) && !(pte & PTE_W)) {
+        } else if ((acc_perm & IOMMU_WO) && !(pte & PTE_W)) {
             break;                /* Write access check failed */
         } else if (!ade && !(pte & PTE_A)) {
             break;                /* Access bit not set */
-        } else if ((req_perm & IOMMU_WO) && !ade && !(pte & PTE_D)) {
+        } else if ((acc_perm & IOMMU_WO) && !ade && !(pte & PTE_D)) {
             break;                /* Dirty bit not set */
         } else if (pass == G_STAGE && !(pte & PTE_U)) {
             /*
@@ -587,13 +594,19 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
         }
     } while (1);
 
+page_fault:
     /*
      * riscv_iommu_translate() will receive a fault and then call
-     * riscv_iommu_report_fault() using iotlb->translated_addr
-     * as iotval2.  Update translated_addr it with the latest
-     * translated addr we have.
+     * riscv_iommu_report_fault() using fault_iotval2 as iotval2.
+     * Set fault_iotval2 to zero for S-stage page faults.
+     * For guest-page faults, report the faulting GPA and set the implicit
+     * first-stage page-table access flag in the low bit.
      */
-    iotlb->translated_addr = addr;
+    *fault_iotval2 = 0;
+
+    if (pass == G_STAGE) {
+        *fault_iotval2 = (addr & ~3ULL) | (implicit_read ? 1 : 0);
+    }
 
     return (req_perm & IOMMU_WO) ?
                 (pass ? RISCV_IOMMU_FQ_CAUSE_WR_FAULT_VS :
@@ -1740,6 +1753,7 @@ static int riscv_iommu_translate(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
     bool enable_pri;
     hwaddr phys = 0;
     int fault;
+    uint64_t fault_iotval2 = 0;
 
     riscv_iommu_hpm_incr_ctr(s, ctx, RISCV_IOMMU_HPMEVENT_URQ);
 
@@ -1776,7 +1790,7 @@ static int riscv_iommu_translate(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
     riscv_iommu_hpm_incr_ctr(s, ctx, RISCV_IOMMU_HPMEVENT_TLB_MISS);
 
     /* Translate using device directory / page table information. */
-    fault = riscv_iommu_spa_fetch(s, ctx, iotlb);
+    fault = riscv_iommu_spa_fetch(s, ctx, iotlb, &fault_iotval2);
 
     if (!fault && iotlb->target_as == &s->trap_as) {
         /* Do not cache trapped MSI translations */
@@ -1827,7 +1841,7 @@ done:
         }
 
         riscv_iommu_report_fault(s, ctx, ttype, fault, enable_pid,
-                                 iotlb->iova, iotlb->translated_addr);
+                                 iotlb->iova, fault_iotval2);
         return fault;
     }
 
