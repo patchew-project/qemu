@@ -82,6 +82,11 @@ static bool trans_rdtime_d(DisasContext *ctx, arg_rdtime_d *a)
 
 static bool trans_cpucfg(DisasContext *ctx, arg_cpucfg *a)
 {
+    if (mmu_idx_vm_level(ctx->mem_idx)) {
+        generate_exception(ctx, EXCCODE_GSPR);
+        return true;
+    }
+
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
     TCGv src1 = gpr_src(ctx, a->rj, EXT_NONE);
 

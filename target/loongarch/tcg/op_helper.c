@@ -20,6 +20,9 @@
 /* Exceptions helpers */
 void HELPER(raise_exception)(CPULoongArchState *env, uint32_t exception)
 {
+    if (exception == EXCCODE_GSPR || exception == EXCCODE_HVC) {
+        trigger_vm_exit(env);
+    }
     do_raise_exception(env, exception, GETPC());
 }
 
