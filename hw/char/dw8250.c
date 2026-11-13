@@ -117,6 +117,8 @@ static void dw8250_instance_init(Object *obj)
 
     object_initialize_child(obj, "serial-mm", &s->serial_mm, TYPE_SERIAL_MM);
     object_property_add_alias(obj, "chardev", OBJECT(&s->serial_mm), "chardev");
+    object_property_add_alias(obj, "baudbase", OBJECT(&s->serial_mm),
+                              "baudbase");
 }
 
 static void dw8250_realize(DeviceState *dev, Error **errp)
