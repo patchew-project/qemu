@@ -1779,7 +1779,9 @@ static int riscv_iommu_translate(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
         phys = iot->phys;
     }
     qemu_mutex_unlock(&s->iot_lock);
-    if (perm != IOMMU_NONE) {
+    if (perm != IOMMU_NONE &&
+        (iotlb->perm == IOMMU_NONE ||
+         (perm & iotlb->perm) == iotlb->perm)) {
         iotlb->translated_addr = PPN_PHYS(phys);
         iotlb->addr_mask = ~TARGET_PAGE_MASK;
         iotlb->perm = perm;
