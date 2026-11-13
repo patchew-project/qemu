@@ -265,6 +265,128 @@ static hwaddr riscv_iommu_napot_page_mask(hwaddr ppn, hwaddr addr, hwaddr *out)
     return page_mask;
 }
 
+typedef enum RISCVIOMMUADResult {
+    RISCV_IOMMU_AD_SUCCESS,
+    RISCV_IOMMU_AD_RETRY,
+    RISCV_IOMMU_AD_FAULT,
+} RISCVIOMMUADResult;
+
+/*
+ * Atomically update the A/D bits of a leaf PTE.
+ * Retry the page-table walk if the PTE has changed.
+ */
+static RISCVIOMMUADResult
+riscv_iommu_ad_update(RISCVIOMMUState *s, hwaddr pte_addr,
+                      unsigned int pte_size, uint64_t pte, uint64_t updated_pte)
+{
+    MemoryRegion *mr;
+    hwaddr offset, len = pte_size;
+    uint64_t old_pte;
+    void *pte_ptr;
+
+    if (pte_addr & (pte_size - 1)) {
+        return RISCV_IOMMU_AD_FAULT;
+    }
+
+    RCU_READ_LOCK_GUARD();
+
+    mr = address_space_translate(s->target_as, pte_addr, &offset,
+                                 &len, true, MEMTXATTRS_UNSPECIFIED);
+
+    if (len < pte_size || !memory_region_is_ram(mr)) {
+        /*
+         * The entire PTE must be backed by a single RAM region
+         * for an atomic update.
+         */
+        return RISCV_IOMMU_AD_FAULT;
+    }
+
+    pte_ptr = qemu_map_ram_ptr(mr->ram_block, offset);
+
+    if (pte_size == 4) {
+        uint32_t expected = cpu_to_le32((uint32_t)pte);
+        uint32_t desired = cpu_to_le32((uint32_t)updated_pte);
+
+        old_pte = qatomic_cmpxchg((uint32_t *)pte_ptr, expected, desired);
+        old_pte = le32_to_cpu(old_pte);
+    } else {
+        uint64_t expected = cpu_to_le64(pte);
+        uint64_t desired = cpu_to_le64(updated_pte);
+
+        old_pte = qatomic_cmpxchg((uint64_t *)pte_ptr, expected, desired);
+        old_pte = le64_to_cpu(old_pte);
+    }
+
+    if (old_pte != pte) {
+        return RISCV_IOMMU_AD_RETRY;
+    }
+
+    return RISCV_IOMMU_AD_SUCCESS;
+}
+
+static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
+    IOMMUTLBEntry *iotlb, bool implicit_write, uint64_t *fault_iotval2);
+
+/*
+ * Updating a first-stage leaf PTE requires an implicit write.
+ * Translate its GPA through the G-stage, checking write permission
+ * and updating the G-stage's A/D bits as needed.
+ */
+static int riscv_iommu_check_pte_write(RISCVIOMMUState *s,
+                                       RISCVIOMMUContext *ctx,
+                                       dma_addr_t pte_gpa,
+                                       IOMMUAccessFlags req_perm,
+                                       hwaddr *pte_spa,
+                                       uint64_t *fault_iotval2)
+{
+    RISCVIOMMUContext gctx = *ctx;
+    uint64_t iotval2 = 0;
+    int fault;
+
+    IOMMUTLBEntry iotlb = {
+        .iova = pte_gpa,
+        .target_as = s->target_as,
+        .addr_mask = ~0ULL,
+        .perm = IOMMU_WO,
+    };
+
+    gctx.satp = RISCV_IOMMU_DC_FSC_MODE_BARE;
+
+    fault = riscv_iommu_spa_fetch(s, &gctx, &iotlb, true, &iotval2);
+
+    if (fault) {
+        *fault_iotval2 = iotval2;
+
+        if (fault == RISCV_IOMMU_FQ_CAUSE_RD_FAULT_VS ||
+            fault == RISCV_IOMMU_FQ_CAUSE_WR_FAULT_VS) {
+            /*
+             * Per the RISC-V IOMMU Fault/Event Queue format, iotval2[0]
+             * indicates an implicit first-stage access and iotval2[1]
+             * indicates an implicit write. Report the fault for the
+             * original DMA access rather than the implicit write.
+             */
+            *fault_iotval2 = (pte_gpa & ~3ULL) | 3;
+
+            fault = (req_perm & IOMMU_WO) ?
+                        RISCV_IOMMU_FQ_CAUSE_WR_FAULT_VS :
+                        RISCV_IOMMU_FQ_CAUSE_RD_FAULT_VS;
+        } else if (fault == RISCV_IOMMU_FQ_CAUSE_RD_FAULT ||
+                   fault == RISCV_IOMMU_FQ_CAUSE_WR_FAULT) {
+            /*
+             * A physical access fault also uses the original
+             * DMA access type.
+             */
+            fault = (req_perm & IOMMU_WO) ?
+                        RISCV_IOMMU_FQ_CAUSE_WR_FAULT :
+                        RISCV_IOMMU_FQ_CAUSE_RD_FAULT;
+        }
+        return fault;
+    }
+
+    *pte_spa = iotlb.translated_addr;
+    return 0;
+}
+
 /*
  * RISCV IOMMU Address Translation Lookup - Page Table Walk
  *
@@ -277,14 +399,15 @@ static hwaddr riscv_iommu_napot_page_mask(hwaddr ppn, hwaddr addr, hwaddr *out)
  * @ctx             : Translation context for device id and process
  *                    address space id.
  * @iotlb           : translation data: physical address and access mode.
+ * @implicit_write  : Whether this is an implicit write to a first-stage PTE.
  * @fault_iotval2   : Fault address and implicit-access flags for iotval2.
  * @return          : success or fault cause code.
  */
 static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
-    IOMMUTLBEntry *iotlb, uint64_t *fault_iotval2)
+    IOMMUTLBEntry *iotlb, bool implicit_write, uint64_t *fault_iotval2)
 {
     IOMMUAccessFlags trans_perm = IOMMU_NONE;
-    dma_addr_t addr, base;
+    dma_addr_t addr, base, s_base_gpa = 0;
     uint64_t satp, gatp, pte;
     bool en_s, en_g;
     bool implicit_read;
@@ -309,6 +432,8 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
      * effective leaf permission for the translation cache.
      */
     const IOMMUAccessFlags req_perm = iotlb->perm;
+    const hwaddr addr_mask = iotlb->addr_mask;
+    const hwaddr translated_addr = iotlb->translated_addr;
 
     satp = get_field(ctx->satp, RISCV_IOMMU_ATP_MODE_FIELD);
     gatp = get_field(ctx->gatp, RISCV_IOMMU_ATP_MODE_FIELD);
@@ -327,7 +452,7 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
      * means we can't do an early MSI check unless we have
      * strictly !en_s.
      */
-    if (!en_s && (req_perm & IOMMU_WO) &&
+    if (!implicit_write && !en_s && (req_perm & IOMMU_WO) &&
         riscv_iommu_msi_check(s, ctx, iotlb->iova)) {
         iotlb->target_as = &s->trap_as;
         iotlb->translated_addr = iotlb->iova;
@@ -414,6 +539,17 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
     /* S/G stages translation tables root pointers */
     gatp = PPN_PHYS(get_field(ctx->gatp, RISCV_IOMMU_ATP_PPN_FIELD));
     satp = PPN_PHYS(get_field(ctx->satp, RISCV_IOMMU_ATP_PPN_FIELD));
+
+restart:
+    sc[S_STAGE].step = 0;
+    sc[G_STAGE].step = 0;
+    trans_perm = IOMMU_NONE;
+    iotlb->addr_mask = addr_mask;
+    iotlb->translated_addr = translated_addr;
+    iotlb->perm = req_perm;
+    s_base_gpa = 0;
+    *fault_iotval2 = 0;
+
     addr = (en_s && en_g) ? satp : iotlb->iova;
     base = en_g ? gatp : satp;
     pass = en_g ? G_STAGE : S_STAGE;
@@ -541,8 +677,51 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
                 iotlb->addr_mask &= (1ULL << va_skip) - 1;
             }
 
+            /* Automatically update the leaf PTE's A/D bits when enabled. */
+            uint64_t updated_pte = pte;
+            if (ade) {
+                updated_pte |= PTE_A;
+
+                if (acc_perm & IOMMU_WO) {
+                    updated_pte |= PTE_D;
+                }
+            }
+            if (updated_pte != pte) {
+                if (pass == S_STAGE && en_g) {
+                    const dma_addr_t s_pte_gpa =
+                        s_base_gpa + idx * sc[pass].ptesize;
+                    hwaddr write_spa;
+
+                    int fault = riscv_iommu_check_pte_write(
+                        s, ctx, s_pte_gpa, req_perm, &write_spa,
+                        fault_iotval2);
+                    if (fault) {
+                        return fault;
+                    }
+
+                    if (write_spa != pte_addr) {
+                        goto restart;
+                    }
+                }
+
+                RISCVIOMMUADResult result = riscv_iommu_ad_update(
+                    s, pte_addr, sc[pass].ptesize, pte, updated_pte);
+
+                if (result == RISCV_IOMMU_AD_RETRY) {
+                    goto restart;
+                }
+                if (result == RISCV_IOMMU_AD_FAULT) {
+                    return (req_perm & IOMMU_WO) ?
+                        RISCV_IOMMU_FQ_CAUSE_WR_FAULT :
+                        RISCV_IOMMU_FQ_CAUSE_RD_FAULT;
+                }
+                pte = updated_pte;
+            }
+
             /* Continue with S-Stage translation? */
             if (pass && sc[0].step != sc[0].levels) {
+                /* Save the S-stage page-table GPA for A/D updates. */
+                s_base_gpa = addr;
                 pass = S_STAGE;
                 addr = iotlb->iova;
                 continue;
@@ -552,6 +731,11 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
             IOMMUAccessFlags leaf_perm = (pte & PTE_W) ?
                                          ((pte & PTE_R) ? IOMMU_RW : IOMMU_WO) :
                                          IOMMU_RO;
+
+            /* Do not cache write permission until the D bit is set. */
+            if (!(pte & PTE_D)) {
+                leaf_perm &= ~IOMMU_WO;
+            }
 
             trans_perm = trans_perm == IOMMU_NONE ?
                          leaf_perm : trans_perm & leaf_perm;
@@ -1792,7 +1976,7 @@ static int riscv_iommu_translate(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
     riscv_iommu_hpm_incr_ctr(s, ctx, RISCV_IOMMU_HPMEVENT_TLB_MISS);
 
     /* Translate using device directory / page table information. */
-    fault = riscv_iommu_spa_fetch(s, ctx, iotlb, &fault_iotval2);
+    fault = riscv_iommu_spa_fetch(s, ctx, iotlb, false, &fault_iotval2);
 
     if (!fault && iotlb->target_as == &s->trap_as) {
         /* Do not cache trapped MSI translations */
@@ -2730,6 +2914,9 @@ static void riscv_iommu_realize(DeviceState *dev, Error **errp)
     if (s->enable_ats) {
         s->cap |= RISCV_IOMMU_CAP_ATS;
     }
+    if (s->enable_amo_hwad) {
+        s->cap |= RISCV_IOMMU_CAP_AMO_HWAD;
+    }
     if (s->enable_s_stage) {
         s->cap |= RISCV_IOMMU_CAP_SV32 | RISCV_IOMMU_CAP_SV39 |
                   RISCV_IOMMU_CAP_SV48 | RISCV_IOMMU_CAP_SV57;
@@ -2889,6 +3076,7 @@ static const Property riscv_iommu_properties[] = {
         LIMIT_CACHE_IOT),
     DEFINE_PROP_BOOL("intremap", RISCVIOMMUState, enable_msi, TRUE),
     DEFINE_PROP_BOOL("ats", RISCVIOMMUState, enable_ats, TRUE),
+    DEFINE_PROP_BOOL("amo-hwad", RISCVIOMMUState, enable_amo_hwad, false),
     DEFINE_PROP_BOOL("off", RISCVIOMMUState, enable_off, TRUE),
     DEFINE_PROP_BOOL("s-stage", RISCVIOMMUState, enable_s_stage, TRUE),
     DEFINE_PROP_BOOL("g-stage", RISCVIOMMUState, enable_g_stage, TRUE),

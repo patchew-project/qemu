@@ -69,6 +69,7 @@ Several options are available to control the capabilities of the device, namely:
 - "ioatc-limit": size of the Address Translation Cache (default to 2Mb)
 - "intremap": enable/disable MSI support
 - "ats": enable ATS support
+- "amo-hwad": enable automatic PTE A/D bit updates when SADE or GADE is set
 - "off" (Out-of-reset translation mode: 'on' for DMA disabled, 'off' for 'BARE' (passthrough))
 - "s-stage": enable s-stage support
 - "g-stage": enable g-stage support
@@ -96,6 +97,7 @@ riscv-iommu options:
 - "ioatc-limit": default value (2Mb)
 - "intremap": enabled
 - "ats": enabled
+- "amo-hwad": disabled
 - "off": on (DMA disabled)
 - "s-stage": enabled
 - "g-stage": enabled
