@@ -602,11 +602,17 @@ void HELPER(tlbflush)(CPULoongArchState *env)
 void HELPER(invtlb_all)(CPULoongArchState *env, target_ulong info, uint32_t op,
                        uint32_t vm_level)
 {
-    uint16_t gid = get_gid(env, env_vm_level(env));
+    uint16_t gid = vm_level ? (info & 0xff) : get_gid(env, env_vm_level(env));
+
+    if (vm_level && env_vm_level(env) == VM_LEVEL1) {
+        do_raise_exception(env, EXCCODE_IPE, GETPC());
+    }
+
+    vm_level |= env_vm_level(env) == VM_LEVEL1;
 
     for (int i = 0; i < LOONGARCH_TLB_MAX; i++) {
         LoongArchTLB *tlb = &env->tlb[i];
-        if ((op == 0 && env_vm_level(env) == 0) || tlb_entry_matches_gid(tlb, gid))
+        if ((op == 0 && vm_level == 0) || tlb_entry_matches_gid(tlb, gid))
             tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
     }
     tlb_flush(env_cpu(env));
@@ -615,7 +621,13 @@ void HELPER(invtlb_all)(CPULoongArchState *env, target_ulong info, uint32_t op,
 void HELPER(invtlb_all_g)(CPULoongArchState *env, target_ulong info, uint32_t g,
                          uint32_t vm_level)
 {
-    uint16_t gid = get_gid(env, env_vm_level(env));
+    uint16_t gid = vm_level ? (info & 0xff) : get_gid(env, env_vm_level(env));
+
+    if (vm_level && env_vm_level(env) == VM_LEVEL1) {
+        do_raise_exception(env, EXCCODE_IPE, GETPC());
+    }
+
+    vm_level |= env_vm_level(env) == VM_LEVEL1;
 
     for (int i = 0; i < LOONGARCH_TLB_MAX; i++) {
         LoongArchTLB *tlb = &env->tlb[i];
@@ -632,7 +644,12 @@ void HELPER(invtlb_all_asid)(CPULoongArchState *env, target_ulong info,
                             uint32_t vm_level)
 {
     uint16_t asid = info & R_CSR_ASID_ASID_MASK;
-    uint16_t gid = get_gid(env, env_vm_level(env));
+    uint16_t gid = vm_level ? ((info >> 16) & 0xff) : get_gid(env, env_vm_level(env));
+
+    if (vm_level) {
+        do_raise_exception(env, EXCCODE_IPE, GETPC());
+    }
+    vm_level |= env_vm_level(env);
 
     for (int i = 0; i < LOONGARCH_TLB_MAX; i++) {
         LoongArchTLB *tlb = &env->tlb[i];
@@ -651,14 +668,19 @@ void HELPER(invtlb_page_asid)(CPULoongArchState *env, target_ulong info,
 {
 
     uint16_t asid = info & R_CSR_ASID_ASID_MASK;
-    uint16_t gid = get_gid(env, env_vm_level(env));
+    uint16_t gid = vm_level ? ((info >> 16) & 0xff) : get_gid(env, env_vm_level(env));
     const LoongArchTLB *tlb;
     tlb_match func;
 
+    if (vm_level && env_vm_level(env)) {
+        do_raise_exception(env, EXCCODE_IPE, GETPC());
+    }
+    vm_level |= env_vm_level(env);
+
     func = tlb_match_asid;
-    tlb = loongarch_tlb_search_cb(env, addr, asid, func, env_vm_level(env), gid);
+    tlb = loongarch_tlb_search_cb(env, addr, asid, func, vm_level, gid);
     if (tlb) {
-        invalidate_tlb(env, tlb - env->tlb, env_vm_level(env));
+        invalidate_tlb(env, tlb - env->tlb, vm_level);
     }
 }
 
@@ -666,15 +688,19 @@ void HELPER(invtlb_page_asid_or_g)(CPULoongArchState *env, target_ulong info,
                                   target_ulong addr, uint32_t vm_level)
 {
     uint16_t asid = info & R_CSR_ASID_ASID_MASK;
-    uint16_t gid = get_gid(env, env_vm_level(env));
+    uint16_t gid = vm_level ? ((info >> 16) & 0xff) : get_gid(env, env_vm_level(env));
     const LoongArchTLB *tlb;
     tlb_match func;
 
     func = tlb_match_any;
+    if (vm_level) {
+        do_raise_exception(env, EXCCODE_IPE, GETPC());
+    }
+    vm_level |= env_vm_level(env);
     tlb = loongarch_tlb_search_cb(env, addr, asid, func,
-                                  env_vm_level(env), gid);
+                                  vm_level, gid);
     if (tlb) {
-        invalidate_tlb(env, tlb - env->tlb, env_vm_level(env));
+        invalidate_tlb(env, tlb - env->tlb, vm_level);
     }
 }
 
