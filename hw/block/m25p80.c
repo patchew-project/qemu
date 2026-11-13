@@ -602,6 +602,52 @@ static inline void flash_sync_area(Flash *s, int64_t off, int64_t len)
     blk_aio_pwritev(s->blk, off, iov, 0, blk_sync_complete, iov);
 }
 
+static uint32_t flash_protected_sectors(const Flash *s)
+{
+    uint32_t block_protect_value = (s->block_protect3 << 3) |
+                                   (s->block_protect2 << 2) |
+                                   (s->block_protect1 << 1) |
+                                   (s->block_protect0 << 0);
+
+    if (!block_protect_value) {
+        return 0;
+    }
+
+    return MIN(1U << (block_protect_value - 1), s->pi->n_sectors);
+}
+
+static bool flash_sector_protected(const Flash *s, uint32_t sector)
+{
+    uint32_t num_protected = flash_protected_sectors(s);
+
+    if (!num_protected) {
+        return false;
+    }
+
+    if (!s->top_bottom_bit) {
+        return sector + num_protected >= s->pi->n_sectors;
+    }
+
+    return sector < num_protected;
+}
+
+static bool flash_erase_protected(const Flash *s, uint32_t offset, uint32_t len)
+{
+    uint32_t first_sector = offset / s->pi->sector_size;
+    uint64_t last = ((uint64_t)offset + len - 1) / s->pi->sector_size;
+    uint32_t num_protected = flash_protected_sectors(s);
+
+    if (!num_protected) {
+        return false;
+    }
+
+    if (!s->top_bottom_bit) {
+        return last >= s->pi->n_sectors - num_protected;
+    }
+
+    return first_sector < num_protected;
+}
+
 static void flash_erase(Flash *s, int offset, FlashCMD cmd)
 {
     uint32_t len;
@@ -663,6 +709,12 @@ static void flash_erase(Flash *s, int offset, FlashCMD cmd)
         qemu_log_mask(LOG_GUEST_ERROR, "M25P80: erase with write protect!\n");
         return;
     }
+
+    if (flash_erase_protected(s, offset, len)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "M25P80: erase with write protect!\n");
+        return;
+    }
+
     memset(s->storage + offset, 0xff, len);
     flash_sync_area(s, offset, len);
 }
@@ -680,34 +732,15 @@ void flash_write8(Flash *s, uint32_t addr, uint8_t data)
 {
     uint32_t page = addr / s->pi->page_size;
     uint8_t prev = s->storage[s->cur_addr];
-    uint32_t block_protect_value = (s->block_protect3 << 3) |
-                                   (s->block_protect2 << 2) |
-                                   (s->block_protect1 << 1) |
-                                   (s->block_protect0 << 0);
 
     if (!s->write_enable) {
         qemu_log_mask(LOG_GUEST_ERROR, "M25P80: write with write protect!\n");
         return;
     }
 
-    if (block_protect_value > 0) {
-        uint32_t num_protected_sectors = 1 << (block_protect_value - 1);
-        uint32_t sector = addr / s->pi->sector_size;
-
-        /* top_bottom_bit == 0 means TOP */
-        if (!s->top_bottom_bit) {
-            if (s->pi->n_sectors <= sector + num_protected_sectors) {
-                qemu_log_mask(LOG_GUEST_ERROR,
-                              "M25P80: write with write protect!\n");
-                return;
-            }
-        } else {
-            if (sector < num_protected_sectors) {
-                qemu_log_mask(LOG_GUEST_ERROR,
-                              "M25P80: write with write protect!\n");
-                return;
-            }
-        }
+    if (flash_sector_protected(s, addr / s->pi->sector_size)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "M25P80: write with write protect!\n");
+        return;
     }
 
     if ((prev ^ data) & data) {

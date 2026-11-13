@@ -173,6 +173,13 @@ static void flash_reset(const AspeedSMCTestData *data)
 {
     spi_conf(data, 1 << (CONF_ENABLE_W0 + data->cs));
 
+    /* Chip erase is ignored while any memory region is protected. */
+    spi_ctrl_start_user(data);
+    flash_writeb(data, 0, WREN);
+    flash_writeb(data, 0, WRSR);
+    flash_writeb(data, 0, 0);
+    spi_ctrl_stop_user(data);
+
     spi_ctrl_start_user(data);
     flash_writeb(data, 0, RESET_ENABLE);
     flash_writeb(data, 0, RESET_MEMORY);
@@ -597,6 +604,12 @@ void aspeed_smc_test_write_block_protect(const void *data)
 
         spi_ctrl_start_user(test_data);
         flash_writeb(test_data, 0, WREN);
+        flash_writeb(test_data, 0, WRSR);
+        flash_writeb(test_data, 0, 0);
+        spi_ctrl_stop_user(test_data);
+
+        spi_ctrl_start_user(test_data);
+        flash_writeb(test_data, 0, WREN);
         flash_writeb(test_data, 0, BULK_ERASE);
         flash_writeb(test_data, 0, WREN);
         flash_writeb(test_data, 0, WRSR);
@@ -640,6 +653,12 @@ void aspeed_smc_test_write_block_protect_bottom_bit(const void *data)
 
     for (int i = 0; i < 16; i++) {
         bp_bits = (((i & 0b1000) | 0b0100) << 3) | ((i & 0b0111) << 2);
+
+        spi_ctrl_start_user(test_data);
+        flash_writeb(test_data, 0, WREN);
+        flash_writeb(test_data, 0, WRSR);
+        flash_writeb(test_data, 0, 0);
+        spi_ctrl_stop_user(test_data);
 
         spi_ctrl_start_user(test_data);
         flash_writeb(test_data, 0, WREN);
