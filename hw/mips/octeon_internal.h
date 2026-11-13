@@ -30,12 +30,14 @@
 
 typedef enum OcteonIRQ {
     OCTEON_IRQ_UART,
+    OCTEON_IRQ_PCI,
     OCTEON_IRQ_USB0,
     OCTEON_IRQ_USB1,
     OCTEON_IRQ_COUNT,
 } OcteonIRQ;
 
 typedef enum OcteonCiu3Source {
+    OCTEON_CIU3_SRC_PCI_INTA,
     OCTEON_CIU3_SRC_UART0,
     OCTEON_CIU3_SRC_USB0,
     OCTEON_CIU3_SRC_USB1,
@@ -93,6 +95,12 @@ struct OcteonState {
     MemoryRegion uart_alias;
     MemoryRegion uart_tx;
     MemoryRegion uart_alias_tx;
+    MemoryRegion pcie_cfg;
+    MemoryRegion pcie_sli_cfg;
+    MemoryRegion pcie0_io;
+
+    DeviceState *pci_host;
+    PCIBus *pci_bus;
 };
 
 guint octeon_uint64_hash(gconstpointer v);
@@ -109,5 +117,10 @@ void octeon_validate_ram_size(uint64_t ram_size);
 void octeon_init_spd(OcteonState *s);
 void octeon_init_twsi(OcteonState *s);
 void octeon_init_usb(OcteonState *s);
+void octeon_init_pci(OcteonState *s);
+uint64_t octeon_pci_pem_read(OcteonState *s, hwaddr reg,
+                             hwaddr addr, unsigned size);
+void octeon_pci_pem_write(OcteonState *s, hwaddr reg, hwaddr addr,
+                          uint64_t value, unsigned size);
 
 #endif
