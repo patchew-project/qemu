@@ -738,10 +738,14 @@ static void loongarch_cpu_realizefn(DeviceState *dev, Error **errp)
     CPULoongArchState *env = cpu_env(cs);
 
 #ifdef CONFIG_TCG
-    CPUTimerState *timer;
+    CPUTimerState *timer, *guest_timer;
 #endif
 
-    env->irq_nr = N_IRQS;
+    if (cpu_has_lvz(env)) {
+        env->irq_nr = N_VIRQS;
+    } else {
+        env->irq_nr = N_IRQS;
+    }
     qdev_init_gpio_in(dev, loongarch_cpu_set_irq, env->irq_nr);
 #ifdef CONFIG_TCG
     timer = env_timer(env);
@@ -749,6 +753,14 @@ static void loongarch_cpu_realizefn(DeviceState *dev, Error **errp)
     timer->cs  = cs;
     timer_init_ns(&timer->timer, QEMU_CLOCK_VIRTUAL,
                   &cpu_loongarch_timer_cb, timer);
+
+    if (cpu_has_lvz(env)) {
+        guest_timer = env_guest_timer(env);
+        guest_timer->irq = IRQ_VTIMER;
+        guest_timer->cs = cs;
+        timer_init_ns(&guest_timer->timer, QEMU_CLOCK_VIRTUAL,
+            &cpu_loongarch_timer_cb, guest_timer);
+    }
 #endif
 
     cpu_common_realize(cs, &local_err);

@@ -245,6 +245,7 @@ extern const char * const fregnames[32];
 #define IRQ_IPI     12
 #define INT_DMSI    14
 #define N_VIRQS     (N_IRQS * 2)
+#define IRQ_VTIMER  (N_IRQS + IRQ_TIMER)
 
 #define MAX_PERF_EVENTS        16
 #define LOONGARCH_STLB         2048 /* 2048 STLB */
@@ -580,6 +581,11 @@ static inline void trigger_vm_exit(CPULoongArchState *env)
 static inline CPUTimerState *env_timer(CPULoongArchState *env)
 {
     return &env->sys_states[0].timer_state;
+}
+
+static inline CPUTimerState *env_guest_timer(CPULoongArchState *env)
+{
+    return &env->sys_states[1].timer_state;
 }
 
 static inline bool is_la64(CPULoongArchState *env)
