@@ -77,6 +77,14 @@ static int pmp_is_readonly(CPURISCVState *env, uint32_t pmp_index)
  */
 static int pmp_is_invalid_smepmp_cfg(CPURISCVState *env, uint8_t val)
 {
+    bool r_w_bits_reserved = !riscv_cpu_cfg(env)->ext_smepmp
+                             || !MSECCFG_MML_ISSET(env);
+
+    if (r_w_bits_reserved
+        && (val & (PMP_WRITE | PMP_READ)) == 0b10) {
+        return 1;
+    }
+
     /* No check if mseccfg.MML is not set or if mseccfg.RLB is set */
     if (!MSECCFG_MML_ISSET(env) || MSECCFG_RLB_ISSET(env)) {
         return 0;
