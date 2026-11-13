@@ -1627,12 +1627,35 @@ uint64_t HELPER(float_msub_ps)(CPUMIPSState *env, uint64_t fdt0,
     return ((uint64_t)fsth0 << 32) | fstl0;
 }
 
+/*
+ * The final negation of NMADD.fmt and NMSUB.fmt is arithmetic: with the
+ * legacy NaN encoding (FCSR.NAN2008 = 0) the sign of a NaN result is not
+ * changed.
+ */
+static inline float64 nm_negate_d(CPUMIPSState *env, float64 a)
+{
+    if (!(env->active_fpu.fcr31 & (1 << FCR31_NAN2008)) &&
+        float64_is_any_nan(a)) {
+        return a;
+    }
+    return float64_chs(a);
+}
+
+static inline float32 nm_negate_s(CPUMIPSState *env, float32 a)
+{
+    if (!(env->active_fpu.fcr31 & (1 << FCR31_NAN2008)) &&
+        float32_is_any_nan(a)) {
+        return a;
+    }
+    return float32_chs(a);
+}
+
 uint64_t HELPER(float_nmadd_d)(CPUMIPSState *env, uint64_t fst0,
                              uint64_t fst1, uint64_t fst2)
 {
     fst0 = float64_mul(fst0, fst1, &env->active_fpu.fp_status);
     fst0 = float64_add(fst0, fst2, &env->active_fpu.fp_status);
-    fst0 = float64_chs(fst0);
+    fst0 = nm_negate_d(env, fst0);
 
     update_fcr31(env, GETPC());
     return fst0;
@@ -1643,7 +1666,7 @@ uint32_t HELPER(float_nmadd_s)(CPUMIPSState *env, uint32_t fst0,
 {
     fst0 = float32_mul(fst0, fst1, &env->active_fpu.fp_status);
     fst0 = float32_add(fst0, fst2, &env->active_fpu.fp_status);
-    fst0 = float32_chs(fst0);
+    fst0 = nm_negate_s(env, fst0);
 
     update_fcr31(env, GETPC());
     return fst0;
@@ -1661,10 +1684,10 @@ uint64_t HELPER(float_nmadd_ps)(CPUMIPSState *env, uint64_t fdt0,
 
     fstl0 = float32_mul(fstl0, fstl1, &env->active_fpu.fp_status);
     fstl0 = float32_add(fstl0, fstl2, &env->active_fpu.fp_status);
-    fstl0 = float32_chs(fstl0);
+    fstl0 = nm_negate_s(env, fstl0);
     fsth0 = float32_mul(fsth0, fsth1, &env->active_fpu.fp_status);
     fsth0 = float32_add(fsth0, fsth2, &env->active_fpu.fp_status);
-    fsth0 = float32_chs(fsth0);
+    fsth0 = nm_negate_s(env, fsth0);
 
     update_fcr31(env, GETPC());
     return ((uint64_t)fsth0 << 32) | fstl0;
@@ -1675,7 +1698,7 @@ uint64_t HELPER(float_nmsub_d)(CPUMIPSState *env, uint64_t fst0,
 {
     fst0 = float64_mul(fst0, fst1, &env->active_fpu.fp_status);
     fst0 = float64_sub(fst0, fst2, &env->active_fpu.fp_status);
-    fst0 = float64_chs(fst0);
+    fst0 = nm_negate_d(env, fst0);
 
     update_fcr31(env, GETPC());
     return fst0;
@@ -1686,7 +1709,7 @@ uint32_t HELPER(float_nmsub_s)(CPUMIPSState *env, uint32_t fst0,
 {
     fst0 = float32_mul(fst0, fst1, &env->active_fpu.fp_status);
     fst0 = float32_sub(fst0, fst2, &env->active_fpu.fp_status);
-    fst0 = float32_chs(fst0);
+    fst0 = nm_negate_s(env, fst0);
 
     update_fcr31(env, GETPC());
     return fst0;
@@ -1704,10 +1727,10 @@ uint64_t HELPER(float_nmsub_ps)(CPUMIPSState *env, uint64_t fdt0,
 
     fstl0 = float32_mul(fstl0, fstl1, &env->active_fpu.fp_status);
     fstl0 = float32_sub(fstl0, fstl2, &env->active_fpu.fp_status);
-    fstl0 = float32_chs(fstl0);
+    fstl0 = nm_negate_s(env, fstl0);
     fsth0 = float32_mul(fsth0, fsth1, &env->active_fpu.fp_status);
     fsth0 = float32_sub(fsth0, fsth2, &env->active_fpu.fp_status);
-    fsth0 = float32_chs(fsth0);
+    fsth0 = nm_negate_s(env, fsth0);
 
     update_fcr31(env, GETPC());
     return ((uint64_t)fsth0 << 32) | fstl0;
