@@ -129,6 +129,9 @@ static void loongarch_tr_init_disas_context(DisasContextBase *dcbase,
     } else {
         ctx->mem_idx = MMU_DA_IDX;
     }
+    if (ctx->base.tb->flags & HW_FLAGS_GUEST_MODE) {
+        ctx->mem_idx += MMU_GUEST_IDX;
+    }
 
     /* Bound the number of insns to execute to those left on the page.  */
     bound = -(ctx->base.pc_first | TARGET_PAGE_MASK) / 4;

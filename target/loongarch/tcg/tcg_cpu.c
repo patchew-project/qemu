@@ -269,6 +269,13 @@ static int loongarch_cpu_mmu_index(CPUState *cs, bool ifetch)
     CPULoongArchState *env = cpu_env(cs);
     CPUSysState *sys = env_sys(env);
 
+    if (env_vm_level(env) == VM_LEVEL1) {
+        if (FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, PG)) {
+            return MMU_GUEST_IDX + FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, PLV);
+        }
+        return MMU_GUEST_DA_IDX;
+    }
+
     if (FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, PG)) {
         return FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, PLV);
     }
