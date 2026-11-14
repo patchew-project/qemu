@@ -596,7 +596,7 @@ static void decode_ste_config(SMMUTransCfg *cfg, uint32_t config)
 
 /* Returns < 0 in case of invalid STE, 0 otherwise */
 static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
-                      STE *ste, SMMUEventInfo *event)
+                      STE *ste, SMMUEventInfo *event, SMMUSecSID sec_sid)
 {
     uint32_t config;
     /* OAS field only presents on NS-IDR5 so we use hardcoded SMMU_SEC_SID_NS */
@@ -648,6 +648,11 @@ static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
         cfg->oas = oas2bits(oas);
         ret = decode_ste_s2_cfg(s, cfg, ste);
         if (ret) {
+            goto bad_ste;
+        }
+
+        /* The model does not support Secure stage-2 translation. */
+        if (sec_sid == SMMU_SEC_SID_S) {
             goto bad_ste;
         }
     }
@@ -915,7 +920,7 @@ static int smmuv3_decode_config(IOMMUMemoryRegion *mr, SMMUTransCfg *cfg,
         return ret;
     }
 
-    ret = decode_ste(s, cfg, &ste, event);
+    ret = decode_ste(s, cfg, &ste, event, sec_sid);
     if (ret) {
         return ret;
     }
