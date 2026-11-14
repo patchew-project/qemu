@@ -41,6 +41,7 @@ static void smmuv3_accel_auto_finalise(SMMUv3State *s,
                                        struct iommu_hw_info_arm_smmuv3 *info)
 {
     SMMUv3AccelState *accel = s->s_accel;
+    SMMUv3RegBank *bank = smmuv3_bank(s, SMMU_SEC_SID_NS);
 
     /*
      * Return if 'auto' was not set for any accel SMMUv3 property, or
@@ -55,23 +56,23 @@ static void smmuv3_accel_auto_finalise(SMMUv3State *s,
     }
 
     if (s->ats == ON_OFF_AUTO_AUTO) {
-        s->idr[0] = FIELD_DP32(s->idr[0], IDR0, ATS,
-                               FIELD_EX32(info->idr[0], IDR0, ATS));
+        bank->idr[0] = FIELD_DP32(bank->idr[0], IDR0, ATS,
+                                  FIELD_EX32(info->idr[0], IDR0, ATS));
     }
 
     if (s->ril == ON_OFF_AUTO_AUTO) {
-        s->idr[3] = FIELD_DP32(s->idr[3], IDR3, RIL,
-                               FIELD_EX32(info->idr[3], IDR3, RIL));
+        bank->idr[3] = FIELD_DP32(bank->idr[3], IDR3, RIL,
+                                  FIELD_EX32(info->idr[3], IDR3, RIL));
     }
 
     if (s->ssidsize == SSID_SIZE_MODE_AUTO) {
-        s->idr[1] = FIELD_DP32(s->idr[1], IDR1, SSIDSIZE,
-                               FIELD_EX32(info->idr[1], IDR1, SSIDSIZE));
+        bank->idr[1] = FIELD_DP32(bank->idr[1], IDR1, SSIDSIZE,
+                                  FIELD_EX32(info->idr[1], IDR1, SSIDSIZE));
     }
 
     if (s->oas == OAS_MODE_AUTO) {
-        s->idr[5] = FIELD_DP32(s->idr[5], IDR5, OAS,
-                               FIELD_EX32(info->idr[5], IDR5, OAS));
+        bank->idr[5] = FIELD_DP32(bank->idr[5], IDR5, OAS,
+                                  FIELD_EX32(info->idr[5], IDR5, OAS));
     }
 
     accel->auto_finalised = true;
@@ -82,21 +83,22 @@ smmuv3_accel_check_hw_compatible(SMMUv3State *s,
                                  struct iommu_hw_info_arm_smmuv3 *info,
                                  Error **errp)
 {
+    SMMUv3RegBank *bank = smmuv3_bank(s, SMMU_SEC_SID_NS);
     smmuv3_accel_auto_finalise(s, info);
 
     /* QEMU SMMUv3 supports both linear and 2-level stream tables */
     if (FIELD_EX32(info->idr[0], IDR0, STLEVEL) !=
-                FIELD_EX32(s->idr[0], IDR0, STLEVEL)) {
+                FIELD_EX32(bank->idr[0], IDR0, STLEVEL)) {
         error_setg(errp, "Host SMMUv3 Stream Table format mismatch "
                    "(host STLEVEL=%u, QEMU STLEVEL=%u)",
                    FIELD_EX32(info->idr[0], IDR0, STLEVEL),
-                   FIELD_EX32(s->idr[0], IDR0, STLEVEL));
+                   FIELD_EX32(bank->idr[0], IDR0, STLEVEL));
         return false;
     }
 
     /* QEMU SMMUv3 supports only little-endian translation table walks */
     if (FIELD_EX32(info->idr[0], IDR0, TTENDIAN) >
-                FIELD_EX32(s->idr[0], IDR0, TTENDIAN)) {
+                FIELD_EX32(bank->idr[0], IDR0, TTENDIAN)) {
         error_setg(errp, "Host SMMUv3 doesn't support Little-endian "
                    "translation table");
         return false;
@@ -104,7 +106,7 @@ smmuv3_accel_check_hw_compatible(SMMUv3State *s,
 
     /* QEMU SMMUv3 supports only AArch64 translation table format */
     if (FIELD_EX32(info->idr[0], IDR0, TTF) <
-                FIELD_EX32(s->idr[0], IDR0, TTF)) {
+                FIELD_EX32(bank->idr[0], IDR0, TTF)) {
         error_setg(errp, "Host SMMUv3 doesn't support AArch64 translation "
                    "table format");
         return false;
@@ -112,59 +114,59 @@ smmuv3_accel_check_hw_compatible(SMMUv3State *s,
 
     /* QEMU SMMUv3 supports SIDSIZE 16 */
     if (FIELD_EX32(info->idr[1], IDR1, SIDSIZE) <
-                FIELD_EX32(s->idr[1], IDR1, SIDSIZE)) {
+                FIELD_EX32(bank->idr[1], IDR1, SIDSIZE)) {
         error_setg(errp, "Host SMMUv3 SIDSIZE not compatible "
                    "(host=%u, QEMU=%u)",
                    FIELD_EX32(info->idr[1], IDR1, SIDSIZE),
-                   FIELD_EX32(s->idr[1], IDR1, SIDSIZE));
+                   FIELD_EX32(bank->idr[1], IDR1, SIDSIZE));
         return false;
     }
 
     /* Check SSIDSIZE value opted-in is compatible with Host SMMUv3 SSIDSIZE */
     if (FIELD_EX32(info->idr[1], IDR1, SSIDSIZE) <
-                FIELD_EX32(s->idr[1], IDR1, SSIDSIZE)) {
+                FIELD_EX32(bank->idr[1], IDR1, SSIDSIZE)) {
         error_setg(errp, "Host SMMUv3 SSIDSIZE not compatible "
                    "(host=%u, QEMU=%u)",
                    FIELD_EX32(info->idr[1], IDR1, SSIDSIZE),
-                   FIELD_EX32(s->idr[1], IDR1, SSIDSIZE));
+                   FIELD_EX32(bank->idr[1], IDR1, SSIDSIZE));
         return false;
     }
 
     /* User can disable QEMU SMMUv3 Range Invalidation support */
     if (FIELD_EX32(info->idr[3], IDR3, RIL) <
-                FIELD_EX32(s->idr[3], IDR3, RIL)) {
+                FIELD_EX32(bank->idr[3], IDR3, RIL)) {
         error_setg(errp, "Host SMMUv3 doesn't support Range Invalidation");
         return false;
     }
     /* Check OAS value opted is compatible with Host SMMUv3 IPA */
     if (FIELD_EX32(info->idr[5], IDR5, OAS) <
-                FIELD_EX32(s->idr[5], IDR5, OAS)) {
+                FIELD_EX32(bank->idr[5], IDR5, OAS)) {
         error_setg(errp, "Host SMMUv3 supports only %d-bit IPA, but the vSMMU "
                    "OAS implies %d-bit IPA",
                    smmuv3_oas_bits(FIELD_EX32(info->idr[5], IDR5, OAS)),
-                   smmuv3_oas_bits(FIELD_EX32(s->idr[5], IDR5, OAS)));
+                   smmuv3_oas_bits(FIELD_EX32(bank->idr[5], IDR5, OAS)));
         return false;
     }
     /* Check ATS value opted is compatible with Host SMMUv3 */
     if (FIELD_EX32(info->idr[0], IDR0, ATS) <
-                FIELD_EX32(s->idr[0], IDR0, ATS)) {
+                FIELD_EX32(bank->idr[0], IDR0, ATS)) {
         error_setg(errp, "Host SMMUv3 doesn't support Address Translation Services");
         return false;
     }
 
     /* QEMU SMMUv3 supports GRAN4K/GRAN16K/GRAN64K translation granules */
     if (FIELD_EX32(info->idr[5], IDR5, GRAN4K) !=
-                FIELD_EX32(s->idr[5], IDR5, GRAN4K)) {
+                FIELD_EX32(bank->idr[5], IDR5, GRAN4K)) {
         error_setg(errp, "Host SMMUv3 doesn't support 4K translation granule");
         return false;
     }
     if (FIELD_EX32(info->idr[5], IDR5, GRAN16K) !=
-                FIELD_EX32(s->idr[5], IDR5, GRAN16K)) {
+                FIELD_EX32(bank->idr[5], IDR5, GRAN16K)) {
         error_setg(errp, "Host SMMUv3 doesn't support 16K translation granule");
         return false;
     }
     if (FIELD_EX32(info->idr[5], IDR5, GRAN64K) !=
-                FIELD_EX32(s->idr[5], IDR5, GRAN64K)) {
+                FIELD_EX32(bank->idr[5], IDR5, GRAN64K)) {
         error_setg(errp, "Host SMMUv3 doesn't support 64K translation granule");
         return false;
     }
@@ -218,7 +220,8 @@ static SMMUv3AccelDevice *smmuv3_accel_get_dev(SMMUState *bs, SMMUPciBus *sbus,
 
 static uint32_t smmuv3_accel_gbpa_hwpt(SMMUv3State *s, SMMUv3AccelState *accel)
 {
-    return FIELD_EX32(s->gbpa, GBPA, ABORT) ?
+    SMMUv3RegBank *bank = smmuv3_bank(s, SMMU_SEC_SID_NS);
+    return FIELD_EX32(bank->gbpa, GBPA, ABORT) ?
            accel->abort_hwpt_id : accel->bypass_hwpt_id;
 }
 
@@ -544,6 +547,8 @@ bool smmuv3_accel_alloc_veventq(SMMUv3State *s, Error **errp)
     uint32_t veventq_id;
     uint32_t veventq_fd;
     int flags;
+    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
+    SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
 
     if (!accel || !accel->viommu) {
         return true;
@@ -560,7 +565,7 @@ bool smmuv3_accel_alloc_veventq(SMMUv3State *s, Error **errp)
     if (!iommufd_backend_alloc_veventq(accel->viommu->iommufd,
                                        accel->viommu->viommu_id,
                                        IOMMU_VEVENTQ_TYPE_ARM_SMMUV3,
-                                       1 << s->eventq.log2size, &veventq_id,
+                                       1 << bank->eventq.log2size, &veventq_id,
                                        &veventq_fd, errp)) {
         return false;
     }
@@ -943,9 +948,10 @@ static AddressSpace *smmuv3_accel_find_add_as(PCIBus *bus, void *opaque,
 
 static inline bool smmuv3_pasid_supported(SMMUv3State *s)
 {
+    SMMUv3RegBank *bank = smmuv3_bank(s, SMMU_SEC_SID_NS);
     return s->ssidsize > SSID_SIZE_MODE_0 ||
            (s->ssidsize == SSID_SIZE_MODE_AUTO &&
-            FIELD_EX32(s->idr[1], IDR1, SSIDSIZE));
+            FIELD_EX32(bank->idr[1], IDR1, SSIDSIZE));
 }
 
 static uint64_t smmuv3_accel_get_viommu_flags(void *opaque)
@@ -997,19 +1003,20 @@ void smmuv3_accel_idr_override(SMMUv3State *s)
         return;
     }
 
+    SMMUv3RegBank *bank = smmuv3_bank(s, SMMU_SEC_SID_NS);
     /* Only override RIL if user explicitly set OFF */
     if (s->ril == ON_OFF_AUTO_OFF) {
-        s->idr[3] = FIELD_DP32(s->idr[3], IDR3, RIL, 0);
+        bank->idr[3] = FIELD_DP32(bank->idr[3], IDR3, RIL, 0);
     }
 
     /* QEMU SMMUv3 has no ATS. Advertise ATS if opt-in by property */
     if (s->ats == ON_OFF_AUTO_ON) {
-        s->idr[0] = FIELD_DP32(s->idr[0], IDR0, ATS, 1);
+        bank->idr[0] = FIELD_DP32(bank->idr[0], IDR0, ATS, 1);
     }
 
     /* Advertise 48-bit OAS in IDR5 when requested (default is 44 bits). */
     if (s->oas == OAS_MODE_48) {
-        s->idr[5] = FIELD_DP32(s->idr[5], IDR5, OAS, SMMU_IDR5_OAS_48);
+        bank->idr[5] = FIELD_DP32(bank->idr[5], IDR5, OAS, SMMU_IDR5_OAS_48);
     }
 
     /*
@@ -1017,7 +1024,7 @@ void smmuv3_accel_idr_override(SMMUv3State *s)
      * has enabled it.
      */
     if (s->ssidsize > SSID_SIZE_MODE_0) {
-        s->idr[1] = FIELD_DP32(s->idr[1], IDR1, SSIDSIZE,
+        bank->idr[1] = FIELD_DP32(bank->idr[1], IDR1, SSIDSIZE,
                                ssidsize_mode_to_value(s->ssidsize));
     }
 }
