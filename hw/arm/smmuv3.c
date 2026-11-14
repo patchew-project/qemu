@@ -1744,7 +1744,6 @@ static MemTxResult smmu_writell(SMMUv3State *s, hwaddr offset,
 
     switch (offset) {
     case A_GERROR_IRQ_CFG0:
-        bank->gerror_irq_cfg0 = data;
         return MEMTX_OK;
     case A_STRTAB_BASE:
         bank->strtab_base = data;
@@ -1811,18 +1810,11 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
          */
         smmuv3_cmdq_consume(s, &local_err, reg_sec_sid);
         break;
-    case A_GERROR_IRQ_CFG0: /* 64b */
-        bank->gerror_irq_cfg0 = deposit64(bank->gerror_irq_cfg0, 0, 32, data);
-        break;
+    case A_GERROR_IRQ_CFG0:
     case A_GERROR_IRQ_CFG0 + 4:
-        bank->gerror_irq_cfg0 = deposit64(bank->gerror_irq_cfg0, 32, 32, data);
-        break;
     case A_GERROR_IRQ_CFG1:
-        bank->gerror_irq_cfg1 = data;
-        break;
     case A_GERROR_IRQ_CFG2:
-        bank->gerror_irq_cfg2 = data;
-        break;
+        return MEMTX_OK;
     case A_GBPA:
         /*
          * If UPDATE is not set, the write is ignored. This is the only
@@ -1947,7 +1939,7 @@ static MemTxResult smmu_readll(SMMUv3State *s, hwaddr offset,
 
     switch (offset) {
     case A_GERROR_IRQ_CFG0:
-        *data = bank->gerror_irq_cfg0;
+        *data = 0;
         return MEMTX_OK;
     case A_STRTAB_BASE:
         *data = bank->strtab_base;
@@ -2014,17 +2006,11 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
     case A_GERRORN:
         *data = bank->gerrorn;
         return MEMTX_OK;
-    case A_GERROR_IRQ_CFG0: /* 64b */
-        *data = extract64(bank->gerror_irq_cfg0, 0, 32);
-        return MEMTX_OK;
+    case A_GERROR_IRQ_CFG0:
     case A_GERROR_IRQ_CFG0 + 4:
-        *data = extract64(bank->gerror_irq_cfg0, 32, 32);
-        return MEMTX_OK;
     case A_GERROR_IRQ_CFG1:
-        *data = bank->gerror_irq_cfg1;
-        return MEMTX_OK;
     case A_GERROR_IRQ_CFG2:
-        *data = bank->gerror_irq_cfg2;
+        *data = 0;
         return MEMTX_OK;
     case A_STRTAB_BASE: /* 64b */
         *data = extract64(bank->strtab_base, 0, 32);
