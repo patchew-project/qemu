@@ -280,7 +280,12 @@ void smmu_iotlb_inv_ipa(SMMUState *s, int vmid, dma_addr_t ipa, uint8_t tg,
                         uint64_t num_pages, uint8_t ttl,
                         SMMUSecSID sec_sid);
 void smmu_configs_inv_sid_range(SMMUState *s, SMMUSIDRange sid_range);
+void smmu_configs_inv_sid_range_by_sec_sid(SMMUState *s,
+                                           SMMUSIDRange sid_range,
+                                           SMMUSecSID sec_sid);
 void smmu_configs_inv_sdev(SMMUState *s, SMMUDevice *sdev);
+void smmu_configs_inv_sdev_by_sec_sid(SMMUState *s, SMMUDevice *sdev,
+                                      SMMUSecSID sec_sid);
 /* Unmap the range of all the notifiers registered to any IOMMU mr */
 void smmu_inv_notifiers_all(SMMUState *s);
 

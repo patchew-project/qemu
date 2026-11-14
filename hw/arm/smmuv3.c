@@ -998,12 +998,13 @@ static SMMUTransCfg *smmuv3_get_config(SMMUDevice *sdev, SMMUEventInfo *event,
     return cfg;
 }
 
-static void smmuv3_flush_config(SMMUDevice *sdev)
+static void smmuv3_flush_config_by_sec_sid(SMMUDevice *sdev,
+                                           SMMUSecSID sec_sid)
 {
     SMMUv3State *s = sdev->smmu;
     SMMUState *bc = &s->smmu_state;
 
-    smmu_configs_inv_sdev(bc, sdev);
+    smmu_configs_inv_sdev_by_sec_sid(bc, sdev, sec_sid);
 }
 
 /* Do translation with TLB lookup. */
@@ -1472,12 +1473,12 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
                 break;
             }
 
-            trace_smmuv3_cmdq_cfgi_ste(sid);
+            trace_smmuv3_cmdq_cfgi_ste(sec_sid, ssec, sid);
             if (!smmuv3_accel_install_ste(s, sdev, sid, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
-            smmuv3_flush_config(sdev);
+            smmuv3_flush_config_by_sec_sid(sdev, ssec);
 
             break;
         }
@@ -1491,12 +1492,13 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
             sid_range.start = sid & ~mask;
             sid_range.end = sid_range.start + mask;
 
-            trace_smmuv3_cmdq_cfgi_ste_range(sid_range.start, sid_range.end);
+            trace_smmuv3_cmdq_cfgi_ste_range(sec_sid, ssec,
+                                             sid_range.start, sid_range.end);
             if (!smmuv3_accel_install_ste_range(s, &sid_range, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
-            smmu_configs_inv_sid_range(bs, sid_range);
+            smmu_configs_inv_sid_range_by_sec_sid(bs, sid_range, ssec);
             break;
         }
         case SMMU_CMD_CFGI_CD:
@@ -1518,8 +1520,8 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
                 break;
             }
 
-            trace_smmuv3_cmdq_cfgi_cd(sid);
-            smmuv3_flush_config(sdev);
+            trace_smmuv3_cmdq_cfgi_cd(sec_sid, ssec, sid);
+            smmuv3_flush_config_by_sec_sid(sdev, ssec);
             if (!smmuv3_accel_issue_inv_cmd(s, &cmd, sdev, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;

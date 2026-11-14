@@ -303,6 +303,16 @@ static gboolean smmu_hash_remove_by_vmid_ipa(gpointer key, gpointer value,
            ((entry->iova & ~info->mask) == info->iova);
 }
 
+typedef struct SMMUConfigInvRangeInfo {
+    SMMUSIDRange sid_range;
+    SMMUSecSID sec_sid;
+} SMMUConfigInvRangeInfo;
+
+typedef struct SMMUConfigInvSdevInfo {
+    SMMUDevice *sdev;
+    SMMUSecSID sec_sid;
+} SMMUConfigInvSdevInfo;
+
 static gboolean
 smmu_hash_remove_by_sid_range(gpointer key, gpointer value, gpointer user_data)
 {
@@ -314,7 +324,26 @@ smmu_hash_remove_by_sid_range(gpointer key, gpointer value, gpointer user_data)
     if (sid < sid_range->start || sid > sid_range->end) {
         return false;
     }
-    trace_smmu_config_cache_inv(sid);
+    trace_smmu_config_cache_inv(config_key->sec_sid, sid);
+    return true;
+}
+
+static gboolean
+smmu_hash_remove_by_sid_range_sec(gpointer key, gpointer value,
+                                  gpointer user_data)
+{
+    SMMUConfigKey *config_key = (SMMUConfigKey *)key;
+    SMMUConfigInvRangeInfo *info = (SMMUConfigInvRangeInfo *)user_data;
+    SMMUDevice *sdev = config_key->sdev;
+    uint32_t sid = smmu_get_sid(sdev);
+
+    if (config_key->sec_sid != info->sec_sid) {
+        return false;
+    }
+    if (sid < info->sid_range.start || sid > info->sid_range.end) {
+        return false;
+    }
+    trace_smmu_config_cache_inv(config_key->sec_sid, sid);
     return true;
 }
 
@@ -323,6 +352,23 @@ void smmu_configs_inv_sid_range(SMMUState *s, SMMUSIDRange sid_range)
     trace_smmu_configs_inv_sid_range(sid_range.start, sid_range.end);
     g_hash_table_foreach_remove(s->configs, smmu_hash_remove_by_sid_range,
                                 &sid_range);
+}
+
+void smmu_configs_inv_sid_range_by_sec_sid(SMMUState *s,
+                                           SMMUSIDRange sid_range,
+                                           SMMUSecSID sec_sid)
+{
+    SMMUConfigInvRangeInfo info = {
+        .sid_range = sid_range,
+        .sec_sid = sec_sid,
+    };
+
+    g_assert(sec_sid < SMMU_SEC_SID_NUM);
+
+    trace_smmu_configs_inv_sid_range_by_sec_sid(sec_sid, sid_range.start,
+                                                sid_range.end);
+    g_hash_table_foreach_remove(s->configs, smmu_hash_remove_by_sid_range_sec,
+                                &info);
 }
 
 static gboolean smmu_hash_remove_by_sdev(gpointer key, gpointer value,
@@ -334,13 +380,45 @@ static gboolean smmu_hash_remove_by_sdev(gpointer key, gpointer value,
     if (config_key->sdev != target) {
         return false;
     }
-    trace_smmu_config_cache_inv(smmu_get_sid(target));
+    trace_smmu_config_cache_inv(config_key->sec_sid,
+                                smmu_get_sid(target));
+    return true;
+}
+
+static gboolean smmu_hash_remove_by_sdev_sec(gpointer key, gpointer value,
+                                             gpointer user_data)
+{
+    SMMUConfigKey *config_key = (SMMUConfigKey *)key;
+    SMMUConfigInvSdevInfo *info = (SMMUConfigInvSdevInfo *)user_data;
+
+    if (config_key->sdev != info->sdev) {
+        return false;
+    }
+    if (config_key->sec_sid != info->sec_sid) {
+        return false;
+    }
+    trace_smmu_config_cache_inv(config_key->sec_sid,
+                                smmu_get_sid(info->sdev));
     return true;
 }
 
 void smmu_configs_inv_sdev(SMMUState *s, SMMUDevice *sdev)
 {
     g_hash_table_foreach_remove(s->configs, smmu_hash_remove_by_sdev, sdev);
+}
+
+void smmu_configs_inv_sdev_by_sec_sid(SMMUState *s, SMMUDevice *sdev,
+                                      SMMUSecSID sec_sid)
+{
+    SMMUConfigInvSdevInfo info = {
+        .sdev = sdev,
+        .sec_sid = sec_sid,
+    };
+
+    g_assert(sec_sid < SMMU_SEC_SID_NUM);
+
+    g_hash_table_foreach_remove(s->configs, smmu_hash_remove_by_sdev_sec,
+                                &info);
 }
 
 void smmu_iotlb_inv_iova(SMMUState *s, int asid, int vmid, dma_addr_t iova,
