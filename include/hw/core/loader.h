@@ -57,6 +57,21 @@ ssize_t load_image_targphys_as(const char *filename,
 ssize_t load_targphys_hex_as(const char *filename, hwaddr *entry,
                              AddressSpace *as);
 
+/**
+ * load_targphys_ext_tek_as:
+ * @filename: Path to the .tek file
+ * @entry: Store the entry point given by the .tek file
+ * @as: The AddressSpace to load the .tek file to. The value of
+ *      address_space_memory is used if nothing is supplied here.
+ *
+ * Load a fixed .tek file into memory.
+ *
+ * Returns the size of the loaded .tek file on success, -1 otherwise.
+ */
+ssize_t load_targphys_ext_tek_hex_as(const char *filename,
+                                     hwaddr *entry,
+                                     AddressSpace *as);
+
 /** load_image_targphys:
  * Same as load_image_targphys_as(), but doesn't allow the caller to specify
  * an AddressSpace.

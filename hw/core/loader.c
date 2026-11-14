@@ -1940,3 +1940,234 @@ ssize_t load_targphys_hex_as(const char *filename, hwaddr *entry,
     g_free(hex_blob);
     return total_size;
 }
+
+typedef enum Ext_Tek_HexRecord Ext_Tek_HexRecord;
+enum Ext_Tek_HexRecord {
+    TEK_DATA_RECORD = 0,
+    TEK_TERMINATION_RECORD
+};
+
+#define DATA_FIELD_MAX_LEN 0xff
+
+typedef struct {
+    uint8_t record_length;
+    uint8_t record_type;
+    uint8_t checksum;
+    uint32_t address;
+    uint8_t data[DATA_FIELD_MAX_LEN];
+} Ext_Tek_HexLine;
+
+/* return 0 or -1 if error */
+static bool parse_ext_tek_hex_record(Ext_Tek_HexLine *line,
+                                     uint8_t *our_checksum,
+                                     const uint8_t c,
+                                     uint32_t *index,
+                                     const bool in_process)
+{
+    /* +---------+---------------+-----------+---------------+-------------+
+     * | record  |    record     |           |               |             |
+     * | length  |    type       | checksum  |   address     |   data      |
+     * +---------+---------------+-----------+---------------+-------------+
+     *     ^             ^            ^              ^            ^
+     * |1 byte   |    1 bytes    |1 byte     | 1 to N byte   | 0-255 bytes |
+     */
+    uint8_t value = 0, address_len = 0;
+    uint32_t idx = *index;
+    /* ignore space */
+    if (g_ascii_isspace(c)) {
+        return true;
+    }
+    if (!g_ascii_isxdigit(c) || !in_process) {
+        return false;
+    }
+    /* still idx is computed nibble wise */
+    value = g_ascii_xdigit_value(c);
+    value = (idx & 0x1) ? (value & 0xf) : (value << 4);
+    if (idx < 2) {
+        line->record_length |= value;
+    } else if (idx == 2) {
+        line->record_type |= value;
+    } else if (2 < idx && idx <= 4) {
+        line->checksum |= value;
+    }
+    /*
+     * Extracting address length from record to fill that many no of address
+     * characters in the address field of the line structure.
+     */
+    else if (idx == 5) {
+        address_len |= value;
+    } else if (6 <= idx &&
+                   idx <= (6 + address_len)) {
+        line->address <<= address_len;
+        line->address += g_ascii_xdigit_value(c);
+    }
+    /*
+     * Checking whether index above address last char index
+     * and reaches till record length. Right shifting one divides the
+     * nibble wise index by 2 to get the byte wise index to
+     * fill the data field of the line structure
+     */
+    else if ((6 + address_len) < idx &&
+              idx <= line->record_length) {
+        line->data[(idx - (6 + address_len)) >> 1] |= value;
+    } else {
+        return false;
+    }
+    *our_checksum += value;
+    ++(*index);
+    return true;
+}
+
+typedef struct {
+    const char *filename;
+    Ext_Tek_HexLine line;
+    uint8_t *bin_buf;
+    hwaddr *start_addr;
+    int total_size;
+    uint32_t next_address_to_write;
+    uint32_t current_address;
+    uint32_t current_rom_index;
+    uint32_t rom_start_address;
+    AddressSpace *as;
+    bool complete;
+} Ext_TekHexParser;
+
+/* return size or -1 if error */
+static int handle_ext_tek_hex_record_type(Ext_TekHexParser *parser)
+{
+    Ext_Tek_HexLine *line = &(parser->line);
+    switch (line->record_type) {
+    case TEK_DATA_RECORD:
+        parser->current_address = line->address;
+        /* verify this is a contiguous block of memory */
+        if (parser->current_address != parser->next_address_to_write) {
+            if (parser->current_rom_index != 0) {
+                rom_add_blob_fixed_as(parser->filename, parser->bin_buf,
+                                      parser->current_rom_index,
+                                      parser->rom_start_address, parser->as);
+            }
+            parser->rom_start_address = parser->current_address;
+            parser->current_rom_index = 0;
+        }
+
+        /* copy from line buffer to output bin_buf */
+        /* sizeof(line->data) dynamically calculates the size of data field */
+        memcpy(parser->bin_buf + parser->current_rom_index, line->data,
+               sizeof(line->data));
+        parser->current_rom_index += sizeof(line->data);
+        parser->total_size += sizeof(line->data);
+        /* As address is absolute, we dont need to calculate next address */
+        break;
+
+    case TEK_TERMINATION_RECORD:
+        if (parser->current_rom_index != 0) {
+            rom_add_blob_fixed_as(parser->filename, parser->bin_buf,
+                                  parser->current_rom_index,
+                                  parser->rom_start_address, parser->as);
+        }
+        parser->complete = true;
+        return parser->total_size;
+
+    default:
+        return -1;
+    }
+
+    return parser->total_size;
+}
+
+/* return size or -1 if error */
+static int parse_ext_tek_hex_blob(const char *filename,
+                                  hwaddr *addr,
+                                  uint8_t *ext_tek_blob,
+                                  size_t ext_tek_blob_size,
+                                  AddressSpace *as)
+{
+    /* avoid re-enter and check whether record begin with '%' */
+        bool in_process = false;
+        uint8_t *end = ext_tek_blob + ext_tek_blob_size;
+        uint8_t our_checksum = 0;
+        uint32_t record_index = 0;
+
+        Ext_TekHexParser parser = {
+        .filename = filename,
+        .bin_buf = g_malloc(ext_tek_blob_size),
+        .start_addr = addr,
+        .as = as,
+        .complete = false
+        };
+
+        rom_transaction_begin();
+
+        for (; ext_tek_blob < end && !parser.complete; ++ext_tek_blob) {
+            switch (*ext_tek_blob) {
+            case '\r':
+            case '\n':
+                if (!in_process) {
+                    break;
+                }
+
+                in_process = false;
+                /*
+                 * record_length byte stores the number of hex characters
+                 * (nibbles) in the record and compare it directly to
+                 * the nibble index(record index).
+                 */
+                if ((parser.line.record_length != record_index) ||
+                    (our_checksum != 0)) {
+                    parser.total_size = -1;
+                    goto out;
+                }
+
+                if (handle_ext_tek_hex_record_type(&parser) == -1) {
+                    parser.total_size = -1;
+                    goto out;
+                }
+                break;
+
+            /* start of a new record. */
+            case '%':
+                memset(&parser.line, 0, sizeof(Ext_Tek_HexLine));
+                in_process = true;
+                record_index = 0;
+                break;
+
+            /* decoding lines */
+            default:
+                if (!parse_ext_tek_hex_record(&parser.line,
+                                            &our_checksum,
+                                            *ext_tek_blob,
+                                            &record_index, in_process)) {
+                    parser.total_size = -1;
+                    goto out;
+                }
+                break;
+            }
+        }
+
+    out:
+        g_free(parser.bin_buf);
+        rom_transaction_end(parser.total_size != -1);
+        return parser.total_size;
+}
+
+
+/* return size or -1 if error */
+ssize_t load_targphys_ext_tek_hex_as(const char *filename,
+                                     hwaddr *entry,
+                                     AddressSpace *as)
+{
+    gsize ext_tek_blob_size;
+    gchar *ext_tek_blob;
+    int total_size = 0;
+
+    if (!g_file_get_contents(filename, &ext_tek_blob,
+                             &ext_tek_blob_size, NULL)) {
+        return -1;
+    }
+    total_size = parse_ext_tek_hex_blob(filename, entry,
+                                       (uint8_t *)ext_tek_blob,
+                                       ext_tek_blob_size, as);
+
+    g_free(ext_tek_blob);
+    return total_size;
+}
