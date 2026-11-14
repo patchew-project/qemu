@@ -1669,9 +1669,20 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
             break;
         case SMMU_CMD_ATC_INV:
         {
-            SMMUDevice *sdev = smmu_find_sdev(bs, CMD_SID(&cmd));
+            SMMUDevice *sdev;
 
-            if (!sdev || !smmuv3_ats_enabled(s)) {
+            if (!smmuv3_ats_enabled(s)) {
+                cmd_error = SMMU_CERROR_ILL;
+                break;
+            }
+
+            /* Check SMMUEN for the issuing command queue's security state. */
+            if (!smmu_enabled(s, sec_sid)) {
+                break;
+            }
+
+            sdev = smmu_find_sdev(bs, CMD_SID(&cmd));
+            if (!sdev) {
                 trace_smmuv3_unhandled_cmd(type);
                 break;
             }
