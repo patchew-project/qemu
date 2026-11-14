@@ -2663,6 +2663,13 @@ static int smmuv3_notify_flag_changed(IOMMUMemoryRegion *iommu,
     SMMUv3State *s3 = sdev->smmu;
     SMMUState *s = &(s3->smmu_state);
 
+    if (new != IOMMU_NOTIFIER_NONE && sdev->sec_sid != SMMU_SEC_SID_NS) {
+        error_setg(errp,
+                   "SMMUv3 does not support IOMMU notifiers for "
+                   "Secure devices");
+        return -EINVAL;
+    }
+
     if (new & IOMMU_NOTIFIER_DEVIOTLB_UNMAP) {
         error_setg(errp, "SMMUv3 does not support dev-iotlb yet");
         return -EINVAL;
