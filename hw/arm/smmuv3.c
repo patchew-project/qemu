@@ -1340,7 +1340,7 @@ static void smmuv3_inv_notifiers_all(SMMUState *s, SMMUSecSID sec_sid)
 }
 
 static void smmuv3_range_inval(SMMUState *s, Cmd *cmd, SMMUStage stage,
-                               SMMUSecSID sec_sid)
+                               SMMUSecSID sec_sid, bool use_vmid)
 {
     dma_addr_t end, addr = CMD_ADDR(cmd);
     uint8_t type = CMD_TYPE(cmd);
@@ -1353,10 +1353,8 @@ static void smmuv3_range_inval(SMMUState *s, Cmd *cmd, SMMUStage stage,
     uint64_t num_pages;
     uint8_t granule;
     int asid = -1;
-    SMMUv3State *smmuv3 = ARM_SMMUV3(s);
 
-    /* Only consider VMID if stage-2 is supported. */
-    if (STAGE2_SUPPORTED(smmuv3)) {
+    if (use_vmid) {
         vmid = CMD_VMID(cmd);
     }
 
@@ -1403,6 +1401,26 @@ static void smmuv3_range_inval(SMMUState *s, Cmd *cmd, SMMUStage stage,
     }
 }
 
+static inline bool
+smmu_cmdq_stage2_supported(SMMUv3State *s, SMMUSecSID sec_sid)
+{
+    /* IDR0.S2P: Stage 2 translation supported */
+    bool s2p = STAGE2_SUPPORTED(s);
+    if (!s2p) {
+        return false;
+    }
+
+    /*
+     * For Secure Command queue, Secure stage 2 is additionally gated by SEL2
+     * (SEL2 is 0 if S2P is 0).
+     */
+    if (sec_sid == SMMU_SEC_SID_S) {
+        return FIELD_EX32(s->bank[SMMU_SEC_SID_S].idr[1], S_IDR1, SEL2);
+    }
+
+    return true;
+}
+
 static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
 {
     SMMUState *bs = ARM_SMMU(s);
@@ -1412,6 +1430,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
     SMMUCommandType type = 0;
     MemTxAttrs attrs = smmu_get_txattrs(sec_sid);
     AddressSpace *as = smmu_get_address_space(bs, sec_sid);
+    bool queue_stage2_supported = smmu_cmdq_stage2_supported(s, sec_sid);
 
     if (!smmuv3_cmdq_enabled(s, sec_sid)) {
         return 0;
@@ -1542,7 +1561,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
              * VMID is only matched when stage 2 is supported, otherwise set it
              * to -1 as the value used for stage-1 only VMIDs.
              */
-            if (STAGE2_SUPPORTED(s)) {
+            if (queue_stage2_supported) {
                 vmid = CMD_VMID(&cmd);
             }
 
@@ -1568,30 +1587,49 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
              * If stage-2 is supported, invalidate for this VMID only, otherwise
              * invalidate the whole thing.
              */
-            if (STAGE2_SUPPORTED(s)) {
+            if (queue_stage2_supported) {
                 vmid = CMD_VMID(&cmd);
                 trace_smmuv3_cmdq_tlbi_nh(sec_sid, vmid);
                 smmu_iotlb_inv_vmid_s1(bs, vmid, sec_sid);
                 break;
             }
-            QEMU_FALLTHROUGH;
-        }
-        case SMMU_CMD_TLBI_NSNH_ALL:
-            trace_smmuv3_cmdq_tlbi_nsnh();
-            smmuv3_inv_notifiers_all(bs, SMMU_SEC_SID_NS);
-            smmu_iotlb_inv_all(bs);
+            trace_smmuv3_cmdq_tlbi_nh(sec_sid, vmid);
+            smmuv3_inv_notifiers_all(bs, sec_sid);
+            smmu_iotlb_inv_by_sec_sid(bs, sec_sid);
             if (!smmuv3_accel_issue_inv_cmd(s, &cmd, NULL, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
             break;
+        }
+        case SMMU_CMD_TLBI_NSNH_ALL:
+        {
+            /*
+             * CMD_TLBI_NSNH_ALL targets Non-secure entries when issued from the
+             * Non-secure or Secure Command queue, but Realm entries when issued
+             * from the Realm Command queue.
+             * (IHI 0070G.b) 4.4.4.1 CMD_TLBI_NSNH_ALL, Page 194
+             */
+            SMMUSecSID target_sec_sid = sec_sid > SMMU_SEC_SID_S ?
+                                        sec_sid : SMMU_SEC_SID_NS;
+
+            trace_smmuv3_cmdq_tlbi_nsnh(sec_sid, target_sec_sid);
+            smmuv3_inv_notifiers_all(bs, target_sec_sid);
+            smmu_iotlb_inv_by_sec_sid(bs, target_sec_sid);
+            if (!smmuv3_accel_issue_inv_cmd(s, &cmd, NULL, errp)) {
+                cmd_error = SMMU_CERROR_ILL;
+                break;
+            }
+            break;
+        }
         case SMMU_CMD_TLBI_NH_VAA:
         case SMMU_CMD_TLBI_NH_VA:
             if (!STAGE1_SUPPORTED(s)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
-            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_1, SMMU_SEC_SID_NS);
+            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_1, sec_sid,
+                               queue_stage2_supported);
             if (!smmuv3_accel_issue_inv_cmd(s, &cmd, NULL, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;
@@ -1620,7 +1658,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
              * As currently only either s1 or s2 are supported
              * we can reuse same function for s2.
              */
-            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_2, SMMU_SEC_SID_NS);
+            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_2, SMMU_SEC_SID_NS, true);
             break;
         case SMMU_CMD_ATC_INV:
         {

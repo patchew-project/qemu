@@ -222,10 +222,28 @@ void smmu_iotlb_insert(SMMUState *bs, SMMUTransCfg *cfg, SMMUTLBEntry *new,
     g_hash_table_insert(bs->iotlb, key, new);
 }
 
+static gboolean smmu_hash_remove_by_sec_sid(gpointer key, gpointer value,
+                                            gpointer user_data)
+{
+    SMMUIOTLBKey *iotlb_key = (SMMUIOTLBKey *)key;
+    SMMUSecSID *sec_sid = (SMMUSecSID *)user_data;
+
+    return SMMU_IOTLB_SEC_SID(*iotlb_key) == *sec_sid;
+}
+
 void smmu_iotlb_inv_all(SMMUState *s)
 {
     trace_smmu_iotlb_inv_all();
     g_hash_table_remove_all(s->iotlb);
+}
+
+void smmu_iotlb_inv_by_sec_sid(SMMUState *s, SMMUSecSID sec_sid)
+{
+    g_assert(sec_sid < SMMU_SEC_SID_NUM);
+
+    trace_smmu_iotlb_inv_by_sec_sid(sec_sid);
+    g_hash_table_foreach_remove(s->iotlb, smmu_hash_remove_by_sec_sid,
+                                &sec_sid);
 }
 
 static gboolean smmu_hash_remove_by_asid_vmid(gpointer key, gpointer value,

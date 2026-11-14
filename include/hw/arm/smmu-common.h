@@ -269,6 +269,7 @@ SMMUIOTLBKey smmu_get_iotlb_key(int asid, int vmid, uint64_t iova,
                                 uint8_t tg, uint8_t level, SMMUSecSID sec_sid);
 SMMUConfigKey smmu_get_config_key(SMMUDevice *sdev, SMMUSecSID sec_sid);
 void smmu_iotlb_inv_all(SMMUState *s);
+void smmu_iotlb_inv_by_sec_sid(SMMUState *s, SMMUSecSID sec_sid);
 void smmu_iotlb_inv_asid_vmid(SMMUState *s, int asid, int vmid,
                               SMMUSecSID sec_sid);
 void smmu_iotlb_inv_vmid(SMMUState *s, int vmid, SMMUSecSID sec_sid);
