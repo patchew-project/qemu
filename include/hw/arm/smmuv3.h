@@ -57,6 +57,14 @@ typedef struct SMMUv3RegBank {
     SMMUQueue eventq, cmdq;
 } SMMUv3RegBank;
 
+enum {
+    SMMU_IRQ_NUM_NS = 4,
+    SMMU_IRQ_S_EVTQ = SMMU_IRQ_NUM_NS,
+    SMMU_IRQ_S_CMD_SYNC,
+    SMMU_IRQ_S_GERROR,
+    SMMU_IRQ_NUM,
+};
+
 struct SMMUv3State {
     SMMUState     smmu_state;
 
@@ -67,7 +75,7 @@ struct SMMUv3State {
 
     SMMUv3RegBank bank[SMMU_SEC_SID_NUM];
 
-    qemu_irq     irq[4];
+    qemu_irq     irq[SMMU_IRQ_NUM];
     QemuMutex mutex;
     char *stage;
     uint8_t identifier;
@@ -104,6 +112,7 @@ struct SMMUv3Class {
 };
 
 bool smmuv3_ats_enabled(struct SMMUv3State *s);
+int smmuv3_get_num_irqs(struct SMMUv3State *s);
 
 #define TYPE_ARM_SMMUV3   "arm-smmuv3"
 OBJECT_DECLARE_TYPE(SMMUv3State, SMMUv3Class, ARM_SMMUV3)

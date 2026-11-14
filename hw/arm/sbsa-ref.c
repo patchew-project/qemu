@@ -82,6 +82,7 @@ enum {
     SBSA_GWDT_REFRESH,
     SBSA_GWDT_CONTROL,
     SBSA_SMMU,
+    SBSA_SMMU_SECURE,
     SBSA_UART,
     SBSA_RTC,
     SBSA_PCIE,
@@ -155,6 +156,7 @@ static const int sbsa_ref_irqmap[] = {
     [SBSA_XHCI] = 11,
     [SBSA_SMMU] = 12, /* ... to 15 */
     [SBSA_GWDT_WS0] = 16,
+    [SBSA_SMMU_SECURE] = 17,
 };
 
 static uint64_t sbsa_ref_cpu_mp_affinity(SBSAMachineState *sms, int idx)
@@ -618,6 +620,7 @@ static void create_smmu(const SBSAMachineState *sms, PCIBus *bus,
 {
     hwaddr base = sbsa_ref_memmap[SBSA_SMMU].base;
     int irq =  sbsa_ref_irqmap[SBSA_SMMU];
+    int secure_irq = sbsa_ref_irqmap[SBSA_SMMU_SECURE];
     DeviceState *dev;
     int i;
 
@@ -635,6 +638,11 @@ static void create_smmu(const SBSAMachineState *sms, PCIBus *bus,
     for (i = 0; i < NUM_SMMU_IRQS; i++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
                            qdev_get_gpio_in(sms->gic, irq + i));
+    }
+    for (i = SMMU_IRQ_NUM_NS; i < smmuv3_get_num_irqs(ARM_SMMUV3(dev)); i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
+                           qdev_get_gpio_in(sms->gic,
+                                            secure_irq + i - SMMU_IRQ_NUM_NS));
     }
 }
 

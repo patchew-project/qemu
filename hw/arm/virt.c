@@ -267,6 +267,7 @@ static const int a15irqmap[] = {
     [VIRT_UART1] = 8,
     [VIRT_ACPI_GED] = 9,
     [VIRT_GWDT_WS0] = 10,
+    [VIRT_SMMU_SECURE] = 11,
     [VIRT_MMIO] = 16, /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
     [VIRT_GIC_V2M] = 48, /* ...to 48 + NUM_GICV2M_SPIS - 1 */
     [VIRT_SMMU] = 74,    /* ...to 74 + NUM_SMMU_IRQS - 1 */
@@ -2069,6 +2070,7 @@ static void create_smmu(const VirtMachineState *vms, PCIBus *bus)
 {
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
     int irq =  vms->irqmap[VIRT_SMMU];
+    int secure_irq = vms->irqmap[VIRT_SMMU_SECURE];
     int i;
     hwaddr base = vms->memmap[VIRT_SMMU].base;
     hwaddr size = vms->memmap[VIRT_SMMU].size;
@@ -2094,6 +2096,11 @@ static void create_smmu(const VirtMachineState *vms, PCIBus *bus)
     for (i = 0; i < NUM_SMMU_IRQS; i++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
                            qdev_get_gpio_in(vms->gic, irq + i));
+    }
+    for (i = SMMU_IRQ_NUM_NS; i < smmuv3_get_num_irqs(ARM_SMMUV3(dev)); i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
+                           qdev_get_gpio_in(vms->gic,
+                                            secure_irq + i - SMMU_IRQ_NUM_NS));
     }
     create_smmuv3_dt_bindings(vms, base, size, irq);
 }

@@ -1169,7 +1169,8 @@ static void acpi_dsdt_add_tegra241_cmdqv(Aml *scope, VirtMachineState *vms)
         sbdev = SYS_BUS_DEVICE(obj);
         base = platform_bus_get_mmio_addr(pbus, sbdev, 1);
         base += vms->memmap[VIRT_PLATFORM_BUS].base;
-        irq = platform_bus_get_irqn(pbus, sbdev, NUM_SMMU_IRQS);
+        irq = platform_bus_get_irqn(pbus, sbdev,
+                                    smmuv3_get_num_irqs(ARM_SMMUV3(obj)));
         irq += vms->irqmap[VIRT_PLATFORM_BUS];
         irq += ARM_SPI_BASE;
 
