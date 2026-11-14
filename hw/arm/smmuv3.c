@@ -402,6 +402,23 @@ static int smmu_get_ste(SMMUv3State *s, dma_addr_t addr, STE *buf,
 
 }
 
+static void smmuv3_invalidate_all_caches(SMMUv3State *s)
+{
+    SMMUState *bs = &s->smmu_state;
+    QEMU_LOCK_GUARD(&s->mutex);
+
+    trace_smmuv3_invalidate_all_caches();
+
+    /* Clear all cached configs including STE and CD */
+    if (bs->configs) {
+        g_hash_table_remove_all(bs->configs);
+    }
+
+    /* Invalidate all SMMU IOTLB entries */
+    smmu_inv_notifiers_all(&s->smmu_state);
+    smmu_iotlb_inv_all(bs);
+}
+
 static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
                                                  SMMUTransCfg *cfg,
                                                  SMMUEventInfo *event,
@@ -2005,7 +2022,21 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
     case A_EVENTQ_IRQ_CFG1:
     case A_EVENTQ_IRQ_CFG2:
         return MEMTX_OK;
+    case A_S_INIT - SMMU_SECURE_REG_START:
+        if (reg_sec_sid != SMMU_SEC_SID_S) {
+            goto unhandled;
+        }
+        if (data & R_S_INIT_INV_ALL_MASK) {
+            /*
+             * Complete synchronously, including when SMMUEN is set. Root
+             * and GPC are not implemented; GPCEN must gate this operation
+             * when that support is added.
+             */
+            smmuv3_invalidate_all_caches(s);
+        }
+        break;
     default:
+    unhandled:
         qemu_log_mask(LOG_UNIMP,
                       "%s Unexpected 32-bit access to 0x%"PRIx64" (WI)\n",
                       __func__, offset);
@@ -2184,6 +2215,12 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
     case A_EVENTQ_IRQ_CFG0 + 4:
     case A_EVENTQ_IRQ_CFG1:
     case A_EVENTQ_IRQ_CFG2:
+        *data = 0;
+        return MEMTX_OK;
+    case A_S_INIT - SMMU_SECURE_REG_START:
+        if (reg_sec_sid != SMMU_SEC_SID_S) {
+            goto unhandled;
+        }
         *data = 0;
         return MEMTX_OK;
     default:
