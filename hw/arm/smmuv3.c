@@ -1307,9 +1307,15 @@ static void smmuv3_notify_iova(IOMMUMemoryRegion *mr,
 /* invalidate an asid/vmid/iova range tuple in all mr's */
 static void smmuv3_inv_notifiers_iova(SMMUState *s, int asid, int vmid,
                                       dma_addr_t iova, uint8_t tg,
-                                      uint64_t num_pages, int stage)
+                                      uint64_t num_pages, int stage,
+                                      SMMUSecSID sec_sid)
 {
     SMMUDevice *sdev;
+
+    /* IOMMU notifiers are supported only for Non-secure devices. */
+    if (sec_sid != SMMU_SEC_SID_NS) {
+        return;
+    }
 
     QLIST_FOREACH(sdev, &s->devices_with_notifiers, next) {
         IOMMUMemoryRegion *mr = &sdev->iommu;
@@ -1321,6 +1327,14 @@ static void smmuv3_inv_notifiers_iova(SMMUState *s, int asid, int vmid,
         IOMMU_NOTIFIER_FOREACH(n, mr) {
             smmuv3_notify_iova(mr, n, asid, vmid, iova, tg, num_pages, stage);
         }
+    }
+}
+
+static void smmuv3_inv_notifiers_all(SMMUState *s, SMMUSecSID sec_sid)
+{
+    /* IOMMU notifiers are supported only for Non-secure devices. */
+    if (sec_sid == SMMU_SEC_SID_NS) {
+        smmu_inv_notifiers_all(s);
     }
 }
 
@@ -1352,7 +1366,8 @@ static void smmuv3_range_inval(SMMUState *s, Cmd *cmd, SMMUStage stage,
     if (!tg) {
         trace_smmuv3_range_inval(sec_sid, vmid, asid, addr,
                                  tg, 1, ttl, leaf, stage);
-        smmuv3_inv_notifiers_iova(s, asid, vmid, addr, tg, 1, stage);
+        smmuv3_inv_notifiers_iova(s, asid, vmid, addr, tg, 1, stage,
+                                  sec_sid);
         if (stage == SMMU_STAGE_1) {
             smmu_iotlb_inv_iova(s, asid, vmid, addr, tg, 1, ttl, sec_sid);
         } else {
@@ -1376,7 +1391,7 @@ static void smmuv3_range_inval(SMMUState *s, Cmd *cmd, SMMUStage stage,
         trace_smmuv3_range_inval(sec_sid, vmid, asid, addr, tg,
                                  num_pages, ttl, leaf, stage);
         smmuv3_inv_notifiers_iova(s, asid, vmid, addr, tg,
-                                  num_pages, stage);
+                                  num_pages, stage, sec_sid);
         if (stage == SMMU_STAGE_1) {
             smmu_iotlb_inv_iova(s, asid, vmid, addr, tg,
                                 num_pages, ttl, sec_sid);
@@ -1530,7 +1545,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
             }
 
             trace_smmuv3_cmdq_tlbi_nh_asid(sec_sid, asid);
-            smmu_inv_notifiers_all(&s->smmu_state);
+            smmuv3_inv_notifiers_all(bs, sec_sid);
             smmu_iotlb_inv_asid_vmid(bs, asid, vmid, sec_sid);
             if (!smmuv3_accel_issue_inv_cmd(s, &cmd, NULL, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
@@ -1561,7 +1576,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
         }
         case SMMU_CMD_TLBI_NSNH_ALL:
             trace_smmuv3_cmdq_tlbi_nsnh();
-            smmu_inv_notifiers_all(&s->smmu_state);
+            smmuv3_inv_notifiers_all(bs, SMMU_SEC_SID_NS);
             smmu_iotlb_inv_all(bs);
             if (!smmuv3_accel_issue_inv_cmd(s, &cmd, NULL, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
@@ -1590,7 +1605,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
             }
 
             trace_smmuv3_cmdq_tlbi_s12_vmid(vmid);
-            smmu_inv_notifiers_all(&s->smmu_state);
+            smmuv3_inv_notifiers_all(bs, SMMU_SEC_SID_NS);
             smmu_iotlb_inv_vmid(bs, vmid, SMMU_SEC_SID_NS);
             break;
         }
