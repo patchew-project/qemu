@@ -20,6 +20,10 @@ and is able to boot the disk.s10hw2 Solaris image.
                        -nographic -m 256 \
                        -drive if=pflash,readonly=on,file=/S10image/disk.s10hw2
 
+Alternatively, sun4v-qemu-kit https://github.com/unix0cc/sun4v-qemu-kit contains
+a set of components (hypervisor, OpenBoot and machine descriptions) for building
+the Niagara firmware based on the OpenSPARC code.
+
 QEMU emulates the following peripherals:
 
 -  UltraSparc IIi APB PCI Bridge
