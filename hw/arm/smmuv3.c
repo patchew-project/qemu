@@ -1493,7 +1493,8 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
             }
 
             trace_smmuv3_cmdq_cfgi_ste(sec_sid, ssec, sid);
-            if (!smmuv3_accel_install_ste(s, sdev, sid, errp)) {
+            if (ssec == SMMU_SEC_SID_NS &&
+                !smmuv3_accel_install_ste(s, sdev, sid, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
@@ -1513,7 +1514,8 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
 
             trace_smmuv3_cmdq_cfgi_ste_range(sec_sid, ssec,
                                              sid_range.start, sid_range.end);
-            if (!smmuv3_accel_install_ste_range(s, &sid_range, errp)) {
+            if (ssec == SMMU_SEC_SID_NS &&
+                !smmuv3_accel_install_ste_range(s, &sid_range, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
@@ -1541,7 +1543,8 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
 
             trace_smmuv3_cmdq_cfgi_cd(sec_sid, ssec, sid);
             smmuv3_flush_config_by_sec_sid(sdev, ssec);
-            if (!smmuv3_accel_issue_inv_cmd(s, &cmd, sdev, errp)) {
+            if (ssec == SMMU_SEC_SID_NS &&
+                !smmuv3_accel_issue_inv_cmd(s, &cmd, sdev, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
@@ -1568,7 +1571,8 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
             trace_smmuv3_cmdq_tlbi_nh_asid(sec_sid, asid);
             smmuv3_inv_notifiers_all(bs, sec_sid);
             smmu_iotlb_inv_asid_vmid(bs, asid, vmid, sec_sid);
-            if (!smmuv3_accel_issue_inv_cmd(s, &cmd, NULL, errp)) {
+            if (sec_sid == SMMU_SEC_SID_NS &&
+                !smmuv3_accel_issue_inv_cmd(s, &cmd, NULL, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
@@ -1596,7 +1600,8 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
             trace_smmuv3_cmdq_tlbi_nh(sec_sid, vmid);
             smmuv3_inv_notifiers_all(bs, sec_sid);
             smmu_iotlb_inv_by_sec_sid(bs, sec_sid);
-            if (!smmuv3_accel_issue_inv_cmd(s, &cmd, NULL, errp)) {
+            if (sec_sid == SMMU_SEC_SID_NS &&
+                !smmuv3_accel_issue_inv_cmd(s, &cmd, NULL, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
@@ -1616,7 +1621,8 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
             trace_smmuv3_cmdq_tlbi_nsnh(sec_sid, target_sec_sid);
             smmuv3_inv_notifiers_all(bs, target_sec_sid);
             smmu_iotlb_inv_by_sec_sid(bs, target_sec_sid);
-            if (!smmuv3_accel_issue_inv_cmd(s, &cmd, NULL, errp)) {
+            if (target_sec_sid == SMMU_SEC_SID_NS &&
+                !smmuv3_accel_issue_inv_cmd(s, &cmd, NULL, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
@@ -1630,7 +1636,8 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
             }
             smmuv3_range_inval(bs, &cmd, SMMU_STAGE_1, sec_sid,
                                queue_stage2_supported);
-            if (!smmuv3_accel_issue_inv_cmd(s, &cmd, NULL, errp)) {
+            if (sec_sid == SMMU_SEC_SID_NS &&
+                !smmuv3_accel_issue_inv_cmd(s, &cmd, NULL, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
