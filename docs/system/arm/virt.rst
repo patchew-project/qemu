@@ -289,6 +289,17 @@ User-creatable SMMUv3 devices
       -device pxb-pcie,id=pcie.1,numa_node=1
       -device arm-smmuv3,primary-bus=pcie.1,id=smmuv3.1
 
+  ``secure-impl`` accepts ``on``, ``off``, or the default ``auto``. In
+  ``auto`` mode, the ``secure-memory`` link determines whether the Secure
+  programming interface is enabled. On virt, this link is controlled by the
+  machine's ``secure`` option. Secure support requires Secure memory and
+  Stage 1 support. Secure Stage 2 is not supported.
+
+  This property also applies to user-created devices, for example::
+
+      -M virt,secure=on
+      -device arm-smmuv3,primary-bus=pcie.0,secure-impl=on
+
   *Accelerated SMMUv3 (nested translation)*
 
   The ``accel=on`` option enables hardware-accelerated nested translation

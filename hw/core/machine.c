@@ -46,6 +46,7 @@ GlobalProperty hw_compat_11_1[] = {
     { "pci-ehci-usb", "x-migrate-fetch-addr-64bit", "off" },
     { "pcie-root-port", "speed", "16" },
     { "virtio-blk-device", "fua", "off" },
+    { TYPE_ARM_SMMUV3, "secure-impl", "off" },
 };
 const size_t hw_compat_11_1_len = G_N_ELEMENTS(hw_compat_11_1);
 

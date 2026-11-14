@@ -354,6 +354,8 @@ static void smmuv3_init_id_regs(SMMUv3State *s)
 
     sbank->idr[1] = FIELD_DP32(sbank->idr[1], S_IDR1, S_SIDSIZE,
                                SMMU_IDR1_SIDSIZE);
+    sbank->idr[1] = FIELD_DP32(sbank->idr[1], S_IDR1, SECURE_IMPL,
+                               s->secure_impl == ON_OFF_AUTO_ON);
     smmuv3_accel_idr_override(s);
 }
 
@@ -2409,7 +2411,7 @@ static const MemoryRegionOps smmu_mem_ops = {
 
 int smmuv3_get_num_irqs(SMMUv3State *s)
 {
-    return SMMU_IRQ_NUM;
+    return s->secure_impl == ON_OFF_AUTO_ON ? SMMU_IRQ_NUM : SMMU_IRQ_NUM_NS;
 }
 
 static void smmu_init_irq(SMMUv3State *s, SysBusDevice *dev)
@@ -2442,6 +2444,32 @@ static void smmu_reset_exit(Object *obj, ResetType type)
 
 static bool smmu_validate_property(SMMUv3State *s, Error **errp)
 {
+    SMMUState *bs = ARM_SMMU(s);
+    bool secure_as_available = bs->secure_memory != NULL;
+
+    if (s->secure_impl == ON_OFF_AUTO_AUTO) {
+        s->secure_impl = secure_as_available ? ON_OFF_AUTO_ON
+                                             : ON_OFF_AUTO_OFF;
+    }
+
+    if (s->secure_impl == ON_OFF_AUTO_ON && !secure_as_available) {
+        error_setg(errp,
+                   "secure-impl=on requires a secure-memory address space");
+        return false;
+    }
+
+    /*
+     * When SECURE_IMPL == 1, stage 1 must be supported according to
+     * (IHI 0070G.b) 6.3.53 SMMU_S_IDR1, Page 442.
+     */
+    if (s->secure_impl == ON_OFF_AUTO_ON &&
+        s->stage && !strcmp(s->stage, "2")) {
+        error_setg(errp,
+                    "secure-impl=on requires stage=1 or stage=nested");
+        return false;
+    }
+
+
     if (s->oas != OAS_MODE_44 && s->oas != OAS_MODE_48 &&
         s->oas != OAS_MODE_AUTO) {
         error_setg(errp, "QEMU SMMUv3 model only implements auto, "
@@ -2626,6 +2654,13 @@ static const Property smmuv3_properties[] = {
     DEFINE_PROP_SSIDSIZE_MODE("ssidsize", SMMUv3State, ssidsize,
                               SSID_SIZE_MODE_AUTO),
     DEFINE_PROP_ON_OFF_AUTO("cmdqv", SMMUv3State, cmdqv, ON_OFF_AUTO_AUTO),
+    /*
+     * SECURE_IMPL field in S_IDR1 register.
+     * Indicates whether Secure state is implemented.
+     * Defaults to auto.
+     */
+    DEFINE_PROP_ON_OFF_AUTO("secure-impl", SMMUv3State, secure_impl,
+                            ON_OFF_AUTO_AUTO),
 };
 
 static void smmuv3_instance_init(Object *obj)

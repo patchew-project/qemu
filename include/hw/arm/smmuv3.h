@@ -89,6 +89,8 @@ struct SMMUv3State {
     OnOffAuto ats;
     OasMode oas;
     SsidSizeMode ssidsize;
+    OnOffAuto secure_impl;
+
     /* SMMU CMDQV extension */
     OnOffAuto cmdqv;
 
