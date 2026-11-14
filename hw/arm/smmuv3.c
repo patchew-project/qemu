@@ -1797,7 +1797,10 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         bank->cr[1] = data;
         break;
     case A_CR2:
-        bank->cr[2] = data;
+        if (!smmu_enabled(s, reg_sec_sid)) {
+            /* SMMUEN is acknowledged synchronously in this model. */
+            bank->cr[2] = data;
+        }
         break;
     case A_IRQ_CTRL:
         bank->irq_ctrl = data;
