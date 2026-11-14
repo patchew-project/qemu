@@ -51,6 +51,7 @@
 #include "hw/core/boards.h"
 #include "hw/nvram/fw_cfg.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "qemu/cutils.h"
 #include "pci-internal.h"
 #include "qapi/qapi-builtin-type-infos.h"
@@ -86,6 +87,46 @@ static const PropertyInfo prop_pci_busnr = {
     .get = prop_pci_busnr_get,
 };
 
+static void prop_pci_sec_sid_get(Object *obj, Visitor *v, const char *name,
+                                void *opaque, Error **errp)
+{
+    qdev_prop_string.get(obj, v, name, opaque, errp);
+}
+
+static void prop_pci_sec_sid_set(Object *obj, Visitor *v, const char *name,
+                                void *opaque, Error **errp)
+{
+    PCIDevice *dev = PCI_DEVICE(obj);
+    g_autofree char *value = NULL;
+
+    if (!visit_type_str(v, name, &value, errp)) {
+        return;
+    }
+
+    if (strcmp(value, "non-secure") && strcmp(value, "secure")) {
+        error_setg(errp, "Invalid %s value '%s'; "
+                   "expected 'non-secure' or 'secure'", name, value);
+        return;
+    }
+
+    g_free(dev->sec_sid);
+    dev->sec_sid = g_steal_pointer(&value);
+}
+
+static void prop_pci_sec_sid_release(Object *obj, const char *name,
+                                    void *opaque)
+{
+    qdev_prop_string.release(obj, name, opaque);
+}
+
+static const PropertyInfo prop_pci_sec_sid = {
+    .type = "str",
+    .qapi_type = &str_type_info,
+    .get = prop_pci_sec_sid_get,
+    .set = prop_pci_sec_sid_set,
+    .release = prop_pci_sec_sid_release,
+};
+
 static const Property pci_props[] = {
     DEFINE_PROP_PCI_DEVFN("addr", PCIDevice, devfn, -1),
     DEFINE_PROP_STRING("romfile", PCIDevice, romfile),
@@ -107,6 +148,13 @@ static const Property pci_props[] = {
     DEFINE_PROP_STRING("sriov-pf", PCIDevice, sriov_pf),
     DEFINE_PROP_BIT("x-pcie-ext-tag", PCIDevice, cap_present,
                     QEMU_PCIE_EXT_TAG_BITNR, true),
+
+    /*
+     * System-defined, statically configured SEC_SID for this PCI device, used
+     * by Arm SMMU. Only support "non-secure" and "secure" security states.
+     */
+    DEFINE_PROP("sec-sid", PCIDevice, sec_sid, prop_pci_sec_sid, char *),
+
     { .name = "busnr", .info = &prop_pci_busnr },
 };
 
