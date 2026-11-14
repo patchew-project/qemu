@@ -1775,14 +1775,19 @@ static MemTxResult smmu_writell(SMMUv3State *s, hwaddr offset,
         }
         return MEMTX_OK;
     case A_EVENTQ_BASE:
-        bank->eventq.base = data;
+        if (smmuv3_eventq_enabled(s, reg_sec_sid)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "EVENTQ_BASE write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
+        bank->eventq.base = data & SMMU_QUEUE_BASE_RESERVED;
         bank->eventq.log2size = extract64(bank->eventq.base, 0, 5);
         if (bank->eventq.log2size > SMMU_EVENTQS) {
             bank->eventq.log2size = SMMU_EVENTQS;
         }
         return MEMTX_OK;
     case A_EVENTQ_IRQ_CFG0:
-        bank->eventq_irq_cfg0 = data;
         return MEMTX_OK;
     default:
         qemu_log_mask(LOG_UNIMP,
@@ -1927,6 +1932,13 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         bank->cmdq.cons = data;
         break;
     case A_EVENTQ_BASE: /* 64b */
+        if (smmuv3_eventq_enabled(s, reg_sec_sid)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "EVENTQ_BASE write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
+        data &= SMMU_QUEUE_BASE_RESERVED;
         bank->eventq.base = deposit64(bank->eventq.base, 0, 32, data);
         bank->eventq.log2size = extract64(bank->eventq.base, 0, 5);
         if (bank->eventq.log2size > SMMU_EVENTQS) {
@@ -1934,26 +1946,32 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         }
         break;
     case A_EVENTQ_BASE + 4:
+        if (smmuv3_eventq_enabled(s, reg_sec_sid)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "EVENTQ_BASE + 4 write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
+        data &= SMMU_QUEUE_BASE_RESERVED >> 32;
         bank->eventq.base = deposit64(bank->eventq.base, 32, 32, data);
         break;
     case A_EVENTQ_PROD:
+        if (smmuv3_eventq_enabled(s, reg_sec_sid)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "EVENTQ_PROD write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
         bank->eventq.prod = data;
         break;
     case A_EVENTQ_CONS:
         bank->eventq.cons = data;
         break;
-    case A_EVENTQ_IRQ_CFG0: /* 64b */
-        bank->eventq_irq_cfg0 = deposit64(bank->eventq_irq_cfg0, 0, 32, data);
-        break;
+    case A_EVENTQ_IRQ_CFG0:
     case A_EVENTQ_IRQ_CFG0 + 4:
-        bank->eventq_irq_cfg0 = deposit64(bank->eventq_irq_cfg0, 32, 32, data);
-        break;
     case A_EVENTQ_IRQ_CFG1:
-        bank->eventq_irq_cfg1 = data;
-        break;
     case A_EVENTQ_IRQ_CFG2:
-        bank->eventq_irq_cfg2 = data;
-        break;
+        return MEMTX_OK;
     default:
         qemu_log_mask(LOG_UNIMP,
                       "%s Unexpected 32-bit access to 0x%"PRIx64" (WI)\n",
@@ -2011,6 +2029,9 @@ static MemTxResult smmu_readll(SMMUv3State *s, hwaddr offset,
         return MEMTX_OK;
     case A_EVENTQ_BASE:
         *data = bank->eventq.base;
+        return MEMTX_OK;
+    case A_EVENTQ_IRQ_CFG0:
+        *data = 0;
         return MEMTX_OK;
     default:
         *data = 0;
@@ -2106,6 +2127,12 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
         return MEMTX_OK;
     case A_EVENTQ_CONS:
         *data = bank->eventq.cons;
+        return MEMTX_OK;
+    case A_EVENTQ_IRQ_CFG0:
+    case A_EVENTQ_IRQ_CFG0 + 4:
+    case A_EVENTQ_IRQ_CFG1:
+    case A_EVENTQ_IRQ_CFG2:
+        *data = 0;
         return MEMTX_OK;
     default:
         *data = 0;
