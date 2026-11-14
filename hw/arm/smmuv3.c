@@ -643,11 +643,11 @@ static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
         goto bad_ste;
     }
 
-    if (STAGE2_SUPPORTED(s)) {
-        /* VMID is considered even if s2 is disabled. */
+    if (STAGE2_SUPPORTED(s) && !smmu_sec_sid_is_secure(sec_sid)) {
+        /* VMID is considered even if Non-secure stage 2 is disabled. */
         cfg->s2cfg.vmid = STE_S2VMID(ste);
     } else {
-        /* Default to -1 */
+        /* No VMID tagging without stage 2 in this Security state. */
         cfg->s2cfg.vmid = -1;
     }
 
