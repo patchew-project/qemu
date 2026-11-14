@@ -30,6 +30,33 @@
 #include "hw/arm/smmu-common.h"
 #include "smmu-internal.h"
 
+ARMSecuritySpace smmu_get_security_space(SMMUSecSID sec_sid)
+{
+    switch (sec_sid) {
+    case SMMU_SEC_SID_S:
+        return ARMSS_Secure;
+    case SMMU_SEC_SID_NS:
+        return ARMSS_NonSecure;
+    case SMMU_SEC_SID_NUM:
+        g_assert_not_reached();
+    }
+    g_assert_not_reached();
+}
+
+MemTxAttrs smmu_get_txattrs(SMMUSecSID sec_sid)
+{
+    /*
+     * SMMU-originated accesses do not inherit the client requester ID, PASID
+     * or PCI address type. Only the security state is explicit here. Leave
+     * memory clear to preserve access behavior: it is a RAM-only filter,
+     * not an architectural memory type or cacheability attribute.
+     */
+    return (MemTxAttrs) {
+        .secure = smmu_sec_sid_is_secure(sec_sid) ? 1 : 0,
+        .space = smmu_get_security_space(sec_sid),
+    };
+}
+
 AddressSpace *smmu_get_address_space(SMMUState *s, SMMUSecSID sec_sid)
 {
     switch (sec_sid) {

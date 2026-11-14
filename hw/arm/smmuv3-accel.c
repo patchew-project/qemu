@@ -309,7 +309,7 @@ bool smmuv3_accel_install_ste(SMMUv3State *s, SMMUDevice *sdev, int sid,
         return false;
     }
 
-    if (smmu_find_ste(sdev->smmu, sid, &ste, &event)) {
+    if (smmu_find_ste(sdev->smmu, sid, &ste, &event, SMMU_SEC_SID_NS)) {
         /* No STE found, nothing to install */
         return true;
     }
