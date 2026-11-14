@@ -50,6 +50,8 @@ typedef enum SMMUSecSID {
 
 MemTxAttrs smmu_get_txattrs(SMMUSecSID sec_sid);
 ARMSecuritySpace smmu_get_security_space(SMMUSecSID sec_sid);
+int smmu_attrs_to_index(IOMMUMemoryRegion *iommu, MemTxAttrs attrs);
+int smmu_num_indexes(IOMMUMemoryRegion *iommu);
 
 /*
  * Page table walk error types
@@ -134,6 +136,7 @@ typedef struct SMMUDevice {
     void               *smmu;
     PCIBus             *bus;
     int                devfn;
+    SMMUSecSID         sec_sid;
     IOMMUMemoryRegion  iommu;
     AddressSpace       as;
     uint32_t           cfg_cache_hits;
@@ -204,6 +207,8 @@ struct SMMUBaseClass {
     /*< public >*/
 
     DeviceRealize parent_realize;
+    bool (*validate_sec_sid)(struct SMMUState *s, SMMUSecSID sec_sid,
+                            int bus_num, int devfn, Error **errp);
 
 };
 
@@ -220,6 +225,9 @@ SMMUPciBus *smmu_get_sbus(SMMUState *s, PCIBus *bus);
 
 /* Initialize SMMUDevice handle associated to a SMMUPciBus */
 void smmu_init_sdev(SMMUState *s, SMMUDevice *sdev, PCIBus *bus, int devfn);
+
+bool smmu_supports_address_space(PCIBus *bus, void *opaque, int devfn,
+                                Error **errp);
 
 
 static inline bool smmu_sec_sid_is_secure(SMMUSecSID sec_sid)

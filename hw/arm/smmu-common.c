@@ -21,6 +21,7 @@
 #include "exec/target_page.h"
 #include "hw/core/cpu.h"
 #include "hw/pci/pci_bridge.h"
+#include "hw/pci/pci_device.h"
 #include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/jhash.h"
@@ -89,6 +90,19 @@ AddressSpace *smmu_get_address_space(SMMUState *s, SMMUSecSID sec_sid)
         g_assert_not_reached();
     }
     g_assert_not_reached();
+}
+
+int smmu_attrs_to_index(IOMMUMemoryRegion *iommu, MemTxAttrs attrs)
+{
+    if (attrs.unspecified) {
+        return SMMU_SEC_SID_NS;
+    }
+    return attrs.secure ? SMMU_SEC_SID_S : SMMU_SEC_SID_NS;
+}
+
+int smmu_num_indexes(IOMMUMemoryRegion *iommu)
+{
+    return SMMU_SEC_SID_NUM;
 }
 
 /* IOTLB Management */
@@ -1096,14 +1110,51 @@ SMMUPciBus *smmu_find_smmu_pcibus(SMMUState *s, uint8_t bus_num)
     return NULL;
 }
 
+static SMMUSecSID smmu_parse_pci_sec_sid(PCIDevice *pdev)
+{
+    if (!pdev || !pdev->sec_sid ||
+        !strcmp(pdev->sec_sid, "non-secure")) {
+        return SMMU_SEC_SID_NS;
+    }
+
+    assert(!strcmp(pdev->sec_sid, "secure"));
+    return SMMU_SEC_SID_S;
+}
+
+bool smmu_supports_address_space(PCIBus *bus, void *opaque, int devfn,
+                                Error **errp)
+{
+    SMMUState *s = opaque;
+    SMMUBaseClass *sbc = ARM_SMMU_GET_CLASS(s);
+    int bus_num = pci_bus_num(bus);
+    PCIDevice *pdev = pci_find_device(bus, bus_num, devfn);
+    SMMUSecSID sec_sid = smmu_parse_pci_sec_sid(pdev);
+
+    return !sbc->validate_sec_sid ||
+           sbc->validate_sec_sid(s, sec_sid, bus_num, devfn, errp);
+}
+
 void smmu_init_sdev(SMMUState *s, SMMUDevice *sdev, PCIBus *bus, int devfn)
 {
     static unsigned int index;
     g_autofree char *name = g_strdup_printf("%s-%d-%d", s->mrtypename, devfn,
                                             index++);
+    SMMUBaseClass *sbc = ARM_SMMU_GET_CLASS(s);
+    PCIDevice *pdev;
+    int bus_num;
+
     sdev->smmu = s;
     sdev->bus = bus;
     sdev->devfn = devfn;
+
+    bus_num = pci_bus_num(bus);
+    pdev = pci_find_device(bus, bus_num, devfn);
+
+    sdev->sec_sid = smmu_parse_pci_sec_sid(pdev);
+    /* Also check devices realized before the SMMU was attached. */
+    if (sbc->validate_sec_sid) {
+        sbc->validate_sec_sid(s, sdev->sec_sid, bus_num, devfn, &error_fatal);
+    }
 
     memory_region_init_iommu(&sdev->iommu, sizeof(sdev->iommu),
                              s->mrtypename, OBJECT(s), name, UINT64_MAX);
@@ -1129,18 +1180,32 @@ static AddressSpace *smmu_find_add_as(PCIBus *bus, void *opaque, int devfn)
 {
     SMMUState *s = opaque;
     SMMUPciBus *sbus = smmu_get_sbus(s, bus);
+    SMMUBaseClass *sbc = ARM_SMMU_GET_CLASS(s);
     SMMUDevice *sdev;
+    PCIDevice *pdev;
+    SMMUSecSID sec_sid;
+    int bus_num;
 
     sdev = sbus->pbdev[devfn];
     if (!sdev) {
         sdev = sbus->pbdev[devfn] = g_new0(SMMUDevice, 1);
         smmu_init_sdev(s, sdev, bus, devfn);
+    } else {
+        bus_num = pci_bus_num(bus);
+        pdev = pci_find_device(bus, bus_num, devfn);
+        sec_sid = smmu_parse_pci_sec_sid(pdev);
+
+        if (sbc->validate_sec_sid) {
+            sbc->validate_sec_sid(s, sec_sid, bus_num, devfn, &error_fatal);
+        }
+        sdev->sec_sid = sec_sid;
     }
 
     return &sdev->as;
 }
 
 static const PCIIOMMUOps smmu_ops = {
+    .supports_address_space = smmu_supports_address_space,
     .get_address_space = smmu_find_add_as,
 };
 

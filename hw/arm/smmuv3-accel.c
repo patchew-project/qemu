@@ -899,7 +899,7 @@ static bool smmuv3_accel_supports_as(PCIBus *bus, void *opaque, int devfn,
         }
         return false;
     }
-    return true;
+    return smmu_supports_address_space(bus, opaque, devfn, errp);
 }
 /*
  * Find or add an address space for the given PCI device.
