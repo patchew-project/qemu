@@ -1455,6 +1455,12 @@ static bool smmu_strtab_base_writable(SMMUv3State *s, SMMUSecSID sec_sid)
     return !smmu_enabled(s, sec_sid);
 }
 
+/* Check if the SMMU hardware itself implements Secure state features */
+static inline bool smmu_hw_secure_implemented(SMMUv3State *s)
+{
+    return FIELD_EX32(s->bank[SMMU_SEC_SID_S].idr[1], S_IDR1, SECURE_IMPL);
+}
+
 static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
 {
     SMMUState *bs = ARM_SMMU(s);
@@ -1771,6 +1777,37 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
     return 0;
 }
 
+/*
+ * Helper function for Secure register access validation.
+ *
+ * Follow S_IDR1.SECURE_IMPL accessibility rules for SMMU_S_*:
+ *  - SECURE_IMPL == 0: Secure state is not implemented; SMMU_S_* are RAZ/WI to
+ *    all accesses.
+ *  - SECURE_IMPL == 1: Non-secure accesses to SMMU_S_* are RAZ/WI.
+ */
+static bool smmu_check_secure_access(SMMUv3State *s, MemTxAttrs attrs,
+                                     hwaddr offset, bool is_read)
+{
+    /* Check if the access is Secure */
+    if (!(attrs.space == ARMSS_Secure ||
+          attrs.secure == 1)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "%s: Non-secure %s at offset 0x%" PRIx64 "\n",
+            __func__, is_read ? "read" : "write", offset);
+        return false;
+    }
+
+    /* Check if the Secure state is implemented. */
+    if (!smmu_hw_secure_implemented(s)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "%s: Secure %s at offset 0x%" PRIx64
+            ": Secure state is not implemented\n",
+            __func__, is_read ? "read" : "write", offset);
+        return false;
+    }
+    return true;
+}
+
 static bool smmuv3_reg_is_raz_wi(hwaddr offset, SMMUSecSID reg_sec_sid)
 {
     switch (offset) {
@@ -2065,6 +2102,11 @@ static MemTxResult smmu_write_mmio(void *opaque, hwaddr offset, uint64_t data,
      * translate the Secure window to its bank-local register offsets.
      */
     if (offset >= SMMU_SECURE_REG_START) {
+        if (!smmu_check_secure_access(s, attrs, offset, false)) {
+            trace_smmuv3_write_mmio(offset, data, size, MEMTX_OK);
+            /* WI */
+            return MEMTX_OK;
+        }
         reg_sec_sid = SMMU_SEC_SID_S;
         offset -= SMMU_SECURE_REG_START;
     }
@@ -2244,6 +2286,12 @@ static MemTxResult smmu_read_mmio(void *opaque, hwaddr offset, uint64_t *data,
     /* CONSTRAINED UNPREDICTABLE choice to have page0/1 be exact aliases */
     offset &= ~0x10000;
     if (offset >= SMMU_SECURE_REG_START) {
+        if (!smmu_check_secure_access(s, attrs, offset, true)) {
+            /* RAZ */
+            *data = 0;
+            trace_smmuv3_read_mmio(offset, *data, size, MEMTX_OK);
+            return MEMTX_OK;
+        }
         reg_sec_sid = SMMU_SEC_SID_S;
         offset -= SMMU_SECURE_REG_START;
     }
