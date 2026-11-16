@@ -275,7 +275,7 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
     const Property *prop = opaque;
     CharFrontend *fe = object_field_prop_ptr(obj, prop);
     Chardev *s;
-    char *str;
+    g_autofree char *str = NULL;
 
     if (!visit_type_str(v, name, &str, errp)) {
         return;
@@ -290,7 +290,6 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
     }
 
     if (!*str) {
-        g_free(str);
         fe->chr = NULL;
         return;
     }
@@ -303,7 +302,6 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
         error_prepend(errp, "Property '%s.%s' can't take value '%s': ",
                       object_get_typename(obj), name, str);
     }
-    g_free(str);
 }
 
 static void release_chr(Object *obj, const char *name, void *opaque)
@@ -351,7 +349,7 @@ static void set_mac(Object *obj, Visitor *v, const char *name, void *opaque,
     const Property *prop = opaque;
     MACAddr *mac = object_field_prop_ptr(obj, prop);
     int i, pos;
-    char *str;
+    g_autofree char *str = NULL;
     const char *p;
 
     if (!visit_type_str(v, name, &str, errp)) {
@@ -381,12 +379,10 @@ static void set_mac(Object *obj, Visitor *v, const char *name, void *opaque,
         }
         mac->a[i] = val;
     }
-    g_free(str);
     return;
 
 inval:
     error_set_from_qdev_prop_error(errp, EINVAL, obj, name, str);
-    g_free(str);
 }
 
 const PropertyInfo qdev_prop_macaddr = {
@@ -427,7 +423,7 @@ static void set_netdev(Object *obj, Visitor *v, const char *name,
     NetClientState **ncs = peers_ptr->ncs;
     NetClientState *peers[MAX_QUEUE_NUM];
     int queues, err = 0, i = 0;
-    char *str;
+    g_autofree char *str = NULL;
 
     if (!visit_type_str(v, name, &str, errp)) {
         return;
@@ -475,7 +471,6 @@ static void set_netdev(Object *obj, Visitor *v, const char *name,
 
 out:
     error_set_from_qdev_prop_error(errp, err, obj, prop->name, str);
-    g_free(str);
 }
 
 const PropertyInfo qdev_prop_netdev = {
@@ -787,7 +782,7 @@ static void set_reserved_region(Object *obj, Visitor *v, const char *name,
     ReservedRegion *rr = object_field_prop_ptr(obj, prop);
     const char *endptr;
     uint64_t lob, upb;
-    char *str;
+    g_autofree char *str = NULL;
     int ret;
 
     if (!visit_type_str(v, name, &str, errp)) {
@@ -798,7 +793,7 @@ static void set_reserved_region(Object *obj, Visitor *v, const char *name,
     if (ret) {
         error_setg(errp, "start address of '%s'"
                    " must be a hexadecimal integer", name);
-        goto out;
+        return;
     }
     if (*endptr != ':') {
         goto separator_error;
@@ -808,7 +803,7 @@ static void set_reserved_region(Object *obj, Visitor *v, const char *name,
     if (ret) {
         error_setg(errp, "end address of '%s'"
                    " must be a hexadecimal integer", name);
-        goto out;
+        return;
     }
     if (*endptr != ':') {
         goto separator_error;
@@ -821,12 +816,10 @@ static void set_reserved_region(Object *obj, Visitor *v, const char *name,
         error_setg(errp, "type of '%s'"
                    " must be a non-negative decimal integer", name);
     }
-    goto out;
+    return;
 
 separator_error:
     error_setg(errp, "reserved region fields must be separated with ':'");
-out:
-    g_free(str);
 }
 
 const PropertyInfo qdev_prop_reserved_region = {
@@ -961,7 +954,8 @@ static void set_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
 {
     const Property *prop = opaque;
     PCIHostDeviceAddress *addr = object_field_prop_ptr(obj, prop);
-    char *str, *p;
+    g_autofree char *str = NULL;
+    char *p;
     char *e;
     unsigned long val;
     unsigned long dom = 0, bus = 0;
@@ -1017,12 +1011,10 @@ static void set_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
     addr->slot = slot;
     addr->function = func;
 
-    g_free(str);
     return;
 
 inval:
     error_set_from_qdev_prop_error(errp, EINVAL, obj, name, str);
-    g_free(str);
 }
 
 const PropertyInfo qdev_prop_pci_host_devaddr = {
@@ -1237,7 +1229,7 @@ static void set_uuid(Object *obj, Visitor *v, const char *name, void *opaque,
 {
     const Property *prop = opaque;
     QemuUUID *uuid = object_field_prop_ptr(obj, prop);
-    char *str;
+    g_autofree char *str = NULL;
 
     if (!visit_type_str(v, name, &str, errp)) {
         return;
@@ -1248,7 +1240,6 @@ static void set_uuid(Object *obj, Visitor *v, const char *name, void *opaque,
     } else if (qemu_uuid_parse(str, uuid) < 0) {
         error_set_from_qdev_prop_error(errp, EINVAL, obj, name, str);
     }
-    g_free(str);
 }
 
 static void set_default_uuid_auto(ObjectProperty *op, const Property *prop)
