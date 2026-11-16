@@ -188,6 +188,36 @@ static void ctucan_update_txnf(CtuCanCoreState *s)
     s->status.s.txnf = txnf;
 }
 
+/*
+ * Fault confinement. While SETTINGS[ENA] is 0 the CAN core is held in reset:
+ * the node is bus-off and both error counters are zero. After the core is
+ * enabled it integrates to the bus and, coming from bus-off, becomes
+ * error-active, clears REC and TEC and raises FCSI. The model has no bit
+ * timing, so integration completes at once, and it never sees bus errors,
+ * so the node stays error-active until it is disabled or reset.
+ */
+static void ctucan_fault_confinement_reset(CtuCanCoreState *s)
+{
+    s->ewl_erp_fault_state.s.era = 0;
+    s->ewl_erp_fault_state.s.erp = 0;
+    s->ewl_erp_fault_state.s.bof = 1;
+    s->rec_tec.u32 = 0;
+}
+
+static void ctucan_set_err_active(CtuCanCoreState *s)
+{
+    union ctu_can_fd_int_stat int_stat;
+
+    s->ewl_erp_fault_state.s.era = 1;
+    s->ewl_erp_fault_state.s.erp = 0;
+    s->ewl_erp_fault_state.s.bof = 0;
+    s->rec_tec.u32 = 0;
+
+    int_stat.u32 = 0;
+    int_stat.s.fcsi = 1;
+    s->int_stat.u32 |= int_stat.u32 & ~s->int_mask.u32;
+}
+
 void ctucan_hardware_reset(CtuCanCoreState *s)
 {
     DPRINTF("Hardware reset in progress!!!\n");
@@ -229,6 +259,11 @@ void ctucan_hardware_reset(CtuCanCoreState *s)
 
     s->rx_fr_ctr.u32 = 0;
     s->tx_fr_ctr.u32 = 0;
+
+    s->ewl_erp_fault_state.u32 = 0;
+    s->ewl_erp_fault_state.s.ew_limit = 96;
+    s->ewl_erp_fault_state.s.erp_limit = 128;
+    ctucan_fault_confinement_reset(s);
 
     s->yolo_reg.s.yolo_val = 3735928559;
 
@@ -311,12 +346,21 @@ void ctucan_mem_write(CtuCanCoreState *s, hwaddr addr, uint64_t val,
     } else {
         switch (addr & ~3) {
         case CTU_CAN_FD_MODE:
+        {
+            bool was_enabled = s->mode_settings.s.ena;
+
             s->mode_settings.u32 = (uint32_t)val;
             if (s->mode_settings.s.rst) {
                 ctucan_hardware_reset(s);
                 s->mode_settings.s.rst = 0;
             }
+            if (!was_enabled && s->mode_settings.s.ena) {
+                ctucan_set_err_active(s);
+            } else if (was_enabled && !s->mode_settings.s.ena) {
+                ctucan_fault_confinement_reset(s);
+            }
             break;
+        }
         case CTU_CAN_FD_COMMAND:
         {
             union ctu_can_fd_command command;
@@ -493,6 +537,12 @@ uint64_t ctucan_mem_read(CtuCanCoreState *s, hwaddr addr, unsigned size)
         } else {
             val = 0;
         }
+        break;
+    case CTU_CAN_FD_EWL:
+        val = s->ewl_erp_fault_state.u32;
+        break;
+    case CTU_CAN_FD_REC:
+        val = s->rec_tec.u32;
         break;
     case CTU_CAN_FD_TX_STATUS:
         val = s->tx_status.u32;
