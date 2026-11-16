@@ -309,9 +309,10 @@ static bool ppm_save(int fd, pixman_image_t *image, Error **errp)
     linebuf = qemu_pixman_linebuf_create(PIXMAN_BE_r8g8b8, width);
     for (y = 0; y < height; y++) {
         qemu_pixman_linebuf_fill(linebuf, image, width, 0, y);
+        /* Write width * 3 bytes, not the 4-byte-aligned linebuf stride */
         if (qio_channel_write_all(QIO_CHANNEL(ioc),
                                   (char *)pixman_image_get_data(linebuf),
-                                  pixman_image_get_stride(linebuf), errp) < 0) {
+                                  width * 3, errp) < 0) {
             return false;
         }
     }
