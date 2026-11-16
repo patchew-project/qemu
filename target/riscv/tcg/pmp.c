@@ -679,9 +679,11 @@ target_ulong pmpaddr_csr_read(CPURISCVState *env, uint32_t addr_index)
  */
 void mseccfg_csr_write(CPURISCVState *env, uint64_t val)
 {
-    int i;
-    uint64_t mask = MSECCFG_MMWP | MSECCFG_MML;
-    uint8_t pmp_regions = riscv_cpu_cfg(env)->pmp_regions;
+    uint64_t sticky_bits_mask = 0;
+    uint64_t mask = 0;
+
+    trace_mseccfg_csr_write(env->mhartid, val);
+
     /* Update PMM field only if the value is valid according to Zjpm v1.0 */
     if (riscv_cpu_cfg(env)->ext_smmpm &&
         riscv_cpu_mxl(env) == MXL_RV64 &&
@@ -689,30 +691,51 @@ void mseccfg_csr_write(CPURISCVState *env, uint64_t val)
         mask |= MSECCFG_PMM;
     }
 
-    trace_mseccfg_csr_write(env->mhartid, val);
+    if (riscv_cpu_cfg(env)->ext_smepmp) {
+        bool rlb_writable = true;
 
-    /* RLB cannot be enabled if it's already 0 and if any regions are locked */
-    if (!MSECCFG_RLB_ISSET(env)) {
-        for (i = 0; i < pmp_regions; i++) {
-            if (pmp_is_locked(env, i)) {
-                val &= ~MSECCFG_RLB;
-                break;
+        /*
+         * RLB cannot be enabled if it's already 0 and
+         * if any regions are locked.
+         */
+        if (!MSECCFG_RLB_ISSET(env)) {
+            uint8_t pmp_regions = riscv_cpu_cfg(env)->pmp_regions;
+
+            for (int i = 0; i < pmp_regions; i++) {
+                if (pmp_is_locked(env, i)) {
+                    rlb_writable = false;
+                    break;
+                }
             }
         }
-    }
 
-    if (riscv_cpu_cfg(env)->ext_smepmp) {
-        /* Sticky bits */
-        val |= (env->mseccfg & mask);
-        if ((val ^ env->mseccfg) & mask) {
+        if (rlb_writable) {
+            mask |= MSECCFG_RLB;
+        }
+
+        sticky_bits_mask |= MSECCFG_MMWP | MSECCFG_MML;
+        val |= (env->mseccfg & sticky_bits_mask);
+
+        if ((val ^ env->mseccfg) & sticky_bits_mask) {
             tlb_flush(env_cpu(env));
         }
-    } else {
-        mask |= MSECCFG_RLB;
-        val &= ~(mask);
     }
 
-    env->mseccfg = val;
+    if (riscv_cpu_cfg(env)->ext_zicfilp) {
+        mask |= MSECCFG_MLPE;
+    }
+
+    if (riscv_cpu_cfg(env)->ext_zkr) {
+        if (riscv_has_ext(env, RVS)) {
+            mask |= MSECCFG_SSEED;
+        }
+
+        if (riscv_has_ext(env, RVU)) {
+            mask |= MSECCFG_USEED;
+        }
+    }
+
+    env->mseccfg = (env->mseccfg & ~mask) | (val & (mask | sticky_bits_mask));
 }
 
 /*

@@ -22,6 +22,25 @@ tests += {
   },
 }
 
+tests += {
+  'test-mseccfg-bits-1.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'rv32,u=off,h=off,s=off,zkr=on,zicfilp=off', qemu_args],
+  },
+  'test-mseccfg-bits-2.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'rv32,smepmp=true,zkr=false,zicfilp=false', qemu_args],
+  },
+  'test-mseccfg-bits-3.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'rv32,zkr=false,zicfilp=true', qemu_args],
+  },
+  'test-mseccfg-bits-4.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'rv32,zkr=true', qemu_args],
+  },
+}
+
 if 'qemu-system-riscv32' in emulators
   tcg_tests += {
     'riscv32-softmmu': {
