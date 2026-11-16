@@ -25,6 +25,12 @@
 #define DBG_TRANSLATED_PA       0x90000000ull
 #define DBG_NESTED_GPA          0x200000ull
 
+#define MSI_TABLE_PA            0x80030000ull
+#define MSI_TARGET_PA           0x80040000ull
+#define MSI_DATA                0x37
+#define EDU_DEVICE_ID           0x11e8
+#define EDU_IRQ_RAISE           0x60
+
 /* RISC-V virt machine PCI configuration */
 #define RISCV_GPEX_PIO_BASE        0x3000000
 #define RISCV_BUS_PIO_LIMIT        0x10000
@@ -49,6 +55,21 @@ typedef struct RiscvIommuDbgTest {
     uint64_t pa;
     uint64_t expected_response;
 } RiscvIommuDbgTest;
+
+typedef struct RiscvIommuMsiTest {
+    const char *name;
+    QRIOMMUTransMode mode;
+    bool valid_pte;
+    uint64_t s_walks;
+    uint64_t g_walks;
+} RiscvIommuMsiTest;
+
+static const RiscvIommuMsiTest msi_tests[] = {
+    { "first-stage-bare-fault", QRIOMMU_TM_G_STAGE_ONLY, false, 0, 0 },
+    { "nested-fault", QRIOMMU_TM_NESTED, false, 3, 9 },
+    { "first-stage-bare-basic", QRIOMMU_TM_G_STAGE_ONLY, true, 0, 0 },
+    { "nested-basic", QRIOMMU_TM_NESTED, true, 3, 9 },
+};
 
 static const RiscvIommuDbgTest debug_tests[] = {
     {
@@ -157,15 +178,16 @@ static QPCIDevice *find_riscv_iommu_pci(QGenericPCIBus *gbus,
     return iommu_dev;
 }
 
-static QPCIDevice *find_iommu_testdev(QGenericPCIBus *gbus, QPCIBar *bar)
+static QPCIDevice *find_testdev(QGenericPCIBus *gbus, QPCIBar *bar, bool msi)
 {
     QPCIDevice *dev = NULL;
+    uint16_t vendor = msi ? PCI_VENDOR_ID_QEMU : IOMMU_TESTDEV_VENDOR_ID;
+    uint16_t device = msi ? EDU_DEVICE_ID : IOMMU_TESTDEV_DEVICE_ID;
 
-    g_test_message("Searching for iommu-testdev (vendor=0x%04x, device=0x%04x)",
-                   IOMMU_TESTDEV_VENDOR_ID, IOMMU_TESTDEV_DEVICE_ID);
+    g_test_message("Searching for %s (vendor=0x%04x, device=0x%04x)",
+                   msi ? "edu" : "iommu-testdev", vendor, device);
 
-    qpci_device_foreach(&gbus->bus, IOMMU_TESTDEV_VENDOR_ID,
-                        IOMMU_TESTDEV_DEVICE_ID, save_fn, &dev);
+    qpci_device_foreach(&gbus->bus, vendor, device, save_fn, &dev);
     g_assert(dev);
 
     qpci_device_enable(dev);
@@ -175,17 +197,21 @@ static QPCIDevice *find_iommu_testdev(QGenericPCIBus *gbus, QPCIBar *bar)
     return dev;
 }
 
-static bool riscv_iommu_test_setup(RiscvIommuTestState *state)
+static bool riscv_iommu_test_setup(RiscvIommuTestState *state, bool msi)
 {
     if (!qtest_has_machine("virt")) {
         g_test_skip("virt machine not available");
         return false;
     }
+    if (msi && !qtest_has_device("edu")) {
+        g_test_skip("edu device not available");
+        return false;
+    }
 
-    state->qts = qtest_init("-machine virt,acpi=off "
-                            "-cpu max -smp 1 -m 512 -net none "
-                            "-device riscv-iommu-pci "
-                            "-device iommu-testdev");
+    state->qts = qtest_initf("-machine virt,acpi=off "
+                             "-cpu max -smp 1 -m 512 -bios none -net none "
+                             "-device riscv-iommu-pci "
+                             "-device %s", msi ? "edu" : "iommu-testdev");
 
     qpci_init_generic(&state->gbus, state->qts, NULL, false);
     riscv_config_qpci_bus(&state->gbus);
@@ -193,7 +219,7 @@ static bool riscv_iommu_test_setup(RiscvIommuTestState *state)
     state->iommu_dev = find_riscv_iommu_pci(&state->gbus, &state->iommu_base);
     g_assert(state->iommu_dev);
 
-    state->testdev = find_iommu_testdev(&state->gbus, &state->testdev_bar);
+    state->testdev = find_testdev(&state->gbus, &state->testdev_bar, msi);
     g_assert(state->testdev);
 
     return true;
@@ -267,7 +293,7 @@ static void run_riscv_iommu_translation(const QRIOMMUTestConfig *cfg)
 {
     RiscvIommuTestState state = { 0 };
 
-    if (!riscv_iommu_test_setup(&state)) {
+    if (!riscv_iommu_test_setup(&state, false)) {
         return;
     }
 
@@ -328,6 +354,101 @@ static void test_riscv_iommu_nested(void)
     run_riscv_iommu_translation(&cfg);
 }
 
+static void test_riscv_iommu_msi(gconstpointer data)
+{
+    static const unsigned events[] = {
+        RISCV_IOMMU_HPMEVENT_URQ,
+        RISCV_IOMMU_HPMEVENT_TLB_MISS,
+        RISCV_IOMMU_HPMEVENT_S_VS_WALKS,
+        RISCV_IOMMU_HPMEVENT_G_WALKS,
+    };
+    const RiscvIommuMsiTest *cfg = data;
+    const uint64_t expected[] = { 1, 1, cfg->s_walks, cfg->g_walks };
+    RiscvIommuTestState state = { 0 };
+    uint64_t iova = (QRIOMMU_IOVA & ~0xfffull) +
+                    (cfg->valid_pte ? 0 : 0x40);
+    uint64_t gpa = iova;
+    uint64_t dc_addr, pte = 0, hdr, cap;
+    uint64_t fq_addr = QRIOMMU_SPACE_OFFS + QRIOMMU_FQ_BASE_ADDR;
+    uint8_t msi_cap;
+    uint16_t flags;
+
+    if (!riscv_iommu_test_setup(&state, true)) {
+        return;
+    }
+
+    cap = riscv_iommu_check(state.qts, state.iommu_base, cfg->mode);
+    g_assert_cmphex(cap & RISCV_IOMMU_CAP_MSI_FLAT, !=, 0);
+    g_assert_cmphex(cap & RISCV_IOMMU_CAP_HPM, !=, 0);
+    qriommu_build_translation(state.qts, cfg->mode, state.testdev->devfn);
+    if (cfg->mode == QRIOMMU_TM_NESTED) {
+        gpa = QRIOMMU_L2_PTE_VAL + (iova & 0xfff);
+        g_assert_cmphex(iova, !=, gpa);
+    }
+
+    /* Match one GPA page; interrupt-file number zero selects the first PTE. */
+    dc_addr = QRIOMMU_SPACE_OFFS + QRIOMMU_DC_BASE +
+              state.testdev->devfn * sizeof(struct riscv_iommu_dc);
+    qtest_writeq(state.qts, dc_addr + 32,
+                 (MSI_TABLE_PA >> 12) | (1ull << 60));
+    qtest_writeq(state.qts, dc_addr + 40, 0);
+    qtest_writeq(state.qts, dc_addr + 48, gpa >> 12);
+    qtest_memset(state.qts, MSI_TABLE_PA, 0, 0x1000);
+    qtest_writel(state.qts, MSI_TARGET_PA, 0);
+    if (cfg->valid_pte) {
+        pte = ((MSI_TARGET_PA >> 12) << 10) |
+              (RISCV_IOMMU_MSI_PTE_M_BASIC << 1) | RISCV_IOMMU_MSI_PTE_V;
+    }
+    qtest_writeq(state.qts, MSI_TABLE_PA, pte);
+    qriommu_program_regs(state.qts, state.iommu_base);
+
+    for (unsigned i = 0; i < G_N_ELEMENTS(events); i++) {
+        qtest_writeq(state.qts, state.iommu_base + RISCV_IOMMU_REG_IOHPMEVT(i),
+                     events[i]);
+        qtest_writeq(state.qts, state.iommu_base + RISCV_IOMMU_REG_IOHPMCTR(i),
+                     0);
+        g_assert_cmpuint(qtest_readq(state.qts,
+            state.iommu_base + RISCV_IOMMU_REG_IOHPMCTR(i)), ==, 0);
+    }
+    qtest_writel(state.qts, state.iommu_base + RISCV_IOMMU_REG_IOCOUNTINH,
+                 RISCV_IOMMU_IOCOUNTINH_CY);
+
+    /* EDU sends a real PCI MSI, including the transaction requester ID. */
+    msi_cap = qpci_find_capability(state.testdev, PCI_CAP_ID_MSI, 0);
+    g_assert_cmpuint(msi_cap, !=, 0);
+    flags = qpci_config_readw(state.testdev, msi_cap + PCI_MSI_FLAGS);
+    g_assert_cmpuint(flags & PCI_MSI_FLAGS_64BIT, !=, 0);
+    qpci_config_writel(state.testdev, msi_cap + PCI_MSI_ADDRESS_LO, iova);
+    qpci_config_writel(state.testdev, msi_cap + PCI_MSI_ADDRESS_HI, iova >> 32);
+    qpci_config_writew(state.testdev, msi_cap + PCI_MSI_DATA_64, MSI_DATA);
+    qpci_config_writew(state.testdev, msi_cap + PCI_MSI_FLAGS,
+                       flags | PCI_MSI_FLAGS_ENABLE);
+    qpci_io_writel(state.testdev, state.testdev_bar, EDU_IRQ_RAISE, 1);
+
+    g_assert_cmpuint(qtest_readl(state.qts,
+        state.iommu_base + RISCV_IOMMU_REG_FQT), ==, !cfg->valid_pte);
+    if (cfg->valid_pte) {
+        g_assert_cmphex(qtest_readl(state.qts, MSI_TARGET_PA), ==, MSI_DATA);
+    } else {
+        hdr = qtest_readq(state.qts, fq_addr);
+        g_assert_cmpuint(hdr & RISCV_IOMMU_FQ_HDR_CAUSE, ==,
+                         RISCV_IOMMU_FQ_CAUSE_MSI_INVALID);
+        g_assert_cmpuint((hdr & RISCV_IOMMU_FQ_HDR_TTYPE) >> 34, ==,
+                         RISCV_IOMMU_FQ_TTYPE_UADDR_WR);
+        g_assert_cmpuint((hdr & RISCV_IOMMU_FQ_HDR_DID) >> 40, ==,
+                         state.testdev->devfn);
+        g_assert_cmphex(qtest_readq(state.qts, fq_addr + 16), ==, iova);
+        g_assert_cmphex(qtest_readq(state.qts, fq_addr + 24), ==, 0);
+    }
+
+    /* Count the original translation, excluding the GPA recovery walk. */
+    for (unsigned i = 0; i < G_N_ELEMENTS(events); i++) {
+        g_assert_cmpuint(qtest_readq(state.qts,
+            state.iommu_base + RISCV_IOMMU_REG_IOHPMCTR(i)), ==, expected[i]);
+    }
+    riscv_iommu_test_teardown(&state);
+}
+
 static void riscv_iommu_dbg_map_leaf(QTestState *qts, uint64_t l1_pa,
                                     uint64_t l2_pa, uint64_t va, uint64_t pa,
                                     uint64_t page_size)
@@ -386,7 +507,7 @@ static void test_riscv_iommu_dbg(gconstpointer data)
                          cfg->g_page_size : cfg->s_page_size;
     uint64_t response;
 
-    if (!riscv_iommu_test_setup(&state)) {
+    if (!riscv_iommu_test_setup(&state, false)) {
         return;
     }
 
@@ -462,6 +583,12 @@ int main(int argc, char **argv)
                    test_riscv_iommu_g_stage_only);
     qtest_add_func("/iommu-testdev/translation/ns-nested",
                    test_riscv_iommu_nested);
+    for (unsigned i = 0; i < G_N_ELEMENTS(msi_tests); i++) {
+        g_autofree char *path = g_strdup_printf("/riscv-iommu/msi/%s",
+                                               msi_tests[i].name);
+
+        qtest_add_data_func(path, &msi_tests[i], test_riscv_iommu_msi);
+    }
     for (unsigned i = 0; i < G_N_ELEMENTS(debug_tests); i++) {
         g_autofree char *path = g_strdup_printf("/iommu-testdev/debug/%s",
                                                debug_tests[i].name);

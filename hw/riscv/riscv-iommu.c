@@ -276,10 +276,11 @@ static hwaddr riscv_iommu_napot_page_mask(hwaddr ppn, hwaddr addr, hwaddr *out)
  * @s        : IOMMU Device State
  * @ctx      : Translation context for device id and process address space id.
  * @iotlb    : translation data: physical address and access mode.
+ * @update_hpm : account for modeled page-table walk events.
  * @return   : success or fault cause code.
  */
 static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
-    IOMMUTLBEntry *iotlb)
+    IOMMUTLBEntry *iotlb, bool update_hpm)
 {
     IOMMUAccessFlags trans_perm = IOMMU_NONE;
     dma_addr_t addr, base;
@@ -456,10 +457,14 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
         }
 
 
-        if (pass == S_STAGE) {
-            riscv_iommu_hpm_incr_ctr(s, ctx, RISCV_IOMMU_HPMEVENT_S_VS_WALKS);
-        } else {
-            riscv_iommu_hpm_incr_ctr(s, ctx, RISCV_IOMMU_HPMEVENT_G_WALKS);
+        if (update_hpm) {
+            if (pass == S_STAGE) {
+                riscv_iommu_hpm_incr_ctr(s, ctx,
+                                       RISCV_IOMMU_HPMEVENT_S_VS_WALKS);
+            } else {
+                riscv_iommu_hpm_incr_ctr(s, ctx,
+                                       RISCV_IOMMU_HPMEVENT_G_WALKS);
+            }
         }
 
         /* Read page table entry */
@@ -641,9 +646,9 @@ static void riscv_iommu_report_fault(RISCVIOMMUState *s,
     riscv_iommu_fault(s, &ev);
 }
 
-/* Redirect MSI write for given GPA. */
+/* Redirect an MSI write, retaining the original IOVA for fault reporting. */
 static MemTxResult riscv_iommu_msi_write(RISCVIOMMUState *s,
-    RISCVIOMMUContext *ctx, uint64_t gpa, uint64_t data,
+    RISCVIOMMUContext *ctx, uint64_t iova, uint64_t gpa, uint64_t data,
     unsigned size, MemTxAttrs attrs)
 {
     MemTxResult res;
@@ -826,7 +831,7 @@ static MemTxResult riscv_iommu_msi_write(RISCVIOMMUState *s,
 
 err:
     riscv_iommu_report_fault(s, ctx, fault_type, cause,
-                             !!ctx->process_id, 0, 0);
+                             !!ctx->process_id, iova, 0);
     return res;
 }
 
@@ -1776,7 +1781,7 @@ static int riscv_iommu_translate(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
     riscv_iommu_hpm_incr_ctr(s, ctx, RISCV_IOMMU_HPMEVENT_TLB_MISS);
 
     /* Translate using device directory / page table information. */
-    fault = riscv_iommu_spa_fetch(s, ctx, iotlb);
+    fault = riscv_iommu_spa_fetch(s, ctx, iotlb, true);
 
     if (!fault && iotlb->target_as == &s->trap_as) {
         /* Do not cache trapped MSI translations */
@@ -2609,6 +2614,13 @@ static MemTxResult riscv_iommu_trap_write(void *opaque, hwaddr addr,
     MemTxResult res;
     void *ref;
     uint32_t devid = attrs.requester_id;
+    IOMMUTLBEntry iotlb = {
+        .iova = addr,
+        .target_as = s->target_as,
+        .addr_mask = ~0ULL,
+        .perm = IOMMU_WO,
+    };
+    int cause;
 
     if (attrs.unspecified) {
         return MEMTX_ACCESS_ERROR;
@@ -2617,11 +2629,32 @@ static MemTxResult riscv_iommu_trap_write(void *opaque, hwaddr addr,
     /* FIXME: PCIe bus remapping for attached endpoints. */
     devid |= s->bus << 8;
 
-    ctx = riscv_iommu_ctx(s, devid, 0, IOMMU_RW, addr, &ref);
+    ctx = riscv_iommu_ctx(s, devid, attrs.pid, IOMMU_WO, addr, &ref);
     if (ctx == NULL) {
         res = MEMTX_ACCESS_ERROR;
     } else {
-        res = riscv_iommu_msi_write(s, ctx, addr, data, size, attrs);
+        /*
+         * The trap address is the original IOVA. Resolve the MSI GPA
+         * without consulting or updating the translation cache.
+         * Exclude this internal replay from the modeled HPM events.
+         */
+        cause = riscv_iommu_spa_fetch(s, ctx, &iotlb, false);
+        if (cause) {
+            riscv_iommu_report_fault(s, ctx,
+                RISCV_IOMMU_FQ_TTYPE_UADDR_WR, cause,
+                !!(ctx->tc & RISCV_IOMMU_DC_TC_PDTV),
+                addr, iotlb.translated_addr);
+            res = MEMTX_ACCESS_ERROR;
+        } else if (iotlb.target_as == &s->trap_as) {
+            res = riscv_iommu_msi_write(s, ctx, addr,
+                                       iotlb.translated_addr, data,
+                                       size, attrs);
+        } else {
+            /* The mapping may have changed since the original walk. */
+            data = cpu_to_le64(data);
+            res = dma_memory_write(iotlb.target_as, iotlb.translated_addr,
+                                   &data, size, attrs);
+        }
     }
     riscv_iommu_ctx_put(s, ref);
     return res;
@@ -2942,6 +2975,11 @@ static IOMMUTLBEntry riscv_iommu_memory_region_translate(
                           PCI_SLOT(devid), PCI_FUNC(devid), iommu_idx,
                           IOMMU_FLAG_STR[flag & IOMMU_RW], iotlb.iova,
                           iotlb.translated_addr);
+
+    if (iotlb.target_as == &as->iommu->trap_as) {
+        /* Preserve the transaction IOVA through the MSI write callback. */
+        iotlb.translated_addr = iotlb.iova;
+    }
 
     riscv_iommu_ctx_put(as->iommu, ref);
 
