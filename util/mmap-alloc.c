@@ -22,6 +22,7 @@
 #include "qemu/host-utils.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
+#include "qemu/mmap-vma.h"
 
 #define HUGETLBFS_MAGIC       0x958458f6
 
@@ -152,6 +153,7 @@ static bool map_noreserve_effective(int fd, uint32_t qemu_map_flags)
 static void *mmap_reserve(size_t size, int fd)
 {
     int flags = MAP_PRIVATE;
+    void *ptr;
 
 #if defined(__powerpc64__) && defined(__linux__)
     /*
@@ -174,7 +176,10 @@ static void *mmap_reserve(size_t size, int fd)
     flags |= MAP_ANONYMOUS;
 #endif
 
-    return mmap(0, size, PROT_NONE, flags, fd, 0);
+    ptr = mmap(0, size, PROT_NONE, flags, fd, 0);
+    qemu_name_vma(ptr, size, "<reserved>");
+
+    return ptr;
 }
 
 /*
