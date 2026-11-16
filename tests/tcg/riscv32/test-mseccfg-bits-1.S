@@ -1,5 +1,6 @@
 /*
- * Verify mseccfg bits USEED, SSEED, MLPE and WPRI.
+ * Verify mseccfg bits USEED, SSEED, MLPE and WPRI.  Also verifies
+ * if mseccfgh exists and it's read-only zero.
  *
  * With "rv32,u=off,h=off,s=off,zkr=on,zicfilp=off" we expect no
  * bits being written in mseccfg.
@@ -11,6 +12,7 @@
  */
 
 #define CSR_MSECCFG 0x747
+#define CSR_MSECCFGH 0x757
 
 .option norvc
 	.text
@@ -37,6 +39,17 @@ _start:
 	srli	t3, t1, 8
 	andi	t3, t3, 7	// USEED, SSEED, MLPE -> bits 1, 2, 3
 	bnez	t3, _fail
+
+	/*
+	 * mseccfgh reads the higher half of mseccfg, which contains
+	 * only mseccfg.PMM.  This bit is read-only zero in RV32,
+	 * thus mseccfgh must be always zeroed.  Write a full 1s
+	 * mask in it and verify.
+	 */
+	li	t0, -1
+	csrw	CSR_MSECCFGH, t0
+	csrr	t0, CSR_MSECCFGH
+	bnez	t0, _fail
 
 	j	_pass
 
