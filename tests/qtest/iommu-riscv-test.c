@@ -27,6 +27,7 @@
 
 #define MSI_TABLE_PA            0x80030000ull
 #define MSI_TARGET_PA           0x80040000ull
+#define MSI_PROCESS_GPA         0x00050000ull
 #define MSI_DATA                0x37
 #define EDU_DEVICE_ID           0x11e8
 #define EDU_IRQ_RAISE           0x60
@@ -62,13 +63,15 @@ typedef struct RiscvIommuMsiTest {
     bool valid_pte;
     uint64_t s_walks;
     uint64_t g_walks;
+    bool default_process;
 } RiscvIommuMsiTest;
 
 static const RiscvIommuMsiTest msi_tests[] = {
-    { "first-stage-bare-fault", QRIOMMU_TM_G_STAGE_ONLY, false, 0, 0 },
-    { "nested-fault", QRIOMMU_TM_NESTED, false, 3, 9 },
-    { "first-stage-bare-basic", QRIOMMU_TM_G_STAGE_ONLY, true, 0, 0 },
-    { "nested-basic", QRIOMMU_TM_NESTED, true, 3, 9 },
+    { "first-stage-bare-fault", QRIOMMU_TM_G_STAGE_ONLY, false, 0, 0, false },
+    { "nested-fault", QRIOMMU_TM_NESTED, false, 3, 9, false },
+    { "first-stage-bare-basic", QRIOMMU_TM_G_STAGE_ONLY, true, 0, 0, false },
+    { "nested-basic", QRIOMMU_TM_NESTED, true, 3, 9, false },
+    { "nested-pdtv-pid0-fault", QRIOMMU_TM_NESTED, false, 3, 9, true },
 };
 
 static const RiscvIommuDbgTest debug_tests[] = {
@@ -389,6 +392,27 @@ static void test_riscv_iommu_msi(gconstpointer data)
     /* Match one GPA page; interrupt-file number zero selects the first PTE. */
     dc_addr = QRIOMMU_SPACE_OFFS + QRIOMMU_DC_BASE +
               state.testdev->devfn * sizeof(struct riscv_iommu_dc);
+    if (cfg->default_process) {
+        uint64_t process_pa = QRIOMMU_SPACE_OFFS + MSI_PROCESS_GPA;
+        uint64_t g_leaf_pa = QRIOMMU_SPACE_OFFS + QRIOMMU_G_L1_PTE_VAL;
+        uint64_t fsc = qtest_readq(state.qts, dc_addr + 24);
+
+        g_assert_cmpuint(cfg->mode, ==, QRIOMMU_TM_NESTED);
+        g_assert_cmphex(cap & RISCV_IOMMU_CAP_PD8, !=, 0);
+        /* Map the PD8 table through G-stage; PID zero selects its first PC. */
+        qtest_writeq(state.qts,
+            g_leaf_pa + ((MSI_PROCESS_GPA >> 12) & 0x1ff) * sizeof(uint64_t),
+            ((process_pa >> 12) << 10) | QRIOMMU_LEAF_PTE_RW_MASK);
+        qtest_memset(state.qts, process_pa, 0, 0x1000);
+        qtest_writeq(state.qts, process_pa, RISCV_IOMMU_PC_TA_V);
+        qtest_writeq(state.qts, process_pa + 8, fsc);
+        qtest_writeq(state.qts, dc_addr,
+            RISCV_IOMMU_DC_TC_V | RISCV_IOMMU_DC_TC_PDTV |
+            RISCV_IOMMU_DC_TC_DPE);
+        qtest_writeq(state.qts, dc_addr + 24,
+            (MSI_PROCESS_GPA >> 12) |
+            ((uint64_t)RISCV_IOMMU_DC_FSC_PDTP_MODE_PD8 << 60));
+    }
     qtest_writeq(state.qts, dc_addr + 32,
                  (MSI_TABLE_PA >> 12) | (1ull << 60));
     qtest_writeq(state.qts, dc_addr + 40, 0);
@@ -437,6 +461,10 @@ static void test_riscv_iommu_msi(gconstpointer data)
                          RISCV_IOMMU_FQ_TTYPE_UADDR_WR);
         g_assert_cmpuint((hdr & RISCV_IOMMU_FQ_HDR_DID) >> 40, ==,
                          state.testdev->devfn);
+        /* Check QEMU's PDTV policy using DPE, without an EDU PASID. */
+        g_assert_cmpuint(!!(hdr & RISCV_IOMMU_FQ_HDR_PV), ==,
+                         cfg->default_process);
+        g_assert_cmphex(hdr & RISCV_IOMMU_FQ_HDR_PID, ==, 0);
         g_assert_cmphex(qtest_readq(state.qts, fq_addr + 16), ==, iova);
         g_assert_cmphex(qtest_readq(state.qts, fq_addr + 24), ==, 0);
     }

@@ -831,7 +831,7 @@ static MemTxResult riscv_iommu_msi_write(RISCVIOMMUState *s,
 
 err:
     riscv_iommu_report_fault(s, ctx, fault_type, cause,
-                             !!ctx->process_id, iova, 0);
+                             !!(ctx->tc & RISCV_IOMMU_DC_TC_PDTV), iova, 0);
     return res;
 }
 
