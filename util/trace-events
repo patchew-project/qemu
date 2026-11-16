@@ -117,3 +117,6 @@ module_lookup_object_type(const char *name) "name %s"
 
 # datadir.c
 load_file(const char *name, const char *path) "name %s location %s"
+
+# mmap-vma.c
+qemu_vname_vma(const char *name, void *addr, size_t sz, int rc, int err) "name %s addr %p size %zu: rc %i errno %i"
