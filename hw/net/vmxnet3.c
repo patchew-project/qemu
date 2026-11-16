@@ -1367,13 +1367,15 @@ static bool vmxnet3_validate_interrupts(VMXNET3State *s)
         }
     }
 
-    for (i = 0; i < s->rxq_num; i++) {
+    i = 0;
+    do {
         int idx = s->rxq_descr[i].intr_idx;
         VMW_CFPRN("Verifying RX queue %d interrupt index (%d)", i, idx);
         if (!vmxnet3_validate_irq_idx("RX", s->msix_used, idx)) {
             return false;
         }
-    }
+        i++;
+    } while (i < s->rxq_num);
 
     return true;
 }
