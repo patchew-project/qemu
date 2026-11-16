@@ -145,7 +145,7 @@ static void virtio_gpu_gl_device_realize(DeviceState *qdev, Error **errp)
 #if !defined(CONFIG_WIN32)
     if (virtio_gpu_hostmem_enabled(b->conf)) {
         map = qemu_ram_mmap(-1, b->conf.hostmem, qemu_real_host_page_size(),
-                            0, 0);
+                            0, 0, "virgl-hostmem");
         if (map == MAP_FAILED) {
             error_setg_errno(errp, errno,
                              "virgl hostmem region could not be initialized");

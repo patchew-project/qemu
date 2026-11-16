@@ -354,7 +354,8 @@ static void tdx_finalize_vm(Notifier *notifier, void *unused)
         case TDVF_SECTION_TYPE_TD_HOB:
         case TDVF_SECTION_TYPE_TEMP_MEM:
             entry->mem_ptr = qemu_ram_mmap(-1, entry->size,
-                                           qemu_real_host_page_size(), 0, 0);
+                                           qemu_real_host_page_size(), 0, 0,
+                                           "tdx");
             if (entry->mem_ptr == MAP_FAILED) {
                 error_report("Failed to mmap memory for TDVF section %d",
                              entry->type);
