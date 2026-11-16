@@ -712,11 +712,6 @@ void mseccfg_csr_write(CPURISCVState *env, uint64_t val)
         val &= ~(mask);
     }
 
-    /* M-mode forward cfi to be enabled if cfi extension is implemented */
-    if (env_archcpu(env)->cfg.ext_zicfilp) {
-        val |= (val & MSECCFG_MLPE);
-    }
-
     env->mseccfg = val;
 }
 
