@@ -9,6 +9,24 @@ designed for short-lived guests. microvm also establishes a baseline
 for benchmarking and optimizing both QEMU and guest operating systems,
 since it is optimized for both boot time and footprint.
 
+``microvm`` itself is not versioned: its defaults may change with every
+QEMU version, so it does not support migration between QEMU versions.
+The ``microvm-X.Y`` machine types are versioned. They keep the behaviour
+they had in the QEMU X.Y release, so that VM migration works between
+QEMU versions, as long as both sides use the same versioned type. The
+first one is ``microvm-12.0``.
+
+On the versioned types, a CPU model name without a version, like
+``Cascadelake-Server``, refers to the first version of the model, as on
+the ``pc`` and ``q35`` machine types, while ``microvm`` uses the latest
+version. Use a versioned name, like ``Cascadelake-Server-v5``, to select
+a specific one.
+
+With KVM or HVF and a 64-bit CPU model, microvm uses the host's
+physical address width for the guest, so migration also requires the
+same width on both hosts, for example by capping it with the
+``host-phys-bits-limit`` CPU property to a value both hosts support.
+
 
 Supported devices
 -----------------
@@ -34,7 +52,8 @@ Currently, microvm does *not* support the following features:
 
 - PCI-only devices.
 - Hotplug of any kind.
-- Live migration across QEMU versions.
+- Live migration across QEMU versions, unless a versioned machine type
+  is used.
 
 
 Using the microvm machine type

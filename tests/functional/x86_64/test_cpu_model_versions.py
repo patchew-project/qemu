@@ -178,6 +178,47 @@ class X86CPUModelAliases(QemuSystemTest):
 
         self.validate_aliases(cpus)
 
+    def test_microvm_alias(self):
+        """
+        Check if unversioned CPU model is an alias pointing to the latest
+        version on the unversioned microvm machine type
+        """
+        self.set_machine('microvm')
+        self.vm.add_args('-S')
+        self.vm.launch()
+
+        cpus = dict((m['name'], m) for m in
+                    self.vm.cmd('query-cpu-definitions'))
+
+        latest = max(int(m.group(1)) for m in
+                     (re.fullmatch(r'Cascadelake-Server-v(\d+)', name)
+                      for name in cpus) if m)
+        self.assertEqual(cpus['Cascadelake-Server'].get('alias-of'),
+                         'Cascadelake-Server-v%d' % latest,
+                         'Cascadelake-Server must be an alias of its latest '
+                         'version')
+
+        self.validate_aliases(cpus)
+
+    def test_microvm_12_0_alias(self):
+        """
+        Check if unversioned CPU model is an alias pointing to right version
+        on a versioned microvm machine type
+        """
+        self.set_machine('microvm-12.0')
+        self.vm.add_args('-S')
+        self.vm.launch()
+
+        cpus = dict((m['name'], m) for m in
+                    self.vm.cmd('query-cpu-definitions'))
+
+        self.assertEqual(cpus['Cascadelake-Server'].get('alias-of'),
+                         'Cascadelake-Server-v1',
+                         'Cascadelake-Server must be an alias of '
+                         'Cascadelake-Server-v1')
+
+        self.validate_aliases(cpus)
+
     def test_none_alias(self):
         """
         Check if unversioned CPU model is an alias pointing to some version

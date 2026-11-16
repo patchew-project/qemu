@@ -735,3 +735,46 @@ static void microvm_machine_init(void)
     type_register_static(&microvm_machine_info);
 }
 type_init(microvm_machine_init);
+
+/*
+ * Defaults of the versioned machine types, which derive from the
+ * unversioned one. The compat properties are added again, as a machine
+ * class does not inherit the compat_props array of its parent class.
+ */
+static void microvm_machine_options(MachineClass *mc)
+{
+    MicrovmMachineClass *mmc = MICROVM_MACHINE_CLASS(mc);
+
+    mmc->default_cpu_version = 1;
+    compat_props_add(mc->compat_props, microvm_properties,
+                     G_N_ELEMENTS(microvm_properties));
+}
+
+#define DEFINE_MICROVM_MACHINE(major, minor) \
+    static void MACHINE_VER_SYM(class_init, microvm, major, minor)( \
+        ObjectClass *oc, \
+        const void *data) \
+    { \
+        MachineClass *mc = MACHINE_CLASS(oc); \
+        microvm_machine_options(mc); \
+        MACHINE_VER_SYM(options, microvm, major, minor)(mc); \
+        MACHINE_VER_DEPRECATION(major, minor); \
+    } \
+    static const TypeInfo MACHINE_VER_SYM(info, microvm, major, minor) = \
+    { \
+        .name = MACHINE_VER_TYPE_NAME("microvm", major, minor), \
+        .parent = TYPE_MICROVM_MACHINE, \
+        .class_init = MACHINE_VER_SYM(class_init, microvm, major, minor), \
+        .secure = true, \
+    }; \
+    static void MACHINE_VER_SYM(register, microvm, major, minor)(void) \
+    { \
+        MACHINE_VER_DELETION(major, minor); \
+        type_register_static(&MACHINE_VER_SYM(info, microvm, major, minor)); \
+    } \
+    type_init(MACHINE_VER_SYM(register, microvm, major, minor));
+
+static void microvm_machine_12_0_options(MachineClass *mc)
+{
+}
+DEFINE_MICROVM_MACHINE(12, 0)
