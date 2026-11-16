@@ -26,6 +26,7 @@
 #include "qemu/hbitmap.h"
 #include "qemu/madvise.h"
 #include "qemu/lockable.h"
+#include "qemu/mmap-vma.h"
 
 #ifdef CONFIG_TCG
 #include "accel/tcg/cpu-ops.h"
@@ -2105,7 +2106,7 @@ void qemu_ram_msync(RAMBlock *block, ram_addr_t start, ram_addr_t length)
 }
 
 /* Called with ram_list.mutex held */
-static void dirty_memory_extend(ram_addr_t new_ram_size)
+static void dirty_memory_extend(ram_addr_t new_ram_size, const char *nickname)
 {
     unsigned int old_num_blocks = ram_list.num_dirty_blocks;
     unsigned int new_num_blocks = DIV_ROUND_UP(new_ram_size,
@@ -2133,6 +2134,9 @@ static void dirty_memory_extend(ram_addr_t new_ram_size)
 
         for (j = old_num_blocks; j < new_num_blocks; j++) {
             new_blocks->blocks[j] = bitmap_new(DIRTY_MEMORY_BLOCK_SIZE);
+            qemu_name_buffer(new_blocks->blocks[j],
+                             bitmap_size(DIRTY_MEMORY_BLOCK_SIZE),
+                             "bitmap<%s>", nickname);
         }
 
         qatomic_rcu_set(&ram_list.dirty_memory[i], new_blocks);
@@ -2254,7 +2258,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
     }
 
     ram_size = (new_block->offset + new_block->max_length) >> TARGET_PAGE_BITS;
-    dirty_memory_extend(ram_size);
+    dirty_memory_extend(ram_size, new_block->mr->name);
     /* Keep the list sorted from biggest to smallest block.  Unlike QTAILQ,
      * QLIST (which has an RCU-friendly variant) does not have insertion at
      * tail, so save the last element in last_block.

@@ -45,6 +45,7 @@
 #include "qemu/osdep.h"
 #include "qemu/datadir.h"
 #include "qemu/error-report.h"
+#include "qemu/mmap-vma.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/type-helpers.h"
@@ -1110,6 +1111,8 @@ ssize_t rom_add_file(const char *file, const char *fw_dir,
                 rom->name, gerr->message);
         goto err;
     }
+
+    qemu_name_buffer(rom->data, size, "%s", file);
 
     if (fw_dir) {
         rom->fw_dir  = g_strdup(fw_dir);

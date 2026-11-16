@@ -15,4 +15,7 @@
 int qemu_name_vma(void *ptr, size_t sz, const char *fmt, ...)
     G_GNUC_PRINTF(3, 4);
 
+int qemu_name_buffer(void *ptr, size_t sz, const char *fmt, ...)
+    G_GNUC_PRINTF(3, 4);
+
 #endif

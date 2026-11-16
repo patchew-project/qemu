@@ -25,6 +25,7 @@
 #include "qemu/cutils.h"
 #include "qemu/units.h"
 #include "qemu/datadir.h"
+#include "qemu/mmap-vma.h"
 #include "qapi/error.h"
 #include "system/numa.h"
 #include "system/system.h"
@@ -914,6 +915,8 @@ void x86_load_linux(X86MachineState *x86ms,
 
     setup  = g_malloc(setup_size);
     kernel = g_malloc(kernel_size);
+    qemu_name_buffer(kernel, kernel_size, "%s", kernel_filename);
+
     fseek(f, 0, SEEK_SET);
     if (fread(setup, 1, setup_size, f) != setup_size) {
         fprintf(stderr, "fread() failed\n");
