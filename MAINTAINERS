@@ -387,6 +387,7 @@ F: tests/functional/riscv64
 F: tests/tcg/riscv32/
 F: tests/tcg/riscv64/
 F: tests/qtest/iommu-riscv-test.c
+F: tests/unit/test-riscv-iommu-trap.c
 
 RISC-V XThead* extensions
 M: Christoph Muellner <christoph.muellner@vrull.eu>
