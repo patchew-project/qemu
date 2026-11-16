@@ -515,37 +515,36 @@ format:
 
 Capabilities:
 
-+--------------------+---------+-----------------------------------------------+
-| Name               | Type    | Description                                   |
-+====================+=========+===============================================+
-| max_msg_fds        | number  | Maximum number of file descriptors that can   |
-|                    |         | be received by the sender in one message.     |
-|                    |         | Optional. If not specified then the receiver  |
-|                    |         | must assume a value of ``1``.                 |
-+--------------------+---------+-----------------------------------------------+
-| max_data_xfer_size | number  | Maximum ``count`` for data transfer messages; |
-|                    |         | see `Read and Write Operations`_. Optional,   |
-|                    |         | with a default value of 1048576 bytes.        |
-+--------------------+---------+-----------------------------------------------+
-| max_dma_maps       | number  | Maximum number DMA map windows that can be    |
-|                    |         | valid simultaneously.  Optional, with a       |
-|                    |         | value of 65535 (64k-1).                       |
-+--------------------+---------+-----------------------------------------------+
-| pgsizes            | number  | Page sizes supported in DMA map operations    |
-|                    |         | or'ed together. Optional, with a default      |
-|                    |         | value of supporting only 4k pages.            |
-+--------------------+---------+-----------------------------------------------+
-| twin_socket        | object  | Parameters for twin-socket mode, which        |
-|                    |         | handles server-to-client commands and their   |
-|                    |         | replies on a separate socket. Optional.       |
-+--------------------+---------+-----------------------------------------------+
-| write_multiple     | boolean | ``VFIO_USER_REGION_WRITE_MULTI`` messages     |
-|                    |         | are supported if the value is ``true``.       |
-+--------------------+---------+-----------------------------------------------+
-| sparse_mmap_fds    | boolean | ``VFIO_REGION_INFO_CAP_SPARSE_MMAP_FDS``      |
-|                    |         | capability is supported if the value is       |
-|                    |         | ``true``.                                     |
-+--------------------+---------+-----------------------------------------------+
+All capabilties are optional. If a capability is not included in the request
+sent by the client, the server should assume the default values specified in
+the table below:
+
++--------------------+---------+--------------------------+-----------------------------------------------+
+| Name               | Type    | Default (if unspecified) | Description                                   |
++====================+=========+==========================+===============================================+
+| max_msg_fds        | number  | ``1``                    | Maximum number of file descriptors that can   |
+|                    |         |                          | be received by the sender in one message.     |
++--------------------+---------+--------------------------+-----------------------------------------------+
+| max_data_xfer_size | number  | ``1048576``              | Maximum ``count`` in bytes for data transfer  |
+|                    |         |                          | messages; see `Read and Write Operations`_.   |
++--------------------+---------+--------------------------+-----------------------------------------------+
+| max_dma_maps       | number  | ``65535`` (64k-1)        | Maximum number DMA map windows that can be    |
+|                    |         |                          | valid simultaneously.                         |
++--------------------+---------+--------------------------+-----------------------------------------------+
+| pgsizes            | number  | ``4096`` (4k pages only) | Page sizes supported in DMA map operations    |
+|                    |         |                          | or'ed together.                               |
++--------------------+---------+--------------------------+-----------------------------------------------+
+| twin_socket        | object  | (empty)                  | Parameters for twin-socket mode, which        |
+|                    |         |                          | handles server-to-client commands and their   |
+|                    |         |                          | replies on a separate socket.                 |
++--------------------+---------+--------------------------+-----------------------------------------------+
+| write_multiple     | boolean | ``false``                | ``VFIO_USER_REGION_WRITE_MULTI`` messages     |
+|                    |         |                          | are supported if the value is ``true``.       |
++--------------------+---------+--------------------------+-----------------------------------------------+
+| sparse_mmap_fds    | boolean | ``false``                | ``VFIO_REGION_INFO_CAP_SPARSE_MMAP_FDS``      |
+|                    |         |                          | capability is supported if the value is       |
+|                    |         |                          | ``true``.                                     |
++--------------------+---------+--------------------------+-----------------------------------------------+
 
 The ``twin_socket`` capability object holds these name/value pairs:
 
