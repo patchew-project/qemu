@@ -1620,7 +1620,12 @@ static const MISAExtInfo misa_ext_info_arr[] = {
     MISA_EXT_INFO(RVU, "u", "User-level instructions"),
     MISA_EXT_INFO(RVH, "h", "Hypervisor"),
     MISA_EXT_INFO(RVV, "v", "Vector operations"),
-    MISA_EXT_INFO(RVG, "g", "General purpose (IMAFD_Zicsr_Zifencei)"),
+    /*
+     * As of priv versions 1.11+ the spec marks RVG as Reserved.
+     * Internally we'll keep using it as a shortcut for
+     * IMAFD_Zicsr_Zifencei.
+     */
+    MISA_EXT_INFO(RVG, "g", "Reserved"),
     MISA_EXT_INFO(RVB, "b", "Bit manipulation (Zba_Zbb_Zbs)")
 };
 
