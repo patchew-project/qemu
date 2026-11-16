@@ -22,9 +22,9 @@ class SysTestsStandaloneTests(QemuSystemTest):
 
     ASSET_TARBALL = Asset(
         "https://github.com/qualcomm/qemu-hexagon-testing/releases/"
-        "download/v0.3.1/systests_standalone.tar.gz",
-        "40163fa94d67a63e5ef645fc83682e4e"
-        "b56e1d79a9068614055e74f35d4cf70d",
+        "download/v0.3.4/systests_standalone.tar.gz",
+        "cee40e9f788dc021797e66cbae68e994"
+        "0b9382f0f89fc601ae35890eac2e5eea",
     )
 
     def setUp(self):
@@ -107,6 +107,18 @@ class SysTestsStandaloneTests(QemuSystemTest):
 
     def test_mmu_multi_tlb(self):
         self.run_exit_zero("mmu_multi_tlb")
+
+    def test_guest_state(self):
+        self.run_exit_zero("guest_state", "-accel", "tcg,thread=single")
+
+    def test_guest_state_mttcg(self):
+        self.run_exit_zero("guest_state", "-accel", "tcg,thread=multi")
+
+    def test_mttcg_tlb(self):
+        self.run_exit_zero("mttcg_tlb", "-accel", "tcg,thread=multi")
+
+    def test_mttcg_imask(self):
+        self.run_exit_zero("mttcg_imask", "-accel", "tcg,thread=multi")
 
     def test_timer_reg(self):
         self.run_exit_zero("timer_reg")
