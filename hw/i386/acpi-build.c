@@ -1776,7 +1776,7 @@ static void add_ivhd_entries_from_bus(PCIBus *bus, GArray *table_data)
     PCIBus *child_bus;
     PCIDevice *parent_dev;
 
-    if (!bus->parent_dev) {
+    if (!bus->parent_dev || pci_bus_is_root(bus)) {
         goto select_devices;
     }
 
