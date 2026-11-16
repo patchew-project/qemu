@@ -80,6 +80,9 @@ struct MicrovmMachineClass {
                                                   DeviceState *dev);
     void (*x86_load_linux)(X86MachineState *x86ms, FWCfgState *fw_cfg,
                            int acpi_data_size);
+
+    /* Default CPU model version. See x86_cpu_set_default_version(). */
+    int default_cpu_version;
 };
 
 struct MicrovmMachineState {

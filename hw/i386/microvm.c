@@ -479,6 +479,7 @@ static void microvm_powerdown_req(Notifier *notifier, void *data)
 
 static void microvm_machine_state_init(MachineState *machine)
 {
+    MicrovmMachineClass *mmc = MICROVM_MACHINE_GET_CLASS(machine);
     MicrovmMachineState *mms = MICROVM_MACHINE(machine);
     X86MachineState *x86ms = X86_MACHINE(machine);
 
@@ -492,7 +493,7 @@ static void microvm_machine_state_init(MachineState *machine)
 
     microvm_memory_init(mms);
 
-    x86_cpus_init(x86ms, CPU_VERSION_LATEST);
+    x86_cpus_init(x86ms, mmc->default_cpu_version);
 
     microvm_devices_init(mms);
 }
@@ -630,6 +631,7 @@ static void microvm_class_init(ObjectClass *oc, const void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
     mmc->x86_load_linux = x86_load_linux;
+    mmc->default_cpu_version = CPU_VERSION_LATEST;
 
     mc->init = microvm_machine_state_init;
 
