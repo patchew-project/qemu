@@ -834,7 +834,7 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
                              uintptr_t retaddr)
 {
     CPUHexagonState *env = cpu_env(cs);
-    int slot = 0;
+    int slot = access_type == MMU_INST_FETCH ? 0 : env->mem_slot;
     hwaddr phys;
     int prot = 0;
     uint64_t page_size = 0;
@@ -916,7 +916,7 @@ void hexagon_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
 {
     CPUHexagonState *env = cpu_env(cs);
 
-    raise_misaligned_exception(cs, addr, 0, access_type);
+    raise_misaligned_exception(cs, addr, env->mem_slot, access_type);
     do_raise_exception(env, cs->exception_index, env->gpr[HEX_REG_PC],
                        retaddr);
 }

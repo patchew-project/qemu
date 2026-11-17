@@ -460,6 +460,9 @@ static void probe_store(CPUHexagonState *env, int slot, int mmu_idx,
                         bool is_predicated, uintptr_t retaddr)
 {
     if (!is_predicated || !(env->slot_cancelled & (1 << slot))) {
+#ifndef CONFIG_USER_ONLY
+        env->mem_slot = slot;
+#endif
         uint32_t width = env->mem_log_stores[slot].width;
         target_ulong va = env->mem_log_stores[slot].va;
         probe_write(env, va, width, mmu_idx, retaddr);
@@ -474,6 +477,9 @@ void HELPER(probe_noshuf_load)(CPUHexagonState *env, target_ulong va,
                                int size, int mmu_idx)
 {
     uintptr_t retaddr = GETPC();
+#ifndef CONFIG_USER_ONLY
+    env->mem_slot = 0;
+#endif
     probe_read(env, va, size, mmu_idx, retaddr);
 }
 
