@@ -760,7 +760,7 @@ void hmp_info_blockstats(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_info_block_jobs(MonitorHMP *hmp, const QDict *qdict)
 {
-    BlockJobInfoList *list;
+    BlockJobInfoList *list, *head;
 
     list = qmp_query_block_jobs(&error_abort);
 
@@ -768,6 +768,9 @@ void hmp_info_block_jobs(MonitorHMP *hmp, const QDict *qdict)
         monitor_hmp_printf(hmp, "No active jobs\n");
         return;
     }
+
+    /* Keep the head: list is NULL once the loop below is done */
+    head = list;
 
     while (list) {
         if (list->value->type == JOB_TYPE_STREAM) {
@@ -791,7 +794,7 @@ void hmp_info_block_jobs(MonitorHMP *hmp, const QDict *qdict)
         list = list->next;
     }
 
-    qapi_free_BlockJobInfoList(list);
+    qapi_free_BlockJobInfoList(head);
 }
 
 void hmp_info_snapshots(MonitorHMP *hmp, const QDict *qdict)
