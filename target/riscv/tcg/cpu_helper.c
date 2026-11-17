@@ -2078,9 +2078,12 @@ static target_ulong riscv_transformed_insn(CPURISCVState *env,
         /* Transform 32bit (or wider) instructions */
         switch (MASK_OP_MAJOR(insn)) {
         case OPC_RISC_ATOMIC:
-            xinsn = insn;
-            access_rs1 = GET_RS1(insn);
-            access_size = 1 << GET_FUNCT3(insn);
+            /* Exclude SSAMOSWAP.W and SSAMOSWAP.D */
+            if (MASK_OP_ATOMIC_NO_AQ_RL_SZ(insn) != OPC_RISC_SSAMOSWAP) {
+                xinsn = insn;
+                access_rs1 = GET_RS1(insn);
+                access_size = 1 << GET_FUNCT3(insn);
+            }
             break;
         case OPC_RISC_LOAD:
         case OPC_RISC_FP_LOAD:

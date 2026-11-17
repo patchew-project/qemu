@@ -165,6 +165,8 @@ enum {
     OPC_RISC_AMOMAX      = OPC_RISC_ATOMIC | (0x14 << 27),
     OPC_RISC_AMOMINU     = OPC_RISC_ATOMIC | (0x18 << 27),
     OPC_RISC_AMOMAXU     = OPC_RISC_ATOMIC | (0x1C << 27),
+
+    OPC_RISC_SSAMOSWAP   = OPC_RISC_ATOMIC | (0x09 << 27),
 };
 
 #define MASK_OP_SYSTEM(op)   (MASK_OP_MAJOR(op) | (op & (0x7 << 12)))
