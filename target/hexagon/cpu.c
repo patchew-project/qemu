@@ -750,8 +750,6 @@ static bool hexagon_cpu_translate_for_debug(CPUState *cs, vaddr addr,
 }
 
 
-#define INVALID_BADVA 0xbadabada
-
 static void set_badva_regs(CPUHexagonState *env, uint32_t VA, int slot,
                            MMUAccessType access_type)
 {
@@ -763,8 +761,6 @@ static void set_badva_regs(CPUHexagonState *env, uint32_t VA, int slot,
             if (valid & (1U << i)) {
                 env->t_sreg[HEX_SREG_BADVA0 + i] =
                     i == slot ? VA : env->mem_access_va[i];
-            } else {
-                env->t_sreg[HEX_SREG_BADVA0 + i] = INVALID_BADVA;
             }
         }
         SET_SSR_FIELD(env, SSR_V0, valid & 1);
@@ -775,12 +771,10 @@ static void set_badva_regs(CPUHexagonState *env, uint32_t VA, int slot,
 
     if (access_type == MMU_INST_FETCH || slot == 0) {
         env->t_sreg[HEX_SREG_BADVA0] = VA;
-        env->t_sreg[HEX_SREG_BADVA1] = INVALID_BADVA;
         SET_SSR_FIELD(env, SSR_V0, 1);
         SET_SSR_FIELD(env, SSR_V1, 0);
         SET_SSR_FIELD(env, SSR_BVS, 0);
     } else if (slot == 1) {
-        env->t_sreg[HEX_SREG_BADVA0] = INVALID_BADVA;
         env->t_sreg[HEX_SREG_BADVA1] = VA;
         SET_SSR_FIELD(env, SSR_V0, 0);
         SET_SSR_FIELD(env, SSR_V1, 1);
