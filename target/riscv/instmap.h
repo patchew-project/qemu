@@ -170,6 +170,8 @@ enum {
 };
 
 #define MASK_OP_SYSTEM(op)   (MASK_OP_MAJOR(op) | (op & (0x7 << 12)))
+#define MASK_OP_SYSTEM_FUNCT3_FUNCT7(op)   \
+    (MASK_OP_MAJOR(op) | (op & (0x7 << 12)) | (op & (0x7F << 25)))
 enum {
     OPC_RISC_ECALL       = OPC_RISC_SYSTEM | (0x0 << 12),
     OPC_RISC_EBREAK      = OPC_RISC_SYSTEM | (0x0 << 12),
@@ -187,7 +189,18 @@ enum {
     OPC_RISC_CSRRSI      = OPC_RISC_SYSTEM | (0x6 << 12),
     OPC_RISC_CSRRCI      = OPC_RISC_SYSTEM | (0x7 << 12),
 
-    OPC_RISC_HLVHSV      = OPC_RISC_SYSTEM | (0x4 << 12),
+    /* HLV.B and HLV.BU */
+    OPC_RISC_HLVB        = OPC_RISC_SYSTEM | (0x4 << 12) | (0x30 << 25),
+    /* HLV.H, HLV.HU and HLVX.HU */
+    OPC_RISC_HLVH        = OPC_RISC_SYSTEM | (0x4 << 12) | (0x32 << 25),
+    /* HLV.W, HLV.WU and HLVX.WU */
+    OPC_RISC_HLVW        = OPC_RISC_SYSTEM | (0x4 << 12) | (0x34 << 25),
+    OPC_RISC_HLVD        = OPC_RISC_SYSTEM | (0x4 << 12) | (0x36 << 25),
+
+    OPC_RISC_HSVB        = OPC_RISC_SYSTEM | (0x4 << 12) | (0x31 << 25),
+    OPC_RISC_HSVH        = OPC_RISC_SYSTEM | (0x4 << 12) | (0x33 << 25),
+    OPC_RISC_HSVW        = OPC_RISC_SYSTEM | (0x4 << 12) | (0x35 << 25),
+    OPC_RISC_HSVD        = OPC_RISC_SYSTEM | (0x4 << 12) | (0x37 << 25),
 };
 
 #define MASK_OP_FP_LOAD(op)   (MASK_OP_MAJOR(op) | (op & (0x7 << 12)))

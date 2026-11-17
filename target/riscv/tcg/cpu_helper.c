@@ -2100,11 +2100,23 @@ static target_ulong riscv_transformed_insn(CPURISCVState *env,
             access_size = 1 << GET_FUNCT3(insn);
             break;
         case OPC_RISC_SYSTEM:
-            if (MASK_OP_SYSTEM(insn) == OPC_RISC_HLVHSV) {
+            switch (MASK_OP_SYSTEM_FUNCT3_FUNCT7(insn)) {
+            case OPC_RISC_HLVB:
+            case OPC_RISC_HLVH:
+            case OPC_RISC_HLVW:
+            case OPC_RISC_HLVD:
+            case OPC_RISC_HSVB:
+            case OPC_RISC_HSVH:
+            case OPC_RISC_HSVW:
+            case OPC_RISC_HSVD:
                 xinsn = insn;
                 access_rs1 = GET_RS1(insn);
                 access_size = 1 << ((GET_FUNCT7(insn) >> 1) & 0x3);
                 access_size = 1 << access_size;
+                break;
+            default:
+                /* Not a transformed instruction, e.g., SSPUSH and SSPOPCHK. */
+                break;
             }
             break;
         default:
