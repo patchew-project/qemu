@@ -1021,6 +1021,8 @@ static void gen_insn(DisasContext *ctx)
                 }
             }
             ctx->insn = saved;
+            gen_helper_probe_packet_mem(tcg_env,
+                                        tcg_constant_i32(ctx->mem_idx));
             ctx->mem_addresses_generated = true;
         }
         tcg_gen_st_i32(tcg_constant_i32(ctx->insn->slot), tcg_env,
