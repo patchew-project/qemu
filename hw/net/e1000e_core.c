@@ -1601,7 +1601,8 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
             }
 
             if (rx_desc_buf_size &&
-                desc_offset >= size && desc_offset < total_size) {
+                desc_offset + desc_size >= size &&
+                desc_offset + desc_size < total_size) {
                 /*
                  * We are in the last 4 bytes corresponding to the FCS checksum.
                  * We only ever write zeroes here (unlike the hardware).
@@ -1609,7 +1610,7 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
                 static const uint32_t fcs_pad;
                 /* Amount of space for the trailing checksum */
                 size_t fcs_len = MIN(rx_desc_buf_size,
-                                     total_size - desc_offset);
+                                    total_size - (desc_offset + desc_size));
                 e1000e_write_payload_frag_to_rx_buffers(core, ba, &bastate,
                                                         (const char *)&fcs_pad,
                                                         fcs_len);
