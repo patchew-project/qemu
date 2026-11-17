@@ -379,15 +379,8 @@ static void test_qapi_type(void)
         QLIST_FOREACH_ENTRY(props, prop_entry) {
             QDict *prop = qobject_to(QDict, qlist_entry_obj(prop_entry));
             const char *qapi_type = qdict_get_try_str(prop, "qapi-type");
-            const char *propname = qdict_get_str(prop, "name");
-            const char *ty = qdict_get_str(prop, "type");
 
-            if (qapi_type) {
-                g_assert_nonnull(qmp_schema_lookup(&schema, qapi_type));
-            } else {
-                g_test_message("%s.%s %s has no associated qapi-type",
-                               name, propname, ty);
-            }
+            g_assert_nonnull(qmp_schema_lookup(&schema, qapi_type));
         }
     }
     qtest_quit(qts);
