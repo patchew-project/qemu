@@ -88,6 +88,7 @@ typedef struct DisasContext {
     DECLARE_BITMAP(insn_qregs_read, NUM_QREGS);
     bool pre_commit;
     bool need_commit;
+    bool mem_addresses_generated;
     TCGCond branch_cond;
     target_ulong branch_dest;
     bool is_tight_loop;

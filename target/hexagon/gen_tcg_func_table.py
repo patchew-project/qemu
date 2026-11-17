@@ -22,6 +22,12 @@ def main():
             f.write(f"    [{tag}] = generate_{tag},\n")
 
         f.write("};\n\n")
+        f.write("#ifndef CONFIG_USER_ONLY\n")
+        f.write("const SemanticInsn opcode_address[XX_LAST_OPCODE] = {\n")
+        for tag in hex_common.tags:
+            if not hex_common.tag_ignore(tag) and hex_common.packet_memory_info(tag):
+                f.write(f"    [{tag}] = address_{tag},\n")
+        f.write("};\n#endif\n\n")
         f.write("#endif    /* HEXAGON_FUNC_TABLE_H */\n")
 
 

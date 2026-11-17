@@ -757,6 +757,22 @@ static void set_badva_regs(CPUHexagonState *env, uint32_t VA, int slot,
 {
     env->t_sreg[HEX_SREG_BADVA] = VA;
 
+    if (access_type != MMU_INST_FETCH && env->mem_access_valid) {
+        uint32_t valid = env->mem_access_valid | (1U << slot);
+        for (int i = 0; i < 2; i++) {
+            if (valid & (1U << i)) {
+                env->t_sreg[HEX_SREG_BADVA0 + i] =
+                    i == slot ? VA : env->mem_access_va[i];
+            } else {
+                env->t_sreg[HEX_SREG_BADVA0 + i] = INVALID_BADVA;
+            }
+        }
+        SET_SSR_FIELD(env, SSR_V0, valid & 1);
+        SET_SSR_FIELD(env, SSR_V1, (valid >> 1) & 1);
+        SET_SSR_FIELD(env, SSR_BVS, slot);
+        return;
+    }
+
     if (access_type == MMU_INST_FETCH || slot == 0) {
         env->t_sreg[HEX_SREG_BADVA0] = VA;
         env->t_sreg[HEX_SREG_BADVA1] = INVALID_BADVA;

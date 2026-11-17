@@ -23,6 +23,9 @@
 #include "translate.h"
 
 extern const SemanticInsn opcode_genptr[];
+#ifndef CONFIG_USER_ONLY
+extern const SemanticInsn opcode_address[];
+#endif
 
 void gen_store32(TCGv vaddr, TCGv src, uint32_t width, uint32_t slot);
 void gen_store1(TCGv_env cpu_env, TCGv vaddr, TCGv src, uint32_t slot);
