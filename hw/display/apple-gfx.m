@@ -16,6 +16,7 @@
 #include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "qapi/qapi-builtin-type-infos.h"
+#include "hw/core/qdev-prop-internal.h"
 #include "qapi/visitor.h"
 #include "qapi/error.h"
 #include "qemu/aio-wait.h"
@@ -880,3 +881,8 @@ const PropertyInfo qdev_prop_apple_gfx_display_mode = {
     .get   = apple_gfx_get_display_mode,
     .set   = apple_gfx_set_display_mode,
 };
+
+const PropertyInfo qdev_prop_apple_gfx_display_mode_array =
+    DEFINE_PROP_ARRAY_INFO(qdev_prop_apple_gfx_display_mode,
+                           AppleGFXDisplayMode,
+                           &strList_type_info);
