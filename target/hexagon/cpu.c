@@ -760,9 +760,11 @@ static void set_badva_regs(CPUHexagonState *env, uint32_t VA, int slot,
         for (int i = 0; i < 2; i++) {
             if (valid & (1U << i)) {
                 env->t_sreg[HEX_SREG_BADVA0 + i] =
-                    i == slot ? VA : env->mem_access_va[i];
+                    (env->mem_access_valid & (1U << i)) ?
+                    env->mem_access_va[i] : VA;
             }
         }
+        env->t_sreg[HEX_SREG_BADVA] = env->t_sreg[HEX_SREG_BADVA0 + slot];
         SET_SSR_FIELD(env, SSR_V0, valid & 1);
         SET_SSR_FIELD(env, SSR_V1, (valid >> 1) & 1);
         SET_SSR_FIELD(env, SSR_BVS, slot);

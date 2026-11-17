@@ -108,6 +108,33 @@ void HELPER(hmx_check_address)(CPUHexagonState *env, uint32_t va, uint32_t pc)
         do_raise_exception(env, HEX_EVENT_PRECISE, pc, GETPC());
     }
 }
+
+void HELPER(probe_hvx_mem)(CPUHexagonState *env, uint32_t va, uint32_t slot,
+                           uint32_t aligned, uint32_t store, uint32_t mmu_idx)
+{
+    uintptr_t ra = GETPC();
+    uint32_t base = va & ~(VECTOR_SIZE_BYTE - 1);
+
+    if (aligned) {
+        HELPER(log_mem_address)(env, base, slot, VECTOR_SIZE_BYTE, store);
+    } else {
+        /* VMEMU uses both slots; BADVA records the unaligned addresses. */
+        HELPER(log_mem_address)(env, va, 0, VECTOR_SIZE_BYTE, store);
+        HELPER(log_mem_address)(env, va + VECTOR_SIZE_BYTE, 1,
+                                VECTOR_SIZE_BYTE, store);
+    }
+    int first = aligned ? slot : 1;
+    int last = aligned ? slot : 0;
+    for (int s = first; s >= last; s--) {
+        uint32_t address = base + (aligned ? 0 : s * VECTOR_SIZE_BYTE);
+        env->mem_slot = s;
+        if (store) {
+            probe_write(env, address, VECTOR_SIZE_BYTE, mmu_idx, ra);
+        } else {
+            probe_read(env, address, VECTOR_SIZE_BYTE, mmu_idx, ra);
+        }
+    }
+}
 #endif
 
 #ifdef CONFIG_USER_ONLY
@@ -553,6 +580,9 @@ static void probe_hvx_stores(CPUHexagonState *env, int mmu_idx,
     /* Normal (possibly masked) vector store */
     for (int i = 0; i < VSTORES_MAX; i++) {
         if (env->vstore_pending[i]) {
+#ifndef CONFIG_USER_ONLY
+            env->mem_slot = i;
+#endif
             target_ulong va = env->vstore[i].va;
             int size = env->vstore[i].size;
             for (int j = 0; j < size; j++) {

@@ -26,6 +26,7 @@ DEF_HELPER_1(commit_hvx_stores, void, env)
 DEF_HELPER_3(hmx_check_address, void, env, i32, i32)
 DEF_HELPER_5(log_mem_address, void, env, i32, i32, i32, i32)
 DEF_HELPER_2(probe_packet_mem, void, env, i32)
+DEF_HELPER_6(probe_hvx_mem, void, env, i32, i32, i32, i32, i32)
 #endif
 DEF_HELPER_FLAGS_4(fcircadd, TCG_CALL_NO_RWG_SE, s32, s32, s32, s32, s32)
 DEF_HELPER_FLAGS_1(fbrev, TCG_CALL_NO_RWG_SE, i32, i32)
