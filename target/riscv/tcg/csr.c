@@ -3396,7 +3396,12 @@ static RISCVException write_menvcfg(CPURISCVState *env, int csrno,
 
     /* CBIE/CBCFE are read-only zero when Zicbom is not implemented. */
     if (cfg->ext_zicbom) {
-        mask |= MENVCFG_CBIE | MENVCFG_CBCFE;
+        mask |= MENVCFG_CBCFE;
+
+        /* CBIE = 0b10 is marked as Reserved.  */
+        if (get_field(val, MENVCFG_CBIE) != 0b10) {
+            mask |= MENVCFG_CBIE;
+        }
     }
 
     /* CBZE is read-only zero when Zicboz is not implemented. */
@@ -3578,7 +3583,12 @@ static RISCVException write_henvcfg(CPURISCVState *env, int csrno,
 
     /* CBIE/CBCFE are read-only zero when Zicbom is not implemented. */
     if (cfg->ext_zicbom) {
-        mask |= HENVCFG_CBIE | HENVCFG_CBCFE;
+        mask |= HENVCFG_CBCFE;
+
+        /* CBIE = 0b10 is marked as Reserved.  */
+        if (get_field(val, HENVCFG_CBIE) != 0b10) {
+            mask |= HENVCFG_CBIE;
+        }
     }
 
     /* CBZE is read-only zero when Zicboz is not implemented. */
