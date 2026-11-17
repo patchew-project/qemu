@@ -562,6 +562,12 @@ static inline void gen_write_ctrl_reg(DisasContext *ctx, int reg_num,
             /* USR.FPSAT is reserved before v79 */
             reg_mask &= ~fGET_REG_FIELD_MASK(USR_FPSAT);
         }
+        if (reg_num == HEX_REG_USR &&
+            ctx->hex_def->hex_version >= HEX_VER_V85) {
+            /* V85 permits writes to NPC and FPCOPROC. */
+            reg_mask &= ~(fGET_REG_FIELD_MASK(USR_NPC) |
+                          fGET_REG_FIELD_MASK(USR_FPCOPROC));
+        }
         gen_masked_reg_write(val, hex_gpr[reg_num], reg_mask);
         tcg_gen_mov_tl(get_result_gpr(ctx, reg_num), val);
         if (reg_num == HEX_REG_QEMU_PKT_CNT) {

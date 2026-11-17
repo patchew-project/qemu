@@ -30,9 +30,27 @@ static void test_predicate_read(void)
     check32(new, 0xff);
 }
 
+static void test_usr_mask(void)
+{
+    unsigned old, value;
+
+    asm volatile(
+        "%[old] = usr\n"
+        "r0 = #-1\n"
+        "usr = r0\n"
+        "%[value] = usr\n"
+        "usr = %[old]\n"
+        : [old] "=&r"(old), [value] "=&r"(value)
+        : : "r0"
+    );
+    /* V85 USR writable bits. */
+    check32(value, 0x3fffff7f);
+}
+
 int main(void)
 {
     test_predicate_read();
+    test_usr_mask();
     puts(err ? "FAIL" : "PASS");
     return err != 0;
 }
