@@ -1473,19 +1473,20 @@ static void gen_commit_packet(DisasContext *ctx)
                                                    tcg_constant_tl(mask));
         }
     } else if (has_store_s0 && has_store_s1) {
-        /*
-         * process_store_log will execute the slot 1 store first,
-         * so we only have to probe the store in slot 0
-         */
+        /* Validate both stores, including alignment, before commit. */
         int args = 0;
         args =
-            FIELD_DP32(args, PROBE_PKT_SCALAR_STORE_S0, MMU_IDX, ctx->mem_idx);
+            FIELD_DP32(args, PROBE_PKT_SCALAR_STORES, MMU_IDX, ctx->mem_idx);
         if (slot_is_predicated(&ctx->pkt, 0)) {
             args =
-                FIELD_DP32(args, PROBE_PKT_SCALAR_STORE_S0, IS_PREDICATED, 1);
+                FIELD_DP32(args, PROBE_PKT_SCALAR_STORES, S0_IS_PREDICATED, 1);
+        }
+        if (slot_is_predicated(&ctx->pkt, 1)) {
+            args = FIELD_DP32(args, PROBE_PKT_SCALAR_STORES,
+                              S1_IS_PREDICATED, 1);
         }
         TCGv args_tcgv = tcg_constant_tl(args);
-        gen_helper_probe_pkt_scalar_store_s0(tcg_env, args_tcgv);
+        gen_helper_probe_pkt_scalar_stores(tcg_env, args_tcgv);
     }
 
     if (ctx->hex_def->hex_version >= HEX_VER_V83) {

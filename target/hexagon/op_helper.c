@@ -502,6 +502,9 @@ static void probe_store(CPUHexagonState *env, int slot, int mmu_idx,
 #endif
         uint32_t width = env->mem_log_stores[slot].width;
         target_ulong va = env->mem_log_stores[slot].va;
+#ifndef CONFIG_USER_ONLY
+        hexagon_check_alignment(env, va, width, slot, MMU_DATA_STORE, retaddr);
+#endif
         probe_write(env, va, width, mmu_idx, retaddr);
     }
 }
@@ -522,13 +525,26 @@ void HELPER(probe_noshuf_load)(CPUHexagonState *env, target_ulong va,
 }
 
 /* Called during packet commit when there are two scalar stores */
-void HELPER(probe_pkt_scalar_store_s0)(CPUHexagonState *env, int args)
+void HELPER(probe_pkt_scalar_stores)(CPUHexagonState *env, int args)
 {
-    int mmu_idx = FIELD_EX32(args, PROBE_PKT_SCALAR_STORE_S0, MMU_IDX);
-    bool is_predicated =
-        FIELD_EX32(args, PROBE_PKT_SCALAR_STORE_S0, IS_PREDICATED);
+    int mmu_idx = FIELD_EX32(args, PROBE_PKT_SCALAR_STORES, MMU_IDX);
+    bool pred[2] = {
+        FIELD_EX32(args, PROBE_PKT_SCALAR_STORES, S0_IS_PREDICATED),
+        FIELD_EX32(args, PROBE_PKT_SCALAR_STORES, S1_IS_PREDICATED),
+    };
     uintptr_t ra = GETPC();
-    probe_store(env, 0, mmu_idx, is_predicated, ra);
+#ifndef CONFIG_USER_ONLY
+    /* Do not let an alignment fault occur after either store commits. */
+    for (int slot = 1; slot >= 0; slot--) {
+        if (!pred[slot] || !(env->slot_cancelled & (1U << slot))) {
+            hexagon_check_alignment(env, env->mem_log_stores[slot].va,
+                                    env->mem_log_stores[slot].width, slot,
+                                    MMU_DATA_STORE, ra);
+        }
+    }
+#endif
+    probe_store(env, 1, mmu_idx, pred[1], ra);
+    probe_store(env, 0, mmu_idx, pred[0], ra);
 }
 
 static void probe_hvx_stores(CPUHexagonState *env, int mmu_idx,
