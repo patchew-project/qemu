@@ -52,6 +52,25 @@
 #include "hw/intc/hex-l2vic.h"
 #include "hex_interrupts.h"
 #include "hexswi.h"
+#include "system/physmem.h"
+#endif
+
+#ifndef CONFIG_USER_ONLY
+void HELPER(hmx_check_address)(CPUHexagonState *env, uint32_t va, uint32_t pc)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+    uint32_t config[2];
+    uint64_t base, size;
+
+    physical_memory_read(cpu->globalregs->config_table_addr + 0x38,
+                         config, sizeof(config));
+    base = (uint64_t)le32_to_cpu(config[0]) << 16;
+    size = (uint64_t)le32_to_cpu(config[1]) << 10;
+    if (va < base || va - base >= size) {
+        env->cause_code = 0x26; /* Coprocessor VMEM address error */
+        do_raise_exception(env, HEX_EVENT_PRECISE, pc, GETPC());
+    }
+}
 #endif
 
 #ifdef CONFIG_USER_ONLY

@@ -946,6 +946,17 @@ static void gen_start_packet(DisasContext *ctx)
         gen_precise_exception(HEX_CAUSE_NO_COPROC2_ENABLE, ctx->pkt.pc);
         ctx->hmx_check_emitted = true;
     }
+    if (ctx->pkt.pkt_has_hmx) {
+        for (i = 0; i < ctx->pkt.num_insns; i++) {
+            Insn *insn = &ctx->pkt.insn[i];
+            if (GET_ATTRIB(insn->opcode, A_HMX) &&
+                (GET_ATTRIB(insn->opcode, A_PAIR_1OF2) ||
+                 GET_ATTRIB(insn->opcode, A_PAIR_2OF2))) {
+                gen_helper_hmx_check_address(tcg_env,
+                    hex_gpr[insn->regno[0]], tcg_constant_i32(ctx->pkt.pc));
+            }
+        }
+    }
 #endif
 }
 
