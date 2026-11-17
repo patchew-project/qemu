@@ -784,7 +784,8 @@ static void raise_tlbmiss_exception(CPUState *cs, uint32_t VA, int slot,
     switch (access_type) {
     case MMU_INST_FETCH:
         cs->exception_index = HEX_EVENT_TLB_MISS_X;
-        if ((VA & ~TARGET_PAGE_MASK) == 0) {
+        if ((VA & TARGET_PAGE_MASK) !=
+            (env->gpr[HEX_REG_PC] & TARGET_PAGE_MASK)) {
             env->cause_code = HEX_CAUSE_TLBMISSX_CAUSE_NEXTPAGE;
         } else {
             env->cause_code = HEX_CAUSE_TLBMISSX_CAUSE_NORMAL;
