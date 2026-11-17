@@ -70,6 +70,15 @@ void HELPER(probe_packet_mem)(CPUHexagonState *env, uint32_t mmu_idx)
 {
     uintptr_t ra = GETPC();
 
+    /* Alignment errors have priority over address translation faults. */
+    for (int slot = 1; slot >= 0; slot--) {
+        if (env->mem_access_valid & (1U << slot)) {
+            hexagon_check_alignment(env, env->mem_access_va[slot],
+                                    env->mem_access_size[slot], slot,
+                                    env->mem_access_store[slot] ?
+                                    MMU_DATA_STORE : MMU_DATA_LOAD, ra);
+        }
+    }
     for (int slot = 1; slot >= 0; slot--) {
         if (env->mem_access_valid & (1U << slot)) {
             env->mem_slot = slot;
@@ -507,6 +516,7 @@ void HELPER(probe_noshuf_load)(CPUHexagonState *env, target_ulong va,
     uintptr_t retaddr = GETPC();
 #ifndef CONFIG_USER_ONLY
     env->mem_slot = 0;
+    hexagon_check_alignment(env, va, size, 0, MMU_DATA_LOAD, retaddr);
 #endif
     probe_read(env, va, size, mmu_idx, retaddr);
 }

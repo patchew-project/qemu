@@ -233,6 +233,12 @@ typedef struct CPUArchState {
     HmxState *hmx_state;
 } CPUHexagonState;
 
+#ifndef CONFIG_USER_ONLY
+void hexagon_check_alignment(CPUHexagonState *env, uint32_t va,
+                             unsigned size, int slot,
+                             MMUAccessType access_type, uintptr_t retaddr);
+#endif
+
 typedef struct HexagonCPUClass {
     CPUClass parent_class;
 
