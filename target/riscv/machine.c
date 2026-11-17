@@ -324,7 +324,7 @@ static bool debug_needed(void *opaque)
 {
     RISCVCPU *cpu = opaque;
 
-    return cpu->cfg.debug || cpu->cfg.ext_sdtrig;
+    return tcg_enabled() && (cpu->cfg.debug || cpu->cfg.ext_sdtrig);
 }
 
 static bool sdext_needed(void *opaque)
