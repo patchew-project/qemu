@@ -2023,6 +2023,10 @@ static target_ulong legalize_xatp(CPURISCVState *env, target_ulong old_xatp,
     return old_xatp;
 }
 
+/*
+ * This function is also used to legalize mnstatus.MNPP since both
+ * fields are located in 0x1800 and uses the same encoding.
+ */
 static target_ulong legalize_mpp(CPURISCVState *env, target_ulong old_mpp,
                                  target_ulong val)
 {
@@ -5788,6 +5792,13 @@ static RISCVException write_mnstatus(CPURISCVState *env, int csrno,
                                      target_ulong val, uintptr_t ra)
 {
     target_ulong mask = (MNSTATUS_NMIE | MNSTATUS_MNPP);
+
+    /*
+     * MNPP uses the same encoding as mstatus.MPP, ergo we need to
+     * 'legalize' it the same way.  Since they map to the same bit
+     * field (0x1800) we'll just the same helper.
+     */
+    val = legalize_mpp(env, get_field(env->mnstatus, MNSTATUS_MNPP), val);
 
     if (riscv_has_ext(env, RVH)) {
         /* Flush tlb on mnstatus fields that affect VM. */

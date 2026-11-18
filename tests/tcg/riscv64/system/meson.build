@@ -82,6 +82,13 @@ tests += {
 }
 
 tests += {
+  'test-mstatus-mnstatus-mpp.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'max,smpmpmt=false,smdbltrp=true,ssdbltrp=true,smrnmi=true', qemu_args],
+  }
+}
+
+tests += {
   'test-xsfvqmacc.S': {
     'cflags': cflags,
     'qemu_args': ['-cpu', 'rv64,v=true,vlen=256,xsfvqmaccdod=true,xsfvqmaccqoq=true', qemu_args],
