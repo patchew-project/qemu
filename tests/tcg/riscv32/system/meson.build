@@ -22,6 +22,15 @@ tests += {
   },
 }
 
+tests += {
+  '../riscv/zl/zl.S': {
+    'cflags': cflags + ['-march=rv32i_zicsr_zifencei'],
+    'qemu_args': ['-M', 'virt', '-m', '16M', '-bios', 'none', '-display', 'none',
+                  '-serial', 'none', '-monitor', 'none', '-semihosting',
+                  '-cpu', 'rv32,x-zl=true,c=false,zca=false', '-kernel'],
+  },
+}
+
 if 'qemu-system-riscv32' in emulators
   tcg_tests += {
     'riscv32-softmmu': {

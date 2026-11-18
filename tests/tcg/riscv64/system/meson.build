@@ -88,6 +88,15 @@ tests += {
   }
 }
 
+tests += {
+  '../riscv/zl/zl.S': {
+    'cflags': cflags + ['-march=rv64i_zicsr_zifencei', '-mabi=lp64'],
+    'qemu_args': ['-M', 'virt', '-m', '16M', '-bios', 'none', '-display', 'none',
+                  '-serial', 'none', '-monitor', 'none', '-semihosting',
+                  '-cpu', 'rv64,x-zl=true,c=false,zca=false', '-kernel'],
+  },
+}
+
 if 'qemu-system-riscv64' in emulators
   tcg_tests += {
     'riscv64-softmmu': {
