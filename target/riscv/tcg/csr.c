@@ -2069,6 +2069,7 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
     uint64_t mstatus = env->mstatus;
     uint64_t mask = 0;
     RISCVMXL xl = riscv_cpu_mxl(env);
+    bool is_rv32 = xl == MXL_RV32;
 
     /*
      * MPP field have been made WARL since priv version 1.11. However,
@@ -2102,7 +2103,19 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
 
     if (riscv_cpu_cfg(env)->ext_smdbltrp) {
         mask |= MSTATUS_MDT;
-        if ((val & MSTATUS_MDT) != 0) {
+
+        /*
+         * For RV64, we'll have both MDT and MIE in the same
+         * register so the MDT state that matters is the one being
+         * written in 'val'.
+         *
+         * For RV32 MDT is located in mstatush, thus we'll have to
+         * check env->mstatus to see its current state.
+         *
+         * For both cases, if MDT = 1, MIE must be zero.
+         */
+        if ((!is_rv32 && (val & MSTATUS_MDT))
+            || (is_rv32 && (env->mstatus & MSTATUS_MDT))) {
             val &= ~MSTATUS_MIE;
         }
     }
@@ -2167,7 +2180,12 @@ static RISCVException write_mstatush(CPURISCVState *env, int csrno,
     if (riscv_cpu_cfg(env)->ext_smdbltrp) {
         mask |= MSTATUS_MDT;
         if ((valh & MSTATUS_MDT) != 0) {
-            mask |= MSTATUS_MIE;
+            /*
+             * Priv spec: When the MDT bit is set to 1 by an explicit
+             * CSR write, the MIE (Machine Interrupt Enable) bit is
+             * cleared to 0.
+             */
+            env->mstatus &= ~MSTATUS_MIE;
         }
     }
     env->mstatus = (env->mstatus & ~mask) | (valh & mask);
