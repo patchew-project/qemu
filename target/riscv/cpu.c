@@ -196,6 +196,7 @@ const RISCVIsaExtData isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(zfhmin, PRIV_VERSION_1_11_0, ext_zfhmin),
     ISA_EXT_DATA_ENTRY(zfinx, PRIV_VERSION_1_12_0, ext_zfinx),
     ISA_EXT_DATA_ENTRY(zdinx, PRIV_VERSION_1_12_0, ext_zdinx),
+    ISA_EXPERIMENTAL_EXT_DATA_ENTRY(zl, PRIV_VERSION_1_10_0, ext_zl),
     ISA_EXT_DATA_ENTRY(zca, PRIV_VERSION_1_12_0, ext_zca),
     ISA_EXT_DATA_ENTRY(zcb, PRIV_VERSION_1_12_0, ext_zcb),
     ISA_EXT_DATA_ENTRY(zcf, PRIV_VERSION_1_12_0, ext_zcf),
@@ -1153,6 +1154,11 @@ static void riscv_cpu_disas_set_info(const CPUState *s, disassemble_info *info)
         return;
     default:
         g_assert_not_reached();
+    }
+
+    if (cpu->cfg.ext_zl) {
+        /* Capstone does not implement this draft's instruction lengths. */
+        return;
     }
 
     info->cap_arch = CS_ARCH_RISCV;
