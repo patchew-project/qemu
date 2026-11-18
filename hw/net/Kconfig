@@ -162,3 +162,6 @@ config CAN_FLEXCAN
     bool
     depends on IMX_CCM
     select CAN_BUS
+
+config AXIADO_HCP
+    bool

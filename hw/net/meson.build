@@ -71,5 +71,6 @@ if have_hmp
 endif
 
 system_ss.add(when: 'CONFIG_RASPI', if_true: files('bcm2838_genet.c'))
+system_ss.add(when: 'CONFIG_AXIADO_HCP', if_true: files('axiado_hcp.c'))
 
 subdir('can')

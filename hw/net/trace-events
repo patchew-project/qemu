@@ -529,6 +529,7 @@ xen_netdev_rx(int dev, int idx, int status, int flags) "vif%u idx %d status %d f
 ethlite_pkt_lost(uint32_t rx_ctrl) "rx_ctrl:0x%" PRIx32
 ethlite_pkt_size_too_big(uint64_t size) "size:0x%" PRIx64
 ethlite_pkt_tx_size_too_big(uint64_t size) "size:0x%" PRIx64
+
 # bcm2838_genet.c
 bcm2838_genet_read(unsigned int size, uint64_t offset, uint64_t value) "%u bytes @ 0x%04" PRIx64 ": 0x%016" PRIx64
 bcm2838_genet_write(unsigned int size, uint64_t offset, uint64_t value) "%u bytes @ 0x%04" PRIx64 ": 0x%016" PRIx64
@@ -545,3 +546,9 @@ bcm2838_genet_tx_dma_ring_active(unsigned int ring, const char *ring_state) "rin
 bcm2838_genet_tx_request(unsigned int ring_idx, uint32_t prod_idx, uint32_t cons_idx) "ring %u, PROD_INDEX %u, CONS_INDEX %u"
 bcm2838_genet_tx(unsigned int ring_idx, uint64_t desc_idx, uint32_t desc_status, uint64_t data_addr) "ring %u, descriptor %" PRIu64 ": 0x%08x, data @ 0x%08" PRIx64
 bcm2838_genet_rx_dma_ring_active(unsigned int ring, const char *ring_state) "ring %u is %s"
+
+# axiado_hcp.c
+axiado_hcp_tx_packet(int ring, unsigned app_id, int mac, unsigned len) "ring %d app_id %u mac %d len %u"
+axiado_hcp_tx_unroutable(int ring, unsigned app_id, unsigned len, uint64_t addr) "ring %d app_id %u len %u data 0x%" PRIx64
+axiado_hcp_rx_packet(int ring, int mac, size_t len) "ring %d mac %d len %zu"
+axiado_hcp_rx_backpressure(int ring, unsigned slot) "ring %d slot %u"
