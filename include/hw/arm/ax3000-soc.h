@@ -15,6 +15,7 @@
 #include "hw/misc/axiado_clk.h"
 #include "hw/gpio/cadence_gpio.h"
 #include "hw/sd/axiado_sdhci.h"
+#include "hw/net/axiado_hcp.h"
 #include "hw/core/sysbus.h"
 #include "qemu/units.h"
 
@@ -48,6 +49,10 @@ OBJECT_DECLARE_TYPE(Ax3000SoCState, Ax3000SoCClass, AX3000_SOC)
 #define AX3000_GPIO6_BASE       0x80800000
 #define AX3000_GPIO7_BASE       0x80880000
 
+#define AX3000_HCP_EIP197_BASE  0x83000000
+#define AX3000_HCP_SHIM_BASE    0x83100000
+#define AX3000_HCP_PHY_CSR_BASE 0x87000000
+
 #define AX3000_TIMER_CTRL       0x8A020000
 #define AX3000_PLL_BASE         0x80000000
 
@@ -69,6 +74,7 @@ typedef struct Ax3000SoCState {
     CadenceUARTState    uart[AX3000_NUM_UARTS];
     CadenceGPIOState    gpio[AX3000_NUM_GPIOS];
     AxiadoSDHCIState    sdhci0;
+    AXIADOHCPState      hcp;
 } Ax3000SoCState;
 
 typedef struct Ax3000SoCClass {
@@ -93,6 +99,17 @@ enum Ax3000Irqs {
     AX3000_GPIO5_IRQ    = 188,
     AX3000_GPIO6_IRQ    = 189,
     AX3000_GPIO7_IRQ    = 190,
+
+    AX3000_HCP_EIP197_IRQ   = 0,
+    AX3000_HCP_RING0_IRQ    = 1,
+    AX3000_HCP_RING1_IRQ    = 2,
+    AX3000_HCP_RING2_IRQ    = 3,
+    AX3000_HCP_RING3_IRQ    = 4,
+    AX3000_HCP_MAC0_IRQ     = 5,
+    AX3000_HCP_MAC1_IRQ     = 6,
+    AX3000_HCP_MAC2_IRQ     = 7,
+    AX3000_HCP_MAC3_IRQ     = 8,
+    AX3000_HCP_MAC4_IRQ     = 9,
 };
 
 #endif /* AXIADO_AX3000_H */

@@ -767,6 +767,7 @@ config AXIADO_SOC
     select AXIADO_CLK
     select CADENCE_GPIO
     select AXIADO_SDHCI
+    select AXIADO_HCP
     select UNIMP
 
 config AXIADO_EVK
