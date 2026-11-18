@@ -21,6 +21,7 @@
 #include "qemu/bitops.h"
 #include "disas/dis-asm.h"
 #include "target/riscv/cpu_cfg.h"
+#include "target/riscv/insn_length.h"
 #include "disas/riscv.h"
 
 /* Vendor extensions */
@@ -3170,12 +3171,6 @@ static bool check_constraints(rv_decode *dec, const rvc_constraint *c)
     return true;
 }
 
-/* Same as insn_len() from target/riscv/internals.h */
-static size_t inst_length(rv_inst inst)
-{
-    return (inst & 3) == 3 ? 4 : 2;
-}
-
 /* format instruction */
 
 static GString *format_inst(size_t tab, rv_decode *dec,
@@ -3515,7 +3510,7 @@ print_insn_riscv(bfd_vma memaddr, struct disassemble_info *info, rv_isa isa)
         }
         inst |= ((rv_inst) bfd_getl16(packet)) << (8 * n);
         if (n == 0) {
-            len = inst_length(inst);
+            len = insn_len(inst);
         }
     }
 

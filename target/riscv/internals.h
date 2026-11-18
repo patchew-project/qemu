@@ -23,6 +23,7 @@
 #include "hw/core/registerfields.h"
 #include "fpu/softfloat-types.h"
 #include "target/riscv/cpu_bits.h"
+#include "target/riscv/insn_length.h"
 
 /*
  * The current MMU Modes are:
@@ -257,11 +258,6 @@ static inline target_ulong adjust_addr_virt(CPURISCVState *env,
                                             target_ulong addr)
 {
     return adjust_addr_body(env, addr, true);
-}
-
-static inline int insn_len(uint16_t first_word)
-{
-    return (first_word & 3) == 3 ? 4 : 2;
 }
 
 int riscv_monitor_get_register_legacy(CPUState *cs, const char *name,
