@@ -6394,7 +6394,7 @@ static uint16_t nvme_get_feature_fdp_events(NvmeCtrl *n, NvmeNamespace *ns,
     NvmeRuHandle *ruh;
     NvmeFdpEventDescr *s_event;
 
-    if (!n->subsys || !n->subsys->endgrp.fdp.enabled) {
+    if (!nvme_fdp_enabled(n)) {
         return NVME_FDP_DISABLED | NVME_DNR;
     }
 
