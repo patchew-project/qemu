@@ -385,6 +385,11 @@ static inline bool nvme_parse_pid(NvmeNamespace *ns, uint16_t pid,
     return nvme_ph_valid(ns, *ph) && nvme_rg_valid(ns->endgrp, *rg);
 }
 
+static inline bool nvme_fdp_enabled(NvmeCtrl *n)
+{
+    return n->subsys && n->subsys->endgrp.fdp.enabled;
+}
+
 static void nvme_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
                                    NvmeZoneState state)
 {
