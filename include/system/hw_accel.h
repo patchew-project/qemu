@@ -54,4 +54,14 @@ static inline bool hwaccel_enabled(void)
         || whpx_enabled();
 }
 
+/**
+ * hwaccel_names:
+ *
+ * Returns: String of supported hardware accelerators.
+ */
+static inline const char *hwaccel_names(void)
+{
+    return "kvm, hvf, whpx, or nvmm";
+}
+
 #endif /* QEMU_HW_ACCEL_H */

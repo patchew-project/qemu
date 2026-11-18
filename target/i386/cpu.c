@@ -25,6 +25,7 @@
 #include "cpu.h"
 #include "tcg/helper-tcg.h"
 #include "exec/translation-block.h"
+#include "system/hw_accel.h"
 #include "system/hvf.h"
 #include "system/mshv.h"
 #include "system/whpx.h"
@@ -10227,10 +10228,11 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (xcc->host_cpuid_required && !accel_uses_host_cpuid()) {
+    if (xcc->host_cpuid_required && (!accel_uses_host_cpuid() ||
+        !hwaccel_enabled())) {
         g_autofree char *name = x86_cpu_class_get_model_name(xcc);
-        error_setg(&local_err, "The '%s' CPU type can only be used with KVM,
-            HVF or WHPX", name);
+        error_setg(&local_err, "The '%s' CPU type can only be used with "
+            "hardware accelerators %s.", name, hwaccel_names());
         goto out;
     }
 
