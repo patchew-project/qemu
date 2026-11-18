@@ -2260,7 +2260,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             break;
         case RISCV_EXCP_ILLEGAL_INST:
         case RISCV_EXCP_VIRT_INSTRUCTION_FAULT:
-            tval = env->bins;
+            tval = mxlen == 32 ? (uint32_t)env->bins : env->bins;
             break;
         case RISCV_EXCP_BREAKPOINT:
             tval = env->badaddr;
@@ -2377,6 +2377,11 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         sxlen = 16 << riscv_cpu_sxl(env);
         env->scause = cause | ((target_ulong)async << (sxlen - 1));
         env->sepc = env->pc;
+        if (!async && sxlen == 32 &&
+            (cause == RISCV_EXCP_ILLEGAL_INST ||
+             cause == RISCV_EXCP_VIRT_INSTRUCTION_FAULT)) {
+            tval = (uint32_t)tval;
+        }
         env->stval = tval;
         env->htval = htval;
         env->htinst = tinst;
