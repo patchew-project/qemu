@@ -921,10 +921,14 @@ bool riscv_cpu_eff_priv(CPURISCVState *env, privilege_mode_t *priv, bool *virt)
     return mode_modified;
 }
 
-static inline bool riscv_cpu_allow_16bit_insn(const RISCVCPUConfig *cfg,
-                                              uint32_t priv_ver,
-                                              uint32_t misa_ext)
+/* Instruction alignment is independent of compressed instruction decoding. */
+static inline bool riscv_cpu_ialign16(const RISCVCPUConfig *cfg,
+                                    uint32_t priv_ver, uint32_t misa_ext)
 {
+    if (cfg->ext_zl) {
+        return true;
+    }
+
     /* In priv spec version 1.12 or newer, C always implies Zca */
     if (priv_ver >= PRIV_VERSION_1_12_0) {
         return cfg->ext_zca;

@@ -630,9 +630,7 @@ static void gen_jal(DisasContext *ctx, int rd, target_ulong imm)
     TCGv succ_pc = dest_gpr(ctx, rd);
 
     /* check misaligned: */
-    if (!riscv_cpu_allow_16bit_insn(ctx->cfg_ptr,
-                                    ctx->priv_ver,
-                                    ctx->misa_ext)) {
+    if (!riscv_cpu_ialign16(ctx->cfg_ptr, ctx->priv_ver, ctx->misa_ext)) {
         if ((imm & 0x3) != 0) {
             TCGv target_pc = tcg_temp_new();
             gen_pc_plus_diff(target_pc, ctx, imm);

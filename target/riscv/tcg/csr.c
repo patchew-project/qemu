@@ -2231,8 +2231,11 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
     /* Mask extensions that are not supported by this hart */
     val &= env->misa_ext_mask;
 
-    /* drop write if RVC is cleared and next instruction is not aligned */
-    if ((env->misa_ext & RVC) && !(val & RVC) &&
+    /*
+     * Ignore writes that clear C if the next instruction is not 4-byte aligned.
+     * With Zl, IALIGN remains 16 and the write need not be suppressed.
+     */
+    if (!cpu->cfg.ext_zl && (env->misa_ext & RVC) && !(val & RVC) &&
          (get_next_pc(env, ra) & 3) != 0) {
         qemu_log_mask(LOG_GUEST_ERROR, "Unable to write MISA ext value "
                       "0x%x, MISA.C disable failed\n", env->misa_ext);

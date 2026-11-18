@@ -191,9 +191,9 @@ static inline target_ulong get_xepc_mask(CPURISCVState *env)
 
     /*
      * When IALIGN=32, both low bits must be zero.
-     * When IALIGN=16 (has C or Zc* extensions), only bit 0 must be zero.
+     * When IALIGN=16 (C, Zc* or Zl fetch), only bit 0 must be zero.
      */
-    if (riscv_has_ext(env, RVC) || cpu->cfg.ext_zca ||
+    if (cpu->cfg.ext_zl || riscv_has_ext(env, RVC) || cpu->cfg.ext_zca ||
         cpu->cfg.ext_zcb || cpu->cfg.ext_zcd || cpu->cfg.ext_zce ||
         cpu->cfg.ext_zcf || cpu->cfg.ext_zcmp || cpu->cfg.ext_zcmt) {
         return ~(target_ulong)1;
