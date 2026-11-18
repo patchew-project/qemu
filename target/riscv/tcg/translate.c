@@ -30,6 +30,7 @@
 #include "semihosting/semihost.h"
 
 #include "internals.h"
+#include "insn_length.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
@@ -64,7 +65,7 @@ typedef struct DisasContext {
     RISCVMXL xl;
     RISCVMXL address_xl;
     uint32_t misa_ext;
-    uint32_t opcode;
+    uint64_t opcode;
     RISCVExtStatus mstatus_fs;
     RISCVExtStatus mstatus_vs;
     uint32_t mem_idx;
@@ -265,7 +266,11 @@ static void generate_exception(DisasContext *ctx, RISCVException excp)
 
 static void gen_exception_illegal(DisasContext *ctx)
 {
-    tcg_gen_st_i64(tcg_constant_i64(ctx->opcode), tcg_env,
+    uint64_t bits = ctx->cfg_ptr->ext_zl &&
+        riscv_zl_insn_has_undefined_length(ctx->opcode) ? 0 : ctx->opcode;
+
+    /* Undefined lengths have no complete instruction to report. */
+    tcg_gen_st_i64(tcg_constant_i64(bits), tcg_env,
                    offsetof(CPURISCVState, bins));
     if (ctx->virt_inst_excp) {
         generate_exception(ctx, RISCV_EXCP_VIRT_INSTRUCTION_FAULT);
@@ -1240,8 +1245,7 @@ static uint32_t opcode_at(DisasContextBase *dcbase, target_ulong pc)
 /* Include decoders for factored-out extensions */
 #include "decode-XVentanaCondOps.c.inc"
 
-/* The specification allows for longer insns, but not supported by qemu. */
-#define MAX_INSN_LEN  4
+#define MAX_INSN_LEN  8
 
 const RISCVDecoder decoder_table[] = {
     { always_true_p, decode_insn32 },
@@ -1254,12 +1258,11 @@ const RISCVDecoder decoder_table[] = {
 
 const size_t decoder_table_size = ARRAY_SIZE(decoder_table);
 
-static void decode_opc(CPURISCVState *env, DisasContext *ctx)
+static bool fetch_insn(CPURISCVState *env, DisasContext *ctx)
 {
-    uint32_t opcode;
+    uint64_t opcode;
     bool pc_is_4byte_align = ((ctx->base.pc_next % 4) == 0);
 
-    ctx->virt_inst_excp = false;
     if (pc_is_4byte_align) {
         /*
          * Load 4 bytes at once to make instruction fetch atomically.
@@ -1276,42 +1279,82 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx)
          * For unaligned pc, instruction preload may trigger additional
          * page fault so we only load 2 bytes here.
          */
-        opcode = (uint32_t) translator_lduw_end(env, &ctx->base,
-                                                ctx->base.pc_next,
-                                                MO_LE);
+        opcode = translator_lduw_end(env, &ctx->base, ctx->base.pc_next, MO_LE);
     }
-    ctx->ol = ctx->xl;
 
     ctx->cur_insn_len = insn_len((uint16_t)opcode);
     /* Check for compressed insn */
     if (ctx->cur_insn_len == 2) {
         ctx->opcode = (uint16_t)opcode;
+        return true;
+    }
+
+    if (!pc_is_4byte_align) {
+        /* Load last 2 bytes of instruction here */
+        opcode = deposit64(opcode, 16, 16,
+                           translator_lduw_end(env, &ctx->base,
+                                               ctx->base.pc_next + 2, MO_LE));
+    }
+    ctx->opcode = opcode;
+
+    if (ctx->cfg_ptr->ext_zl && riscv_insn_is_long(opcode)) {
+        uint16_t third_parcel =
+            translator_lduw_end(env, &ctx->base, ctx->base.pc_next + 4, MO_LE);
+        unsigned len = riscv_zl_insn_length(third_parcel);
+
+        ctx->opcode = deposit64(ctx->opcode, 32, 16, third_parcel);
+        if (len == 8) {
+            uint16_t fourth_parcel =
+                translator_lduw_end(env, &ctx->base, ctx->base.pc_next + 6,
+                                    MO_LE);
+
+            ctx->opcode = deposit64(ctx->opcode, 48, 16, fourth_parcel);
+        }
+        /* An undefined length stops fetching after three parcels. */
+        ctx->cur_insn_len = len ? len : 6;
+        return len != 0;
+    }
+    return true;
+}
+
+static void decode_opc(CPURISCVState *env, DisasContext *ctx)
+{
+    bool valid_length;
+
+    ctx->virt_inst_excp = false;
+    ctx->ol = ctx->xl;
+    valid_length = fetch_insn(env, ctx);
+    if (!valid_length) {
+        goto illegal;
+    }
+
+    switch (ctx->cur_insn_len) {
+    case 2:
         /*
          * The Zca extension is added as way to refer to instructions in the C
-         * extension that do not include the floating-point loads and stores
+         * extension that do not include the floating-point loads and stores.
          */
         if ((has_ext(ctx, RVC) || ctx->cfg_ptr->ext_zca) &&
-            decode_insn16(ctx, opcode)) {
+            decode_insn16(ctx, (uint16_t)ctx->opcode)) {
             return;
         }
-    } else {
-        if (!pc_is_4byte_align) {
-            /* Load last 2 bytes of instruction here */
-            opcode = deposit32(opcode, 16, 16,
-                               translator_lduw_end(env, &ctx->base,
-                                                   ctx->base.pc_next + 2,
-                                                   MO_LE));
-        }
-        ctx->opcode = opcode;
-
+        break;
+    case 4:
         for (guint i = 0; i < ctx->decoders->len; ++i) {
             riscv_cpu_decode_fn func = g_ptr_array_index(ctx->decoders, i);
-            if (func(ctx, opcode)) {
+            if (func(ctx, (uint32_t)ctx->opcode)) {
                 return;
             }
         }
+        break;
+    case 6:
+    case 8:
+        break;
+    default:
+        g_assert_not_reached();
     }
 
+illegal:
     gen_exception_illegal(ctx);
 }
 
@@ -1419,7 +1462,11 @@ static void riscv_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
         } else {
             unsigned page_ofs = ctx->base.pc_next & ~TARGET_PAGE_MASK;
 
-            if (page_ofs > TARGET_PAGE_SIZE - MAX_INSN_LEN) {
+            if (ctx->cfg_ptr->ext_zl) {
+                if (page_ofs > TARGET_PAGE_SIZE - MAX_INSN_LEN) {
+                    ctx->base.is_jmp = DISAS_TOO_MANY;
+                }
+            } else if (page_ofs > TARGET_PAGE_SIZE - 4) {
                 uint16_t next_insn =
                     translator_lduw_end(env, &ctx->base, ctx->base.pc_next,
                                         MO_LE);

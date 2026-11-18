@@ -185,6 +185,13 @@ static inline float16 check_nanbox_bf16(CPURISCVState *env, uint64_t f)
     }
 }
 
+/* Long encodings must already include parcel C. */
+static inline bool riscv_zl_insn_has_undefined_length(uint64_t opcode)
+{
+    return riscv_insn_is_long(opcode) &&
+           riscv_zl_insn_length(opcode >> 32) == 0;
+}
+
 static inline target_ulong get_xepc_mask(CPURISCVState *env)
 {
     RISCVCPU *cpu = env_archcpu(env);
