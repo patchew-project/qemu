@@ -23,8 +23,11 @@
 #include "qemu/bitops.h"
 
 /*
- * This configuration allows MAXSZ to represent 2048 bytes, and
- * OPRSZ to match MAXSZ, or represent the smaller values 8, 16, or 32.
+ * MAXSZ represents 4 bytes with field value 2, or otherwise represents
+ * (field value + 1) * 8 bytes, up to 2048 bytes.  Field value 2 would
+ * otherwise represent 24 bytes, which is not a supported maximum size.
+ *
+ * OPRSZ can match MAXSZ, or represent the smaller values 8, 16, or 32.
  *
  * Encode this with:
  *   0, 1, 3 -> 8, 16, 32
@@ -34,6 +37,7 @@
  */
 #define SIMD_MAXSZ_SHIFT   0
 #define SIMD_MAXSZ_BITS    8
+#define SIMD_MAXSZ_4_CODE  2
 
 #define SIMD_OPRSZ_SHIFT   (SIMD_MAXSZ_SHIFT + SIMD_MAXSZ_BITS)
 #define SIMD_OPRSZ_BITS    2
@@ -47,7 +51,9 @@ uint32_t simd_desc(uint32_t oprsz, uint32_t maxsz, int32_t data);
 /* Extract the max vector size from a descriptor.  */
 static inline intptr_t simd_maxsz(uint32_t desc)
 {
-    return extract32(desc, SIMD_MAXSZ_SHIFT, SIMD_MAXSZ_BITS) * 8 + 8;
+    uint32_t f = extract32(desc, SIMD_MAXSZ_SHIFT, SIMD_MAXSZ_BITS);
+
+    return f == SIMD_MAXSZ_4_CODE ? 4 : f * 8 + 8;
 }
 
 /* Extract the operation size from a descriptor.  */

@@ -97,7 +97,24 @@ uint32_t simd_desc(uint32_t oprsz, uint32_t maxsz, int32_t data)
 {
     uint32_t desc = 0;
 
-    check_size_align(oprsz, maxsz, 0);
+    if (maxsz == 4) {
+        tcg_debug_assert(oprsz == 4);
+        oprsz = 2;
+        maxsz = SIMD_MAXSZ_4_CODE;
+    } else {
+        check_size_align(oprsz, maxsz, 0);
+
+        oprsz = (oprsz / 8) - 1;
+        maxsz = (maxsz / 8) - 1;
+
+        /*
+         * OPRSZ is {8,16,32} or matches MAXSZ.  Encode the final case
+         * with '2', as that would otherwise map to 24.
+         */
+        if (oprsz == maxsz) {
+            oprsz = 2;
+        }
+    }
 
     /*
      * We want to check that 'data' will fit into SIMD_DATA_BITS.
@@ -112,18 +129,6 @@ uint32_t simd_desc(uint32_t oprsz, uint32_t maxsz, int32_t data)
      */
     tcg_debug_assert(data == sextract32(data, 0, SIMD_DATA_BITS) ||
                      data == extract32(data, 0, SIMD_DATA_BITS));
-
-    oprsz = (oprsz / 8) - 1;
-    maxsz = (maxsz / 8) - 1;
-
-    /*
-     * We have just asserted in check_size_align that either
-     * oprsz is {8,16,32} or matches maxsz.  Encode the final
-     * case with '2', as that would otherwise map to 24.
-     */
-    if (oprsz == maxsz) {
-        oprsz = 2;
-    }
 
     desc = deposit32(desc, SIMD_OPRSZ_SHIFT, SIMD_OPRSZ_BITS, oprsz);
     desc = deposit32(desc, SIMD_MAXSZ_SHIFT, SIMD_MAXSZ_BITS, maxsz);
