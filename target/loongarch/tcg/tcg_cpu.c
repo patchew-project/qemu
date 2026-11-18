@@ -76,8 +76,6 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
         update_badinstr = 0;
         break;
     case EXCCODE_BCE:
-        sys->CSR_BADV = env->pc;
-        QEMU_FALLTHROUGH;
     case EXCCODE_SYS:
     case EXCCODE_BRK:
     case EXCCODE_INE:
