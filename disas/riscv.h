@@ -11,7 +11,7 @@
 
 /* types */
 
-typedef uint32_t rv_inst;
+typedef uint64_t rv_inst;
 typedef uint16_t rv_opcode;
 
 /* enums */
@@ -184,7 +184,7 @@ struct rv_opcode_data {
 typedef struct {
     const RISCVCPUConfig *cfg;
     uint64_t  pc;
-    uint64_t  inst;
+    rv_inst   inst;
     int32_t   imm;
     int32_t   imm1;
     uint8_t   rd;

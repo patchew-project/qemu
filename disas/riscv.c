@@ -3489,17 +3489,21 @@ static GString *disasm_inst(rv_isa isa, uint64_t pc, rv_inst inst,
     return format_inst(24, &dec, op);
 }
 
-#define INST_FMT_2 "%04x              "
-#define INST_FMT_4 "%08x          "
+#define INST_FMT_2 "%04" PRIx64 "              "
+#define INST_FMT_4 "%08" PRIx64 "          "
+#define INST_FMT_6 "%012" PRIx64 "      "
+#define INST_FMT_8 "%016" PRIx64 "  "
 
 static int
 print_insn_riscv(bfd_vma memaddr, struct disassemble_info *info, rv_isa isa)
 {
+    const RISCVCPUConfig *cfg = info->target_info;
     bfd_byte packet[2];
     rv_inst inst = 0;
     size_t len = 2;
     bfd_vma n;
     int status;
+    bool zl = cfg && cfg->ext_zl;
 
     /* Instructions are made of 2-byte packets in little-endian order */
     for (n = 0; n < len; n += 2) {
@@ -3510,7 +3514,15 @@ print_insn_riscv(bfd_vma memaddr, struct disassemble_info *info, rv_isa isa)
         }
         inst |= ((rv_inst) bfd_getl16(packet)) << (8 * n);
         if (n == 0) {
-            len = insn_len(inst);
+            /* Zl needs parcel C to determine a long instruction's length. */
+            len = zl && riscv_insn_is_long(inst) ? 6 : insn_len(inst);
+        } else if (zl && n == 4) {
+            len = riscv_zl_insn_length(inst >> 32);
+        }
+        if (len == 0) {
+            (*info->fprintf_func)(info->stream,
+                                  "<unsupported instruction length>");
+            return -1;
         }
     }
 
@@ -3522,14 +3534,24 @@ print_insn_riscv(bfd_vma memaddr, struct disassemble_info *info, rv_isa isa)
         case 4:
             (*info->fprintf_func)(info->stream, INST_FMT_4, inst);
             break;
+        case 6:
+            (*info->fprintf_func)(info->stream, INST_FMT_6, inst);
+            break;
+        case 8:
+            (*info->fprintf_func)(info->stream, INST_FMT_8, inst);
+            break;
         default:
             g_assert_not_reached();
         }
     }
 
-    g_autoptr(GString) str =
-        disasm_inst(isa, memaddr, inst,
-                    (const RISCVCPUConfig *)info->target_info);
+    /* Long instruction mnemonics are not decoded yet. */
+    if (len > 4) {
+        (*info->fprintf_func)(info->stream, "unknown");
+        return len;
+    }
+
+    g_autoptr(GString) str = disasm_inst(isa, memaddr, inst, cfg);
     (*info->fprintf_func)(info->stream, "%s", str->str);
 
     return len;
