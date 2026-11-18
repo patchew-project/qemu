@@ -2725,6 +2725,22 @@ out:
     return bus;
 }
 
+/*
+ * IVRS names 00:14.0 as the southbridge IOAPIC SID. That is an FCH
+ * function on AMD. q35 still has ICH9 LPC/SMBus at 00:1f.x for ISA
+ * and ACPI.
+ *
+ * Guest software treats this SID as the southbridge IOAPIC only when
+ * PCI class is SMBus or ISA bridge. Put an SMBus-class stub here with
+ * AMD FCH SMBus ids and no BARs.
+ */
+static bool amdvi_realize_fch_stub(PCIBus *bus, Error **errp)
+{
+    PCIDevice *stub = pci_new(PCI_DEVFN(0x14, 0), TYPE_AMDVI_FCH_STUB);
+
+    return pci_realize_and_unref(stub, bus, errp);
+}
+
 static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
 {
     DeviceClass *dc = (DeviceClass *) object_get_class(OBJECT(dev));
@@ -2733,6 +2749,14 @@ static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
     PCMachineState *pcms = PC_MACHINE(ms);
     X86MachineState *x86ms = X86_MACHINE(ms);
     PCIBus *iommu_bus;
+
+    /*
+     * Claim 00:14.0 before AMDVI-PCI is realized. That PCI function
+     * is auto-assigned; fixed DEVFN devices, then auto-assign.
+     */
+    if (!amdvi_realize_fch_stub(pcms->pcibus, errp)) {
+        return;
+    }
 
     if (s->pci_id) {
         PCIDevice *pdev = NULL;
@@ -2878,6 +2902,33 @@ static const TypeInfo amdvi_pci = {
     },
 };
 
+static void amdvi_fch_stub_class_init(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->vendor_id = PCI_VENDOR_ID_AMD;
+    k->device_id = 0x790b; /* FCH SMBus at 00:14.0 */
+    k->class_id = PCI_CLASS_SERIAL_SMBUS;
+    k->revision = 0;
+
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    dc->desc = "AMD FCH identity stub at 00:14.0";
+    dc->user_creatable = false;
+    dc->vmsd = &vmstate_pci_device;
+}
+
+static const TypeInfo amdvi_fch_stub = {
+    .name = TYPE_AMDVI_FCH_STUB,
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIDevice),
+    .class_init = amdvi_fch_stub_class_init,
+    .interfaces = (const InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
+};
+
 static void amdvi_iommu_memory_region_class_init(ObjectClass *klass,
                                                  const void *data)
 {
@@ -2897,6 +2948,7 @@ static const TypeInfo amdvi_iommu_memory_region_info = {
 static void amdvi_register_types(void)
 {
     type_register_static(&amdvi_pci);
+    type_register_static(&amdvi_fch_stub);
     type_register_static(&amdvi_sysbus);
     type_register_static(&amdvi_iommu_memory_region_info);
 }

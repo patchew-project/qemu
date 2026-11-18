@@ -313,6 +313,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(AMDVIState, AMD_IOMMU_DEVICE)
 #define TYPE_AMD_IOMMU_PCI "AMDVI-PCI"
 OBJECT_DECLARE_SIMPLE_TYPE(AMDVIPCIState, AMD_IOMMU_PCI)
 
+#define TYPE_AMDVI_FCH_STUB "amdvi-fch-stub"
+
 #define TYPE_AMD_IOMMU_MEMORY_REGION "amd-iommu-iommu-memory-region"
 
 typedef struct AMDVIAddressSpace AMDVIAddressSpace;
