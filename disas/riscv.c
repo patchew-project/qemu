@@ -3510,12 +3510,8 @@ print_insn_riscv(bfd_vma memaddr, struct disassemble_info *info, rv_isa isa)
     for (n = 0; n < len; n += 2) {
         status = (*info->read_memory_func)(memaddr + n, packet, 2, info);
         if (status != 0) {
-            /* Don't fail just because we fell off the end.  */
-            if (n > 0) {
-                break;
-            }
-            (*info->memory_error_func)(status, memaddr, info);
-            return status;
+            (*info->memory_error_func)(status, memaddr + n, info);
+            return -1;
         }
         inst |= ((rv_inst) bfd_getl16(packet)) << (8 * n);
         if (n == 0) {
