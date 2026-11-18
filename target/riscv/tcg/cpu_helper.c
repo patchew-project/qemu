@@ -1131,6 +1131,9 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     }
 
     if (mode == PRV_M || !riscv_cpu_cfg(env)->mmu) {
+        if (mode != PRV_M && first_stage && is_sstack_idx) {
+            return TRANSLATE_PMP_FAIL;
+        }
         *physical = addr;
         *ret_prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         return TRANSLATE_SUCCESS;
@@ -1181,6 +1184,9 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     case VM_1_10_SV57:
       levels = 5; ptidxbits = 9; ptesize = 8; break;
     case VM_1_10_MBARE:
+        if (first_stage && is_sstack_idx) {
+            return TRANSLATE_PMP_FAIL;
+        }
         *physical = addr;
         *ret_prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         return TRANSLATE_SUCCESS;
