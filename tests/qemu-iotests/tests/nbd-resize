@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+# group: quick
+#
+# Test the NBD resize
+#
+# Copyright (C) 2026 OVHcloud
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+import time
+import iotests
+
+iotests.script_initialize(supported_fmts=['qcow2'])
+nbd_sock = iotests.file_path('nbd-sock', base_dir=iotests.sock_dir)
+disk = iotests.file_path('disk')
+node_name = 'nbd0'
+
+
+def node_size(virtm):
+    for node in virtm.cmd('query-named-block-nodes', flat=True):
+        if node['node-name'] == node_name:
+            return node['image']['virtual-size']
+    return None
+
+
+def wait_for_parked_connection(virtm):
+    with iotests.Timeout(30, "connect-thread did not reach 'parked' state"):
+        while True:
+            client = virtm.qmp('x-debug-query-nbd-client', node_name=node_name)
+            if client['return']['connector']['state'] == 'parked':
+                return
+            time.sleep(0.1)
+
+
+for reconnect_delay in [10, 0]:
+    iotests.log(f"=== Resize with reconnect-delay={reconnect_delay} ===")
+    with iotests.VM() as vm:
+        vm.launch()
+
+        iotests.qemu_img_create('-f', iotests.imgfmt, disk, '1M')
+        with iotests.qemu_nbd_popen('-k',
+                                    nbd_sock,
+                                    '-f',
+                                    iotests.imgfmt,
+                                    disk):
+            vm.cmd('blockdev-add', {
+                'driver': 'nbd',
+                'node-name': node_name,
+                'server': { 'type': 'unix', 'path': nbd_sock },
+                'reconnect-delay': reconnect_delay,
+            })
+
+            iotests.log('Size before resize:')
+            iotests.log(node_size(vm))
+
+        iotests.qemu_img('resize', '-f', iotests.imgfmt, disk, '2M')
+        with iotests.qemu_nbd_popen('-k',
+                                    nbd_sock,
+                                    '-f',
+                                    iotests.imgfmt,
+                                    disk):
+            iotests.log(vm.qmp('block_resize', {
+                'node-name': node_name,
+                'size': 2097152,
+            }))
+            iotests.log('Size after resize:')
+            iotests.log(node_size(vm))
+            if reconnect_delay == 0:
+                # With delay=0, block_resize fails while the client reconnects.
+                # Retry once parked.
+                iotests.log('Waiting until the reconnection succeeds')
+                wait_for_parked_connection(vm)
+
+                iotests.log(vm.qmp('block_resize', {
+                    'node-name': node_name,
+                    'size': 2097152,
+                }))
+                iotests.log('Size after retried resize:')
+                iotests.log(node_size(vm))
+
+            vm.shutdown()

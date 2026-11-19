@@ -1,0 +1,24 @@
+=== Resize with reconnect-delay=10 ===
+Start NBD server
+Size before resize:
+1048576
+Kill NBD server
+Start NBD server
+{"return": {}}
+Size after resize:
+2097152
+Kill NBD server
+=== Resize with reconnect-delay=0 ===
+Start NBD server
+Size before resize:
+1048576
+Kill NBD server
+Start NBD server
+{"error": {"class": "GenericError", "desc": "Failed to reconnect NBD node"}}
+Size after resize:
+1048576
+Waiting until the reconnection succeeds
+{"return": {}}
+Size after retried resize:
+2097152
+Kill NBD server
