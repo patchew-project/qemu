@@ -2079,6 +2079,42 @@ static int coroutine_fn nbd_co_truncate(BlockDriverState *bs, int64_t offset,
     return 0;
 }
 
+/*
+ * Start the reconnection routine unless the node is connected and its channel
+ * is still open. When used with a zero reconnect-delay, this function
+ * triggers the reconnection and returns -EIO.
+ */
+static int coroutine_fn GRAPH_RDLOCK
+nbd_co_refresh_connection(BlockDriverState *bs, Error **errp)
+{
+    BDRVNBDState *s = bs->opaque;
+    int ret;
+
+    QEMU_LOCK_GUARD(&s->requests_lock);
+
+    if (s->state == NBD_CLIENT_QUIT) {
+        error_setg(errp, "Cannot refresh a permanently unavailable NBD node");
+        return -ECONNREFUSED;
+    }
+
+    if (s->state == NBD_CLIENT_CONNECTED) {
+        if (!nbd_channel_is_closed(s->ioc)) {
+            return 0;
+        }
+        /* A connection closed by its peer is treated as an error */
+        nbd_channel_error_locked(s, -EIO);
+    }
+
+    nbd_co_acquire_slot(s);
+    ret = nbd_co_reconnect(s);
+    nbd_co_release_slot(s);
+
+    if (ret < 0) {
+        error_setg(errp, "Failed to reconnect NBD node");
+    }
+    return ret;
+}
+
 static int64_t coroutine_fn nbd_co_getlength(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
@@ -2203,6 +2239,7 @@ static BlockDriver bdrv_nbd = {
     .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
     .bdrv_refresh_limits        = nbd_refresh_limits,
     .bdrv_co_truncate           = nbd_co_truncate,
+    .bdrv_co_refresh_connection = nbd_co_refresh_connection,
     .bdrv_co_getlength          = nbd_co_getlength,
     .bdrv_refresh_filename      = nbd_refresh_filename,
     .bdrv_co_block_status       = nbd_client_co_block_status,
@@ -2231,6 +2268,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
     .bdrv_refresh_limits        = nbd_refresh_limits,
     .bdrv_co_truncate           = nbd_co_truncate,
+    .bdrv_co_refresh_connection = nbd_co_refresh_connection,
     .bdrv_co_getlength          = nbd_co_getlength,
     .bdrv_refresh_filename      = nbd_refresh_filename,
     .bdrv_co_block_status       = nbd_client_co_block_status,
@@ -2259,6 +2297,7 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
     .bdrv_refresh_limits        = nbd_refresh_limits,
     .bdrv_co_truncate           = nbd_co_truncate,
+    .bdrv_co_refresh_connection = nbd_co_refresh_connection,
     .bdrv_co_getlength          = nbd_co_getlength,
     .bdrv_refresh_filename      = nbd_refresh_filename,
     .bdrv_co_block_status       = nbd_client_co_block_status,

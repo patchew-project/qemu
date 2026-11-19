@@ -274,8 +274,11 @@ void nbd_client_connection_release(NBDClientConnection *conn)
     }
 }
 
-/* Only true when the peer closed the channel. Does not detect if dead. */
-static bool nbd_channel_is_closed(QIOChannel *ioc)
+/*
+ * Only true when the peer closed the channel. Always returns false for TLS
+ * channels. Does not detect if dead.
+ */
+bool nbd_channel_is_closed(QIOChannel *ioc)
 {
     char data;
     struct iovec iov = { .iov_base = &data, .iov_len = 1 };

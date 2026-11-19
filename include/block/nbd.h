@@ -499,6 +499,7 @@ NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,
                                                QCryptoTLSCreds *tlscreds,
                                                const char *tlshostname);
 void nbd_client_connection_release(NBDClientConnection *conn);
+bool nbd_channel_is_closed(QIOChannel *ioc);
 
 QIOChannel *coroutine_fn
 nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
