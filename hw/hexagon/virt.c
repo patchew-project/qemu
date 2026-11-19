@@ -161,7 +161,44 @@ static const TypeInfo virt_machine_types[] = { {
     .parent = TYPE_HEXAGON_COMMON_MACHINE,
     .instance_size = sizeof(HexagonVirtMachineState),
     .class_init = virt_class_init,
+    .abstract = true,
     .is_available = target_hexagon,
 } };
 
 DEFINE_TYPES(virt_machine_types)
+
+#define DEFINE_VIRT_MACHINE_IMPL(latest, ...) \
+    static void MACHINE_VER_SYM(class_init, virt, __VA_ARGS__)( \
+        ObjectClass *oc, \
+        const void *data) \
+    { \
+        MachineClass *mc = MACHINE_CLASS(oc); \
+        MACHINE_VER_SYM(options, virt, __VA_ARGS__)(mc); \
+        mc->desc = "QEMU " MACHINE_VER_STR(__VA_ARGS__) \
+                   " Hexagon Virtual Machine"; \
+        MACHINE_VER_DEPRECATION(__VA_ARGS__); \
+        if (latest) { \
+            mc->alias = "virt"; \
+        } \
+    } \
+    static const TypeInfo MACHINE_VER_SYM(info, virt, __VA_ARGS__) = \
+    { \
+        .name = MACHINE_VER_TYPE_NAME("virt", __VA_ARGS__), \
+        .parent = TYPE_HEXAGON_VIRT_MACHINE, \
+        .class_init = MACHINE_VER_SYM(class_init, virt, __VA_ARGS__), \
+        .is_available = target_hexagon, \
+    }; \
+    static void MACHINE_VER_SYM(register, virt, __VA_ARGS__)(void) \
+    { \
+        MACHINE_VER_DELETION(__VA_ARGS__); \
+        type_register_static(&MACHINE_VER_SYM(info, virt, __VA_ARGS__)); \
+    } \
+    type_init(MACHINE_VER_SYM(register, virt, __VA_ARGS__));
+
+#define DEFINE_VIRT_MACHINE_AS_LATEST(major, minor) \
+    DEFINE_VIRT_MACHINE_IMPL(true, major, minor)
+
+static void virt_machine_11_2_options(MachineClass *mc)
+{
+}
+DEFINE_VIRT_MACHINE_AS_LATEST(11, 2)
