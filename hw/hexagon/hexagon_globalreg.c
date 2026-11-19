@@ -450,8 +450,8 @@ static int hexagon_globalreg_post_load(void *opaque,
 
 static const VMStateDescription vmstate_hexagon_globalreg = {
     .name = "hexagon_globalreg",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .pre_save = hexagon_globalreg_pre_save,
     .post_load = hexagon_globalreg_post_load,
     .fields = (const VMStateField[]){
