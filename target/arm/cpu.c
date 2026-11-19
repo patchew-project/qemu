@@ -1361,6 +1361,9 @@ static const Property arm_cpu_pmsav7_dregion_property =
             DEFINE_PROP_UNSIGNED_NODEFAULT("pmsav7-dregion", ARMCPU,
                                            pmsav7_dregion,
                                            qdev_prop_uint32, uint32_t);
+static const Property arm_cpu_pmu_num_counters_property =
+            DEFINE_PROP_UINT32("pmu-num-counters", ARMCPU, pmu_num_counters,
+                               UINT32_MAX);
 #endif
 
 static bool arm_get_pmu(Object *obj, Error **errp)
@@ -1628,6 +1631,10 @@ static void arm_cpu_post_init(Object *obj)
     if (arm_feature(&cpu->env, ARM_FEATURE_PMU)) {
         cpu->has_pmu = true;
         object_property_add_bool(obj, "pmu", arm_get_pmu, arm_set_pmu);
+#ifndef CONFIG_USER_ONLY
+        qdev_property_add_static(DEVICE(obj),
+                                 &arm_cpu_pmu_num_counters_property);
+#endif
     }
 
     /*
@@ -2250,6 +2257,18 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         unset_feature(env, ARM_FEATURE_PMU);
     }
     if (arm_feature(env, ARM_FEATURE_PMU)) {
+#ifndef CONFIG_USER_ONLY
+        if (cpu->pmu_num_counters != UINT32_MAX) {
+            if (cpu->pmu_num_counters > 31) {
+                error_setg(errp, "pmu-num-counters %" PRIu32
+                           " exceeds maximum of 31", cpu->pmu_num_counters);
+                return;
+            }
+            cpu->isar.reset_pmcr_el0 =
+                (cpu->isar.reset_pmcr_el0 & ~PMCRN_MASK) |
+                (cpu->pmu_num_counters << PMCRN_SHIFT);
+        }
+#endif
         pmu_init(cpu);
 
         if (tcg_enabled() || hvf_enabled()) {

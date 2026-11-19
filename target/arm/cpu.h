@@ -1024,6 +1024,10 @@ struct ArchCPU {
     bool has_el3;
     /* CPU has PMU (Performance Monitor Unit) */
     bool has_pmu;
+    /* CPU has PMU Partitioning enabled in KVM mode */
+    bool kvm_pmu_partition;
+    /* Number of PMU event counters (PMCR_EL0.N) */
+    uint32_t pmu_num_counters;
     /* CPU has VFP */
     bool has_vfp;
     /* CPU has 32 VFP registers */

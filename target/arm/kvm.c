@@ -37,6 +37,7 @@
 #include "gdbstub/enums.h"
 #include "hw/core/boards.h"
 #include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/visitor.h"
 #include "qemu/log.h"
 #include "hw/acpi/acpi.h"
@@ -608,6 +609,9 @@ static void kvm_set_psci_version(Object *obj, const char *value, Error **errp)
     cpu->psci_version = PSCI_VERSION(maj, min);
 }
 
+static const Property arm_cpu_kvm_pmu_partition_property =
+    DEFINE_PROP_BOOL("kvm-pmu-partition", ARMCPU, kvm_pmu_partition, false);
+
 /* KVM VCPU properties should be prefixed with "kvm-". */
 void kvm_arm_add_vcpu_properties(ARMCPU *cpu)
 {
@@ -622,6 +626,14 @@ void kvm_arm_add_vcpu_properties(ARMCPU *cpu)
                                         "Set on to disable the adjustment of "
                                         "the virtual counter. VM stopped time "
                                         "will be counted.");
+    }
+
+    if (arm_feature(env, ARM_FEATURE_PMU)) {
+        qdev_property_add_static(DEVICE(obj),
+                                 &arm_cpu_kvm_pmu_partition_property);
+        object_property_set_description(obj, "kvm-pmu-partition",
+                                        "Set on to enable KVM PMU counter "
+                                        "partitioning.");
     }
 
     cpu->kvm_steal_time = ON_OFF_AUTO_AUTO;
@@ -1913,6 +1925,10 @@ static bool kvm_arm_set_device_attr(ARMCPU *cpu, struct kvm_device_attr *attr,
     return true;
 }
 
+#ifndef KVM_ARM_VCPU_PMU_V3_ENABLE_PARTITION
+#define KVM_ARM_VCPU_PMU_V3_ENABLE_PARTITION 5
+#endif
+
 void kvm_arm_pmu_init(ARMCPU *cpu)
 {
     struct kvm_device_attr attr = {
@@ -1923,6 +1939,34 @@ void kvm_arm_pmu_init(ARMCPU *cpu)
     if (!cpu->has_pmu) {
         return;
     }
+
+    if (cpu->kvm_pmu_partition) {
+        uint32_t partition = 1;
+        struct kvm_device_attr part_attr = {
+            .group = KVM_ARM_VCPU_PMU_V3_CTRL,
+            .attr = KVM_ARM_VCPU_PMU_V3_ENABLE_PARTITION,
+            .addr = (intptr_t)&partition,
+        };
+
+        if (!kvm_arm_set_device_attr(cpu, &part_attr, "PMU partition")) {
+            error_report("failed to enable KVM PMU partition");
+            abort();
+        }
+    }
+
+    if (cpu->pmu_num_counters != UINT32_MAX) {
+        struct kvm_device_attr cnt_attr = {
+            .group = KVM_ARM_VCPU_PMU_V3_CTRL,
+            .attr = KVM_ARM_VCPU_PMU_V3_SET_NR_COUNTERS,
+            .addr = (intptr_t)&cpu->pmu_num_counters,
+        };
+
+        if (!kvm_arm_set_device_attr(cpu, &cnt_attr, "PMU nr_counters")) {
+            error_report("failed to set KVM PMU nr_counters");
+            abort();
+        }
+    }
+
     if (!kvm_arm_set_device_attr(cpu, &attr, "PMU")) {
         error_report("failed to init PMU");
         abort();

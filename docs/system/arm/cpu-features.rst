@@ -217,6 +217,21 @@ the list of KVM VCPU features and their descriptions.
 
   Current valid values are: 0.1, 0.2, 1.0, 1.1, 1.2, and 1.3.
 
+``kvm-pmu-partition``
+  By default kvm-pmu-partition is disabled.
+
+  When kvm-pmu-partition is enabled, KVM partitions the physical PMUv3
+  hardware counters between the guest and host using ``MDCR_EL2.HPMN``,
+  granting the guest direct, untrapped access to its partition of event
+  counters and the cycle counter.  Enabling ``kvm-pmu-partition``
+  requires explicitly configuring the number of guest event counters via
+  ``pmu-num-counters`` to a value strictly less than the number of
+  general-purpose counters implemented by the host PMU (leaving at least
+  one general-purpose counter reserved for host profiling).  On hosts
+  without ``FEAT_HPMN0``, setting ``pmu-num-counters=0`` (cycle counter
+  only) requires at least two general-purpose host counters so physical
+  counter 0 can be reserved and hidden behind traps.
+
 TCG VCPU Features
 =================
 
@@ -495,3 +510,17 @@ Legal values for ``S`` are 30, 34, 36, and 39; the default is 30.
 
 As with ``x-rme``, the ``x-l0gptsz`` property may be renamed or
 removed in some future QEMU release.
+
+PMU CPU Properties
+==================
+
+``pmu``
+  Enable or disable the Performance Monitoring Unit (PMU).
+
+``pmu-num-counters``
+  Set the number of general-purpose event counters exposed by the PMU
+  (encoded in ``PMCR_EL0.N``) for both TCG and KVM guests (between 0 and
+  31 for TCG, or up to the number of counters supported by the host PMU
+  for KVM).  When ``kvm-pmu-partition`` is enabled under KVM, this
+  value must be strictly less than the number of general-purpose
+  counters implemented by the host PMU.
