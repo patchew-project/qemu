@@ -74,7 +74,6 @@ typedef struct {
 static void fd_coroutine_enter(void *opaque)
 {
     FDYieldUntilData *data = opaque;
-    aio_set_fd_handler(data->ctx, data->fd, NULL, NULL, NULL, NULL, NULL);
     qemu_coroutine_enter(data->co);
 }
 
@@ -89,4 +88,9 @@ void coroutine_fn yield_until_fd_readable(int fd)
     aio_set_fd_handler(data.ctx, fd, fd_coroutine_enter, NULL, NULL, NULL,
                        &data);
     qemu_coroutine_yield();
+    /*
+     * Always remove the fd handler, no matter the re-entering of this
+     * coroutine was caused by fd_coroutine_enter() or something else.
+     */
+    aio_set_fd_handler(data.ctx, fd, NULL, NULL, NULL, NULL, NULL);
 }
