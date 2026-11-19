@@ -29,6 +29,7 @@
 #include <wininet.h>
 #include <pdh.h>
 #include <dismapi.h>
+#include <winver.h>
 
 #include "guest-agent-core.h"
 #include "vss-win32.h"
@@ -2746,6 +2747,369 @@ out:
     }
     return head;
 }
+
+static GuestDriverServiceStatus ga_driver_service_status(DWORD state)
+{
+    switch (state) {
+    case SERVICE_STOPPED:
+        return GUEST_DRIVER_SERVICE_STATUS_STOPPED;
+    case SERVICE_START_PENDING:
+        return GUEST_DRIVER_SERVICE_STATUS_START_PENDING;
+    case SERVICE_STOP_PENDING:
+        return GUEST_DRIVER_SERVICE_STATUS_STOP_PENDING;
+    case SERVICE_RUNNING:
+        return GUEST_DRIVER_SERVICE_STATUS_RUNNING;
+    case SERVICE_CONTINUE_PENDING:
+        return GUEST_DRIVER_SERVICE_STATUS_CONTINUE_PENDING;
+    case SERVICE_PAUSE_PENDING:
+        return GUEST_DRIVER_SERVICE_STATUS_PAUSE_PENDING;
+    case SERVICE_PAUSED:
+        return GUEST_DRIVER_SERVICE_STATUS_PAUSED;
+    default:
+        return GUEST_DRIVER_SERVICE_STATUS_UNKNOWN;
+    }
+}
+
+/* Convert an SCM driver path into a path usable by Win32 file APIs. */
+static WCHAR *ga_resolve_driver_path(const WCHAR *path)
+{
+    WCHAR windows_dir[MAX_PATH + 1];
+    g_autofree WCHAR *trimmed = NULL;
+    g_autofree WCHAR *expanded = NULL;
+    const WCHAR *start = path;
+    const WCHAR *end;
+    const WCHAR *remainder = NULL;
+    size_t prefix_len;
+    size_t path_len;
+    size_t windows_len;
+    DWORD expanded_len;
+    UINT windows_dir_len;
+
+    while (*start != L'\0' && iswspace(*start)) {
+        start++;
+    }
+    end = start + wcslen(start);
+    while (end > start && iswspace(end[-1])) {
+        end--;
+    }
+    if (end - start >= 2 && start[0] == L'"' && end[-1] == L'"') {
+        start++;
+        end--;
+    }
+    if (end == start) {
+        return NULL;
+    }
+
+    path_len = end - start;
+    trimmed = g_new(WCHAR, path_len + 1);
+    memcpy(trimmed, start, path_len * sizeof(WCHAR));
+    trimmed[path_len] = L'\0';
+
+    expanded_len = ExpandEnvironmentStringsW(trimmed, NULL, 0);
+    if (expanded_len == 0) {
+        return NULL;
+    }
+    expanded = g_new(WCHAR, expanded_len);
+    path_len = ExpandEnvironmentStringsW(trimmed, expanded, expanded_len);
+    if (path_len == 0 || path_len > expanded_len) {
+        return NULL;
+    }
+
+    prefix_len = wcslen(L"\\SystemRoot");
+    if (_wcsnicmp(expanded, L"\\SystemRoot", prefix_len) == 0 &&
+        (expanded[prefix_len] == L'\0' ||
+         expanded[prefix_len] == L'\\' ||
+         expanded[prefix_len] == L'/')) {
+        remainder = expanded + prefix_len;
+    } else {
+        prefix_len = wcslen(L"SystemRoot");
+        if (_wcsnicmp(expanded, L"SystemRoot", prefix_len) == 0 &&
+            (expanded[prefix_len] == L'\0' ||
+             expanded[prefix_len] == L'\\' ||
+             expanded[prefix_len] == L'/')) {
+            remainder = expanded + prefix_len;
+        }
+    }
+
+    windows_dir_len = GetWindowsDirectoryW(windows_dir,
+                                            ARRAY_SIZE(windows_dir));
+    if (windows_dir_len == 0 || windows_dir_len >= ARRAY_SIZE(windows_dir)) {
+        return NULL;
+    }
+    windows_len = windows_dir_len;
+
+    if (remainder != NULL) {
+        WCHAR *ret = g_new(WCHAR, windows_len + wcslen(remainder) + 1);
+
+        memcpy(ret, windows_dir, windows_len * sizeof(WCHAR));
+        wcscpy(ret + windows_len, remainder);
+        return ret;
+    }
+
+    if (wcsncmp(expanded, L"\\??\\", 4) == 0) {
+        expanded[1] = L'\\';
+
+        return g_steal_pointer(&expanded);
+    }
+
+    if ((iswalpha(expanded[0]) && expanded[1] == L':') ||
+        expanded[0] == L'\\') {
+        return g_steal_pointer(&expanded);
+    }
+
+    path_len = wcslen(expanded);
+    start = expanded;
+    while (*start == L'\\' || *start == L'/') {
+        start++;
+        path_len--;
+    }
+    {
+        WCHAR *ret = g_new(WCHAR, windows_len + path_len + 2);
+
+        memcpy(ret, windows_dir, windows_len * sizeof(WCHAR));
+        ret[windows_len] = L'\\';
+        wcscpy(ret + windows_len + 1, start);
+        return ret;
+    }
+}
+
+typedef struct QGAVersionTranslation {
+    WORD language;
+    WORD code_page;
+} QGAVersionTranslation;
+
+/* Return CompanyName from a localized file-version string table. */
+static char *ga_get_file_vendor(const void *version_info)
+{
+    QGAVersionTranslation *translations = NULL;
+    static const QGAVersionTranslation fallback = { 0x0409, 0x04b0 };
+    UINT translations_len = 0;
+    UINT count = 0;
+    UINT i;
+
+    if (VerQueryValueW(version_info, L"\\VarFileInfo\\Translation",
+                       (void **)&translations, &translations_len) &&
+        translations != NULL) {
+        count = translations_len / sizeof(*translations);
+    }
+
+    for (i = 0; i <= count; i++) {
+        const QGAVersionTranslation *translation;
+        WCHAR query[64];
+        WCHAR *company = NULL;
+        UINT company_len = 0;
+        char *vendor;
+
+        translation = i < count ? &translations[i] : &fallback;
+        swprintf(query, ARRAY_SIZE(query),
+                 L"\\StringFileInfo\\%04x%04x\\CompanyName",
+                 translation->language, translation->code_page);
+        if (!VerQueryValueW(version_info, query, (void **)&company,
+                            &company_len) || company_len <= 1) {
+            continue;
+        }
+        vendor = g_utf16_to_utf8(company, -1, NULL, NULL, NULL);
+        if (vendor != NULL && vendor[0] != '\0') {
+            return vendor;
+        }
+        g_free(vendor);
+    }
+    return NULL;
+}
+
+/* Add optional FileVersion and CompanyName data from a driver binary. */
+static bool ga_get_driver_file_metadata(const WCHAR *path,
+                                        GuestDriverService *service,
+                                        Error **errp)
+{
+    g_autofree void *version_info = NULL;
+    VS_FIXEDFILEINFO *fixed_info = NULL;
+    PVOID old_redirection = NULL;
+    DWORD ignored;
+    DWORD version_size;
+    UINT fixed_info_len;
+    bool redirection_disabled;
+    bool version_loaded = false;
+
+    redirection_disabled =
+        Wow64DisableWow64FsRedirection(&old_redirection);
+
+    version_size = GetFileVersionInfoSizeW(path, &ignored);
+    if (version_size != 0) {
+        version_info = g_malloc(version_size);
+        version_loaded = GetFileVersionInfoW(path, 0, version_size,
+                                             version_info);
+    }
+
+    if (redirection_disabled &&
+        !Wow64RevertWow64FsRedirection(old_redirection)) {
+        error_setg_win32(errp, GetLastError(),
+                         "failed to restore WOW64 filesystem redirection "
+                         "for driver service '%s'", service->name);
+        return false;
+    }
+
+    if (!version_loaded) {
+        return true;
+    }
+
+    if (VerQueryValueW(version_info, L"\\", (void **)&fixed_info,
+                       &fixed_info_len) &&
+        fixed_info_len >= sizeof(*fixed_info) &&
+        fixed_info->dwSignature == VS_FFI_SIGNATURE) {
+        service->version = g_strdup_printf(
+            "%u.%u.%u.%u",
+            HIWORD(fixed_info->dwFileVersionMS),
+            LOWORD(fixed_info->dwFileVersionMS),
+            HIWORD(fixed_info->dwFileVersionLS),
+            LOWORD(fixed_info->dwFileVersionLS));
+    }
+
+    service->vendor = ga_get_file_vendor(version_info);
+    return true;
+}
+
+/*
+ * Add optional configuration and binary metadata for one driver service.
+ * Ordinary per-service lookup failures leave optional fields unset.
+ */
+static bool ga_get_driver_service_config(SC_HANDLE manager,
+                                         const WCHAR *name,
+                                         GuestDriverService *service,
+                                         Error **errp)
+{
+    SC_HANDLE handle;
+    g_autofree QUERY_SERVICE_CONFIGW *config = NULL;
+    g_autofree WCHAR *resolved_path = NULL;
+    DWORD size = 0;
+    DWORD err;
+    bool success = true;
+
+    handle = OpenServiceW(manager, name, SERVICE_QUERY_CONFIG);
+    if (handle == NULL) {
+        slog("failed to open configuration for driver service '%s', "
+             "error=%lu", service->name, GetLastError());
+        return true;
+    }
+
+    QueryServiceConfigW(handle, NULL, 0, &size);
+    err = GetLastError();
+    if (err != ERROR_INSUFFICIENT_BUFFER) {
+        slog("failed to get configuration size for driver service '%s', "
+             "error=%lu", service->name, err);
+        goto out;
+    }
+
+    config = g_malloc(size);
+    if (!QueryServiceConfigW(handle, config, size, &size)) {
+        slog("failed to get configuration for driver service '%s', "
+             "error=%lu", service->name, GetLastError());
+        goto out;
+    }
+
+    if (config->lpBinaryPathName == NULL ||
+        config->lpBinaryPathName[0] == L'\0') {
+        goto out;
+    }
+
+    service->driver_path = g_utf16_to_utf8(config->lpBinaryPathName, -1,
+                                           NULL, NULL, NULL);
+
+    resolved_path = ga_resolve_driver_path(config->lpBinaryPathName);
+    if (resolved_path != NULL &&
+        !ga_get_driver_file_metadata(resolved_path, service, errp)) {
+        success = false;
+    }
+
+out:
+    CloseServiceHandle(handle);
+    return success;
+}
+
+GuestDriverServiceList *qmp_guest_get_driver_services(Error **errp)
+{
+    GuestDriverServiceList *head = NULL, **tail = &head;
+    g_autofree BYTE *buffer = NULL;
+    SC_HANDLE manager = NULL;
+    DWORD buffer_size = 256 * 1024;
+    DWORD bytes_needed;
+    DWORD services_returned;
+    DWORD resume = 0;
+    DWORD err;
+    bool complete;
+    bool success = false;
+
+    manager = OpenSCManagerW(NULL, NULL, SC_MANAGER_ENUMERATE_SERVICE);
+    if (manager == NULL) {
+        error_setg_win32(errp, GetLastError(),
+                         "failed to open service control manager");
+        goto out;
+    }
+
+    buffer = g_malloc(buffer_size);
+    do {
+        ENUM_SERVICE_STATUS_PROCESSW *services;
+        DWORD i;
+
+        bytes_needed = 0;
+        services_returned = 0;
+        complete = EnumServicesStatusExW(manager, SC_ENUM_PROCESS_INFO,
+                                         SERVICE_DRIVER, SERVICE_STATE_ALL,
+                                         buffer, buffer_size, &bytes_needed,
+                                         &services_returned, &resume, NULL);
+        if (!complete) {
+            err = GetLastError();
+            if (err != ERROR_MORE_DATA) {
+                error_setg_win32(errp, err,
+                                 "failed to enumerate driver services");
+                goto out;
+            }
+            if (services_returned == 0) {
+                error_setg(errp, "driver service enumeration made no "
+                           "progress (buffer needs %lu bytes)", bytes_needed);
+                goto out;
+            }
+        }
+
+        services = (ENUM_SERVICE_STATUS_PROCESSW *)buffer;
+        for (i = 0; i < services_returned; i++) {
+            g_autoptr(GuestDriverService) service = NULL;
+
+            service = g_new0(GuestDriverService, 1);
+            service->name = ga_utf16_to_utf8_required(
+                services[i].lpServiceName, "service name", errp);
+            if (service->name == NULL) {
+                goto out;
+            }
+            service->status = ga_driver_service_status(
+                services[i].ServiceStatusProcess.dwCurrentState);
+            if (service->status == GUEST_DRIVER_SERVICE_STATUS_UNKNOWN) {
+                slog("driver service '%s' has unknown state %lu",
+                     service->name,
+                     services[i].ServiceStatusProcess.dwCurrentState);
+            }
+
+            if (!ga_get_driver_service_config(manager,
+                                              services[i].lpServiceName,
+                                              service, errp)) {
+                goto out;
+            }
+            QAPI_LIST_APPEND(tail, g_steal_pointer(&service));
+        }
+    } while (!complete);
+    success = true;
+
+out:
+    if (manager != NULL) {
+        CloseServiceHandle(manager);
+    }
+    if (!success) {
+        qapi_free_GuestDriverServiceList(head);
+        head = NULL;
+    }
+    return head;
+}
+
 
 char *qga_get_host_name(Error **errp)
 {

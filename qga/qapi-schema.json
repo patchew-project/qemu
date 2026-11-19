@@ -1542,6 +1542,33 @@
   'if': 'CONFIG_WIN32' }
 
 ##
+# @GuestDriverServiceStatus:
+#
+# @stopped: the service is stopped
+#
+# @start-pending: the service is starting
+#
+# @stop-pending: the service is stopping
+#
+# @running: the service is running
+#
+# @continue-pending: the service is resuming
+#
+# @pause-pending: the service is pausing
+#
+# @paused: the service is paused
+#
+# @unknown: SCM returned a service state not recognized by this
+#     QGA version
+#
+# Since: 12.0
+##
+{ 'enum': 'GuestDriverServiceStatus',
+  'data': [ 'stopped', 'start-pending', 'stop-pending', 'running',
+            'continue-pending', 'pause-pending', 'paused', 'unknown' ],
+  'if': 'CONFIG_WIN32' }
+
+##
 # @GuestDriverPackage:
 #     An out-of-box driver package installed in the guest
 #     (a driver package not originally included in the Windows image).
@@ -1562,6 +1589,26 @@
   'if': 'CONFIG_WIN32' }
 
 ##
+# @GuestDriverService:
+#
+# @name: service name
+#
+# @driver-path: driver binary path configured in the service database
+#
+# @version: four-part version of the driver binary
+#
+# @vendor: driver vendor name from the driver binary
+#
+# @status: current service status
+#
+# Since: 12.0
+##
+{ 'struct': 'GuestDriverService',
+  'data': { 'name': 'str', '*driver-path': 'str', '*version': 'str',
+            '*vendor': 'str', 'status': 'GuestDriverServiceStatus' },
+  'if': 'CONFIG_WIN32' }
+
+##
 # @guest-get-driver-packages:
 #     Retrieve out-of-box driver packages installed in the guest.
 #
@@ -1569,6 +1616,16 @@
 ##
 { 'command': 'guest-get-driver-packages',
   'returns': ['GuestDriverPackage'],
+  'if': 'CONFIG_WIN32' }
+
+##
+# @guest-get-driver-services:
+#     Retrieve registered driver services in the guest.
+#
+# Since: 12.0
+##
+{ 'command': 'guest-get-driver-services',
+  'returns': ['GuestDriverService'],
   'if': 'CONFIG_WIN32' }
 
 ##
