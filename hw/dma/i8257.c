@@ -242,7 +242,8 @@ static void i8257_write_cont(void *opaque, hwaddr nport, uint64_t data,
 
     case 0x05:                  /* reset */
         d->flip_flop = 0;
-        d->mask = ~0;
+        /* bits [3:0] mask the four channels; bits [7:4] are reserved 0 */
+        d->mask = 0x0f;
         d->status = 0;
         d->command = 0;
         break;
@@ -253,7 +254,7 @@ static void i8257_write_cont(void *opaque, hwaddr nport, uint64_t data,
         break;
 
     case 0x07:                  /* write mask for all channels */
-        d->mask = data;
+        d->mask = data & 0x0f;
         i8257_dma_run(d);
         break;
 
@@ -282,7 +283,7 @@ static uint64_t i8257_read_cont(void *opaque, hwaddr nport, unsigned size)
         d->status &= 0xf0;
         break;
     case 0x07:                  /* read all mask bits (RWAMB) */
-        val = d->mask;
+        val = d->mask & 0x0f;
         break;
     default:
         val = 0;
