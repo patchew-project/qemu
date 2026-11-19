@@ -21,6 +21,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/sysbus.h"
+#include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/host-utils.h"
@@ -242,6 +243,25 @@ DeviceState *riscv_create_iommu_sys(DeviceState *mmio_irqchip,
     return iommu_sys;
 }
 
+#define RISCV_IOMMU_SYSDEV_MSIX_TABLE_SIZE \
+    (RISCV_IOMMU_PCI_MSIX_VECTORS * PCI_MSIX_ENTRY_SIZE)
+
+#define RISCV_IOMMU_SYSDEV_MSIX_PBA_SIZE \
+    (QEMU_ALIGN_UP(RISCV_IOMMU_PCI_MSIX_VECTORS, 64) / 8)
+
+static const VMStateDescription vmstate_riscv_iommu_sys = {
+    .name = "riscv-iommu-sys",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_BUFFER_POINTER_UNSAFE(msix_table, RISCVIOMMUStateSys, 0,
+                                      RISCV_IOMMU_SYSDEV_MSIX_TABLE_SIZE),
+        VMSTATE_BUFFER_POINTER_UNSAFE(msix_pba, RISCVIOMMUStateSys, 0,
+                                      RISCV_IOMMU_SYSDEV_MSIX_PBA_SIZE),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const Property riscv_iommu_sys_properties[] = {
     DEFINE_PROP_UINT64("addr", RISCVIOMMUStateSys, addr, 0),
     DEFINE_PROP_UINT32("base-irq", RISCVIOMMUStateSys, base_irq, 0),
@@ -267,6 +287,7 @@ static void riscv_iommu_sys_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = riscv_iommu_sys_reset_hold;
 
     dc->realize = riscv_iommu_sys_realize;
+    dc->vmsd = &vmstate_riscv_iommu_sys;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     device_class_set_props(dc, riscv_iommu_sys_properties);
 }
