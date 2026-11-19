@@ -54,6 +54,41 @@
 #include "hexswi.h"
 #endif
 
+#ifndef CONFIG_USER_ONLY
+static void log_mem_address(CPUHexagonState *env, uint32_t va, uint32_t slot)
+{
+    assert(slot < 2);
+    env->mem_access_valid |= 1U << slot;
+    env->mem_access_va[slot] = va;
+}
+
+void HELPER(probe_hvx_mem)(CPUHexagonState *env, uint32_t va, uint32_t slot,
+                           uint32_t aligned, uint32_t store, uint32_t mmu_idx)
+{
+    uintptr_t ra = GETPC();
+    uint32_t base = va & ~(VECTOR_SIZE_BYTE - 1);
+
+    if (aligned) {
+        log_mem_address(env, base, slot);
+    } else {
+        /* VMEMU uses both slots; BADVA records the unaligned addresses. */
+        log_mem_address(env, va, 0);
+        log_mem_address(env, va + VECTOR_SIZE_BYTE, 1);
+    }
+    int first = aligned ? slot : 1;
+    int last = aligned ? slot : 0;
+    for (int s = first; s >= last; s--) {
+        uint32_t address = base + (aligned ? 0 : s * VECTOR_SIZE_BYTE);
+        env->mem_slot = s;
+        if (store) {
+            probe_write(env, address, VECTOR_SIZE_BYTE, mmu_idx, ra);
+        } else {
+            probe_read(env, address, VECTOR_SIZE_BYTE, mmu_idx, ra);
+        }
+    }
+}
+#endif
+
 #ifdef CONFIG_USER_ONLY
 /*
  * User mode has no qtimer device backing TIMERLO/TIMERHI, so derive the
@@ -493,6 +528,9 @@ static void probe_hvx_stores(CPUHexagonState *env, int mmu_idx,
     /* Normal (possibly masked) vector store */
     for (int i = 0; i < VSTORES_MAX; i++) {
         if (env->vstore_pending[i]) {
+#ifndef CONFIG_USER_ONLY
+            env->mem_slot = i;
+#endif
             target_ulong va = env->vstore[i].va;
             int size = env->vstore[i].size;
             for (int j = 0; j < size; j++) {
