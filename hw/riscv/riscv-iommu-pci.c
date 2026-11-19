@@ -143,9 +143,23 @@ static void riscv_iommu_pci_exit(PCIDevice *pci_dev)
     pci_setup_iommu(pci_device_root_bus(pci_dev), NULL, NULL);
 }
 
-static const VMStateDescription riscv_iommu_vmstate = {
-    .name = "riscv-iommu",
-    .unmigratable = 1
+static bool riscv_iommu_pci_msix_present(void *opaque, int version_id)
+{
+    RISCVIOMMUStatePci *s = opaque;
+
+    return msix_present(&s->pci);
+}
+
+static const VMStateDescription vmstate_riscv_iommu_pci = {
+    .name = "riscv-iommu-pci",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_PCI_DEVICE(pci, RISCVIOMMUStatePci),
+        VMSTATE_MSIX_TEST(pci, RISCVIOMMUStatePci,
+                          riscv_iommu_pci_msix_present),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 static void riscv_iommu_pci_init(Object *obj)
@@ -193,7 +207,7 @@ static void riscv_iommu_pci_class_init(ObjectClass *klass, const void *data)
     k->exit = riscv_iommu_pci_exit;
     k->class_id = RISCV_PCI_CLASS_SYSTEM_IOMMU;
     dc->desc = "RISCV-IOMMU DMA Remapping device";
-    dc->vmsd = &riscv_iommu_vmstate;
+    dc->vmsd = &vmstate_riscv_iommu_pci;
     dc->hotpluggable = false;
     dc->user_creatable = true;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
