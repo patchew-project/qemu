@@ -1345,11 +1345,17 @@ static void update_exec_counters(DisasContext *ctx)
 #ifndef CONFIG_USER_ONLY
 /*
  * A tlbp instruction may detect multiple TLB matches and set a pending
- * imprecise exception.  Raise it after the packet that ran the tlbp.
+ * imprecise exception, and a floating point instruction may set a pending
+ * floating point exception.  Raise them after the packet that caused them.
+ *
+ * A floating point exception establishes the exception point after the
+ * packet, like trap0.  ELR is the last word of the packet, so a handler
+ * resumes at the next packet by advancing ELR by one word.
  */
 static void check_imprecise_exception(DisasContext *ctx)
 {
-    TCGv PC = tcg_constant_tl(ctx->pkt.pc);
+    TCGv PC = tcg_constant_tl(check_for_attrib(&ctx->pkt, A_FPOP) ?
+                              ctx->next_PC - 4 : ctx->pkt.pc);
     TCGLabel *label = gen_new_label();
 
     tcg_gen_brcondi_tl(TCG_COND_EQ, hex_imprecise_exception, 0, label);
