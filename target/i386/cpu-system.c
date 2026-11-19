@@ -62,7 +62,7 @@ static QDict *x86_cpu_static_props(void)
     }
 
     for (w = 0; w < FEATURE_WORDS; w++) {
-        FeatureWordInfo *fi = &feature_word_info[w];
+        const FeatureWordInfo *fi = &feature_word_info[w];
         int bit;
         for (bit = 0; bit < 64; bit++) {
             if (!fi->feat_names[bit]) {

@@ -53,7 +53,7 @@ typedef struct FeatureWordInfo {
     uint64_t no_autoenable_flags;
 } FeatureWordInfo;
 
-extern FeatureWordInfo feature_word_info[];
+extern const FeatureWordInfo feature_word_info[];
 
 void x86_cpu_expand_features(X86CPU *cpu, Error **errp);
 

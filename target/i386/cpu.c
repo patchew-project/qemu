@@ -78,7 +78,7 @@ struct CPUID2CacheDescriptorInfo {
  * TLB, prefetch and sectored cache related descriptors are not included.
  * From Intel SDM Volume 2A, CPUID instruction
  */
-struct CPUID2CacheDescriptorInfo cpuid2_cache_descriptors[] = {
+const struct CPUID2CacheDescriptorInfo cpuid2_cache_descriptors[] = {
     [0x06] = { .level = 1, .type = INSTRUCTION_CACHE, .size =   8 * KiB,
                .associativity = 4,  .line_size = 32, },
     [0x08] = { .level = 1, .type = INSTRUCTION_CACHE, .size =  16 * KiB,
@@ -241,7 +241,7 @@ static uint8_t cpuid2_cache_descriptor(CPUCacheInfo *cache, bool *unmacthed)
     assert(cache->line_size > 0);
     assert(cache->associativity > 0);
     for (i = 0; i < ARRAY_SIZE(cpuid2_cache_descriptors); i++) {
-        struct CPUID2CacheDescriptorInfo *d = &cpuid2_cache_descriptors[i];
+        const struct CPUID2CacheDescriptorInfo *d = &cpuid2_cache_descriptors[i];
         if (d->level == cache->level && d->type == cache->type &&
             d->size == cache->size && d->line_size == cache->line_size &&
             d->associativity == cache->associativity) {
@@ -1047,7 +1047,7 @@ void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
             CPUID_8000_0021_EAX_NULL_SEL_CLR_BASE | \
             CPUID_8000_0021_EAX_KERNEL_FEATURES)
 
-FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
+const FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     [FEAT_1_EDX] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
@@ -1879,7 +1879,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
 
 bool is_feature_word_cpuid(uint32_t feature, uint32_t index, int reg)
 {
-    FeatureWordInfo *wi;
+    const FeatureWordInfo *wi;
     FeatureWord w;
 
     for (w = 0; w < FEATURE_WORDS; w++) {
@@ -2223,7 +2223,7 @@ static inline uint64_t x86_cpu_xsave_xss_components(X86CPU *cpu)
  */
 static uint64_t x86_cpu_get_migratable_flags(X86CPU *cpu, FeatureWord w)
 {
-    FeatureWordInfo *wi = &feature_word_info[w];
+    const FeatureWordInfo *wi = &feature_word_info[w];
     CPUX86State *env = &cpu->env;
     uint64_t r = 0;
     int i;
@@ -2458,7 +2458,7 @@ static const CPUCaches epyc_cache_info = {
     },
 };
 
-static CPUCaches epyc_v4_cache_info = {
+static const CPUCaches epyc_v4_cache_info = {
     .l1d_cache = &(CPUCacheInfo) {
         .type = DATA_CACHE,
         .level = 1,
@@ -2512,7 +2512,7 @@ static CPUCaches epyc_v4_cache_info = {
     },
 };
 
-static CPUCaches epyc_v5_cache_info = {
+static const CPUCaches epyc_v5_cache_info = {
     .l1d_cache = &(CPUCacheInfo) {
         .type = DATA_CACHE,
         .level = 1,
@@ -7422,7 +7422,7 @@ static const TypeInfo max_x86_cpu_type_info = {
     .class_init = max_x86_cpu_class_init,
 };
 
-static char *feature_word_description(FeatureWordInfo *f)
+static char *feature_word_description(const FeatureWordInfo *f)
 {
     assert(f->type == CPUID_FEATURE_WORD || f->type == MSR_FEATURE_WORD);
 
@@ -7463,7 +7463,7 @@ void mark_unavailable_features(X86CPU *cpu, FeatureWord w, uint64_t mask,
                                const char *verbose_prefix)
 {
     CPUX86State *env = &cpu->env;
-    FeatureWordInfo *f = &feature_word_info[w];
+    const FeatureWordInfo *f = &feature_word_info[w];
     int i;
     g_autofree char *feat_word_str = feature_word_description(f);
 
@@ -7491,7 +7491,7 @@ void mark_forced_on_features(X86CPU *cpu, FeatureWord w, uint64_t mask,
                              const char *verbose_prefix)
 {
     CPUX86State *env = &cpu->env;
-    FeatureWordInfo *f = &feature_word_info[w];
+    const FeatureWordInfo *f = &feature_word_info[w];
     int i;
 
     if (!cpu->force_features) {
@@ -7794,7 +7794,7 @@ static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
     X86CPUFeatureWordInfoList *list = NULL;
 
     for (w = 0; w < FEATURE_WORDS; w++) {
-        FeatureWordInfo *wi = &feature_word_info[w];
+        const FeatureWordInfo *wi = &feature_word_info[w];
         /*
                 * We didn't have MSR features when "feature-words" was
                 *  introduced. Therefore skipped other type entries.
@@ -8111,7 +8111,7 @@ static void x86_cpu_list(void)
 
     names = NULL;
     for (i = 0; i < ARRAY_SIZE(feature_word_info); i++) {
-        FeatureWordInfo *fw = &feature_word_info[i];
+        const FeatureWordInfo *fw = &feature_word_info[i];
         for (j = 0; j < 64; j++) {
             if (fw->feat_names[j]) {
                 names = g_list_append(names, (gpointer)fw->feat_names[j]);
@@ -8214,7 +8214,7 @@ static uint8_t x86_cpu_get_host_avx10_version(void)
 
 uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w)
 {
-    FeatureWordInfo *wi = &feature_word_info[w];
+    const FeatureWordInfo *wi = &feature_word_info[w];
     uint64_t r = 0;
     uint64_t unavail = 0;
 
@@ -9617,7 +9617,7 @@ static void x86_cpu_adjust_level(X86CPU *cpu, uint32_t *min, uint32_t value)
 static void x86_cpu_adjust_feat_level(X86CPU *cpu, FeatureWord w)
 {
     CPUX86State *env = &cpu->env;
-    FeatureWordInfo *fi = &feature_word_info[w];
+    const FeatureWordInfo *fi = &feature_word_info[w];
     uint32_t eax = fi->cpuid.eax;
     uint32_t region = eax & 0xF0000000;
 
@@ -10497,7 +10497,7 @@ static void x86_cpu_register_feature_bit_props(X86CPUClass *xcc,
                                                FeatureWord w,
                                                int bitnr)
 {
-    FeatureWordInfo *fi = &feature_word_info[w];
+    const FeatureWordInfo *fi = &feature_word_info[w];
     const char *name = fi->feat_names[bitnr];
 
     if (!name) {

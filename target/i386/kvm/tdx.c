@@ -885,7 +885,7 @@ static int tdx_check_features(X86ConfidentialGuest *cg, CPUState *cs)
     struct kvm_cpuid_entry2 *entry;
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
-    FeatureWordInfo *wi;
+    const FeatureWordInfo *wi;
     FeatureWord w;
     bool mismatch = false;
     int r = -1;
