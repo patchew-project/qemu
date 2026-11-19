@@ -660,6 +660,37 @@ static void test_usr_packets(void)
     check32(usr_out & 0x3f, USR_OVF | USR_FPINPF);
 }
 
+/* A packet reads the old sticky OVF, then commits any new saturation. */
+static void test_usr_read_before_write(void)
+{
+    static const struct {
+        uint32_t initial, x, result, final;
+    } cases[] = {
+        { 0,       0x7fffffff, 0x7fffffff, USR_OVF },
+        { USR_OVF, 1,          2,          USR_OVF },
+        { 0,       1,          2,          0       },
+    };
+
+    for (int i = 0; i < ARRAY_SIZE(cases); i++) {
+        uint32_t result, before, after;
+
+        asm volatile("usr = %[initial]\n\t"
+                     "{\n\t"
+                     "    %[result] = add(%[x], %[one]):sat\n\t"
+                     "    %[before] = usr\n\t"
+                     "}\n\t"
+                     "%[after] = usr\n\t"
+                     : [result] "=r"(result), [before] "=r"(before),
+                       [after] "=r"(after)
+                     : [initial] "r"(cases[i].initial), [x] "r"(cases[i].x),
+                       [one] "r"(1)
+                     : "usr");
+        check32(result, cases[i].result);
+        check32(before & USR_OVF, cases[i].initial);
+        check32(after & USR_OVF, cases[i].final);
+    }
+}
+
 int main()
 {
     TEST_R_OP_R(satub,       0,         0,         USR_CLEAR);
@@ -1150,6 +1181,8 @@ int main()
     TEST_Rp_OP_R(sfinvsqrta, SF_SNaN,       SF_HEX_NaN,       0x00, USR_FPINVF);
 
     test_usr_packets();
+
+    test_usr_read_before_write();
 
     puts(err ? "FAIL" : "PASS");
     return err;

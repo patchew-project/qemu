@@ -149,6 +149,29 @@ int32_t sext8(int32_t x)
  */
 int high_half[SIZE];
 
+/* The first access uses old M1; the following access uses the new M1. */
+static void brev_test_packet(void)
+{
+    uintptr_t ptr = (uintptr_t)wbuf;
+    uint32_t first, second;
+
+    wbuf[0] = 0x11223344;
+    wbuf[1] = 0x55667788;
+    asm volatile("m1 = %[old_inc]\n\t"
+                 "{\n\t"
+                 "    m1 = %[new_inc]\n\t"
+                 "    %[first] = memw(%[ptr]++m1:brev)\n\t"
+                 "}\n\t"
+                 "%[second] = memw(%[ptr]++m1:brev)\n\t"
+                 : [ptr] "+r"(ptr), [first] "=&r"(first),
+                   [second] "=r"(second)
+                 : [old_inc] "r"(0x2000), [new_inc] "r"(0x4000)
+                 : "m1", "memory");
+    check32(first, 0x11223344);
+    check32(second, 0x55667788);
+    check32(ptr - (uintptr_t)wbuf, 0x6000);
+}
+
 int main()
 {
     void *p;
@@ -177,6 +200,8 @@ int main()
     TEST_BREV_STORE_NEW(bnew, bbuf, 16);
     TEST_BREV_STORE_NEW(hnew, hbuf, 15);
     TEST_BREV_STORE_NEW(wnew, wbuf, 14);
+
+    brev_test_packet();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;

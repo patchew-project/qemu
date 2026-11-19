@@ -128,6 +128,61 @@ static void test_packet(void)
     check32(result, 0x0);
 }
 
+/* Packed predicate reads see the old bytes, not booleanized new values. */
+static void test_packet_alias(void)
+{
+    static const uint32_t inputs[] = {
+        0x81421200, 0x81421212, 0x81421281, 0x814212ff,
+    };
+
+    for (int i = 0; i < ARRAY_SIZE(inputs); i++) {
+        uint32_t before, after, taken = 0;
+
+        asm volatile("p3:0 = %[input]\n\t"
+                     "{\n\t"
+                     "    p0 = cmp.eq(%[input], %[input])\n\t"
+                     "    %[before] = p3:0\n\t"
+                     "}\n\t"
+                     "%[after] = p3:0\n\t"
+                     : [before] "=&r"(before), [after] "=r"(after)
+                     : [input] "r"(inputs[i])
+                     : "p0", "p1", "p2", "p3");
+        check32(before, inputs[i]);
+        check32(after, inputs[i] | 0xff);
+        /* Also check an ordinary predicate consumer, independently of C4. */
+        asm volatile("p3:0 = %[input]\n\t"
+                     "{\n\t"
+                     "    p0 = cmp.eq(%[input], %[input])\n\t"
+                     "    if (p0) %[taken] = #1\n\t"
+                     "}\n\t"
+                     : [taken] "+r"(taken)
+                     : [input] "r"(inputs[i])
+                     : "p0", "p1", "p2", "p3");
+        check32(taken, inputs[i] & 1);
+    }
+}
+
+/* All writes to a predicate are ANDed before a .new consumer uses it. */
+static void test_packet_auto_and(void)
+{
+    for (int a = 0; a < 2; a++) {
+        for (int b = 0; b < 2; b++) {
+            uint32_t taken = 0;
+
+            asm volatile("p0 = cmp.gt(%[a], %[a])\n\t"
+                         "{\n\t"
+                         "    p0 = cmp.eq(%[a], #0)\n\t"
+                         "    p0 = cmp.eq(%[b], #0)\n\t"
+                         "    if (p0.new) %[taken] = #1\n\t"
+                         "}\n\t"
+                         : [taken] "+r"(taken)
+                         : [a] "r"(a), [b] "r"(b)
+                         : "p0");
+            check32(taken, !a && !b);
+        }
+    }
+}
+
 int main()
 {
     uint32_t c4;
@@ -194,6 +249,9 @@ int main()
     check32(pregs.creg, 0xffffffff);
 
     test_packet();
+
+    test_packet_alias();
+    test_packet_auto_and();
 
     puts(err ? "FAIL" : "PASS");
     return err;

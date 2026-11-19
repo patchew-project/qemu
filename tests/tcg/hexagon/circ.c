@@ -423,6 +423,46 @@ static void circ_test_v3(void)
     }
 }
 
+/* Updating a modifier in the packet must not change that packet's wrap. */
+static void circ_test_packet(void)
+{
+    int32_t *ptr = &wbuf[3];
+    int32_t result, modifier;
+
+    init_wbuf();
+    asm volatile("m0 = %[old_len]\n\t"
+                 "cs0 = %[start]\n\t"
+                 "{\n\t"
+                 "    m0 = %[new_len]\n\t"
+                 "    %[result] = memw(%[ptr]++#4:circ(m0))\n\t"
+                 "}\n\t"
+                 "%[modifier] = m0\n\t"
+                 : [ptr] "+r"(ptr), [result] "=r"(result),
+                   [modifier] "=r"(modifier)
+                 : [start] "r"(wbuf), [old_len] "r"(16), [new_len] "r"(8)
+                 : "m0", "cs0", "memory");
+    check32(result, 3);
+    checkp(ptr, wbuf);
+    check32(modifier, 8);
+
+    /* A same-packet CS0 write must likewise leave this wrap unchanged. */
+    ptr = &wbuf[3];
+    asm volatile("m0 = %[len]\n\t"
+                 "cs0 = %[start]\n\t"
+                 "{\n\t"
+                 "    cs0 = %[next]\n\t"
+                 "    %[result] = memw(%[ptr]++#4:circ(m0))\n\t"
+                 "}\n\t"
+                 "%[modifier] = cs0\n\t"
+                 : [ptr] "+r"(ptr), [result] "=r"(result),
+                   [modifier] "=r"(modifier)
+                 : [start] "r"(wbuf), [len] "r"(16), [next] "r"(&wbuf[8])
+                 : "m0", "cs0", "memory");
+    check32(result, 3);
+    checkp(ptr, wbuf);
+    check32(modifier, (uintptr_t)&wbuf[8]);
+}
+
 int main()
 {
     init_bbuf();
@@ -469,6 +509,8 @@ int main()
     circ_test_store_reg_wnew();
 
     circ_test_v3();
+
+    circ_test_packet();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;

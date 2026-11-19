@@ -42,6 +42,38 @@ typedef union {
     int8_t byte;
 } Dual;
 
+/* Cover partial overlap in both directions, retaining untouched guard bytes. */
+static void test_partial_overlap(void)
+{
+    union {
+        uint64_t d;
+        uint32_t w[2];
+        uint16_t h[4];
+    } data;
+
+    data.d = 0x8877665544332211ULL;
+    asm volatile("{\n\t"
+                 "    memw(%[word]) = %[wide]\n\t"
+                 "    memh(%[half]) = %[narrow]\n\t"
+                 "}\n\t"
+                 :
+                 : [word] "r"(&data.w[0]), [half] "r"(&data.h[1]),
+                   [wide] "r"(0xaabbccdd), [narrow] "r"(0x1234)
+                 : "memory");
+    check64(data.d, 0x887766551234ccddULL);
+
+    data.d = 0x8877665544332211ULL;
+    asm volatile("{\n\t"
+                 "    memh(%[half]) = %[narrow]\n\t"
+                 "    memw(%[word]) = %[wide]\n\t"
+                 "}\n\t"
+                 :
+                 : [word] "r"(&data.w[0]), [half] "r"(&data.h[1]),
+                   [wide] "r"(0xaabbccdd), [narrow] "r"(0x1234)
+                 : "memory");
+    check64(data.d, 0x88776655aabbccddULL);
+}
+
 int main()
 {
     Dual d;
@@ -49,6 +81,8 @@ int main()
     d.word = ~0;
     dual_stores(&d.word, &d.byte, 0x12345678, 0xff);
     check32(d.word, 0x123456ff);
+
+    test_partial_overlap();
 
     puts(err ? "FAIL" : "PASS");
     return err;

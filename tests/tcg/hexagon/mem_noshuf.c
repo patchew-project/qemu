@@ -107,19 +107,23 @@ static inline int pred_lw_sw(bool pred, int32_t *p, int32_t *q,
 }
 
 static inline int pred_lw_sw_pi(bool pred, int32_t *p, int32_t *q,
-                                int32_t x, int32_t y)
+                                int32_t x, int32_t y, int32_t **q_after)
 {
     int ret;
-    asm volatile("p0 = cmp.eq(%5, #0)\n\t"
-                 "%0 = %3\n\t"
-                 "r7 = %2\n\t"
+    int32_t *after;
+    asm volatile("p0 = cmp.eq(%[pred], #0)\n\t"
+                 "%[ret] = %[x]\n\t"
+                 "r7 = %[q]\n\t"
                  "{\n\t"
-                 "    memw(%1) = %4\n\t"
-                 "    if (!p0) %0 = memw(r7++#4)\n\t"
-                 "}:mem_noshuf\n"
-                 : "=&r"(ret)
-                 : "r"(p), "r"(q), "r"(x), "r"(y), "r"(pred)
+                 "    memw(%[p]) = %[y]\n\t"
+                 "    if (!p0) %[ret] = memw(r7++#4)\n\t"
+                 "}:mem_noshuf\n\t"
+                 "%[after] = r7\n"
+                 : [ret] "=&r"(ret), [after] "=r"(after)
+                 : [p] "r"(p), [q] "r"(q), [x] "r"(x), [y] "r"(y),
+                   [pred] "r"(pred)
                  : "r7", "p0", "memory");
+    *q_after = after;
     return ret;
 }
 
@@ -195,10 +199,35 @@ typedef union {
     uint8_t ub[16];
 } Memory;
 
+/* A cancelled store must also cancel its post-increment. */
+static void test_cancelled_postinc(void)
+{
+    for (int enabled = 0; enabled < 2; enabled++) {
+        uint32_t data[2] = { 0x55aa55aa, 0xabcdef01 };
+        uint32_t *store_ptr = data;
+        uint32_t loaded;
+
+        asm volatile("p0 = cmp.eq(%[enabled], #1)\n\t"
+                     "{\n\t"
+                     "    if (p0) memw(%[ptr]++#4) = %[value]\n\t"
+                     "    %[loaded] = memw(%[base])\n\t"
+                     "}:mem_noshuf\n\t"
+                     : [loaded] "=r"(loaded), [ptr] "+r"(store_ptr)
+                     : [enabled] "r"(enabled), [base] "r"(data),
+                       [value] "r"(0x11223344)
+                     : "p0", "memory");
+        check32(loaded, enabled ? 0x11223344 : 0x55aa55aa);
+        checkp(store_ptr, data + enabled);
+        check32(data[0], loaded);
+        check32(data[1], 0xabcdef01);
+    }
+}
+
 int main()
 {
     Memory n;
     uint32_t res32;
+    int32_t *pi_after;
     uint64_t res64;
 
     /*
@@ -387,13 +416,18 @@ int main()
     check32(n.w[0], 0xc0ffeeda);
 
     n.w[0] = ~0;
-    res32 = pred_lw_sw_pi(false, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda);
+    res32 = pred_lw_sw_pi(false, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda,
+                          &pi_after);
     check32(res32, 0x12345678);
+    /* The cancelled load must not post-increment its base. */
+    checkp(pi_after, &n.w[0]);
     check32(n.w[0], 0xc0ffeeda);
 
     n.w[0] = ~0;
-    res32 = pred_lw_sw_pi(true, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda);
+    res32 = pred_lw_sw_pi(true, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda,
+                          &pi_after);
     check32(res32, 0xc0ffeeda);
+    checkp(pi_after, &n.w[1]);
     check32(n.w[0], 0xc0ffeeda);
 
     n.d[0] = ~0LL;
@@ -419,6 +453,8 @@ int main()
                           0x1234567812345678LL, 0xc0ffeedac0ffeedaLL);
     check64(res64, 0xc0ffeedac0ffeedaLL);
     check64(n.d[0], 0xc0ffeedac0ffeedaLL);
+
+    test_cancelled_postinc();
 
     puts(err ? "FAIL" : "PASS");
     return err;
