@@ -495,6 +495,10 @@ static void mark_implicit_reg_write(DisasContext *ctx, int attrib, int rnum)
     if (GET_ATTRIB(opcode, attrib)) {
         bool is_predicated = GET_ATTRIB(opcode, A_CONDEXEC);
 
+        if (rnum == HEX_REG_LR && ctx->pkt.pkt_has_multi_cof) {
+            is_predicated = true;
+        }
+
         /* LC0/LC1 is conditionally written by endloop instructions */
         if ((rnum == HEX_REG_LC0 || rnum == HEX_REG_LC1) &&
             (opcode == J2_endloop0 ||
