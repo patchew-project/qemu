@@ -1542,6 +1542,36 @@
   'if': 'CONFIG_WIN32' }
 
 ##
+# @GuestDriverPackage:
+#     An out-of-box driver package installed in the guest
+#     (a driver package not originally included in the Windows image).
+#
+# @name: published INF name
+#
+# @original-name: base name of the original INF file
+#
+# @version: four-part version from the package INF DriverVer entry
+#
+# @vendor: package provider from the INF metadata
+#
+# Since: 12.0
+##
+{ 'struct': 'GuestDriverPackage',
+  'data': { 'name': 'str', '*original-name': 'str', 'version': 'str',
+            '*vendor': 'str' },
+  'if': 'CONFIG_WIN32' }
+
+##
+# @guest-get-driver-packages:
+#     Retrieve out-of-box driver packages installed in the guest.
+#
+# Since: 12.0
+##
+{ 'command': 'guest-get-driver-packages',
+  'returns': ['GuestDriverPackage'],
+  'if': 'CONFIG_WIN32' }
+
+##
 # @GuestAuthorizedKeys:
 #
 # @keys: public keys (in OpenSSH/sshd(8) authorized_keys format)
