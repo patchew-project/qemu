@@ -51,6 +51,15 @@
 #include "aio-posix.h"
 #include "trace.h"
 
+/* Compat defines for liburing versions that lack NO_IOWAIT support */
+#ifndef IORING_ENTER_NO_IOWAIT
+#define IORING_ENTER_NO_IOWAIT (1U << 7)
+#endif
+
+#ifndef IORING_FEAT_NO_IOWAIT
+#define IORING_FEAT_NO_IOWAIT  (1U << 17)
+#endif
+
 enum {
     FDMON_IO_URING_ENTRIES  = 128, /* sq/cq ring size */
 
@@ -176,8 +185,13 @@ static void fdmon_io_uring_add_sqe(AioContext *ctx,
 {
     struct io_uring_sqe *sqe = get_sqe(ctx);
 
+    /* Currently, IO wait should be accounted for all requests here. */
+    cqe_handler->iowait_accounting = true;
+
     prep_sqe(sqe, opaque);
     io_uring_sqe_set_data(sqe, cqe_handler);
+
+    qatomic_inc(&ctx->iowait_accounting_reqs);
 
     trace_fdmon_io_uring_add_sqe(ctx, opaque, sqe->opcode, sqe->fd, sqe->off,
                                  cqe_handler);
@@ -284,6 +298,10 @@ static bool process_cqe(AioContext *ctx,
     /* poll_timeout and poll_remove have a zero user_data field */
     if (!cqe_handler) {
         return false;
+    }
+
+    if (cqe_handler->iowait_accounting) {
+        qatomic_dec(&ctx->iowait_accounting_reqs);
     }
 
     /*
@@ -422,9 +440,25 @@ static int fdmon_io_uring_wait(AioContext *ctx, AioHandlerList *ready_list,
      * 1. If no SQEs were submitted, then -EINTR is returned.
      * 2. If SQEs were submitted then the number of SQEs submitted is returned
      *    rather than -EINTR.
+     *
+     * Submit and wait are split into separate calls so we can pass
+     * IORING_ENTER_NO_IOWAIT when no request that should count against IO
+     * wait is in flight.
      */
     do {
-        ret = io_uring_submit_and_wait(&ctx->fdmon_io_uring, wait_nr);
+        ret = io_uring_submit(&ctx->fdmon_io_uring);
+
+        if (ret >= 0 && wait_nr > io_uring_cq_ready(&ctx->fdmon_io_uring)) {
+            unsigned flags = IORING_ENTER_GETEVENTS;
+
+            if ((ctx->fdmon_io_uring.features & IORING_FEAT_NO_IOWAIT) &&
+                qatomic_read(&ctx->iowait_accounting_reqs) == 0) {
+                flags |= IORING_ENTER_NO_IOWAIT;
+            }
+
+            ret = io_uring_enter(ctx->fdmon_io_uring.ring_fd, 0, wait_nr,
+                                 flags, NULL);
+        }
     } while (ret == -EINTR ||
              (ret >= 0 && wait_nr > io_uring_cq_ready(&ctx->fdmon_io_uring)));
 
