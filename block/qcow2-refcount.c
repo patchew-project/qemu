@@ -3139,6 +3139,14 @@ alloc_refblock(BlockDriverState *bs, uint64_t **reftable,
     BDRVQcow2State *s = bs->opaque;
     int64_t offset;
 
+    if (reftable_index == 0 && refblock_empty) {
+        /* The header is in cluster 0 so it must have a non-zero refcount */
+        qcow2_signal_corruption(bs, true, -1, -1,
+                                "first refblock is empty");
+        error_setg(errp, "Image is corrupt (first refblock is empty)");
+        return -EIO;
+    }
+
     if (!refblock_empty && reftable_index >= *reftable_size) {
         uint64_t *new_reftable;
         uint64_t new_reftable_size;
@@ -3450,6 +3458,13 @@ int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
             allocated_reftable_size = new_reftable_size;
         }
     } while (new_allocation);
+
+    /*
+     * This can only happen if the reftable is all zeroes, but the header is
+     * in cluster 0 and must have a non-zero refcount, and we check that in
+     * alloc_refblock().
+     */
+    assert(new_reftable_size != 0);
 
     /* Second, write the new refblocks */
     ret = walk_over_reftable(bs, &new_reftable, &new_reftable_index,
