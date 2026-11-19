@@ -331,7 +331,7 @@ qtests_riscv64 = ['riscv-csr-test'] + \
 qtests_hexagon = ['boot-serial-test', 'hexagon-config-test', 'l2vic-test',
                   'qcom-dsp-test',
                   'qct-qtimer-test',
-                  'migration-test']
+                  'hexagon-migration-test', 'migration-test']
 
 qos_test_ss = ss.source_set()
 qos_test_ss.add(
@@ -442,6 +442,8 @@ qtests = {
                        [gio],
   'erst-test': files('erst-test.c'),
   'ivshmem-test': [rt, '../../contrib/ivshmem-server/ivshmem-server.c'],
+  'hexagon-migration-test': files('migration/migration-qmp.c',
+                                  'migration/migration-util.c'),
   'migration-test': test_migration_files + migration_tls_files + migration_colo_files,
   'pxe-test': files('boot-sector.c'),
   'pnv-xive2-test': files('pnv-xive2-common.c', 'pnv-xive2-flush-sync.c',

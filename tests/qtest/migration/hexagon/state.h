@@ -1,0 +1,29 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+#ifndef HEXAGON_MIGRATION_STATE_H
+#define HEXAGON_MIGRATION_STATE_H
+
+/* SM8975 NSP DDR and device map; mailbox fields are byte offsets. */
+#define STATE_KERNEL_ADDR 0x80010000
+#define STATE_MAILBOX 0x80020000
+#define STATE_RELEASE 0
+#define STATE_READY 4
+#define STATE_PEER_READY 8
+#define STATE_PEER_DONE 12
+#define STATE_DONE 16
+#define STATE_R20 20
+#define STATE_R21 24
+#define STATE_PREDICATES 28
+#define STATE_SSR 32
+#define STATE_CCR 36
+#define STATE_SGP0 40
+#define STATE_MEMORY 44
+#define STATE_HEARTBEAT 48
+#define STATE_PEER_R22 52
+#define STATE_HVX1 0x80021000
+#define STATE_HVX0 0x80021800
+#define STATE_HLX1 0x80022000
+#define STATE_HLX0 0x80022800
+#define STATE_QTIMER 0x263a1000
+#define STATE_L2VIC 0x26390000
+
+#endif
