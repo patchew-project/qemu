@@ -262,6 +262,20 @@ struct CPUArchState {
     uint8_t vxsat;
     bool vill;
 
+    /*
+     * TB flags that depend only on state changed by CSR writes, traps,
+     * privilege changes and vsetvl; rebuilt by riscv_rebuild_tb_flags() at
+     * those points.  Bits that translated code changes directly between
+     * two lookups (FS/VS dirtying, elp, vstart, vl) are added on each
+     * lookup.  vlmax_cached is VLMAX for the current vtype when the
+     * VL_EQ_VLMAX fast path is allowed, else UINT32_MAX; vl is compared
+     * against it per lookup because fault-only-first loads shrink vl
+     * without a trap.
+     */
+    uint64_t ext_tb_flags_cached;
+    uint32_t tb_flags_cached;
+    uint32_t vlmax_cached;
+
     uint64_t pc;
     uint64_t load_res;
     uint64_t load_val;
@@ -967,6 +981,11 @@ static inline uint32_t vext_get_vlmax(uint32_t vlenb, uint32_t vsew,
 bool riscv_cpu_is_32bit(RISCVCPU *cpu);
 
 bool riscv_cpu_virt_mem_enabled(CPURISCVState *env, bool is_vm_ldst);
+#ifdef CONFIG_TCG
+void riscv_rebuild_tb_flags(CPURISCVState *env);
+#else
+static inline void riscv_rebuild_tb_flags(CPURISCVState *env) { }
+#endif
 RISCVPmPmm riscv_pm_get_pmm(CPURISCVState *env);
 RISCVPmPmm riscv_pm_get_vm_ldst_pmm(CPURISCVState *env);
 uint32_t riscv_pm_get_pmlen(RISCVPmPmm pmm);

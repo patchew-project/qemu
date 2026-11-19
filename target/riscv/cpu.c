@@ -1122,6 +1122,7 @@ static void riscv_cpu_reset_hold(Object *obj, ResetType type)
         kvm_riscv_reset_vcpu(cpu);
     }
 #endif
+    riscv_rebuild_tb_flags(env);
 }
 
 static void riscv_cpu_disas_set_info(const CPUState *s, disassemble_info *info)

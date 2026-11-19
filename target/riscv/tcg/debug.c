@@ -822,6 +822,7 @@ void HELPER(itrigger_match)(CPURISCVState *env)
             itrigger_set_pending(env, i, 1);
 
             env->itrigger_enabled = riscv_itrigger_enabled(env);
+            riscv_rebuild_tb_flags(env);
             do_trigger_action(env, i);
             itrigger_set_pending(env, i, 0);
         }
@@ -922,6 +923,7 @@ static void itrigger_reg_write(CPURISCVState *env, target_ulong index,
                           env->last_icount + itrigger_get_count(env, index));
             } else {
                 env->itrigger_enabled = riscv_itrigger_enabled(env);
+                riscv_rebuild_tb_flags(env);
             }
         }
         break;

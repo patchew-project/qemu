@@ -183,6 +183,13 @@ static void riscv_compute_tb_flags(CPURISCVState *env, uint32_t *pflags,
     *pvlmax = vlmax_cached;
 }
 
+void riscv_rebuild_tb_flags(CPURISCVState *env)
+{
+    riscv_compute_tb_flags(env, &env->tb_flags_cached,
+                           &env->ext_tb_flags_cached,
+                           &env->vlmax_cached);
+}
+
 static TCGTBCPUState riscv_get_tb_cpu_state(CPUState *cs)
 {
     CPURISCVState *env = cpu_env(cs);

@@ -56,6 +56,7 @@ static inline void reset_ill_vtype(CPURISCVState *env)
     env->vtype = 0;
     env->vl = 0;
     env->vstart = 0;
+    riscv_rebuild_tb_flags(env);
 }
 
 target_ulong HELPER(vsetvl)(CPURISCVState *env, target_ulong s1,
@@ -125,6 +126,7 @@ target_ulong HELPER(vsetvl)(CPURISCVState *env, target_ulong s1,
     env->vtype = s2;
     env->vstart = 0;
     env->vill = 0;
+    riscv_rebuild_tb_flags(env);
     return vl;
 }
 

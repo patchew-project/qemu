@@ -5909,7 +5909,11 @@ static RISCVException riscv_csrrw_do64(CPURISCVState *env, int csrno,
 
     /* execute combined read/write operation if it exists */
     if (csr_ops[csrno].op) {
-        return csr_ops[csrno].op(env, csrno, ret_value, new_value, write_mask);
+        ret = csr_ops[csrno].op(env, csrno, ret_value, new_value, write_mask);
+        if (ret == RISCV_EXCP_NONE && write_mask) {
+            riscv_rebuild_tb_flags(env);
+        }
+        return ret;
     }
 
     /*
@@ -5937,6 +5941,7 @@ static RISCVException riscv_csrrw_do64(CPURISCVState *env, int csrno,
                 return ret;
             }
         }
+        riscv_rebuild_tb_flags(env);
     }
 
     /* return old value */
@@ -6015,6 +6020,7 @@ static RISCVException riscv_csrrw_do128(CPURISCVState *env, int csrno,
                 return ret;
             }
         }
+        riscv_rebuild_tb_flags(env);
     }
 
     /* return old value */
