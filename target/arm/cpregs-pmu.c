@@ -106,7 +106,12 @@ static uint64_t instructions_get_count(CPUARMState *env)
 static int64_t instructions_ns_per(uint64_t icount)
 {
     assert(icount_enabled() == ICOUNT_PRECISE);
-    return icount_to_ns((int64_t)icount);
+    /*
+     * The caller passes the events left minus one, and a zero result is
+     * not armed: with a timer due exactly when the count is reached, the
+     * last event would raise no interrupt.  Wait for the overflowing one.
+     */
+    return icount_to_ns((int64_t)(icount + (icount != UINT64_MAX)));
 }
 #endif
 
