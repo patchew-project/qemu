@@ -5,8 +5,8 @@
  * Developed during Google Summer of Code 2025, mentored by
  * Helge Deller <deller@gmx.de>.
  *
- * LASI module glue around the 53C710 core in ncr53c710.c: it embeds one
- * NCR710State by value and maps it onto the HP 715 (-M 715) LASI bus.
+ * LASI module glue mapping the 53C710 core in ncr53c710.c onto the HP 715
+ * (-M 715) LASI bus.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -45,12 +45,7 @@ static uint64_t lasi_ncr710_reg_read(void *opaque, hwaddr addr,
         return val;
     }
 
-    /*
-     * 0x100..0x1ff goes to the chip core as before.  The rest of the
-     * module page reads as 0: HP-UX reads a board strap at 0xd85
-     * (bit 0x20: differential bus, 25 MHz clock); 0 is single ended,
-     * 50 MHz.
-     */
+    /* 0x100..0x1ff goes to the chip core. */
     if (addr >= 0x100 && addr + size <= 0x200) {
         hwaddr ncr_addr = addr - 0x100;
         if (size == 1) {
@@ -74,6 +69,11 @@ static uint64_t lasi_ncr710_reg_read(void *opaque, hwaddr addr,
 
         trace_lasi_ncr710_reg_forward_read(addr, val);
     } else {
+        /*
+         * The rest of the module page reads as 0.  HP-UX reads a board strap
+         * at 0xd85 (bit 0x20: differential bus, 25 MHz clock); 0 is single
+         * ended, 50 MHz.
+         */
         val = 0;
         trace_lasi_ncr710_reg_read(addr, val, size);
     }
@@ -90,9 +90,7 @@ static void lasi_ncr710_reg_write(void *opaque, hwaddr addr,
     /*
      * 0x00..0x0f is the read only LASI module header (ID/SVERSION/HVERSION);
      * 0x10..0xff and 0x200..0xfff are unmapped module space.  Writes to all
-     * of them are ignored.  The SCSI bus reset is driven through the chip's
-     * SCNTL1.RST at forwarded offset 0x101 (see ncr53c710.c), not through
-     * this window.
+     * of them are ignored.
      */
     if (addr <= 0x0f) {
         return;

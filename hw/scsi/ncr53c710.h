@@ -3,12 +3,9 @@
  *
  * Copyright (c) 2026 Keith Monahan <keith@techtravels.org>
  *
- * Interface to the 53C710 model (ncr53c710.c), a rewrite whose SCRIPTS engine
- * is derived from QEMU's LSI53C895A model and adapted to the 53C710 per its
- * Data Manual (Jun 1992).  The only instantiated device is the LASI wrapper in
- * lasi_ncr710.c, which embeds one NCR710State by value and drives it through
- * the functions declared here.  This file is a function library, not a QOM
- * type.
+ * Interface to the 53C710 model (ncr53c710.c).  The only instantiated device is
+ * the LASI wrapper in lasi_ncr710.c, which embeds one NCR710State by value and
+ * drives it through the functions declared here.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -75,9 +72,8 @@ typedef struct NCR710State {
     AddressSpace *as;
     qemu_irq irq;
     /*
-     * SCRIPTS yield/resume timer: instruction budget backoff and post load
-     * restart, mirroring lsi53c895a's scripts_timer.  The wrapper creates it
-     * and points it at ncr710_scripts_timer_callback().
+     * SCRIPTS yield/resume timer, mirroring lsi53c895a's scripts_timer.  The
+     * wrapper creates it.
      */
     QEMUTimer *scripts_timer;
 
@@ -93,30 +89,20 @@ typedef struct NCR710State {
     int command_complete;
     bool script_running;
     /*
-     * The driver's "start next command" SIGP kick landed while the engine was
-     * halted at a completion INT (waiting==NOWAIT) instead of parked at Wait
-     * Reselect, so the normal SIGP wake is skipped.  The ISTAT write clears the
-     * SIGP latch (presenting the kick as "consumed" to the driver's poll) and
-     * sets this flag instead; the Wait Reselect handler (execute_script case 2)
-     * consumes it when the engine next parks, selecting the next command.
+     * A SIGP arrived while the engine was halted instead of parked at Wait
+     * Reselect; the Wait Reselect handler consumes it when the engine next
+     * parks.
      */
     bool sigp_pending_resume;
-    /*
-     * A cached-backend SCSI continue was deferred to lsi_issue_bh so its
-     * completion arrives asynchronously, not reentrantly inside the engine.
-     */
+    /* A SCSI continue was deferred to lsi_issue_bh. */
     bool issue_pending;
     /*
-     * SCRIPTS interpreter on-stack recursion depth; transient (always 0
-     * outside execute_script), so it is not migrated in vmstate.
+     * SCRIPTS interpreter recursion depth; always 0 outside
+     * lsi_execute_script, so it is not migrated.
      */
     int reentrancy_level;
     lsi_request *current;
-    /*
-     * Disconnected tagged commands awaiting target-initiated reselection
-     * (lsi53c895a-style).  Untagged 53C700-family transfers never disconnect,
-     * so for them this stays empty and the engine runs connected as before.
-     */
+    /* Disconnected tagged commands awaiting reselection. */
     QTAILQ_HEAD(, lsi_request) queue;
 
     /*
