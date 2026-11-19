@@ -100,11 +100,13 @@ static int riscv_cpu_mmu_index(CPUState *cs, bool ifetch)
 }
 
 /*
- * Compute the TB flags that depend only on state changed through CSR
- * writes, traps, privilege changes and vsetvl.  For now the result is
- * fed straight back to riscv_get_tb_cpu_state(), which adds the bits
- * that translated code changes between two lookups -- FS/VS dirtying,
- * elp, vstart, and vl, which fault-only-first loads shrink.
+ * Most TB flags depend only on state that changes through CSR writes,
+ * traps, privilege changes and vsetvl, so compute them once at those
+ * points and keep them in env (see riscv_rebuild_tb_flags() callers).
+ * This mirrors arm_rebuild_hflags().  The bits that translated code
+ * changes directly between two lookups -- FS/VS dirtying, elp, vstart,
+ * and vl, which fault-only-first loads shrink -- are added by
+ * riscv_get_tb_cpu_state() on each lookup.
  */
 static void riscv_compute_tb_flags(CPURISCVState *env, uint32_t *pflags,
                                    uint64_t *pext_flags, uint32_t *pvlmax)
@@ -195,16 +197,29 @@ static TCGTBCPUState riscv_get_tb_cpu_state(CPUState *cs)
     CPURISCVState *env = cpu_env(cs);
     RISCVCPU *cpu = env_archcpu(env);
     RISCVExtStatus fs, vs;
-    uint32_t flags, vlmax;
-    uint64_t ext_flags;
+    uint32_t flags = env->tb_flags_cached;
+    uint64_t ext_flags = env->ext_tb_flags_cached;
 
-    riscv_compute_tb_flags(env, &flags, &ext_flags, &vlmax);
+#ifdef CONFIG_DEBUG_TCG
+    {
+        uint32_t f, v;
+        uint64_t e;
+
+        /* Catch a state change that did not rebuild the cached flags. */
+        riscv_compute_tb_flags(env, &f, &e, &v);
+        if (f != flags || e != ext_flags || v != env->vlmax_cached) {
+            cpu_abort(cs, "stale TB flags: cached %08x/%016" PRIx64 "/%u, "
+                      "recomputed %08x/%016" PRIx64 "/%u\n",
+                      flags, ext_flags, env->vlmax_cached, f, e, v);
+        }
+    }
+#endif
 
     if (cpu->cfg.ext_zve32x) {
         bool vstart_eq_zero = env->vstart == 0;
 
         flags = FIELD_DP32(flags, TB_FLAGS, VL_EQ_VLMAX,
-                           vstart_eq_zero && env->vl == vlmax);
+                           vstart_eq_zero && env->vl == env->vlmax_cached);
         flags = FIELD_DP32(flags, TB_FLAGS, VSTART_EQ_ZERO, vstart_eq_zero);
     }
 
