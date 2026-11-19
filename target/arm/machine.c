@@ -593,7 +593,8 @@ static bool pmsav7_rgnr_vmstate_validate(void *opaque, int version_id)
 {
     ARMCPU *cpu = opaque;
 
-    return cpu->env.pmsav7.rnr[M_REG_NS] < cpu->pmsav7_dregion;
+    return cpu->env.pmsav7.rnr[M_REG_NS] < cpu->pmsav7_dregion ||
+        (cpu->pmsav7_dregion == 0 && cpu->env.pmsav7.rnr[M_REG_NS] == 0);
 }
 
 static const VMStateDescription vmstate_pmsav7 = {
@@ -693,14 +694,16 @@ static bool s_rnr_vmstate_validate(void *opaque, int version_id)
 {
     ARMCPU *cpu = opaque;
 
-    return cpu->env.pmsav7.rnr[M_REG_S] < cpu->pmsav7_dregion;
+    return cpu->env.pmsav7.rnr[M_REG_S] < cpu->pmsav7_dregion ||
+        (cpu->pmsav7_dregion == 0 && cpu->env.pmsav7.rnr[M_REG_NS] == 0);
 }
 
 static bool sau_rnr_vmstate_validate(void *opaque, int version_id)
 {
     ARMCPU *cpu = opaque;
 
-    return cpu->env.sau.rnr < cpu->sau_sregion;
+    return cpu->env.sau.rnr < cpu->sau_sregion ||
+        (cpu->sau_sregion == 0 && cpu->env.sau.rnr == 0);
 }
 
 static bool m_security_needed(void *opaque)
