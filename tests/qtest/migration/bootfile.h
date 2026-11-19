@@ -42,6 +42,12 @@
  */
 #define ARM_TEST_MAX_KERNEL_SIZE (512 * 1024)
 
+/* Hexagon virt: keep the guest code below the test memory range. */
+#define HEXAGON_TEST_MEM_START (1 * 1024 * 1024)
+#define HEXAGON_TEST_MEM_END (100 * 1024 * 1024)
+#define HEXAGON_MACH_VIRT_UART 0x10000000
+#define HEXAGON_TEST_KERNEL_ADDR 0x10000
+
 /* LoongArch64 */
 #define LOONGARCH_TEST_MEM_START (32 * 1024 * 1024)
 #define LOONGARCH_TEST_MEM_END   (100 * 1024 * 1024)

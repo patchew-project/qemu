@@ -367,6 +367,14 @@ int migrate_args(char **from, char **to, MigrateStart *args)
         arch_opts = g_strdup_printf("-cpu max -kernel %s", bootpath);
         start_address = ARM_TEST_MEM_START;
         end_address = ARM_TEST_MEM_END;
+    } else if (strcmp(arch, "hexagon") == 0) {
+        memory_size = "150M";
+        machine_alias = "virt";
+        start_address = HEXAGON_TEST_MEM_START;
+        end_address = HEXAGON_TEST_MEM_END;
+        arch_opts = g_strdup_printf(
+            "-smp 1 -device loader,file=%s,addr=0x%x,cpu-num=0,force-raw=on",
+            bootpath, HEXAGON_TEST_KERNEL_ADDR);
     } else if (strcmp(arch, "loongarch64") == 0) {
         memory_size = "256M";
         machine_alias = "virt";

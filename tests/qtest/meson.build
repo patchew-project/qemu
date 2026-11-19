@@ -330,7 +330,8 @@ qtests_riscv64 = ['riscv-csr-test'] + \
 
 qtests_hexagon = ['boot-serial-test', 'hexagon-config-test', 'l2vic-test',
                   'qcom-dsp-test',
-                  'qct-qtimer-test']
+                  'qct-qtimer-test',
+                  'migration-test']
 
 qos_test_ss = ss.source_set()
 qos_test_ss.add(
