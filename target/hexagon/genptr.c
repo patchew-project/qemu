@@ -1635,6 +1635,11 @@ static void gen_vreg_load(DisasContext *ctx, TCGv_ptr dstbase,
                           intptr_t dstoff, TCGv src, bool aligned)
 {
     TCGv_i64 tmp = tcg_temp_new_i64();
+#ifndef CONFIG_USER_ONLY
+    gen_helper_probe_hvx_mem(tcg_env, src, tcg_constant_i32(ctx->insn->slot),
+                             tcg_constant_i32(aligned), tcg_constant_i32(0),
+                             tcg_constant_i32(ctx->mem_idx));
+#endif
     if (aligned) {
         tcg_gen_andi_tl(src, src, ~((int32_t)VECTOR_SIZE_BYTE - 1));
     }
@@ -1657,6 +1662,11 @@ static void gen_vreg_store(DisasContext *ctx, TCGv EA, TCGv_ptr srcbase,
         return;
     }
 
+#ifndef CONFIG_USER_ONLY
+    gen_helper_probe_hvx_mem(tcg_env, EA, tcg_constant_i32(slot),
+                             tcg_constant_i32(aligned), tcg_constant_i32(1),
+                             tcg_constant_i32(ctx->mem_idx));
+#endif
     tcg_gen_movi_tl(hex_vstore_pending[slot], 1);
     if (aligned) {
         tcg_gen_andi_tl(hex_vstore_addr[slot], EA,
