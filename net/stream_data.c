@@ -101,6 +101,7 @@ gboolean net_stream_data_send(QIOChannel *ioc, GIOCondition condition,
         if (errno != EWOULDBLOCK) {
             goto eoc;
         }
+        return G_SOURCE_CONTINUE;
     } else if (size == 0) {
         /* end of connection */
     eoc:

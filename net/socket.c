@@ -162,8 +162,10 @@ static void net_socket_send(void *opaque)
 
     size = recv(s->fd, buf1, sizeof(buf1), 0);
     if (size < 0) {
-        if (errno != EWOULDBLOCK)
+        if (errno != EWOULDBLOCK) {
             goto eoc;
+        }
+        return;
     } else if (size == 0) {
         /* end of connection */
     eoc:
