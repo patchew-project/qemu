@@ -248,6 +248,8 @@ struct ArchCPU {
     HexagonHMXContextState *hmx_ctx;
     HexagonTLBState *tlb;
     uint32_t boot_addr;
+    uint64_t vtcm_base;
+    uint64_t vtcm_size;
     HexagonGlobalRegState *globalregs;
     uint32_t htid;
     HexL2VicInterface *l2vic;
