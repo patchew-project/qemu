@@ -30,6 +30,7 @@
 #include "tcg/tcg.h"
 #include "exec/gdbstub.h"
 #include "accel/tcg/cpu-ops.h"
+#include "accel/tcg/cpu-loop.h"
 #include "cpu_helper.h"
 #include "hex_mmu.h"
 
@@ -835,6 +836,45 @@ static void raise_misaligned_exception(CPUState *cs, uint32_t VA, int slot,
     env->cause_code = excp;
 }
 
+static void check_packet_alignment(CPUHexagonState *env, uintptr_t retaddr)
+{
+    CPUState *cs = env_cpu(env);
+    uint64_t data[INSN_START_WORDS];
+
+    if (!env->mem_access_valid || !retaddr ||
+        !cpu_unwind_state_data(cs, retaddr, data)) {
+        return;
+    }
+
+    /* Alignment wins over translation faults; slot 1 wins over slot 0. */
+    for (int slot = 1; slot >= 0; slot--) {
+        unsigned info = data[1] >> (slot * HEX_SCALAR_MEM_ACCESS_BITS);
+        unsigned width = info & HEX_SCALAR_MEM_SIZE_MASK;
+        uint32_t va = env->mem_access_va[slot];
+
+        if ((env->mem_access_valid & (1U << slot)) && width &&
+            (va & (width - 1))) {
+            raise_misaligned_exception(cs, va, slot,
+                                      info & HEX_SCALAR_MEM_STORE ?
+                                      MMU_DATA_STORE : MMU_DATA_LOAD);
+            do_raise_exception(env, cs->exception_index, data[0], retaddr);
+        }
+    }
+}
+
+void hexagon_check_alignment(CPUHexagonState *env, uint32_t va,
+                             unsigned size, int slot,
+                             MMUAccessType access_type, uintptr_t retaddr)
+{
+    if (va & (size - 1)) {
+        CPUState *cs = env_cpu(env);
+        check_packet_alignment(env, retaddr);
+        raise_misaligned_exception(cs, va, slot, access_type);
+        do_raise_exception(env, cs->exception_index, env->gpr[HEX_REG_PC],
+                           retaddr);
+    }
+}
+
 static const char *access_type_names[] = { "MMU_DATA_LOAD ", "MMU_DATA_STORE",
                                            "MMU_INST_FETCH" };
 
@@ -870,12 +910,18 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
         if (probe) {
             return false;
         }
+        if (access_type != MMU_INST_FETCH) {
+            check_packet_alignment(env, retaddr);
+        }
         raise_perm_exception(cs, address, slot, access_type, excp);
         do_raise_exception(env, cs->exception_index, env->gpr[HEX_REG_PC],
                            retaddr);
     }
     if (probe) {
         return false;
+    }
+    if (access_type != MMU_INST_FETCH) {
+        check_packet_alignment(env, retaddr);
     }
     raise_tlbmiss_exception(cs, address, slot, access_type);
     do_raise_exception(env, cs->exception_index, env->gpr[HEX_REG_PC], retaddr);
@@ -928,6 +974,7 @@ void hexagon_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
 {
     CPUHexagonState *env = cpu_env(cs);
 
+    check_packet_alignment(env, retaddr);
     raise_misaligned_exception(cs, addr, env->mem_slot, access_type);
     do_raise_exception(env, cs->exception_index, env->gpr[HEX_REG_PC],
                        retaddr);

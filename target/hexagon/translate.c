@@ -816,6 +816,7 @@ static void gen_start_packet(DisasContext *ctx)
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
     ctx->mem_addresses_generated = false;
 #ifndef CONFIG_USER_ONLY
+    ctx->scalar_mem_info = 0;
     for (i = 0; i < HEX_SREG_GLB_START; i++) {
         ctx->t_sreg_new_value[i] = NULL;
     }

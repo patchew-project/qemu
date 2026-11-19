@@ -185,7 +185,7 @@ def gen_memory_address(f, tag, regs, imms):
         cond = "NE" if pred.group(2) else "EQ"
         f.write(f"    tcg_gen_brcondi_tl(TCG_COND_{cond}, LSB, 0, skip);\n")
     f.write(f"    {ea};\n")
-    f.write("    gen_log_mem_address(ctx, EA);\n")
+    f.write(f"    gen_log_mem_address(ctx, EA, {width});\n")
     if pred:
         f.write("    gen_set_label(skip);\n")
     f.write("}\n#endif\n\n")
