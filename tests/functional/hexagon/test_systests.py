@@ -92,6 +92,10 @@ class SysTestsStandaloneTests(QemuSystemTest):
         exception at the allocframe packet."""
         self.run_exit_zero("framelimit")
 
+    def test_mmu_cacheops(self):
+        """Cache operations raise TLB miss and privilege exceptions."""
+        self.run_exit_zero("mmu_cacheops")
+
     def test_access(self):
         """access checks R_OK|W_OK on _testfile_access."""
         testfile = self.scratch_file("_testfile_access")

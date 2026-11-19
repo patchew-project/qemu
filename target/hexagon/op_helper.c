@@ -25,6 +25,7 @@
 #include "exec/helper-proto.h"
 #include "exec/mmap-lock.h"
 #include "exec/target_page.h"
+#include "exec/tlb-flags.h"
 #include "exec/translation-block.h"
 #include "fpu/softfloat.h"
 #include "exec/cpu-interrupt.h"
@@ -1659,6 +1660,47 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
 }
 
 #ifndef CONFIG_USER_ONLY
+/*
+ * The data cache operations translate their address.  They take a TLB miss
+ * exception if the address is not mapped, and a privilege exception if the
+ * mapping allows neither reads nor writes.
+ */
+void HELPER(data_cache_op)(CPUHexagonState *env, target_ulong RsV,
+                           uint32_t mmu_idx)
+{
+    uintptr_t ra = GETPC();
+    void *host;
+
+    if ((probe_access_flags(env, RsV, 1, MMU_DATA_LOAD, mmu_idx, true,
+                            &host, ra) & TLB_INVALID_MASK) &&
+        (probe_access_flags(env, RsV, 1, MMU_DATA_STORE, mmu_idx, true,
+                            &host, ra) & TLB_INVALID_MASK)) {
+        /* Not accessible at all, take the exception for a read */
+        probe_read(env, RsV, 1, mmu_idx, ra);
+    }
+}
+
+/*
+ * The instruction cache operations only take a TLB miss exception, whether
+ * or not the mapping can be executed.
+ */
+void HELPER(insn_cache_op_check)(CPUHexagonState *env, target_ulong RsV,
+                                 uint32_t mmu_idx)
+{
+    hwaddr phys;
+    int prot;
+    uint64_t size;
+    int32_t excp;
+
+    if (!hexagon_cpu_mmu_enabled(env)) {
+        return;
+    }
+    if (!hex_tlb_find_match(env, RsV, MMU_INST_FETCH, &phys, &prot, &size,
+                            &excp, mmu_idx)) {
+        probe_access(env, RsV, 1, MMU_INST_FETCH, mmu_idx, GETPC());
+    }
+}
+
 void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
                                   uint32_t badva, uint32_t pc)
 {
