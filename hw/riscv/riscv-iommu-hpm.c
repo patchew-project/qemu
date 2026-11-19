@@ -381,3 +381,30 @@ void riscv_iommu_process_hpmevt_write(RISCVIOMMUState *s, uint32_t evt_reg)
 
     update_event_map(s, val, ctr_idx);
 }
+
+int riscv_iommu_hpm_post_load(void *opaque, int version_id)
+{
+    RISCVIOMMUState *s = opaque;
+    uint64_t evt_val;
+    unsigned int i;
+
+    if (!(s->cap & RISCV_IOMMU_CAP_HPM)) {
+        return 0;
+    }
+
+    g_hash_table_remove_all(s->hpm_event_ctr_map);
+
+    for (i = 0; i < s->hpm_cntrs; i++) {
+        evt_val = riscv_iommu_reg_get64(
+                    s, RISCV_IOMMU_REG_IOHPMEVT_BASE + (i << 3));
+
+        if (!check_valid_event_id(
+                get_field(evt_val, RISCV_IOMMU_IOHPMEVT_EVENT_ID))) {
+            continue;
+        }
+
+        update_event_map(s, evt_val, i);
+    }
+
+    return 0;
+}

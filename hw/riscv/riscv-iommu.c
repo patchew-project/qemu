@@ -2864,6 +2864,59 @@ void riscv_iommu_reset(RISCVIOMMUState *s)
     qemu_mutex_unlock(&s->iot_lock);
 }
 
+static bool riscv_iommu_hpm_state_needed(void *opaque)
+{
+    RISCVIOMMUState *s = opaque;
+
+    return !!(s->cap & RISCV_IOMMU_CAP_HPM);
+}
+
+static const VMStateDescription vmstate_riscv_iommu_hpm = {
+    .name = "riscv-iommu/hpm",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = riscv_iommu_hpm_state_needed,
+    .post_load = riscv_iommu_hpm_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT64(hpmcycle_val, RISCVIOMMUState),
+        VMSTATE_UINT64(hpmcycle_prev, RISCVIOMMUState),
+        VMSTATE_UINT64(irq_overflow_left, RISCVIOMMUState),
+        VMSTATE_TIMER_PTR(hpm_timer, RISCVIOMMUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_riscv_iommu = {
+    .name = "riscv-iommu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .priority = MIG_PRI_IOMMU,
+    .fields = (const VMStateField[]) {
+        VMSTATE_BUFFER_POINTER_UNSAFE(regs, RISCVIOMMUState,
+            0, RISCV_IOMMU_REG_MSI_CONFIG),
+
+        VMSTATE_UINT64(ddtp, RISCVIOMMUState),
+        VMSTATE_UINT64(fctl, RISCVIOMMUState),
+
+        VMSTATE_UINT64(cq_addr, RISCVIOMMUState),
+        VMSTATE_UINT64(fq_addr, RISCVIOMMUState),
+        VMSTATE_UINT64(pq_addr, RISCVIOMMUState),
+
+        VMSTATE_UINT32(cq_mask, RISCVIOMMUState),
+        VMSTATE_UINT32(fq_mask, RISCVIOMMUState),
+        VMSTATE_UINT32(pq_mask, RISCVIOMMUState),
+
+        VMSTATE_BUFFER_POINTER_UNSAFE(regs_ro, RISCVIOMMUState,
+            0, RISCV_IOMMU_REG_MSI_CONFIG),
+
+        VMSTATE_END_OF_LIST(),
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_riscv_iommu_hpm,
+        NULL
+    }
+};
+
 static const Property riscv_iommu_properties[] = {
     DEFINE_PROP_UINT32("version", RISCVIOMMUState, version,
         RISCV_IOMMU_SPEC_DOT_VER),
@@ -2890,6 +2943,7 @@ static void riscv_iommu_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
     dc->realize = riscv_iommu_realize;
     dc->unrealize = riscv_iommu_unrealize;
+    dc->vmsd = &vmstate_riscv_iommu;
     device_class_set_props(dc, riscv_iommu_properties);
 }
 
