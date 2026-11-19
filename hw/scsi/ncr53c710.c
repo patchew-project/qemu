@@ -1181,6 +1181,16 @@ again:
                 }
                 if (insn & (1 << 6)) {
                     s->sbcl &= ~LSI_SBCL_ACK;
+                    /*
+                     * Releasing ACK on the last byte of a declined negotiation
+                     * MESSAGE REJECT lets the target move on to COMMAND.  HP-UX
+                     * 9 tests the phase with JUMP WHEN COMMAND after CLEAR ACK
+                     * instead of issuing the CDB block move directly.
+                     */
+                    if ((s->sstat2 & PHASE_MASK) == PHASE_MI && s->msg_len == 0 &&
+                        s->msg_action == LSI_MSG_ACTION_COMMAND) {
+                        lsi_set_phase(s, PHASE_CMD);
+                    }
                 }
                 if (insn & (1 << 10)) {
                     s->carry = 0;
