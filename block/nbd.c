@@ -508,6 +508,41 @@ err:
     return ret;
 }
 
+/*
+ * Parks until a slot in the request queue is available or when, being the only
+ * in flight operation running, the caller is ready to run reconnection.
+ * Increments s->in_flight on return.
+ * Called with s->requests_lock held.
+ */
+static void coroutine_fn nbd_co_acquire_slot(BDRVNBDState *s)
+{
+    while (s->in_flight == MAX_NBD_REQUESTS ||
+           (s->state != NBD_CLIENT_CONNECTED && s->in_flight > 0)) {
+        qemu_co_queue_wait(&s->free_sema, &s->requests_lock);
+    }
+    s->in_flight++;
+}
+
+/* Called with s->requests_lock held. */
+static void coroutine_fn nbd_co_release_slot(BDRVNBDState *s)
+{
+    s->in_flight--;
+    qemu_co_queue_next(&s->free_sema);
+}
+
+/* Called with s->requests_lock held. */
+static int coroutine_fn GRAPH_RDLOCK nbd_co_reconnect(BDRVNBDState *s)
+{
+    if (nbd_client_connecting(s)) {
+        nbd_reconnect_attempt(s);
+        qemu_co_queue_restart_all(&s->free_sema);
+    }
+    if (s->state != NBD_CLIENT_CONNECTED) {
+        return -EIO;
+    }
+    return 0;
+}
+
 static int coroutine_fn GRAPH_RDLOCK
 nbd_co_send_request(BlockDriverState *bs, NBDRequest *request,
                     QEMUIOVector *qiov)
@@ -516,19 +551,10 @@ nbd_co_send_request(BlockDriverState *bs, NBDRequest *request,
     int rc, i = -1;
 
     qemu_mutex_lock(&s->requests_lock);
-    while (s->in_flight == MAX_NBD_REQUESTS ||
-           (s->state != NBD_CLIENT_CONNECTED && s->in_flight > 0)) {
-        qemu_co_queue_wait(&s->free_sema, &s->requests_lock);
-    }
-
-    s->in_flight++;
+    nbd_co_acquire_slot(s);
     if (s->state != NBD_CLIENT_CONNECTED) {
-        if (nbd_client_connecting(s)) {
-            nbd_reconnect_attempt(s);
-            qemu_co_queue_restart_all(&s->free_sema);
-        }
-        if (s->state != NBD_CLIENT_CONNECTED) {
-            rc = -EIO;
+        rc = nbd_co_reconnect(s);
+        if (rc != 0) {
             goto err;
         }
     }
@@ -571,8 +597,7 @@ err:
         if (i != -1) {
             s->requests[i].coroutine = NULL;
         }
-        s->in_flight--;
-        qemu_co_queue_next(&s->free_sema);
+        nbd_co_release_slot(s);
         qemu_mutex_unlock(&s->requests_lock);
     }
     return rc;
@@ -1083,8 +1108,7 @@ static bool coroutine_fn nbd_reply_chunk_iter_receive(BDRVNBDState *s,
 break_loop:
     qemu_mutex_lock(&s->requests_lock);
     nbd_request_by_cookie(s, cookie, &error_abort)->coroutine = NULL;
-    s->in_flight--;
-    qemu_co_queue_next(&s->free_sema);
+    nbd_co_release_slot(s);
     qemu_mutex_unlock(&s->requests_lock);
 
     return false;
