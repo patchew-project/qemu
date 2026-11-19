@@ -304,6 +304,28 @@ def need_pkt_has_multi_cof(tag):
     return False
 
 
+def packet_memory_info(tag):
+    """Return a side-effect-free scalar address expression, if available."""
+    attrs = attribdict[tag]
+    if not ("A_LOAD" in attrs or "A_STORE" in attrs):
+        return None
+    if any(a in attrs for a in ("A_CVI", "A_HVX", "A_HLX", "A_HMX")):
+        return None
+    sem = semdict[tag]
+    ea = re.search(r"fEA_(?:RI|RRs|IRs|IMM|REG|BREVR)\([^;]+\)", sem)
+    if not ea:
+        return None
+    # A locked store is conditional on the reservation, not a predicate.
+    if "fSTORE_LOCKED" in sem:
+        return None
+    width = next((n for n in (1, 2, 4, 8)
+                  if f"A_MEMSIZE_{n}B" in attrs), None)
+    if width is None:
+        return None
+    pred = re.search(r"fLSB(OLD|NEW)(NOT)?\((P\w+)\)", sem)
+    return ea.group(0), pred, width
+
+
 def need_pkt_need_commit(tag):
     return 'A_IMPLICIT_WRITES_USR' in attribdict[tag]
 
