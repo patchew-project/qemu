@@ -21,6 +21,7 @@
 #include "system/memory.h"
 #include "qemu/timer.h"
 #include "migration/vmstate.h"
+#include "lsi_scsi.h"
 
 /* Register offsets (little endian addressing; the chip is internally LE). */
 #define NCR710_SCNTL0   0x00
@@ -65,12 +66,8 @@
 #define NCR710_DCNTL    0x3b
 #define NCR710_ADDER    0x3c
 
-#define NCR710_MAX_MSGIN_LEN 8
-
 /* The chip revision reported in CTEST8[7:4]. */
 #define NCR710_CHIP_REVISION 0x2
-
-typedef struct NCR710Request NCR710Request;
 
 typedef struct NCR710State {
     /* Wiring filled in by the LASI wrapper before ncr710_soft_reset(). */
@@ -89,7 +86,7 @@ typedef struct NCR710State {
     int status;
     int msg_action;
     int msg_len;
-    uint8_t msg[NCR710_MAX_MSGIN_LEN];
+    uint8_t msg[LSI_MAX_MSGIN_LEN];
     int waiting;
     int current_lun;
     uint32_t select_tag;
@@ -105,7 +102,7 @@ typedef struct NCR710State {
      */
     bool sigp_pending_resume;
     /*
-     * A cached-backend SCSI continue was deferred to ncr710_issue_bh so its
+     * A cached-backend SCSI continue was deferred to lsi_issue_bh so its
      * completion arrives asynchronously, not reentrantly inside the engine.
      */
     bool issue_pending;
@@ -114,13 +111,13 @@ typedef struct NCR710State {
      * outside execute_script), so it is not migrated in vmstate.
      */
     int reentrancy_level;
-    NCR710Request *current;
+    lsi_request *current;
     /*
      * Disconnected tagged commands awaiting target-initiated reselection
      * (lsi53c895a-style).  Untagged 53C700-family transfers never disconnect,
      * so for them this stays empty and the engine runs connected as before.
      */
-    QTAILQ_HEAD(, NCR710Request) queue;
+    QTAILQ_HEAD(, lsi_request) queue;
 
     /*
      * Registers (53C710 layout).  Several (e.g. sodl/sidl/sbdl/lcrc/ctest*) are
