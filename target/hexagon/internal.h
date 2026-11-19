@@ -20,6 +20,11 @@
 
 #include "target/hexagon/cpu.h"
 
+/* Per-slot scalar access fields in the second insn_start unwind word. */
+#define HEX_SCALAR_MEM_ACCESS_BITS 5
+#define HEX_SCALAR_MEM_SIZE_MASK 0xf
+#define HEX_SCALAR_MEM_STORE (1U << 4)
+
 int hexagon_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int hexagon_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 int hexagon_hvx_gdb_read_register(CPUState *env, GByteArray *mem_buf, int n);
