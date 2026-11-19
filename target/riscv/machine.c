@@ -88,8 +88,8 @@ static bool hyper_needed(void *opaque)
 
 static const VMStateDescription vmstate_hyper = {
     .name = "cpu/hyper",
-    .version_id = 5,
-    .minimum_version_id = 5,
+    .version_id = 6,
+    .minimum_version_id = 6,
     .needed = hyper_needed,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT64(env.hstatus, RISCVCPU),
@@ -114,6 +114,7 @@ static const VMStateDescription vmstate_hyper = {
         VMSTATE_UINT64(env.vsscratch, RISCVCPU),
         VMSTATE_UINT64(env.vsepc, RISCVCPU),
         VMSTATE_UINT64(env.vscause, RISCVCPU),
+        VMSTATE_UINT64(env.vscause_int, RISCVCPU),
         VMSTATE_UINT64(env.vstval, RISCVCPU),
         VMSTATE_UINT64(env.vsatp, RISCVCPU),
         VMSTATE_UINT16(env.vsiselect, RISCVCPU),
@@ -126,6 +127,7 @@ static const VMStateDescription vmstate_hyper = {
         VMSTATE_UINT64(env.sscratch_hs, RISCVCPU),
         VMSTATE_UINT64(env.sepc_hs, RISCVCPU),
         VMSTATE_UINT64(env.scause_hs, RISCVCPU),
+        VMSTATE_UINT64(env.scause_int_hs, RISCVCPU),
         VMSTATE_UINT64(env.stval_hs, RISCVCPU),
         VMSTATE_UINT64(env.satp_hs, RISCVCPU),
         VMSTATE_UINT64(env.mstatus_hs, RISCVCPU),
@@ -574,8 +576,8 @@ static const VMStateDescription vmstate_mseccfg = {
 
 const VMStateDescription vmstate_riscv_cpu = {
     .name = "cpu",
-    .version_id = 12,
-    .minimum_version_id = 12,
+    .version_id = 13,
+    .minimum_version_id = 13,
 #ifdef CONFIG_KVM
     .pre_load = riscv_cpu_kvm_pre_load,
 #endif
@@ -615,9 +617,11 @@ const VMStateDescription vmstate_riscv_cpu = {
         VMSTATE_UINT64(env.stvec, RISCVCPU),
         VMSTATE_UINT64(env.sepc, RISCVCPU),
         VMSTATE_UINT64(env.scause, RISCVCPU),
+        VMSTATE_UINT64(env.scause_int, RISCVCPU),
         VMSTATE_UINT64(env.mtvec, RISCVCPU),
         VMSTATE_UINT64(env.mepc, RISCVCPU),
         VMSTATE_UINT64(env.mcause, RISCVCPU),
+        VMSTATE_UINT64(env.mcause_int, RISCVCPU),
         VMSTATE_UINT64(env.mtval, RISCVCPU),
         VMSTATE_UINT16(env.miselect, RISCVCPU),
         VMSTATE_UINT16(env.siselect, RISCVCPU),
