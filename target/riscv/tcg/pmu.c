@@ -281,12 +281,15 @@ static gboolean pmu_remove_event_map(gpointer key, gpointer value,
     return (GPOINTER_TO_UINT(value) == GPOINTER_TO_UINT(udata)) ? true : false;
 }
 
-static int64_t pmu_icount_ticks_to_ns(int64_t value)
+static int64_t pmu_icount_ticks_to_ns(CPURISCVState *env, uint32_t ctr_idx,
+                                      int64_t value)
 {
     int64_t ret = 0;
 
     if (icount_enabled()) {
-        ret = icount_to_ns(value);
+        /* The cycle counter counts ns of virtual time, see icount_get() */
+        ret = riscv_pmu_ctr_monitor_instructions(env, ctr_idx) ?
+              icount_to_ns(value) : value;
     } else {
         ret = (NANOSECONDS_PER_SECOND / RISCV_TIMEBASE_FREQ) * value;
     }
@@ -456,8 +459,9 @@ int riscv_pmu_setup_timer(CPURISCVState *env, uint64_t value, uint32_t ctr_idx)
 
     if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
         riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
-        overflow_ns = pmu_icount_ticks_to_ns((int64_t)overflow_delta);
-        overflow_left = pmu_icount_ticks_to_ns(overflow_left) ;
+        overflow_ns = pmu_icount_ticks_to_ns(env, ctr_idx,
+                                             (int64_t)overflow_delta);
+        overflow_left = pmu_icount_ticks_to_ns(env, ctr_idx, overflow_left);
     } else {
         return -1;
     }
