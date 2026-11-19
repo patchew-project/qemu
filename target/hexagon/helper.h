@@ -158,7 +158,7 @@ DEF_HELPER_5(insn_cache_op, void, env, i32, int, int, i32)
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
-DEF_HELPER_3(raise_stack_overflow, void, env, i32, i32)
+DEF_HELPER_4(raise_stack_overflow, void, env, i32, i32, i32)
 DEF_HELPER_2(swi, void, env, i32)
 DEF_HELPER_2(cswi, void, env, i32)
 DEF_HELPER_2(ciad, void, env, i32)

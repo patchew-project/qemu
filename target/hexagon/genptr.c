@@ -1156,7 +1156,8 @@ void gen_framecheck(DisasContext *ctx, TCGv_i32 addr, TCGv_i32 ea)
     TCGLabel *ok = gen_new_label();
     tcg_gen_brcond_i32(TCG_COND_GEU, addr, hex_gpr[HEX_REG_FRAMELIMIT], ok);
     gen_helper_raise_stack_overflow(tcg_env,
-                                   tcg_constant_i32(ctx->insn->slot), ea);
+                                    tcg_constant_i32(ctx->insn->slot), ea,
+                                    tcg_constant_i32(ctx->pkt.pc));
     gen_set_label(ok);
 #endif
 }
