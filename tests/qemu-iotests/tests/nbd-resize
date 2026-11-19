@@ -10,10 +10,34 @@
 import time
 import iotests
 
-iotests.script_initialize(supported_fmts=['qcow2'])
+iotests.script_initialize(supported_fmts=['qcow2', 'raw', 'luks'])
 nbd_sock = iotests.file_path('nbd-sock', base_dir=iotests.sock_dir)
 disk = iotests.file_path('disk')
-node_name = 'nbd0'
+nbd_node_name = 'nbd0'
+
+qemu_nbd_volume_format = iotests.imgfmt
+node_name = nbd_node_name
+format_driver_extra_opts: dict[str, object] = {}
+
+if iotests.imgfmt == 'raw':
+    node_name = f"raw_{node_name}"
+
+elif iotests.imgfmt == 'luks':
+    qemu_nbd_volume_format = 'raw'
+    node_name = f"luks_{node_name}"
+    format_driver_extra_opts = { 'key-secret': 'keysec0' }
+
+
+def create_img():
+    iotests.qemu_img_create('-f', iotests.imgfmt, disk, '1M')
+
+
+def resize_img():
+    if iotests.imgfmt == 'qcow2':
+        iotests.qemu_img('resize', '-f', iotests.imgfmt, disk, '2M')
+    else:
+        # raw and luks virtual size follows the file size
+        iotests.qemu_img('resize', '-f', 'raw', disk, '+1M')
 
 
 def node_size(virtm):
@@ -26,7 +50,8 @@ def node_size(virtm):
 def wait_for_parked_connection(virtm):
     with iotests.Timeout(30, "connect-thread did not reach 'parked' state"):
         while True:
-            client = virtm.qmp('x-debug-query-nbd-client', node_name=node_name)
+            client = virtm.qmp('x-debug-query-nbd-client',
+                               node_name=nbd_node_name)
             if client['return']['connector']['state'] == 'parked':
                 return
             time.sleep(0.1)
@@ -35,29 +60,39 @@ def wait_for_parked_connection(virtm):
 for reconnect_delay in [10, 0]:
     iotests.log(f"=== Resize with reconnect-delay={reconnect_delay} ===")
     with iotests.VM() as vm:
+        if iotests.imgfmt == 'luks':
+            vm.add_object(iotests.luks_default_secret_object)
+
         vm.launch()
 
-        iotests.qemu_img_create('-f', iotests.imgfmt, disk, '1M')
+        create_img()
         with iotests.qemu_nbd_popen('-k',
                                     nbd_sock,
                                     '-f',
-                                    iotests.imgfmt,
+                                    qemu_nbd_volume_format,
                                     disk):
             vm.cmd('blockdev-add', {
                 'driver': 'nbd',
-                'node-name': node_name,
+                'node-name': nbd_node_name,
                 'server': { 'type': 'unix', 'path': nbd_sock },
                 'reconnect-delay': reconnect_delay,
             })
 
+            if iotests.imgfmt != 'qcow2':
+                vm.cmd('blockdev-add', {
+                    'driver': iotests.imgfmt,
+                    'node-name': node_name,
+                    'file': nbd_node_name,
+                } | format_driver_extra_opts)
+
             iotests.log('Size before resize:')
             iotests.log(node_size(vm))
 
-        iotests.qemu_img('resize', '-f', iotests.imgfmt, disk, '2M')
+        resize_img()
         with iotests.qemu_nbd_popen('-k',
                                     nbd_sock,
                                     '-f',
-                                    iotests.imgfmt,
+                                    qemu_nbd_volume_format,
                                     disk):
             iotests.log(vm.qmp('block_resize', {
                 'node-name': node_name,

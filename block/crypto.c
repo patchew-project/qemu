@@ -462,6 +462,12 @@ block_crypto_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
     return bdrv_co_truncate(bs->file, offset, exact, prealloc, 0, errp);
 }
 
+static int coroutine_fn GRAPH_RDLOCK
+block_crypto_co_refresh_connection(BlockDriverState *bs, Error **errp)
+{
+    return bdrv_co_refresh_connection(bs->file, errp);
+}
+
 static void block_crypto_close(BlockDriverState *bs)
 {
     BlockCrypto *crypto = bs->opaque;
@@ -1086,6 +1092,7 @@ static BlockDriver bdrv_crypto_luks = {
     .bdrv_co_create     = block_crypto_co_create_luks,
     .bdrv_co_create_opts = block_crypto_co_create_opts_luks,
     .bdrv_co_truncate   = block_crypto_co_truncate,
+    .bdrv_co_refresh_connection = block_crypto_co_refresh_connection,
     .create_opts        = &block_crypto_create_opts_luks,
     .amend_opts         = &block_crypto_amend_opts_luks,
 

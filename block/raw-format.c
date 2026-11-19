@@ -432,6 +432,12 @@ raw_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
     return bdrv_co_truncate(bs->file, offset, exact, prealloc, flags, errp);
 }
 
+static int coroutine_fn GRAPH_RDLOCK
+raw_co_refresh_connection(BlockDriverState *bs, Error **errp)
+{
+    return bdrv_co_refresh_connection(bs->file, errp);
+}
+
 static void coroutine_fn GRAPH_RDLOCK
 raw_co_eject(BlockDriverState *bs, bool eject_flag)
 {
@@ -657,6 +663,7 @@ BlockDriver bdrv_raw = {
     .bdrv_co_copy_range_from = &raw_co_copy_range_from,
     .bdrv_co_copy_range_to  = &raw_co_copy_range_to,
     .bdrv_co_truncate     = &raw_co_truncate,
+    .bdrv_co_refresh_connection = &raw_co_refresh_connection,
     .bdrv_co_getlength    = &raw_co_getlength,
     .is_format            = true,
     .bdrv_measure         = &raw_measure,
