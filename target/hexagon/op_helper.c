@@ -459,6 +459,12 @@ void HELPER(probe_noshuf_load)(CPUHexagonState *env, target_ulong va,
 {
     uintptr_t retaddr = GETPC();
 #ifndef CONFIG_USER_ONLY
+    /* The slot 1 store fault must precede the slot 0 load fault. */
+    if (env->mem_access_valid & (1U << 1)) {
+        env->mem_slot = 1;
+        probe_write(env, env->mem_access_va[1],
+                    env->mem_log_stores[1].width, mmu_idx, retaddr);
+    }
     env->mem_slot = 0;
 #endif
     probe_read(env, va, size, mmu_idx, retaddr);
@@ -555,6 +561,10 @@ static void check_noshuf(CPUHexagonState *env, bool pkt_has_scalar_store_s1,
 {
     if (slot == 0 && pkt_has_scalar_store_s1 &&
         ((env->slot_cancelled & (1 << 1)) == 0)) {
+#ifndef CONFIG_USER_ONLY
+        probe_store(env, 1, MMU_USER_IDX, false, ra);
+        env->mem_slot = 0;
+#endif
         probe_read(env, vaddr, size, MMU_USER_IDX, ra);
         commit_store(env, 1, ra);
     }
