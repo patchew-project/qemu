@@ -167,6 +167,8 @@ typedef struct CPUArchState {
     uint32_t t_sreg[NUM_SREGS];
     /* Slot of the memory operation currently being executed or probed. */
     uint32_t mem_slot;
+    uint32_t mem_access_valid;
+    uint32_t mem_access_va[2];
 
     uint32_t greg[NUM_GREGS];
 
