@@ -148,6 +148,9 @@ void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
 
     if (qemu_cpu_is_self(cpu)) {
         func(cpu, data);
+        if (current_cpu && current_cpu != cpu) {
+            cpu_exit(current_cpu);
+        }
         return;
     }
 

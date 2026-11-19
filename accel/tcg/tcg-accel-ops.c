@@ -107,6 +107,9 @@ void tcg_handle_interrupt(CPUState *cpu, int mask)
         qemu_cpu_kick(cpu);
     } else {
         qatomic_set(&cpu->neg.icount_decr.u16.high, -1);
+        if (current_cpu && current_cpu != cpu) {
+            cpu_exit(current_cpu);
+        }
     }
 }
 
