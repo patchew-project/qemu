@@ -3274,6 +3274,30 @@ out:
     return ret;
 }
 
+int coroutine_fn bdrv_co_refresh_connection(BdrvChild *child, Error **errp)
+{
+    BlockDriverState *bs = child->bs;
+    BlockDriver *drv = bs->drv;
+    int ret;
+    IO_CODE();
+    assert_bdrv_graph_readable();
+
+    if (!drv) {
+        error_setg(errp, "No medium inserted");
+        return -ENOMEDIUM;
+    }
+
+    if (!drv->bdrv_co_refresh_connection) {
+        return 0;
+    }
+
+    bdrv_inc_in_flight(bs);
+    ret = drv->bdrv_co_refresh_connection(bs, errp);
+    bdrv_dec_in_flight(bs);
+
+    return ret;
+}
+
 int coroutine_fn bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf)
 {
     BlockDriver *drv = bs->drv;

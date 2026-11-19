@@ -2600,6 +2600,18 @@ int coroutine_fn blk_co_truncate(BlockBackend *blk, int64_t offset, bool exact,
     return bdrv_co_truncate(blk->root, offset, exact, prealloc, flags, errp);
 }
 
+int coroutine_fn blk_co_refresh_connection(BlockBackend *blk, Error **errp)
+{
+    IO_OR_GS_CODE();
+    GRAPH_RDLOCK_GUARD();
+    if (!blk_co_is_available(blk)) {
+        error_setg(errp, "No medium inserted");
+        return -ENOMEDIUM;
+    }
+
+    return bdrv_co_refresh_connection(blk->root, errp);
+}
+
 int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
                      int64_t pos, int size)
 {

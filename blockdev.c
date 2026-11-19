@@ -2314,6 +2314,7 @@ void coroutine_fn qmp_block_resize(const char *device, const char *node_name,
     BlockBackend *blk;
     BlockDriverState *bs;
     AioContext *old_ctx;
+    int ret;
 
     bs = bdrv_lookup_bs(device, node_name, &local_err);
     if (local_err) {
@@ -2335,6 +2336,14 @@ void coroutine_fn qmp_block_resize(const char *device, const char *node_name,
 
     blk = blk_co_new_with_bs(bs, BLK_PERM_RESIZE, BLK_PERM_ALL, errp);
     if (!blk) {
+        return;
+    }
+
+    old_ctx = bdrv_co_enter(bs);
+    ret = blk_co_refresh_connection(blk, errp);
+    bdrv_co_leave(bs, old_ctx);
+    if (ret < 0) {
+        blk_co_unref(blk);
         return;
     }
 

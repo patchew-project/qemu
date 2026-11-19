@@ -591,6 +591,9 @@ struct BlockDriver {
     int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_pdiscard)(
         BlockDriverState *bs, int64_t offset, int64_t bytes);
 
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_refresh_connection)(
+        BlockDriverState *bs, Error **errp);
+
     /*
      * Map [offset, offset + nbytes) range onto a child of @bs to copy from,
      * and invoke bdrv_co_copy_range_from(child, ...), or invoke

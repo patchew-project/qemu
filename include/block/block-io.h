@@ -114,6 +114,14 @@ int coroutine_fn GRAPH_RDLOCK bdrv_co_flush(BlockDriverState *bs);
 int coroutine_fn GRAPH_RDLOCK bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
                                                int64_t bytes);
 
+/*
+ * Ensure the connection is ready to process requests by re-establishing it if
+ * closed.
+ * Returns 0 when the driver does not declare the callback.
+ */
+int coroutine_fn GRAPH_RDLOCK bdrv_co_refresh_connection(BdrvChild *child,
+                                                         Error **errp);
+
 /* Report zone information of zone block device. */
 int coroutine_fn GRAPH_RDLOCK bdrv_co_zone_report(BlockDriverState *bs,
                                                   int64_t offset,

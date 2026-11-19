@@ -238,4 +238,6 @@ int coroutine_fn blk_co_truncate(BlockBackend *blk, int64_t offset, bool exact,
                                  PreallocMode prealloc, BdrvRequestFlags flags,
                                  Error **errp);
 
+int coroutine_fn blk_co_refresh_connection(BlockBackend *blk, Error **errp);
+
 #endif /* BLOCK_BACKEND_IO_H */
