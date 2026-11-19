@@ -540,6 +540,56 @@ static void am_pm_alarm(void)
     g_assert((cmos_read(RTC_REG_C) & REG_C_AF) == 0);
 }
 
+/*
+ * The manual says the selected periodic tap sets PF in Register C whether
+ * or not PIE is set (PIE only additionally gates IRQF). With PIE clear
+ * the tap must still latch PF, without raising the IRQ line, and reading
+ * Register C must clear PF and let the next period latch it again.
+ */
+static void pf_without_pie(void)
+{
+    uint64_t first, second, period;
+    uint8_t c;
+
+    cmos_write(RTC_REG_B, REG_B_24H);
+    cmos_write(RTC_REG_A, 15);          /* RS 1111: 2 Hz */
+    (void)cmos_read(RTC_REG_C);
+    g_assert(!get_irq(RTC_ISA_IRQ));
+    period = periodic_clock_to_ns(periodic_period_to_clock(15));
+
+    /* PIE is clear: PF latches but no IRQF and no IRQ line.  */
+    do {
+        first = clock_step_next();
+        c = cmos_read(RTC_REG_C);
+    } while (!(c & REG_C_PF));
+    g_assert_cmpint(c & REG_C_IRQF, ==, 0);
+    g_assert(!get_irq(RTC_ISA_IRQ));
+
+    /* Reading Register C late must not delay the next PF edge.  */
+    clock_step(period / 4);
+    g_assert_cmpint(cmos_read(RTC_REG_C) & REG_C_PF, ==, 0);
+
+    /* ...and the next period latches it again.  */
+    do {
+        second = clock_step_next();
+        c = cmos_read(RTC_REG_C);
+    } while (!(c & REG_C_PF));
+    g_assert_cmpint(c & REG_C_IRQF, ==, 0);
+    g_assert(!get_irq(RTC_ISA_IRQ));
+    g_assert_cmpint(ABS((int64_t)(second - first - period)), <=,
+                    period / 4);
+
+    /* enabling PIE makes the next period raise IRQF and the IRQ line.  */
+    cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) | REG_B_PIE);
+    while (!get_irq(RTC_ISA_IRQ)) {
+        clock_step_next();
+    }
+    g_assert_cmpint(cmos_read(RTC_REG_C) & (REG_C_PF | REG_C_IRQF), ==,
+                    REG_C_PF | REG_C_IRQF);
+
+    (void)cmos_read(RTC_REG_C);
+    cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) & ~REG_B_PIE);
+}
 /* success if no crash or abort */
 static void fuzz_registers(void)
 {
@@ -709,6 +759,7 @@ int main(int argc, char **argv)
     qtest_add_func("/rtc/update/uip-stuck", uip_stuck);
     qtest_add_func("/rtc/misc/fuzz-registers", fuzz_registers);
     qtest_add_func("/rtc/periodic/interrupt", periodic_timer);
+    qtest_add_func("/rtc/registers/pf-without-pie", pf_without_pie);
 
     ret = g_test_run();
 

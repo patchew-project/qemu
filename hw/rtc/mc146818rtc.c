@@ -134,10 +134,6 @@ static uint32_t rtc_periodic_clock_ticks(MC146818RtcState *s)
 {
     int period_code;
 
-    if (!(s->cmos_data[RTC_REG_B] & REG_B_PIE)) {
-        return 0;
-     }
-
     period_code = s->cmos_data[RTC_REG_A] & 0x0f;
 
     return periodic_period_to_clock(period_code);
@@ -158,6 +154,18 @@ static void periodic_timer_update(MC146818RtcState *s, int64_t current_time,
 
     if (!period) {
         s->irq_coalesced = 0;
+        timer_del(s->periodic_timer);
+        return;
+    }
+
+    /*
+     * When the periodic interrupt is disabled the periodic timer only
+     * serves to set the PF flag in register C. Once it has been set
+     * there is nothing to do until the flag is cleared by reading
+     * register C, so keep the timer stopped to avoid useless wakeups.
+     */
+    if (!(s->cmos_data[RTC_REG_B] & REG_B_PIE) &&
+        (s->cmos_data[RTC_REG_C] & REG_C_PF)) {
         timer_del(s->periodic_timer);
         return;
     }
@@ -194,7 +202,8 @@ static void periodic_timer_update(MC146818RtcState *s, int64_t current_time,
      *    to a shorter period, scale up the missing ticks since the
      *    OS handler will treat past delayed ticks as shorter.
      */
-    if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
+    if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW &&
+        (s->cmos_data[RTC_REG_B] & REG_B_PIE)) {
         uint32_t old_irq_coalesced = s->irq_coalesced;
 
         lost_clock += old_irq_coalesced * old_period;
@@ -241,6 +250,13 @@ static void rtc_periodic_timer(void *opaque)
             }
         } else
             qemu_irq_raise(s->irq);
+    } else {
+        /*
+         * Only the PF flag is affected when the periodic interrupt is
+         * disabled. Stop the timer until PF is cleared by a read of
+         * register C, so that an idle guest is not woken up every period.
+         */
+        timer_del(s->periodic_timer);
     }
 }
 
@@ -701,6 +717,15 @@ static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
             s->cmos_data[RTC_REG_C] = 0x00;
             if (ret & (REG_C_UF | REG_C_AF)) {
                 check_update_timer(s);
+            }
+            /*
+             * Clearing PF re-arms the periodic timer: it may have been
+             * stopped while PF was pending with the periodic interrupt
+             * disabled.
+             */
+            if ((ret & REG_C_PF) && !(s->cmos_data[RTC_REG_B] & REG_B_PIE)) {
+                periodic_timer_update(s, qemu_clock_get_ns(rtc_clock),
+                                      s->period, true);
             }
 
             if(s->irq_coalesced &&
