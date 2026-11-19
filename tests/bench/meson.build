@@ -17,6 +17,12 @@ executable('atomic64-bench',
            dependencies: [qemuutil],
            build_by_default: false)
 
+if host_os == 'darwin'
+  executable('macos-pollbench',
+             sources: files('macos-pollbench.c'),
+             build_by_default: false)
+endif
+
 benchs = {}
 
 if have_block
