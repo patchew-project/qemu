@@ -4,6 +4,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import threading
+import unittest
+
 from qemu_test import QemuSystemTest, Asset
 from qemu_test.cmd import wait_for_console_pattern
 
@@ -32,6 +35,23 @@ class ArchTestsUart(QemuSystemTest):
         "64053b31e8e3acf7c97e7e82209b6bda",
     )
 
+    def launch_and_wait_for_pass(self) -> None:
+        """
+        Run the guest until it prints PASS on the console.
+
+        Start the guest paused and read the console while resuming it, so
+        that a guest blocked on a full console socket cannot deadlock QMP.
+        """
+        self.vm.add_args("-S")
+        self.vm.launch()
+        resume = threading.Thread(target=self.vm.cmd, args=("cont",),
+                                  daemon=True)
+        resume.start()
+        try:
+            wait_for_console_pattern(self, "PASS")
+        finally:
+            resume.join(timeout=30)
+
     def run_uart_test(self, test_name: str,
                       machine: str = "virt") -> None:
         """
@@ -44,8 +64,7 @@ class ArchTestsUart(QemuSystemTest):
         self.vm.set_console()
         self.set_vm_arg("-display", "none")
         self.set_vm_arg("-kernel", target_bin)
-        self.vm.launch()
-        wait_for_console_pattern(self, "PASS")
+        self.launch_and_wait_for_pass()
 
     def run_semihosting_test(self, test_name: str,
                              machine: str = "V81QA_1") -> None:
@@ -56,8 +75,7 @@ class ArchTestsUart(QemuSystemTest):
         self.vm.set_console(semihosting=True)
         self.set_vm_arg("-display", "none")
         self.set_vm_arg("-kernel", target_bin)
-        self.vm.launch()
-        wait_for_console_pattern(self, "PASS")
+        self.launch_and_wait_for_pass()
 
     def test_exceptions(self) -> None:
         """Tests exception delivery for trap instructions, privilege
@@ -101,6 +119,65 @@ class ArchTestsUart(QemuSystemTest):
         """Tests V81-specific system register masks."""
         self.run_semihosting_test("test_sys_regs")
 
+    def test_cache_v81(self) -> None:
+        """Tests cache operations on the V81 machine."""
+        self.run_semihosting_test("test_cache")
+
+    def test_exceptions_v81(self) -> None:
+        """Tests exception delivery on the V81 machine."""
+        self.run_semihosting_test("test_exceptions")
+
+    def test_guest_mode_v81(self) -> None:
+        """Tests guest mode on the V81 machine."""
+        self.run_semihosting_test("test_guest_mode")
+
+    def test_hvx_context_v81(self) -> None:
+        """Tests the HVX coprocessor context on the V81 machine."""
+        self.run_semihosting_test("test_hvx_context")
+
+    def test_int_steering_v81(self) -> None:
+        """Tests interrupt steering on the V81 machine."""
+        self.run_semihosting_test("test_int_steering")
+
+    def test_interrupts_v81(self) -> None:
+        """Tests interrupt delivery on the V81 machine."""
+        self.run_semihosting_test("test_interrupts")
+
+    @unittest.skip("test_isr_stress in v0.3.1 gives another hardware "
+                   "thread a fixed polling budget, so it fails when the "
+                   "host delays that vCPU thread")
+    def test_isr_stress_v81(self) -> None:
+        """Tests interrupt service routine stress on the V81 machine."""
+        self.run_semihosting_test("test_isr_stress")
+
+    def test_l2vic_v81(self) -> None:
+        """Tests the L2VIC on the V81 machine."""
+        self.run_semihosting_test("test_l2vic")
+
+    def test_pagecross_tlbmissx_v81(self) -> None:
+        """Tests page-crossing instruction TLB misses on the V81 machine."""
+        self.run_semihosting_test("test_pagecross_tlbmissx")
+
+    def test_pmu_v81(self) -> None:
+        """Tests the performance counters on the V81 machine."""
+        self.run_semihosting_test("test_pmu")
+
+    def test_threads_v81(self) -> None:
+        """Tests hardware thread management on the V81 machine."""
+        self.run_semihosting_test("test_threads")
+
+    def test_timer_v81(self) -> None:
+        """Tests the system timer on the V81 machine."""
+        self.run_semihosting_test("test_timer")
+
+    def test_tlb_mmu_v81(self) -> None:
+        """Tests TLB/MMU operations on the V81 machine."""
+        self.run_semihosting_test("test_tlb_mmu")
+
+    def test_user_mode_v81(self) -> None:
+        """Tests user mode transitions on the V81 machine."""
+        self.run_semihosting_test("test_user_mode")
+
     def test_threads(self) -> None:
         """Tests hardware thread management: start/stop, MODECTL state,
         per-thread HTID, shared memory, wait/resume, STID priority, and
@@ -114,6 +191,35 @@ class ArchTestsUart(QemuSystemTest):
         and permission checks.
         """
         self.run_uart_test("test_tlb_mmu")
+
+    @unittest.skip("test_isr_stress in v0.3.1 gives another hardware "
+                   "thread a fixed polling budget, so it fails when the "
+                   "host delays that vCPU thread")
+    def test_isr_stress(self) -> None:
+        """Tests interrupt service routine stress: bursts of interrupts,
+        simultaneous software interrupts, rapid refire, nesting, and
+        interrupts while threads start, spin, and wait.
+        """
+        self.run_uart_test("test_isr_stress")
+
+    def test_pagecross_tlbmissx(self) -> None:
+        """Tests instruction TLB misses for packets that cross a page
+        boundary: the next page missing, both pages missing, and the
+        default handler.
+        """
+        self.run_uart_test("test_pagecross_tlbmissx")
+
+    def test_pmu(self) -> None:
+        """Tests the performance counters: PCYCLE incrementing, its high
+        and low halves, enabling and disabling it, and UPCYCLE.
+        """
+        self.run_uart_test("test_pmu")
+
+    def test_timer(self) -> None:
+        """Tests the system timer: QTimer reads, monotonicity, version, and
+        using PCYCLE as a timer.
+        """
+        self.run_uart_test("test_timer")
 
     def test_user_mode(self) -> None:
         """Tests user mode / privilege transitions: supervisor mode,
