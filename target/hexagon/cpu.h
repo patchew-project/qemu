@@ -165,6 +165,8 @@ typedef struct CPUArchState {
 #ifndef CONFIG_USER_ONLY
     /* Some system registers are per thread and some are global. */
     uint32_t t_sreg[NUM_SREGS];
+    /* Slot of the memory operation currently being executed or probed. */
+    uint32_t mem_slot;
 
     uint32_t greg[NUM_GREGS];
 
