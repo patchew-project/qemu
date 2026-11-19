@@ -342,6 +342,33 @@ int qemu_poll_ns(GPollFD *fds, guint nfds, int64_t timeout)
         ts.tv_nsec = timeout % 1000000000LL;
         return ppoll((struct pollfd *)fds, nfds, &ts, NULL);
     }
+#elif defined(__APPLE__)
+    /*
+     * Darwin has no ppoll(2) and g_poll() rounds the timeout up to whole
+     * milliseconds, making sub-millisecond timers fire up to 2x late.
+     * Poll with a truncated (floored) millisecond timeout, then sleep the
+     * sub-millisecond remainder with nanosleep() when no descriptor is
+     * ready, so we never busy-wait and never overshoot a full ms.
+     */
+    if (timeout < 0) {
+        return g_poll(fds, nfds, -1);
+    }
+    if (!timeout) {
+        return g_poll(fds, nfds, 0);
+    } else {
+        int64_t ms = MIN(timeout / SCALE_MS, INT32_MAX);
+        int r = g_poll(fds, nfds, ms);
+        if (r != 0) {
+            return r;
+        }
+        if (timeout % SCALE_MS > 0) {
+            struct timespec ts = { 0, timeout % SCALE_MS };
+            while (nanosleep(&ts, &ts) < 0 && errno == EINTR) {
+                /* retry with the remaining time */
+            }
+        }
+        return 0;
+    }
 #else
     return g_poll(fds, nfds, qemu_timeout_ns_to_ms(timeout));
 #endif
