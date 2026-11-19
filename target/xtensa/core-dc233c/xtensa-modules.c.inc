@@ -5814,6 +5814,16 @@ static xtensa_arg_internal Iclass_xt_iclass_div_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
+static xtensa_arg_internal Iclass_xt_iclass_rer_args[] = {
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' }
+};
+
+static xtensa_arg_internal Iclass_xt_iclass_wer_args[] = {
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_ars }, 'i' }
+};
+
 static xtensa_arg_internal Iclass_xt_iclass_rer_stateArgs[] = {
   { { STATE_PSEXCM }, 'i' },
   { { STATE_PSRING }, 'i' }
@@ -6519,9 +6529,9 @@ static xtensa_iclass_internal iclasses[] = {
     4, Iclass_xt_iclass_xsr_atomctl_stateArgs, 0, 0 },
   { 3, Iclass_xt_iclass_div_args,
     0, 0, 0, 0 },
-  { 0, 0 /* xt_iclass_rer */,
+  { 2, Iclass_xt_iclass_rer_args,
     2, Iclass_xt_iclass_rer_stateArgs, 0, 0 },
-  { 0, 0 /* xt_iclass_wer */,
+  { 2, Iclass_xt_iclass_wer_args,
     2, Iclass_xt_iclass_wer_stateArgs, 0, 0 },
   { 1, Iclass_rur_expstate_args,
     2, Iclass_rur_expstate_stateArgs, 0, 0 },

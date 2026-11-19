@@ -3291,6 +3291,16 @@ static xtensa_arg_internal Iclass_xt_iclass_nsa_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
+static xtensa_arg_internal Iclass_xt_iclass_rer_args[] = {
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' }
+};
+
+static xtensa_arg_internal Iclass_xt_iclass_wer_args[] = {
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_ars }, 'i' }
+};
+
 static xtensa_iclass_internal iclasses[] = {
   { 0, 0 /* xt_iclass_excw */,
     0, 0, 0, 0 },
@@ -3606,9 +3616,9 @@ static xtensa_iclass_internal iclasses[] = {
     0, 0, 0, 0 },
   { 2, Iclass_xt_iclass_nsa_args,
     0, 0, 0, 0 },
-  { 0, 0 /* xt_iclass_rer */,
+  { 2, Iclass_xt_iclass_rer_args,
     0, 0, 0, 0 },
-  { 0, 0 /* xt_iclass_wer */,
+  { 2, Iclass_xt_iclass_wer_args,
     0, 0, 0, 0 }
 };
 
