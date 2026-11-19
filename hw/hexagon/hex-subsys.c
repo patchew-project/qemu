@@ -181,6 +181,8 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
                            sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
                            &address_space_memory);
 
+    hms->vtcm_base = (uint64_t)m_cfg->cfgtable.vtcm_base << 16;
+    hms->vtcm_size = (uint64_t)m_cfg->cfgtable.vtcm_size_kb << 10;
     if (m_cfg->cfgtable.vtcm_size_kb > 0) {
         memory_region_init_ram(&hms->vtcm, NULL, "vtcm.ram",
                                m_cfg->cfgtable.vtcm_size_kb * 1024,
@@ -204,6 +206,8 @@ void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
     Object *hmx;
 
     object_property_add_child(OBJECT(hms->cluster), "cpu[*]", OBJECT(cpu));
+    qdev_prop_set_uint64(cpu, "vtcm-base", hms->vtcm_base);
+    qdev_prop_set_uint64(cpu, "vtcm-size", hms->vtcm_size);
     object_property_set_link(OBJECT(cpu), "global-regs",
                              OBJECT(hms->glob_regs), &error_fatal);
     object_property_set_link(OBJECT(cpu), "tlb", OBJECT(hms->tlb),
