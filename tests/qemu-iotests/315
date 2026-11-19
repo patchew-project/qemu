@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# group: rw auto quick
+#
+# Test handling of corrupt qcow2 file with all-zeroes reftable
+#
+# Copyright (c) 2026 Linaro Ltd
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1        # failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+# This tests qcow2-specific low-level functionality
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+# We are going to check changing refcount_bits from 16 to 64,
+# so anything else is not supported
+_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
+
+echo
+echo "=== Testing empty refcount table ==="
+echo
+
+# Create an image, then modify it to zero out the entire reftable.
+# Check that this corrupted image doesn't cause qemu-img amend to crash.
+
+_make_test_img -o 'refcount_bits=16' 64K
+
+reftable_ofs=$(peek_file_be "$TEST_IMG" 48 8)
+reftable_clusters=$(peek_file_be "$TEST_IMG" 56 4)
+cluster_bits=$(peek_file_be "$TEST_IMG" 20 4)
+# Cluster size is (1 << cluster_bits). Zero out the data starting
+# at reftable_ofs for (cluster_size * reftable_clusters) bytes.
+reftable_size=$(((1 << cluster_bits) * reftable_clusters))
+
+dd "of=$TEST_IMG" "bs=1" "seek=$reftable_ofs" "count=$reftable_size" if=/dev/zero conv=notrunc >&/dev/null
+
+# This should complain that the image is corrupt
+$QEMU_IMG amend -f qcow2 -o refcount_bits=64 "$TEST_IMG" 2>&1
+
+# success, all done
+echo
+echo '*** done'
+rm -f $seq.full
+status=0
+
