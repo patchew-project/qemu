@@ -25,6 +25,7 @@ enum {
 
 typedef struct {
     const char *name;
+    uint64_t wrmask;
     int offset;
     int flags;
     GenCSRFunc readfn;

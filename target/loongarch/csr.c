@@ -10,14 +10,16 @@
     [LOONGARCH_CSR_##NAME] = {                             \
         .name   = (stringify(NAME)),                       \
         .offset = CSR_OFFSET(CSR_##NAME),                  \
-        .flags  = FL                                       \
+        .flags  = FL,                                      \
+        .wrmask = LOONGARCH_CSR_##NAME## _ ## MASK         \
     }
 
 #define CSR_OFF_ARRAY_FLAGS(NAME, N, FL)                   \
     [LOONGARCH_CSR_##NAME(N)] = {                          \
         .name   = (stringify(NAME##N)),                    \
         .offset = CSR_OFFSET(CSR_##NAME[N]),               \
-        .flags  = FL                                       \
+        .flags  = FL,                                      \
+        .wrmask = LOONGARCH_CSR_##NAME## _ ## MASK         \
     }
 
 #define CSR_OFF(NAME)             CSR_OFF_FLAGS(NAME, CSRFL_BASIC)
