@@ -126,23 +126,6 @@ static inline void cpu_stsize_data_ra(CPUS390XState *env, uint64_t addr,
     }
 }
 
-/* An access covers at most 4096 bytes and therefore at most two pages. */
-typedef struct S390Access {
-    vaddr vaddr1;
-    vaddr vaddr2;
-    void *haddr1;
-    void *haddr2;
-    uint16_t size1;
-    uint16_t size2;
-    /*
-     * If we can't access the host page directly, we'll have to do I/O access
-     * via ld/st helpers. These are internal details, so we store the
-     * mmu idx to do the access here instead of passing it around in the
-     * helpers.
-     */
-    int mmu_idx;
-} S390Access;
-
 /*
  * With nonfault=1, return the PGM_ exception that would have been injected
  * into the guest; return 0 if no exception was detected.
@@ -219,10 +202,10 @@ static int access_prepare_nf(S390Access *access, CPUS390XState *env,
     return 0;
 }
 
-static inline void access_prepare(S390Access *ret, CPUS390XState *env,
-                                  vaddr vaddr, int size,
-                                  MMUAccessType access_type, int mmu_idx,
-                                  uintptr_t ra)
+void access_prepare(S390Access *ret, CPUS390XState *env,
+                    vaddr vaddr, int size,
+                    MMUAccessType access_type, int mmu_idx,
+                    uintptr_t ra)
 {
     int exc = access_prepare_nf(ret, env, false, vaddr, size,
                                 access_type, mmu_idx, ra);
@@ -257,8 +240,8 @@ static void access_memset(CPUS390XState *env, S390Access *desta,
     clear_helper_retaddr();
 }
 
-static uint8_t access_get_byte(CPUS390XState *env, S390Access *access,
-                               int offset, uintptr_t ra)
+uint8_t access_get_byte(CPUS390XState *env, S390Access *access,
+                        int offset, uintptr_t ra)
 {
     vaddr vaddr = access->vaddr1;
     void *haddr = access->haddr1;
@@ -277,8 +260,8 @@ static uint8_t access_get_byte(CPUS390XState *env, S390Access *access,
     }
 }
 
-static void access_set_byte(CPUS390XState *env, S390Access *access,
-                            int offset, uint8_t byte, uintptr_t ra)
+void access_set_byte(CPUS390XState *env, S390Access *access,
+                     int offset, uint8_t byte, uintptr_t ra)
 {
     vaddr vaddr = access->vaddr1;
     void *haddr = access->haddr1;

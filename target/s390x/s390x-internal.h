@@ -372,6 +372,31 @@ void ioinst_handle_sal(S390CPU *cpu, uint64_t reg1, uintptr_t ra);
 
 
 /* mem_helper.c */
+
+/* An access covers at most 4096 bytes and therefore at most two pages. */
+typedef struct S390Access {
+    vaddr vaddr1;
+    vaddr vaddr2;
+    void *haddr1;
+    void *haddr2;
+    uint16_t size1;
+    uint16_t size2;
+    /*
+     * If we can't access the host page directly, we'll have to do I/O access
+     * via ld/st helpers. These are internal details, so we store the
+     * mmu idx to do the access here instead of passing it around in the
+     * helpers.
+     */
+    int mmu_idx;
+} S390Access;
+
+void access_prepare(S390Access *ret, CPUS390XState *env, vaddr vaddr,
+                    int size, MMUAccessType access_type, int mmu_idx,
+                    uintptr_t ra);
+uint8_t access_get_byte(CPUS390XState *env, S390Access *access, int offset,
+                        uintptr_t ra);
+void access_set_byte(CPUS390XState *env, S390Access *access, int offset,
+                     uint8_t byte, uintptr_t ra);
 void probe_write_access(CPUS390XState *env, uint64_t addr, uint64_t len,
                         uintptr_t ra);
 
