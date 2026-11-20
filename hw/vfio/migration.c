@@ -476,7 +476,8 @@ static ssize_t vfio_save_block(QEMUFile *f, VFIOMigration *migration)
 
     qemu_put_be64(f, VFIO_MIG_FLAG_DEV_DATA_STATE);
     qemu_put_be64(f, data_size);
-    qemu_put_buffer(f, migration->data_buffer, data_size);
+    qemu_put_buffer_async(f, migration->data_buffer, data_size, false);
+    qemu_fflush(f);
     vfio_migration_add_bytes_transferred(data_size);
 
     trace_vfio_save_block(migration->vbasedev->name, data_size);
