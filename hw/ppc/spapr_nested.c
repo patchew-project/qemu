@@ -1117,7 +1117,9 @@ static bool guest_state_request_check(struct guest_state_request *gsr)
     uint16_t id, size;
 
     /* gsb->num_elements = 0 == 32 bits long */
-    assert(len >= 4);
+    if (len < sizeof(gsb->num_elements)) {
+        return false;
+    }
 
     num_elements = be32_to_cpu(gsb->num_elements);
     element = gsb->elements;
@@ -1126,6 +1128,9 @@ static bool guest_state_request_check(struct guest_state_request *gsr)
     /* Walk the buffer to validate the length */
     while (num_elements) {
 
+        if (len < offsetof(struct guest_state_element, value)) {
+            return false;
+        }
         id = be16_to_cpu(element->id);
         size = be16_to_cpu(element->size);
 
@@ -1133,7 +1138,7 @@ static bool guest_state_request_check(struct guest_state_request *gsr)
             log_element(element, gsr);
         }
         /* buffer size too small */
-        if (len < 0) {
+        if (len < offsetof(struct guest_state_element, value) + size) {
             return false;
         }
 
@@ -1464,7 +1469,7 @@ static target_ulong getset_state(SpaprMachineState *spapr,
     lenleft = gsr->len;
 
     if (!guest_state_request_check(gsr)) {
-        return H_P3;
+        return H_P4;
     }
 
     num_elements = be32_to_cpu(gsr->gsb->num_elements);
@@ -1516,12 +1521,12 @@ static target_ulong map_and_getset_state(PowerPCCPU *cpu,
     gsr->gsb = address_space_map(CPU(cpu)->as, gsr->buf, (uint64_t *)&len,
                                  is_write, MEMTXATTRS_UNSPECIFIED);
     if (!gsr->gsb) {
-        rc = H_P3;
+        rc = H_P4;
         goto out1;
     }
 
     if (len != gsr->len) {
-        rc = H_P3;
+        rc = H_P4;
         goto out1;
     }
 
@@ -1546,7 +1551,9 @@ static target_ulong h_guest_getset_state(PowerPCCPU *cpu,
     SpaprMachineStateNestedGuest *guest = NULL;
 
     gsr.buf = buf;
-    assert(buflen <= GSB_MAX_BUF_SIZE);
+    if (buflen > GSB_MAX_BUF_SIZE) {
+        return H_P5;
+    }
     gsr.len = buflen;
     gsr.flags = 0;
 
