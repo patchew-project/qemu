@@ -22,7 +22,7 @@ from re import sub as re_sub
 from re import IGNORECASE
 from regex import compile as prec_compile
 from git import Repo
-from collections import Counter
+from collections import Counter, defaultdict
 from csv import writer as csv_writer
 
 #
@@ -430,6 +430,149 @@ def find_src_root():
     return None
 
 #
+# Helpers for maintainer statistics
+#
+# We assume the current state of MAINTAINERS as parsed from the
+# working tree is the authoritative source for who is currently a
+# maintainer, as well as their canonical name spelling and primary
+# email address. Historical commits or older MAINTAINERS revisions
+# with alternate name transliterations or older email addresses are
+# mapped back onto these current canonical maintainer names.
+#
+
+
+def get_maintainer_since(repo, maintainers, email_to_maint):
+    """
+    Scan git history of MAINTAINERS to determine the earliest date
+    each maintainer was added as a maintainer (M:) or reviewer (R:).
+    Returns (maintainer_since, reviewer_since) dictionaries.
+    """
+    maintainer_since = {}
+    reviewer_since = {}
+    current_date = None
+
+    tag_re = re_compile(r'^\+\s*([MR]):\s*([^<]+?)\s*<([^>]+)>')
+
+    log_output = repo.git.log('-p', '--format=COMMIT %as', '--', 'MAINTAINERS')
+    for line in log_output.splitlines():
+        if line.startswith('COMMIT '):
+            current_date = line[7:17]
+        elif line.startswith('+') and not line.startswith('+++'):
+            m = tag_re.match(line)
+            if m:
+                tag, name, email = m.group(1), m.group(2), m.group(3)
+                target = (name if name in maintainers
+                          else email_to_maint.get(email))
+                if target:
+                    since_dict = (maintainer_since if tag == 'M'
+                                  else reviewer_since)
+                    if (target not in since_dict or
+                            current_date < since_dict[target]):
+                        since_dict[target] = current_date
+    return maintainer_since, reviewer_since
+
+
+def get_contributor_dates(repo, maintainers, email_to_maint):
+    """
+    Scan git history for author and committer dates, as well as review/ack
+    trailers, to determine the first and last contribution dates for
+    maintainers.
+
+    Trailers are dated by the author date, as are MAINTAINERS entries in
+    get_maintainer_since(), so a patch adding its own maintainer lines
+    doesn't appear to predate the maintainer's involvement.
+
+    Returns (first_contrib, last_contrib) dictionaries mapping maintainer
+    canonical names to ISO date strings.
+    """
+    trailer_keys = [
+        'Signed-off-by',
+        'Co-developed-by',
+        'Reviewed-by',
+        'Tested-by',
+        'Acked-by',
+    ]
+    trailer_args = ','.join(f'key={k}' for k in trailer_keys)
+    log_format = (
+        '%as|%aN|%aE|%cs|%cN|%cE|'
+        f'%(trailers:{trailer_args},valueonly,unfold,separator=|)'
+    )
+
+    first_contrib = {}
+    last_contrib = {}
+
+    def record_date(name, email, date):
+        target = name if name in maintainers else email_to_maint.get(email)
+        if target:
+            first_contrib[target] = min(first_contrib.get(target, date), date)
+            last_contrib[target] = max(last_contrib.get(target, date), date)
+
+    for line in repo.git.log(f'--format={log_format}').splitlines():
+        if not line:
+            continue
+        parts = line.split('|')
+        a_date, a_name, a_email, c_date, c_name, c_email = parts[:6]
+
+        record_date(a_name, a_email, a_date)
+        record_date(c_name, c_email, c_date)
+
+        for trailer in parts[6:]:
+            m = person_re.match(trailer.strip())
+            if m:
+                record_date(m.group('name'), m.group('email'), a_date)
+
+    return first_contrib, last_contrib
+
+
+def dump_maintainers_csv(src, maint_sections):
+    """
+    Dump a CSV summary of maintainer statistics to stdout.
+    """
+    maintainers = defaultdict(lambda: {'subsystems': 0, 'emails': set()})
+    for s in maint_sections:
+        if s.status not in (Status.ORPHAN, Status.OBSOLETE):
+            for m in s.maintainers:
+                maintainers[m.name]['subsystems'] += 1
+                maintainers[m.name]['emails'].add(m.email)
+
+    email_to_maint = {}
+    for name, data in maintainers.items():
+        for email in data['emails']:
+            email_to_maint[email] = name
+
+    name_to_handle = load_gitlab_handles(src)
+    repo = Repo(src)
+
+    maintainer_since, reviewer_since = get_maintainer_since(
+        repo, maintainers, email_to_maint
+    )
+    first_contrib, last_contrib = get_contributor_dates(
+        repo, maintainers, email_to_maint
+    )
+
+    writer = csv_writer(sys.stdout)
+    headers = [
+        "Maintainer Name",
+        "gitlab handle",
+        "Subsystems Maintained",
+        "Maintainer Since",
+        "Reviewer Since",
+        "Contributor Since",
+        "Date of last contribution",
+    ]
+    writer.writerow(headers)
+    for name in sorted(maintainers.keys()):
+        writer.writerow([
+            name,
+            name_to_handle.get(name, ""),
+            maintainers[name]["subsystems"],
+            maintainer_since.get(name, ""),
+            reviewer_since.get(name, ""),
+            first_contrib.get(name, ""),
+            last_contrib.get(name, ""),
+        ])
+
+#
 # Argument validation
 #
 
@@ -479,6 +622,12 @@ def parse_args():
                         help='List sections where maintainer matches REGEX')
     parser.add_argument('--list-reviewed-by', metavar='REGEX',
                         help='List sections where reviewer matches REGEX')
+
+    # List maintainers
+    parser.add_argument('--list-maintainers',
+                        action=BooleanOptionalAction,
+                        default=False,
+                        help="Dump maintainers summary as CSV")
 
     # We need to know or be told where the root of the source tree is
     src = find_src_root()
@@ -554,6 +703,10 @@ def main():
             writer.writerow([ms.section, str(ms.status),
                              len(ms.maintainers), len(ms.reviewers), len(ms.lists),
                              len(ms.files), len(ms.keywords), len(ms.trees)])
+        sys.exit(0)
+
+    if args.list_maintainers:
+        dump_maintainers_csv(args.src, maint_sections)
         sys.exit(0)
 
     # Build array of Path objects representing the files
