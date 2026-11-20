@@ -125,7 +125,12 @@ class HypervisorTest(QemuSystemTest):
     def test_hv_pseries(self):
         self.require_accelerator("tcg")
         self.require_netdev('user')
-        self.set_machine('pseries')
+        # Pin to pseries-8.2 (default CPU power9_v2.2) so that kvm-hv.ko inside
+        # the L1 Alpine guest sees a POWER9 register set.  The generic 'pseries'
+        # alias resolves to pseries-11.2 (power11_v2.0) which Alpine's packaged
+        # qemu-system-ppc64 does not recognise, causing the L2 "Register sync
+        # failed" error.  The L2 script passes '-cpu POWER9' to match.
+        self.set_machine('pseries-8.2')
         self.vm.add_args("-accel", "tcg,thread=multi")
         self.vm.add_args('-device', 'nvme,serial=1234,drive=drive0')
         self.vm.add_args("-machine", "x-vof=on,cap-nested-hv=on")
@@ -135,10 +140,13 @@ class HypervisorTest(QemuSystemTest):
         self.do_stop_alpine()
 
     def test_hv_pseries_kvm(self):
-        self.require_accelerator("kvm")
+        # L1 runs under TCG; L2 is launched with accel=kvm inside L1
+        # (see do_test_kvm).
+        self.require_accelerator("tcg")
         self.require_netdev('user')
-        self.set_machine('pseries')
-        self.vm.add_args("-accel", "kvm")
+        # Same CPU pinning rationale as test_hv_pseries above.
+        self.set_machine('pseries-8.2')
+        self.vm.add_args("-accel", "tcg,thread=multi")
         self.vm.add_args('-device', 'nvme,serial=1234,drive=drive0')
         self.vm.add_args("-machine", "x-vof=on,cap-nested-hv=on,cap-ccf-assist=off")
         self.do_start_alpine()
@@ -149,7 +157,9 @@ class HypervisorTest(QemuSystemTest):
     def test_hv_powernv(self):
         self.require_accelerator("tcg")
         self.require_netdev('user')
-        self.set_machine('powernv')
+        # Pin to powernv9 so the PCIe topology matches (pcie.0, pcie.2) and
+        # kvm-hv.ko runs with the POWER9 CPU model.
+        self.set_machine('powernv9')
         self.vm.add_args("-accel", "tcg,thread=multi")
         self.vm.add_args('-device', 'nvme,bus=pcie.2,addr=0x0,serial=1234,drive=drive0',
                          '-device', 'e1000e,netdev=net0,mac=C0:FF:EE:00:00:02,bus=pcie.0,addr=0x0',
