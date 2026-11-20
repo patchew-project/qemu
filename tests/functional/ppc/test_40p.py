@@ -17,8 +17,7 @@ class IbmPrep40pMachine(QemuSystemTest):
     timeout = 60
 
     ASSET_BIOS = Asset(
-        ('http://ftpmirror.your.org/pub/misc/'
-         'ftp.software.ibm.com/rs6000/firmware/'
+        ('https://public.dhe.ibm.com/eserver/pseries/firmware/'
          '7020-40p/P12H0456.IMG'),
         'd957f79c73f760d1455d2286fcd901ed6d06167320eb73511b478a939be25b3f')
     ASSET_NETBSD40 = Asset(
