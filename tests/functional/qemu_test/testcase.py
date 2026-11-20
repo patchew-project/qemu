@@ -28,7 +28,7 @@ from qemu.machine import QEMUMachine
 from qemu.utils import hvf_available, kvm_available, tcg_available
 
 from .archive import archive_extract
-from .asset import Asset
+from .asset import Asset, AssetError
 from .config import BUILD_DIR, dso_suffix
 from .uncompress import uncompress
 
@@ -256,7 +256,11 @@ class QemuBaseTest(unittest.TestCase):
 
         cache = os.environ.get("QEMU_TEST_PRECACHE", None)
         if cache is not None:
-            Asset.precache_suites(test_module, cache)
+            try:
+                Asset.precache_suites(test_module, cache)
+            except AssetError as e:
+                print(f"ERROR: {e}")
+                sys.exit(1)
             return
 
         tr = pycotap.TAPTestRunner(message_log = pycotap.LogMode.LogToError,
