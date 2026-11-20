@@ -10,6 +10,7 @@
 # later.  See the COPYING file in the top-level directory.
 
 import os
+import re
 import subprocess
 
 from datetime import datetime, timezone
@@ -100,9 +101,51 @@ class HypervisorTest(QemuSystemTest):
         self.vm.wait()
 
     def do_setup_kvm(self):
-        ps1='alpine:~#'
+        self.log.debug("do_setup_kvm: installing qemu-system-ppc64 in L1")
+        ps1 = 'alpine:~#'
         exec_command_and_wait_for_pattern(self, 'apk add qemu-system-ppc64', ps1)
+        self.log.debug("do_setup_kvm: qemu-system-ppc64 installed, loading kvm-hv")
         exec_command_and_wait_for_pattern(self, 'modprobe kvm-hv', ps1)
+        self.log.debug("do_setup_kvm: kvm-hv module loaded")
+
+    def _resolve_nvme_dev(self):
+        """
+        Determine the NVMe block device path that the ISO is attached as
+        inside the L1 Alpine guest.  The device name is not stable across
+        machine types (e.g. pseries may enumerate it as nvme0n1 or nvme1n1
+        depending on the PCIe bus topology), so we ask the kernel directly.
+
+        Returns the literal device path string, e.g. '/dev/nvme0n1', so
+        callers can bake it directly into shell scripts without any shell
+        variable scoping issues.
+        """
+        self.log.debug("_resolve_nvme_dev: probing NVMe device path in L1")
+        ps1 = 'alpine:~#'
+        # Print a clearly delimited marker and wait for the shell prompt so
+        # we accumulate all console bytes in one call — including any bytes
+        # that the terminal wraps across line boundaries.
+        out = exec_command_and_wait_for_pattern(
+            self,
+            'echo "NVME_PATH:$(ls /dev/nvme?n1 | head -1)"',
+            ps1,
+        )
+        # Decode, strip ANSI escape sequences and newlines, then extract the
+        # path.  Terminal line-wrap can split the token mid-string so we join
+        # all non-whitespace characters before matching.
+        text = out.decode('utf-8', errors='replace')
+        text = re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', text)
+        joined = ''.join(text.split())
+        # The joined string looks like: ...NVME_PATH:/dev/nvme0n1alpine:~#
+        m = re.search(r'NVME_PATH:(/dev/nvme\S+?)alpine', joined)
+        if not m:
+            m = re.search(r'NVME_PATH:(/dev/nvme\S+)', joined)
+        if m:
+            dev = m.group(1).rstrip('#~:').strip()
+        else:
+            dev = '/dev/nvme0n1'
+            self.log.debug("_resolve_nvme_dev: marker not found, using fallback")
+        self.log.debug("_resolve_nvme_dev: resolved device=%s", dev)
+        return dev
 
     # This uses the host's block device as the source file for guest block
     # device for install media. This is a bit hacky but allows reuse of the
@@ -110,16 +153,40 @@ class HypervisorTest(QemuSystemTest):
     def do_test_kvm(self, hpt=False):
         if hpt:
             append = 'disable_radix'
+            self.log.debug("do_test_kvm: launching L2 in HPT mode")
         else:
             append = ''
-        exec_command(self, 'qemu-system-ppc64 -nographic -smp 2 -m 1g '
-                           '-machine pseries,x-vof=on,accel=kvm '
-                           '-machine cap-cfpc=broken,cap-sbbc=broken,'
-                                    'cap-ibs=broken,cap-ccf-assist=off '
-                           '-drive file=/dev/nvme0n1,format=raw,readonly=on '
-                           '-initrd /media/nvme0n1/boot/initramfs-lts '
-                           '-kernel /media/nvme0n1/boot/vmlinuz-lts '
-                           '-append \'usbcore.nousb ' + append + '\'')
+            self.log.debug("do_test_kvm: launching L2 in Radix mode (default)")
+
+        # Resolve the NVMe device path inside the L1 guest first so we do
+        # not hardcode a path that may differ by machine type.
+        nvme_dev = self._resolve_nvme_dev()
+
+        # Write the L2 launch command to a script to avoid terminal line-wrap
+        # breaking shell argument parsing, and to keep individual lines short.
+        # nvme_dev is the literal path, e.g. /dev/nvme0n1 — bake it in.
+        mnt = f'/media/$(basename {nvme_dev})'
+        ps1 = 'alpine:~#'
+        l2_script = [
+            ("cat > /tmp/run-l2.sh << 'EOF'", '>'),
+            ('#!/bin/sh', '>'),
+            ('qemu-system-ppc64 -nographic \\', '>'),
+            ('  -smp 2 -m 1g \\', '>'),
+            ('  -cpu POWER9 \\', '>'),
+            ('  -machine pseries,x-vof=on,accel=kvm \\', '>'),
+            ('  -machine cap-cfpc=broken,cap-sbbc=broken,cap-ibs=broken,cap-ccf-assist=off \\', '>'),
+            (f'  -drive file={nvme_dev},format=raw,readonly=on \\', '>'),
+            (f'  -initrd {mnt}/boot/initramfs-lts \\', '>'),
+            (f'  -kernel {mnt}/boot/vmlinuz-lts \\', '>'),
+            (f'  -append "usbcore.nousb {append}"', '>'),
+            ('EOF', ps1),
+            ('chmod +x /tmp/run-l2.sh', ps1),
+        ]
+        for cmd, expected_pattern in l2_script:
+            exec_command_and_wait_for_pattern(self, cmd, expected_pattern)
+        self.log.debug("do_test_kvm: L2 launch script written, executing")
+        exec_command(self, '/tmp/run-l2.sh')
+        self.log.debug("do_test_kvm: L2 QEMU launched, waiting for L2 login prompt")
         # Alpine 3.21 kernel seems to crash in XHCI USB driver.
         ps1 = 'localhost:~#'
         wait_for_console_pattern(self, 'localhost login:',
@@ -129,8 +196,10 @@ class HypervisorTest(QemuSystemTest):
         self.log.debug("do_test_kvm: logged into L2, issuing poweroff")
         exec_command(self, 'poweroff')
         wait_for_console_pattern(self, 'reboot: Power down')
+        self.log.debug("do_test_kvm: L2 powered down, waiting for L1 prompt")
         # Now wait for the host's prompt to come back
         wait_for_console_pattern(self, 'alpine:~#')
+        self.log.debug("do_test_kvm: L1 prompt restored")
 
     def test_hv_pseries(self):
         self.require_accelerator("tcg")
