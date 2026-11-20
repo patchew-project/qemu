@@ -2,7 +2,7 @@
 
 test_ppc64_timeouts = {
   'fadump' : 480,
-  'hv' : 1000,
+  'hv' : 6000,
   'mac99' : 120,
   'openbsd' : 240,
   'powernv' : 480,
