@@ -441,6 +441,7 @@ void hexagon_stop_thread(CPUHexagonState *env)
 
     BQL_LOCK_GUARD();
 
+    clear_wait_mode(env);
     thread_enabled_mask = clear_enable_mask(env);
     cs = env_cpu(env);
     cpu_interrupt(cs, CPU_INTERRUPT_HALT);
