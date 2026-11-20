@@ -49,7 +49,7 @@ $(FUNCTIONAL_TARGETS):
 
 .PHONY: check-functional-precache
 check-functional-precache:
-	@$(NINJA) precache-functional
+	@$(NINJA) $(NINJAFLAGS) precache-functional
 	@$(PYTHON) $(SRC_PATH)/scripts/clean_functional_cache.py
 
 .PHONY: check-functional
