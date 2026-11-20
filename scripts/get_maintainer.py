@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from os import path
 from pathlib import Path
 from enum import StrEnum, auto
+from fnmatch import translate as fn_translate
 from re import compile as re_compile
 from re import sub as re_sub
 from re import IGNORECASE
@@ -98,8 +99,8 @@ class MaintainerSection:
 
     def _expand(self, pattern):
         if pattern.endswith("/"):
-            return f"{pattern}*"
-        return pattern
+            pattern = f"{pattern}*"
+        return re_compile(fn_translate(pattern))
 
     def __init__(self, section, entries):
         self.section = section
@@ -159,12 +160,14 @@ class MaintainerSection:
     def is_file_covered(self, filename):
         "Is filename covered by this maintainer section"
 
+        fn = str(filename)
+
         for fx in self.files_exclude:
-            if filename.match(fx):
+            if fx.match(fn):
                 return False
 
         for f in self.files:
-            if filename.match(f):
+            if f.match(fn):
                 return True
 
         return False
