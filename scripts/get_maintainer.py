@@ -376,7 +376,7 @@ def extract_from_git(git_opts, src_file):
 
     for person, count, percent in ranked:
         role = f"commit_signer: {count}/{len(commits)}={percent:.0f}%"
-        results.append((person, role))
+        results.append((person, role, count, percent, len(commits)))
 
     return results
 
@@ -507,6 +507,18 @@ def parse_args():
     parser.add_argument('--git-min-percent', default=5,
                         help='minimum percentage of commits to tagged as a maintainer (default: 5)')
 
+    # Roles and Statistics options
+    parser.add_argument('--roles', action=BooleanOptionalAction,
+                        default=True,
+                        help="Show roles (default: roles on)")
+    parser.add_argument('--noroles', dest='roles', action='store_false',
+                        help="Do not show roles (alias for --no-roles)")
+    parser.add_argument('--rolestats', action=BooleanOptionalAction,
+                        default=True,
+                        help="Show statistics in git roles (default: stats on)")
+    parser.add_argument('--norolestats', dest='rolestats', action='store_false',
+                        help="Do not show stats in git roles (alias)")
+
     # Output options
     class SetFileSummary(Action):
         def __call__(self, parser, namespace, values, option_string=None):
@@ -593,9 +605,16 @@ def main():
             for m in fmaint:
                 maintained.add(m)
 
+    recipients = {}
     if not args.file_summary:
         for rm in maintained:
-            print(f"{rm}")
+            if args.roles:
+                print(f"{rm}")
+            else:
+                for p in rm.maintainers + rm.reviewers:
+                    recipients.setdefault(p.email, p)
+                for l in rm.lists:
+                    recipients.setdefault(l, l)
 
     # Git fallback
     if args.git or (args.git_fallback and len(maintained) == 0):
@@ -610,8 +629,17 @@ def main():
         for f in files:
             gmaint = extract_from_git(git_opts, f)
 
-            for (person, role) in gmaint:
-                print(f"{person} ({person.format_role(role)})")
+            for (person, role, count, percent, total) in gmaint:
+                if not args.roles:
+                    recipients.setdefault(person.email, person)
+                else:
+                    if not args.rolestats:
+                        role = "commit_signer"
+                    print(f"{person} ({person.format_role(role)})")
+
+    if not args.roles and not args.file_summary:
+        for r in recipients.values():
+            print(f"{r}")
 
 
 if __name__ == '__main__':
