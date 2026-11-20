@@ -367,7 +367,7 @@ M: Palmer Dabbelt <palmer@dabbelt.com>
 M: Alistair Francis <alistair.francis@wdc.com>
 R: Weiwei Li <liwei1518@gmail.com>
 R: Daniel Henrique Barboza <daniel.barboza@oss.qualcomm.com>
-R: Liu Zhiwei <zhiwei_liu@linux.alibaba.com>
+R: LIU Zhiwei <zhiwei_liu@linux.alibaba.com>
 R: Chao Liu <chao.liu@processmission.com>
 L: qemu-riscv@nongnu.org
 S: Supported
