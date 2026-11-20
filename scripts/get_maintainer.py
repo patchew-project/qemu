@@ -11,7 +11,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import sys
-from argparse import ArgumentParser, ArgumentTypeError, BooleanOptionalAction
+from argparse import Action, ArgumentParser, ArgumentTypeError, BooleanOptionalAction
 from dataclasses import dataclass
 from os import path
 from pathlib import Path
@@ -22,6 +22,7 @@ from re import IGNORECASE
 from regex import compile as prec_compile
 from git import Repo
 from collections import Counter
+from csv import writer as csv_writer
 
 #
 # Subsystem MAINTAINER entries
@@ -458,6 +459,17 @@ def parse_args():
     parser.add_argument('--git-min-percent', default=5,
                         help='minimum percentage of commits to tagged as a maintainer (default: 5)')
 
+    # Output options
+    class SetFileSummary(Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            setattr(namespace, self.dest, True)
+            # don't fallback to git
+            setattr(namespace, "git_fallback", False)
+
+    parser.add_argument('--file-summary', action=SetFileSummary, nargs=0,
+                        default=False,
+                        help="Summarise file maintenance status")
+
     return parser.parse_args()
 
 
@@ -507,14 +519,34 @@ def main():
             for m in kmaint:
                 maintained.add(m)
 
+    writer = csv_writer(sys.stdout)
+    if args.file_summary and files:
+        writer.writerow(["File", "Subsystem", "Status",
+                         "Num Maintainers", "Num Reviewers", "Num Lists"])
+
     for f in files:
         rf = f.relative_to(args.src)
         fmaint = [ms for ms in maint_sections if ms.is_file_covered(rf)]
         for m in fmaint:
             maintained.add(m)
 
-    for rm in maintained:
-       print(f"{rm}")
+        if args.file_summary:
+            valid_ms = [ms for ms in fmaint if ms.status != Status.UNKNOWN]
+            if valid_ms:
+                for ms in valid_ms:
+                    writer.writerow([rf, ms.section, str(ms.status),
+                                    len(ms.maintainers),
+                                    len(ms.reviewers),len(ms.lists)])
+            else:
+                writer.writerow([rf, "unmaintained", Status.UNKNOWN,
+                                 0, 0, 0])
+        else:
+            for m in fmaint:
+                maintained.add(m)
+
+    if not args.file_summary:
+        for rm in maintained:
+            print(f"{rm}")
 
     # Git fallback
     if args.git or (args.git_fallback and len(maintained) == 0):
