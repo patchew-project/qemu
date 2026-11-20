@@ -512,23 +512,33 @@
 #define fGEN_TCG_Y2_dczeroa(SHORTCODE) SHORTCODE
 #define fGEN_TCG_Y2_dczeroa_nt(SHORTCODE) SHORTCODE
 
-/* In linux-user mode, these are not modelled, suppress compiler warning */
+#ifdef CONFIG_USER_ONLY
+/* In linux-user mode, the data cache is not modelled */
 #define fGEN_TCG_Y2_dcinva(SHORTCODE) \
     do { RsV = RsV; } while (0)
 #define fGEN_TCG_Y2_dccleaninva(SHORTCODE) \
     do { RsV = RsV; } while (0)
 #define fGEN_TCG_Y2_dccleana(SHORTCODE) \
     do { RsV = RsV; } while (0)
-
-#ifdef CONFIG_USER_ONLY
 #define fGEN_TCG_Y2_icinva(SHORTCODE) \
     gen_helper_insn_cache_op(tcg_env, RsV, \
                              tcg_constant_tl(insn->slot), \
                              tcg_constant_tl(ctx->mem_idx), \
                              tcg_constant_tl(ctx->pkt.pc))
 #else
+/*
+ * In system mode the caches are not modelled either, but the operations
+ * translate their address so they can take TLB miss and privilege exceptions.
+ */
+#define fGEN_TCG_Y2_dcinva(SHORTCODE) \
+    gen_helper_data_cache_op(tcg_env, RsV, tcg_constant_tl(ctx->mem_idx))
+#define fGEN_TCG_Y2_dccleaninva(SHORTCODE) \
+    gen_helper_data_cache_op(tcg_env, RsV, tcg_constant_tl(ctx->mem_idx))
+#define fGEN_TCG_Y2_dccleana(SHORTCODE) \
+    gen_helper_data_cache_op(tcg_env, RsV, tcg_constant_tl(ctx->mem_idx))
 #define fGEN_TCG_Y2_icinva(SHORTCODE) \
-    do { RsV = RsV; } while (0)
+    gen_helper_insn_cache_op_check(tcg_env, RsV, \
+                                   tcg_constant_tl(ctx->mem_idx))
 #endif
 
 #define fGEN_TCG_V2_CHECK_AND_WRITE_VSP(VSP) \
