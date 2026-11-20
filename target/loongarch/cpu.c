@@ -769,7 +769,7 @@ static void loongarch_cpu_dump_csr(CPUState *cs, FILE *f)
     qemu_fprintf(f, "\n");
 
     /* Dump all generic CSR register */
-    for (i = 0; i < LOONGARCH_CSR_DBG; i++) {
+    for (i = 0; i < LOONGARCH_CSR_MAX; i++) {
         csr_info = get_csr(i);
         if (!csr_info || (csr_info->flags & CSRFL_UNUSED)) {
             if (i == (col + 3)) {

@@ -402,11 +402,8 @@ static bool trans_ertn(DisasContext *ctx, arg_ertn *a)
 
 static bool trans_dbcl(DisasContext *ctx, arg_dbcl *a)
 {
-    if (check_plv(ctx)) {
-        return false;
-    }
-    generate_exception(ctx, EXCCODE_DBP);
-    return true;
+    /* Not implemented */
+    return false;
 }
 
 static bool trans_idle(DisasContext *ctx, arg_idle *a)

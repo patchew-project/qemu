@@ -211,17 +211,6 @@ FIELD(CSR_DMW_64, VSEG, 60, 4)
 #define LOONGARCH_CSR_PERFCTRL(N)    (0x200 + 2 * N)
 #define LOONGARCH_CSR_PERFCNTR(N)    (0x201 + 2 * N)
 
-/* Debug CSRs */
-#define LOONGARCH_CSR_DBG            0x500 /* debug config */
-FIELD(CSR_DBG, DST, 0, 1)
-FIELD(CSR_DBG, DREV, 1, 7)
-FIELD(CSR_DBG, DEI, 8, 1)
-FIELD(CSR_DBG, DCL, 9, 1)
-FIELD(CSR_DBG, DFW, 10, 1)
-FIELD(CSR_DBG, DMW, 11, 1)
-FIELD(CSR_DBG, ECODE, 16, 6)
-
-#define LOONGARCH_CSR_DERA           0x501 /* Debug era */
-#define LOONGARCH_CSR_DSAVE          0x502 /* Debug save */
+#define LOONGARCH_CSR_MAX            (LOONGARCH_CSR_PERFCTRL(MAX_PERF_EVENTS))
 
 #endif /* LOONGARCH_CPU_CSR_H */

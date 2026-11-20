@@ -54,21 +54,7 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
     }
 
     switch (cs->exception_index) {
-    case EXCCODE_DBP:
-        sys->CSR_DBG = FIELD_DP64(sys->CSR_DBG, CSR_DBG, DCL, 1);
-        sys->CSR_DBG = FIELD_DP64(sys->CSR_DBG, CSR_DBG, ECODE, 0xC);
-        goto set_DERA;
-    set_DERA:
-        sys->CSR_DERA = env->pc;
-        sys->CSR_DBG = FIELD_DP64(sys->CSR_DBG, CSR_DBG, DST, 1);
-        set_pc(env, sys->CSR_EENTRY + 0x480);
-        break;
     case EXCCODE_INT:
-        if (FIELD_EX64(sys->CSR_DBG, CSR_DBG, DST)) {
-            sys->CSR_DBG = FIELD_DP64(sys->CSR_DBG, CSR_DBG, DEI, 1);
-            goto set_DERA;
-        }
-        QEMU_FALLTHROUGH;
     case EXCCODE_PIF:
     case EXCCODE_PNX:
     case EXCCODE_ADEF:
@@ -203,9 +189,7 @@ static inline bool cpu_loongarch_hw_interrupts_enabled(CPULoongArchState *env)
     bool ret = 0;
     CPUSysState *sys = env_sys(env);
 
-    ret = (FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, IE) &&
-          !(FIELD_EX64(sys->CSR_DBG, CSR_DBG, DST)));
-
+    ret = FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, IE);
     return ret;
 }
 
