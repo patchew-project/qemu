@@ -17,6 +17,7 @@ from pathlib import Path
 from enum import StrEnum, auto
 from re import compile as re_compile
 from re import sub as re_sub
+from regex import compile as prec_compile
 
 #
 # Subsystem MAINTAINER entries
@@ -126,7 +127,8 @@ class MaintainerSection:
             elif tag == 'W':
                 self.web.append(data)
             elif tag == 'K':
-                self.keywords.append(data)
+                match = prec_compile(data)
+                self.keywords.append(match)
             elif tag == 'T':
                 self.trees.append(data)
             elif tag == 'X':
@@ -162,6 +164,15 @@ class MaintainerSection:
 
         return False
 
+    def patch_contains_keyword(self, patch_lines):
+        "Does patch contain keyword covered by this maintainer section"
+
+        for l in patch_lines:
+            for k in self.keywords:
+                if k.findall(l):
+                    return True
+
+        return False
 
 
 def read_maintainers(src):
@@ -201,18 +212,22 @@ def read_maintainers(src):
 #
 # Helper functions for dealing with patch files
 #
+
+
 patchfile_re = re_compile(r"\+\+\+\s+(\S+)")
 
-#TODO: also return a list of keyword hits for K:?
-def extract_filenames_from_patch(patchfile):
+
+def process_patch_file(patchfile):
     """
-    Read a patchfile and return a list of files which are modified by
-    the patch.
+    Read a patchfile and return the message as a string and a list
+    of files which are modified by the patch.
     """
     file_list = []
+    msg = []
 
     with open(patchfile, 'r', encoding='utf-8') as f:
         for line in f:
+            msg.append(line)
             m = patchfile_re.match(line)
             if m:
                 # strip leading [ab]/
@@ -220,7 +235,7 @@ def extract_filenames_from_patch(patchfile):
                 as_path = Path(path.abspath(stripped))
                 file_list.append(as_path)
 
-    return file_list
+    return (msg, file_list)
 
 #
 # Helper functions for dealing with the source path
@@ -345,13 +360,16 @@ def main():
     if args.file:
         files.extend(args.file)
 
-    if args.patch:
-        for p in args.patch:
-            pfiles = extract_filenames_from_patch(p)
-            files.extend(pfiles)
-
     # unique set of maintainer sections
     maintained: set[MaintainerSection] = set()
+
+    if args.patch:
+        for p in args.patch:
+            (msg, pfiles) = process_patch_file(p)
+            files.extend(pfiles)
+            kmaint = [ms for ms in maint_sections if ms.patch_contains_keyword(msg)]
+            for m in kmaint:
+                maintained.add(m)
 
     for f in files:
         rf = f.relative_to(Path(args.src))
