@@ -37,4 +37,9 @@ static inline unsigned int get_csr_offset(const CSRInfo *csr, int vm_level)
 {
     return csr->offset + offsetof(CPULoongArchState, sys_states[vm_level]);
 }
+
+static inline bool csr_is_width32(const CSRInfo *csr)
+{
+    return !(csr->flags & CSRFL_WIDTH64);
+}
 #endif /* TARGET_LOONGARCH_CSR_H */
