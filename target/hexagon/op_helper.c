@@ -1660,7 +1660,7 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
 
 #ifndef CONFIG_USER_ONLY
 void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
-                                  uint32_t badva)
+                                  uint32_t badva, uint32_t pc)
 {
     /*
      * Per section 7.3.1 of the V67 Programmer's Reference,
@@ -1677,6 +1677,8 @@ void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
     cs = env_cpu(env);
     cs->exception_index = HEX_EVENT_PRECISE;
     env->cause_code = HEX_CAUSE_STACK_LIMIT;
+    /* The PC register is not kept current, ELR is the faulting packet */
+    env->gpr[HEX_REG_PC] = pc;
 
     if (slot == 0) {
         env->t_sreg[HEX_SREG_BADVA0] = badva;
