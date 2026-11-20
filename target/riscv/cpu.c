@@ -1021,6 +1021,7 @@ static void riscv_cpu_reset_hold(Object *obj, ResetType type)
     env->mstatus = set_field(env->mstatus, MSTATUS_SBE, cpu->cfg.big_endian);
     env->mstatus = set_field(env->mstatus, MSTATUS_UBE, cpu->cfg.big_endian);
     env->mcause = 0;
+    env->mcause_int = 0;
     env->miclaim = MIP_SGEIP;
     env->pc = env->resetvec;
     env->bins = 0;
