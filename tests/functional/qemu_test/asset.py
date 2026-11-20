@@ -225,8 +225,12 @@ class Asset:
         self.log.info("Downloading %s to %s...", self.url, self.cache_file)
         tmp_cache_file = self.cache_file.with_suffix(".download")
 
-        if self._try_to_fetch(tmp_cache_file):
-            return str(self.cache_file)
+        try:
+            if self._try_to_fetch(tmp_cache_file):
+                return str(self.cache_file)
+        except KeyboardInterrupt:
+            tmp_cache_file.unlink()
+            raise
 
         if not os.path.exists(tmp_cache_file):
             raise AssetError(self, "Download retries exceeded", transient=True)
