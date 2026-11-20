@@ -82,6 +82,11 @@ class SysTestsStandaloneTests(QemuSystemTest):
         self.assertEqual(os.path.getsize(ftrunc_path), 1,
                          "_testfile_ftrunc should be 1 byte after ftrunc")
 
+    def test_float_excp(self):
+        """Unmasked floating point exceptions are taken after the packet
+        that caused them commits."""
+        self.run_exit_zero("float_excp")
+
     def test_access(self):
         """access checks R_OK|W_OK on _testfile_access."""
         testfile = self.scratch_file("_testfile_access")

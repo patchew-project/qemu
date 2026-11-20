@@ -214,13 +214,14 @@ void arch_fpop_start(CPUHexagonState *env)
  */
 #define RAISE_FP_EXCEPTION   do {} while (0)
 #else
+/*
+ * Floating point exceptions are taken after the packet that caused them
+ * commits, so pend this one for check_imprecise_exception().
+ */
 #define RAISE_FP_EXCEPTION \
     do { \
-        CPUState *cs = env_cpu(env); \
-        cs->exception_index = HEX_EVENT_FPTRAP; \
+        env->imprecise_exception = HEX_EVENT_FPTRAP; \
         env->cause_code = HEX_CAUSE_FPTRAP_CAUSE_BADFLOAT; \
-        do_raise_exception(env, cs->exception_index, \
-                           env->gpr[HEX_REG_PC], 0); \
     } while (0)
 #endif
 
