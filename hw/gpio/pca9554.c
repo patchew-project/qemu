@@ -244,7 +244,7 @@ static const VMStateDescription pca9554_vmstate = {
     .name = "PCA9554",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(len, PCA9554State),
         VMSTATE_UINT8(pointer, PCA9554State),
         VMSTATE_UINT8_ARRAY(regs, PCA9554State, PCA9554_NR_REGS),

@@ -89,7 +89,7 @@ static const VMStateDescription vmstate_aspeed_pwm = {
     .name = TYPE_ASPEED_PWM,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AspeedPWMState, ASPEED_PWM_NR_REGS),
         VMSTATE_END_OF_LIST(),
     }

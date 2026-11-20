@@ -315,7 +315,7 @@ static const VMStateDescription vmstate_zt0 = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = zt0_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64_ARRAY(env.za_state.zt0, ARMCPU,
                              ARRAY_SIZE(((CPUARMState *)0)->za_state.zt0)),
         VMSTATE_END_OF_LIST()

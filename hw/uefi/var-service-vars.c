@@ -25,7 +25,7 @@
 
 const VMStateDescription vmstate_uefi_time = {
     .name = "uefi-time",
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT16(year, efi_time),
         VMSTATE_UINT8(month, efi_time),
         VMSTATE_UINT8(day, efi_time),
@@ -75,7 +75,7 @@ static bool uefi_vars_digest_is_needed(void *opaque)
 const VMStateDescription vmstate_uefi_variable_digest = {
     .name = "uefi-variable-digest",
     .needed = uefi_vars_digest_is_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(digest_size, uefi_variable),
         VMSTATE_VBUFFER_ALLOC_UINT32(digest, uefi_variable,
                                      0, NULL, digest_size),
@@ -87,7 +87,7 @@ const VMStateDescription vmstate_uefi_variable = {
     .name = "uefi-variable",
     .pre_load = uefi_vars_pre_load,
     .post_load = uefi_vars_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY_V(guid.data, uefi_variable, sizeof(QemuUUID), 0),
         VMSTATE_UINT32(name_size, uefi_variable),
         VMSTATE_UINT32(data_size, uefi_variable),

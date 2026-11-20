@@ -2170,7 +2170,7 @@ const VMStateDescription vmstate_i82596 = {
     .name = "i82596",
     .version_id = 2,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(mode, I82596State),
         VMSTATE_UINT16(t_on, I82596State),
         VMSTATE_UINT16(t_off, I82596State),

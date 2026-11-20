@@ -391,7 +391,7 @@ static const VMStateDescription vmstate_cpuhp_state = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = cpuhp_needed,
-    .fields      = (VMStateField[]) {
+    .fields      = (const VMStateField[]) {
         VMSTATE_CPU_HOTPLUG(cpuhp_state, AcpiGedState),
         VMSTATE_END_OF_LIST()
     }

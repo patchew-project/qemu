@@ -2289,7 +2289,7 @@ static const VMStateDescription vmstate_ncr710_scsi_fifo = {
     .name = "ncr710_scsi_fifo",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY(data, NCR710_SCSI_FIFO, NCR710_SCSI_FIFO_SIZE),
         VMSTATE_UINT8_ARRAY(parity, NCR710_SCSI_FIFO, NCR710_SCSI_FIFO_SIZE),
         VMSTATE_INT32(count, NCR710_SCSI_FIFO),
@@ -2301,7 +2301,7 @@ const VMStateDescription vmstate_ncr710 = {
     .name = "ncr710",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(scntl0, NCR710State),
         VMSTATE_UINT8(scntl1, NCR710State),
         VMSTATE_UINT8(sdid, NCR710State),
@@ -2364,7 +2364,7 @@ static const VMStateDescription vmstate_sysbus_ncr710 = {
     .name = "sysbus_ncr710",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(ncr710, SysBusNCR710State, 1, vmstate_ncr710,
                        NCR710State),
         VMSTATE_END_OF_LIST()

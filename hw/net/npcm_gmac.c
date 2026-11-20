@@ -918,7 +918,7 @@ static const VMStateDescription vmstate_npcm_gmac = {
     .name = TYPE_NPCM_GMAC,
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, NPCMGMACState, NPCM_GMAC_NR_REGS),
         VMSTATE_END_OF_LIST(),
     },

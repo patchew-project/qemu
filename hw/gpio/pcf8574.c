@@ -104,7 +104,7 @@ static const VMStateDescription vmstate_pcf8574 = {
     .name               = "pcf8574",
     .version_id         = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_I2C_SLAVE(parent_obj, PCF8574State),
         VMSTATE_UINT8(lastrq, PCF8574State),
         VMSTATE_UINT8(input,  PCF8574State),

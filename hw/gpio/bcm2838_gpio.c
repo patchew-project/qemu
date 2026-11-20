@@ -327,7 +327,7 @@ static const VMStateDescription vmstate_bcm2838_gpio = {
     .name = "bcm2838_gpio",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY(fsel, BCM2838GpioState, BCM2838_GPIO_NUM),
         VMSTATE_UINT32(lev0, BCM2838GpioState),
         VMSTATE_UINT32(lev1, BCM2838GpioState),

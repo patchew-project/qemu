@@ -50,7 +50,7 @@ const VMStateDescription vmstate_uefi_vars = {
     .name = "uefi-vars",
     .pre_load = uefi_vars_pre_load,
     .post_load = uefi_vars_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT16(sts, uefi_vars_state),
         VMSTATE_UINT32(buf_size, uefi_vars_state),
         VMSTATE_UINT32(buf_addr_lo, uefi_vars_state),

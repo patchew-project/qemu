@@ -30,7 +30,7 @@ static const VMStateDescription vmstate_cpr_vfio_device = {
     .name = "cpr vfio device",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(namelen, CprVFIODevice),
         VMSTATE_VBUFFER_ALLOC_UINT32(name, CprVFIODevice, 0, NULL, namelen),
         VMSTATE_INT32(devid, CprVFIODevice),
@@ -148,7 +148,7 @@ static const VMStateDescription iommufd_cpr_vmstate = {
     .pre_save = iommufd_cpr_pre_save,
     .post_load = iommufd_cpr_post_load,
     .needed = cpr_incoming_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_END_OF_LIST()
     }
 };

@@ -522,7 +522,7 @@ static const VMStateDescription vmstate_l2vic = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields =
-        (VMStateField[]){
+        (const VMStateField[]){
             VMSTATE_UINT32_ARRAY(vid_group, HexL2VICState, 4),
             VMSTATE_UINT32(vid, HexL2VICState),
             VMSTATE_UINT32_ARRAY(int_enable, HexL2VICState, SLICE_MAX),

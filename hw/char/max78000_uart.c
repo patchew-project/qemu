@@ -217,7 +217,7 @@ static const VMStateDescription max78000_uart_vmstate = {
     .name = TYPE_MAX78000_UART,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(ctrl, Max78000UartState),
         VMSTATE_UINT32(status, Max78000UartState),
         VMSTATE_UINT32(int_en, Max78000UartState),

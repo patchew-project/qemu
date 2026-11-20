@@ -149,7 +149,7 @@ static const VMStateDescription vfio_intx_vmstate = {
     .name = "vfio-cpr-intx",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_BOOL(pending, VFIOINTx),
         VMSTATE_UINT32(route.mode, VFIOINTx),
         VMSTATE_INT32(route.irq, VFIOINTx),
@@ -172,7 +172,7 @@ const VMStateDescription vfio_cpr_pci_vmstate = {
     .pre_load = vfio_cpr_pci_pre_load,
     .post_load = vfio_cpr_pci_post_load,
     .needed = cpr_incoming_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, VFIOPCIDevice),
         VMSTATE_MSIX_TEST(parent_obj, VFIOPCIDevice, pci_msix_present),
         VMSTATE_VFIO_INTX(intx, VFIOPCIDevice),

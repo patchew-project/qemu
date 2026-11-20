@@ -230,7 +230,7 @@ static const VMStateDescription vmstate_riscv_cpc = {
     .name = "xmips-cpc",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(vps_running_mask, RISCVCPCState),
         VMSTATE_END_OF_LIST()
     },

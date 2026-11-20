@@ -184,7 +184,7 @@ static const VMStateDescription vmstate_riscv_gcr = {
     .name = "riscv-gcr",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(cpc_base, RISCVGCRState),
         VMSTATE_END_OF_LIST()
     },

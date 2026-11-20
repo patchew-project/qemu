@@ -1767,7 +1767,7 @@ const VMStateDescription vmstate_dw_i3c = {
     .name = TYPE_DW_I3C,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]){
+    .fields = (const VMStateField[]){
         VMSTATE_UINT32_ARRAY(regs, DWI3C, DW_I3C_NR_REGS),
         VMSTATE_END_OF_LIST(),
     }

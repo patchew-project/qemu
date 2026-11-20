@@ -129,7 +129,7 @@ static const VMStateDescription clock_mux_vmstate = {
     .name = TYPE_RCC_CLOCK_MUX,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(id, RccClockMuxState),
         VMSTATE_ARRAY_CLOCK(srcs, RccClockMuxState,
                             RCC_NUM_CLOCK_MUX_SRC),
@@ -281,7 +281,7 @@ static const VMStateDescription pll_vmstate = {
     .name = TYPE_RCC_PLL,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(id, RccPllState),
         VMSTATE_CLOCK(in, RccPllState),
         VMSTATE_ARRAY_CLOCK(channels, RccPllState,
@@ -1345,7 +1345,7 @@ static const VMStateDescription vmstate_stm32l4x5_rcc = {
     .name = TYPE_STM32L4X5_RCC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(cr, Stm32l4x5RccState),
         VMSTATE_UINT32(icscr, Stm32l4x5RccState),
         VMSTATE_UINT32(cfgr, Stm32l4x5RccState),

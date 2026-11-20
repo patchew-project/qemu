@@ -579,7 +579,7 @@ static const VMStateDescription adc128d818_vmstate = {
     .name = "ADC128D818",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(len, ADC128D818State),
         VMSTATE_UINT8(pointer, ADC128D818State),
         VMSTATE_UINT8(rx_byte, ADC128D818State),

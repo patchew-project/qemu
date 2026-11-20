@@ -22,7 +22,7 @@ struct uefi_vars_sysbus_state {
 
 static const VMStateDescription vmstate_uefi_vars_sysbus = {
     .name = TYPE_UEFI_VARS_SYSBUS,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(state, uefi_vars_sysbus_state, 0,
                        vmstate_uefi_vars, uefi_vars_state),
         VMSTATE_END_OF_LIST()

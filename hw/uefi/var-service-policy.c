@@ -34,7 +34,7 @@ static int uefi_var_policy_post_load(void *opaque, int version_id)
 const VMStateDescription vmstate_uefi_var_policy = {
     .name = "uefi-var-policy",
     .post_load = uefi_var_policy_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(entry_size, uefi_var_policy),
         VMSTATE_VBUFFER_ALLOC_UINT32(entry, uefi_var_policy,
                                      0, NULL, entry_size),

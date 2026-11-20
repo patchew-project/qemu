@@ -567,7 +567,7 @@ static const VMStateDescription vmstate_stm32l4x5_usart_base = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = stm32l4x5_usart_base_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(cr1, Stm32l4x5UsartBaseState),
         VMSTATE_UINT32(cr2, Stm32l4x5UsartBaseState),
         VMSTATE_UINT32(cr3, Stm32l4x5UsartBaseState),

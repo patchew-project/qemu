@@ -430,7 +430,7 @@ static const VMStateDescription vmstate_stm32l4x5_gpio = {
     .name = TYPE_STM32L4X5_GPIO,
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]){
+    .fields = (const VMStateField[]){
         VMSTATE_UINT32(moder, Stm32l4x5GpioState),
         VMSTATE_UINT32(otyper, Stm32l4x5GpioState),
         VMSTATE_UINT32(ospeedr, Stm32l4x5GpioState),

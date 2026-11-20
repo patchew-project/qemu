@@ -129,7 +129,7 @@ static const VMStateDescription vmstate_aspeed_ltpi = {
     .name = TYPE_ASPEED_LTPI,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(ctrl_regs, AspeedLTPIState,
                              ASPEED_LTPI_CTRL_SIZE >> 2),
         VMSTATE_UINT32_ARRAY(phy_regs, AspeedLTPIState,

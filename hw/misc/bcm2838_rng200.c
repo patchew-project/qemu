@@ -64,7 +64,7 @@ static const VMStateDescription vmstate_bcm2838_rng200 = {
     .name = "bcm2838_rng200",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(rng_fifo_cap, BCM2838Rng200State),
         VMSTATE_UINT32_ARRAY(regs, BCM2838Rng200State, N_BCM2838_RNG200_REGS),
 

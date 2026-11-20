@@ -3409,6 +3409,12 @@ sub process {
 				$herecurr);
 		}
 
+# check for non-const VMStateField[] compound literals in .fields initializers
+		if ($line =~ /\bfields\s*=\s*\((?!const\b)VMStateField\[\]\)/) {
+			ERROR("VMStateField[] compound literal should be const\n" .
+				$herecurr);
+		}
+
 # format strings checks
 		my $string;
 		while ($line =~ /(?:^|")([X\t]*)(?:"|$)/g) {

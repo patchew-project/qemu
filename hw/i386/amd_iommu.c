@@ -2623,7 +2623,7 @@ static const VMStateDescription vmstate_xt = {
        .name = "amd-iommu-xt",
        .version_id = 1,
        .minimum_version_id = 1,
-       .fields = (VMStateField[]) {
+       .fields = (const VMStateField[]) {
            VMSTATE_BOOL(xten, AMDVIState),
            VMSTATE_BOOL(intcapxten, AMDVIState),
            VMSTATE_END_OF_LIST()
@@ -2635,7 +2635,7 @@ static const VMStateDescription vmstate_amdvi_sysbus_migratable = {
     .version_id = 1,
     .minimum_version_id = 1,
     .priority = MIG_PRI_IOMMU,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
       /* Updated in  amdvi_handle_control_write() */
       VMSTATE_BOOL(enabled, AMDVIState),
       VMSTATE_BOOL(ga_enabled, AMDVIState),

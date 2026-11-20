@@ -244,7 +244,7 @@ static const VMStateDescription vmstate_stm32l4x5_syscfg = {
     .name = TYPE_STM32L4X5_SYSCFG,
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(memrmp, Stm32l4x5SyscfgState),
         VMSTATE_UINT32(cfgr1, Stm32l4x5SyscfgState),
         VMSTATE_UINT32_ARRAY(exticr, Stm32l4x5SyscfgState,

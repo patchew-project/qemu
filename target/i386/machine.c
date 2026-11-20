@@ -1614,7 +1614,7 @@ static const VMStateDescription vmstate_msr_hwcr = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = msr_hwcr_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(env.msr_hwcr, X86CPU),
         VMSTATE_END_OF_LIST()
     }
@@ -1634,7 +1634,7 @@ static const VMStateDescription vmstate_msr_fred = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = intel_fred_msrs_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(env.fred_rsp0, X86CPU),
         VMSTATE_UINT64(env.fred_rsp1, X86CPU),
         VMSTATE_UINT64(env.fred_rsp2, X86CPU),
@@ -1744,7 +1744,7 @@ static const VMStateDescription vmstate_shstk = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = shstk_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         /* pl0_ssp has been covered by vmstate_pl0_ssp. */
         VMSTATE_UINT64(env.pl1_ssp, X86CPU),
         VMSTATE_UINT64(env.pl2_ssp, X86CPU),
@@ -1771,7 +1771,7 @@ static const VMStateDescription vmstate_cet = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = cet_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(env.u_cet, X86CPU),
         VMSTATE_UINT64(env.s_cet, X86CPU),
         VMSTATE_END_OF_LIST()
@@ -1796,7 +1796,7 @@ static const VMStateDescription vmstate_apx = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = apx_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64_SUB_ARRAY(env.regs, X86CPU, CPU_NB_REGS,
                                  CPU_NB_EREGS - CPU_NB_REGS),
         VMSTATE_END_OF_LIST()
