@@ -103,7 +103,9 @@ class Asset:
         except:
             if os.path.exists(self.cache_file):
                 return True
-            raise
+            raise AssetError(
+                self, f"Other thread failed download to {tmp_cache_file}",
+                transient=True)
         waittime = lastchange = 600
         while waittime > 0:
             sleep(1)
@@ -113,7 +115,9 @@ class Asset:
             except:
                 if os.path.exists(self.cache_file):
                     return True
-                raise
+                raise AssetError(
+                    self, f"Other thread failed download to {tmp_cache_file}",
+                    transient=True)
             if new_size != current_size:
                 lastchange = waittime
                 current_size = new_size
@@ -121,7 +125,8 @@ class Asset:
                 return False
 
         self.log.debug("Time out while waiting for %s!", tmp_cache_file)
-        raise TimeoutError(f"Time out while waiting for {tmp_cache_file}")
+        raise AssetError(f"Time out while waiting for {tmp_cache_file}",
+                         transient=True)
 
     def _save_time_stamp(self):
         '''
