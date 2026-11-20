@@ -307,5 +307,5 @@ class Asset:
         loader = unittest.loader.defaultTestLoader
         tests = loader.loadTestsFromNames([path], None)
 
-        with open(cache_tstamp, "w", encoding='utf-8'):
-            Asset.precache_suite(tests)
+        Asset.precache_suite(tests)
+        Path(cache_tstamp).touch()
