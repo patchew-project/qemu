@@ -60,6 +60,31 @@ static void test_config_table(gconstpointer data)
     qtest_end();
 }
 
+/* The virt machine maps DDR at guest physical address 0. */
+static void test_memory_backend(void)
+{
+    g_autofree char *path = NULL;
+    g_autofree char *args = NULL;
+    const uint8_t expected[] = { 0x12, 0x34, 0x56, 0x78 };
+    uint8_t actual[4];
+    int fd = g_file_open_tmp("hexagon-ram-XXXXXX", &path, NULL);
+
+    g_assert_cmpint(fd, >=, 0);
+    g_assert_cmpint(ftruncate(fd, 16 * 1024 * 1024), ==, 0);
+    args = g_strdup_printf("-machine virt,memory-backend=ram -m 16M "
+                           "-object memory-backend-file,id=ram,size=16M,"
+                           "share=on,mem-path=%s", path);
+    qtest_start(args);
+    /* QEMU has the file open now, so nothing is left behind on failure. */
+    unlink(path);
+    writel(0x1000, 0x78563412);
+    g_assert_cmpint(lseek(fd, 0x1000, SEEK_SET), ==, 0x1000);
+    g_assert_cmpint(read(fd, actual, sizeof(actual)), ==, sizeof(actual));
+    g_assert_cmpmem(actual, sizeof(actual), expected, sizeof(expected));
+    qtest_end();
+    close(fd);
+}
+
 int main(int argc, char **argv)
 {
     size_t i;
@@ -74,5 +99,6 @@ int main(int argc, char **argv)
         qtest_add_data_func(path, mc, test_config_table);
     }
 
+    qtest_add_func("/config/memory-backend", test_memory_backend);
     return g_test_run();
 }
