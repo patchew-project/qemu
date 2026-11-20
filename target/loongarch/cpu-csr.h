@@ -14,6 +14,13 @@
 
 /* Basic CSRs */
 #define LOONGARCH_CSR_CRMD           0x0 /* Current mode info */
+FIELD(CSR_CRMD, PLV, 0, 2)
+FIELD(CSR_CRMD, IE, 2, 1)
+FIELD(CSR_CRMD, DA, 3, 1)
+FIELD(CSR_CRMD, PG, 4, 1)
+FIELD(CSR_CRMD, DATF, 5, 2)
+FIELD(CSR_CRMD, DATM, 7, 2)
+FIELD(CSR_CRMD, WE, 9, 1)
 
 #define LOONGARCH_CSR_PRMD           0x1 /* Prev-exception mode info */
 FIELD(CSR_PRMD, PPLV, 0, 2)
@@ -182,8 +189,16 @@ FIELD(CSR_TLBRPRMD, PPLV, 0, 2)
 FIELD(CSR_TLBRPRMD, PIE, 2, 1)
 FIELD(CSR_TLBRPRMD, PWE, 4, 1)
 
+/*Msg interrupt registers */
+#define N_MSGIS                      4
 #define LOONGARCH_CSR_MSGIS(N)       (0xa0 + N)
+FIELD(CSR_MSGIS, IS, 0, 63)
+
 #define LOONGARCH_CSR_MSGIR               0xa4
+FIELD(CSR_MSGIR, INTNUM, 0, 8)
+FIELD(CSR_MSGIR, ACTIVE, 31, 1)
+
+FIELD(CSR_MSGIE, PT, 0, 8)
 
 /* Direct map windows CSRs*/
 #define LOONGARCH_CSR_DMW(N)         (0x180 + N)
@@ -197,6 +212,7 @@ FIELD(CSR_DMW_32, VSEG, 29, 3)
 FIELD(CSR_DMW_64, VSEG, 60, 4)
 
 /* Performance Counter registers */
+#define MAX_PERF_EVENTS              16
 #define LOONGARCH_CSR_PERFCTRL(N)    (0x200 + 2 * N)
 #define LOONGARCH_CSR_PERFCNTR(N)    (0x201 + 2 * N)
 
