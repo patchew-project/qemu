@@ -273,11 +273,13 @@ class Asset:
         return str(self.cache_file)
 
     @staticmethod
-    def precache_test(test):
+    def precache_test(test, done):
         '''
         Look for variables starting with "ASSET_" and try to fetch the asset
         that is specified there.
         '''
+        if test.__class__ in done:
+            return
         log = logging.getLogger('qemu-test')
         log.setLevel(logging.DEBUG)
         handler = logging.StreamHandler(sys.stdout)
@@ -295,18 +297,19 @@ class Asset:
                         raise
                     log.error("%s: skipping asset precache", e)
 
+        done[test.__class__] = True
         log.removeHandler(handler)
 
     @staticmethod
-    def precache_suite(suite):
+    def precache_suite(suite, done):
         '''
         Iterate through all tests/suites in a suite and precache their assets
         '''
         for test in suite:
             if isinstance(test, unittest.TestSuite):
-                Asset.precache_suite(test)
+                Asset.precache_suite(test, done)
             elif isinstance(test, unittest.TestCase):
-                Asset.precache_test(test)
+                Asset.precache_test(test, done)
 
     @staticmethod
     def precache_suites(path, cache_tstamp):
@@ -316,5 +319,5 @@ class Asset:
         loader = unittest.loader.defaultTestLoader
         tests = loader.loadTestsFromNames([path], None)
 
-        Asset.precache_suite(tests)
+        Asset.precache_suite(tests, {})
         Path(cache_tstamp).touch()
