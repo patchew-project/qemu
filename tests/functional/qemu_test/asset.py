@@ -18,8 +18,12 @@ import unittest
 import urllib.request
 from time import sleep
 from pathlib import Path
-from shutil import copyfileobj
 from urllib.error import HTTPError, URLError
+
+try:
+    from tqdm import tqdm
+except:
+    tqdm = None
 
 
 class AssetError(Exception):
@@ -139,6 +143,14 @@ class Asset:
         self.cache_file.with_suffix(".stamp").write_text(f"{int(time.time())}")
 
     def _try_to_fetch(self, tmp_cache_file):
+        def copyfileprog(prg, src, dst):
+            rd = src.read
+            wr = dst.write
+            while buf := rd(256 * 1024):
+                wr(buf)
+                if prg is not None:
+                    prg.update(len(buf))
+
         for _retries in range(3):
             try:
                 with tmp_cache_file.open("xb") as dst:
@@ -152,8 +164,21 @@ class Asset:
                         }
                     )
                     with urllib.request.urlopen(req) as resp:
-                        copyfileobj(resp, dst)
                         length_hdr = resp.getheader("Content-Length")
+                        verbose = os.environ.get("QEMU_TEST_VERBOSE", False)
+                        if tqdm is not None and verbose:
+                            args = {
+                                "desc": os.path.basename(self.url)
+                            }
+                            if length_hdr is not None:
+                                args["total"] = int(length_hdr)
+                            prg = tqdm(**args)
+                            try:
+                                copyfileprog(prg, resp, dst)
+                            finally:
+                                prg.close()
+                        else:
+                            copyfileprog(None, resp, dst)
 
                 # Verify downloaded file size against length metadata, if
                 # available.

@@ -329,6 +329,12 @@ default, but the location can be changed by setting the
 To force the test suite to re-download the cache, even if still valid,
 set the ``QEMU_TEST_REFRESH_CACHE`` environment variable.
 
+To see progress information during the downloads, set ``QEMU_TEST_VERBOSE``
+to ``1``. Since meson buffers output and only display it on completion,
+this is only suitable if running the test precaching directly::
+
+    QEMU_TEST_VERBOSE=1 ./run tests/functional/mips/test_malta.py
+
 Skipping tests
 --------------
 
