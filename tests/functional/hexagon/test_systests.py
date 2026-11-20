@@ -96,6 +96,11 @@ class SysTestsStandaloneTests(QemuSystemTest):
         """Cache operations raise TLB miss and privilege exceptions."""
         self.run_exit_zero("mmu_cacheops")
 
+    def test_llsc_on_excp(self):
+        """An exception between a load-locked and the store-conditional
+        clears the reservation."""
+        self.run_exit_zero("llsc_on_excp")
+
     def test_access(self):
         """access checks R_OK|W_OK on _testfile_access."""
         testfile = self.scratch_file("_testfile_access")
