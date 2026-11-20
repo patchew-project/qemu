@@ -63,16 +63,20 @@ class HypervisorTest(QemuSystemTest):
         self.initramfs = self.extract_from_iso(self.iso_path, '/boot/initramfs-lts')
 
     def do_start_alpine(self):
+        self.log.debug("do_start_alpine: launching L1 VM")
         self.vm.set_console()
-        self.vm.add_args("-kernel", self.vmlinuz)
-        self.vm.add_args("-initrd", self.initramfs)
-        self.vm.add_args("-smp", "4", "-m", "2g")
-        self.vm.add_args("-drive", f"file={self.iso_path},format=raw,if=none,"
-                                    "id=drive0,read-only=true")
-
+        self.vm.add_args(
+            "-kernel", self.vmlinuz,
+            "-initrd", self.initramfs,
+            "-smp", "4", "-m", "2g",
+            "-drive", f"file={self.iso_path},format=raw,if=none,id=drive0,read-only=true",
+            "-append", "console=hvc0 usbcore.nousb",
+        )
         self.vm.launch()
+        self.log.debug("do_start_alpine: VM launched, waiting for login prompt")
         ps1='localhost:~#'
         wait_for_console_pattern(self, 'localhost login:')
+        self.log.debug("do_start_alpine: got login prompt, logging in as root")
         exec_command_and_wait_for_pattern(self, 'root', ps1)
         self.log.debug("do_start_alpine: logged in, setting system clock")
         # If the time is wrong, SSL certificates can fail.
@@ -80,8 +84,11 @@ class HypervisorTest(QemuSystemTest):
         exec_command_and_wait_for_pattern(self, cmd, ps1)
         ps1='alpine:~#'
         exec_command_and_wait_for_pattern(self, 'setup-alpine -qe', ps1)
-        exec_command_and_wait_for_pattern(self, 'setup-apkrepos -c1', ps1)
-        exec_command_and_wait_for_pattern(self, 'apk update', ps1)
+        exec_command_and_wait_for_pattern(
+            self,
+            'for i in 1 2 3 4 5; do apk update && break; sleep 10; done',
+            ps1)
+        self.log.debug("do_start_alpine: apk update complete, Alpine L1 is ready")
         # Could upgrade here but it usually should not be necessary
         # exec_command_and_wait_for_pattern(self, 'apk upgrade --available', ps1)
 
@@ -114,9 +121,12 @@ class HypervisorTest(QemuSystemTest):
                            '-kernel /media/nvme0n1/boot/vmlinuz-lts '
                            '-append \'usbcore.nousb ' + append + '\'')
         # Alpine 3.21 kernel seems to crash in XHCI USB driver.
-        ps1='localhost:~#'
-        wait_for_console_pattern(self, 'localhost login:')
+        ps1 = 'localhost:~#'
+        wait_for_console_pattern(self, 'localhost login:',
+                                 failure_message=self.panic_message)
+        self.log.debug("do_test_kvm: L2 login prompt seen, logging in")
         exec_command_and_wait_for_pattern(self, 'root', ps1)
+        self.log.debug("do_test_kvm: logged into L2, issuing poweroff")
         exec_command(self, 'poweroff')
         wait_for_console_pattern(self, 'reboot: Power down')
         # Now wait for the host's prompt to come back
