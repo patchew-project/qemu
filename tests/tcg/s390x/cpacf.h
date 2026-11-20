@@ -60,15 +60,30 @@ static inline void encrypt_clrkey(uint8_t *key, int keysize)
  * encryption/decryption funcs
  */
 static inline int cpacf_km(unsigned long func, void *param,
-                           uint8_t *dest, const uint8_t *src, long src_len,
-                           unsigned long *cc)
+                            uint8_t *dest, const uint8_t *src, long src_len,
+                            unsigned long *cc)
 {
-    union register_pair d, s;
+    /*
+     * Pin the operand registers to known hardware numbers so that
+     * testcases have a clear understanding what's stored in each
+     * register:
+     *   R2  - destination address       (even of dst pair, gregs[2])
+     *   R3  - odd half of dst pair      (gregs[3], not used by KM but must be
+     *          reserved so the compiler does not place another variable there)
+     *   R4  - source address            (even of src pair, gregs[4])
+     *   R5  - source length             (odd  of src pair, gregs[5])
+     *
+     * KM R2, R4: R2 is updated (dst addr advances), R4/R5 are updated
+     * (src addr / remaining length).  R3 is not modified by KM but we
+     * list it as an output operand to prevent the compiler from allocating
+     * it to another variable that would be clobbered by the instruction.
+     */
+    register unsigned long r2 asm("r2") = (unsigned long)dest;
+    register unsigned long r3 asm("r3");   /* odd half of dst pair; reserved  */
+    register unsigned long r4 asm("r4") = (unsigned long)src;
+    register unsigned long r5 asm("r5") = (unsigned long)src_len;
 
     *cc = 0;
-    d.even = (unsigned long)dest;
-    s.even = (unsigned long)src;
-    s.odd  = (unsigned long)src_len;
     asm volatile(
                  "      lgr     0,%[fc]\n"
                  "      lgr     1,%[pba]\n"
@@ -79,12 +94,13 @@ static inline int cpacf_km(unsigned long func, void *param,
                  "      agsi    %[__cc],1\n"
                  "1:    agsi    %[__cc],1\n"
                  "2:\n"
-                 : [src] "+&d" (s.pair), [dst] "+&d" (d.pair), [__cc] "+Q" (*cc)
+                 : [dst] "+r" (r2), "=r" (r3), [src] "+r" (r4), "+r" (r5),
+                   [__cc] "+Q" (*cc)
                  : [fc] "d" (func), [pba] "d" ((unsigned long)param),
                    [opc] "i" (CPACF_KM)
                  : "cc", "memory", "0", "1");
 
-    return src_len - s.odd;
+    return src_len - (long)r5;
 }
 
 /**
@@ -99,15 +115,30 @@ static inline int cpacf_km(unsigned long func, void *param,
  * encryption/decryption funcs
  */
 static inline int cpacf_kmc(unsigned long func, void *param,
-                            uint8_t *dest, const uint8_t *src, long src_len,
-                            unsigned long *cc)
+                             uint8_t *dest, const uint8_t *src, long src_len,
+                             unsigned long *cc)
 {
-    union register_pair d, s;
+    /*
+     * Pin the operand registers to known hardware numbers so that
+     * testcases have a clear understanding what's stored in each
+     * register:
+     *   R2  - destination address       (even of dst pair, gregs[2])
+     *   R3  - odd half of dst pair      (gregs[3], not used by KMC but must be
+     *          reserved so the compiler does not place another variable there)
+     *   R4  - source address            (even of src pair, gregs[4])
+     *   R5  - source length             (odd  of src pair, gregs[5])
+     *
+     * KMC R2, R4: R2 is updated (dst addr advances), R4/R5 are updated
+     * (src addr / remaining length). R3 is not modified by KMC but we
+     * list it as an output operand to prevent the compiler from allocating
+     * it to another variable that would be clobbered by the instruction.
+     */
+    register unsigned long r2 asm("r2") = (unsigned long)dest;
+    register unsigned long r3 asm("r3");   /* odd half of dst pair; reserved */
+    register unsigned long r4 asm("r4") = (unsigned long)src;
+    register unsigned long r5 asm("r5") = (unsigned long)src_len;
 
     *cc = 0;
-    d.even = (unsigned long)dest;
-    s.even = (unsigned long)src;
-    s.odd  = (unsigned long)src_len;
     asm volatile(
                  "      lgr     0,%[fc]\n"
                  "      lgr     1,%[pba]\n"
@@ -118,12 +149,13 @@ static inline int cpacf_kmc(unsigned long func, void *param,
                  "      agsi    %[__cc],1\n"
                  "1:    agsi    %[__cc],1\n"
                  "2:\n"
-                 : [src] "+&d" (s.pair), [dst] "+&d" (d.pair), [__cc] "+Q" (*cc)
+                 : [dst] "+r" (r2), "=r" (r3), [src] "+r" (r4), "+r" (r5),
+                   [__cc] "+Q" (*cc)
                  : [fc] "d" (func), [pba] "d" ((unsigned long)param),
                    [opc] "i" (CPACF_KMC)
                  : "cc", "memory", "0", "1");
 
-    return src_len - s.odd;
+    return src_len - (long)r5;
 }
 
 /**
@@ -272,16 +304,33 @@ static inline int cpacf_kmac_x(unsigned long *func, void *param,
  * encryption/decryption funcs
  */
 static inline int cpacf_kmctr(unsigned long func, void *param, uint8_t *dest,
-                              const uint8_t *src, long src_len,
-                              uint8_t *counter, unsigned long *cc)
+                               const uint8_t *src, long src_len,
+                               uint8_t *counter, unsigned long *cc)
 {
-    union register_pair d, s, c;
+    /*
+     * Pin the operand registers to known hardware numbers so that
+     * testcases have a clear understanding what's stored in each
+     * register:
+     *   R2  - destination address       (even of dst pair, gregs[2])
+     *   R3  - odd half of dst pair      (gregs[3], not used by KMCTR)
+     *   R4  - source address            (even of src pair, gregs[4])
+     *   R5  - source length             (odd  of src pair, gregs[5])
+     *   R6  - counter address           (even of ctr pair, gregs[6])
+     *   R7  - odd half of ctr pair      (gregs[7], not used by KMCTR)
+     *
+     * KMCTR R2, R4, R6: R2 is updated (dst addr advances), R4/R5 are updated
+     * (src addr / remaining length), R6 is updated (ctr addr advances).
+     * R3 and R7 are not modified by KMCTR but are listed as output operands
+     * to prevent the compiler from allocating them to other variables.
+     */
+    register unsigned long r2 asm("r2") = (unsigned long)dest;
+    register unsigned long r3 asm("r3");   /* odd half of dst pair; reserved  */
+    register unsigned long r4 asm("r4") = (unsigned long)src;
+    register unsigned long r5 asm("r5") = (unsigned long)src_len;
+    register unsigned long r6 asm("r6") = (unsigned long)counter;
+    register unsigned long r7 asm("r7");   /* odd half of ctr pair; reserved  */
 
     *cc = 0;
-    d.even = (unsigned long)dest;
-    s.even = (unsigned long)src;
-    s.odd  = (unsigned long)src_len;
-    c.even = (unsigned long)counter;
     asm volatile(
                  "      lgr     0,%[fc]\n"
                  "      lgr     1,%[pba]\n"
@@ -292,13 +341,15 @@ static inline int cpacf_kmctr(unsigned long func, void *param, uint8_t *dest,
                  "      agsi    %[__cc],1\n"
                  "1:    agsi    %[__cc],1\n"
                  "2:\n"
-                 : [src] "+&d" (s.pair), [dst] "+&d" (d.pair),
-                   [ctr] "+&d" (c.pair), [__cc] "+Q" (*cc)
+                 : [dst] "+r" (r2), "=r" (r3),
+                   [src] "+r" (r4), "+r" (r5),
+                   [ctr] "+r" (r6), "=r" (r7),
+                   [__cc] "+Q" (*cc)
                  : [fc] "d" (func), [pba] "d" ((unsigned long)param),
                    [opc] "i" (CPACF_KMCTR)
                  : "cc", "memory", "0", "1");
 
-    return src_len - s.odd;
+    return src_len - (long)r5;
 }
 
 /**
