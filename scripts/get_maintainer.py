@@ -24,6 +24,7 @@ from regex import compile as prec_compile
 from git import Repo
 from collections import Counter, defaultdict
 from csv import writer as csv_writer
+from datetime import datetime, timezone
 
 #
 # Subsystem MAINTAINER entries
@@ -572,6 +573,77 @@ def dump_maintainers_csv(src, maint_sections):
             last_contrib.get(name, ""),
         ])
 
+
+def list_absent_maintainers(src, maint_sections, since_str):
+    """
+    Pretty print a list of maintainers and reviewers whose last
+    contribution was prior to since_str, or who have never contributed.
+    """
+    people = defaultdict(lambda: {'subsystems': [], 'emails': set()})
+    for s in maint_sections:
+        if s.status not in (Status.ORPHAN, Status.OBSOLETE):
+            for p in s.maintainers + s.reviewers:
+                if s.section not in people[p.name]['subsystems']:
+                    people[p.name]['subsystems'].append(s.section)
+                people[p.name]['emails'].add(p.email)
+
+    email_to_maint = {}
+    for name, data in people.items():
+        for email in data['emails']:
+            email_to_maint[email] = name
+
+    repo = Repo(src)
+    try:
+        out = repo.git.rev_parse(f'--since={since_str}')
+        ts = int(out.split('=')[1])
+        cutoff_date = datetime.fromtimestamp(
+            ts, tz=timezone.utc
+        ).strftime('%Y-%m-%d')
+    except Exception as e:
+        print(f"Error: failed to parse date '{since_str}': {e}",
+              file=sys.stderr)
+        sys.exit(1)
+
+    _first, last_contrib = get_contributor_dates(
+        repo, people, email_to_maint
+    )
+
+    rows = []
+    for name, data in people.items():
+        last = last_contrib.get(name)
+        if last is None:
+            rows.append((name, 'Never', ', '.join(sorted(data['emails'])),
+                         ', '.join(data['subsystems'])))
+        elif last < cutoff_date:
+            rows.append((name, last, ', '.join(sorted(data['emails'])),
+                         ', '.join(data['subsystems'])))
+
+    # Sort most stale first (Never first, then earliest date, then by name)
+    rows.sort(key=lambda x: (1 if x[1] != 'Never' else 0, x[1], x[0]))
+
+    if not rows:
+        print(f"No maintainers absent since {cutoff_date} ({since_str}).")
+        return
+
+    max_name = max([len(r[0]) for r in rows] + [len('Maintainer')])
+    max_date = max([len(r[1]) for r in rows] + [len('Last Seen')])
+    max_email = max([len(r[2]) for r in rows] + [len('Email(s)')])
+
+    header = (f"{'Maintainer':<{max_name}}  "
+              f"{'Last Seen':<{max_date}}  "
+              f"{'Email(s)':<{max_email}}  "
+              f"Subsystems")
+    sep_len = max_name + 2 + max_date + 2 + max_email + 2 + len('Subsystems')
+    separator = '-' * sep_len
+
+    print(header)
+    print(separator)
+    for r in rows:
+        print(f"{r[0]:<{max_name}}  "
+              f"{r[1]:<{max_date}}  "
+              f"{r[2]:<{max_email}}  "
+              f"{r[3]}")
+
 #
 # Argument validation
 #
@@ -628,6 +700,9 @@ def parse_args():
                         action=BooleanOptionalAction,
                         default=False,
                         help="Dump maintainers summary as CSV")
+    parser.add_argument(
+        '--list-absent-maintainers-since', metavar='DATE',
+        help="List maintainers with no contributions since DATE")
 
     # We need to know or be told where the root of the source tree is
     src = find_src_root()
@@ -707,6 +782,11 @@ def main():
 
     if args.list_maintainers:
         dump_maintainers_csv(args.src, maint_sections)
+        sys.exit(0)
+
+    if args.list_absent_maintainers_since:
+        list_absent_maintainers(args.src, maint_sections,
+                                args.list_absent_maintainers_since)
         sys.exit(0)
 
     # Build array of Path objects representing the files
