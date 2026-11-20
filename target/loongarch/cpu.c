@@ -153,6 +153,10 @@ static void loongarch_la464_init_csr(DeviceState *dev)
             set_csr_flag(LOONGARCH_CSR_PERFCTRL(i), CSRFL_UNUSED);
             set_csr_flag(LOONGARCH_CSR_PERFCNTR(i), CSRFL_UNUSED);
         }
+
+        if (tcg_enabled() && cpu_has_ptw(env)) {
+            set_csr_wrmask(LOONGARCH_CSR_PWCH, R_CSR_PWCH_HPTW_EN_MASK);
+        }
     }
 #endif
 }

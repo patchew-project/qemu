@@ -157,3 +157,29 @@ bool set_csr_flag(unsigned int csr_num, int flag)
     csr->flags |= flag;
     return true;
 }
+
+bool clear_csr_wrmask(unsigned int csr_num, uint64_t wrmask)
+{
+    CSRInfo *csr;
+
+    csr = get_csr(csr_num);
+    if (!csr) {
+        return false;
+    }
+
+    csr->wrmask &= ~wrmask;
+    return true;
+}
+
+bool set_csr_wrmask(unsigned int csr_num, uint64_t wrmask)
+{
+    CSRInfo *csr;
+
+    csr = get_csr(csr_num);
+    if (!csr) {
+        return false;
+    }
+
+    csr->wrmask |= wrmask;
+    return true;
+}
