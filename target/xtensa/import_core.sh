@@ -36,6 +36,8 @@ tar -xf "$OVERLAY" -O binutils/xtensa-modules.c | \
         -e '/^Slot_[a-zA-Z0-9_]\+_decode (const xtensa_insnbuf insn)/,/^}/s/^  return 0;$/  return XTENSA_UNDEFINED;/' \
         -e 's/#include <xtensa-isa.h>/#include "xtensa-isa.h"/' \
         -e 's/^\(xtensa_isa_internal xtensa_modules\)/static \1/' \
+        -e '/^static [a-zA-Z_]\+ [A-Za-z0-9_]\+\[\] = /s/^static /static const /' \
+        -e '/^static xtensa_\(get\|set\)_field_fn$/s/^static /static const /' \
     > "$TARGET"/xtensa-modules.c.inc
 
 cat <<EOF > "${TARGET}.c"

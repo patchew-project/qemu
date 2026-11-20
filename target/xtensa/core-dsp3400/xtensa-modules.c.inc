@@ -27,7 +27,7 @@
 
 /* Sysregs.  */
 
-static xtensa_sysreg_internal sysregs[] = {
+static const xtensa_sysreg_internal sysregs[] = {
   { "LBEG", 0, 0 },
   { "LEND", 1, 0 },
   { "LCOUNT", 2, 0 },
@@ -162,7 +162,7 @@ static xtensa_sysreg_internal sysregs[] = {
 
 /* Processor states.  */
 
-static xtensa_state_internal states[] = {
+static const xtensa_state_internal states[] = {
   { "LCOUNT", 32, 0 },
   { "PC", 32, 0 },
   { "ICOUNT", 32, 0 },
@@ -41004,7 +41004,7 @@ enum xtensa_field_id {
 
 /* Functional units.  */
 
-static xtensa_funcUnit_internal funcUnits[] = {
+static const xtensa_funcUnit_internal funcUnits[] = {
 
 };
 
@@ -41024,7 +41024,7 @@ enum xtensa_regfile_id {
   REGFILE_BR16
 };
 
-static xtensa_regfile_internal regfiles[] = {
+static const xtensa_regfile_internal regfiles[] = {
   { "AR", "a", REGFILE_AR, 32, 32 },
   { "BR", "b", REGFILE_BR, 1, 16 },
   { "FR", "f", REGFILE_FR, 32, 16 },
@@ -41040,7 +41040,7 @@ static xtensa_regfile_internal regfiles[] = {
 
 /* Interfaces.  */
 
-static xtensa_interface_internal interfaces[] = {
+static const xtensa_interface_internal interfaces[] = {
   { "INQ0_32_Empty", 1, 0, 0, 'i' },
   { "INQ0_32", 32, XTENSA_INTERFACE_HAS_SIDE_EFFECT, 0, 'i' },
   { "INQ0_32_NOTRDY", 1, 0, 0, 'i' },
@@ -43282,7 +43282,7 @@ Operand_dsp340050b49a6c_oper89_imm_encode (uint32 *valp)
   return 0;
 }
 
-static xtensa_operand_internal operands[] = {
+static const xtensa_operand_internal operands[] = {
   { "soffsetx4", FIELD_offset, -1, 0,
     XTENSA_OPERAND_IS_PCRELATIVE,
     Operand_soffsetx4_encode, Operand_soffsetx4_decode,
@@ -47256,76 +47256,76 @@ enum xtensa_operand_id {
 
 /* Iclass table.  */
 
-static xtensa_arg_internal Iclass_xt_iclass_rfe_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rfe_stateArgs[] = {
   { { STATE_PSEXCM }, 'o' },
   { { STATE_EPC1 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rfde_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rfde_stateArgs[] = {
   { { STATE_DEPC }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_call12_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_call12_args[] = {
   { { OPERAND_soffsetx4 }, 'i' },
   { { OPERAND_ar12 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_call12_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_call12_stateArgs[] = {
   { { STATE_PSCALLINC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_call8_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_call8_args[] = {
   { { OPERAND_soffsetx4 }, 'i' },
   { { OPERAND_ar8 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_call8_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_call8_stateArgs[] = {
   { { STATE_PSCALLINC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_call4_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_call4_args[] = {
   { { OPERAND_soffsetx4 }, 'i' },
   { { OPERAND_ar4 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_call4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_call4_stateArgs[] = {
   { { STATE_PSCALLINC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_callx12_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_callx12_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_ar12 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_callx12_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_callx12_stateArgs[] = {
   { { STATE_PSCALLINC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_callx8_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_callx8_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_ar8 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_callx8_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_callx8_stateArgs[] = {
   { { STATE_PSCALLINC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_callx4_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_callx4_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_ar4 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_callx4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_callx4_stateArgs[] = {
   { { STATE_PSCALLINC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_entry_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_entry_args[] = {
   { { OPERAND_ars_entry }, 's' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm12x8 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_entry_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_entry_stateArgs[] = {
   { { STATE_PSCALLINC }, 'i' },
   { { STATE_PSEXCM }, 'i' },
   { { STATE_PSWOE }, 'i' },
@@ -47333,36 +47333,36 @@ static xtensa_arg_internal Iclass_xt_iclass_entry_stateArgs[] = {
   { { STATE_WindowStart }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_movsp_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_movsp_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_movsp_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_movsp_stateArgs[] = {
   { { STATE_WindowBase }, 'i' },
   { { STATE_WindowStart }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rotw_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rotw_args[] = {
   { { OPERAND_simm4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rotw_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rotw_stateArgs[] = {
   { { STATE_WindowBase }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_retw_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_retw_args[] = {
   { { OPERAND__ars_invisible }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_retw_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_retw_stateArgs[] = {
   { { STATE_WindowBase }, 'm' },
   { { STATE_WindowStart }, 'm' },
   { { STATE_PSEXCM }, 'i' },
   { { STATE_PSWOE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rfwou_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rfwou_stateArgs[] = {
   { { STATE_EPC1 }, 'i' },
   { { STATE_PSEXCM }, 'o' },
   { { STATE_WindowBase }, 'm' },
@@ -47370,369 +47370,369 @@ static xtensa_arg_internal Iclass_xt_iclass_rfwou_stateArgs[] = {
   { { STATE_PSOWB }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_l32e_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_l32e_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_immrx4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_s32e_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_s32e_args[] = {
   { { OPERAND_art }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_immrx4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_windowbase_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_windowbase_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_windowbase_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_windowbase_stateArgs[] = {
   { { STATE_WindowBase }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_windowbase_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_windowbase_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_windowbase_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_windowbase_stateArgs[] = {
   { { STATE_WindowBase }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_windowbase_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_windowbase_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_windowbase_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_windowbase_stateArgs[] = {
   { { STATE_WindowBase }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_windowstart_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_windowstart_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_windowstart_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_windowstart_stateArgs[] = {
   { { STATE_WindowStart }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_windowstart_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_windowstart_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_windowstart_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_windowstart_stateArgs[] = {
   { { STATE_WindowStart }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_windowstart_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_windowstart_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_windowstart_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_windowstart_stateArgs[] = {
   { { STATE_WindowStart }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_add_n_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_add_n_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_addi_n_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_addi_n_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_ai4const }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_bz6_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_bz6_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm6 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_loadi4_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_loadi4_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_lsi4x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_mov_n_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_mov_n_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_movi_n_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_movi_n_args[] = {
   { { OPERAND_ars }, 'o' },
   { { OPERAND_simm7 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_retn_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_retn_args[] = {
   { { OPERAND__ars_invisible }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_storei4_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_storei4_args[] = {
   { { OPERAND_art }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_lsi4x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_threadptr_args[] = {
+static const xtensa_arg_internal Iclass_rur_threadptr_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_threadptr_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_threadptr_stateArgs[] = {
   { { STATE_THREADPTR }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_threadptr_args[] = {
+static const xtensa_arg_internal Iclass_wur_threadptr_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_threadptr_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_threadptr_stateArgs[] = {
   { { STATE_THREADPTR }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_addi_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_addi_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_simm8 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_addmi_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_addmi_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_simm8x256 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_addsub_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_addsub_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_bit_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_bit_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_bsi8_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_bsi8_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_b4const }, 'i' },
   { { OPERAND_label8 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_bsi8b_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_bsi8b_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_bbi }, 'i' },
   { { OPERAND_label8 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_bsi8u_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_bsi8u_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_b4constu }, 'i' },
   { { OPERAND_label8 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_bst8_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_bst8_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_label8 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_bsz12_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_bsz12_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_label12 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_call0_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_call0_args[] = {
   { { OPERAND_soffsetx4 }, 'i' },
   { { OPERAND_ar0 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_callx0_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_callx0_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_ar0 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_exti_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_exti_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_sae }, 'i' },
   { { OPERAND_op2p1 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_jump_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_jump_args[] = {
   { { OPERAND_soffset }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_jumpx_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_jumpx_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_l16ui_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_l16ui_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm8x2 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_l16si_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_l16si_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm8x2 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_l32i_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_l32i_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm8x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_l32r_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_l32r_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_uimm16x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_l32r_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_l32r_stateArgs[] = {
   { { STATE_LITBADDR }, 'i' },
   { { STATE_LITBEN }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_l8i_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_l8i_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm8 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_loop_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_loop_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_ulabel8 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_loop_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_loop_stateArgs[] = {
   { { STATE_LBEG }, 'o' },
   { { STATE_LEND }, 'o' },
   { { STATE_LCOUNT }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_loopz_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_loopz_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_ulabel8 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_loopz_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_loopz_stateArgs[] = {
   { { STATE_LBEG }, 'o' },
   { { STATE_LEND }, 'o' },
   { { STATE_LCOUNT }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_movi_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_movi_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_simm12b }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_movz_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_movz_args[] = {
   { { OPERAND_arr }, 'm' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_neg_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_neg_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_return_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_return_args[] = {
   { { OPERAND__ars_invisible }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_s16i_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_s16i_args[] = {
   { { OPERAND_art }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm8x2 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_s32i_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_s32i_args[] = {
   { { OPERAND_art }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm8x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_s8i_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_s8i_args[] = {
   { { OPERAND_art }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm8 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_sar_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_sar_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_sar_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_sar_stateArgs[] = {
   { { STATE_SAR }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_sari_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_sari_args[] = {
   { { OPERAND_sas }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_sari_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_sari_stateArgs[] = {
   { { STATE_SAR }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_shifts_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_shifts_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_shifts_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_shifts_stateArgs[] = {
   { { STATE_SAR }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_shiftst_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_shiftst_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_shiftst_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_shiftst_stateArgs[] = {
   { { STATE_SAR }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_shiftt_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_shiftt_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_shiftt_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_shiftt_stateArgs[] = {
   { { STATE_SAR }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_slli_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_slli_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_msalp32 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_srai_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_srai_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_sargt }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_srli_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_srli_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_s }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_sync_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_sync_stateArgs[] = {
   { { STATE_XTSYNC }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsil_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsil_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_s }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsil_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsil_stateArgs[] = {
   { { STATE_PSWOE }, 'i' },
   { { STATE_PSCALLINC }, 'i' },
   { { STATE_PSOWB }, 'i' },
@@ -47741,149 +47741,149 @@ static xtensa_arg_internal Iclass_xt_iclass_rsil_stateArgs[] = {
   { { STATE_PSINTLEVEL }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_lend_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_lend_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_lend_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_lend_stateArgs[] = {
   { { STATE_LEND }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_lend_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_lend_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_lend_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_lend_stateArgs[] = {
   { { STATE_LEND }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_lend_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_lend_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_lend_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_lend_stateArgs[] = {
   { { STATE_LEND }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_lcount_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_lcount_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_lcount_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_lcount_stateArgs[] = {
   { { STATE_LCOUNT }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_lcount_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_lcount_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_lcount_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_lcount_stateArgs[] = {
   { { STATE_XTSYNC }, 'o' },
   { { STATE_LCOUNT }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_lcount_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_lcount_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_lcount_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_lcount_stateArgs[] = {
   { { STATE_XTSYNC }, 'o' },
   { { STATE_LCOUNT }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_lbeg_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_lbeg_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_lbeg_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_lbeg_stateArgs[] = {
   { { STATE_LBEG }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_lbeg_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_lbeg_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_lbeg_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_lbeg_stateArgs[] = {
   { { STATE_LBEG }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_lbeg_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_lbeg_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_lbeg_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_lbeg_stateArgs[] = {
   { { STATE_LBEG }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_sar_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_sar_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_sar_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_sar_stateArgs[] = {
   { { STATE_SAR }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_sar_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_sar_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_sar_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_sar_stateArgs[] = {
   { { STATE_SAR }, 'o' },
   { { STATE_XTSYNC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_sar_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_sar_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_sar_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_sar_stateArgs[] = {
   { { STATE_SAR }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_litbase_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_litbase_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_litbase_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_litbase_stateArgs[] = {
   { { STATE_LITBADDR }, 'i' },
   { { STATE_LITBEN }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_litbase_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_litbase_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_litbase_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_litbase_stateArgs[] = {
   { { STATE_LITBADDR }, 'o' },
   { { STATE_LITBEN }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_litbase_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_litbase_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_litbase_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_litbase_stateArgs[] = {
   { { STATE_LITBADDR }, 'm' },
   { { STATE_LITBEN }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_176_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_176_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_176_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_176_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_208_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_208_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ps_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ps_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ps_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ps_stateArgs[] = {
   { { STATE_PSWOE }, 'i' },
   { { STATE_PSCALLINC }, 'i' },
   { { STATE_PSOWB }, 'i' },
@@ -47892,11 +47892,11 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_ps_stateArgs[] = {
   { { STATE_PSINTLEVEL }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ps_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ps_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ps_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ps_stateArgs[] = {
   { { STATE_PSWOE }, 'o' },
   { { STATE_PSCALLINC }, 'o' },
   { { STATE_PSOWB }, 'o' },
@@ -47905,11 +47905,11 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_ps_stateArgs[] = {
   { { STATE_PSINTLEVEL }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ps_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ps_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ps_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ps_stateArgs[] = {
   { { STATE_PSWOE }, 'm' },
   { { STATE_PSCALLINC }, 'm' },
   { { STATE_PSOWB }, 'm' },
@@ -47918,526 +47918,526 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_ps_stateArgs[] = {
   { { STATE_PSINTLEVEL }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_epc1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_epc1_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_epc1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_epc1_stateArgs[] = {
   { { STATE_EPC1 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_epc1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_epc1_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_epc1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_epc1_stateArgs[] = {
   { { STATE_EPC1 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_epc1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_epc1_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_epc1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_epc1_stateArgs[] = {
   { { STATE_EPC1 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_excsave1_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_excsave1_stateArgs[] = {
   { { STATE_EXCSAVE1 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_excsave1_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_excsave1_stateArgs[] = {
   { { STATE_EXCSAVE1 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_excsave1_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_excsave1_stateArgs[] = {
   { { STATE_EXCSAVE1 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_epc2_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_epc2_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_epc2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_epc2_stateArgs[] = {
   { { STATE_EPC2 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_epc2_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_epc2_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_epc2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_epc2_stateArgs[] = {
   { { STATE_EPC2 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_epc2_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_epc2_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_epc2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_epc2_stateArgs[] = {
   { { STATE_EPC2 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave2_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_excsave2_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_excsave2_stateArgs[] = {
   { { STATE_EXCSAVE2 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave2_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_excsave2_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_excsave2_stateArgs[] = {
   { { STATE_EXCSAVE2 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave2_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_excsave2_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_excsave2_stateArgs[] = {
   { { STATE_EXCSAVE2 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_epc3_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_epc3_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_epc3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_epc3_stateArgs[] = {
   { { STATE_EPC3 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_epc3_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_epc3_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_epc3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_epc3_stateArgs[] = {
   { { STATE_EPC3 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_epc3_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_epc3_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_epc3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_epc3_stateArgs[] = {
   { { STATE_EPC3 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave3_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_excsave3_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_excsave3_stateArgs[] = {
   { { STATE_EXCSAVE3 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave3_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_excsave3_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_excsave3_stateArgs[] = {
   { { STATE_EXCSAVE3 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave3_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_excsave3_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_excsave3_stateArgs[] = {
   { { STATE_EXCSAVE3 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_epc4_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_epc4_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_epc4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_epc4_stateArgs[] = {
   { { STATE_EPC4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_epc4_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_epc4_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_epc4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_epc4_stateArgs[] = {
   { { STATE_EPC4 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_epc4_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_epc4_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_epc4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_epc4_stateArgs[] = {
   { { STATE_EPC4 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave4_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_excsave4_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_excsave4_stateArgs[] = {
   { { STATE_EXCSAVE4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave4_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_excsave4_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_excsave4_stateArgs[] = {
   { { STATE_EXCSAVE4 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave4_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_excsave4_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_excsave4_stateArgs[] = {
   { { STATE_EXCSAVE4 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_epc5_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_epc5_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_epc5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_epc5_stateArgs[] = {
   { { STATE_EPC5 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_epc5_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_epc5_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_epc5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_epc5_stateArgs[] = {
   { { STATE_EPC5 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_epc5_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_epc5_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_epc5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_epc5_stateArgs[] = {
   { { STATE_EPC5 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave5_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_excsave5_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_excsave5_stateArgs[] = {
   { { STATE_EXCSAVE5 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave5_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_excsave5_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_excsave5_stateArgs[] = {
   { { STATE_EXCSAVE5 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave5_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_excsave5_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_excsave5_stateArgs[] = {
   { { STATE_EXCSAVE5 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_epc6_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_epc6_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_epc6_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_epc6_stateArgs[] = {
   { { STATE_EPC6 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_epc6_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_epc6_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_epc6_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_epc6_stateArgs[] = {
   { { STATE_EPC6 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_epc6_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_epc6_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_epc6_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_epc6_stateArgs[] = {
   { { STATE_EPC6 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave6_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_excsave6_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave6_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_excsave6_stateArgs[] = {
   { { STATE_EXCSAVE6 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave6_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_excsave6_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave6_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_excsave6_stateArgs[] = {
   { { STATE_EXCSAVE6 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave6_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_excsave6_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave6_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_excsave6_stateArgs[] = {
   { { STATE_EXCSAVE6 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_eps2_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_eps2_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_eps2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_eps2_stateArgs[] = {
   { { STATE_EPS2 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_eps2_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_eps2_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_eps2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_eps2_stateArgs[] = {
   { { STATE_EPS2 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_eps2_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_eps2_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_eps2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_eps2_stateArgs[] = {
   { { STATE_EPS2 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_eps3_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_eps3_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_eps3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_eps3_stateArgs[] = {
   { { STATE_EPS3 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_eps3_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_eps3_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_eps3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_eps3_stateArgs[] = {
   { { STATE_EPS3 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_eps3_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_eps3_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_eps3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_eps3_stateArgs[] = {
   { { STATE_EPS3 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_eps4_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_eps4_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_eps4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_eps4_stateArgs[] = {
   { { STATE_EPS4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_eps4_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_eps4_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_eps4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_eps4_stateArgs[] = {
   { { STATE_EPS4 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_eps4_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_eps4_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_eps4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_eps4_stateArgs[] = {
   { { STATE_EPS4 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_eps5_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_eps5_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_eps5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_eps5_stateArgs[] = {
   { { STATE_EPS5 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_eps5_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_eps5_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_eps5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_eps5_stateArgs[] = {
   { { STATE_EPS5 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_eps5_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_eps5_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_eps5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_eps5_stateArgs[] = {
   { { STATE_EPS5 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_eps6_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_eps6_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_eps6_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_eps6_stateArgs[] = {
   { { STATE_EPS6 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_eps6_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_eps6_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_eps6_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_eps6_stateArgs[] = {
   { { STATE_EPS6 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_eps6_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_eps6_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_eps6_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_eps6_stateArgs[] = {
   { { STATE_EPS6 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_excvaddr_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_excvaddr_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_excvaddr_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_excvaddr_stateArgs[] = {
   { { STATE_EXCVADDR }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_excvaddr_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_excvaddr_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_excvaddr_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_excvaddr_stateArgs[] = {
   { { STATE_EXCVADDR }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_excvaddr_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_excvaddr_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_excvaddr_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_excvaddr_stateArgs[] = {
   { { STATE_EXCVADDR }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_depc_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_depc_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_depc_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_depc_stateArgs[] = {
   { { STATE_DEPC }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_depc_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_depc_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_depc_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_depc_stateArgs[] = {
   { { STATE_DEPC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_depc_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_depc_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_depc_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_depc_stateArgs[] = {
   { { STATE_DEPC }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_exccause_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_exccause_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_exccause_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_exccause_stateArgs[] = {
   { { STATE_EXCCAUSE }, 'i' },
   { { STATE_XTSYNC }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_exccause_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_exccause_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_exccause_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_exccause_stateArgs[] = {
   { { STATE_EXCCAUSE }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_exccause_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_exccause_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_exccause_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_exccause_stateArgs[] = {
   { { STATE_EXCCAUSE }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_prid_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_prid_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_vecbase_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_vecbase_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_vecbase_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_vecbase_stateArgs[] = {
   { { STATE_VECBASE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_vecbase_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_vecbase_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_vecbase_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_vecbase_stateArgs[] = {
   { { STATE_VECBASE }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_vecbase_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_vecbase_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_vecbase_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_vecbase_stateArgs[] = {
   { { STATE_VECBASE }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_mul16_args[] = {
+static const xtensa_arg_internal Iclass_xt_mul16_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rfi_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rfi_args[] = {
   { { OPERAND_s }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rfi_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rfi_stateArgs[] = {
   { { STATE_PSWOE }, 'o' },
   { { STATE_PSCALLINC }, 'o' },
   { { STATE_PSOWB }, 'o' },
@@ -48458,367 +48458,367 @@ static xtensa_arg_internal Iclass_xt_iclass_rfi_stateArgs[] = {
   { { STATE_InOCDMode }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wait_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wait_args[] = {
   { { OPERAND_s }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wait_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wait_stateArgs[] = {
   { { STATE_PSINTLEVEL }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_interrupt_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_interrupt_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_interrupt_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_interrupt_stateArgs[] = {
   { { STATE_INTERRUPT }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_intset_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_intset_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_intset_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_intset_stateArgs[] = {
   { { STATE_XTSYNC }, 'o' },
   { { STATE_INTERRUPT }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_intclear_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_intclear_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_intclear_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_intclear_stateArgs[] = {
   { { STATE_XTSYNC }, 'o' },
   { { STATE_INTERRUPT }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_intenable_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_intenable_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_intenable_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_intenable_stateArgs[] = {
   { { STATE_INTENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_intenable_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_intenable_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_intenable_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_intenable_stateArgs[] = {
   { { STATE_INTENABLE }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_intenable_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_intenable_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_intenable_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_intenable_stateArgs[] = {
   { { STATE_INTENABLE }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_break_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_break_args[] = {
   { { OPERAND_imms }, 'i' },
   { { OPERAND_immt }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_break_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_break_stateArgs[] = {
   { { STATE_PSEXCM }, 'i' },
   { { STATE_PSINTLEVEL }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_break_n_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_break_n_args[] = {
   { { OPERAND_imms }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_break_n_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_break_n_stateArgs[] = {
   { { STATE_PSEXCM }, 'i' },
   { { STATE_PSINTLEVEL }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreaka0_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_dbreaka0_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreaka0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_dbreaka0_stateArgs[] = {
   { { STATE_DBREAKA0 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreaka0_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_dbreaka0_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreaka0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_dbreaka0_stateArgs[] = {
   { { STATE_DBREAKA0 }, 'o' },
   { { STATE_XTSYNC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreaka0_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_dbreaka0_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreaka0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_dbreaka0_stateArgs[] = {
   { { STATE_DBREAKA0 }, 'm' },
   { { STATE_XTSYNC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreakc0_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_dbreakc0_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreakc0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_dbreakc0_stateArgs[] = {
   { { STATE_DBREAKC0 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreakc0_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_dbreakc0_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreakc0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_dbreakc0_stateArgs[] = {
   { { STATE_DBREAKC0 }, 'o' },
   { { STATE_XTSYNC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreakc0_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_dbreakc0_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreakc0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_dbreakc0_stateArgs[] = {
   { { STATE_DBREAKC0 }, 'm' },
   { { STATE_XTSYNC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreaka1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_dbreaka1_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreaka1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_dbreaka1_stateArgs[] = {
   { { STATE_DBREAKA1 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreaka1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_dbreaka1_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreaka1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_dbreaka1_stateArgs[] = {
   { { STATE_DBREAKA1 }, 'o' },
   { { STATE_XTSYNC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreaka1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_dbreaka1_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreaka1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_dbreaka1_stateArgs[] = {
   { { STATE_DBREAKA1 }, 'm' },
   { { STATE_XTSYNC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreakc1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_dbreakc1_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreakc1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_dbreakc1_stateArgs[] = {
   { { STATE_DBREAKC1 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreakc1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_dbreakc1_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreakc1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_dbreakc1_stateArgs[] = {
   { { STATE_DBREAKC1 }, 'o' },
   { { STATE_XTSYNC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreakc1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_dbreakc1_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreakc1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_dbreakc1_stateArgs[] = {
   { { STATE_DBREAKC1 }, 'm' },
   { { STATE_XTSYNC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ibreaka0_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ibreaka0_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ibreaka0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ibreaka0_stateArgs[] = {
   { { STATE_IBREAKA0 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ibreaka0_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ibreaka0_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ibreaka0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ibreaka0_stateArgs[] = {
   { { STATE_IBREAKA0 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ibreaka0_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ibreaka0_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ibreaka0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ibreaka0_stateArgs[] = {
   { { STATE_IBREAKA0 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ibreaka1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ibreaka1_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ibreaka1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ibreaka1_stateArgs[] = {
   { { STATE_IBREAKA1 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ibreaka1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ibreaka1_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ibreaka1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ibreaka1_stateArgs[] = {
   { { STATE_IBREAKA1 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ibreaka1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ibreaka1_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ibreaka1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ibreaka1_stateArgs[] = {
   { { STATE_IBREAKA1 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ibreakenable_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ibreakenable_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ibreakenable_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ibreakenable_stateArgs[] = {
   { { STATE_IBREAKENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ibreakenable_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ibreakenable_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ibreakenable_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ibreakenable_stateArgs[] = {
   { { STATE_IBREAKENABLE }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ibreakenable_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ibreakenable_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ibreakenable_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ibreakenable_stateArgs[] = {
   { { STATE_IBREAKENABLE }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_debugcause_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_debugcause_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_debugcause_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_debugcause_stateArgs[] = {
   { { STATE_DEBUGCAUSE }, 'i' },
   { { STATE_DBNUM }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_debugcause_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_debugcause_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_debugcause_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_debugcause_stateArgs[] = {
   { { STATE_DEBUGCAUSE }, 'o' },
   { { STATE_DBNUM }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_debugcause_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_debugcause_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_debugcause_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_debugcause_stateArgs[] = {
   { { STATE_DEBUGCAUSE }, 'm' },
   { { STATE_DBNUM }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_icount_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_icount_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_icount_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_icount_stateArgs[] = {
   { { STATE_ICOUNT }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_icount_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_icount_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_icount_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_icount_stateArgs[] = {
   { { STATE_XTSYNC }, 'o' },
   { { STATE_ICOUNT }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_icount_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_icount_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_icount_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_icount_stateArgs[] = {
   { { STATE_XTSYNC }, 'o' },
   { { STATE_ICOUNT }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_icountlevel_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_icountlevel_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_icountlevel_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_icountlevel_stateArgs[] = {
   { { STATE_ICOUNTLEVEL }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_icountlevel_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_icountlevel_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_icountlevel_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_icountlevel_stateArgs[] = {
   { { STATE_ICOUNTLEVEL }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_icountlevel_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_icountlevel_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_icountlevel_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_icountlevel_stateArgs[] = {
   { { STATE_ICOUNTLEVEL }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ddr_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ddr_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ddr_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ddr_stateArgs[] = {
   { { STATE_DDR }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ddr_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ddr_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ddr_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ddr_stateArgs[] = {
   { { STATE_XTSYNC }, 'o' },
   { { STATE_DDR }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ddr_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ddr_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ddr_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ddr_stateArgs[] = {
   { { STATE_XTSYNC }, 'o' },
   { { STATE_DDR }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rfdo_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rfdo_args[] = {
   { { OPERAND_imms }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rfdo_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rfdo_stateArgs[] = {
   { { STATE_InOCDMode }, 'm' },
   { { STATE_EPC6 }, 'i' },
   { { STATE_PSWOE }, 'o' },
@@ -48830,360 +48830,360 @@ static xtensa_arg_internal Iclass_xt_iclass_rfdo_stateArgs[] = {
   { { STATE_EPS6 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rfdd_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rfdd_stateArgs[] = {
   { { STATE_InOCDMode }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_mmid_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_mmid_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_mmid_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_mmid_stateArgs[] = {
   { { STATE_XTSYNC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_bbool1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_bbool1_args[] = {
   { { OPERAND_br }, 'o' },
   { { OPERAND_bs }, 'i' },
   { { OPERAND_bt }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_bbool4_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_bbool4_args[] = {
   { { OPERAND_bt }, 'o' },
   { { OPERAND_bs4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_bbool8_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_bbool8_args[] = {
   { { OPERAND_bt }, 'o' },
   { { OPERAND_bs8 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_bbranch_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_bbranch_args[] = {
   { { OPERAND_bs }, 'i' },
   { { OPERAND_label8 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_bmove_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_bmove_args[] = {
   { { OPERAND_arr }, 'm' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_bt }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_RSR_BR_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_RSR_BR_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_brall }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_WSR_BR_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_WSR_BR_args[] = {
   { { OPERAND_art }, 'i' },
   { { OPERAND_brall }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_XSR_BR_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_XSR_BR_args[] = {
   { { OPERAND_art }, 'm' },
   { { OPERAND_brall }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ccount_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ccount_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ccount_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ccount_stateArgs[] = {
   { { STATE_CCOUNT }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ccount_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ccount_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ccount_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ccount_stateArgs[] = {
   { { STATE_XTSYNC }, 'o' },
   { { STATE_CCOUNT }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ccount_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ccount_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ccount_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ccount_stateArgs[] = {
   { { STATE_XTSYNC }, 'o' },
   { { STATE_CCOUNT }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare0_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare0_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare0_stateArgs[] = {
   { { STATE_CCOMPARE0 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare0_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare0_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare0_stateArgs[] = {
   { { STATE_CCOMPARE0 }, 'o' },
   { { STATE_INTERRUPT }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare0_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare0_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare0_stateArgs[] = {
   { { STATE_CCOMPARE0 }, 'm' },
   { { STATE_INTERRUPT }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare1_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare1_stateArgs[] = {
   { { STATE_CCOMPARE1 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare1_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare1_stateArgs[] = {
   { { STATE_CCOMPARE1 }, 'o' },
   { { STATE_INTERRUPT }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare1_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare1_stateArgs[] = {
   { { STATE_CCOMPARE1 }, 'm' },
   { { STATE_INTERRUPT }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_icache_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_icache_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm8x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_icache_lock_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_icache_lock_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm4x16 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_icache_inv_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_icache_inv_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm8x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_licx_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_licx_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_sicx_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_sicx_args[] = {
   { { OPERAND_art }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_dcache_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_dcache_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm8x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_dcache_ind_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_dcache_ind_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm4x16 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_dcache_inv_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_dcache_inv_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm8x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_dpf_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_dpf_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm8x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_dcache_lock_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_dcache_lock_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm4x16 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_sdct_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_sdct_args[] = {
   { { OPERAND_art }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_ldct_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_ldct_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_idtlb_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_idtlb_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_idtlb_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_idtlb_stateArgs[] = {
   { { STATE_XTSYNC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rdtlb_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rdtlb_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wdtlb_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wdtlb_args[] = {
   { { OPERAND_art }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wdtlb_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wdtlb_stateArgs[] = {
   { { STATE_XTSYNC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_iitlb_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_iitlb_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_ritlb_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_ritlb_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_witlb_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_witlb_args[] = {
   { { OPERAND_art }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_cpenable_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_cpenable_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_cpenable_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_cpenable_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_cpenable_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_cpenable_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_cpenable_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_cpenable_stateArgs[] = {
   { { STATE_CPENABLE }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_cpenable_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_cpenable_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_cpenable_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_cpenable_stateArgs[] = {
   { { STATE_CPENABLE }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_clamp_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_clamp_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_tp7 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_minmax_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_minmax_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_nsa_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_nsa_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_sx_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_sx_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_tp7 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_l32ai_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_l32ai_args[] = {
   { { OPERAND_art }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm8x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_s32ri_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_s32ri_args[] = {
   { { OPERAND_art }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm8x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_s32c1i_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_s32c1i_args[] = {
   { { OPERAND_art }, 'm' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_uimm8x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_s32c1i_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_s32c1i_stateArgs[] = {
   { { STATE_SCOMPARE1 }, 'i' },
   { { STATE_XTSYNC }, 'i' },
   { { STATE_SCOMPARE1 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_scompare1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_scompare1_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_scompare1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_scompare1_stateArgs[] = {
   { { STATE_SCOMPARE1 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_scompare1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_scompare1_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_scompare1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_scompare1_stateArgs[] = {
   { { STATE_SCOMPARE1 }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_scompare1_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_scompare1_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_scompare1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_scompare1_stateArgs[] = {
   { { STATE_SCOMPARE1 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_atomctl_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_atomctl_args[] = {
   { { OPERAND_art }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_atomctl_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_rsr_atomctl_stateArgs[] = {
   { { STATE_ATOMCTL }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_atomctl_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_atomctl_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_wsr_atomctl_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_wsr_atomctl_stateArgs[] = {
   { { STATE_ATOMCTL }, 'o' },
   { { STATE_XTSYNC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_atomctl_args[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_atomctl_args[] = {
   { { OPERAND_art }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_xsr_atomctl_stateArgs[] = {
+static const xtensa_arg_internal Iclass_xt_iclass_xsr_atomctl_stateArgs[] = {
   { { STATE_ATOMCTL }, 'm' },
   { { STATE_XTSYNC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_fcr_args[] = {
+static const xtensa_arg_internal Iclass_rur_fcr_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_fcr_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_fcr_stateArgs[] = {
   { { STATE_RoundMode }, 'i' },
   { { STATE_InvalidEnable }, 'i' },
   { { STATE_DivZeroEnable }, 'i' },
@@ -49195,11 +49195,11 @@ static xtensa_arg_internal Iclass_rur_fcr_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_fcr_args[] = {
+static const xtensa_arg_internal Iclass_wur_fcr_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_fcr_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_fcr_stateArgs[] = {
   { { STATE_RoundMode }, 'o' },
   { { STATE_InvalidEnable }, 'o' },
   { { STATE_DivZeroEnable }, 'o' },
@@ -49211,11 +49211,11 @@ static xtensa_arg_internal Iclass_wur_fcr_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_fsr_args[] = {
+static const xtensa_arg_internal Iclass_rur_fsr_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_fsr_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_fsr_stateArgs[] = {
   { { STATE_InvalidFlag }, 'i' },
   { { STATE_DivZeroFlag }, 'i' },
   { { STATE_OverflowFlag }, 'i' },
@@ -49226,11 +49226,11 @@ static xtensa_arg_internal Iclass_rur_fsr_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_fsr_args[] = {
+static const xtensa_arg_internal Iclass_wur_fsr_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_fsr_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_fsr_stateArgs[] = {
   { { STATE_InvalidFlag }, 'o' },
   { { STATE_DivZeroFlag }, 'o' },
   { { STATE_OverflowFlag }, 'o' },
@@ -49241,200 +49241,200 @@ static xtensa_arg_internal Iclass_wur_fsr_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_args[] = {
+static const xtensa_arg_internal Iclass_fp_args[] = {
   { { OPERAND_frr }, 'o' },
   { { OPERAND_frs }, 'i' },
   { { OPERAND_frt }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_stateArgs[] = {
   { { STATE_RoundMode }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_mac_args[] = {
+static const xtensa_arg_internal Iclass_fp_mac_args[] = {
   { { OPERAND_frr }, 'm' },
   { { OPERAND_frs }, 'i' },
   { { OPERAND_frt }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_mac_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_mac_stateArgs[] = {
   { { STATE_RoundMode }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_cmov_args[] = {
+static const xtensa_arg_internal Iclass_fp_cmov_args[] = {
   { { OPERAND_frr }, 'm' },
   { { OPERAND_frs }, 'i' },
   { { OPERAND_bt }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_cmov_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_cmov_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_mov_args[] = {
+static const xtensa_arg_internal Iclass_fp_mov_args[] = {
   { { OPERAND_frr }, 'm' },
   { { OPERAND_frs }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_mov_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_mov_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_mov2_args[] = {
+static const xtensa_arg_internal Iclass_fp_mov2_args[] = {
   { { OPERAND_frr }, 'o' },
   { { OPERAND_frs }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_mov2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_mov2_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_cmp_args[] = {
+static const xtensa_arg_internal Iclass_fp_cmp_args[] = {
   { { OPERAND_br }, 'o' },
   { { OPERAND_frs }, 'i' },
   { { OPERAND_frt }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_cmp_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_cmp_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_float_args[] = {
+static const xtensa_arg_internal Iclass_fp_float_args[] = {
   { { OPERAND_frr }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_t }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_float_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_float_stateArgs[] = {
   { { STATE_RoundMode }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_int_args[] = {
+static const xtensa_arg_internal Iclass_fp_int_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_frs }, 'i' },
   { { OPERAND_t }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_int_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_int_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_rfr_args[] = {
+static const xtensa_arg_internal Iclass_fp_rfr_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_frs }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_rfr_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_rfr_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_wfr_args[] = {
+static const xtensa_arg_internal Iclass_fp_wfr_args[] = {
   { { OPERAND_frr }, 'o' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_wfr_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_wfr_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_lsi_args[] = {
+static const xtensa_arg_internal Iclass_fp_lsi_args[] = {
   { { OPERAND_frt }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_cimm8x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_lsi_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_lsi_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_lsiu_args[] = {
+static const xtensa_arg_internal Iclass_fp_lsiu_args[] = {
   { { OPERAND_frt }, 'o' },
   { { OPERAND_ars }, 'm' },
   { { OPERAND_cimm8x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_lsiu_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_lsiu_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_lsx_args[] = {
+static const xtensa_arg_internal Iclass_fp_lsx_args[] = {
   { { OPERAND_frr }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_lsx_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_lsx_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_lsxu_args[] = {
+static const xtensa_arg_internal Iclass_fp_lsxu_args[] = {
   { { OPERAND_frr }, 'o' },
   { { OPERAND_ars }, 'm' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_lsxu_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_lsxu_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_ssi_args[] = {
+static const xtensa_arg_internal Iclass_fp_ssi_args[] = {
   { { OPERAND_frt }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_cimm8x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_ssi_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_ssi_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_ssiu_args[] = {
+static const xtensa_arg_internal Iclass_fp_ssiu_args[] = {
   { { OPERAND_frt }, 'i' },
   { { OPERAND_ars }, 'm' },
   { { OPERAND_cimm8x4 }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_ssiu_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_ssiu_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_ssx_args[] = {
+static const xtensa_arg_internal Iclass_fp_ssx_args[] = {
   { { OPERAND_frr }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_ssx_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_ssx_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_ssxu_args[] = {
+static const xtensa_arg_internal Iclass_fp_ssxu_args[] = {
   { { OPERAND_frr }, 'i' },
   { { OPERAND_ars }, 'm' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_fp_ssxu_stateArgs[] = {
+static const xtensa_arg_internal Iclass_fp_ssxu_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_ARGMAX_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_ARGMAX_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_ARGMAX_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_ARGMAX_stateArgs[] = {
   { { STATE_ARG_MAX_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_HSAR_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_HSAR_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_HSAR_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_HSAR_stateArgs[] = {
   { { STATE_HSAR3 }, 'i' },
   { { STATE_HSAR2 }, 'i' },
   { { STATE_HSAR1 }, 'i' },
@@ -49442,11 +49442,11 @@ static xtensa_arg_internal Iclass_iclass_GET_HSAR_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_HSAR2SAR_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_HSAR2SAR_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_HSAR2SAR_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_HSAR2SAR_stateArgs[] = {
   { { STATE_SAR3 }, 'o' },
   { { STATE_SAR2 }, 'o' },
   { { STATE_SAR1 }, 'o' },
@@ -49458,93 +49458,93 @@ static xtensa_arg_internal Iclass_iclass_GET_HSAR2SAR_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_INTERP_EXT_N_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_INTERP_EXT_N_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_INTERP_EXT_N_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_INTERP_EXT_N_stateArgs[] = {
   { { STATE_INTERP_EXT_N }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_INTERP_EXT_L_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_INTERP_EXT_L_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_INTERP_EXT_L_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_INTERP_EXT_L_stateArgs[] = {
   { { STATE_INTERP_EXT_L }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_LLR_BUF_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_LLR_BUF_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper70_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_LLR_BUF_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_LLR_BUF_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_LLR_POS_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_LLR_POS_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_LLR_POS_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_LLR_POS_stateArgs[] = {
   { { STATE_LLR_POS }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_MAX_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_MAX_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_MAX_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_MAX_stateArgs[] = {
   { { STATE_MAX_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_NCO_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_NCO_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_NCO_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_NCO_stateArgs[] = {
   { { STATE_NCO_COUNTER }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_PERM_REG_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_PERM_REG_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_PERM_REG_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_PERM_REG_stateArgs[] = {
   { { STATE_PERM_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_PHASOR_N_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_PHASOR_N_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_PHASOR_N_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_PHASOR_N_stateArgs[] = {
   { { STATE_PHASOR_N }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_PHASOR_OFFSET_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_PHASOR_OFFSET_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_PHASOR_OFFSET_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_PHASOR_OFFSET_stateArgs[] = {
   { { STATE_PHASOR_OFFSET }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_SAR_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_SAR_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_SAR_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_SAR_stateArgs[] = {
   { { STATE_SAR3 }, 'i' },
   { { STATE_SAR2 }, 'i' },
   { { STATE_SAR1 }, 'i' },
@@ -49552,86 +49552,86 @@ static xtensa_arg_internal Iclass_iclass_GET_SAR_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_SCALE_REG_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_SCALE_REG_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_SCALE_REG_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_SCALE_REG_stateArgs[] = {
   { { STATE_SCALE_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_SMOD_BUF_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_SMOD_BUF_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_SMOD_BUF_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_SMOD_BUF_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_SMOD_OFFSET_TABLE_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_SMOD_OFFSET_TABLE_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_SMOD_OFFSET_TABLE_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_SMOD_OFFSET_TABLE_stateArgs[] = {
   { { STATE_SMOD_OFFSET_TABLE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_SMOD_POS_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_SMOD_POS_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_SMOD_POS_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_SMOD_POS_stateArgs[] = {
   { { STATE_SMOD_POS }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_SOV_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_SOV_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_SOV_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_SOV_stateArgs[] = {
   { { STATE_SOV }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_WGHT_args[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_WGHT_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_GET_WGHT_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_GET_WGHT_stateArgs[] = {
   { { STATE_WEIGHT_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_ARGMAX_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_ARGMAX_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_ARGMAX_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_ARGMAX_stateArgs[] = {
   { { STATE_ARG_MAX_REG }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_EXT_REGS_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_EXT_REGS_args[] = {
   { { OPERAND_dsp340050b49a6c_oper88_imm }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper59_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_EXT_REGS_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_EXT_REGS_stateArgs[] = {
   { { STATE_INTERP_EXT_N }, 'o' },
   { { STATE_INTERP_EXT_L }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_HSAR_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_HSAR_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_HSAR_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_HSAR_stateArgs[] = {
   { { STATE_HSAR0 }, 'o' },
   { { STATE_HSAR1 }, 'o' },
   { { STATE_HSAR2 }, 'o' },
@@ -49639,75 +49639,75 @@ static xtensa_arg_internal Iclass_iclass_SET_HSAR_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_LLR_BUF_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_LLR_BUF_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper78_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_LLR_BUF_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_LLR_BUF_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_LLR_POS_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_LLR_POS_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_LLR_POS_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_LLR_POS_stateArgs[] = {
   { { STATE_LLR_POS }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_MAX_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_MAX_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_MAX_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_MAX_stateArgs[] = {
   { { STATE_MAX_REG }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_NCO_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_NCO_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_NCO_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_NCO_stateArgs[] = {
   { { STATE_NCO_COUNTER }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_PERM_REG_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_PERM_REG_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_PERM_REG_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_PERM_REG_stateArgs[] = {
   { { STATE_PERM_REG }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_PHASOR_N_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_PHASOR_N_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_PHASOR_N_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_PHASOR_N_stateArgs[] = {
   { { STATE_PHASOR_N }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_PHASOR_OFFSET_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_PHASOR_OFFSET_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_PHASOR_OFFSET_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_PHASOR_OFFSET_stateArgs[] = {
   { { STATE_PHASOR_OFFSET }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_SAR_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_SAR_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_SAR_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_SAR_stateArgs[] = {
   { { STATE_SAR0 }, 'o' },
   { { STATE_SAR1 }, 'o' },
   { { STATE_SAR2 }, 'o' },
@@ -49715,540 +49715,540 @@ static xtensa_arg_internal Iclass_iclass_SET_SAR_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_SCALE_REG_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_SCALE_REG_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_SCALE_REG_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_SCALE_REG_stateArgs[] = {
   { { STATE_SCALE_REG }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_SMOD_BUF_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_SMOD_BUF_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_SMOD_BUF_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_SMOD_BUF_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_SMOD_OFFSET_TABLE_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_SMOD_OFFSET_TABLE_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_SMOD_OFFSET_TABLE_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_SMOD_OFFSET_TABLE_stateArgs[] = {
   { { STATE_SMOD_OFFSET_TABLE }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_SMOD_POS_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_SMOD_POS_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_SMOD_POS_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_SMOD_POS_stateArgs[] = {
   { { STATE_SMOD_POS }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_SOV_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_SOV_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_SOV_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_SOV_stateArgs[] = {
   { { STATE_SOV }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_WGHT_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_WGHT_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SET_WGHT_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SET_WGHT_stateArgs[] = {
   { { STATE_WEIGHT_REG }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC2X32_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC2X32_args[] = {
   { { OPERAND_dsp340050b49a6c_oper71_reg }, 'm' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper72_imm }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper73_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC2X32_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC2X32_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC2X64_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC2X64_0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper71_reg }, 'm' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper74_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC2X64_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC2X64_0_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC2X64_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC2X64_1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper71_reg }, 'm' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper74_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC2X64_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC2X64_1_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC2X64_2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC2X64_2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper71_reg }, 'm' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper74_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC2X64_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC2X64_2_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC2X64_3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC2X64_3_args[] = {
   { { OPERAND_dsp340050b49a6c_oper71_reg }, 'm' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper74_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC2X64_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC2X64_3_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC32_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC32_R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper71_reg }, 'm' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper72_imm }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper75_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC32_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC32_R_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC_IH_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC_IH_args[] = {
   { { OPERAND_dsp340050b49a6c_oper71_reg }, 'm' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper76_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC_IH_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC_IH_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC_IL_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC_IL_args[] = {
   { { OPERAND_dsp340050b49a6c_oper71_reg }, 'm' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper76_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC_IL_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC_IL_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC_RH_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC_RH_args[] = {
   { { OPERAND_dsp340050b49a6c_oper71_reg }, 'm' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper76_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC_RH_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC_RH_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC_RL_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC_RL_args[] = {
   { { OPERAND_dsp340050b49a6c_oper71_reg }, 'm' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper76_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LAC_RL_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LAC_RL_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LCM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LCM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper77_reg }, 'o' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper74_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LCM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LCM_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LCM_PINC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LCM_PINC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper77_reg }, 'o' },
   { { OPERAND_art }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper76_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LCM_PINC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LCM_PINC_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LCM_PINC_X_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LCM_PINC_X_args[] = {
   { { OPERAND_dsp340050b49a6c_oper77_reg }, 'o' },
   { { OPERAND_art }, 'm' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LCM_PINC_X_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LCM_PINC_X_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LCM_U_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LCM_U_args[] = {
   { { OPERAND_dsp340050b49a6c_oper77_reg }, 'o' },
   { { OPERAND_art }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper76_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LCM_U_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LCM_U_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LCM_X_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LCM_X_args[] = {
   { { OPERAND_dsp340050b49a6c_oper77_reg }, 'o' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LCM_X_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LCM_X_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LCM_XU_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LCM_XU_args[] = {
   { { OPERAND_dsp340050b49a6c_oper77_reg }, 'o' },
   { { OPERAND_art }, 'm' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LCM_XU_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LCM_XU_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LP_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LP_args[] = {
   { { OPERAND_dsp340050b49a6c_oper79_reg }, 'm' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper76_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LP_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LP_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LP_X_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LP_X_args[] = {
   { { OPERAND_dsp340050b49a6c_oper79_reg }, 'm' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LP_X_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LP_X_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LQ_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LQ_args[] = {
   { { OPERAND_dsp340050b49a6c_oper79_reg }, 'm' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper76_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LQ_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LQ_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LQ_X_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LQ_X_args[] = {
   { { OPERAND_dsp340050b49a6c_oper79_reg }, 'm' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LQ_X_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LQ_X_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper77_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper80_reg }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT0_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper77_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper80_reg }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT1_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper77_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper80_reg }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT2_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT3_args[] = {
   { { OPERAND_dsp340050b49a6c_oper77_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper80_reg }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT3_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC2X32_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC2X32_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper72_imm }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper84_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC2X32_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC2X32_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC2X64_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC2X64_0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper85_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC2X64_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC2X64_0_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC2X64_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC2X64_1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper85_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC2X64_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC2X64_1_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC2X64_2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC2X64_2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper85_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC2X64_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC2X64_2_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC2X64_3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC2X64_3_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper85_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC2X64_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC2X64_3_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC32_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC32_R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper72_imm }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper86_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC32_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC32_R_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC_IH_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC_IH_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper87_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC_IH_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC_IH_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC_IL_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC_IL_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper87_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC_IL_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC_IL_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC_RH_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC_RH_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper87_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC_RH_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC_RH_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC_RL_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC_RL_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper87_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SAC_RL_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SAC_RL_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SCM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SCM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper85_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SCM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SCM_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SCM_PINC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SCM_PINC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper87_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SCM_PINC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SCM_PINC_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SCM_PINC_X_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SCM_PINC_X_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'm' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SCM_PINC_X_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SCM_PINC_X_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SCM_U_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SCM_U_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper87_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SCM_U_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SCM_U_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SCM_X_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SCM_X_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SCM_X_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SCM_X_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SCM_XU_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SCM_XU_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'm' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SCM_XU_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SCM_XU_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_STORE_P_args[] = {
+static const xtensa_arg_internal Iclass_iclass_STORE_P_args[] = {
   { { OPERAND_dsp340050b49a6c_oper79_reg }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper85_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_STORE_P_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_STORE_P_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_STORE_Q_args[] = {
+static const xtensa_arg_internal Iclass_iclass_STORE_Q_args[] = {
   { { OPERAND_dsp340050b49a6c_oper79_reg }, 'i' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper85_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_STORE_Q_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_STORE_Q_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_AR2CM_DUP_args[] = {
+static const xtensa_arg_internal Iclass_iclass_AR2CM_DUP_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_AR2CM_DUP_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_AR2CM_DUP_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_AR2CM_LN_args[] = {
+static const xtensa_arg_internal Iclass_iclass_AR2CM_LN_args[] = {
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'm' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper52_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_AR2CM_LN_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_AR2CM_LN_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_AR2CM_LN_I_args[] = {
+static const xtensa_arg_internal Iclass_iclass_AR2CM_LN_I_args[] = {
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'm' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper52_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_AR2CM_LN_I_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_AR2CM_LN_I_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_AR2CM_LN_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_AR2CM_LN_R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'm' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper52_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_AR2CM_LN_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_AR2CM_LN_R_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_AR2PQ_LN_args[] = {
+static const xtensa_arg_internal Iclass_iclass_AR2PQ_LN_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'm' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper52_imm }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper57_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_AR2PQ_LN_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_AR2PQ_LN_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_AR2SAR_DUP_args[] = {
+static const xtensa_arg_internal Iclass_iclass_AR2SAR_DUP_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_AR2SAR_DUP_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_AR2SAR_DUP_stateArgs[] = {
   { { STATE_SAR3 }, 'o' },
   { { STATE_SAR2 }, 'o' },
   { { STATE_SAR1 }, 'o' },
@@ -50256,410 +50256,410 @@ static xtensa_arg_internal Iclass_iclass_AR2SAR_DUP_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CLRAC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CLRAC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper63_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CLRAC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CLRAC_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CLRCM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CLRCM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CLRCM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CLRCM_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CM2AR_LN_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CM2AR_LN_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper64_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CM2AR_LN_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CM2AR_LN_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CM2AR_LN_I_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CM2AR_LN_I_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper64_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CM2AR_LN_I_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CM2AR_LN_I_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CM2AR_LN_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CM2AR_LN_R_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper64_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CM2AR_LN_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CM2AR_LN_R_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_COMB_AR_args[] = {
+static const xtensa_arg_internal Iclass_iclass_COMB_AR_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CONJ_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CONJ_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CONJ_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CONJ_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOV2AC32_I_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOV2AC32_I_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper71_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOV2AC32_I_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOV2AC32_I_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOV2AC32_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOV2AC32_R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper71_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOV2AC32_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOV2AC32_R_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOV2CM2PQ_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOV2CM2PQ_args[] = {
   { { OPERAND_dsp340050b49a6c_oper65_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOV2CM2PQ_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOV2CM2PQ_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVAC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVAC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper63_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVAC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVAC_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVAC_I_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVAC_I_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper66_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVAC_I_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVAC_I_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVAC_I2R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVAC_I2R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper63_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVAC_I2R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVAC_I2R_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVAC_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVAC_R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper66_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVAC_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVAC_R_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVAC_R2I_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVAC_R2I_args[] = {
   { { OPERAND_dsp340050b49a6c_oper63_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVAC_R2I_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVAC_R2I_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVAR2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVAR2_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCM_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCM2PQ_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCM2PQ_args[] = {
   { { OPERAND_dsp340050b49a6c_oper81_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCM2PQ_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCM2PQ_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_0_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_1_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_2_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_3_args[] = {
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_3_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_4_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_4_args[] = {
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_4_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_5_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_5_args[] = {
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_5_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_6_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_6_args[] = {
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_6_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_6_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_7_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_7_args[] = {
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND_7_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND_7_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_0_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_1_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_2_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_3_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_3_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_4_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_4_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_4_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_5_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_5_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_5_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_6_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_6_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_6_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_6_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_7_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_7_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVCND8_7_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVCND8_7_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOV_I_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOV_I_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOV_I_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOV_I_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVPQ2PQ_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVPQ2PQ_args[] = {
   { { OPERAND_dsp340050b49a6c_oper65_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOVPQ2PQ_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOVPQ2PQ_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOV_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOV_R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOV_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOV_R_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NEGCM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_NEGCM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NEGCM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_NEGCM_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP16LLR_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP16LLR_1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper63_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP16LLR_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP16LLR_1_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_LLR_POS }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_PQ2CM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_PQ2CM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_PQ2CM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_PQ2CM_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SWAPAC_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SWAPAC_R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper54_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SWAPAC_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SWAPAC_R_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SWAPAC_RI_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SWAPAC_RI_args[] = {
   { { OPERAND_dsp340050b49a6c_oper63_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SWAPAC_RI_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SWAPAC_RI_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SWAPB_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SWAPB_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADD2AC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ADD2AC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper52_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADD2AC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ADD2AC_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAR0 }, 'i' },
   { { STATE_SAR1 }, 'i' },
@@ -50668,139 +50668,139 @@ static xtensa_arg_internal Iclass_iclass_ADD2AC_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADDAC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ADDAC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper54_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADDAC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ADDAC_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CDOT_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CDOT_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CDOT_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CDOT_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CDOTAC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CDOTAC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CDOTAC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CDOTAC_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CDOTACS_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CDOTACS_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CDOTACS_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CDOTACS_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMAC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CMAC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMAC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CMAC_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMACS_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CMACS_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMACS_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CMACS_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMPY_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CMPY_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMPY_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CMPY_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMPY2CM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CMPY2CM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMPY2CM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CMPY2CM_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMPY2PQ_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CMPY2PQ_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMPY2PQ_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CMPY2PQ_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMPYS_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CMPYS_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMPYS_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CMPYS_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMPYXP2PQ_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CMPYXP2PQ_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper52_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMPYXP2PQ_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CMPYXP2PQ_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_COMB32_args[] = {
+static const xtensa_arg_internal Iclass_iclass_COMB32_args[] = {
   { { OPERAND_dsp340050b49a6c_oper65_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
@@ -50808,57 +50808,57 @@ static xtensa_arg_internal Iclass_iclass_COMB32_args[] = {
   { { OPERAND_dsp340050b49a6c_oper67_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_COMB32_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_COMB32_stateArgs[] = {
   { { STATE_WEIGHT_REG }, 'i' },
   { { STATE_SCALE_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_DOT_args[] = {
+static const xtensa_arg_internal Iclass_iclass_DOT_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_DOT_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_DOT_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_DOTAC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_DOTAC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_DOTAC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_DOTAC_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_DOTACS_args[] = {
+static const xtensa_arg_internal Iclass_iclass_DOTACS_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_DOTACS_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_DOTACS_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LIN_INT_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LIN_INT_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LIN_INT_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LIN_INT_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_INTERP_EXT_L }, 'i' },
   { { STATE_INTERP_EXT_N }, 'i' },
@@ -50867,7 +50867,7 @@ static xtensa_arg_internal Iclass_iclass_LIN_INT_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LLRPRE1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LLRPRE1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_ars }, 'i' },
@@ -50876,205 +50876,205 @@ static xtensa_arg_internal Iclass_iclass_LLRPRE1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper54_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LLRPRE1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LLRPRE1_stateArgs[] = {
   { { STATE_PERM_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LLRPRE2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LLRPRE2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper66_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper78_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LLRPRE2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LLRPRE2_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_LLR_POS }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MAC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MAC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MAC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MAC_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MAC8_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MAC8_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MAC8_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MAC8_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACD8_args[] = {
-  { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
-  { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
-  { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
-  { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_iclass_MACD8_stateArgs[] = {
-  { { STATE_SOV }, 'm' },
-  { { STATE_SAT_MODE }, 'i' },
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_iclass_MACPQXP_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MACD8_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACPQXP_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MACD8_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACPQXP_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MACPQXP_0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACPQXP_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MACPQXP_0_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACPQXP_2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MACPQXP_1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACPQXP_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MACPQXP_1_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACPQXP_3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MACPQXP_2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACPQXP_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MACPQXP_2_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACS_args[] = {
-  { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
-  { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
-  { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_iclass_MACS_stateArgs[] = {
-  { { STATE_SOV }, 'm' },
-  { { STATE_SAT_MODE }, 'i' },
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_iclass_MACXP2_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MACPQXP_3_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACXP2_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MACPQXP_3_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACXP2_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MACS_args[] = {
+  { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
+  { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
+  { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
+};
+
+static const xtensa_arg_internal Iclass_iclass_MACS_stateArgs[] = {
+  { { STATE_SOV }, 'm' },
+  { { STATE_SAT_MODE }, 'i' },
+  { { STATE_CPENABLE }, 'i' }
+};
+
+static const xtensa_arg_internal Iclass_iclass_MACXP2_0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACXP2_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MACXP2_0_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACXP_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MACXP2_1_args[] = {
+  { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
+  { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
+  { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
+  { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
+};
+
+static const xtensa_arg_internal Iclass_iclass_MACXP2_1_stateArgs[] = {
+  { { STATE_SOV }, 'm' },
+  { { STATE_SAT_MODE }, 'i' },
+  { { STATE_CPENABLE }, 'i' }
+};
+
+static const xtensa_arg_internal Iclass_iclass_MACXP_0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACXP_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MACXP_0_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACXP_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MACXP_1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACXP_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MACXP_1_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACXP_2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MACXP_2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACXP_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MACXP_2_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACXP_3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MACXP_3_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MACXP_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MACXP_3_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOV2AC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MOV2AC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper52_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MOV2AC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MOV2AC_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAR0 }, 'i' },
   { { STATE_SAR1 }, 'i' },
@@ -51083,314 +51083,314 @@ static xtensa_arg_internal Iclass_iclass_MOV2AC_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPY_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPY_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPY_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPY_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPY2CM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPY2CM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPY2CM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPY2CM_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPY2PQ_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPY2PQ_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPY2PQ_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPY2PQ_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPY8_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPY8_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPY8_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPY8_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYADD8_2CM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYADD8_2CM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYADD8_2CM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYADD8_2CM_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYD8_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYD8_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYD8_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYD8_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYPQXP_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYPQXP_0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYPQXP_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYPQXP_0_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYPQXP_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYPQXP_1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYPQXP_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYPQXP_1_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYPQXP_2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYPQXP_2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYPQXP_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYPQXP_2_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYPQXP_3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYPQXP_3_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYPQXP_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYPQXP_3_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYS_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYS_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYS_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYS_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYXP2PQ_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYXP2PQ_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper52_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYXP2PQ_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYXP2PQ_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYXP2_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYXP2_0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYXP2_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYXP2_0_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYXP2_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYXP2_1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYXP2_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYXP2_1_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYXP_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYXP_0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYXP_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYXP_0_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYXP_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYXP_1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYXP_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYXP_1_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYXP_2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYXP_2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYXP_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYXP_2_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYXP_3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYXP_3_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MPYXP_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MPYXP_3_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NORMACD_args[] = {
+static const xtensa_arg_internal Iclass_iclass_NORMACD_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NORMACD_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_NORMACD_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NORMACPQ_I_args[] = {
+static const xtensa_arg_internal Iclass_iclass_NORMACPQ_I_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NORMACPQ_I_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_NORMACPQ_I_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NORMACPQ_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_NORMACPQ_R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NORMACPQ_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_NORMACPQ_R_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NORMD_args[] = {
+static const xtensa_arg_internal Iclass_iclass_NORMD_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NORMD_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_NORMD_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NORMPYPQ_I_args[] = {
+static const xtensa_arg_internal Iclass_iclass_NORMPYPQ_I_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NORMPYPQ_I_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_NORMPYPQ_I_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NORMPYPQ_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_NORMPYPQ_R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NORMPYPQ_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_NORMPYPQ_R_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RCMAC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_RCMAC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RCMAC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_RCMAC_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RCMPY_args[] = {
+static const xtensa_arg_internal Iclass_iclass_RCMPY_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RCMPY_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_RCMPY_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RCMPY2CM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_RCMPY2CM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RCMPY2CM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_RCMPY2CM_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RFIR_args[] = {
+static const xtensa_arg_internal Iclass_iclass_RFIR_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
@@ -51399,13 +51399,13 @@ static xtensa_arg_internal Iclass_iclass_RFIR_args[] = {
   { { OPERAND_dsp340050b49a6c_oper59_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RFIR_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_RFIR_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RFIRA_args[] = {
+static const xtensa_arg_internal Iclass_iclass_RFIRA_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
@@ -51414,13 +51414,13 @@ static xtensa_arg_internal Iclass_iclass_RFIRA_args[] = {
   { { OPERAND_dsp340050b49a6c_oper59_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RFIRA_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_RFIRA_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RFIRD_args[] = {
+static const xtensa_arg_internal Iclass_iclass_RFIRD_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' },
@@ -51428,13 +51428,13 @@ static xtensa_arg_internal Iclass_iclass_RFIRD_args[] = {
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RFIRD_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_RFIRD_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RFIRDA_args[] = {
+static const xtensa_arg_internal Iclass_iclass_RFIRDA_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' },
@@ -51442,76 +51442,76 @@ static xtensa_arg_internal Iclass_iclass_RFIRDA_args[] = {
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RFIRDA_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_RFIRDA_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RMAC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_RMAC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RMAC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_RMAC_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RMPY_args[] = {
+static const xtensa_arg_internal Iclass_iclass_RMPY_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RMPY_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_RMPY_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RMPY2CM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_RMPY2CM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_RMPY2CM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_RMPY2CM_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SMOD_ALIGN_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SMOD_ALIGN_args[] = {
   { { OPERAND_dsp340050b49a6c_oper63_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper78_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SMOD_ALIGN_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SMOD_ALIGN_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'm' },
   { { STATE_SMOD_POS }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SMOD_SCR_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SMOD_SCR_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper66_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SMOD_SCR_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SMOD_SCR_stateArgs[] = {
   { { STATE_PERM_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SUB2AC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SUB2AC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper52_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SUB2AC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SUB2AC_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAR0 }, 'i' },
   { { STATE_SAR1 }, 'i' },
@@ -51520,636 +51520,636 @@ static xtensa_arg_internal Iclass_iclass_SUB2AC_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_WGHT32_args[] = {
+static const xtensa_arg_internal Iclass_iclass_WGHT32_args[] = {
   { { OPERAND_dsp340050b49a6c_oper65_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper50_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper62_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_WGHT32_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_WGHT32_stateArgs[] = {
   { { STATE_WEIGHT_REG }, 'i' },
   { { STATE_SCALE_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CLRTIEP_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CLRTIEP_args[] = {
   { { OPERAND_dsp340050b49a6c_oper61_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CLRTIEP_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CLRTIEP_stateArgs[] = {
   { { STATE_EXPSTATE }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_2FIFO_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_2FIFO_0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_2FIFO_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_2FIFO_0_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_EXT_2FIFO_0_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_EXT_2FIFO_0_intfArgs[] = {
   INTERFACE_OUTQ0_128
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_2FIFO_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_2FIFO_1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_2FIFO_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_2FIFO_1_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_EXT_2FIFO_1_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_EXT_2FIFO_1_intfArgs[] = {
   INTERFACE_OUTQ1_128
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_2FIFO_2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_2FIFO_2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_2FIFO_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_2FIFO_2_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_EXT_2FIFO_2_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_EXT_2FIFO_2_intfArgs[] = {
   INTERFACE_OUTQ2_128
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_2FIFO_3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_2FIFO_3_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_2FIFO_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_2FIFO_3_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_EXT_2FIFO_3_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_EXT_2FIFO_3_intfArgs[] = {
   INTERFACE_OUTQ3_128
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_0_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_EXT_R2FIFO_0_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_EXT_R2FIFO_0_intfArgs[] = {
   INTERFACE_OUTQ0_128
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_1_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_EXT_R2FIFO_1_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_EXT_R2FIFO_1_intfArgs[] = {
   INTERFACE_OUTQ1_128
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_2_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_EXT_R2FIFO_2_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_EXT_R2FIFO_2_intfArgs[] = {
   INTERFACE_OUTQ2_128
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_3_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_R2FIFO_3_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_EXT_R2FIFO_3_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_EXT_R2FIFO_3_intfArgs[] = {
   INTERFACE_OUTQ3_128
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_LUT_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_LUT_intfArgs[] = {
   INTERFACE_LU128_Out,
   INTERFACE_LU128_In
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT_AR_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT_AR_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT_AR_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT_AR_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_LUT_AR_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_LUT_AR_intfArgs[] = {
   INTERFACE_LU128_Out,
   INTERFACE_LU128_In
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT_IEXT_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT_IEXT_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT_IEXT_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT_IEXT_stateArgs[] = {
   { { STATE_INTERP_EXT_L }, 'i' },
   { { STATE_INTERP_EXT_N }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_LUT_IEXT_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_LUT_IEXT_intfArgs[] = {
   INTERFACE_LU128_Out,
   INTERFACE_LU128_In
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT_PHASOR_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT_PHASOR_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT_PHASOR_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT_PHASOR_stateArgs[] = {
   { { STATE_PHASOR_N }, 'i' },
   { { STATE_PHASOR_OFFSET }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_LUT_PHASOR_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_LUT_PHASOR_intfArgs[] = {
   INTERFACE_LU128_Out,
   INTERFACE_LU128_In
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT_REXT_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT_REXT_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT_REXT_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT_REXT_stateArgs[] = {
   { { STATE_INTERP_EXT_L }, 'i' },
   { { STATE_INTERP_EXT_N }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_LUT_REXT_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_LUT_REXT_intfArgs[] = {
   INTERFACE_LU128_Out,
   INTERFACE_LU128_In
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT_WRITE_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT_WRITE_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper64_imm }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper52_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LUT_WRITE_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LUT_WRITE_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_LUT_WRITE_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_LUT_WRITE_intfArgs[] = {
   INTERFACE_LU128_Out,
   INTERFACE_LU128_In
 };
 
-static xtensa_interface Iclass_iclass_MOVEQ128_0_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_MOVEQ128_0_intfArgs[] = {
   INTERFACE_OUTQ0_128,
   INTERFACE_INQ0_128
 };
 
-static xtensa_interface Iclass_iclass_MOVEQ128_1_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_MOVEQ128_1_intfArgs[] = {
   INTERFACE_OUTQ1_128,
   INTERFACE_INQ1_128
 };
 
-static xtensa_interface Iclass_iclass_MOVEQ128_2_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_MOVEQ128_2_intfArgs[] = {
   INTERFACE_OUTQ2_128,
   INTERFACE_INQ2_128
 };
 
-static xtensa_interface Iclass_iclass_MOVEQ128_3_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_MOVEQ128_3_intfArgs[] = {
   INTERFACE_OUTQ3_128,
   INTERFACE_INQ3_128
 };
 
-static xtensa_interface Iclass_iclass_MOVEQ128_4_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_MOVEQ128_4_intfArgs[] = {
   INTERFACE_OUTQ4_128,
   INTERFACE_INQ4_128
 };
 
-static xtensa_interface Iclass_iclass_MOVEQ128_5_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_MOVEQ128_5_intfArgs[] = {
   INTERFACE_OUTQ5_128,
   INTERFACE_INQ5_128
 };
 
-static xtensa_interface Iclass_iclass_MOVEQ32_0_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_MOVEQ32_0_intfArgs[] = {
   INTERFACE_OUTQ0_32,
   INTERFACE_INQ0_32
 };
 
-static xtensa_interface Iclass_iclass_MOVEQ32_1_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_MOVEQ32_1_intfArgs[] = {
   INTERFACE_OUTQ1_32,
   INTERFACE_INQ1_32
 };
 
-static xtensa_interface Iclass_iclass_MOVEQ32_2_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_MOVEQ32_2_intfArgs[] = {
   INTERFACE_OUTQ2_32,
   INTERFACE_INQ2_32
 };
 
-static xtensa_interface Iclass_iclass_MOVEQ32_3_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_MOVEQ32_3_intfArgs[] = {
   INTERFACE_OUTQ3_32,
   INTERFACE_INQ3_32
 };
 
-static xtensa_arg_internal Iclass_iclass_NCO_UPDATE_args[] = {
+static const xtensa_arg_internal Iclass_iclass_NCO_UPDATE_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NCO_UPDATE_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_NCO_UPDATE_stateArgs[] = {
   { { STATE_NCO_COUNTER }, 'm' },
   { { STATE_PHASOR_N }, 'i' },
   { { STATE_PHASOR_OFFSET }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_NCO_UPDATE_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_NCO_UPDATE_intfArgs[] = {
   INTERFACE_LU128_Out,
   INTERFACE_LU128_In
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_0_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_0_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_0_intfArgs[] = {
   INTERFACE_INQ0_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_1_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_1_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_1_intfArgs[] = {
   INTERFACE_INQ1_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_2_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_2_intfArgs[] = {
   INTERFACE_INQ2_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_3_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_3_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_3_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_3_intfArgs[] = {
   INTERFACE_INQ3_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_4_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_4_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_4_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_4_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_4_intfArgs[] = {
   INTERFACE_INQ4_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_5_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_5_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_5_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_5_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_5_intfArgs[] = {
   INTERFACE_INQ5_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_0_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_2CMPQ_0_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_2CMPQ_0_intfArgs[] = {
   INTERFACE_INQ0_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_1_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_2CMPQ_1_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_2CMPQ_1_intfArgs[] = {
   INTERFACE_INQ1_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_2_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_2CMPQ_2_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_2CMPQ_2_intfArgs[] = {
   INTERFACE_INQ2_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_3_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2CMPQ_3_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_2CMPQ_3_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_2CMPQ_3_intfArgs[] = {
   INTERFACE_INQ3_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2M_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2M_0_args[] = {
   { { OPERAND_ars }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper83_imm }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_2M_0_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_2M_0_intfArgs[] = {
   INTERFACE_INQ0_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2M_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2M_1_args[] = {
   { { OPERAND_ars }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper83_imm }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_2M_1_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_2M_1_intfArgs[] = {
   INTERFACE_INQ1_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2M_2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2M_2_args[] = {
   { { OPERAND_ars }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper83_imm }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_2M_2_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_2M_2_intfArgs[] = {
   INTERFACE_INQ2_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2M_3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2M_3_args[] = {
   { { OPERAND_ars }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper83_imm }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_2M_3_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_2M_3_intfArgs[] = {
   INTERFACE_INQ3_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2PQ_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2PQ_0_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2PQ_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2PQ_0_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_2PQ_0_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_2PQ_0_intfArgs[] = {
   INTERFACE_INQ0_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2PQ_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2PQ_1_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2PQ_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2PQ_1_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_2PQ_1_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_2PQ_1_intfArgs[] = {
   INTERFACE_INQ1_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2PQ_2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2PQ_2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2PQ_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2PQ_2_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_2PQ_2_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_2PQ_2_intfArgs[] = {
   INTERFACE_INQ2_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2PQ_3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2PQ_3_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2PQ_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2PQ_3_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_2PQ_3_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_2PQ_3_intfArgs[] = {
   INTERFACE_INQ3_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2PQ_4_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2PQ_4_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2PQ_4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2PQ_4_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_2PQ_4_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_2PQ_4_intfArgs[] = {
   INTERFACE_INQ4_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2PQ_5_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2PQ_5_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP128_2PQ_5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP128_2PQ_5_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP128_2PQ_5_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP128_2PQ_5_intfArgs[] = {
   INTERFACE_INQ5_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_01_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_01_args[] = {
   { { OPERAND_dsp340050b49a6c_oper65_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_01_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_01_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP2X128_2PQ_01_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP2X128_2PQ_01_intfArgs[] = {
   INTERFACE_INQ0_128,
   INTERFACE_INQ1_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_03_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_03_args[] = {
   { { OPERAND_dsp340050b49a6c_oper65_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_03_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_03_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP2X128_2PQ_03_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP2X128_2PQ_03_intfArgs[] = {
   INTERFACE_INQ0_128,
   INTERFACE_INQ3_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_21_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_21_args[] = {
   { { OPERAND_dsp340050b49a6c_oper65_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_21_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_21_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP2X128_2PQ_21_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP2X128_2PQ_21_intfArgs[] = {
   INTERFACE_INQ2_128,
   INTERFACE_INQ1_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_23_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_23_args[] = {
   { { OPERAND_dsp340050b49a6c_oper65_reg }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_23_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_POP2X128_2PQ_23_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_POP2X128_2PQ_23_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP2X128_2PQ_23_intfArgs[] = {
   INTERFACE_INQ2_128,
   INTERFACE_INQ3_128
 };
 
-static xtensa_arg_internal Iclass_iclass_POP32_0_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP32_0_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_interface Iclass_iclass_POP32_0_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP32_0_intfArgs[] = {
   INTERFACE_INQ0_32
 };
 
-static xtensa_arg_internal Iclass_iclass_POP32_1_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP32_1_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_interface Iclass_iclass_POP32_1_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP32_1_intfArgs[] = {
   INTERFACE_INQ1_32
 };
 
-static xtensa_arg_internal Iclass_iclass_POP32_2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP32_2_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_interface Iclass_iclass_POP32_2_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP32_2_intfArgs[] = {
   INTERFACE_INQ2_32
 };
 
-static xtensa_arg_internal Iclass_iclass_POP32_3_args[] = {
+static const xtensa_arg_internal Iclass_iclass_POP32_3_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_interface Iclass_iclass_POP32_3_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_POP32_3_intfArgs[] = {
   INTERFACE_INQ3_32
 };
 
-static xtensa_arg_internal Iclass_iclass_PUSH128_args[] = {
+static const xtensa_arg_internal Iclass_iclass_PUSH128_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper78_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_PUSH128_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_PUSH128_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_PUSH128_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_PUSH128_intfArgs[] = {
   INTERFACE_OUTQ0_128,
   INTERFACE_OUTQ0_128_KILL,
   INTERFACE_OUTQ1_128,
@@ -52164,13 +52164,13 @@ static xtensa_interface Iclass_iclass_PUSH128_intfArgs[] = {
   INTERFACE_OUTQ5_128_KILL
 };
 
-static xtensa_arg_internal Iclass_iclass_PUSH128_M_args[] = {
+static const xtensa_arg_internal Iclass_iclass_PUSH128_M_args[] = {
   { { OPERAND_ars }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper52_imm }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper83_imm }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_PUSH128_M_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_PUSH128_M_intfArgs[] = {
   INTERFACE_OUTQ0_128,
   INTERFACE_OUTQ0_128_KILL,
   INTERFACE_OUTQ1_128,
@@ -52181,17 +52181,17 @@ static xtensa_interface Iclass_iclass_PUSH128_M_intfArgs[] = {
   INTERFACE_OUTQ3_128_KILL
 };
 
-static xtensa_arg_internal Iclass_iclass_PUSH128_PQ_args[] = {
+static const xtensa_arg_internal Iclass_iclass_PUSH128_PQ_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper78_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_PUSH128_PQ_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_PUSH128_PQ_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_PUSH128_PQ_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_PUSH128_PQ_intfArgs[] = {
   INTERFACE_OUTQ0_128,
   INTERFACE_OUTQ0_128_KILL,
   INTERFACE_OUTQ1_128,
@@ -52206,17 +52206,17 @@ static xtensa_interface Iclass_iclass_PUSH128_PQ_intfArgs[] = {
   INTERFACE_OUTQ5_128_KILL
 };
 
-static xtensa_arg_internal Iclass_iclass_PUSH2X128_PQ_args[] = {
+static const xtensa_arg_internal Iclass_iclass_PUSH2X128_PQ_args[] = {
   { { OPERAND_dsp340050b49a6c_oper56_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper57_imm }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_PUSH2X128_PQ_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_PUSH2X128_PQ_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_PUSH2X128_PQ_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_PUSH2X128_PQ_intfArgs[] = {
   INTERFACE_OUTQ0_128,
   INTERFACE_OUTQ1_128,
   INTERFACE_OUTQ2_128,
@@ -52227,12 +52227,12 @@ static xtensa_interface Iclass_iclass_PUSH2X128_PQ_intfArgs[] = {
   INTERFACE_OUTQ3_128_KILL
 };
 
-static xtensa_arg_internal Iclass_iclass_PUSH32_args[] = {
+static const xtensa_arg_internal Iclass_iclass_PUSH32_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper59_imm }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_PUSH32_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_PUSH32_intfArgs[] = {
   INTERFACE_OUTQ0_32,
   INTERFACE_OUTQ0_32_KILL,
   INTERFACE_OUTQ1_32,
@@ -52247,12 +52247,12 @@ static xtensa_interface Iclass_iclass_PUSH32_intfArgs[] = {
   INTERFACE_OUTQ5_32_KILL
 };
 
-static xtensa_arg_internal Iclass_iclass_QREADY_args[] = {
+static const xtensa_arg_internal Iclass_iclass_QREADY_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper61_imm }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_QREADY_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_QREADY_intfArgs[] = {
   INTERFACE_INQ0_32_NOTRDY,
   INTERFACE_INQ1_32_NOTRDY,
   INTERFACE_INQ2_32_NOTRDY,
@@ -52278,23 +52278,23 @@ static xtensa_interface Iclass_iclass_QREADY_intfArgs[] = {
   INTERFACE_SIGNALQ_NOTRDY
 };
 
-static xtensa_arg_internal Iclass_iclass_RDTIEP_args[] = {
+static const xtensa_arg_internal Iclass_iclass_RDTIEP_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_interface Iclass_iclass_RDTIEP_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_RDTIEP_intfArgs[] = {
   INTERFACE_IMPWIRE
 };
 
-static xtensa_arg_internal Iclass_iclass_SETTIEP_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SETTIEP_args[] = {
   { { OPERAND_dsp340050b49a6c_oper61_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SETTIEP_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SETTIEP_stateArgs[] = {
   { { STATE_EXPSTATE }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SMOD_LUT_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SMOD_LUT_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper78_imm }, 'i' },
@@ -52302,276 +52302,276 @@ static xtensa_arg_internal Iclass_iclass_SMOD_LUT_args[] = {
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SMOD_LUT_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SMOD_LUT_stateArgs[] = {
   { { STATE_SMOD_OFFSET_TABLE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_SMOD_LUT_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_SMOD_LUT_intfArgs[] = {
   INTERFACE_LU128_Out,
   INTERFACE_LU128_In
 };
 
-static xtensa_arg_internal Iclass_iclass_WRTBSIGQ_args[] = {
+static const xtensa_arg_internal Iclass_iclass_WRTBSIGQ_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_WRTBSIGQ_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_WRTBSIGQ_intfArgs[] = {
   INTERFACE_SIGNALQ
 };
 
-static xtensa_arg_internal Iclass_iclass_WRTBSIGQM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_WRTBSIGQM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper61_imm }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_WRTBSIGQM_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_WRTBSIGQM_intfArgs[] = {
   INTERFACE_SIGNALQ
 };
 
-static xtensa_arg_internal Iclass_iclass_WRTIEP_args[] = {
+static const xtensa_arg_internal Iclass_iclass_WRTIEP_args[] = {
   { { OPERAND_art }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_WRTIEP_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_WRTIEP_stateArgs[] = {
   { { STATE_EXPSTATE }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_WRTSIGQ_args[] = {
+static const xtensa_arg_internal Iclass_iclass_WRTSIGQ_args[] = {
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_interface Iclass_iclass_WRTSIGQ_intfArgs[] = {
+static const xtensa_interface Iclass_iclass_WRTSIGQ_intfArgs[] = {
   INTERFACE_SIGNALQ
 };
 
-static xtensa_arg_internal Iclass_iclass_ABS8_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ABS8_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ABS8_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ABS8_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADD16_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ADD16_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper49_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADD16_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ADD16_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADD32_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ADD32_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper53_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADD32_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ADD32_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADDAC_I2R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ADDAC_I2R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADDAC_I2R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ADDAC_I2R_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADDAC_R2I_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ADDAC_R2I_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADDAC_R2I_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ADDAC_R2I_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADDAR2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ADDAR2_args[] = {
   { { OPERAND_ars }, 'm' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADDCM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ADDCM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper53_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADDCM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ADDCM_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADDWRP_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ADDWRP_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper55_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ADDWRP_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ADDWRP_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_AND128_args[] = {
+static const xtensa_arg_internal Iclass_iclass_AND128_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper55_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_AND128_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_AND128_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ARGMAX8_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ARGMAX8_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper53_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ARGMAX8_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ARGMAX8_stateArgs[] = {
   { { STATE_MAX_REG }, 'm' },
   { { STATE_ARG_MAX_REG }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASL_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ASL_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper53_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASL_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ASL_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASL32_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ASL32_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper55_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASL32_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ASL32_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASLACM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ASLACM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper58_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASLACM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ASLACM_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASLM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ASLM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper59_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASLM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ASLM_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASLM32_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ASLM32_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper58_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASLM32_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ASLM32_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASR_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ASR_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper53_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASR_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ASR_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASR32_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ASR32_args[] = {
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper55_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASR32_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ASR32_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASRAC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ASRAC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper55_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASRAC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ASRAC_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASRM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_ASRM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper59_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_ASRM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_ASRM_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_BITFEXT_args[] = {
+static const xtensa_arg_internal Iclass_iclass_BITFEXT_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper60_imm }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper61_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_BITFINS_args[] = {
+static const xtensa_arg_internal Iclass_iclass_BITFINS_args[] = {
   { { OPERAND_art }, 'm' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper61_imm }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper60_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CLB_C_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CLB_C_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CLB_C_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CLB_C_stateArgs[] = {
   { { STATE_SAR3 }, 'o' },
   { { STATE_SAR2 }, 'o' },
   { { STATE_SAR1 }, 'o' },
@@ -52579,12 +52579,12 @@ static xtensa_arg_internal Iclass_iclass_CLB_C_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CLB_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CLB_R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CLB_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CLB_R_stateArgs[] = {
   { { STATE_SAR3 }, 'o' },
   { { STATE_SAR2 }, 'o' },
   { { STATE_SAR1 }, 'o' },
@@ -52592,40 +52592,40 @@ static xtensa_arg_internal Iclass_iclass_CLB_R_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMP8_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CMP8_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMP8_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CMP8_stateArgs[] = {
   { { STATE_SOV }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMP_I_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CMP_I_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMP_I_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CMP_I_stateArgs[] = {
   { { STATE_SOV }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMP_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_CMP_R_args[] = {
   { { OPERAND_arr }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper47_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_CMP_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_CMP_R_stateArgs[] = {
   { { STATE_SOV }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_args[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper68_imm }, 'i' },
@@ -52633,7 +52633,7 @@ static xtensa_arg_internal Iclass_iclass_EXT_args[] = {
   { { OPERAND_dsp340050b49a6c_oper69_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAR3 }, 'i' },
   { { STATE_SAR2 }, 'i' },
@@ -52642,7 +52642,7 @@ static xtensa_arg_internal Iclass_iclass_EXT_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper68_imm }, 'i' },
@@ -52650,7 +52650,7 @@ static xtensa_arg_internal Iclass_iclass_EXT_R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper69_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT_R_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAR3 }, 'i' },
   { { STATE_SAR2 }, 'i' },
@@ -52659,104 +52659,104 @@ static xtensa_arg_internal Iclass_iclass_EXT_R_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT32_I_args[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT32_I_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT32_I_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT32_I_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT32_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT32_R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper48_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXT32_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_EXT32_R_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXTUI4_args[] = {
+static const xtensa_arg_internal Iclass_iclass_EXTUI4_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_EXTUI4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_EXTUI4_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LSLM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LSLM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper59_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LSLM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LSLM_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LSRM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_LSRM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper59_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_LSRM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_LSRM_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MAX8_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MAX8_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper55_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MAX8_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MAX8_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MEAN_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MEAN_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper55_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MEAN_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MEAN_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MEAN32_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MEAN32_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper53_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MEAN32_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MEAN32_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MIN8_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MIN8_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper55_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MIN8_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MIN8_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MINCLB_C_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MINCLB_C_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MINCLB_C_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MINCLB_C_stateArgs[] = {
   { { STATE_HSAR3 }, 'm' },
   { { STATE_HSAR2 }, 'm' },
   { { STATE_HSAR1 }, 'm' },
@@ -52764,12 +52764,12 @@ static xtensa_arg_internal Iclass_iclass_MINCLB_C_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MINCLB_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_MINCLB_R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_MINCLB_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_MINCLB_R_stateArgs[] = {
   { { STATE_HSAR3 }, 'm' },
   { { STATE_HSAR2 }, 'm' },
   { { STATE_HSAR1 }, 'm' },
@@ -52777,81 +52777,81 @@ static xtensa_arg_internal Iclass_iclass_MINCLB_R_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NOT128_args[] = {
+static const xtensa_arg_internal Iclass_iclass_NOT128_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_NOT128_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_NOT128_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_OR128_args[] = {
+static const xtensa_arg_internal Iclass_iclass_OR128_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper55_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_OR128_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_OR128_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_PERM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_PERM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper82_reg }, 'm' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_ars }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_PERM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_PERM_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_REDAC_args[] = {
+static const xtensa_arg_internal Iclass_iclass_REDAC_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_REDAC_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_REDAC_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_REDAC2_args[] = {
+static const xtensa_arg_internal Iclass_iclass_REDAC2_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_REDAC2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_REDAC2_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_REDAC4_args[] = {
+static const xtensa_arg_internal Iclass_iclass_REDAC4_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_REDAC4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_REDAC4_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_REDACS_args[] = {
+static const xtensa_arg_internal Iclass_iclass_REDACS_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_REDACS_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_REDACS_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SMINCLB_C_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SMINCLB_C_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SMINCLB_C_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SMINCLB_C_stateArgs[] = {
   { { STATE_HSAR3 }, 'o' },
   { { STATE_HSAR2 }, 'o' },
   { { STATE_HSAR1 }, 'o' },
@@ -52859,12 +52859,12 @@ static xtensa_arg_internal Iclass_iclass_SMINCLB_C_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SMINCLB_R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SMINCLB_R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SMINCLB_R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SMINCLB_R_stateArgs[] = {
   { { STATE_HSAR3 }, 'o' },
   { { STATE_HSAR2 }, 'o' },
   { { STATE_HSAR1 }, 'o' },
@@ -52872,1329 +52872,1329 @@ static xtensa_arg_internal Iclass_iclass_SMINCLB_R_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_STSWAPBM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_STSWAPBM_args[] = {
   { { OPERAND_ars }, 'i' },
   { { OPERAND_art }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper89_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_STSWAPBMU_args[] = {
+static const xtensa_arg_internal Iclass_iclass_STSWAPBMU_args[] = {
   { { OPERAND_art }, 'm' },
   { { OPERAND_ars }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper89_imm }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SUB32_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SUB32_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper53_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SUB32_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SUB32_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SUBAC_I2R_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SUBAC_I2R_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SUBAC_I2R_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SUBAC_I2R_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SUBAC_R2I_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SUBAC_R2I_args[] = {
   { { OPERAND_dsp340050b49a6c_oper51_reg }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SUBAC_R2I_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SUBAC_R2I_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SUBARX_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SUBARX_args[] = {
   { { OPERAND_ars }, 'm' },
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SUBCM_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SUBCM_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper55_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SUBCM_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SUBCM_stateArgs[] = {
   { { STATE_SOV }, 'm' },
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SUBMEAN_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SUBMEAN_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper55_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SUBMEAN_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SUBMEAN_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SUBWRP_args[] = {
+static const xtensa_arg_internal Iclass_iclass_SUBWRP_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper55_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_SUBWRP_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_SUBWRP_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_TRANS_args[] = {
+static const xtensa_arg_internal Iclass_iclass_TRANS_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_TRANS_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_TRANS_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_XOR128_args[] = {
+static const xtensa_arg_internal Iclass_iclass_XOR128_args[] = {
   { { OPERAND_dsp340050b49a6c_oper45_reg }, 'o' },
   { { OPERAND_dsp340050b49a6c_oper55_reg }, 'i' },
   { { OPERAND_dsp340050b49a6c_oper46_reg }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_iclass_XOR128_stateArgs[] = {
+static const xtensa_arg_internal Iclass_iclass_XOR128_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_expstate_args[] = {
+static const xtensa_arg_internal Iclass_rur_expstate_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_expstate_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_expstate_stateArgs[] = {
   { { STATE_EXPSTATE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_expstate_args[] = {
+static const xtensa_arg_internal Iclass_wur_expstate_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_expstate_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_expstate_stateArgs[] = {
   { { STATE_EXPSTATE }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_sov_args[] = {
+static const xtensa_arg_internal Iclass_rur_sov_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_sov_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_sov_stateArgs[] = {
   { { STATE_SOV }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_sov_args[] = {
+static const xtensa_arg_internal Iclass_wur_sov_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_sov_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_sov_stateArgs[] = {
   { { STATE_SOV }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_sat_mode_args[] = {
+static const xtensa_arg_internal Iclass_rur_sat_mode_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_sat_mode_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_sat_mode_stateArgs[] = {
   { { STATE_SAT_MODE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_sat_mode_args[] = {
+static const xtensa_arg_internal Iclass_wur_sat_mode_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_sat_mode_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_sat_mode_stateArgs[] = {
   { { STATE_SAT_MODE }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_sar0_args[] = {
+static const xtensa_arg_internal Iclass_rur_sar0_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_sar0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_sar0_stateArgs[] = {
   { { STATE_SAR0 }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_sar0_args[] = {
+static const xtensa_arg_internal Iclass_wur_sar0_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_sar0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_sar0_stateArgs[] = {
   { { STATE_SAR0 }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_sar1_args[] = {
+static const xtensa_arg_internal Iclass_rur_sar1_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_sar1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_sar1_stateArgs[] = {
   { { STATE_SAR1 }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_sar1_args[] = {
+static const xtensa_arg_internal Iclass_wur_sar1_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_sar1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_sar1_stateArgs[] = {
   { { STATE_SAR1 }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_sar2_args[] = {
+static const xtensa_arg_internal Iclass_rur_sar2_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_sar2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_sar2_stateArgs[] = {
   { { STATE_SAR2 }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_sar2_args[] = {
+static const xtensa_arg_internal Iclass_wur_sar2_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_sar2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_sar2_stateArgs[] = {
   { { STATE_SAR2 }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_sar3_args[] = {
+static const xtensa_arg_internal Iclass_rur_sar3_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_sar3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_sar3_stateArgs[] = {
   { { STATE_SAR3 }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_sar3_args[] = {
+static const xtensa_arg_internal Iclass_wur_sar3_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_sar3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_sar3_stateArgs[] = {
   { { STATE_SAR3 }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_hsar0_args[] = {
+static const xtensa_arg_internal Iclass_rur_hsar0_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_hsar0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_hsar0_stateArgs[] = {
   { { STATE_HSAR0 }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_hsar0_args[] = {
+static const xtensa_arg_internal Iclass_wur_hsar0_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_hsar0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_hsar0_stateArgs[] = {
   { { STATE_HSAR0 }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_hsar1_args[] = {
+static const xtensa_arg_internal Iclass_rur_hsar1_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_hsar1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_hsar1_stateArgs[] = {
   { { STATE_HSAR1 }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_hsar1_args[] = {
+static const xtensa_arg_internal Iclass_wur_hsar1_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_hsar1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_hsar1_stateArgs[] = {
   { { STATE_HSAR1 }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_hsar2_args[] = {
+static const xtensa_arg_internal Iclass_rur_hsar2_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_hsar2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_hsar2_stateArgs[] = {
   { { STATE_HSAR2 }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_hsar2_args[] = {
+static const xtensa_arg_internal Iclass_wur_hsar2_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_hsar2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_hsar2_stateArgs[] = {
   { { STATE_HSAR2 }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_hsar3_args[] = {
+static const xtensa_arg_internal Iclass_rur_hsar3_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_hsar3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_hsar3_stateArgs[] = {
   { { STATE_HSAR3 }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_hsar3_args[] = {
+static const xtensa_arg_internal Iclass_wur_hsar3_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_hsar3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_hsar3_stateArgs[] = {
   { { STATE_HSAR3 }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_max_reg_0_args[] = {
+static const xtensa_arg_internal Iclass_rur_max_reg_0_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_max_reg_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_max_reg_0_stateArgs[] = {
   { { STATE_MAX_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_max_reg_0_args[] = {
+static const xtensa_arg_internal Iclass_wur_max_reg_0_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_max_reg_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_max_reg_0_stateArgs[] = {
   { { STATE_MAX_REG }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_max_reg_1_args[] = {
+static const xtensa_arg_internal Iclass_rur_max_reg_1_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_max_reg_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_max_reg_1_stateArgs[] = {
   { { STATE_MAX_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_max_reg_1_args[] = {
+static const xtensa_arg_internal Iclass_wur_max_reg_1_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_max_reg_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_max_reg_1_stateArgs[] = {
   { { STATE_MAX_REG }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_max_reg_2_args[] = {
+static const xtensa_arg_internal Iclass_rur_max_reg_2_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_max_reg_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_max_reg_2_stateArgs[] = {
   { { STATE_MAX_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_max_reg_2_args[] = {
+static const xtensa_arg_internal Iclass_wur_max_reg_2_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_max_reg_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_max_reg_2_stateArgs[] = {
   { { STATE_MAX_REG }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_max_reg_3_args[] = {
+static const xtensa_arg_internal Iclass_rur_max_reg_3_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_max_reg_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_max_reg_3_stateArgs[] = {
   { { STATE_MAX_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_max_reg_3_args[] = {
+static const xtensa_arg_internal Iclass_wur_max_reg_3_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_max_reg_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_max_reg_3_stateArgs[] = {
   { { STATE_MAX_REG }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_arg_max_reg_0_args[] = {
+static const xtensa_arg_internal Iclass_rur_arg_max_reg_0_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_arg_max_reg_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_arg_max_reg_0_stateArgs[] = {
   { { STATE_ARG_MAX_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_arg_max_reg_0_args[] = {
+static const xtensa_arg_internal Iclass_wur_arg_max_reg_0_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_arg_max_reg_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_arg_max_reg_0_stateArgs[] = {
   { { STATE_ARG_MAX_REG }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_arg_max_reg_1_args[] = {
+static const xtensa_arg_internal Iclass_rur_arg_max_reg_1_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_arg_max_reg_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_arg_max_reg_1_stateArgs[] = {
   { { STATE_ARG_MAX_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_arg_max_reg_1_args[] = {
+static const xtensa_arg_internal Iclass_wur_arg_max_reg_1_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_arg_max_reg_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_arg_max_reg_1_stateArgs[] = {
   { { STATE_ARG_MAX_REG }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_arg_max_reg_2_args[] = {
+static const xtensa_arg_internal Iclass_rur_arg_max_reg_2_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_arg_max_reg_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_arg_max_reg_2_stateArgs[] = {
   { { STATE_ARG_MAX_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_arg_max_reg_2_args[] = {
+static const xtensa_arg_internal Iclass_wur_arg_max_reg_2_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_arg_max_reg_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_arg_max_reg_2_stateArgs[] = {
   { { STATE_ARG_MAX_REG }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_arg_max_reg_3_args[] = {
+static const xtensa_arg_internal Iclass_rur_arg_max_reg_3_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_arg_max_reg_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_arg_max_reg_3_stateArgs[] = {
   { { STATE_ARG_MAX_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_arg_max_reg_3_args[] = {
+static const xtensa_arg_internal Iclass_wur_arg_max_reg_3_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_arg_max_reg_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_arg_max_reg_3_stateArgs[] = {
   { { STATE_ARG_MAX_REG }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_nco_counter_0_args[] = {
+static const xtensa_arg_internal Iclass_rur_nco_counter_0_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_nco_counter_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_nco_counter_0_stateArgs[] = {
   { { STATE_NCO_COUNTER }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_nco_counter_0_args[] = {
+static const xtensa_arg_internal Iclass_wur_nco_counter_0_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_nco_counter_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_nco_counter_0_stateArgs[] = {
   { { STATE_NCO_COUNTER }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_nco_counter_1_args[] = {
+static const xtensa_arg_internal Iclass_rur_nco_counter_1_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_nco_counter_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_nco_counter_1_stateArgs[] = {
   { { STATE_NCO_COUNTER }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_nco_counter_1_args[] = {
+static const xtensa_arg_internal Iclass_wur_nco_counter_1_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_nco_counter_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_nco_counter_1_stateArgs[] = {
   { { STATE_NCO_COUNTER }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_nco_counter_2_args[] = {
+static const xtensa_arg_internal Iclass_rur_nco_counter_2_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_nco_counter_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_nco_counter_2_stateArgs[] = {
   { { STATE_NCO_COUNTER }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_nco_counter_2_args[] = {
+static const xtensa_arg_internal Iclass_wur_nco_counter_2_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_nco_counter_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_nco_counter_2_stateArgs[] = {
   { { STATE_NCO_COUNTER }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_nco_counter_3_args[] = {
+static const xtensa_arg_internal Iclass_rur_nco_counter_3_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_nco_counter_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_nco_counter_3_stateArgs[] = {
   { { STATE_NCO_COUNTER }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_nco_counter_3_args[] = {
+static const xtensa_arg_internal Iclass_wur_nco_counter_3_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_nco_counter_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_nco_counter_3_stateArgs[] = {
   { { STATE_NCO_COUNTER }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_interp_ext_n_args[] = {
+static const xtensa_arg_internal Iclass_rur_interp_ext_n_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_interp_ext_n_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_interp_ext_n_stateArgs[] = {
   { { STATE_INTERP_EXT_N }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_interp_ext_n_args[] = {
+static const xtensa_arg_internal Iclass_wur_interp_ext_n_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_interp_ext_n_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_interp_ext_n_stateArgs[] = {
   { { STATE_INTERP_EXT_N }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_interp_ext_l_args[] = {
+static const xtensa_arg_internal Iclass_rur_interp_ext_l_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_interp_ext_l_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_interp_ext_l_stateArgs[] = {
   { { STATE_INTERP_EXT_L }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_interp_ext_l_args[] = {
+static const xtensa_arg_internal Iclass_wur_interp_ext_l_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_interp_ext_l_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_interp_ext_l_stateArgs[] = {
   { { STATE_INTERP_EXT_L }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_0_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_0_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_0_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_0_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_0_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_0_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_1_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_1_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_1_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_1_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_1_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_1_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_2_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_2_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_2_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_2_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_2_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_2_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_3_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_3_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_3_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_3_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_3_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_3_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_4_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_4_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_4_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_4_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_4_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_4_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_5_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_5_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_5_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_5_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_5_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_5_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_6_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_6_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_6_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_6_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_6_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_6_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_6_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_6_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_7_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_7_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_7_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_7_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_7_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_7_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_7_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_7_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_8_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_8_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_8_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_8_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_8_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_8_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_8_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_8_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_9_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_9_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_9_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_9_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_9_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_9_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_9_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_9_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_10_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_10_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_10_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_10_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_10_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_10_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_10_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_10_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_11_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_11_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_11_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_11_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_11_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_11_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_11_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_11_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_12_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_12_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_12_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_12_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_12_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_12_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_12_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_12_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_13_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_13_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_13_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_13_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_13_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_13_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_13_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_13_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_14_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_14_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_14_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_14_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_14_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_14_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_14_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_14_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_15_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_15_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_15_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_15_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_15_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_15_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_15_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_15_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_16_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_16_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_16_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_16_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_16_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_16_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_16_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_16_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_17_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_17_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_17_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_17_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_17_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_17_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_17_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_17_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_18_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_18_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_18_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_18_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_18_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_18_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_18_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_18_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_19_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_19_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_19_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_19_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_19_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_19_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_19_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_19_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_20_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_20_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_20_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_20_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_20_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_20_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_20_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_20_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_21_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_21_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_21_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_21_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_21_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_21_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_21_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_21_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_22_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_22_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_22_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_22_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_22_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_22_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_22_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_22_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_23_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_23_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_buf_23_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_buf_23_stateArgs[] = {
   { { STATE_LLR_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_23_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_23_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_buf_23_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_buf_23_stateArgs[] = {
   { { STATE_LLR_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_0_args[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_0_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_0_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_0_args[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_0_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_0_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_1_args[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_1_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_1_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_1_args[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_1_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_1_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_2_args[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_2_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_2_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_2_args[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_2_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_2_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_3_args[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_3_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_3_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_3_args[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_3_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_3_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_4_args[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_4_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_4_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_4_args[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_4_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_4_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_4_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_5_args[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_5_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_5_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_5_args[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_5_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_5_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_5_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_6_args[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_6_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_6_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_6_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_6_args[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_6_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_6_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_6_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_7_args[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_7_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_buf_7_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_smod_buf_7_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_7_args[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_7_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_buf_7_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_smod_buf_7_stateArgs[] = {
   { { STATE_SMOD_BUF }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_weight_reg_args[] = {
+static const xtensa_arg_internal Iclass_rur_weight_reg_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_weight_reg_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_weight_reg_stateArgs[] = {
   { { STATE_WEIGHT_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_weight_reg_args[] = {
+static const xtensa_arg_internal Iclass_wur_weight_reg_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_weight_reg_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_weight_reg_stateArgs[] = {
   { { STATE_WEIGHT_REG }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_scale_reg_args[] = {
+static const xtensa_arg_internal Iclass_rur_scale_reg_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_scale_reg_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_scale_reg_stateArgs[] = {
   { { STATE_SCALE_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_scale_reg_args[] = {
+static const xtensa_arg_internal Iclass_wur_scale_reg_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_scale_reg_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_scale_reg_stateArgs[] = {
   { { STATE_SCALE_REG }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_pos_args[] = {
+static const xtensa_arg_internal Iclass_rur_llr_pos_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_llr_pos_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_llr_pos_stateArgs[] = {
   { { STATE_LLR_POS }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_pos_args[] = {
+static const xtensa_arg_internal Iclass_wur_llr_pos_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_llr_pos_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_llr_pos_stateArgs[] = {
   { { STATE_LLR_POS }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_pos_args[] = {
+static const xtensa_arg_internal Iclass_rur_smod_pos_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_pos_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_smod_pos_stateArgs[] = {
   { { STATE_SMOD_POS }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_pos_args[] = {
+static const xtensa_arg_internal Iclass_wur_smod_pos_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_pos_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_smod_pos_stateArgs[] = {
   { { STATE_SMOD_POS }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_perm_reg_args[] = {
+static const xtensa_arg_internal Iclass_rur_perm_reg_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_perm_reg_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_perm_reg_stateArgs[] = {
   { { STATE_PERM_REG }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_perm_reg_args[] = {
+static const xtensa_arg_internal Iclass_wur_perm_reg_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_perm_reg_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_perm_reg_stateArgs[] = {
   { { STATE_PERM_REG }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_offset_table_0_args[] = {
+static const xtensa_arg_internal Iclass_rur_smod_offset_table_0_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_offset_table_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_smod_offset_table_0_stateArgs[] = {
   { { STATE_SMOD_OFFSET_TABLE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_offset_table_0_args[] = {
+static const xtensa_arg_internal Iclass_wur_smod_offset_table_0_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_offset_table_0_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_smod_offset_table_0_stateArgs[] = {
   { { STATE_SMOD_OFFSET_TABLE }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_offset_table_1_args[] = {
+static const xtensa_arg_internal Iclass_rur_smod_offset_table_1_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_offset_table_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_smod_offset_table_1_stateArgs[] = {
   { { STATE_SMOD_OFFSET_TABLE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_offset_table_1_args[] = {
+static const xtensa_arg_internal Iclass_wur_smod_offset_table_1_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_offset_table_1_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_smod_offset_table_1_stateArgs[] = {
   { { STATE_SMOD_OFFSET_TABLE }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_offset_table_2_args[] = {
+static const xtensa_arg_internal Iclass_rur_smod_offset_table_2_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_offset_table_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_smod_offset_table_2_stateArgs[] = {
   { { STATE_SMOD_OFFSET_TABLE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_offset_table_2_args[] = {
+static const xtensa_arg_internal Iclass_wur_smod_offset_table_2_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_offset_table_2_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_smod_offset_table_2_stateArgs[] = {
   { { STATE_SMOD_OFFSET_TABLE }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_offset_table_3_args[] = {
+static const xtensa_arg_internal Iclass_rur_smod_offset_table_3_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_smod_offset_table_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_smod_offset_table_3_stateArgs[] = {
   { { STATE_SMOD_OFFSET_TABLE }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_offset_table_3_args[] = {
+static const xtensa_arg_internal Iclass_wur_smod_offset_table_3_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_smod_offset_table_3_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_smod_offset_table_3_stateArgs[] = {
   { { STATE_SMOD_OFFSET_TABLE }, 'm' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_phasor_n_args[] = {
+static const xtensa_arg_internal Iclass_rur_phasor_n_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_phasor_n_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_phasor_n_stateArgs[] = {
   { { STATE_PHASOR_N }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_phasor_n_args[] = {
+static const xtensa_arg_internal Iclass_wur_phasor_n_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_phasor_n_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_phasor_n_stateArgs[] = {
   { { STATE_PHASOR_N }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_rur_phasor_offset_args[] = {
+static const xtensa_arg_internal Iclass_rur_phasor_offset_args[] = {
   { { OPERAND_arr }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_rur_phasor_offset_stateArgs[] = {
+static const xtensa_arg_internal Iclass_rur_phasor_offset_stateArgs[] = {
   { { STATE_PHASOR_OFFSET }, 'i' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_phasor_offset_args[] = {
+static const xtensa_arg_internal Iclass_wur_phasor_offset_args[] = {
   { { OPERAND_art }, 'i' }
 };
 
-static xtensa_arg_internal Iclass_wur_phasor_offset_stateArgs[] = {
+static const xtensa_arg_internal Iclass_wur_phasor_offset_stateArgs[] = {
   { { STATE_PHASOR_OFFSET }, 'o' },
   { { STATE_CPENABLE }, 'i' }
 };
 
-static xtensa_iclass_internal iclasses[] = {
+static const xtensa_iclass_internal iclasses[] = {
   { 0, 0 /* xt_iclass_excw */,
     0, 0, 0, 0 },
   { 0, 0 /* xt_iclass_rfe */,
@@ -71948,3366 +71948,3366 @@ Opcode_wur_phasor_offset_Slot_inst_encode (xtensa_insnbuf slotbuf)
   slotbuf[0] = 0xf34300;
 }
 
-static xtensa_opcode_encode_fn Opcode_excw_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_excw_encode_fns[] = {
   Opcode_excw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rfe_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rfe_encode_fns[] = {
   Opcode_rfe_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rfde_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rfde_encode_fns[] = {
   Opcode_rfde_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_syscall_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_syscall_encode_fns[] = {
   Opcode_syscall_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_simcall_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_simcall_encode_fns[] = {
   Opcode_simcall_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_call12_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_call12_encode_fns[] = {
   Opcode_call12_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_call8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_call8_encode_fns[] = {
   Opcode_call8_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_call4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_call4_encode_fns[] = {
   Opcode_call4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_callx12_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_callx12_encode_fns[] = {
   Opcode_callx12_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_callx8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_callx8_encode_fns[] = {
   Opcode_callx8_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_callx4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_callx4_encode_fns[] = {
   Opcode_callx4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_entry_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_entry_encode_fns[] = {
   Opcode_entry_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movsp_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movsp_encode_fns[] = {
   Opcode_movsp_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rotw_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rotw_encode_fns[] = {
   Opcode_rotw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_retw_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_retw_encode_fns[] = {
   Opcode_retw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_retw_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_retw_n_encode_fns[] = {
   0, 0, Opcode_retw_n_Slot_inst16b_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rfwo_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rfwo_encode_fns[] = {
   Opcode_rfwo_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rfwu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rfwu_encode_fns[] = {
   Opcode_rfwu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_l32e_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_l32e_encode_fns[] = {
   Opcode_l32e_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_s32e_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_s32e_encode_fns[] = {
   Opcode_s32e_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_windowbase_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_windowbase_encode_fns[] = {
   Opcode_rsr_windowbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_windowbase_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_windowbase_encode_fns[] = {
   Opcode_wsr_windowbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_windowbase_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_windowbase_encode_fns[] = {
   Opcode_xsr_windowbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_windowstart_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_windowstart_encode_fns[] = {
   Opcode_rsr_windowstart_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_windowstart_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_windowstart_encode_fns[] = {
   Opcode_wsr_windowstart_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_windowstart_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_windowstart_encode_fns[] = {
   Opcode_xsr_windowstart_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_add_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_add_n_encode_fns[] = {
   0, Opcode_add_n_Slot_inst16a_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_addi_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_addi_n_encode_fns[] = {
   0, Opcode_addi_n_Slot_inst16a_encode, 0, Opcode_addi_n_Slot_gp_slot2_encode, 0, Opcode_addi_n_Slot_gp_slot0_encode, 0, 0, Opcode_addi_n_Slot_dot_slot0_encode, Opcode_addi_n_Slot_pq_slot2_encode, 0, Opcode_addi_n_Slot_pq_slot0_encode, 0, 0, Opcode_addi_n_Slot_acc2_slot0_encode, 0, 0, Opcode_addi_n_Slot_smod_slot0_encode, 0, 0, Opcode_addi_n_Slot_llr_slot0_encode, Opcode_addi_n_Slot_dual_slot2_encode, 0, Opcode_addi_n_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_beqz_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_beqz_n_encode_fns[] = {
   0, 0, Opcode_beqz_n_Slot_inst16b_encode, 0, 0, Opcode_beqz_n_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_beqz_n_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_beqz_n_Slot_smod_slot0_encode, 0, 0, 0, Opcode_beqz_n_Slot_dual_slot2_encode, 0, Opcode_beqz_n_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bnez_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bnez_n_encode_fns[] = {
   0, 0, Opcode_bnez_n_Slot_inst16b_encode, 0, 0, Opcode_bnez_n_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_bnez_n_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_bnez_n_Slot_smod_slot0_encode, 0, 0, 0, Opcode_bnez_n_Slot_dual_slot2_encode, 0, Opcode_bnez_n_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ill_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ill_n_encode_fns[] = {
   0, 0, Opcode_ill_n_Slot_inst16b_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_l32i_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_l32i_n_encode_fns[] = {
   0, Opcode_l32i_n_Slot_inst16a_encode, 0, 0, 0, Opcode_l32i_n_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_l32i_n_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_l32i_n_Slot_smod_slot0_encode, 0, 0, Opcode_l32i_n_Slot_llr_slot0_encode, 0, 0, Opcode_l32i_n_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_mov_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mov_n_encode_fns[] = {
   0, 0, Opcode_mov_n_Slot_inst16b_encode, Opcode_mov_n_Slot_gp_slot2_encode, 0, Opcode_mov_n_Slot_gp_slot0_encode, 0, 0, Opcode_mov_n_Slot_dot_slot0_encode, Opcode_mov_n_Slot_pq_slot2_encode, 0, Opcode_mov_n_Slot_pq_slot0_encode, 0, 0, Opcode_mov_n_Slot_acc2_slot0_encode, 0, 0, Opcode_mov_n_Slot_smod_slot0_encode, 0, 0, Opcode_mov_n_Slot_llr_slot0_encode, Opcode_mov_n_Slot_dual_slot2_encode, 0, Opcode_mov_n_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_movi_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movi_n_encode_fns[] = {
   0, 0, Opcode_movi_n_Slot_inst16b_encode, Opcode_movi_n_Slot_gp_slot2_encode, 0, Opcode_movi_n_Slot_gp_slot0_encode, 0, 0, Opcode_movi_n_Slot_dot_slot0_encode, Opcode_movi_n_Slot_pq_slot2_encode, 0, Opcode_movi_n_Slot_pq_slot0_encode, 0, 0, Opcode_movi_n_Slot_acc2_slot0_encode, 0, 0, Opcode_movi_n_Slot_smod_slot0_encode, 0, 0, Opcode_movi_n_Slot_llr_slot0_encode, Opcode_movi_n_Slot_dual_slot2_encode, 0, Opcode_movi_n_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_nop_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_nop_n_encode_fns[] = {
   0, 0, Opcode_nop_n_Slot_inst16b_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_ret_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ret_n_encode_fns[] = {
   0, 0, Opcode_ret_n_Slot_inst16b_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_s32i_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_s32i_n_encode_fns[] = {
   0, Opcode_s32i_n_Slot_inst16a_encode, 0, 0, 0, Opcode_s32i_n_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_s32i_n_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_s32i_n_Slot_smod_slot0_encode, 0, 0, Opcode_s32i_n_Slot_llr_slot0_encode, 0, 0, Opcode_s32i_n_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_threadptr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_threadptr_encode_fns[] = {
   Opcode_rur_threadptr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_threadptr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_threadptr_encode_fns[] = {
   Opcode_wur_threadptr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_addi_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_addi_encode_fns[] = {
   Opcode_addi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_addi_Slot_dual_slot2_encode, 0, Opcode_addi_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_addmi_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_addmi_encode_fns[] = {
   Opcode_addmi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_addmi_Slot_dual_slot2_encode, 0, Opcode_addmi_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_add_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_add_encode_fns[] = {
   Opcode_add_Slot_inst_encode, 0, 0, Opcode_add_Slot_gp_slot2_encode, 0, Opcode_add_Slot_gp_slot0_encode, 0, 0, Opcode_add_Slot_dot_slot0_encode, Opcode_add_Slot_pq_slot2_encode, 0, Opcode_add_Slot_pq_slot0_encode, 0, 0, Opcode_add_Slot_acc2_slot0_encode, 0, 0, Opcode_add_Slot_smod_slot0_encode, 0, 0, Opcode_add_Slot_llr_slot0_encode, Opcode_add_Slot_dual_slot2_encode, 0, Opcode_add_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sub_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sub_encode_fns[] = {
   Opcode_sub_Slot_inst_encode, 0, 0, Opcode_sub_Slot_gp_slot2_encode, 0, Opcode_sub_Slot_gp_slot0_encode, 0, 0, Opcode_sub_Slot_dot_slot0_encode, Opcode_sub_Slot_pq_slot2_encode, 0, Opcode_sub_Slot_pq_slot0_encode, 0, 0, Opcode_sub_Slot_acc2_slot0_encode, 0, 0, Opcode_sub_Slot_smod_slot0_encode, 0, 0, Opcode_sub_Slot_llr_slot0_encode, Opcode_sub_Slot_dual_slot2_encode, 0, Opcode_sub_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_addx2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_addx2_encode_fns[] = {
   Opcode_addx2_Slot_inst_encode, 0, 0, 0, 0, Opcode_addx2_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_addx2_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_addx2_Slot_smod_slot0_encode, 0, 0, 0, Opcode_addx2_Slot_dual_slot2_encode, 0, Opcode_addx2_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_addx4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_addx4_encode_fns[] = {
   Opcode_addx4_Slot_inst_encode, 0, 0, 0, 0, Opcode_addx4_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_addx4_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_addx4_Slot_smod_slot0_encode, 0, 0, 0, Opcode_addx4_Slot_dual_slot2_encode, 0, Opcode_addx4_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_addx8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_addx8_encode_fns[] = {
   Opcode_addx8_Slot_inst_encode, 0, 0, 0, 0, Opcode_addx8_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_addx8_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_addx8_Slot_smod_slot0_encode, 0, 0, 0, Opcode_addx8_Slot_dual_slot2_encode, 0, Opcode_addx8_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_subx2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_subx2_encode_fns[] = {
   Opcode_subx2_Slot_inst_encode, 0, 0, 0, 0, Opcode_subx2_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_subx2_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_subx2_Slot_smod_slot0_encode, 0, 0, 0, Opcode_subx2_Slot_dual_slot2_encode, 0, Opcode_subx2_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_subx4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_subx4_encode_fns[] = {
   Opcode_subx4_Slot_inst_encode, 0, 0, 0, 0, Opcode_subx4_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_subx4_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_subx4_Slot_smod_slot0_encode, 0, 0, 0, Opcode_subx4_Slot_dual_slot2_encode, 0, Opcode_subx4_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_subx8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_subx8_encode_fns[] = {
   Opcode_subx8_Slot_inst_encode, 0, 0, 0, 0, Opcode_subx8_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_subx8_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_subx8_Slot_smod_slot0_encode, 0, 0, 0, Opcode_subx8_Slot_dual_slot2_encode, 0, Opcode_subx8_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_and_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_and_encode_fns[] = {
   Opcode_and_Slot_inst_encode, 0, 0, Opcode_and_Slot_gp_slot2_encode, 0, Opcode_and_Slot_gp_slot0_encode, 0, 0, Opcode_and_Slot_dot_slot0_encode, Opcode_and_Slot_pq_slot2_encode, 0, Opcode_and_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_and_Slot_smod_slot0_encode, 0, 0, Opcode_and_Slot_llr_slot0_encode, Opcode_and_Slot_dual_slot2_encode, 0, Opcode_and_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_or_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_or_encode_fns[] = {
   Opcode_or_Slot_inst_encode, 0, 0, Opcode_or_Slot_gp_slot2_encode, 0, Opcode_or_Slot_gp_slot0_encode, 0, 0, Opcode_or_Slot_dot_slot0_encode, Opcode_or_Slot_pq_slot2_encode, 0, Opcode_or_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_or_Slot_smod_slot0_encode, 0, 0, Opcode_or_Slot_llr_slot0_encode, Opcode_or_Slot_dual_slot2_encode, 0, Opcode_or_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_xor_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xor_encode_fns[] = {
   Opcode_xor_Slot_inst_encode, 0, 0, Opcode_xor_Slot_gp_slot2_encode, 0, Opcode_xor_Slot_gp_slot0_encode, 0, 0, Opcode_xor_Slot_dot_slot0_encode, Opcode_xor_Slot_pq_slot2_encode, 0, Opcode_xor_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_xor_Slot_smod_slot0_encode, 0, 0, Opcode_xor_Slot_llr_slot0_encode, Opcode_xor_Slot_dual_slot2_encode, 0, Opcode_xor_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_beqi_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_beqi_encode_fns[] = {
   Opcode_beqi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_beqi_Slot_dual_slot2_encode, 0, Opcode_beqi_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bnei_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bnei_encode_fns[] = {
   Opcode_bnei_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bnei_Slot_dual_slot2_encode, 0, Opcode_bnei_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bgei_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bgei_encode_fns[] = {
   Opcode_bgei_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bgei_Slot_dual_slot2_encode, 0, Opcode_bgei_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_blti_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_blti_encode_fns[] = {
   Opcode_blti_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_blti_Slot_dual_slot2_encode, 0, Opcode_blti_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bbci_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bbci_encode_fns[] = {
   Opcode_bbci_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bbci_Slot_dual_slot2_encode, 0, Opcode_bbci_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bbsi_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bbsi_encode_fns[] = {
   Opcode_bbsi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bbsi_Slot_dual_slot2_encode, 0, Opcode_bbsi_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bgeui_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bgeui_encode_fns[] = {
   Opcode_bgeui_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bgeui_Slot_dual_slot2_encode, 0, Opcode_bgeui_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bltui_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bltui_encode_fns[] = {
   Opcode_bltui_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bltui_Slot_dual_slot2_encode, 0, Opcode_bltui_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_beq_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_beq_encode_fns[] = {
   Opcode_beq_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_beq_Slot_dual_slot2_encode, 0, Opcode_beq_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bne_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bne_encode_fns[] = {
   Opcode_bne_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bne_Slot_dual_slot2_encode, 0, Opcode_bne_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bge_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bge_encode_fns[] = {
   Opcode_bge_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bge_Slot_dual_slot2_encode, 0, Opcode_bge_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_blt_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_blt_encode_fns[] = {
   Opcode_blt_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_blt_Slot_dual_slot2_encode, 0, Opcode_blt_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bgeu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bgeu_encode_fns[] = {
   Opcode_bgeu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bgeu_Slot_dual_slot2_encode, 0, Opcode_bgeu_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bltu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bltu_encode_fns[] = {
   Opcode_bltu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bltu_Slot_dual_slot2_encode, 0, Opcode_bltu_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bany_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bany_encode_fns[] = {
   Opcode_bany_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bany_Slot_dual_slot2_encode, 0, Opcode_bany_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bnone_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bnone_encode_fns[] = {
   Opcode_bnone_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bnone_Slot_dual_slot2_encode, 0, Opcode_bnone_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ball_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ball_encode_fns[] = {
   Opcode_ball_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ball_Slot_dual_slot2_encode, 0, Opcode_ball_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bnall_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bnall_encode_fns[] = {
   Opcode_bnall_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bnall_Slot_dual_slot2_encode, 0, Opcode_bnall_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bbc_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bbc_encode_fns[] = {
   Opcode_bbc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bbc_Slot_dual_slot2_encode, 0, Opcode_bbc_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bbs_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bbs_encode_fns[] = {
   Opcode_bbs_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bbs_Slot_dual_slot2_encode, 0, Opcode_bbs_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_beqz_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_beqz_encode_fns[] = {
   Opcode_beqz_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_beqz_Slot_dual_slot2_encode, 0, Opcode_beqz_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bnez_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bnez_encode_fns[] = {
   Opcode_bnez_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bnez_Slot_dual_slot2_encode, 0, Opcode_bnez_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bgez_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bgez_encode_fns[] = {
   Opcode_bgez_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bgez_Slot_dual_slot2_encode, 0, Opcode_bgez_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_bltz_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bltz_encode_fns[] = {
   Opcode_bltz_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bltz_Slot_dual_slot2_encode, 0, Opcode_bltz_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_call0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_call0_encode_fns[] = {
   Opcode_call0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_callx0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_callx0_encode_fns[] = {
   Opcode_callx0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_extui_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_extui_encode_fns[] = {
   Opcode_extui_Slot_inst_encode, 0, 0, Opcode_extui_Slot_gp_slot2_encode, 0, Opcode_extui_Slot_gp_slot0_encode, 0, 0, 0, Opcode_extui_Slot_pq_slot2_encode, 0, Opcode_extui_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_extui_Slot_smod_slot0_encode, 0, 0, 0, Opcode_extui_Slot_dual_slot2_encode, 0, Opcode_extui_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ill_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ill_encode_fns[] = {
   Opcode_ill_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_j_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_j_encode_fns[] = {
   Opcode_j_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_jx_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_jx_encode_fns[] = {
   Opcode_jx_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_l16ui_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_l16ui_encode_fns[] = {
   Opcode_l16ui_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_l16ui_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_l16si_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_l16si_encode_fns[] = {
   Opcode_l16si_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_l16si_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_l32i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_l32i_encode_fns[] = {
   Opcode_l32i_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_l32i_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_l32r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_l32r_encode_fns[] = {
   Opcode_l32r_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_l32r_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_l8ui_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_l8ui_encode_fns[] = {
   Opcode_l8ui_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_l8ui_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_loop_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_loop_encode_fns[] = {
   Opcode_loop_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_loopnez_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_loopnez_encode_fns[] = {
   Opcode_loopnez_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_loopgtz_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_loopgtz_encode_fns[] = {
   Opcode_loopgtz_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movi_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movi_encode_fns[] = {
   Opcode_movi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_movi_Slot_dual_slot2_encode, 0, Opcode_movi_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_moveqz_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_moveqz_encode_fns[] = {
   Opcode_moveqz_Slot_inst_encode, 0, 0, Opcode_moveqz_Slot_gp_slot2_encode, 0, Opcode_moveqz_Slot_gp_slot0_encode, 0, 0, 0, Opcode_moveqz_Slot_pq_slot2_encode, 0, Opcode_moveqz_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_moveqz_Slot_smod_slot0_encode, 0, 0, 0, Opcode_moveqz_Slot_dual_slot2_encode, 0, Opcode_moveqz_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_movnez_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movnez_encode_fns[] = {
   Opcode_movnez_Slot_inst_encode, 0, 0, Opcode_movnez_Slot_gp_slot2_encode, 0, Opcode_movnez_Slot_gp_slot0_encode, 0, 0, 0, Opcode_movnez_Slot_pq_slot2_encode, 0, Opcode_movnez_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_movnez_Slot_smod_slot0_encode, 0, 0, 0, Opcode_movnez_Slot_dual_slot2_encode, 0, Opcode_movnez_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_movltz_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movltz_encode_fns[] = {
   Opcode_movltz_Slot_inst_encode, 0, 0, Opcode_movltz_Slot_gp_slot2_encode, 0, Opcode_movltz_Slot_gp_slot0_encode, 0, 0, 0, Opcode_movltz_Slot_pq_slot2_encode, 0, Opcode_movltz_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_movltz_Slot_smod_slot0_encode, 0, 0, 0, Opcode_movltz_Slot_dual_slot2_encode, 0, Opcode_movltz_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_movgez_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movgez_encode_fns[] = {
   Opcode_movgez_Slot_inst_encode, 0, 0, Opcode_movgez_Slot_gp_slot2_encode, 0, Opcode_movgez_Slot_gp_slot0_encode, 0, 0, 0, Opcode_movgez_Slot_pq_slot2_encode, 0, Opcode_movgez_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_movgez_Slot_smod_slot0_encode, 0, 0, 0, Opcode_movgez_Slot_dual_slot2_encode, 0, Opcode_movgez_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_neg_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_neg_encode_fns[] = {
   Opcode_neg_Slot_inst_encode, 0, 0, Opcode_neg_Slot_gp_slot2_encode, 0, Opcode_neg_Slot_gp_slot0_encode, 0, 0, Opcode_neg_Slot_dot_slot0_encode, Opcode_neg_Slot_pq_slot2_encode, 0, Opcode_neg_Slot_pq_slot0_encode, 0, 0, Opcode_neg_Slot_acc2_slot0_encode, 0, 0, Opcode_neg_Slot_smod_slot0_encode, 0, 0, Opcode_neg_Slot_llr_slot0_encode, Opcode_neg_Slot_dual_slot2_encode, 0, Opcode_neg_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_abs_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_abs_encode_fns[] = {
   Opcode_abs_Slot_inst_encode, 0, 0, Opcode_abs_Slot_gp_slot2_encode, 0, Opcode_abs_Slot_gp_slot0_encode, 0, 0, 0, Opcode_abs_Slot_pq_slot2_encode, 0, Opcode_abs_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_abs_Slot_smod_slot0_encode, 0, 0, 0, Opcode_abs_Slot_dual_slot2_encode, 0, Opcode_abs_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_nop_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_nop_encode_fns[] = {
   Opcode_nop_Slot_inst_encode, 0, 0, Opcode_nop_Slot_gp_slot2_encode, Opcode_nop_Slot_gp_slot1_encode, Opcode_nop_Slot_gp_slot0_encode, Opcode_nop_Slot_dot_slot2_encode, Opcode_nop_Slot_dot_slot1_encode, Opcode_nop_Slot_dot_slot0_encode, Opcode_nop_Slot_pq_slot2_encode, Opcode_nop_Slot_pq_slot1_encode, Opcode_nop_Slot_pq_slot0_encode, Opcode_nop_Slot_acc2_slot2_encode, Opcode_nop_Slot_acc2_slot1_encode, Opcode_nop_Slot_acc2_slot0_encode, Opcode_nop_Slot_smod_slot2_encode, Opcode_nop_Slot_smod_slot1_encode, Opcode_nop_Slot_smod_slot0_encode, Opcode_nop_Slot_llr_slot2_encode, Opcode_nop_Slot_llr_slot1_encode, Opcode_nop_Slot_llr_slot0_encode, Opcode_nop_Slot_dual_slot2_encode, Opcode_nop_Slot_dual_slot1_encode, Opcode_nop_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ret_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ret_encode_fns[] = {
   Opcode_ret_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_s16i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_s16i_encode_fns[] = {
   Opcode_s16i_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_s16i_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_s32i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_s32i_encode_fns[] = {
   Opcode_s32i_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_s32i_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_s8i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_s8i_encode_fns[] = {
   Opcode_s8i_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_s8i_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ssr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ssr_encode_fns[] = {
   Opcode_ssr_Slot_inst_encode, 0, 0, 0, 0, Opcode_ssr_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_ssr_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_ssr_Slot_smod_slot0_encode, 0, 0, 0, Opcode_ssr_Slot_dual_slot2_encode, 0, Opcode_ssr_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ssl_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ssl_encode_fns[] = {
   Opcode_ssl_Slot_inst_encode, 0, 0, 0, 0, Opcode_ssl_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_ssl_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_ssl_Slot_smod_slot0_encode, 0, 0, 0, Opcode_ssl_Slot_dual_slot2_encode, 0, Opcode_ssl_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ssa8l_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ssa8l_encode_fns[] = {
   Opcode_ssa8l_Slot_inst_encode, 0, 0, 0, 0, Opcode_ssa8l_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_ssa8l_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_ssa8l_Slot_smod_slot0_encode, 0, 0, 0, Opcode_ssa8l_Slot_dual_slot2_encode, 0, Opcode_ssa8l_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ssa8b_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ssa8b_encode_fns[] = {
   Opcode_ssa8b_Slot_inst_encode, 0, 0, 0, 0, Opcode_ssa8b_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_ssa8b_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_ssa8b_Slot_smod_slot0_encode, 0, 0, 0, Opcode_ssa8b_Slot_dual_slot2_encode, 0, Opcode_ssa8b_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ssai_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ssai_encode_fns[] = {
   Opcode_ssai_Slot_inst_encode, 0, 0, 0, 0, Opcode_ssai_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_ssai_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_ssai_Slot_smod_slot0_encode, 0, 0, 0, Opcode_ssai_Slot_dual_slot2_encode, 0, Opcode_ssai_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sll_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sll_encode_fns[] = {
   Opcode_sll_Slot_inst_encode, 0, 0, Opcode_sll_Slot_gp_slot2_encode, 0, Opcode_sll_Slot_gp_slot0_encode, 0, 0, Opcode_sll_Slot_dot_slot0_encode, Opcode_sll_Slot_pq_slot2_encode, 0, Opcode_sll_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_sll_Slot_smod_slot0_encode, 0, 0, Opcode_sll_Slot_llr_slot0_encode, Opcode_sll_Slot_dual_slot2_encode, 0, Opcode_sll_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_src_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_src_encode_fns[] = {
   Opcode_src_Slot_inst_encode, 0, 0, 0, 0, Opcode_src_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_src_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_src_Slot_smod_slot0_encode, 0, 0, 0, Opcode_src_Slot_dual_slot2_encode, 0, Opcode_src_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_srl_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_srl_encode_fns[] = {
   Opcode_srl_Slot_inst_encode, 0, 0, 0, 0, Opcode_srl_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_srl_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_srl_Slot_smod_slot0_encode, 0, 0, 0, Opcode_srl_Slot_dual_slot2_encode, 0, Opcode_srl_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sra_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sra_encode_fns[] = {
   Opcode_sra_Slot_inst_encode, 0, 0, Opcode_sra_Slot_gp_slot2_encode, 0, Opcode_sra_Slot_gp_slot0_encode, 0, 0, Opcode_sra_Slot_dot_slot0_encode, Opcode_sra_Slot_pq_slot2_encode, 0, Opcode_sra_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_sra_Slot_smod_slot0_encode, 0, 0, Opcode_sra_Slot_llr_slot0_encode, Opcode_sra_Slot_dual_slot2_encode, 0, Opcode_sra_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_slli_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_slli_encode_fns[] = {
   Opcode_slli_Slot_inst_encode, 0, 0, 0, 0, Opcode_slli_Slot_gp_slot0_encode, 0, 0, Opcode_slli_Slot_dot_slot0_encode, 0, 0, Opcode_slli_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_slli_Slot_smod_slot0_encode, 0, 0, Opcode_slli_Slot_llr_slot0_encode, Opcode_slli_Slot_dual_slot2_encode, 0, Opcode_slli_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_srai_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_srai_encode_fns[] = {
   Opcode_srai_Slot_inst_encode, 0, 0, 0, 0, Opcode_srai_Slot_gp_slot0_encode, 0, 0, Opcode_srai_Slot_dot_slot0_encode, 0, 0, Opcode_srai_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_srai_Slot_smod_slot0_encode, 0, 0, Opcode_srai_Slot_llr_slot0_encode, Opcode_srai_Slot_dual_slot2_encode, 0, Opcode_srai_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_srli_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_srli_encode_fns[] = {
   Opcode_srli_Slot_inst_encode, 0, 0, 0, 0, Opcode_srli_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_srli_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_srli_Slot_smod_slot0_encode, 0, 0, 0, Opcode_srli_Slot_dual_slot2_encode, 0, Opcode_srli_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_memw_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_memw_encode_fns[] = {
   Opcode_memw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_extw_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_extw_encode_fns[] = {
   Opcode_extw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_isync_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_isync_encode_fns[] = {
   Opcode_isync_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsync_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsync_encode_fns[] = {
   Opcode_rsync_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_esync_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_esync_encode_fns[] = {
   Opcode_esync_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_dsync_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_dsync_encode_fns[] = {
   Opcode_dsync_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsil_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsil_encode_fns[] = {
   Opcode_rsil_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_lend_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_lend_encode_fns[] = {
   Opcode_rsr_lend_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_lend_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_lend_encode_fns[] = {
   Opcode_wsr_lend_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_lend_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_lend_encode_fns[] = {
   Opcode_xsr_lend_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_lcount_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_lcount_encode_fns[] = {
   Opcode_rsr_lcount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_lcount_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_lcount_encode_fns[] = {
   Opcode_wsr_lcount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_lcount_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_lcount_encode_fns[] = {
   Opcode_xsr_lcount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_lbeg_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_lbeg_encode_fns[] = {
   Opcode_rsr_lbeg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_lbeg_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_lbeg_encode_fns[] = {
   Opcode_wsr_lbeg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_lbeg_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_lbeg_encode_fns[] = {
   Opcode_xsr_lbeg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_sar_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_sar_encode_fns[] = {
   Opcode_rsr_sar_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_sar_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_sar_encode_fns[] = {
   Opcode_wsr_sar_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_sar_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_sar_encode_fns[] = {
   Opcode_xsr_sar_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_litbase_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_litbase_encode_fns[] = {
   Opcode_rsr_litbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_litbase_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_litbase_encode_fns[] = {
   Opcode_wsr_litbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_litbase_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_litbase_encode_fns[] = {
   Opcode_xsr_litbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_176_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_176_encode_fns[] = {
   Opcode_rsr_176_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_176_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_176_encode_fns[] = {
   Opcode_wsr_176_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_208_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_208_encode_fns[] = {
   Opcode_rsr_208_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_ps_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_ps_encode_fns[] = {
   Opcode_rsr_ps_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_ps_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_ps_encode_fns[] = {
   Opcode_wsr_ps_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_ps_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_ps_encode_fns[] = {
   Opcode_xsr_ps_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_epc1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_epc1_encode_fns[] = {
   Opcode_rsr_epc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_epc1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_epc1_encode_fns[] = {
   Opcode_wsr_epc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_epc1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_epc1_encode_fns[] = {
   Opcode_xsr_epc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_excsave1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_excsave1_encode_fns[] = {
   Opcode_rsr_excsave1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_excsave1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_excsave1_encode_fns[] = {
   Opcode_wsr_excsave1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_excsave1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_excsave1_encode_fns[] = {
   Opcode_xsr_excsave1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_epc2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_epc2_encode_fns[] = {
   Opcode_rsr_epc2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_epc2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_epc2_encode_fns[] = {
   Opcode_wsr_epc2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_epc2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_epc2_encode_fns[] = {
   Opcode_xsr_epc2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_excsave2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_excsave2_encode_fns[] = {
   Opcode_rsr_excsave2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_excsave2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_excsave2_encode_fns[] = {
   Opcode_wsr_excsave2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_excsave2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_excsave2_encode_fns[] = {
   Opcode_xsr_excsave2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_epc3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_epc3_encode_fns[] = {
   Opcode_rsr_epc3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_epc3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_epc3_encode_fns[] = {
   Opcode_wsr_epc3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_epc3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_epc3_encode_fns[] = {
   Opcode_xsr_epc3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_excsave3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_excsave3_encode_fns[] = {
   Opcode_rsr_excsave3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_excsave3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_excsave3_encode_fns[] = {
   Opcode_wsr_excsave3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_excsave3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_excsave3_encode_fns[] = {
   Opcode_xsr_excsave3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_epc4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_epc4_encode_fns[] = {
   Opcode_rsr_epc4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_epc4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_epc4_encode_fns[] = {
   Opcode_wsr_epc4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_epc4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_epc4_encode_fns[] = {
   Opcode_xsr_epc4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_excsave4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_excsave4_encode_fns[] = {
   Opcode_rsr_excsave4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_excsave4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_excsave4_encode_fns[] = {
   Opcode_wsr_excsave4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_excsave4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_excsave4_encode_fns[] = {
   Opcode_xsr_excsave4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_epc5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_epc5_encode_fns[] = {
   Opcode_rsr_epc5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_epc5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_epc5_encode_fns[] = {
   Opcode_wsr_epc5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_epc5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_epc5_encode_fns[] = {
   Opcode_xsr_epc5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_excsave5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_excsave5_encode_fns[] = {
   Opcode_rsr_excsave5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_excsave5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_excsave5_encode_fns[] = {
   Opcode_wsr_excsave5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_excsave5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_excsave5_encode_fns[] = {
   Opcode_xsr_excsave5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_epc6_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_epc6_encode_fns[] = {
   Opcode_rsr_epc6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_epc6_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_epc6_encode_fns[] = {
   Opcode_wsr_epc6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_epc6_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_epc6_encode_fns[] = {
   Opcode_xsr_epc6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_excsave6_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_excsave6_encode_fns[] = {
   Opcode_rsr_excsave6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_excsave6_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_excsave6_encode_fns[] = {
   Opcode_wsr_excsave6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_excsave6_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_excsave6_encode_fns[] = {
   Opcode_xsr_excsave6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_eps2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_eps2_encode_fns[] = {
   Opcode_rsr_eps2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_eps2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_eps2_encode_fns[] = {
   Opcode_wsr_eps2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_eps2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_eps2_encode_fns[] = {
   Opcode_xsr_eps2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_eps3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_eps3_encode_fns[] = {
   Opcode_rsr_eps3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_eps3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_eps3_encode_fns[] = {
   Opcode_wsr_eps3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_eps3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_eps3_encode_fns[] = {
   Opcode_xsr_eps3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_eps4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_eps4_encode_fns[] = {
   Opcode_rsr_eps4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_eps4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_eps4_encode_fns[] = {
   Opcode_wsr_eps4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_eps4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_eps4_encode_fns[] = {
   Opcode_xsr_eps4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_eps5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_eps5_encode_fns[] = {
   Opcode_rsr_eps5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_eps5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_eps5_encode_fns[] = {
   Opcode_wsr_eps5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_eps5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_eps5_encode_fns[] = {
   Opcode_xsr_eps5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_eps6_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_eps6_encode_fns[] = {
   Opcode_rsr_eps6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_eps6_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_eps6_encode_fns[] = {
   Opcode_wsr_eps6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_eps6_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_eps6_encode_fns[] = {
   Opcode_xsr_eps6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_excvaddr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_excvaddr_encode_fns[] = {
   Opcode_rsr_excvaddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_excvaddr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_excvaddr_encode_fns[] = {
   Opcode_wsr_excvaddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_excvaddr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_excvaddr_encode_fns[] = {
   Opcode_xsr_excvaddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_depc_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_depc_encode_fns[] = {
   Opcode_rsr_depc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_depc_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_depc_encode_fns[] = {
   Opcode_wsr_depc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_depc_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_depc_encode_fns[] = {
   Opcode_xsr_depc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_exccause_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_exccause_encode_fns[] = {
   Opcode_rsr_exccause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_exccause_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_exccause_encode_fns[] = {
   Opcode_wsr_exccause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_exccause_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_exccause_encode_fns[] = {
   Opcode_xsr_exccause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_prid_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_prid_encode_fns[] = {
   Opcode_rsr_prid_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_vecbase_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_vecbase_encode_fns[] = {
   Opcode_rsr_vecbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_vecbase_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_vecbase_encode_fns[] = {
   Opcode_wsr_vecbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_vecbase_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_vecbase_encode_fns[] = {
   Opcode_xsr_vecbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mul16u_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mul16u_encode_fns[] = {
   Opcode_mul16u_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mul16s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mul16s_encode_fns[] = {
   Opcode_mul16s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rfi_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rfi_encode_fns[] = {
   Opcode_rfi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_waiti_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_waiti_encode_fns[] = {
   Opcode_waiti_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_interrupt_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_interrupt_encode_fns[] = {
   Opcode_rsr_interrupt_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_intset_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_intset_encode_fns[] = {
   Opcode_wsr_intset_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_intclear_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_intclear_encode_fns[] = {
   Opcode_wsr_intclear_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_intenable_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_intenable_encode_fns[] = {
   Opcode_rsr_intenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_intenable_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_intenable_encode_fns[] = {
   Opcode_wsr_intenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_intenable_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_intenable_encode_fns[] = {
   Opcode_xsr_intenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_break_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_break_encode_fns[] = {
   Opcode_break_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_break_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_break_n_encode_fns[] = {
   0, 0, Opcode_break_n_Slot_inst16b_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_dbreaka0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_dbreaka0_encode_fns[] = {
   Opcode_rsr_dbreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_dbreaka0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_dbreaka0_encode_fns[] = {
   Opcode_wsr_dbreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_dbreaka0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_dbreaka0_encode_fns[] = {
   Opcode_xsr_dbreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_dbreakc0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_dbreakc0_encode_fns[] = {
   Opcode_rsr_dbreakc0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_dbreakc0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_dbreakc0_encode_fns[] = {
   Opcode_wsr_dbreakc0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_dbreakc0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_dbreakc0_encode_fns[] = {
   Opcode_xsr_dbreakc0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_dbreaka1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_dbreaka1_encode_fns[] = {
   Opcode_rsr_dbreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_dbreaka1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_dbreaka1_encode_fns[] = {
   Opcode_wsr_dbreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_dbreaka1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_dbreaka1_encode_fns[] = {
   Opcode_xsr_dbreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_dbreakc1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_dbreakc1_encode_fns[] = {
   Opcode_rsr_dbreakc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_dbreakc1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_dbreakc1_encode_fns[] = {
   Opcode_wsr_dbreakc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_dbreakc1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_dbreakc1_encode_fns[] = {
   Opcode_xsr_dbreakc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_ibreaka0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_ibreaka0_encode_fns[] = {
   Opcode_rsr_ibreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_ibreaka0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_ibreaka0_encode_fns[] = {
   Opcode_wsr_ibreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_ibreaka0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_ibreaka0_encode_fns[] = {
   Opcode_xsr_ibreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_ibreaka1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_ibreaka1_encode_fns[] = {
   Opcode_rsr_ibreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_ibreaka1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_ibreaka1_encode_fns[] = {
   Opcode_wsr_ibreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_ibreaka1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_ibreaka1_encode_fns[] = {
   Opcode_xsr_ibreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_ibreakenable_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_ibreakenable_encode_fns[] = {
   Opcode_rsr_ibreakenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_ibreakenable_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_ibreakenable_encode_fns[] = {
   Opcode_wsr_ibreakenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_ibreakenable_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_ibreakenable_encode_fns[] = {
   Opcode_xsr_ibreakenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_debugcause_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_debugcause_encode_fns[] = {
   Opcode_rsr_debugcause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_debugcause_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_debugcause_encode_fns[] = {
   Opcode_wsr_debugcause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_debugcause_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_debugcause_encode_fns[] = {
   Opcode_xsr_debugcause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_icount_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_icount_encode_fns[] = {
   Opcode_rsr_icount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_icount_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_icount_encode_fns[] = {
   Opcode_wsr_icount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_icount_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_icount_encode_fns[] = {
   Opcode_xsr_icount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_icountlevel_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_icountlevel_encode_fns[] = {
   Opcode_rsr_icountlevel_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_icountlevel_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_icountlevel_encode_fns[] = {
   Opcode_wsr_icountlevel_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_icountlevel_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_icountlevel_encode_fns[] = {
   Opcode_xsr_icountlevel_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_ddr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_ddr_encode_fns[] = {
   Opcode_rsr_ddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_ddr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_ddr_encode_fns[] = {
   Opcode_wsr_ddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_ddr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_ddr_encode_fns[] = {
   Opcode_xsr_ddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rfdo_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rfdo_encode_fns[] = {
   Opcode_rfdo_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rfdd_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rfdd_encode_fns[] = {
   Opcode_rfdd_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_mmid_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_mmid_encode_fns[] = {
   Opcode_wsr_mmid_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_andb_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_andb_encode_fns[] = {
   Opcode_andb_Slot_inst_encode, 0, 0, 0, 0, Opcode_andb_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_andb_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_andb_Slot_smod_slot0_encode, 0, 0, 0, Opcode_andb_Slot_dual_slot2_encode, 0, Opcode_andb_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_andbc_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_andbc_encode_fns[] = {
   Opcode_andbc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_orb_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_orb_encode_fns[] = {
   Opcode_orb_Slot_inst_encode, 0, 0, 0, 0, Opcode_orb_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_orb_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_orb_Slot_smod_slot0_encode, 0, 0, 0, Opcode_orb_Slot_dual_slot2_encode, 0, Opcode_orb_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_orbc_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_orbc_encode_fns[] = {
   Opcode_orbc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xorb_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xorb_encode_fns[] = {
   Opcode_xorb_Slot_inst_encode, 0, 0, 0, 0, Opcode_xorb_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_xorb_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_xorb_Slot_smod_slot0_encode, 0, 0, 0, Opcode_xorb_Slot_dual_slot2_encode, 0, Opcode_xorb_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_any4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_any4_encode_fns[] = {
   Opcode_any4_Slot_inst_encode, 0, 0, 0, 0, Opcode_any4_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_any4_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_any4_Slot_smod_slot0_encode, 0, 0, 0, Opcode_any4_Slot_dual_slot2_encode, 0, Opcode_any4_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_all4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_all4_encode_fns[] = {
   Opcode_all4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_any8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_any8_encode_fns[] = {
   Opcode_any8_Slot_inst_encode, 0, 0, 0, 0, Opcode_any8_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_any8_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_any8_Slot_smod_slot0_encode, 0, 0, 0, Opcode_any8_Slot_dual_slot2_encode, 0, Opcode_any8_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_all8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_all8_encode_fns[] = {
   Opcode_all8_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_bf_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bf_encode_fns[] = {
   Opcode_bf_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_bt_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bt_encode_fns[] = {
   Opcode_bt_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movf_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movf_encode_fns[] = {
   Opcode_movf_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movt_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movt_encode_fns[] = {
   Opcode_movt_Slot_inst_encode, 0, 0, 0, 0, Opcode_movt_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_movt_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_movt_Slot_smod_slot0_encode, 0, 0, 0, Opcode_movt_Slot_dual_slot2_encode, 0, Opcode_movt_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_br_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_br_encode_fns[] = {
   Opcode_rsr_br_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_br_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_br_encode_fns[] = {
   Opcode_wsr_br_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_br_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_br_encode_fns[] = {
   Opcode_xsr_br_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_ccount_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_ccount_encode_fns[] = {
   Opcode_rsr_ccount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_ccount_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_ccount_encode_fns[] = {
   Opcode_wsr_ccount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_ccount_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_ccount_encode_fns[] = {
   Opcode_xsr_ccount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_ccompare0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_ccompare0_encode_fns[] = {
   Opcode_rsr_ccompare0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_ccompare0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_ccompare0_encode_fns[] = {
   Opcode_wsr_ccompare0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_ccompare0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_ccompare0_encode_fns[] = {
   Opcode_xsr_ccompare0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_ccompare1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_ccompare1_encode_fns[] = {
   Opcode_rsr_ccompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_ccompare1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_ccompare1_encode_fns[] = {
   Opcode_wsr_ccompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_ccompare1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_ccompare1_encode_fns[] = {
   Opcode_xsr_ccompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_ipf_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ipf_encode_fns[] = {
   Opcode_ipf_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_ihi_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ihi_encode_fns[] = {
   Opcode_ihi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_ipfl_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ipfl_encode_fns[] = {
   Opcode_ipfl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_ihu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ihu_encode_fns[] = {
   Opcode_ihu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_iiu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_iiu_encode_fns[] = {
   Opcode_iiu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_iii_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_iii_encode_fns[] = {
   Opcode_iii_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_lict_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lict_encode_fns[] = {
   Opcode_lict_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_licw_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_licw_encode_fns[] = {
   Opcode_licw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_sict_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sict_encode_fns[] = {
   Opcode_sict_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_sicw_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sicw_encode_fns[] = {
   Opcode_sicw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_dhwb_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_dhwb_encode_fns[] = {
   Opcode_dhwb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_dhwbi_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_dhwbi_encode_fns[] = {
   Opcode_dhwbi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_diwb_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_diwb_encode_fns[] = {
   Opcode_diwb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_diwbi_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_diwbi_encode_fns[] = {
   Opcode_diwbi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_dhi_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_dhi_encode_fns[] = {
   Opcode_dhi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_dii_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_dii_encode_fns[] = {
   Opcode_dii_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_dpfr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_dpfr_encode_fns[] = {
   Opcode_dpfr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_dpfw_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_dpfw_encode_fns[] = {
   Opcode_dpfw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_dpfro_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_dpfro_encode_fns[] = {
   Opcode_dpfro_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_dpfwo_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_dpfwo_encode_fns[] = {
   Opcode_dpfwo_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_dpfl_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_dpfl_encode_fns[] = {
   Opcode_dpfl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_dhu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_dhu_encode_fns[] = {
   Opcode_dhu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_diu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_diu_encode_fns[] = {
   Opcode_diu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_sdct_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sdct_encode_fns[] = {
   Opcode_sdct_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_ldct_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ldct_encode_fns[] = {
   Opcode_ldct_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_idtlb_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_idtlb_encode_fns[] = {
   Opcode_idtlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_pdtlb_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pdtlb_encode_fns[] = {
   Opcode_pdtlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rdtlb0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rdtlb0_encode_fns[] = {
   Opcode_rdtlb0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rdtlb1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rdtlb1_encode_fns[] = {
   Opcode_rdtlb1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wdtlb_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wdtlb_encode_fns[] = {
   Opcode_wdtlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_iitlb_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_iitlb_encode_fns[] = {
   Opcode_iitlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_pitlb_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pitlb_encode_fns[] = {
   Opcode_pitlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_ritlb0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ritlb0_encode_fns[] = {
   Opcode_ritlb0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_ritlb1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ritlb1_encode_fns[] = {
   Opcode_ritlb1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_witlb_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_witlb_encode_fns[] = {
   Opcode_witlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_cpenable_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_cpenable_encode_fns[] = {
   Opcode_rsr_cpenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_cpenable_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_cpenable_encode_fns[] = {
   Opcode_wsr_cpenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_cpenable_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_cpenable_encode_fns[] = {
   Opcode_xsr_cpenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_clamps_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_clamps_encode_fns[] = {
   Opcode_clamps_Slot_inst_encode, 0, 0, 0, 0, Opcode_clamps_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_clamps_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_clamps_Slot_smod_slot0_encode, 0, 0, 0, Opcode_clamps_Slot_dual_slot2_encode, 0, Opcode_clamps_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_min_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_min_encode_fns[] = {
   Opcode_min_Slot_inst_encode, 0, 0, 0, 0, Opcode_min_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_min_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_min_Slot_smod_slot0_encode, 0, 0, 0, Opcode_min_Slot_dual_slot2_encode, 0, Opcode_min_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_max_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_max_encode_fns[] = {
   Opcode_max_Slot_inst_encode, 0, 0, 0, 0, Opcode_max_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_max_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_max_Slot_smod_slot0_encode, 0, 0, 0, Opcode_max_Slot_dual_slot2_encode, 0, Opcode_max_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_minu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_minu_encode_fns[] = {
   Opcode_minu_Slot_inst_encode, 0, 0, 0, 0, Opcode_minu_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_minu_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_minu_Slot_smod_slot0_encode, 0, 0, 0, Opcode_minu_Slot_dual_slot2_encode, 0, Opcode_minu_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_maxu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_maxu_encode_fns[] = {
   Opcode_maxu_Slot_inst_encode, 0, 0, 0, 0, Opcode_maxu_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_maxu_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_maxu_Slot_smod_slot0_encode, 0, 0, 0, Opcode_maxu_Slot_dual_slot2_encode, 0, Opcode_maxu_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_nsa_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_nsa_encode_fns[] = {
   Opcode_nsa_Slot_inst_encode, 0, 0, 0, 0, Opcode_nsa_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_nsa_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_nsa_Slot_smod_slot0_encode, 0, 0, 0, Opcode_nsa_Slot_dual_slot2_encode, 0, Opcode_nsa_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_nsau_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_nsau_encode_fns[] = {
   Opcode_nsau_Slot_inst_encode, 0, 0, 0, 0, Opcode_nsau_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_nsau_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_nsau_Slot_smod_slot0_encode, 0, 0, 0, Opcode_nsau_Slot_dual_slot2_encode, 0, Opcode_nsau_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sext_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sext_encode_fns[] = {
   Opcode_sext_Slot_inst_encode, 0, 0, 0, 0, Opcode_sext_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_sext_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_sext_Slot_smod_slot0_encode, 0, 0, 0, Opcode_sext_Slot_dual_slot2_encode, 0, Opcode_sext_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_l32ai_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_l32ai_encode_fns[] = {
   Opcode_l32ai_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_s32ri_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_s32ri_encode_fns[] = {
   Opcode_s32ri_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_s32c1i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_s32c1i_encode_fns[] = {
   Opcode_s32c1i_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_scompare1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_scompare1_encode_fns[] = {
   Opcode_rsr_scompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_scompare1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_scompare1_encode_fns[] = {
   Opcode_wsr_scompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_scompare1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_scompare1_encode_fns[] = {
   Opcode_xsr_scompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rsr_atomctl_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rsr_atomctl_encode_fns[] = {
   Opcode_rsr_atomctl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wsr_atomctl_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wsr_atomctl_encode_fns[] = {
   Opcode_wsr_atomctl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xsr_atomctl_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xsr_atomctl_encode_fns[] = {
   Opcode_xsr_atomctl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rer_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rer_encode_fns[] = {
   Opcode_rer_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wer_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wer_encode_fns[] = {
   Opcode_wer_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_fcr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_fcr_encode_fns[] = {
   Opcode_rur_fcr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_fcr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_fcr_encode_fns[] = {
   Opcode_wur_fcr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_fsr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_fsr_encode_fns[] = {
   Opcode_rur_fsr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_fsr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_fsr_encode_fns[] = {
   Opcode_wur_fsr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_add_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_add_s_encode_fns[] = {
   Opcode_add_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_add_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sub_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sub_s_encode_fns[] = {
   Opcode_sub_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_sub_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_mul_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mul_s_encode_fns[] = {
   Opcode_mul_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_mul_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_madd_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_madd_s_encode_fns[] = {
   Opcode_madd_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_madd_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_msub_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_msub_s_encode_fns[] = {
   Opcode_msub_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_msub_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_movf_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movf_s_encode_fns[] = {
   Opcode_movf_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_movf_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_movt_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movt_s_encode_fns[] = {
   Opcode_movt_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_movt_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_moveqz_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_moveqz_s_encode_fns[] = {
   Opcode_moveqz_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_moveqz_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_movnez_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movnez_s_encode_fns[] = {
   Opcode_movnez_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_movnez_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_movltz_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movltz_s_encode_fns[] = {
   Opcode_movltz_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_movltz_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_movgez_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movgez_s_encode_fns[] = {
   Opcode_movgez_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_movgez_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_abs_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_abs_s_encode_fns[] = {
   Opcode_abs_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_abs_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_mov_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mov_s_encode_fns[] = {
   Opcode_mov_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_mov_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_neg_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_neg_s_encode_fns[] = {
   Opcode_neg_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_neg_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_un_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_un_s_encode_fns[] = {
   Opcode_un_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_un_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_oeq_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_oeq_s_encode_fns[] = {
   Opcode_oeq_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_oeq_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ueq_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ueq_s_encode_fns[] = {
   Opcode_ueq_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ueq_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_olt_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_olt_s_encode_fns[] = {
   Opcode_olt_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_olt_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ult_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ult_s_encode_fns[] = {
   Opcode_ult_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ult_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ole_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ole_s_encode_fns[] = {
   Opcode_ole_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ole_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ule_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ule_s_encode_fns[] = {
   Opcode_ule_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ule_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_float_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_float_s_encode_fns[] = {
   Opcode_float_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_float_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ufloat_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ufloat_s_encode_fns[] = {
   Opcode_ufloat_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ufloat_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_round_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_round_s_encode_fns[] = {
   Opcode_round_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_round_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ceil_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ceil_s_encode_fns[] = {
   Opcode_ceil_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ceil_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_floor_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_floor_s_encode_fns[] = {
   Opcode_floor_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_floor_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_trunc_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_trunc_s_encode_fns[] = {
   Opcode_trunc_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_trunc_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_utrunc_s_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_utrunc_s_encode_fns[] = {
   Opcode_utrunc_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_utrunc_s_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_rfr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rfr_encode_fns[] = {
   Opcode_rfr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_rfr_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_wfr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wfr_encode_fns[] = {
   Opcode_wfr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_lsi_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lsi_encode_fns[] = {
   Opcode_lsi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lsi_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lsiu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lsiu_encode_fns[] = {
   Opcode_lsiu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lsiu_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lsx_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lsx_encode_fns[] = {
   Opcode_lsx_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_lsxu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lsxu_encode_fns[] = {
   Opcode_lsxu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lsxu_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ssi_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ssi_encode_fns[] = {
   Opcode_ssi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ssi_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ssiu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ssiu_encode_fns[] = {
   Opcode_ssiu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ssiu_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ssx_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ssx_encode_fns[] = {
   Opcode_ssx_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ssx_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ssxu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ssxu_encode_fns[] = {
   Opcode_ssxu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ssxu_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_argmax_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_argmax_encode_fns[] = {
   Opcode_get_argmax_Slot_inst_encode, 0, 0, Opcode_get_argmax_Slot_gp_slot2_encode, 0, 0, Opcode_get_argmax_Slot_dot_slot2_encode, 0, 0, Opcode_get_argmax_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_get_argmax_Slot_smod_slot2_encode, 0, 0, Opcode_get_argmax_Slot_llr_slot2_encode, 0, 0, Opcode_get_argmax_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_get_hsar_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_hsar_encode_fns[] = {
   Opcode_get_hsar_Slot_inst_encode, 0, 0, Opcode_get_hsar_Slot_gp_slot2_encode, 0, Opcode_get_hsar_Slot_gp_slot0_encode, Opcode_get_hsar_Slot_dot_slot2_encode, 0, Opcode_get_hsar_Slot_dot_slot0_encode, Opcode_get_hsar_Slot_pq_slot2_encode, 0, Opcode_get_hsar_Slot_pq_slot0_encode, 0, 0, 0, Opcode_get_hsar_Slot_smod_slot2_encode, 0, Opcode_get_hsar_Slot_smod_slot0_encode, Opcode_get_hsar_Slot_llr_slot2_encode, 0, Opcode_get_hsar_Slot_llr_slot0_encode, Opcode_get_hsar_Slot_dual_slot2_encode, 0, Opcode_get_hsar_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_hsar2sar_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_hsar2sar_encode_fns[] = {
   Opcode_get_hsar2sar_Slot_inst_encode, 0, 0, Opcode_get_hsar2sar_Slot_gp_slot2_encode, 0, Opcode_get_hsar2sar_Slot_gp_slot0_encode, Opcode_get_hsar2sar_Slot_dot_slot2_encode, 0, Opcode_get_hsar2sar_Slot_dot_slot0_encode, Opcode_get_hsar2sar_Slot_pq_slot2_encode, 0, Opcode_get_hsar2sar_Slot_pq_slot0_encode, 0, 0, 0, Opcode_get_hsar2sar_Slot_smod_slot2_encode, 0, Opcode_get_hsar2sar_Slot_smod_slot0_encode, Opcode_get_hsar2sar_Slot_llr_slot2_encode, 0, Opcode_get_hsar2sar_Slot_llr_slot0_encode, Opcode_get_hsar2sar_Slot_dual_slot2_encode, 0, Opcode_get_hsar2sar_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_interp_ext_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_interp_ext_n_encode_fns[] = {
   Opcode_get_interp_ext_n_Slot_inst_encode, 0, 0, 0, 0, Opcode_get_interp_ext_n_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_interp_ext_n_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_interp_ext_n_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_interp_ext_n_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_interp_ext_l_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_interp_ext_l_encode_fns[] = {
   Opcode_get_interp_ext_l_Slot_inst_encode, 0, 0, 0, 0, Opcode_get_interp_ext_l_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_interp_ext_l_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_interp_ext_l_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_interp_ext_l_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_llr_buf_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_llr_buf_encode_fns[] = {
   Opcode_get_llr_buf_Slot_inst_encode, 0, 0, 0, 0, Opcode_get_llr_buf_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_llr_buf_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_llr_buf_Slot_smod_slot0_encode, 0, 0, Opcode_get_llr_buf_Slot_llr_slot0_encode, 0, 0, Opcode_get_llr_buf_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_llr_pos_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_llr_pos_encode_fns[] = {
   Opcode_get_llr_pos_Slot_inst_encode, 0, 0, 0, 0, Opcode_get_llr_pos_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_llr_pos_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_llr_pos_Slot_smod_slot0_encode, 0, 0, Opcode_get_llr_pos_Slot_llr_slot0_encode, 0, 0, Opcode_get_llr_pos_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_max_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_max_encode_fns[] = {
   Opcode_get_max_Slot_inst_encode, 0, 0, Opcode_get_max_Slot_gp_slot2_encode, 0, 0, Opcode_get_max_Slot_dot_slot2_encode, 0, 0, Opcode_get_max_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_get_max_Slot_smod_slot2_encode, 0, 0, Opcode_get_max_Slot_llr_slot2_encode, 0, 0, Opcode_get_max_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_get_nco_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_nco_encode_fns[] = {
   Opcode_get_nco_Slot_inst_encode, 0, 0, Opcode_get_nco_Slot_gp_slot2_encode, 0, 0, Opcode_get_nco_Slot_dot_slot2_encode, 0, 0, Opcode_get_nco_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_get_nco_Slot_smod_slot2_encode, 0, 0, Opcode_get_nco_Slot_llr_slot2_encode, 0, 0, Opcode_get_nco_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_get_perm_reg_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_perm_reg_encode_fns[] = {
   0, 0, 0, 0, 0, Opcode_get_perm_reg_Slot_gp_slot0_encode, 0, 0, Opcode_get_perm_reg_Slot_dot_slot0_encode, 0, 0, Opcode_get_perm_reg_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_perm_reg_Slot_smod_slot0_encode, 0, 0, Opcode_get_perm_reg_Slot_llr_slot0_encode, 0, 0, Opcode_get_perm_reg_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_phasor_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_phasor_n_encode_fns[] = {
   Opcode_get_phasor_n_Slot_inst_encode, 0, 0, 0, 0, Opcode_get_phasor_n_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_phasor_n_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_phasor_n_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_phasor_n_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_phasor_offset_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_phasor_offset_encode_fns[] = {
   Opcode_get_phasor_offset_Slot_inst_encode, 0, 0, 0, 0, Opcode_get_phasor_offset_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_phasor_offset_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_phasor_offset_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_phasor_offset_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_sar_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_sar_encode_fns[] = {
   Opcode_get_sar_Slot_inst_encode, 0, 0, Opcode_get_sar_Slot_gp_slot2_encode, 0, Opcode_get_sar_Slot_gp_slot0_encode, Opcode_get_sar_Slot_dot_slot2_encode, 0, Opcode_get_sar_Slot_dot_slot0_encode, Opcode_get_sar_Slot_pq_slot2_encode, 0, Opcode_get_sar_Slot_pq_slot0_encode, 0, 0, 0, Opcode_get_sar_Slot_smod_slot2_encode, 0, Opcode_get_sar_Slot_smod_slot0_encode, Opcode_get_sar_Slot_llr_slot2_encode, 0, Opcode_get_sar_Slot_llr_slot0_encode, Opcode_get_sar_Slot_dual_slot2_encode, 0, Opcode_get_sar_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_scale_reg_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_scale_reg_encode_fns[] = {
   Opcode_get_scale_reg_Slot_inst_encode, 0, 0, 0, 0, Opcode_get_scale_reg_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_scale_reg_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_scale_reg_Slot_smod_slot0_encode, 0, 0, Opcode_get_scale_reg_Slot_llr_slot0_encode, 0, 0, Opcode_get_scale_reg_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_smod_buf_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_smod_buf_encode_fns[] = {
   Opcode_get_smod_buf_Slot_inst_encode, 0, 0, 0, 0, Opcode_get_smod_buf_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_smod_buf_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_smod_buf_Slot_smod_slot0_encode, 0, 0, Opcode_get_smod_buf_Slot_llr_slot0_encode, 0, 0, Opcode_get_smod_buf_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_smod_offset_table_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_smod_offset_table_encode_fns[] = {
   Opcode_get_smod_offset_table_Slot_inst_encode, 0, 0, 0, 0, Opcode_get_smod_offset_table_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_smod_offset_table_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_smod_offset_table_Slot_smod_slot0_encode, 0, 0, Opcode_get_smod_offset_table_Slot_llr_slot0_encode, 0, 0, Opcode_get_smod_offset_table_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_smod_pos_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_smod_pos_encode_fns[] = {
   Opcode_get_smod_pos_Slot_inst_encode, 0, 0, 0, 0, Opcode_get_smod_pos_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_smod_pos_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_smod_pos_Slot_smod_slot0_encode, 0, 0, Opcode_get_smod_pos_Slot_llr_slot0_encode, 0, 0, Opcode_get_smod_pos_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_sov_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_sov_encode_fns[] = {
   Opcode_get_sov_Slot_inst_encode, 0, 0, 0, 0, Opcode_get_sov_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_sov_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_sov_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_sov_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_get_wght_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_get_wght_encode_fns[] = {
   Opcode_get_wght_Slot_inst_encode, 0, 0, 0, 0, Opcode_get_wght_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_wght_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_get_wght_Slot_smod_slot0_encode, 0, 0, Opcode_get_wght_Slot_llr_slot0_encode, 0, 0, Opcode_get_wght_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_set_argmax_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_argmax_encode_fns[] = {
   Opcode_set_argmax_Slot_inst_encode, 0, 0, Opcode_set_argmax_Slot_gp_slot2_encode, 0, 0, Opcode_set_argmax_Slot_dot_slot2_encode, 0, 0, Opcode_set_argmax_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_set_argmax_Slot_smod_slot2_encode, 0, 0, Opcode_set_argmax_Slot_llr_slot2_encode, 0, 0, Opcode_set_argmax_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_set_ext_regs_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_ext_regs_encode_fns[] = {
   Opcode_set_ext_regs_Slot_inst_encode, 0, 0, Opcode_set_ext_regs_Slot_gp_slot2_encode, 0, 0, Opcode_set_ext_regs_Slot_dot_slot2_encode, 0, 0, Opcode_set_ext_regs_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_set_ext_regs_Slot_smod_slot2_encode, 0, 0, Opcode_set_ext_regs_Slot_llr_slot2_encode, 0, 0, Opcode_set_ext_regs_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_set_hsar_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_hsar_encode_fns[] = {
   0, 0, 0, Opcode_set_hsar_Slot_gp_slot2_encode, 0, 0, Opcode_set_hsar_Slot_dot_slot2_encode, 0, 0, Opcode_set_hsar_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_set_hsar_Slot_smod_slot2_encode, 0, 0, Opcode_set_hsar_Slot_llr_slot2_encode, 0, 0, Opcode_set_hsar_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_set_llr_buf_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_llr_buf_encode_fns[] = {
   Opcode_set_llr_buf_Slot_inst_encode, 0, 0, 0, 0, Opcode_set_llr_buf_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_llr_buf_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_llr_buf_Slot_smod_slot0_encode, 0, 0, Opcode_set_llr_buf_Slot_llr_slot0_encode, 0, 0, Opcode_set_llr_buf_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_set_llr_pos_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_llr_pos_encode_fns[] = {
   Opcode_set_llr_pos_Slot_inst_encode, 0, 0, 0, 0, Opcode_set_llr_pos_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_llr_pos_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_llr_pos_Slot_smod_slot0_encode, 0, 0, Opcode_set_llr_pos_Slot_llr_slot0_encode, 0, 0, Opcode_set_llr_pos_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_set_max_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_max_encode_fns[] = {
   Opcode_set_max_Slot_inst_encode, 0, 0, Opcode_set_max_Slot_gp_slot2_encode, 0, 0, Opcode_set_max_Slot_dot_slot2_encode, 0, 0, Opcode_set_max_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_set_max_Slot_smod_slot2_encode, 0, 0, Opcode_set_max_Slot_llr_slot2_encode, 0, 0, Opcode_set_max_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_set_nco_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_nco_encode_fns[] = {
   Opcode_set_nco_Slot_inst_encode, 0, 0, Opcode_set_nco_Slot_gp_slot2_encode, 0, 0, Opcode_set_nco_Slot_dot_slot2_encode, 0, 0, Opcode_set_nco_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_set_nco_Slot_smod_slot2_encode, 0, 0, Opcode_set_nco_Slot_llr_slot2_encode, 0, 0, Opcode_set_nco_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_set_perm_reg_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_perm_reg_encode_fns[] = {
   0, 0, 0, 0, 0, Opcode_set_perm_reg_Slot_gp_slot0_encode, 0, 0, Opcode_set_perm_reg_Slot_dot_slot0_encode, 0, 0, Opcode_set_perm_reg_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_perm_reg_Slot_smod_slot0_encode, 0, 0, Opcode_set_perm_reg_Slot_llr_slot0_encode, 0, 0, Opcode_set_perm_reg_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_set_phasor_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_phasor_n_encode_fns[] = {
   Opcode_set_phasor_n_Slot_inst_encode, 0, 0, 0, 0, Opcode_set_phasor_n_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_phasor_n_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_phasor_n_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_phasor_n_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_set_phasor_offset_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_phasor_offset_encode_fns[] = {
   Opcode_set_phasor_offset_Slot_inst_encode, 0, 0, 0, 0, Opcode_set_phasor_offset_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_phasor_offset_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_phasor_offset_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_phasor_offset_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_set_sar_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_sar_encode_fns[] = {
   Opcode_set_sar_Slot_inst_encode, 0, 0, Opcode_set_sar_Slot_gp_slot2_encode, 0, Opcode_set_sar_Slot_gp_slot0_encode, Opcode_set_sar_Slot_dot_slot2_encode, 0, Opcode_set_sar_Slot_dot_slot0_encode, Opcode_set_sar_Slot_pq_slot2_encode, 0, Opcode_set_sar_Slot_pq_slot0_encode, 0, 0, 0, Opcode_set_sar_Slot_smod_slot2_encode, 0, Opcode_set_sar_Slot_smod_slot0_encode, Opcode_set_sar_Slot_llr_slot2_encode, 0, Opcode_set_sar_Slot_llr_slot0_encode, Opcode_set_sar_Slot_dual_slot2_encode, 0, Opcode_set_sar_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_set_scale_reg_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_scale_reg_encode_fns[] = {
   Opcode_set_scale_reg_Slot_inst_encode, 0, 0, 0, 0, Opcode_set_scale_reg_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_scale_reg_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_scale_reg_Slot_smod_slot0_encode, 0, 0, Opcode_set_scale_reg_Slot_llr_slot0_encode, 0, 0, Opcode_set_scale_reg_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_set_smod_buf_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_smod_buf_encode_fns[] = {
   Opcode_set_smod_buf_Slot_inst_encode, 0, 0, 0, 0, Opcode_set_smod_buf_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_smod_buf_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_smod_buf_Slot_smod_slot0_encode, 0, 0, Opcode_set_smod_buf_Slot_llr_slot0_encode, 0, 0, Opcode_set_smod_buf_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_set_smod_offset_table_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_smod_offset_table_encode_fns[] = {
   Opcode_set_smod_offset_table_Slot_inst_encode, 0, 0, 0, 0, Opcode_set_smod_offset_table_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_smod_offset_table_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_smod_offset_table_Slot_smod_slot0_encode, 0, 0, Opcode_set_smod_offset_table_Slot_llr_slot0_encode, 0, 0, Opcode_set_smod_offset_table_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_set_smod_pos_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_smod_pos_encode_fns[] = {
   Opcode_set_smod_pos_Slot_inst_encode, 0, 0, 0, 0, Opcode_set_smod_pos_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_smod_pos_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_smod_pos_Slot_smod_slot0_encode, 0, 0, Opcode_set_smod_pos_Slot_llr_slot0_encode, 0, 0, Opcode_set_smod_pos_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_set_sov_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_sov_encode_fns[] = {
   Opcode_set_sov_Slot_inst_encode, 0, 0, 0, 0, Opcode_set_sov_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_sov_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_sov_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_sov_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_set_wght_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_set_wght_encode_fns[] = {
   Opcode_set_wght_Slot_inst_encode, 0, 0, 0, 0, Opcode_set_wght_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_wght_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_set_wght_Slot_smod_slot0_encode, 0, 0, Opcode_set_wght_Slot_llr_slot0_encode, 0, 0, Opcode_set_wght_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lac2x32_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lac2x32_encode_fns[] = {
   Opcode_lac2x32_Slot_inst_encode, 0, 0, 0, 0, Opcode_lac2x32_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_lac2x32_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lac2x32_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lac2x64_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lac2x64_0_encode_fns[] = {
   Opcode_lac2x64_0_Slot_inst_encode, 0, 0, 0, 0, Opcode_lac2x64_0_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_lac2x64_0_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lac2x64_0_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lac2x64_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lac2x64_1_encode_fns[] = {
   Opcode_lac2x64_1_Slot_inst_encode, 0, 0, 0, 0, Opcode_lac2x64_1_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_lac2x64_1_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lac2x64_1_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lac2x64_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lac2x64_2_encode_fns[] = {
   Opcode_lac2x64_2_Slot_inst_encode, 0, 0, 0, 0, Opcode_lac2x64_2_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_lac2x64_2_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lac2x64_2_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lac2x64_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lac2x64_3_encode_fns[] = {
   Opcode_lac2x64_3_Slot_inst_encode, 0, 0, 0, 0, Opcode_lac2x64_3_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_lac2x64_3_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lac2x64_3_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lac32_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lac32_r_encode_fns[] = {
   Opcode_lac32_r_Slot_inst_encode, 0, 0, 0, 0, Opcode_lac32_r_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_lac32_r_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lac32_r_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lac_ih_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lac_ih_encode_fns[] = {
   Opcode_lac_ih_Slot_inst_encode, 0, 0, 0, 0, Opcode_lac_ih_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_lac_ih_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lac_ih_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lac_il_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lac_il_encode_fns[] = {
   Opcode_lac_il_Slot_inst_encode, 0, 0, 0, 0, Opcode_lac_il_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_lac_il_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lac_il_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lac_rh_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lac_rh_encode_fns[] = {
   Opcode_lac_rh_Slot_inst_encode, 0, 0, 0, 0, Opcode_lac_rh_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_lac_rh_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lac_rh_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lac_rl_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lac_rl_encode_fns[] = {
   Opcode_lac_rl_Slot_inst_encode, 0, 0, 0, 0, Opcode_lac_rl_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_lac_rl_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lac_rl_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lcm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lcm_encode_fns[] = {
   Opcode_lcm_Slot_inst_encode, 0, 0, 0, 0, Opcode_lcm_Slot_gp_slot0_encode, 0, 0, Opcode_lcm_Slot_dot_slot0_encode, 0, 0, Opcode_lcm_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_lcm_Slot_smod_slot0_encode, 0, 0, Opcode_lcm_Slot_llr_slot0_encode, 0, 0, Opcode_lcm_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lcm_pinc_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lcm_pinc_encode_fns[] = {
   Opcode_lcm_pinc_Slot_inst_encode, 0, 0, 0, 0, Opcode_lcm_pinc_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_lcm_pinc_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_lcm_pinc_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_lcm_pinc_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lcm_pinc_x_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lcm_pinc_x_encode_fns[] = {
   Opcode_lcm_pinc_x_Slot_inst_encode, 0, 0, 0, 0, Opcode_lcm_pinc_x_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_lcm_pinc_x_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_lcm_pinc_x_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_lcm_pinc_x_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lcm_u_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lcm_u_encode_fns[] = {
   Opcode_lcm_u_Slot_inst_encode, 0, 0, 0, 0, Opcode_lcm_u_Slot_gp_slot0_encode, 0, 0, Opcode_lcm_u_Slot_dot_slot0_encode, 0, 0, Opcode_lcm_u_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_lcm_u_Slot_smod_slot0_encode, 0, 0, Opcode_lcm_u_Slot_llr_slot0_encode, 0, 0, Opcode_lcm_u_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lcm_x_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lcm_x_encode_fns[] = {
   Opcode_lcm_x_Slot_inst_encode, 0, 0, 0, 0, Opcode_lcm_x_Slot_gp_slot0_encode, 0, 0, Opcode_lcm_x_Slot_dot_slot0_encode, 0, 0, Opcode_lcm_x_Slot_pq_slot0_encode, 0, 0, Opcode_lcm_x_Slot_acc2_slot0_encode, 0, 0, Opcode_lcm_x_Slot_smod_slot0_encode, 0, 0, Opcode_lcm_x_Slot_llr_slot0_encode, 0, 0, Opcode_lcm_x_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lcm_xu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lcm_xu_encode_fns[] = {
   Opcode_lcm_xu_Slot_inst_encode, 0, 0, 0, 0, Opcode_lcm_xu_Slot_gp_slot0_encode, 0, 0, Opcode_lcm_xu_Slot_dot_slot0_encode, 0, 0, Opcode_lcm_xu_Slot_pq_slot0_encode, 0, 0, Opcode_lcm_xu_Slot_acc2_slot0_encode, 0, 0, Opcode_lcm_xu_Slot_smod_slot0_encode, 0, 0, Opcode_lcm_xu_Slot_llr_slot0_encode, 0, 0, Opcode_lcm_xu_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lp_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lp_encode_fns[] = {
   Opcode_lp_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lp_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lp_x_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lp_x_encode_fns[] = {
   Opcode_lp_x_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lp_x_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lq_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lq_encode_fns[] = {
   Opcode_lq_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lq_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lq_x_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lq_x_encode_fns[] = {
   Opcode_lq_x_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lq_x_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lut0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lut0_encode_fns[] = {
   Opcode_lut0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lut0_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lut1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lut1_encode_fns[] = {
   Opcode_lut1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lut1_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lut2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lut2_encode_fns[] = {
   Opcode_lut2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lut2_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lut3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lut3_encode_fns[] = {
   Opcode_lut3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_lut3_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sac2x32_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sac2x32_encode_fns[] = {
   Opcode_sac2x32_Slot_inst_encode, 0, 0, 0, 0, Opcode_sac2x32_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_sac2x32_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_sac2x32_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sac2x64_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sac2x64_0_encode_fns[] = {
   Opcode_sac2x64_0_Slot_inst_encode, 0, 0, 0, 0, Opcode_sac2x64_0_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_sac2x64_0_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_sac2x64_0_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sac2x64_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sac2x64_1_encode_fns[] = {
   Opcode_sac2x64_1_Slot_inst_encode, 0, 0, 0, 0, Opcode_sac2x64_1_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_sac2x64_1_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_sac2x64_1_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sac2x64_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sac2x64_2_encode_fns[] = {
   Opcode_sac2x64_2_Slot_inst_encode, 0, 0, 0, 0, Opcode_sac2x64_2_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_sac2x64_2_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_sac2x64_2_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sac2x64_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sac2x64_3_encode_fns[] = {
   Opcode_sac2x64_3_Slot_inst_encode, 0, 0, 0, 0, Opcode_sac2x64_3_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_sac2x64_3_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_sac2x64_3_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sac32_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sac32_r_encode_fns[] = {
   Opcode_sac32_r_Slot_inst_encode, 0, 0, 0, 0, Opcode_sac32_r_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_sac32_r_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_sac32_r_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sac_ih_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sac_ih_encode_fns[] = {
   Opcode_sac_ih_Slot_inst_encode, 0, 0, 0, 0, Opcode_sac_ih_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_sac_ih_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_sac_ih_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sac_il_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sac_il_encode_fns[] = {
   Opcode_sac_il_Slot_inst_encode, 0, 0, 0, 0, Opcode_sac_il_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_sac_il_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_sac_il_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sac_rh_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sac_rh_encode_fns[] = {
   Opcode_sac_rh_Slot_inst_encode, 0, 0, 0, 0, Opcode_sac_rh_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_sac_rh_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_sac_rh_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sac_rl_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sac_rl_encode_fns[] = {
   Opcode_sac_rl_Slot_inst_encode, 0, 0, 0, 0, Opcode_sac_rl_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_sac_rl_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_sac_rl_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_scm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_scm_encode_fns[] = {
   Opcode_scm_Slot_inst_encode, 0, 0, 0, 0, Opcode_scm_Slot_gp_slot0_encode, 0, 0, Opcode_scm_Slot_dot_slot0_encode, 0, 0, Opcode_scm_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_scm_Slot_smod_slot0_encode, 0, 0, Opcode_scm_Slot_llr_slot0_encode, 0, 0, Opcode_scm_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_scm_pinc_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_scm_pinc_encode_fns[] = {
   Opcode_scm_pinc_Slot_inst_encode, 0, 0, 0, 0, Opcode_scm_pinc_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_scm_pinc_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_scm_pinc_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_scm_pinc_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_scm_pinc_x_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_scm_pinc_x_encode_fns[] = {
   Opcode_scm_pinc_x_Slot_inst_encode, 0, 0, 0, 0, Opcode_scm_pinc_x_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_scm_pinc_x_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_scm_pinc_x_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_scm_pinc_x_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_scm_u_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_scm_u_encode_fns[] = {
   Opcode_scm_u_Slot_inst_encode, 0, 0, 0, 0, Opcode_scm_u_Slot_gp_slot0_encode, 0, 0, Opcode_scm_u_Slot_dot_slot0_encode, 0, 0, Opcode_scm_u_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_scm_u_Slot_smod_slot0_encode, 0, 0, Opcode_scm_u_Slot_llr_slot0_encode, 0, 0, Opcode_scm_u_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_scm_x_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_scm_x_encode_fns[] = {
   Opcode_scm_x_Slot_inst_encode, 0, 0, 0, 0, Opcode_scm_x_Slot_gp_slot0_encode, 0, 0, Opcode_scm_x_Slot_dot_slot0_encode, 0, 0, Opcode_scm_x_Slot_pq_slot0_encode, 0, 0, Opcode_scm_x_Slot_acc2_slot0_encode, 0, 0, Opcode_scm_x_Slot_smod_slot0_encode, 0, 0, Opcode_scm_x_Slot_llr_slot0_encode, 0, 0, Opcode_scm_x_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_scm_xu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_scm_xu_encode_fns[] = {
   Opcode_scm_xu_Slot_inst_encode, 0, 0, 0, 0, Opcode_scm_xu_Slot_gp_slot0_encode, 0, 0, Opcode_scm_xu_Slot_dot_slot0_encode, 0, 0, Opcode_scm_xu_Slot_pq_slot0_encode, 0, 0, Opcode_scm_xu_Slot_acc2_slot0_encode, 0, 0, Opcode_scm_xu_Slot_smod_slot0_encode, 0, 0, Opcode_scm_xu_Slot_llr_slot0_encode, 0, 0, Opcode_scm_xu_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_store_p_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_store_p_encode_fns[] = {
   Opcode_store_p_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_store_p_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_store_p_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_store_q_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_store_q_encode_fns[] = {
   Opcode_store_q_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_store_q_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_store_q_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ar2cm_dup_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ar2cm_dup_encode_fns[] = {
   Opcode_ar2cm_dup_Slot_inst_encode, 0, 0, Opcode_ar2cm_dup_Slot_gp_slot2_encode, 0, Opcode_ar2cm_dup_Slot_gp_slot0_encode, Opcode_ar2cm_dup_Slot_dot_slot2_encode, 0, Opcode_ar2cm_dup_Slot_dot_slot0_encode, Opcode_ar2cm_dup_Slot_pq_slot2_encode, 0, Opcode_ar2cm_dup_Slot_pq_slot0_encode, 0, 0, 0, Opcode_ar2cm_dup_Slot_smod_slot2_encode, 0, Opcode_ar2cm_dup_Slot_smod_slot0_encode, Opcode_ar2cm_dup_Slot_llr_slot2_encode, 0, Opcode_ar2cm_dup_Slot_llr_slot0_encode, Opcode_ar2cm_dup_Slot_dual_slot2_encode, 0, Opcode_ar2cm_dup_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ar2cm_ln_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ar2cm_ln_encode_fns[] = {
   Opcode_ar2cm_ln_Slot_inst_encode, 0, 0, Opcode_ar2cm_ln_Slot_gp_slot2_encode, 0, Opcode_ar2cm_ln_Slot_gp_slot0_encode, Opcode_ar2cm_ln_Slot_dot_slot2_encode, 0, Opcode_ar2cm_ln_Slot_dot_slot0_encode, Opcode_ar2cm_ln_Slot_pq_slot2_encode, 0, Opcode_ar2cm_ln_Slot_pq_slot0_encode, 0, 0, 0, Opcode_ar2cm_ln_Slot_smod_slot2_encode, 0, Opcode_ar2cm_ln_Slot_smod_slot0_encode, Opcode_ar2cm_ln_Slot_llr_slot2_encode, 0, Opcode_ar2cm_ln_Slot_llr_slot0_encode, Opcode_ar2cm_ln_Slot_dual_slot2_encode, 0, Opcode_ar2cm_ln_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ar2cm_ln_i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ar2cm_ln_i_encode_fns[] = {
   Opcode_ar2cm_ln_i_Slot_inst_encode, 0, 0, 0, 0, Opcode_ar2cm_ln_i_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_ar2cm_ln_i_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_ar2cm_ln_i_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_ar2cm_ln_i_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ar2cm_ln_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ar2cm_ln_r_encode_fns[] = {
   Opcode_ar2cm_ln_r_Slot_inst_encode, 0, 0, 0, 0, Opcode_ar2cm_ln_r_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_ar2cm_ln_r_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_ar2cm_ln_r_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_ar2cm_ln_r_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ar2pq_ln_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ar2pq_ln_encode_fns[] = {
   0, 0, 0, Opcode_ar2pq_ln_Slot_gp_slot2_encode, 0, 0, Opcode_ar2pq_ln_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ar2pq_ln_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_ar2sar_dup_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ar2sar_dup_encode_fns[] = {
   0, 0, 0, Opcode_ar2sar_dup_Slot_gp_slot2_encode, 0, 0, Opcode_ar2sar_dup_Slot_dot_slot2_encode, 0, 0, Opcode_ar2sar_dup_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_ar2sar_dup_Slot_smod_slot2_encode, 0, 0, Opcode_ar2sar_dup_Slot_llr_slot2_encode, 0, 0, Opcode_ar2sar_dup_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_clrac_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_clrac_encode_fns[] = {
   Opcode_clrac_Slot_inst_encode, 0, 0, 0, 0, Opcode_clrac_Slot_gp_slot0_encode, 0, 0, Opcode_clrac_Slot_dot_slot0_encode, 0, 0, Opcode_clrac_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_clrac_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_clrcm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_clrcm_encode_fns[] = {
   Opcode_clrcm_Slot_inst_encode, 0, 0, Opcode_clrcm_Slot_gp_slot2_encode, 0, Opcode_clrcm_Slot_gp_slot0_encode, Opcode_clrcm_Slot_dot_slot2_encode, 0, Opcode_clrcm_Slot_dot_slot0_encode, Opcode_clrcm_Slot_pq_slot2_encode, 0, Opcode_clrcm_Slot_pq_slot0_encode, Opcode_clrcm_Slot_acc2_slot2_encode, 0, Opcode_clrcm_Slot_acc2_slot0_encode, Opcode_clrcm_Slot_smod_slot2_encode, 0, Opcode_clrcm_Slot_smod_slot0_encode, Opcode_clrcm_Slot_llr_slot2_encode, 0, Opcode_clrcm_Slot_llr_slot0_encode, Opcode_clrcm_Slot_dual_slot2_encode, 0, Opcode_clrcm_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_cm2ar_ln_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cm2ar_ln_encode_fns[] = {
   Opcode_cm2ar_ln_Slot_inst_encode, 0, 0, Opcode_cm2ar_ln_Slot_gp_slot2_encode, 0, Opcode_cm2ar_ln_Slot_gp_slot0_encode, Opcode_cm2ar_ln_Slot_dot_slot2_encode, 0, Opcode_cm2ar_ln_Slot_dot_slot0_encode, Opcode_cm2ar_ln_Slot_pq_slot2_encode, 0, Opcode_cm2ar_ln_Slot_pq_slot0_encode, 0, 0, 0, Opcode_cm2ar_ln_Slot_smod_slot2_encode, 0, Opcode_cm2ar_ln_Slot_smod_slot0_encode, Opcode_cm2ar_ln_Slot_llr_slot2_encode, 0, Opcode_cm2ar_ln_Slot_llr_slot0_encode, Opcode_cm2ar_ln_Slot_dual_slot2_encode, 0, Opcode_cm2ar_ln_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_cm2ar_ln_i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cm2ar_ln_i_encode_fns[] = {
   Opcode_cm2ar_ln_i_Slot_inst_encode, 0, 0, 0, 0, Opcode_cm2ar_ln_i_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_cm2ar_ln_i_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_cm2ar_ln_i_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_cm2ar_ln_i_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_cm2ar_ln_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cm2ar_ln_r_encode_fns[] = {
   Opcode_cm2ar_ln_r_Slot_inst_encode, 0, 0, 0, 0, Opcode_cm2ar_ln_r_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_cm2ar_ln_r_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_cm2ar_ln_r_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_cm2ar_ln_r_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_comb_ar_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_comb_ar_encode_fns[] = {
   Opcode_comb_ar_Slot_inst_encode, 0, 0, 0, 0, Opcode_comb_ar_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_comb_ar_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_comb_ar_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_comb_ar_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_conj_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_conj_encode_fns[] = {
   Opcode_conj_Slot_inst_encode, 0, 0, Opcode_conj_Slot_gp_slot2_encode, 0, Opcode_conj_Slot_gp_slot0_encode, Opcode_conj_Slot_dot_slot2_encode, 0, Opcode_conj_Slot_dot_slot0_encode, Opcode_conj_Slot_pq_slot2_encode, 0, Opcode_conj_Slot_pq_slot0_encode, Opcode_conj_Slot_acc2_slot2_encode, 0, Opcode_conj_Slot_acc2_slot0_encode, Opcode_conj_Slot_smod_slot2_encode, 0, Opcode_conj_Slot_smod_slot0_encode, Opcode_conj_Slot_llr_slot2_encode, 0, Opcode_conj_Slot_llr_slot0_encode, Opcode_conj_Slot_dual_slot2_encode, 0, Opcode_conj_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_mov2ac32_i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mov2ac32_i_encode_fns[] = {
   Opcode_mov2ac32_i_Slot_inst_encode, 0, 0, 0, 0, Opcode_mov2ac32_i_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_mov2ac32_i_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_mov2ac32_i_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_mov2ac32_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mov2ac32_r_encode_fns[] = {
   Opcode_mov2ac32_r_Slot_inst_encode, 0, 0, 0, 0, Opcode_mov2ac32_r_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_mov2ac32_r_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_mov2ac32_r_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_mov2cm2pq_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mov2cm2pq_encode_fns[] = {
   0, 0, 0, Opcode_mov2cm2pq_Slot_gp_slot2_encode, 0, 0, Opcode_mov2cm2pq_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_mov2cm2pq_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movac_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movac_encode_fns[] = {
   Opcode_movac_Slot_inst_encode, 0, 0, 0, 0, Opcode_movac_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_movac_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_movac_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_movac_i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movac_i_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_movac_i_Slot_llr_slot1_encode, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movac_i2r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movac_i2r_encode_fns[] = {
   Opcode_movac_i2r_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movac_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movac_r_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_movac_r_Slot_llr_slot1_encode, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movac_r2i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movac_r2i_encode_fns[] = {
   Opcode_movac_r2i_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movar2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movar2_encode_fns[] = {
   0, 0, 0, Opcode_movar2_Slot_gp_slot2_encode, 0, 0, Opcode_movar2_Slot_dot_slot2_encode, 0, 0, Opcode_movar2_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movar2_Slot_smod_slot2_encode, 0, 0, Opcode_movar2_Slot_llr_slot2_encode, 0, 0, Opcode_movar2_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcm_encode_fns[] = {
   Opcode_movcm_Slot_inst_encode, 0, 0, Opcode_movcm_Slot_gp_slot2_encode, 0, Opcode_movcm_Slot_gp_slot0_encode, Opcode_movcm_Slot_dot_slot2_encode, 0, Opcode_movcm_Slot_dot_slot0_encode, Opcode_movcm_Slot_pq_slot2_encode, 0, Opcode_movcm_Slot_pq_slot0_encode, Opcode_movcm_Slot_acc2_slot2_encode, 0, Opcode_movcm_Slot_acc2_slot0_encode, Opcode_movcm_Slot_smod_slot2_encode, 0, Opcode_movcm_Slot_smod_slot0_encode, Opcode_movcm_Slot_llr_slot2_encode, 0, Opcode_movcm_Slot_llr_slot0_encode, Opcode_movcm_Slot_dual_slot2_encode, 0, Opcode_movcm_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_movcm2pq_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcm2pq_encode_fns[] = {
   Opcode_movcm2pq_Slot_inst_encode, 0, 0, Opcode_movcm2pq_Slot_gp_slot2_encode, 0, 0, Opcode_movcm2pq_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_movcm2pq_Slot_acc2_slot0_encode, Opcode_movcm2pq_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_movcm2pq_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd_0_encode_fns[] = {
   0, 0, 0, Opcode_movcnd_0_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd_0_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd_0_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd_0_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd_0_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd_0_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd_1_encode_fns[] = {
   0, 0, 0, Opcode_movcnd_1_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd_1_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd_1_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd_1_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd_1_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd_1_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd_2_encode_fns[] = {
   0, 0, 0, Opcode_movcnd_2_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd_2_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd_2_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd_2_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd_2_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd_2_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd_3_encode_fns[] = {
   0, 0, 0, Opcode_movcnd_3_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd_3_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd_3_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd_3_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd_3_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd_3_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd_4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd_4_encode_fns[] = {
   0, 0, 0, Opcode_movcnd_4_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd_4_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd_4_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd_4_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd_4_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd_4_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd_5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd_5_encode_fns[] = {
   0, 0, 0, Opcode_movcnd_5_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd_5_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd_5_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd_5_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd_5_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd_5_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd_6_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd_6_encode_fns[] = {
   0, 0, 0, Opcode_movcnd_6_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd_6_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd_6_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd_6_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd_6_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd_6_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd_7_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd_7_encode_fns[] = {
   0, 0, 0, Opcode_movcnd_7_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd_7_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd_7_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd_7_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd_7_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd_7_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd8_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd8_0_encode_fns[] = {
   0, 0, 0, Opcode_movcnd8_0_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd8_0_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd8_0_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd8_0_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd8_0_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd8_0_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd8_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd8_1_encode_fns[] = {
   0, 0, 0, Opcode_movcnd8_1_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd8_1_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd8_1_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd8_1_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd8_1_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd8_1_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd8_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd8_2_encode_fns[] = {
   0, 0, 0, Opcode_movcnd8_2_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd8_2_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd8_2_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd8_2_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd8_2_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd8_2_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd8_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd8_3_encode_fns[] = {
   0, 0, 0, Opcode_movcnd8_3_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd8_3_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd8_3_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd8_3_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd8_3_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd8_3_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd8_4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd8_4_encode_fns[] = {
   0, 0, 0, Opcode_movcnd8_4_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd8_4_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd8_4_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd8_4_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd8_4_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd8_4_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd8_5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd8_5_encode_fns[] = {
   0, 0, 0, Opcode_movcnd8_5_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd8_5_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd8_5_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd8_5_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd8_5_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd8_5_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd8_6_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd8_6_encode_fns[] = {
   0, 0, 0, Opcode_movcnd8_6_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd8_6_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd8_6_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd8_6_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd8_6_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd8_6_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_movcnd8_7_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movcnd8_7_encode_fns[] = {
   0, 0, 0, Opcode_movcnd8_7_Slot_gp_slot2_encode, 0, 0, Opcode_movcnd8_7_Slot_dot_slot2_encode, 0, 0, Opcode_movcnd8_7_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_movcnd8_7_Slot_smod_slot2_encode, 0, 0, Opcode_movcnd8_7_Slot_llr_slot2_encode, 0, 0, Opcode_movcnd8_7_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mov_i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mov_i_encode_fns[] = {
   Opcode_mov_i_Slot_inst_encode, 0, 0, 0, 0, Opcode_mov_i_Slot_gp_slot0_encode, 0, 0, Opcode_mov_i_Slot_dot_slot0_encode, 0, 0, Opcode_mov_i_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_mov_i_Slot_smod_slot0_encode, 0, 0, Opcode_mov_i_Slot_llr_slot0_encode, 0, 0, Opcode_mov_i_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_movpq2pq_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_movpq2pq_encode_fns[] = {
   0, 0, 0, Opcode_movpq2pq_Slot_gp_slot2_encode, 0, 0, Opcode_movpq2pq_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_movpq2pq_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mov_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mov_r_encode_fns[] = {
   Opcode_mov_r_Slot_inst_encode, 0, 0, 0, 0, Opcode_mov_r_Slot_gp_slot0_encode, 0, 0, Opcode_mov_r_Slot_dot_slot0_encode, 0, 0, Opcode_mov_r_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_mov_r_Slot_smod_slot0_encode, 0, 0, Opcode_mov_r_Slot_llr_slot0_encode, 0, 0, Opcode_mov_r_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_negcm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_negcm_encode_fns[] = {
   Opcode_negcm_Slot_inst_encode, 0, 0, Opcode_negcm_Slot_gp_slot2_encode, 0, Opcode_negcm_Slot_gp_slot0_encode, Opcode_negcm_Slot_dot_slot2_encode, 0, Opcode_negcm_Slot_dot_slot0_encode, Opcode_negcm_Slot_pq_slot2_encode, 0, Opcode_negcm_Slot_pq_slot0_encode, Opcode_negcm_Slot_acc2_slot2_encode, 0, Opcode_negcm_Slot_acc2_slot0_encode, Opcode_negcm_Slot_smod_slot2_encode, 0, Opcode_negcm_Slot_smod_slot0_encode, Opcode_negcm_Slot_llr_slot2_encode, 0, Opcode_negcm_Slot_llr_slot0_encode, Opcode_negcm_Slot_dual_slot2_encode, 0, Opcode_negcm_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop16llr_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop16llr_1_encode_fns[] = {
   Opcode_pop16llr_1_Slot_inst_encode, 0, 0, 0, 0, Opcode_pop16llr_1_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_pop16llr_1_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_pop16llr_1_Slot_llr_slot0_encode, 0, 0, Opcode_pop16llr_1_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pq2cm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pq2cm_encode_fns[] = {
   Opcode_pq2cm_Slot_inst_encode, 0, 0, Opcode_pq2cm_Slot_gp_slot2_encode, 0, 0, Opcode_pq2cm_Slot_dot_slot2_encode, 0, 0, Opcode_pq2cm_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_pq2cm_Slot_smod_slot2_encode, 0, 0, Opcode_pq2cm_Slot_llr_slot2_encode, 0, 0, Opcode_pq2cm_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_swapac_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_swapac_r_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_swapac_r_Slot_acc2_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_swapac_ri_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_swapac_ri_encode_fns[] = {
   Opcode_swapac_ri_Slot_inst_encode, 0, 0, 0, 0, Opcode_swapac_ri_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_swapac_ri_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_swapac_ri_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_swapb_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_swapb_encode_fns[] = {
   Opcode_swapb_Slot_inst_encode, 0, 0, Opcode_swapb_Slot_gp_slot2_encode, 0, 0, Opcode_swapb_Slot_dot_slot2_encode, 0, 0, Opcode_swapb_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_swapb_Slot_smod_slot2_encode, 0, 0, Opcode_swapb_Slot_llr_slot2_encode, 0, 0, Opcode_swapb_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_add2ac_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_add2ac_encode_fns[] = {
   0, 0, 0, 0, Opcode_add2ac_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_addac_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_addac_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_addac_Slot_llr_slot1_encode, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_cdot_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cdot_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_cdot_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_cdotac_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cdotac_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_cdotac_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_cdotacs_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cdotacs_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_cdotacs_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_cmac_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cmac_encode_fns[] = {
   0, 0, 0, 0, Opcode_cmac_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_cmac_Slot_smod_slot1_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_cmacs_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cmacs_encode_fns[] = {
   0, 0, 0, 0, Opcode_cmacs_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_cmpy_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cmpy_encode_fns[] = {
   0, 0, 0, 0, Opcode_cmpy_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_cmpy_Slot_smod_slot1_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_cmpy2cm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cmpy2cm_encode_fns[] = {
   0, 0, 0, 0, Opcode_cmpy2cm_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_cmpy2cm_Slot_smod_slot1_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_cmpy2pq_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cmpy2pq_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_cmpy2pq_Slot_pq_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_cmpys_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cmpys_encode_fns[] = {
   0, 0, 0, 0, Opcode_cmpys_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_cmpyxp2pq_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cmpyxp2pq_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_cmpyxp2pq_Slot_pq_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_comb32_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_comb32_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_comb32_Slot_llr_slot1_encode, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_dot_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_dot_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_dot_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_dotac_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_dotac_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_dotac_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_dotacs_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_dotacs_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_dotacs_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_lin_int_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lin_int_encode_fns[] = {
   0, 0, 0, 0, Opcode_lin_int_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_llrpre1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_llrpre1_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_llrpre1_Slot_acc2_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_llrpre2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_llrpre2_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_llrpre2_Slot_llr_slot1_encode, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mac_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mac_encode_fns[] = {
   0, 0, 0, 0, Opcode_mac_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_mac_Slot_smod_slot1_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mac8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mac8_encode_fns[] = {
   0, 0, 0, 0, Opcode_mac8_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_macd8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_macd8_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_macd8_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_macpqxp_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_macpqxp_0_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_macpqxp_0_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_macpqxp_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_macpqxp_1_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_macpqxp_1_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_macpqxp_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_macpqxp_2_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_macpqxp_2_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_macpqxp_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_macpqxp_3_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_macpqxp_3_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_macs_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_macs_encode_fns[] = {
   0, 0, 0, 0, Opcode_macs_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_macxp2_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_macxp2_0_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_macxp2_0_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_macxp2_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_macxp2_1_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_macxp2_1_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_macxp_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_macxp_0_encode_fns[] = {
   0, 0, 0, 0, Opcode_macxp_0_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_macxp_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_macxp_1_encode_fns[] = {
   0, 0, 0, 0, Opcode_macxp_1_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_macxp_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_macxp_2_encode_fns[] = {
   0, 0, 0, 0, Opcode_macxp_2_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_macxp_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_macxp_3_encode_fns[] = {
   0, 0, 0, 0, Opcode_macxp_3_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mov2ac_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mov2ac_encode_fns[] = {
   0, 0, 0, 0, Opcode_mov2ac_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpy_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpy_encode_fns[] = {
   0, 0, 0, 0, Opcode_mpy_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_mpy_Slot_smod_slot1_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpy2cm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpy2cm_encode_fns[] = {
   0, 0, 0, 0, Opcode_mpy2cm_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_mpy2cm_Slot_smod_slot1_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpy2pq_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpy2pq_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_mpy2pq_Slot_pq_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpy8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpy8_encode_fns[] = {
   0, 0, 0, 0, Opcode_mpy8_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpyadd8_2cm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpyadd8_2cm_encode_fns[] = {
   0, 0, 0, 0, Opcode_mpyadd8_2cm_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_mpyadd8_2cm_Slot_smod_slot1_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpyd8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpyd8_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_mpyd8_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpypqxp_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpypqxp_0_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_mpypqxp_0_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpypqxp_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpypqxp_1_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_mpypqxp_1_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpypqxp_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpypqxp_2_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_mpypqxp_2_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpypqxp_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpypqxp_3_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_mpypqxp_3_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpys_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpys_encode_fns[] = {
   0, 0, 0, 0, Opcode_mpys_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpyxp2pq_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpyxp2pq_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_mpyxp2pq_Slot_pq_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpyxp2_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpyxp2_0_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_mpyxp2_0_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpyxp2_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpyxp2_1_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_mpyxp2_1_Slot_dot_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpyxp_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpyxp_0_encode_fns[] = {
   0, 0, 0, 0, Opcode_mpyxp_0_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpyxp_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpyxp_1_encode_fns[] = {
   0, 0, 0, 0, Opcode_mpyxp_1_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpyxp_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpyxp_2_encode_fns[] = {
   0, 0, 0, 0, Opcode_mpyxp_2_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mpyxp_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mpyxp_3_encode_fns[] = {
   0, 0, 0, 0, Opcode_mpyxp_3_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_normacd_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_normacd_encode_fns[] = {
   0, 0, 0, 0, Opcode_normacd_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_normacd_Slot_smod_slot1_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_normacpq_i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_normacpq_i_encode_fns[] = {
   0, 0, 0, 0, Opcode_normacpq_i_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_normacpq_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_normacpq_r_encode_fns[] = {
   0, 0, 0, 0, Opcode_normacpq_r_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_normd_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_normd_encode_fns[] = {
   0, 0, 0, 0, Opcode_normd_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_normd_Slot_smod_slot1_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_normpypq_i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_normpypq_i_encode_fns[] = {
   0, 0, 0, 0, Opcode_normpypq_i_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_normpypq_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_normpypq_r_encode_fns[] = {
   0, 0, 0, 0, Opcode_normpypq_r_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rcmac_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rcmac_encode_fns[] = {
   0, 0, 0, 0, Opcode_rcmac_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rcmpy_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rcmpy_encode_fns[] = {
   0, 0, 0, 0, Opcode_rcmpy_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rcmpy2cm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rcmpy2cm_encode_fns[] = {
   0, 0, 0, 0, Opcode_rcmpy2cm_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_rcmpy2cm_Slot_smod_slot1_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rfir_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rfir_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_rfir_Slot_acc2_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rfira_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rfira_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_rfira_Slot_acc2_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rfird_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rfird_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_rfird_Slot_acc2_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rfirda_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rfirda_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_rfirda_Slot_acc2_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rmac_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rmac_encode_fns[] = {
   0, 0, 0, 0, Opcode_rmac_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rmpy_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rmpy_encode_fns[] = {
   0, 0, 0, 0, Opcode_rmpy_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rmpy2cm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rmpy2cm_encode_fns[] = {
   0, 0, 0, 0, Opcode_rmpy2cm_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_rmpy2cm_Slot_smod_slot1_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_smod_align_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_smod_align_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_smod_align_Slot_smod_slot1_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_smod_scr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_smod_scr_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_smod_scr_Slot_smod_slot1_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_sub2ac_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sub2ac_encode_fns[] = {
   0, 0, 0, 0, Opcode_sub2ac_Slot_gp_slot1_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wght32_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wght32_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_wght32_Slot_llr_slot1_encode, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_clrtiep_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_clrtiep_encode_fns[] = {
   Opcode_clrtiep_Slot_inst_encode, 0, 0, Opcode_clrtiep_Slot_gp_slot2_encode, 0, 0, Opcode_clrtiep_Slot_dot_slot2_encode, 0, 0, Opcode_clrtiep_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_clrtiep_Slot_smod_slot2_encode, 0, 0, Opcode_clrtiep_Slot_llr_slot2_encode, 0, 0, Opcode_clrtiep_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_ext_2fifo_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ext_2fifo_0_encode_fns[] = {
   Opcode_ext_2fifo_0_Slot_inst_encode, 0, 0, 0, 0, Opcode_ext_2fifo_0_Slot_gp_slot0_encode, 0, 0, Opcode_ext_2fifo_0_Slot_dot_slot0_encode, 0, 0, Opcode_ext_2fifo_0_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ext_2fifo_0_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ext_2fifo_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ext_2fifo_1_encode_fns[] = {
   Opcode_ext_2fifo_1_Slot_inst_encode, 0, 0, 0, 0, Opcode_ext_2fifo_1_Slot_gp_slot0_encode, 0, 0, Opcode_ext_2fifo_1_Slot_dot_slot0_encode, 0, 0, Opcode_ext_2fifo_1_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ext_2fifo_1_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ext_2fifo_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ext_2fifo_2_encode_fns[] = {
   Opcode_ext_2fifo_2_Slot_inst_encode, 0, 0, 0, 0, Opcode_ext_2fifo_2_Slot_gp_slot0_encode, 0, 0, Opcode_ext_2fifo_2_Slot_dot_slot0_encode, 0, 0, Opcode_ext_2fifo_2_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ext_2fifo_2_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ext_2fifo_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ext_2fifo_3_encode_fns[] = {
   Opcode_ext_2fifo_3_Slot_inst_encode, 0, 0, 0, 0, Opcode_ext_2fifo_3_Slot_gp_slot0_encode, 0, 0, Opcode_ext_2fifo_3_Slot_dot_slot0_encode, 0, 0, Opcode_ext_2fifo_3_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ext_2fifo_3_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ext_r2fifo_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ext_r2fifo_0_encode_fns[] = {
   Opcode_ext_r2fifo_0_Slot_inst_encode, 0, 0, 0, 0, Opcode_ext_r2fifo_0_Slot_gp_slot0_encode, 0, 0, Opcode_ext_r2fifo_0_Slot_dot_slot0_encode, 0, 0, Opcode_ext_r2fifo_0_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ext_r2fifo_0_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ext_r2fifo_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ext_r2fifo_1_encode_fns[] = {
   Opcode_ext_r2fifo_1_Slot_inst_encode, 0, 0, 0, 0, Opcode_ext_r2fifo_1_Slot_gp_slot0_encode, 0, 0, Opcode_ext_r2fifo_1_Slot_dot_slot0_encode, 0, 0, Opcode_ext_r2fifo_1_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ext_r2fifo_1_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ext_r2fifo_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ext_r2fifo_2_encode_fns[] = {
   Opcode_ext_r2fifo_2_Slot_inst_encode, 0, 0, 0, 0, Opcode_ext_r2fifo_2_Slot_gp_slot0_encode, 0, 0, Opcode_ext_r2fifo_2_Slot_dot_slot0_encode, 0, 0, Opcode_ext_r2fifo_2_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ext_r2fifo_2_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ext_r2fifo_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ext_r2fifo_3_encode_fns[] = {
   Opcode_ext_r2fifo_3_Slot_inst_encode, 0, 0, 0, 0, Opcode_ext_r2fifo_3_Slot_gp_slot0_encode, 0, 0, Opcode_ext_r2fifo_3_Slot_dot_slot0_encode, 0, 0, Opcode_ext_r2fifo_3_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ext_r2fifo_3_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_lut_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lut_encode_fns[] = {
   0, 0, 0, Opcode_lut_Slot_gp_slot2_encode, 0, 0, Opcode_lut_Slot_dot_slot2_encode, 0, 0, Opcode_lut_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_lut_Slot_smod_slot2_encode, 0, 0, Opcode_lut_Slot_llr_slot2_encode, 0, 0, Opcode_lut_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_lut_ar_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lut_ar_encode_fns[] = {
   0, 0, 0, Opcode_lut_ar_Slot_gp_slot2_encode, 0, 0, Opcode_lut_ar_Slot_dot_slot2_encode, 0, 0, Opcode_lut_ar_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_lut_ar_Slot_smod_slot2_encode, 0, 0, Opcode_lut_ar_Slot_llr_slot2_encode, 0, 0, Opcode_lut_ar_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_lut_iext_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lut_iext_encode_fns[] = {
   0, 0, 0, Opcode_lut_iext_Slot_gp_slot2_encode, 0, 0, Opcode_lut_iext_Slot_dot_slot2_encode, 0, 0, Opcode_lut_iext_Slot_pq_slot2_encode, 0, 0, Opcode_lut_iext_Slot_acc2_slot2_encode, 0, 0, Opcode_lut_iext_Slot_smod_slot2_encode, 0, 0, Opcode_lut_iext_Slot_llr_slot2_encode, 0, 0, Opcode_lut_iext_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_lut_phasor_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lut_phasor_encode_fns[] = {
   0, 0, 0, Opcode_lut_phasor_Slot_gp_slot2_encode, 0, 0, Opcode_lut_phasor_Slot_dot_slot2_encode, 0, 0, Opcode_lut_phasor_Slot_pq_slot2_encode, 0, 0, Opcode_lut_phasor_Slot_acc2_slot2_encode, 0, 0, Opcode_lut_phasor_Slot_smod_slot2_encode, 0, 0, Opcode_lut_phasor_Slot_llr_slot2_encode, 0, 0, Opcode_lut_phasor_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_lut_rext_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lut_rext_encode_fns[] = {
   0, 0, 0, Opcode_lut_rext_Slot_gp_slot2_encode, 0, 0, Opcode_lut_rext_Slot_dot_slot2_encode, 0, 0, Opcode_lut_rext_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_lut_rext_Slot_smod_slot2_encode, 0, 0, Opcode_lut_rext_Slot_llr_slot2_encode, 0, 0, Opcode_lut_rext_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_lut_write_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lut_write_encode_fns[] = {
   0, 0, 0, Opcode_lut_write_Slot_gp_slot2_encode, 0, 0, Opcode_lut_write_Slot_dot_slot2_encode, 0, 0, Opcode_lut_write_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_lut_write_Slot_smod_slot2_encode, 0, 0, Opcode_lut_write_Slot_llr_slot2_encode, 0, 0, Opcode_lut_write_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_moveq128_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_moveq128_0_encode_fns[] = {
   Opcode_moveq128_0_Slot_inst_encode, 0, 0, Opcode_moveq128_0_Slot_gp_slot2_encode, 0, 0, Opcode_moveq128_0_Slot_dot_slot2_encode, 0, 0, Opcode_moveq128_0_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_moveq128_0_Slot_smod_slot2_encode, 0, 0, Opcode_moveq128_0_Slot_llr_slot2_encode, 0, 0, Opcode_moveq128_0_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_moveq128_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_moveq128_1_encode_fns[] = {
   Opcode_moveq128_1_Slot_inst_encode, 0, 0, Opcode_moveq128_1_Slot_gp_slot2_encode, 0, 0, Opcode_moveq128_1_Slot_dot_slot2_encode, 0, 0, Opcode_moveq128_1_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_moveq128_1_Slot_smod_slot2_encode, 0, 0, Opcode_moveq128_1_Slot_llr_slot2_encode, 0, 0, Opcode_moveq128_1_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_moveq128_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_moveq128_2_encode_fns[] = {
   Opcode_moveq128_2_Slot_inst_encode, 0, 0, Opcode_moveq128_2_Slot_gp_slot2_encode, 0, 0, Opcode_moveq128_2_Slot_dot_slot2_encode, 0, 0, Opcode_moveq128_2_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_moveq128_2_Slot_smod_slot2_encode, 0, 0, Opcode_moveq128_2_Slot_llr_slot2_encode, 0, 0, Opcode_moveq128_2_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_moveq128_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_moveq128_3_encode_fns[] = {
   Opcode_moveq128_3_Slot_inst_encode, 0, 0, Opcode_moveq128_3_Slot_gp_slot2_encode, 0, 0, Opcode_moveq128_3_Slot_dot_slot2_encode, 0, 0, Opcode_moveq128_3_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_moveq128_3_Slot_smod_slot2_encode, 0, 0, Opcode_moveq128_3_Slot_llr_slot2_encode, 0, 0, Opcode_moveq128_3_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_moveq128_4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_moveq128_4_encode_fns[] = {
   Opcode_moveq128_4_Slot_inst_encode, 0, 0, Opcode_moveq128_4_Slot_gp_slot2_encode, 0, 0, Opcode_moveq128_4_Slot_dot_slot2_encode, 0, 0, Opcode_moveq128_4_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_moveq128_4_Slot_smod_slot2_encode, 0, 0, Opcode_moveq128_4_Slot_llr_slot2_encode, 0, 0, Opcode_moveq128_4_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_moveq128_5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_moveq128_5_encode_fns[] = {
   Opcode_moveq128_5_Slot_inst_encode, 0, 0, Opcode_moveq128_5_Slot_gp_slot2_encode, 0, 0, Opcode_moveq128_5_Slot_dot_slot2_encode, 0, 0, Opcode_moveq128_5_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_moveq128_5_Slot_smod_slot2_encode, 0, 0, Opcode_moveq128_5_Slot_llr_slot2_encode, 0, 0, Opcode_moveq128_5_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_moveq32_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_moveq32_0_encode_fns[] = {
   Opcode_moveq32_0_Slot_inst_encode, 0, 0, Opcode_moveq32_0_Slot_gp_slot2_encode, 0, 0, Opcode_moveq32_0_Slot_dot_slot2_encode, 0, 0, Opcode_moveq32_0_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_moveq32_0_Slot_smod_slot2_encode, 0, 0, Opcode_moveq32_0_Slot_llr_slot2_encode, 0, 0, Opcode_moveq32_0_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_moveq32_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_moveq32_1_encode_fns[] = {
   Opcode_moveq32_1_Slot_inst_encode, 0, 0, Opcode_moveq32_1_Slot_gp_slot2_encode, 0, 0, Opcode_moveq32_1_Slot_dot_slot2_encode, 0, 0, Opcode_moveq32_1_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_moveq32_1_Slot_smod_slot2_encode, 0, 0, Opcode_moveq32_1_Slot_llr_slot2_encode, 0, 0, Opcode_moveq32_1_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_moveq32_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_moveq32_2_encode_fns[] = {
   Opcode_moveq32_2_Slot_inst_encode, 0, 0, Opcode_moveq32_2_Slot_gp_slot2_encode, 0, 0, Opcode_moveq32_2_Slot_dot_slot2_encode, 0, 0, Opcode_moveq32_2_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_moveq32_2_Slot_smod_slot2_encode, 0, 0, Opcode_moveq32_2_Slot_llr_slot2_encode, 0, 0, Opcode_moveq32_2_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_moveq32_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_moveq32_3_encode_fns[] = {
   Opcode_moveq32_3_Slot_inst_encode, 0, 0, Opcode_moveq32_3_Slot_gp_slot2_encode, 0, 0, Opcode_moveq32_3_Slot_dot_slot2_encode, 0, 0, Opcode_moveq32_3_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_moveq32_3_Slot_smod_slot2_encode, 0, 0, Opcode_moveq32_3_Slot_llr_slot2_encode, 0, 0, Opcode_moveq32_3_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_nco_update_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_nco_update_encode_fns[] = {
   0, 0, 0, Opcode_nco_update_Slot_gp_slot2_encode, 0, 0, Opcode_nco_update_Slot_dot_slot2_encode, 0, 0, Opcode_nco_update_Slot_pq_slot2_encode, 0, 0, Opcode_nco_update_Slot_acc2_slot2_encode, 0, 0, Opcode_nco_update_Slot_smod_slot2_encode, 0, 0, Opcode_nco_update_Slot_llr_slot2_encode, 0, 0, Opcode_nco_update_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_0_encode_fns[] = {
   Opcode_pop128_0_Slot_inst_encode, 0, 0, Opcode_pop128_0_Slot_gp_slot2_encode, 0, Opcode_pop128_0_Slot_gp_slot0_encode, Opcode_pop128_0_Slot_dot_slot2_encode, 0, Opcode_pop128_0_Slot_dot_slot0_encode, Opcode_pop128_0_Slot_pq_slot2_encode, 0, Opcode_pop128_0_Slot_pq_slot0_encode, Opcode_pop128_0_Slot_acc2_slot2_encode, 0, Opcode_pop128_0_Slot_acc2_slot0_encode, Opcode_pop128_0_Slot_smod_slot2_encode, 0, Opcode_pop128_0_Slot_smod_slot0_encode, Opcode_pop128_0_Slot_llr_slot2_encode, 0, Opcode_pop128_0_Slot_llr_slot0_encode, Opcode_pop128_0_Slot_dual_slot2_encode, 0, Opcode_pop128_0_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_1_encode_fns[] = {
   Opcode_pop128_1_Slot_inst_encode, 0, 0, Opcode_pop128_1_Slot_gp_slot2_encode, 0, Opcode_pop128_1_Slot_gp_slot0_encode, Opcode_pop128_1_Slot_dot_slot2_encode, 0, Opcode_pop128_1_Slot_dot_slot0_encode, Opcode_pop128_1_Slot_pq_slot2_encode, 0, Opcode_pop128_1_Slot_pq_slot0_encode, Opcode_pop128_1_Slot_acc2_slot2_encode, 0, Opcode_pop128_1_Slot_acc2_slot0_encode, Opcode_pop128_1_Slot_smod_slot2_encode, 0, Opcode_pop128_1_Slot_smod_slot0_encode, Opcode_pop128_1_Slot_llr_slot2_encode, 0, Opcode_pop128_1_Slot_llr_slot0_encode, Opcode_pop128_1_Slot_dual_slot2_encode, 0, Opcode_pop128_1_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_2_encode_fns[] = {
   Opcode_pop128_2_Slot_inst_encode, 0, 0, Opcode_pop128_2_Slot_gp_slot2_encode, 0, Opcode_pop128_2_Slot_gp_slot0_encode, Opcode_pop128_2_Slot_dot_slot2_encode, 0, Opcode_pop128_2_Slot_dot_slot0_encode, Opcode_pop128_2_Slot_pq_slot2_encode, 0, Opcode_pop128_2_Slot_pq_slot0_encode, Opcode_pop128_2_Slot_acc2_slot2_encode, 0, Opcode_pop128_2_Slot_acc2_slot0_encode, Opcode_pop128_2_Slot_smod_slot2_encode, 0, Opcode_pop128_2_Slot_smod_slot0_encode, Opcode_pop128_2_Slot_llr_slot2_encode, 0, Opcode_pop128_2_Slot_llr_slot0_encode, Opcode_pop128_2_Slot_dual_slot2_encode, 0, Opcode_pop128_2_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_3_encode_fns[] = {
   Opcode_pop128_3_Slot_inst_encode, 0, 0, Opcode_pop128_3_Slot_gp_slot2_encode, 0, Opcode_pop128_3_Slot_gp_slot0_encode, Opcode_pop128_3_Slot_dot_slot2_encode, 0, Opcode_pop128_3_Slot_dot_slot0_encode, Opcode_pop128_3_Slot_pq_slot2_encode, 0, Opcode_pop128_3_Slot_pq_slot0_encode, Opcode_pop128_3_Slot_acc2_slot2_encode, 0, Opcode_pop128_3_Slot_acc2_slot0_encode, Opcode_pop128_3_Slot_smod_slot2_encode, 0, Opcode_pop128_3_Slot_smod_slot0_encode, Opcode_pop128_3_Slot_llr_slot2_encode, 0, Opcode_pop128_3_Slot_llr_slot0_encode, Opcode_pop128_3_Slot_dual_slot2_encode, 0, Opcode_pop128_3_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_4_encode_fns[] = {
   Opcode_pop128_4_Slot_inst_encode, 0, 0, Opcode_pop128_4_Slot_gp_slot2_encode, 0, Opcode_pop128_4_Slot_gp_slot0_encode, Opcode_pop128_4_Slot_dot_slot2_encode, 0, Opcode_pop128_4_Slot_dot_slot0_encode, Opcode_pop128_4_Slot_pq_slot2_encode, 0, Opcode_pop128_4_Slot_pq_slot0_encode, Opcode_pop128_4_Slot_acc2_slot2_encode, 0, Opcode_pop128_4_Slot_acc2_slot0_encode, Opcode_pop128_4_Slot_smod_slot2_encode, 0, Opcode_pop128_4_Slot_smod_slot0_encode, Opcode_pop128_4_Slot_llr_slot2_encode, 0, Opcode_pop128_4_Slot_llr_slot0_encode, Opcode_pop128_4_Slot_dual_slot2_encode, 0, Opcode_pop128_4_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_5_encode_fns[] = {
   Opcode_pop128_5_Slot_inst_encode, 0, 0, Opcode_pop128_5_Slot_gp_slot2_encode, 0, Opcode_pop128_5_Slot_gp_slot0_encode, Opcode_pop128_5_Slot_dot_slot2_encode, 0, Opcode_pop128_5_Slot_dot_slot0_encode, Opcode_pop128_5_Slot_pq_slot2_encode, 0, Opcode_pop128_5_Slot_pq_slot0_encode, Opcode_pop128_5_Slot_acc2_slot2_encode, 0, Opcode_pop128_5_Slot_acc2_slot0_encode, Opcode_pop128_5_Slot_smod_slot2_encode, 0, Opcode_pop128_5_Slot_smod_slot0_encode, Opcode_pop128_5_Slot_llr_slot2_encode, 0, Opcode_pop128_5_Slot_llr_slot0_encode, Opcode_pop128_5_Slot_dual_slot2_encode, 0, Opcode_pop128_5_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_2cmpq_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_2cmpq_0_encode_fns[] = {
   0, 0, 0, Opcode_pop128_2cmpq_0_Slot_gp_slot2_encode, 0, 0, Opcode_pop128_2cmpq_0_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2cmpq_0_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_2cmpq_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_2cmpq_1_encode_fns[] = {
   0, 0, 0, Opcode_pop128_2cmpq_1_Slot_gp_slot2_encode, 0, 0, Opcode_pop128_2cmpq_1_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2cmpq_1_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_2cmpq_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_2cmpq_2_encode_fns[] = {
   0, 0, 0, Opcode_pop128_2cmpq_2_Slot_gp_slot2_encode, 0, 0, Opcode_pop128_2cmpq_2_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2cmpq_2_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_2cmpq_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_2cmpq_3_encode_fns[] = {
   0, 0, 0, Opcode_pop128_2cmpq_3_Slot_gp_slot2_encode, 0, 0, Opcode_pop128_2cmpq_3_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2cmpq_3_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_2m_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_2m_0_encode_fns[] = {
   Opcode_pop128_2m_0_Slot_inst_encode, 0, 0, 0, 0, Opcode_pop128_2m_0_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_pop128_2m_0_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_pop128_2m_0_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_pop128_2m_0_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_2m_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_2m_1_encode_fns[] = {
   Opcode_pop128_2m_1_Slot_inst_encode, 0, 0, 0, 0, Opcode_pop128_2m_1_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_pop128_2m_1_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_pop128_2m_1_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_pop128_2m_1_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_2m_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_2m_2_encode_fns[] = {
   Opcode_pop128_2m_2_Slot_inst_encode, 0, 0, 0, 0, Opcode_pop128_2m_2_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_pop128_2m_2_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_pop128_2m_2_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_pop128_2m_2_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_2m_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_2m_3_encode_fns[] = {
   Opcode_pop128_2m_3_Slot_inst_encode, 0, 0, 0, 0, Opcode_pop128_2m_3_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_pop128_2m_3_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_pop128_2m_3_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_pop128_2m_3_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_2pq_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_2pq_0_encode_fns[] = {
   Opcode_pop128_2pq_0_Slot_inst_encode, 0, 0, Opcode_pop128_2pq_0_Slot_gp_slot2_encode, 0, 0, Opcode_pop128_2pq_0_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2pq_0_Slot_acc2_slot0_encode, Opcode_pop128_2pq_0_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2pq_0_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_2pq_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_2pq_1_encode_fns[] = {
   Opcode_pop128_2pq_1_Slot_inst_encode, 0, 0, Opcode_pop128_2pq_1_Slot_gp_slot2_encode, 0, 0, Opcode_pop128_2pq_1_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2pq_1_Slot_acc2_slot0_encode, Opcode_pop128_2pq_1_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2pq_1_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_2pq_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_2pq_2_encode_fns[] = {
   Opcode_pop128_2pq_2_Slot_inst_encode, 0, 0, Opcode_pop128_2pq_2_Slot_gp_slot2_encode, 0, 0, Opcode_pop128_2pq_2_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2pq_2_Slot_acc2_slot0_encode, Opcode_pop128_2pq_2_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2pq_2_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_2pq_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_2pq_3_encode_fns[] = {
   Opcode_pop128_2pq_3_Slot_inst_encode, 0, 0, Opcode_pop128_2pq_3_Slot_gp_slot2_encode, 0, 0, Opcode_pop128_2pq_3_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2pq_3_Slot_acc2_slot0_encode, Opcode_pop128_2pq_3_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2pq_3_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_2pq_4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_2pq_4_encode_fns[] = {
   Opcode_pop128_2pq_4_Slot_inst_encode, 0, 0, Opcode_pop128_2pq_4_Slot_gp_slot2_encode, 0, 0, Opcode_pop128_2pq_4_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2pq_4_Slot_acc2_slot0_encode, Opcode_pop128_2pq_4_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2pq_4_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop128_2pq_5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop128_2pq_5_encode_fns[] = {
   Opcode_pop128_2pq_5_Slot_inst_encode, 0, 0, Opcode_pop128_2pq_5_Slot_gp_slot2_encode, 0, 0, Opcode_pop128_2pq_5_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2pq_5_Slot_acc2_slot0_encode, Opcode_pop128_2pq_5_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop128_2pq_5_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop2x128_2pq_01_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop2x128_2pq_01_encode_fns[] = {
   Opcode_pop2x128_2pq_01_Slot_inst_encode, 0, 0, Opcode_pop2x128_2pq_01_Slot_gp_slot2_encode, 0, 0, Opcode_pop2x128_2pq_01_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop2x128_2pq_01_Slot_acc2_slot0_encode, Opcode_pop2x128_2pq_01_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop2x128_2pq_01_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop2x128_2pq_03_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop2x128_2pq_03_encode_fns[] = {
   Opcode_pop2x128_2pq_03_Slot_inst_encode, 0, 0, Opcode_pop2x128_2pq_03_Slot_gp_slot2_encode, 0, 0, Opcode_pop2x128_2pq_03_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop2x128_2pq_03_Slot_acc2_slot0_encode, Opcode_pop2x128_2pq_03_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop2x128_2pq_03_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop2x128_2pq_21_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop2x128_2pq_21_encode_fns[] = {
   Opcode_pop2x128_2pq_21_Slot_inst_encode, 0, 0, Opcode_pop2x128_2pq_21_Slot_gp_slot2_encode, 0, 0, Opcode_pop2x128_2pq_21_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop2x128_2pq_21_Slot_acc2_slot0_encode, Opcode_pop2x128_2pq_21_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop2x128_2pq_21_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop2x128_2pq_23_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop2x128_2pq_23_encode_fns[] = {
   Opcode_pop2x128_2pq_23_Slot_inst_encode, 0, 0, Opcode_pop2x128_2pq_23_Slot_gp_slot2_encode, 0, 0, Opcode_pop2x128_2pq_23_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop2x128_2pq_23_Slot_acc2_slot0_encode, Opcode_pop2x128_2pq_23_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_pop2x128_2pq_23_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop32_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop32_0_encode_fns[] = {
   Opcode_pop32_0_Slot_inst_encode, 0, 0, Opcode_pop32_0_Slot_gp_slot2_encode, 0, Opcode_pop32_0_Slot_gp_slot0_encode, Opcode_pop32_0_Slot_dot_slot2_encode, 0, Opcode_pop32_0_Slot_dot_slot0_encode, Opcode_pop32_0_Slot_pq_slot2_encode, 0, Opcode_pop32_0_Slot_pq_slot0_encode, Opcode_pop32_0_Slot_acc2_slot2_encode, 0, Opcode_pop32_0_Slot_acc2_slot0_encode, Opcode_pop32_0_Slot_smod_slot2_encode, 0, Opcode_pop32_0_Slot_smod_slot0_encode, Opcode_pop32_0_Slot_llr_slot2_encode, 0, Opcode_pop32_0_Slot_llr_slot0_encode, Opcode_pop32_0_Slot_dual_slot2_encode, 0, Opcode_pop32_0_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop32_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop32_1_encode_fns[] = {
   Opcode_pop32_1_Slot_inst_encode, 0, 0, Opcode_pop32_1_Slot_gp_slot2_encode, 0, Opcode_pop32_1_Slot_gp_slot0_encode, Opcode_pop32_1_Slot_dot_slot2_encode, 0, Opcode_pop32_1_Slot_dot_slot0_encode, Opcode_pop32_1_Slot_pq_slot2_encode, 0, Opcode_pop32_1_Slot_pq_slot0_encode, Opcode_pop32_1_Slot_acc2_slot2_encode, 0, Opcode_pop32_1_Slot_acc2_slot0_encode, Opcode_pop32_1_Slot_smod_slot2_encode, 0, Opcode_pop32_1_Slot_smod_slot0_encode, Opcode_pop32_1_Slot_llr_slot2_encode, 0, Opcode_pop32_1_Slot_llr_slot0_encode, Opcode_pop32_1_Slot_dual_slot2_encode, 0, Opcode_pop32_1_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop32_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop32_2_encode_fns[] = {
   Opcode_pop32_2_Slot_inst_encode, 0, 0, Opcode_pop32_2_Slot_gp_slot2_encode, 0, Opcode_pop32_2_Slot_gp_slot0_encode, Opcode_pop32_2_Slot_dot_slot2_encode, 0, Opcode_pop32_2_Slot_dot_slot0_encode, Opcode_pop32_2_Slot_pq_slot2_encode, 0, Opcode_pop32_2_Slot_pq_slot0_encode, Opcode_pop32_2_Slot_acc2_slot2_encode, 0, Opcode_pop32_2_Slot_acc2_slot0_encode, Opcode_pop32_2_Slot_smod_slot2_encode, 0, Opcode_pop32_2_Slot_smod_slot0_encode, Opcode_pop32_2_Slot_llr_slot2_encode, 0, Opcode_pop32_2_Slot_llr_slot0_encode, Opcode_pop32_2_Slot_dual_slot2_encode, 0, Opcode_pop32_2_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_pop32_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_pop32_3_encode_fns[] = {
   Opcode_pop32_3_Slot_inst_encode, 0, 0, Opcode_pop32_3_Slot_gp_slot2_encode, 0, Opcode_pop32_3_Slot_gp_slot0_encode, Opcode_pop32_3_Slot_dot_slot2_encode, 0, Opcode_pop32_3_Slot_dot_slot0_encode, Opcode_pop32_3_Slot_pq_slot2_encode, 0, Opcode_pop32_3_Slot_pq_slot0_encode, Opcode_pop32_3_Slot_acc2_slot2_encode, 0, Opcode_pop32_3_Slot_acc2_slot0_encode, Opcode_pop32_3_Slot_smod_slot2_encode, 0, Opcode_pop32_3_Slot_smod_slot0_encode, Opcode_pop32_3_Slot_llr_slot2_encode, 0, Opcode_pop32_3_Slot_llr_slot0_encode, Opcode_pop32_3_Slot_dual_slot2_encode, 0, Opcode_pop32_3_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_push128_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_push128_encode_fns[] = {
   Opcode_push128_Slot_inst_encode, 0, 0, Opcode_push128_Slot_gp_slot2_encode, 0, Opcode_push128_Slot_gp_slot0_encode, Opcode_push128_Slot_dot_slot2_encode, 0, Opcode_push128_Slot_dot_slot0_encode, Opcode_push128_Slot_pq_slot2_encode, 0, Opcode_push128_Slot_pq_slot0_encode, Opcode_push128_Slot_acc2_slot2_encode, 0, Opcode_push128_Slot_acc2_slot0_encode, Opcode_push128_Slot_smod_slot2_encode, 0, Opcode_push128_Slot_smod_slot0_encode, Opcode_push128_Slot_llr_slot2_encode, 0, Opcode_push128_Slot_llr_slot0_encode, Opcode_push128_Slot_dual_slot2_encode, 0, Opcode_push128_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_push128_m_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_push128_m_encode_fns[] = {
   Opcode_push128_m_Slot_inst_encode, 0, 0, 0, 0, Opcode_push128_m_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_push128_m_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, Opcode_push128_m_Slot_smod_slot0_encode, 0, 0, 0, 0, 0, Opcode_push128_m_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_push128_pq_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_push128_pq_encode_fns[] = {
   Opcode_push128_pq_Slot_inst_encode, 0, 0, Opcode_push128_pq_Slot_gp_slot2_encode, 0, 0, Opcode_push128_pq_Slot_dot_slot2_encode, 0, 0, Opcode_push128_pq_Slot_pq_slot2_encode, 0, 0, 0, 0, Opcode_push128_pq_Slot_acc2_slot0_encode, Opcode_push128_pq_Slot_smod_slot2_encode, 0, 0, Opcode_push128_pq_Slot_llr_slot2_encode, 0, Opcode_push128_pq_Slot_llr_slot0_encode, Opcode_push128_pq_Slot_dual_slot2_encode, 0, Opcode_push128_pq_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_push2x128_pq_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_push2x128_pq_encode_fns[] = {
   Opcode_push2x128_pq_Slot_inst_encode, 0, 0, Opcode_push2x128_pq_Slot_gp_slot2_encode, 0, 0, Opcode_push2x128_pq_Slot_dot_slot2_encode, 0, 0, 0, 0, 0, 0, 0, Opcode_push2x128_pq_Slot_acc2_slot0_encode, Opcode_push2x128_pq_Slot_smod_slot2_encode, 0, 0, 0, 0, Opcode_push2x128_pq_Slot_llr_slot0_encode, 0, 0, Opcode_push2x128_pq_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_push32_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_push32_encode_fns[] = {
   Opcode_push32_Slot_inst_encode, 0, 0, Opcode_push32_Slot_gp_slot2_encode, 0, Opcode_push32_Slot_gp_slot0_encode, Opcode_push32_Slot_dot_slot2_encode, 0, Opcode_push32_Slot_dot_slot0_encode, Opcode_push32_Slot_pq_slot2_encode, 0, Opcode_push32_Slot_pq_slot0_encode, Opcode_push32_Slot_acc2_slot2_encode, 0, 0, Opcode_push32_Slot_smod_slot2_encode, 0, Opcode_push32_Slot_smod_slot0_encode, Opcode_push32_Slot_llr_slot2_encode, 0, Opcode_push32_Slot_llr_slot0_encode, Opcode_push32_Slot_dual_slot2_encode, 0, Opcode_push32_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_qready_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_qready_encode_fns[] = {
   Opcode_qready_Slot_inst_encode, 0, 0, Opcode_qready_Slot_gp_slot2_encode, 0, 0, Opcode_qready_Slot_dot_slot2_encode, 0, 0, Opcode_qready_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_qready_Slot_smod_slot2_encode, 0, 0, Opcode_qready_Slot_llr_slot2_encode, 0, 0, Opcode_qready_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rdtiep_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rdtiep_encode_fns[] = {
   Opcode_rdtiep_Slot_inst_encode, 0, 0, Opcode_rdtiep_Slot_gp_slot2_encode, 0, 0, Opcode_rdtiep_Slot_dot_slot2_encode, 0, 0, Opcode_rdtiep_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_rdtiep_Slot_smod_slot2_encode, 0, 0, Opcode_rdtiep_Slot_llr_slot2_encode, 0, 0, Opcode_rdtiep_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_settiep_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_settiep_encode_fns[] = {
   Opcode_settiep_Slot_inst_encode, 0, 0, Opcode_settiep_Slot_gp_slot2_encode, 0, 0, Opcode_settiep_Slot_dot_slot2_encode, 0, 0, Opcode_settiep_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_settiep_Slot_smod_slot2_encode, 0, 0, Opcode_settiep_Slot_llr_slot2_encode, 0, 0, Opcode_settiep_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_smod_lut_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_smod_lut_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_smod_lut_Slot_smod_slot2_encode, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wrtbsigq_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wrtbsigq_encode_fns[] = {
   Opcode_wrtbsigq_Slot_inst_encode, 0, 0, Opcode_wrtbsigq_Slot_gp_slot2_encode, 0, 0, Opcode_wrtbsigq_Slot_dot_slot2_encode, 0, 0, Opcode_wrtbsigq_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_wrtbsigq_Slot_smod_slot2_encode, 0, 0, Opcode_wrtbsigq_Slot_llr_slot2_encode, 0, 0, Opcode_wrtbsigq_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wrtbsigqm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wrtbsigqm_encode_fns[] = {
   Opcode_wrtbsigqm_Slot_inst_encode, 0, 0, Opcode_wrtbsigqm_Slot_gp_slot2_encode, 0, 0, Opcode_wrtbsigqm_Slot_dot_slot2_encode, 0, 0, Opcode_wrtbsigqm_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_wrtbsigqm_Slot_smod_slot2_encode, 0, 0, Opcode_wrtbsigqm_Slot_llr_slot2_encode, 0, 0, Opcode_wrtbsigqm_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wrtiep_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wrtiep_encode_fns[] = {
   Opcode_wrtiep_Slot_inst_encode, 0, 0, Opcode_wrtiep_Slot_gp_slot2_encode, 0, 0, Opcode_wrtiep_Slot_dot_slot2_encode, 0, 0, Opcode_wrtiep_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_wrtiep_Slot_smod_slot2_encode, 0, 0, Opcode_wrtiep_Slot_llr_slot2_encode, 0, 0, Opcode_wrtiep_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wrtsigq_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wrtsigq_encode_fns[] = {
   Opcode_wrtsigq_Slot_inst_encode, 0, 0, Opcode_wrtsigq_Slot_gp_slot2_encode, 0, 0, Opcode_wrtsigq_Slot_dot_slot2_encode, 0, 0, Opcode_wrtsigq_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_wrtsigq_Slot_smod_slot2_encode, 0, 0, Opcode_wrtsigq_Slot_llr_slot2_encode, 0, 0, Opcode_wrtsigq_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_abs8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_abs8_encode_fns[] = {
   0, 0, 0, Opcode_abs8_Slot_gp_slot2_encode, 0, 0, Opcode_abs8_Slot_dot_slot2_encode, 0, 0, Opcode_abs8_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_abs8_Slot_smod_slot2_encode, 0, 0, Opcode_abs8_Slot_llr_slot2_encode, 0, 0, Opcode_abs8_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_add16_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_add16_encode_fns[] = {
   0, 0, 0, Opcode_add16_Slot_gp_slot2_encode, 0, 0, Opcode_add16_Slot_dot_slot2_encode, 0, 0, Opcode_add16_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_add16_Slot_smod_slot2_encode, 0, 0, Opcode_add16_Slot_llr_slot2_encode, 0, 0, Opcode_add16_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_add32_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_add32_encode_fns[] = {
   0, 0, 0, Opcode_add32_Slot_gp_slot2_encode, 0, 0, Opcode_add32_Slot_dot_slot2_encode, 0, 0, Opcode_add32_Slot_pq_slot2_encode, 0, 0, Opcode_add32_Slot_acc2_slot2_encode, 0, 0, Opcode_add32_Slot_smod_slot2_encode, 0, 0, Opcode_add32_Slot_llr_slot2_encode, 0, 0, Opcode_add32_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_addac_i2r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_addac_i2r_encode_fns[] = {
   Opcode_addac_i2r_Slot_inst_encode, 0, 0, 0, 0, Opcode_addac_i2r_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_addac_i2r_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_addac_i2r_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_addac_r2i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_addac_r2i_encode_fns[] = {
   Opcode_addac_r2i_Slot_inst_encode, 0, 0, 0, 0, Opcode_addac_r2i_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_addac_r2i_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_addac_r2i_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_addar2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_addar2_encode_fns[] = {
   0, 0, 0, Opcode_addar2_Slot_gp_slot2_encode, 0, 0, Opcode_addar2_Slot_dot_slot2_encode, 0, 0, Opcode_addar2_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_addar2_Slot_smod_slot2_encode, 0, 0, Opcode_addar2_Slot_llr_slot2_encode, 0, 0, Opcode_addar2_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_addcm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_addcm_encode_fns[] = {
   0, 0, 0, Opcode_addcm_Slot_gp_slot2_encode, 0, 0, Opcode_addcm_Slot_dot_slot2_encode, 0, 0, Opcode_addcm_Slot_pq_slot2_encode, 0, 0, Opcode_addcm_Slot_acc2_slot2_encode, 0, 0, Opcode_addcm_Slot_smod_slot2_encode, 0, 0, Opcode_addcm_Slot_llr_slot2_encode, 0, 0, Opcode_addcm_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_addwrp_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_addwrp_encode_fns[] = {
   0, 0, 0, Opcode_addwrp_Slot_gp_slot2_encode, 0, 0, Opcode_addwrp_Slot_dot_slot2_encode, 0, 0, Opcode_addwrp_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_addwrp_Slot_smod_slot2_encode, 0, 0, Opcode_addwrp_Slot_llr_slot2_encode, 0, 0, Opcode_addwrp_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_and128_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_and128_encode_fns[] = {
   0, 0, 0, Opcode_and128_Slot_gp_slot2_encode, 0, 0, Opcode_and128_Slot_dot_slot2_encode, 0, 0, Opcode_and128_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_and128_Slot_smod_slot2_encode, 0, 0, Opcode_and128_Slot_llr_slot2_encode, 0, 0, Opcode_and128_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_argmax8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_argmax8_encode_fns[] = {
   0, 0, 0, Opcode_argmax8_Slot_gp_slot2_encode, 0, 0, Opcode_argmax8_Slot_dot_slot2_encode, 0, 0, Opcode_argmax8_Slot_pq_slot2_encode, 0, 0, Opcode_argmax8_Slot_acc2_slot2_encode, 0, 0, Opcode_argmax8_Slot_smod_slot2_encode, 0, 0, Opcode_argmax8_Slot_llr_slot2_encode, 0, 0, Opcode_argmax8_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_asl_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_asl_encode_fns[] = {
   0, 0, 0, Opcode_asl_Slot_gp_slot2_encode, 0, 0, Opcode_asl_Slot_dot_slot2_encode, 0, 0, Opcode_asl_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_asl_Slot_smod_slot2_encode, 0, 0, Opcode_asl_Slot_llr_slot2_encode, 0, 0, Opcode_asl_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_asl32_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_asl32_encode_fns[] = {
   0, 0, 0, Opcode_asl32_Slot_gp_slot2_encode, 0, 0, Opcode_asl32_Slot_dot_slot2_encode, 0, 0, Opcode_asl32_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_asl32_Slot_smod_slot2_encode, 0, 0, Opcode_asl32_Slot_llr_slot2_encode, 0, 0, Opcode_asl32_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_aslacm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_aslacm_encode_fns[] = {
   Opcode_aslacm_Slot_inst_encode, 0, 0, 0, 0, Opcode_aslacm_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_aslacm_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_aslacm_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_aslm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_aslm_encode_fns[] = {
   0, 0, 0, Opcode_aslm_Slot_gp_slot2_encode, 0, 0, Opcode_aslm_Slot_dot_slot2_encode, 0, 0, Opcode_aslm_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_aslm_Slot_smod_slot2_encode, 0, 0, Opcode_aslm_Slot_llr_slot2_encode, 0, 0, Opcode_aslm_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_aslm32_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_aslm32_encode_fns[] = {
   0, 0, 0, Opcode_aslm32_Slot_gp_slot2_encode, 0, 0, Opcode_aslm32_Slot_dot_slot2_encode, 0, 0, Opcode_aslm32_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_aslm32_Slot_smod_slot2_encode, 0, 0, Opcode_aslm32_Slot_llr_slot2_encode, 0, 0, Opcode_aslm32_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_asr_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_asr_encode_fns[] = {
   0, 0, 0, Opcode_asr_Slot_gp_slot2_encode, 0, 0, Opcode_asr_Slot_dot_slot2_encode, 0, 0, Opcode_asr_Slot_pq_slot2_encode, 0, 0, Opcode_asr_Slot_acc2_slot2_encode, 0, 0, Opcode_asr_Slot_smod_slot2_encode, 0, 0, Opcode_asr_Slot_llr_slot2_encode, 0, 0, Opcode_asr_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_asr32_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_asr32_encode_fns[] = {
   0, 0, 0, Opcode_asr32_Slot_gp_slot2_encode, 0, 0, Opcode_asr32_Slot_dot_slot2_encode, 0, 0, Opcode_asr32_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_asr32_Slot_smod_slot2_encode, 0, 0, Opcode_asr32_Slot_llr_slot2_encode, 0, 0, Opcode_asr32_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_asrac_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_asrac_encode_fns[] = {
   Opcode_asrac_Slot_inst_encode, 0, 0, 0, 0, Opcode_asrac_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_asrac_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_asrac_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_asrm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_asrm_encode_fns[] = {
   0, 0, 0, Opcode_asrm_Slot_gp_slot2_encode, 0, 0, Opcode_asrm_Slot_dot_slot2_encode, 0, 0, Opcode_asrm_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_asrm_Slot_smod_slot2_encode, 0, 0, Opcode_asrm_Slot_llr_slot2_encode, 0, 0, Opcode_asrm_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_bitfext_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bitfext_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bitfext_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_bitfins_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_bitfins_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_bitfins_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_clb_c_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_clb_c_encode_fns[] = {
   Opcode_clb_c_Slot_inst_encode, 0, 0, 0, 0, Opcode_clb_c_Slot_gp_slot0_encode, 0, 0, Opcode_clb_c_Slot_dot_slot0_encode, 0, 0, Opcode_clb_c_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_clb_c_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_clb_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_clb_r_encode_fns[] = {
   Opcode_clb_r_Slot_inst_encode, 0, 0, 0, 0, Opcode_clb_r_Slot_gp_slot0_encode, 0, 0, Opcode_clb_r_Slot_dot_slot0_encode, 0, 0, Opcode_clb_r_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_clb_r_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_cmp8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cmp8_encode_fns[] = {
   0, 0, 0, Opcode_cmp8_Slot_gp_slot2_encode, 0, 0, Opcode_cmp8_Slot_dot_slot2_encode, 0, 0, Opcode_cmp8_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_cmp8_Slot_smod_slot2_encode, 0, 0, Opcode_cmp8_Slot_llr_slot2_encode, 0, 0, Opcode_cmp8_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_cmp_i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cmp_i_encode_fns[] = {
   0, 0, 0, Opcode_cmp_i_Slot_gp_slot2_encode, 0, 0, Opcode_cmp_i_Slot_dot_slot2_encode, 0, 0, Opcode_cmp_i_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_cmp_i_Slot_smod_slot2_encode, 0, 0, Opcode_cmp_i_Slot_llr_slot2_encode, 0, 0, Opcode_cmp_i_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_cmp_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_cmp_r_encode_fns[] = {
   0, 0, 0, Opcode_cmp_r_Slot_gp_slot2_encode, 0, 0, Opcode_cmp_r_Slot_dot_slot2_encode, 0, 0, Opcode_cmp_r_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_cmp_r_Slot_smod_slot2_encode, 0, 0, Opcode_cmp_r_Slot_llr_slot2_encode, 0, 0, Opcode_cmp_r_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_ext_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ext_encode_fns[] = {
   Opcode_ext_Slot_inst_encode, 0, 0, 0, 0, Opcode_ext_Slot_gp_slot0_encode, 0, 0, Opcode_ext_Slot_dot_slot0_encode, 0, 0, Opcode_ext_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ext_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ext_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ext_r_encode_fns[] = {
   Opcode_ext_r_Slot_inst_encode, 0, 0, 0, 0, Opcode_ext_r_Slot_gp_slot0_encode, 0, 0, Opcode_ext_r_Slot_dot_slot0_encode, 0, 0, Opcode_ext_r_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ext_r_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ext32_i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ext32_i_encode_fns[] = {
   Opcode_ext32_i_Slot_inst_encode, 0, 0, 0, 0, Opcode_ext32_i_Slot_gp_slot0_encode, 0, 0, Opcode_ext32_i_Slot_dot_slot0_encode, 0, 0, Opcode_ext32_i_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ext32_i_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_ext32_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_ext32_r_encode_fns[] = {
   Opcode_ext32_r_Slot_inst_encode, 0, 0, 0, 0, Opcode_ext32_r_Slot_gp_slot0_encode, 0, 0, Opcode_ext32_r_Slot_dot_slot0_encode, 0, 0, Opcode_ext32_r_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_ext32_r_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_extui4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_extui4_encode_fns[] = {
   0, 0, 0, Opcode_extui4_Slot_gp_slot2_encode, 0, 0, Opcode_extui4_Slot_dot_slot2_encode, 0, 0, Opcode_extui4_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_extui4_Slot_smod_slot2_encode, 0, 0, Opcode_extui4_Slot_llr_slot2_encode, 0, 0, Opcode_extui4_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_lslm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lslm_encode_fns[] = {
   0, 0, 0, Opcode_lslm_Slot_gp_slot2_encode, 0, 0, Opcode_lslm_Slot_dot_slot2_encode, 0, 0, Opcode_lslm_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_lslm_Slot_smod_slot2_encode, 0, 0, Opcode_lslm_Slot_llr_slot2_encode, 0, 0, Opcode_lslm_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_lsrm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_lsrm_encode_fns[] = {
   0, 0, 0, Opcode_lsrm_Slot_gp_slot2_encode, 0, 0, Opcode_lsrm_Slot_dot_slot2_encode, 0, 0, Opcode_lsrm_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_lsrm_Slot_smod_slot2_encode, 0, 0, Opcode_lsrm_Slot_llr_slot2_encode, 0, 0, Opcode_lsrm_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_max8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_max8_encode_fns[] = {
   0, 0, 0, Opcode_max8_Slot_gp_slot2_encode, 0, 0, Opcode_max8_Slot_dot_slot2_encode, 0, 0, Opcode_max8_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_max8_Slot_smod_slot2_encode, 0, 0, Opcode_max8_Slot_llr_slot2_encode, 0, 0, Opcode_max8_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mean_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mean_encode_fns[] = {
   0, 0, 0, Opcode_mean_Slot_gp_slot2_encode, 0, 0, Opcode_mean_Slot_dot_slot2_encode, 0, 0, Opcode_mean_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_mean_Slot_smod_slot2_encode, 0, 0, Opcode_mean_Slot_llr_slot2_encode, 0, 0, Opcode_mean_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_mean32_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_mean32_encode_fns[] = {
   0, 0, 0, Opcode_mean32_Slot_gp_slot2_encode, 0, 0, Opcode_mean32_Slot_dot_slot2_encode, 0, 0, Opcode_mean32_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_mean32_Slot_smod_slot2_encode, 0, 0, Opcode_mean32_Slot_llr_slot2_encode, 0, 0, Opcode_mean32_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_min8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_min8_encode_fns[] = {
   0, 0, 0, Opcode_min8_Slot_gp_slot2_encode, 0, 0, Opcode_min8_Slot_dot_slot2_encode, 0, 0, Opcode_min8_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_min8_Slot_smod_slot2_encode, 0, 0, Opcode_min8_Slot_llr_slot2_encode, 0, 0, Opcode_min8_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_minclb_c_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_minclb_c_encode_fns[] = {
   Opcode_minclb_c_Slot_inst_encode, 0, 0, 0, 0, Opcode_minclb_c_Slot_gp_slot0_encode, 0, 0, Opcode_minclb_c_Slot_dot_slot0_encode, 0, 0, Opcode_minclb_c_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_minclb_c_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_minclb_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_minclb_r_encode_fns[] = {
   Opcode_minclb_r_Slot_inst_encode, 0, 0, 0, 0, Opcode_minclb_r_Slot_gp_slot0_encode, 0, 0, Opcode_minclb_r_Slot_dot_slot0_encode, 0, 0, Opcode_minclb_r_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_minclb_r_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_not128_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_not128_encode_fns[] = {
   0, 0, 0, Opcode_not128_Slot_gp_slot2_encode, 0, 0, Opcode_not128_Slot_dot_slot2_encode, 0, 0, Opcode_not128_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_not128_Slot_smod_slot2_encode, 0, 0, Opcode_not128_Slot_llr_slot2_encode, 0, 0, Opcode_not128_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_or128_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_or128_encode_fns[] = {
   0, 0, 0, Opcode_or128_Slot_gp_slot2_encode, 0, 0, Opcode_or128_Slot_dot_slot2_encode, 0, 0, Opcode_or128_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_or128_Slot_smod_slot2_encode, 0, 0, Opcode_or128_Slot_llr_slot2_encode, 0, 0, Opcode_or128_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_perm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_perm_encode_fns[] = {
   0, 0, 0, Opcode_perm_Slot_gp_slot2_encode, 0, 0, Opcode_perm_Slot_dot_slot2_encode, 0, 0, Opcode_perm_Slot_pq_slot2_encode, 0, 0, Opcode_perm_Slot_acc2_slot2_encode, 0, 0, Opcode_perm_Slot_smod_slot2_encode, 0, 0, Opcode_perm_Slot_llr_slot2_encode, 0, 0, Opcode_perm_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_redac_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_redac_encode_fns[] = {
   Opcode_redac_Slot_inst_encode, 0, 0, 0, 0, Opcode_redac_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_redac_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_redac_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_redac2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_redac2_encode_fns[] = {
   Opcode_redac2_Slot_inst_encode, 0, 0, 0, 0, Opcode_redac2_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_redac2_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_redac2_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_redac4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_redac4_encode_fns[] = {
   Opcode_redac4_Slot_inst_encode, 0, 0, 0, 0, Opcode_redac4_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_redac4_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_redac4_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_redacs_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_redacs_encode_fns[] = {
   Opcode_redacs_Slot_inst_encode, 0, 0, 0, 0, Opcode_redacs_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_redacs_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_redacs_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sminclb_c_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sminclb_c_encode_fns[] = {
   Opcode_sminclb_c_Slot_inst_encode, 0, 0, 0, 0, Opcode_sminclb_c_Slot_gp_slot0_encode, 0, 0, Opcode_sminclb_c_Slot_dot_slot0_encode, 0, 0, Opcode_sminclb_c_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_sminclb_c_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sminclb_r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sminclb_r_encode_fns[] = {
   Opcode_sminclb_r_Slot_inst_encode, 0, 0, 0, 0, Opcode_sminclb_r_Slot_gp_slot0_encode, 0, 0, Opcode_sminclb_r_Slot_dot_slot0_encode, 0, 0, Opcode_sminclb_r_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_sminclb_r_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_stswapbm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_stswapbm_encode_fns[] = {
   Opcode_stswapbm_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_stswapbm_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_stswapbmu_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_stswapbmu_encode_fns[] = {
   Opcode_stswapbmu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_stswapbmu_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_sub32_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_sub32_encode_fns[] = {
   0, 0, 0, Opcode_sub32_Slot_gp_slot2_encode, 0, 0, Opcode_sub32_Slot_dot_slot2_encode, 0, 0, Opcode_sub32_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_sub32_Slot_smod_slot2_encode, 0, 0, Opcode_sub32_Slot_llr_slot2_encode, 0, 0, Opcode_sub32_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_subac_i2r_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_subac_i2r_encode_fns[] = {
   Opcode_subac_i2r_Slot_inst_encode, 0, 0, 0, 0, Opcode_subac_i2r_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_subac_i2r_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_subac_i2r_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_subac_r2i_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_subac_r2i_encode_fns[] = {
   Opcode_subac_r2i_Slot_inst_encode, 0, 0, 0, 0, Opcode_subac_r2i_Slot_gp_slot0_encode, 0, 0, 0, 0, 0, Opcode_subac_r2i_Slot_pq_slot0_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Opcode_subac_r2i_Slot_dual_slot0_encode
 };
 
-static xtensa_opcode_encode_fn Opcode_subarx_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_subarx_encode_fns[] = {
   0, 0, 0, Opcode_subarx_Slot_gp_slot2_encode, 0, 0, Opcode_subarx_Slot_dot_slot2_encode, 0, 0, Opcode_subarx_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_subarx_Slot_smod_slot2_encode, 0, 0, Opcode_subarx_Slot_llr_slot2_encode, 0, 0, Opcode_subarx_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_subcm_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_subcm_encode_fns[] = {
   0, 0, 0, Opcode_subcm_Slot_gp_slot2_encode, 0, 0, Opcode_subcm_Slot_dot_slot2_encode, 0, 0, Opcode_subcm_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_subcm_Slot_smod_slot2_encode, 0, 0, Opcode_subcm_Slot_llr_slot2_encode, 0, 0, Opcode_subcm_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_submean_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_submean_encode_fns[] = {
   0, 0, 0, Opcode_submean_Slot_gp_slot2_encode, 0, 0, Opcode_submean_Slot_dot_slot2_encode, 0, 0, Opcode_submean_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_submean_Slot_smod_slot2_encode, 0, 0, Opcode_submean_Slot_llr_slot2_encode, 0, 0, Opcode_submean_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_subwrp_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_subwrp_encode_fns[] = {
   0, 0, 0, Opcode_subwrp_Slot_gp_slot2_encode, 0, 0, Opcode_subwrp_Slot_dot_slot2_encode, 0, 0, Opcode_subwrp_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_subwrp_Slot_smod_slot2_encode, 0, 0, Opcode_subwrp_Slot_llr_slot2_encode, 0, 0, Opcode_subwrp_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_trans_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_trans_encode_fns[] = {
   0, 0, 0, Opcode_trans_Slot_gp_slot2_encode, 0, 0, Opcode_trans_Slot_dot_slot2_encode, 0, 0, Opcode_trans_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_trans_Slot_smod_slot2_encode, 0, 0, Opcode_trans_Slot_llr_slot2_encode, 0, 0, Opcode_trans_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_xor128_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_xor128_encode_fns[] = {
   0, 0, 0, Opcode_xor128_Slot_gp_slot2_encode, 0, 0, Opcode_xor128_Slot_dot_slot2_encode, 0, 0, Opcode_xor128_Slot_pq_slot2_encode, 0, 0, 0, 0, 0, Opcode_xor128_Slot_smod_slot2_encode, 0, 0, Opcode_xor128_Slot_llr_slot2_encode, 0, 0, Opcode_xor128_Slot_dual_slot2_encode, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_expstate_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_expstate_encode_fns[] = {
   Opcode_rur_expstate_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_expstate_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_expstate_encode_fns[] = {
   Opcode_wur_expstate_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_sov_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_sov_encode_fns[] = {
   Opcode_rur_sov_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_sov_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_sov_encode_fns[] = {
   Opcode_wur_sov_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_sat_mode_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_sat_mode_encode_fns[] = {
   Opcode_rur_sat_mode_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_sat_mode_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_sat_mode_encode_fns[] = {
   Opcode_wur_sat_mode_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_sar0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_sar0_encode_fns[] = {
   Opcode_rur_sar0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_sar0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_sar0_encode_fns[] = {
   Opcode_wur_sar0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_sar1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_sar1_encode_fns[] = {
   Opcode_rur_sar1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_sar1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_sar1_encode_fns[] = {
   Opcode_wur_sar1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_sar2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_sar2_encode_fns[] = {
   Opcode_rur_sar2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_sar2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_sar2_encode_fns[] = {
   Opcode_wur_sar2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_sar3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_sar3_encode_fns[] = {
   Opcode_rur_sar3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_sar3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_sar3_encode_fns[] = {
   Opcode_wur_sar3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_hsar0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_hsar0_encode_fns[] = {
   Opcode_rur_hsar0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_hsar0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_hsar0_encode_fns[] = {
   Opcode_wur_hsar0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_hsar1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_hsar1_encode_fns[] = {
   Opcode_rur_hsar1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_hsar1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_hsar1_encode_fns[] = {
   Opcode_wur_hsar1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_hsar2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_hsar2_encode_fns[] = {
   Opcode_rur_hsar2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_hsar2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_hsar2_encode_fns[] = {
   Opcode_wur_hsar2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_hsar3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_hsar3_encode_fns[] = {
   Opcode_rur_hsar3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_hsar3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_hsar3_encode_fns[] = {
   Opcode_wur_hsar3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_max_reg_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_max_reg_0_encode_fns[] = {
   Opcode_rur_max_reg_0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_max_reg_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_max_reg_0_encode_fns[] = {
   Opcode_wur_max_reg_0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_max_reg_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_max_reg_1_encode_fns[] = {
   Opcode_rur_max_reg_1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_max_reg_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_max_reg_1_encode_fns[] = {
   Opcode_wur_max_reg_1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_max_reg_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_max_reg_2_encode_fns[] = {
   Opcode_rur_max_reg_2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_max_reg_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_max_reg_2_encode_fns[] = {
   Opcode_wur_max_reg_2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_max_reg_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_max_reg_3_encode_fns[] = {
   Opcode_rur_max_reg_3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_max_reg_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_max_reg_3_encode_fns[] = {
   Opcode_wur_max_reg_3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_arg_max_reg_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_arg_max_reg_0_encode_fns[] = {
   Opcode_rur_arg_max_reg_0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_arg_max_reg_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_arg_max_reg_0_encode_fns[] = {
   Opcode_wur_arg_max_reg_0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_arg_max_reg_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_arg_max_reg_1_encode_fns[] = {
   Opcode_rur_arg_max_reg_1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_arg_max_reg_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_arg_max_reg_1_encode_fns[] = {
   Opcode_wur_arg_max_reg_1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_arg_max_reg_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_arg_max_reg_2_encode_fns[] = {
   Opcode_rur_arg_max_reg_2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_arg_max_reg_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_arg_max_reg_2_encode_fns[] = {
   Opcode_wur_arg_max_reg_2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_arg_max_reg_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_arg_max_reg_3_encode_fns[] = {
   Opcode_rur_arg_max_reg_3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_arg_max_reg_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_arg_max_reg_3_encode_fns[] = {
   Opcode_wur_arg_max_reg_3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_nco_counter_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_nco_counter_0_encode_fns[] = {
   Opcode_rur_nco_counter_0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_nco_counter_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_nco_counter_0_encode_fns[] = {
   Opcode_wur_nco_counter_0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_nco_counter_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_nco_counter_1_encode_fns[] = {
   Opcode_rur_nco_counter_1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_nco_counter_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_nco_counter_1_encode_fns[] = {
   Opcode_wur_nco_counter_1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_nco_counter_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_nco_counter_2_encode_fns[] = {
   Opcode_rur_nco_counter_2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_nco_counter_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_nco_counter_2_encode_fns[] = {
   Opcode_wur_nco_counter_2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_nco_counter_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_nco_counter_3_encode_fns[] = {
   Opcode_rur_nco_counter_3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_nco_counter_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_nco_counter_3_encode_fns[] = {
   Opcode_wur_nco_counter_3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_interp_ext_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_interp_ext_n_encode_fns[] = {
   Opcode_rur_interp_ext_n_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_interp_ext_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_interp_ext_n_encode_fns[] = {
   Opcode_wur_interp_ext_n_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_interp_ext_l_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_interp_ext_l_encode_fns[] = {
   Opcode_rur_interp_ext_l_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_interp_ext_l_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_interp_ext_l_encode_fns[] = {
   Opcode_wur_interp_ext_l_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_0_encode_fns[] = {
   Opcode_rur_llr_buf_0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_0_encode_fns[] = {
   Opcode_wur_llr_buf_0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_1_encode_fns[] = {
   Opcode_rur_llr_buf_1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_1_encode_fns[] = {
   Opcode_wur_llr_buf_1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_2_encode_fns[] = {
   Opcode_rur_llr_buf_2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_2_encode_fns[] = {
   Opcode_wur_llr_buf_2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_3_encode_fns[] = {
   Opcode_rur_llr_buf_3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_3_encode_fns[] = {
   Opcode_wur_llr_buf_3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_4_encode_fns[] = {
   Opcode_rur_llr_buf_4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_4_encode_fns[] = {
   Opcode_wur_llr_buf_4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_5_encode_fns[] = {
   Opcode_rur_llr_buf_5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_5_encode_fns[] = {
   Opcode_wur_llr_buf_5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_6_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_6_encode_fns[] = {
   Opcode_rur_llr_buf_6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_6_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_6_encode_fns[] = {
   Opcode_wur_llr_buf_6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_7_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_7_encode_fns[] = {
   Opcode_rur_llr_buf_7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_7_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_7_encode_fns[] = {
   Opcode_wur_llr_buf_7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_8_encode_fns[] = {
   Opcode_rur_llr_buf_8_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_8_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_8_encode_fns[] = {
   Opcode_wur_llr_buf_8_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_9_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_9_encode_fns[] = {
   Opcode_rur_llr_buf_9_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_9_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_9_encode_fns[] = {
   Opcode_wur_llr_buf_9_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_10_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_10_encode_fns[] = {
   Opcode_rur_llr_buf_10_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_10_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_10_encode_fns[] = {
   Opcode_wur_llr_buf_10_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_11_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_11_encode_fns[] = {
   Opcode_rur_llr_buf_11_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_11_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_11_encode_fns[] = {
   Opcode_wur_llr_buf_11_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_12_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_12_encode_fns[] = {
   Opcode_rur_llr_buf_12_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_12_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_12_encode_fns[] = {
   Opcode_wur_llr_buf_12_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_13_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_13_encode_fns[] = {
   Opcode_rur_llr_buf_13_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_13_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_13_encode_fns[] = {
   Opcode_wur_llr_buf_13_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_14_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_14_encode_fns[] = {
   Opcode_rur_llr_buf_14_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_14_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_14_encode_fns[] = {
   Opcode_wur_llr_buf_14_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_15_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_15_encode_fns[] = {
   Opcode_rur_llr_buf_15_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_15_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_15_encode_fns[] = {
   Opcode_wur_llr_buf_15_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_16_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_16_encode_fns[] = {
   Opcode_rur_llr_buf_16_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_16_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_16_encode_fns[] = {
   Opcode_wur_llr_buf_16_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_17_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_17_encode_fns[] = {
   Opcode_rur_llr_buf_17_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_17_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_17_encode_fns[] = {
   Opcode_wur_llr_buf_17_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_18_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_18_encode_fns[] = {
   Opcode_rur_llr_buf_18_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_18_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_18_encode_fns[] = {
   Opcode_wur_llr_buf_18_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_19_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_19_encode_fns[] = {
   Opcode_rur_llr_buf_19_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_19_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_19_encode_fns[] = {
   Opcode_wur_llr_buf_19_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_20_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_20_encode_fns[] = {
   Opcode_rur_llr_buf_20_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_20_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_20_encode_fns[] = {
   Opcode_wur_llr_buf_20_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_21_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_21_encode_fns[] = {
   Opcode_rur_llr_buf_21_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_21_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_21_encode_fns[] = {
   Opcode_wur_llr_buf_21_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_22_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_22_encode_fns[] = {
   Opcode_rur_llr_buf_22_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_22_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_22_encode_fns[] = {
   Opcode_wur_llr_buf_22_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_buf_23_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_buf_23_encode_fns[] = {
   Opcode_rur_llr_buf_23_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_buf_23_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_buf_23_encode_fns[] = {
   Opcode_wur_llr_buf_23_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_smod_buf_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_smod_buf_0_encode_fns[] = {
   Opcode_rur_smod_buf_0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_smod_buf_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_smod_buf_0_encode_fns[] = {
   Opcode_wur_smod_buf_0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_smod_buf_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_smod_buf_1_encode_fns[] = {
   Opcode_rur_smod_buf_1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_smod_buf_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_smod_buf_1_encode_fns[] = {
   Opcode_wur_smod_buf_1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_smod_buf_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_smod_buf_2_encode_fns[] = {
   Opcode_rur_smod_buf_2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_smod_buf_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_smod_buf_2_encode_fns[] = {
   Opcode_wur_smod_buf_2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_smod_buf_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_smod_buf_3_encode_fns[] = {
   Opcode_rur_smod_buf_3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_smod_buf_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_smod_buf_3_encode_fns[] = {
   Opcode_wur_smod_buf_3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_smod_buf_4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_smod_buf_4_encode_fns[] = {
   Opcode_rur_smod_buf_4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_smod_buf_4_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_smod_buf_4_encode_fns[] = {
   Opcode_wur_smod_buf_4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_smod_buf_5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_smod_buf_5_encode_fns[] = {
   Opcode_rur_smod_buf_5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_smod_buf_5_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_smod_buf_5_encode_fns[] = {
   Opcode_wur_smod_buf_5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_smod_buf_6_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_smod_buf_6_encode_fns[] = {
   Opcode_rur_smod_buf_6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_smod_buf_6_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_smod_buf_6_encode_fns[] = {
   Opcode_wur_smod_buf_6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_smod_buf_7_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_smod_buf_7_encode_fns[] = {
   Opcode_rur_smod_buf_7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_smod_buf_7_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_smod_buf_7_encode_fns[] = {
   Opcode_wur_smod_buf_7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_weight_reg_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_weight_reg_encode_fns[] = {
   Opcode_rur_weight_reg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_weight_reg_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_weight_reg_encode_fns[] = {
   Opcode_wur_weight_reg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_scale_reg_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_scale_reg_encode_fns[] = {
   Opcode_rur_scale_reg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_scale_reg_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_scale_reg_encode_fns[] = {
   Opcode_wur_scale_reg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_llr_pos_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_llr_pos_encode_fns[] = {
   Opcode_rur_llr_pos_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_llr_pos_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_llr_pos_encode_fns[] = {
   Opcode_wur_llr_pos_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_smod_pos_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_smod_pos_encode_fns[] = {
   Opcode_rur_smod_pos_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_smod_pos_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_smod_pos_encode_fns[] = {
   Opcode_wur_smod_pos_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_perm_reg_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_perm_reg_encode_fns[] = {
   Opcode_rur_perm_reg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_perm_reg_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_perm_reg_encode_fns[] = {
   Opcode_wur_perm_reg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_smod_offset_table_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_smod_offset_table_0_encode_fns[] = {
   Opcode_rur_smod_offset_table_0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_smod_offset_table_0_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_smod_offset_table_0_encode_fns[] = {
   Opcode_wur_smod_offset_table_0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_smod_offset_table_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_smod_offset_table_1_encode_fns[] = {
   Opcode_rur_smod_offset_table_1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_smod_offset_table_1_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_smod_offset_table_1_encode_fns[] = {
   Opcode_wur_smod_offset_table_1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_smod_offset_table_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_smod_offset_table_2_encode_fns[] = {
   Opcode_rur_smod_offset_table_2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_smod_offset_table_2_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_smod_offset_table_2_encode_fns[] = {
   Opcode_wur_smod_offset_table_2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_smod_offset_table_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_smod_offset_table_3_encode_fns[] = {
   Opcode_rur_smod_offset_table_3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_smod_offset_table_3_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_smod_offset_table_3_encode_fns[] = {
   Opcode_wur_smod_offset_table_3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_phasor_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_phasor_n_encode_fns[] = {
   Opcode_rur_phasor_n_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_phasor_n_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_phasor_n_encode_fns[] = {
   Opcode_wur_phasor_n_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_rur_phasor_offset_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_rur_phasor_offset_encode_fns[] = {
   Opcode_rur_phasor_offset_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static xtensa_opcode_encode_fn Opcode_wur_phasor_offset_encode_fns[] = {
+static const xtensa_opcode_encode_fn Opcode_wur_phasor_offset_encode_fns[] = {
   Opcode_wur_phasor_offset_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
 
 /* Opcode table.  */
 
-static xtensa_opcode_internal opcodes[] = {
+static const xtensa_opcode_internal opcodes[] = {
   { "excw", ICLASS_xt_iclass_excw,
     0,
     Opcode_excw_encode_fns, 0, 0 },
@@ -88251,7 +88251,7 @@ Slot_dual_Format_dual_slot0_7_set (xtensa_insnbuf insn,
   insn[0] = (insn[0] & ~0x3fffff80) | ((slotbuf[0] & 0x7fffff) << 7);
 }
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_inst_get_field_fns[] = {
   Field_t_Slot_inst_get,
   Field_bbi4_Slot_inst_get,
@@ -89988,7 +89988,7 @@ Slot_inst_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_inst_set_field_fns[] = {
   Field_t_Slot_inst_set,
   Field_bbi4_Slot_inst_set,
@@ -91725,7 +91725,7 @@ Slot_inst_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_inst16a_get_field_fns[] = {
   Field_t_Slot_inst16a_get,
   0,
@@ -93462,7 +93462,7 @@ Slot_inst16a_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_inst16a_set_field_fns[] = {
   Field_t_Slot_inst16a_set,
   0,
@@ -95199,7 +95199,7 @@ Slot_inst16a_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_inst16b_get_field_fns[] = {
   Field_t_Slot_inst16b_get,
   0,
@@ -96936,7 +96936,7 @@ Slot_inst16b_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_inst16b_set_field_fns[] = {
   Field_t_Slot_inst16b_set,
   0,
@@ -98673,7 +98673,7 @@ Slot_inst16b_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_gp_slot2_get_field_fns[] = {
   Field_t_Slot_gp_slot2_get,
   0,
@@ -100410,7 +100410,7 @@ Slot_gp_slot2_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_gp_slot2_set_field_fns[] = {
   Field_t_Slot_gp_slot2_set,
   0,
@@ -102147,7 +102147,7 @@ Slot_gp_slot2_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_gp_slot1_get_field_fns[] = {
   0,
   0,
@@ -103884,7 +103884,7 @@ Slot_gp_slot1_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_gp_slot1_set_field_fns[] = {
   0,
   0,
@@ -105621,7 +105621,7 @@ Slot_gp_slot1_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_gp_slot0_get_field_fns[] = {
   Field_t_Slot_gp_slot0_get,
   0,
@@ -107358,7 +107358,7 @@ Slot_gp_slot0_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_gp_slot0_set_field_fns[] = {
   Field_t_Slot_gp_slot0_set,
   0,
@@ -109095,7 +109095,7 @@ Slot_gp_slot0_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_dot_slot2_get_field_fns[] = {
   Field_t_Slot_dot_slot2_get,
   0,
@@ -110832,7 +110832,7 @@ Slot_dot_slot2_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_dot_slot2_set_field_fns[] = {
   Field_t_Slot_dot_slot2_set,
   0,
@@ -112569,7 +112569,7 @@ Slot_dot_slot2_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_dot_slot1_get_field_fns[] = {
   0,
   0,
@@ -114306,7 +114306,7 @@ Slot_dot_slot1_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_dot_slot1_set_field_fns[] = {
   0,
   0,
@@ -116043,7 +116043,7 @@ Slot_dot_slot1_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_dot_slot0_get_field_fns[] = {
   Field_t_Slot_dot_slot0_get,
   0,
@@ -117780,7 +117780,7 @@ Slot_dot_slot0_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_dot_slot0_set_field_fns[] = {
   Field_t_Slot_dot_slot0_set,
   0,
@@ -119517,7 +119517,7 @@ Slot_dot_slot0_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_pq_slot2_get_field_fns[] = {
   Field_t_Slot_pq_slot2_get,
   0,
@@ -121254,7 +121254,7 @@ Slot_pq_slot2_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_pq_slot2_set_field_fns[] = {
   Field_t_Slot_pq_slot2_set,
   0,
@@ -122991,7 +122991,7 @@ Slot_pq_slot2_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_pq_slot1_get_field_fns[] = {
   0,
   0,
@@ -124728,7 +124728,7 @@ Slot_pq_slot1_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_pq_slot1_set_field_fns[] = {
   0,
   0,
@@ -126465,7 +126465,7 @@ Slot_pq_slot1_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_pq_slot0_get_field_fns[] = {
   Field_t_Slot_pq_slot0_get,
   0,
@@ -128202,7 +128202,7 @@ Slot_pq_slot0_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_pq_slot0_set_field_fns[] = {
   Field_t_Slot_pq_slot0_set,
   0,
@@ -129939,7 +129939,7 @@ Slot_pq_slot0_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_acc2_slot2_get_field_fns[] = {
   0,
   0,
@@ -131676,7 +131676,7 @@ Slot_acc2_slot2_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_acc2_slot2_set_field_fns[] = {
   0,
   0,
@@ -133413,7 +133413,7 @@ Slot_acc2_slot2_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_acc2_slot1_get_field_fns[] = {
   Field_t_Slot_acc2_slot1_get,
   0,
@@ -135150,7 +135150,7 @@ Slot_acc2_slot1_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_acc2_slot1_set_field_fns[] = {
   Field_t_Slot_acc2_slot1_set,
   0,
@@ -136887,7 +136887,7 @@ Slot_acc2_slot1_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_acc2_slot0_get_field_fns[] = {
   Field_t_Slot_acc2_slot0_get,
   0,
@@ -138624,7 +138624,7 @@ Slot_acc2_slot0_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_acc2_slot0_set_field_fns[] = {
   Field_t_Slot_acc2_slot0_set,
   0,
@@ -140361,7 +140361,7 @@ Slot_acc2_slot0_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_smod_slot2_get_field_fns[] = {
   Field_t_Slot_smod_slot2_get,
   0,
@@ -142098,7 +142098,7 @@ Slot_smod_slot2_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_smod_slot2_set_field_fns[] = {
   Field_t_Slot_smod_slot2_set,
   0,
@@ -143835,7 +143835,7 @@ Slot_smod_slot2_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_smod_slot1_get_field_fns[] = {
   0,
   0,
@@ -145572,7 +145572,7 @@ Slot_smod_slot1_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_smod_slot1_set_field_fns[] = {
   0,
   0,
@@ -147309,7 +147309,7 @@ Slot_smod_slot1_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_smod_slot0_get_field_fns[] = {
   Field_t_Slot_smod_slot0_get,
   0,
@@ -149046,7 +149046,7 @@ Slot_smod_slot0_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_smod_slot0_set_field_fns[] = {
   Field_t_Slot_smod_slot0_set,
   0,
@@ -150783,7 +150783,7 @@ Slot_smod_slot0_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_llr_slot2_get_field_fns[] = {
   Field_t_Slot_llr_slot2_get,
   0,
@@ -152520,7 +152520,7 @@ Slot_llr_slot2_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_llr_slot2_set_field_fns[] = {
   Field_t_Slot_llr_slot2_set,
   0,
@@ -154257,7 +154257,7 @@ Slot_llr_slot2_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_llr_slot1_get_field_fns[] = {
   0,
   0,
@@ -155994,7 +155994,7 @@ Slot_llr_slot1_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_llr_slot1_set_field_fns[] = {
   0,
   0,
@@ -157731,7 +157731,7 @@ Slot_llr_slot1_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_llr_slot0_get_field_fns[] = {
   Field_t_Slot_llr_slot0_get,
   0,
@@ -159468,7 +159468,7 @@ Slot_llr_slot0_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_llr_slot0_set_field_fns[] = {
   Field_t_Slot_llr_slot0_set,
   0,
@@ -161205,7 +161205,7 @@ Slot_llr_slot0_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_dual_slot2_get_field_fns[] = {
   Field_t_Slot_dual_slot2_get,
   0,
@@ -162942,7 +162942,7 @@ Slot_dual_slot2_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_dual_slot2_set_field_fns[] = {
   Field_t_Slot_dual_slot2_set,
   0,
@@ -164679,7 +164679,7 @@ Slot_dual_slot2_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_dual_slot1_get_field_fns[] = {
   0,
   0,
@@ -166416,7 +166416,7 @@ Slot_dual_slot1_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_dual_slot1_set_field_fns[] = {
   0,
   0,
@@ -168153,7 +168153,7 @@ Slot_dual_slot1_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_dual_slot0_get_field_fns[] = {
   Field_t_Slot_dual_slot0_get,
   0,
@@ -169890,7 +169890,7 @@ Slot_dual_slot0_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_dual_slot0_set_field_fns[] = {
   Field_t_Slot_dual_slot0_set,
   0,
@@ -171627,7 +171627,7 @@ Slot_dual_slot0_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_slot_internal slots[] = {
+static const xtensa_slot_internal slots[] = {
   { "Inst", "x24", 0,
     Slot_x24_Format_inst_0_get, Slot_x24_Format_inst_0_set,
     Slot_inst_get_field_fns, Slot_inst_set_field_fns,
@@ -171799,27 +171799,27 @@ Format_DUAL_encode (xtensa_insnbuf insn)
   insn[1] = 0;
 }
 
-static int Format_x24_slots[] = { 0 };
+static const int Format_x24_slots[] = { 0 };
 
-static int Format_x16a_slots[] = { 1 };
+static const int Format_x16a_slots[] = { 1 };
 
-static int Format_x16b_slots[] = { 2 };
+static const int Format_x16b_slots[] = { 2 };
 
-static int Format_GP_slots[] = { 5, 4, 3 };
+static const int Format_GP_slots[] = { 5, 4, 3 };
 
-static int Format_DOT_slots[] = { 8, 7, 6 };
+static const int Format_DOT_slots[] = { 8, 7, 6 };
 
-static int Format_PQ_slots[] = { 11, 10, 9 };
+static const int Format_PQ_slots[] = { 11, 10, 9 };
 
-static int Format_ACC2_slots[] = { 14, 13, 12 };
+static const int Format_ACC2_slots[] = { 14, 13, 12 };
 
-static int Format_SMOD_slots[] = { 17, 16, 15 };
+static const int Format_SMOD_slots[] = { 17, 16, 15 };
 
-static int Format_LLR_slots[] = { 20, 19, 18 };
+static const int Format_LLR_slots[] = { 20, 19, 18 };
 
-static int Format_DUAL_slots[] = { 23, 22, 21 };
+static const int Format_DUAL_slots[] = { 23, 22, 21 };
 
-static xtensa_format_internal formats[] = {
+static const xtensa_format_internal formats[] = {
   { "x24", 3, Format_x24_encode, 1, Format_x24_slots },
   { "x16a", 2, Format_x16a_encode, 1, Format_x16a_slots },
   { "x16b", 2, Format_x16b_encode, 1, Format_x16b_slots },
