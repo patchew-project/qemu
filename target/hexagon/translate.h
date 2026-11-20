@@ -248,7 +248,11 @@ static inline void ctx_log_reg_write_pair(DisasContext *ctx, int rnum,
 
 static inline void ctx_log_reg_read(DisasContext *ctx, int rnum)
 {
-    if (test_bit(rnum, ctx->regs_written)) {
+    if (rnum == HEX_REG_P3_0_ALIASED) {
+        for (int i = 0; i < NUM_PREGS; i++) {
+            ctx_log_pred_read(ctx, i);
+        }
+    } else if (test_bit(rnum, ctx->regs_written)) {
         ctx->read_after_write = true;
     }
 }
