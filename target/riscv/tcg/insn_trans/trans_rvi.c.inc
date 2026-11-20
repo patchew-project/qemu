@@ -968,8 +968,40 @@ static bool trans_pause(DisasContext *ctx, arg_pause *a)
 
 static bool trans_fence(DisasContext *ctx, arg_fence *a)
 {
-    /* FENCE is a full memory barrier. */
-    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
+    /*
+     * FENCE.TSO orders all R/W pairs except W -> R.
+     * For TSO, the pred and succ should all be RW,
+     * otherwise it should be treated as normal FENCE.
+     */
+    if ((ctx->opcode & 0xf0000000) == 0x80000000 &&
+        a->pred == 3 && a->succ == 3) {
+        tcg_gen_mb(TCG_MO_LD_LD | TCG_MO_LD_ST | TCG_MO_ST_ST | TCG_BAR_SC);
+        return true;
+    }
+
+    /* Reserved case, choose the strongest ordering.  */
+    if (ctx->opcode & 0xf0000000) {
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
+        return true;
+    }
+
+    /* Normal FENCE. I/R for BIT 3/BIT 1, O/W for BIT 2/BIT 0 */
+    TCGBar ordering = 0;
+    if ((a->pred & 0xa) && (a->succ & 0xa)) {
+        ordering |= TCG_MO_LD_LD;
+    }
+    if ((a->pred & 0xa) && (a->succ & 0x5)) {
+        ordering |= TCG_MO_LD_ST;
+    }
+    if ((a->pred & 0x5) && (a->succ & 0xa)) {
+        ordering |= TCG_MO_ST_LD;
+    }
+    if ((a->pred & 0x5) && (a->succ & 0x5)) {
+        ordering |= TCG_MO_ST_ST;
+    }
+    if (ordering) {
+        tcg_gen_mb(ordering | TCG_BAR_SC);
+    }
     return true;
 }
 
