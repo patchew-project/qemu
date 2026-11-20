@@ -12,6 +12,7 @@
 #include "tcg_s390x.h"
 #include "accel/tcg/cpu-ldst-common.h"
 #include "accel/tcg/cpu-mmu-index.h"
+#include "accel/tcg/helper-retaddr.h"
 #include "crypto/aes.h"
 #include "crypto/aes-helpers.h"
 #include "target/s390x/tcg/cpacf-arch.h"
@@ -19,23 +20,40 @@
 #include "target/s390x/tcg/crypto_helper.h"
 
 /*
- * read exactly one AES block from guest memory into a local buffer
+ * probe one AES block at guest address, which is wrapped according to current
+ * addressing mode, since access_prepare() only wraps second page.
  */
-static inline void aes_read_block(CPUS390XState *env, const int mmu_idx,
-                                  const uintptr_t ra, uint64_t guest_addr,
-                                  uint8_t *buf)
+static inline void aes_prepare_block(CPUS390XState *env, const int mmu_idx,
+                                     const uintptr_t ra, S390Access *acc,
+                                     uint64_t addr, MMUAccessType type)
 {
-    read_guest_wrap_u8(env, mmu_idx, ra, guest_addr, buf, AES_BLOCK_SIZE);
+    uint64_t waddr;
+    waddr = wrap_address(env, addr);
+    access_prepare(acc, env, waddr, AES_BLOCK_SIZE, type, mmu_idx, ra);
 }
 
 /*
- * write exactly one AES block from local buffer to guest memory
+ * read exactly one AES block from a prepared access into a local buffer.
  */
-static void aes_write_block(CPUS390XState *env, const int mmu_idx,
-                            const uintptr_t ra, uint64_t guest_addr,
-                            uint8_t *buf)
+static inline void aes_read_block(CPUS390XState *env, const uintptr_t ra,
+                                  S390Access *acc, uint8_t *buf)
 {
-    write_guest_wrap_u8(env, mmu_idx, ra, guest_addr, buf, AES_BLOCK_SIZE);
+    /* gather block */
+    for (int i = 0; i < AES_BLOCK_SIZE; i++) {
+        buf[i] = access_get_byte(env, acc, i, ra);
+    }
+}
+
+/*
+ * write exactly one AES block from a local buffer to a prepared access.
+ */
+static inline void aes_write_block(CPUS390XState *env, const uintptr_t ra,
+                                   S390Access *acc, uint8_t *buf)
+{
+    /* scatter block */
+    for (int i = 0; i < AES_BLOCK_SIZE; i++) {
+        access_set_byte(env, acc, i, buf[i], ra);
+    }
 }
 
 /*
@@ -62,8 +80,9 @@ int cpacf_aes_ecb(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 {
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
-    uint64_t len = *src_len_reg, done = 0;
     int i, keysize, addr_reg_size;
+    uint64_t len = *src_len_reg;
+    S390Access srca, dsta;
     uint8_t key[32];
     AES_KEY exkey;
 
@@ -116,22 +135,36 @@ int cpacf_aes_ecb(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
-        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
+        /* probe source and destination access */
+        aes_prepare_block(env, mmu_idx, ra, &srca, *src_ptr_reg,
+                          MMU_DATA_LOAD);
+        aes_prepare_block(env, mmu_idx, ra, &dsta, *dst_ptr_reg,
+                          MMU_DATA_STORE);
+
+        /*
+         * linux-user: the accessors below use host pointers. Record ra so a
+         * fault from a racing unmap of the probed page is unwound correctly.
+         */
+        set_helper_retaddr(ra);
+
+        aes_read_block(env, ra, &srca, in);
         if (mod) {
             AES_decrypt(in, out, &exkey);
         } else {
             AES_encrypt(in, out, &exkey);
         }
-        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
-        len -= AES_BLOCK_SIZE;
-        done += AES_BLOCK_SIZE;
-    }
+        aes_write_block(env, ra, &dsta, out);
 
-    *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
-                             *src_ptr_reg + done);
-    *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
-                             *dst_ptr_reg + done);
-    *src_len_reg -= done;
+        clear_helper_retaddr();
+
+        /* update registers at end of each iteration */
+        *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
+                                 *src_ptr_reg + AES_BLOCK_SIZE);
+        *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
+                                 *dst_ptr_reg + AES_BLOCK_SIZE);
+        *src_len_reg -= AES_BLOCK_SIZE;
+        len -= AES_BLOCK_SIZE;
+    }
 
     return !len ? 0 : 3;
 }
@@ -143,9 +176,10 @@ int cpacf_aes_cbc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 {
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
-    uint64_t len = *src_len_reg, done = 0;
     uint8_t key[32], iv[AES_BLOCK_SIZE];
     int i, keysize, addr_reg_size;
+    uint64_t len = *src_len_reg;
+    S390Access srca, dsta, iva;
     AES_KEY exkey;
 
     g_assert(type == S390_FEAT_TYPE_KMC);
@@ -202,7 +236,21 @@ int cpacf_aes_cbc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
-        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
+        /* probe source, destination, and iv access */
+        aes_prepare_block(env, mmu_idx, ra, &srca, *src_ptr_reg,
+                          MMU_DATA_LOAD);
+        aes_prepare_block(env, mmu_idx, ra, &dsta, *dst_ptr_reg,
+                          MMU_DATA_STORE);
+        aes_prepare_block(env, mmu_idx, ra, &iva, param_addr,
+                          MMU_DATA_STORE);
+
+        /*
+         * linux-user: the accessors below use host pointers. Record ra so a
+         * fault from a racing unmap of the probed page is unwound correctly.
+         */
+        set_helper_retaddr(ra);
+
+        aes_read_block(env, ra, &srca, in);
         if (mod) {
             /* decrypt in => out */
             AES_cbc_decrypt(in, out, iv, &exkey);
@@ -210,19 +258,21 @@ int cpacf_aes_cbc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
             /* encrypt in => out */
             AES_cbc_encrypt(in, out, iv, &exkey);
         }
-        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
+        /* scatter block to destination */
+        aes_write_block(env, ra, &dsta, out);
+        /* write back running iv */
+        aes_write_block(env, ra, &iva, iv);
+
+        clear_helper_retaddr();
+
+        /* update registers at end of each iteration */
+        *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
+                                 *src_ptr_reg + AES_BLOCK_SIZE);
+        *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
+                                 *dst_ptr_reg + AES_BLOCK_SIZE);
+        *src_len_reg -= AES_BLOCK_SIZE;
         len -= AES_BLOCK_SIZE;
-        done += AES_BLOCK_SIZE;
     }
-
-    /* update iv in param block */
-    write_guest_wrap_u8(env, mmu_idx, ra, param_addr, iv, AES_BLOCK_SIZE);
-
-    *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
-                             *src_ptr_reg + done);
-    *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
-                             *dst_ptr_reg + done);
-    *src_len_reg -= done;
 
     return !len ? 0 : 3;
 }
@@ -235,9 +285,10 @@ int cpacf_aes_ctr(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 {
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
-    uint64_t len = *src_len_reg, done = 0;
     uint8_t ctr[AES_BLOCK_SIZE], key[32];
     int i, keysize, addr_reg_size;
+    uint64_t len = *src_len_reg;
+    S390Access srca, dsta, ctra;
     AES_KEY exkey;
 
     g_assert(type == S390_FEAT_TYPE_KMCTR);
@@ -286,25 +337,38 @@ int cpacf_aes_ctr(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
-        /* read in nonce/ctr => ctr */
-        aes_read_block(env, mmu_idx, ra, *ctr_ptr_reg + done, ctr);
-        /* read in one block of input data => in */
-        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
+        /* probe source, counter, and destination access */
+        aes_prepare_block(env, mmu_idx, ra, &srca, *src_ptr_reg,
+                          MMU_DATA_LOAD);
+        aes_prepare_block(env, mmu_idx, ra, &ctra, *ctr_ptr_reg,
+                          MMU_DATA_LOAD);
+        aes_prepare_block(env, mmu_idx, ra, &dsta, *dst_ptr_reg,
+                          MMU_DATA_STORE);
+
+        /*
+         * linux-user: the accessors below use host pointers. Record ra so a
+         * fault from a racing unmap of the probed page is unwound correctly.
+         */
+        set_helper_retaddr(ra);
+
+        aes_read_block(env, ra, &srca, in);
+        aes_read_block(env, ra, &ctra, ctr);
         /* encrypt ctr and xor with in => out */
         AES_ctr_encrypt(in, out, ctr, &exkey);
-        /* write out the processed block */
-        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
-        len -= AES_BLOCK_SIZE;
-        done += AES_BLOCK_SIZE;
-    }
+        aes_write_block(env, ra, &dsta, out);
 
-    *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
-                             *src_ptr_reg + done);
-    *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
-                             *dst_ptr_reg + done);
-    *ctr_ptr_reg = deposit64(*ctr_ptr_reg, 0, addr_reg_size,
-                             *ctr_ptr_reg + done);
-    *src_len_reg -= done;
+        clear_helper_retaddr();
+
+        /* update registers at end of each iteration */
+        *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
+                                 *src_ptr_reg + AES_BLOCK_SIZE);
+        *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
+                                 *dst_ptr_reg + AES_BLOCK_SIZE);
+        *ctr_ptr_reg = deposit64(*ctr_ptr_reg, 0, addr_reg_size,
+                                 *ctr_ptr_reg + AES_BLOCK_SIZE);
+        *src_len_reg -= AES_BLOCK_SIZE;
+        len -= AES_BLOCK_SIZE;
+    }
 
     return !len ? 0 : 3;
 }
@@ -369,9 +433,10 @@ int cpacf_aes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 {
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
-    uint64_t len = *src_len_reg, done = 0;
     uint8_t key[32], tweak[AES_BLOCK_SIZE];
+    S390Access srca, dsta, tweaka;
     int i, keysize, addr_reg_size;
+    uint64_t len = *src_len_reg;
     AES_KEY exkey;
 
     g_assert(type == S390_FEAT_TYPE_KM);
@@ -425,8 +490,21 @@ int cpacf_aes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
-        /* fetch one AES block into in  */
-        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
+        /* probe source, destination, and tweak access */
+        aes_prepare_block(env, mmu_idx, ra, &srca, *src_ptr_reg,
+                          MMU_DATA_LOAD);
+        aes_prepare_block(env, mmu_idx, ra, &dsta, *dst_ptr_reg,
+                          MMU_DATA_STORE);
+        aes_prepare_block(env, mmu_idx, ra, &tweaka, param_addr + keysize,
+                          MMU_DATA_STORE);
+
+        /*
+         * linux-user: the accessors below use host pointers. Record ra so a
+         * fault from a racing unmap of the probed page is unwound correctly.
+         */
+        set_helper_retaddr(ra);
+
+        aes_read_block(env, ra, &srca, in);
         if (mod) {
             /* decrypt in => out */
             AES_xts_decrypt(in, out, tweak, &exkey);
@@ -436,21 +514,21 @@ int cpacf_aes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
         }
         /* prep tweak for next round */
         AES_xts_prep_next_tweak(tweak);
-        /* write out this processed block from out */
-        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
+        /* scatter block to destination */
+        aes_write_block(env, ra, &dsta, out);
+        /* write back running tweak */
+        aes_write_block(env, ra, &tweaka, tweak);
+
+        clear_helper_retaddr();
+
+        /* update registers at end of each iteration */
+        *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
+                                 *src_ptr_reg + AES_BLOCK_SIZE);
+        *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
+                                 *dst_ptr_reg + AES_BLOCK_SIZE);
+        *src_len_reg -= AES_BLOCK_SIZE;
         len -= AES_BLOCK_SIZE;
-        done += AES_BLOCK_SIZE;
     }
-
-    /* update tweak in param block */
-    write_guest_wrap_u8(env, mmu_idx, ra,
-                        param_addr + keysize, tweak, AES_BLOCK_SIZE);
-
-    *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
-                             *src_ptr_reg + done);
-    *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
-                             *dst_ptr_reg + done);
-    *src_len_reg -= done;
 
     return !len ? 0 : 3;
 }
@@ -537,9 +615,10 @@ int cpacf_paes_ecb(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 {
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
-    uint64_t len = *src_len_reg, done = 0;
     int i, keysize, addr_reg_size;
+    uint64_t len = *src_len_reg;
     uint8_t key[32], wkvp[32];
+    S390Access srca, dsta;
     AES_KEY exkey;
 
     g_assert(type == S390_FEAT_TYPE_KM);
@@ -602,22 +681,36 @@ int cpacf_paes_ecb(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
-        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
+        /* probe source and destination access */
+        aes_prepare_block(env, mmu_idx, ra, &srca, *src_ptr_reg,
+                          MMU_DATA_LOAD);
+        aes_prepare_block(env, mmu_idx, ra, &dsta, *dst_ptr_reg,
+                          MMU_DATA_STORE);
+
+        /*
+         * linux-user: the accessors below use host pointers. Record ra so a
+         * fault from a racing unmap of the probed page is unwound correctly.
+         */
+        set_helper_retaddr(ra);
+
+        aes_read_block(env, ra, &srca, in);
         if (mod) {
             AES_decrypt(in, out, &exkey);
         } else {
             AES_encrypt(in, out, &exkey);
         }
-        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
-        len -= AES_BLOCK_SIZE;
-        done += AES_BLOCK_SIZE;
-    }
+        aes_write_block(env, ra, &dsta, out);
 
-    *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
-                             *src_ptr_reg + done);
-    *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
-                             *dst_ptr_reg + done);
-    *src_len_reg -= done;
+        clear_helper_retaddr();
+
+        /* update registers at end of each iteration */
+        *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
+                                 *src_ptr_reg + AES_BLOCK_SIZE);
+        *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
+                                 *dst_ptr_reg + AES_BLOCK_SIZE);
+        *src_len_reg -= AES_BLOCK_SIZE;
+        len -= AES_BLOCK_SIZE;
+    }
 
     return !len ? 0 : 3;
 }
@@ -630,8 +723,9 @@ int cpacf_paes_cbc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
     uint8_t key[32], wkvp[32], iv[AES_BLOCK_SIZE];
-    uint64_t len = *src_len_reg, done = 0;
     int i, keysize, addr_reg_size;
+    uint64_t len = *src_len_reg;
+    S390Access srca, dsta, iva;
     AES_KEY exkey;
 
     g_assert(type == S390_FEAT_TYPE_KMC);
@@ -699,7 +793,21 @@ int cpacf_paes_cbc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
-        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
+        /* probe source, destination, and iv access */
+        aes_prepare_block(env, mmu_idx, ra, &srca, *src_ptr_reg,
+                          MMU_DATA_LOAD);
+        aes_prepare_block(env, mmu_idx, ra, &dsta, *dst_ptr_reg,
+                          MMU_DATA_STORE);
+        aes_prepare_block(env, mmu_idx, ra, &iva, param_addr,
+                          MMU_DATA_STORE);
+
+        /*
+         * linux-user: the accessors below use host pointers. Record ra so a
+         * fault from a racing unmap of the probed page is unwound correctly.
+         */
+        set_helper_retaddr(ra);
+
+        aes_read_block(env, ra, &srca, in);
         if (mod) {
             /* decrypt in => out */
             AES_cbc_decrypt(in, out, iv, &exkey);
@@ -707,19 +815,21 @@ int cpacf_paes_cbc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
             /* encrypt in => out */
             AES_cbc_encrypt(in, out, iv, &exkey);
         }
-        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
+        /* scatter block to destination */
+        aes_write_block(env, ra, &dsta, out);
+        /* write back running iv */
+        aes_write_block(env, ra, &iva, iv);
+
+        clear_helper_retaddr();
+
+        /* update registers at end of each iteration */
+        *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
+                                 *src_ptr_reg + AES_BLOCK_SIZE);
+        *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
+                                 *dst_ptr_reg + AES_BLOCK_SIZE);
+        *src_len_reg -= AES_BLOCK_SIZE;
         len -= AES_BLOCK_SIZE;
-        done += AES_BLOCK_SIZE;
     }
-
-    /* update iv in param block */
-    write_guest_wrap_u8(env, mmu_idx, ra, param_addr, iv, AES_BLOCK_SIZE);
-
-    *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
-                             *src_ptr_reg + done);
-    *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
-                             *dst_ptr_reg + done);
-    *src_len_reg -= done;
 
     return !len ? 0 : 3;
 }
@@ -733,8 +843,9 @@ int cpacf_paes_ctr(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
     uint8_t ctr[AES_BLOCK_SIZE], key[32], wkvp[32];
-    uint64_t len = *src_len_reg, done = 0;
     int i, keysize, addr_reg_size;
+    uint64_t len = *src_len_reg;
+    S390Access srca, dsta, ctra;
     AES_KEY exkey;
 
     g_assert(type == S390_FEAT_TYPE_KMCTR);
@@ -793,25 +904,38 @@ int cpacf_paes_ctr(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
-        /* read in nonce/ctr => ctr */
-        aes_read_block(env, mmu_idx, ra, *ctr_ptr_reg + done, ctr);
-        /* read in one block of input data => in */
-        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
+        /* probe source, counter, and destination access */
+        aes_prepare_block(env, mmu_idx, ra, &srca, *src_ptr_reg,
+                          MMU_DATA_LOAD);
+        aes_prepare_block(env, mmu_idx, ra, &ctra, *ctr_ptr_reg,
+                          MMU_DATA_LOAD);
+        aes_prepare_block(env, mmu_idx, ra, &dsta, *dst_ptr_reg,
+                          MMU_DATA_STORE);
+
+        /*
+         * linux-user: the accessors below use host pointers. Record ra so a
+         * fault from a racing unmap of the probed page is unwound correctly.
+         */
+        set_helper_retaddr(ra);
+
+        aes_read_block(env, ra, &srca, in);
+        aes_read_block(env, ra, &ctra, ctr);
         /* encrypt ctr and xor with in => out */
         AES_ctr_encrypt(in, out, ctr, &exkey);
-        /* write out the processed block */
-        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
-        len -= AES_BLOCK_SIZE;
-        done += AES_BLOCK_SIZE;
-    }
+        aes_write_block(env, ra, &dsta, out);
 
-    *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
-                             *src_ptr_reg + done);
-    *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
-                             *dst_ptr_reg + done);
-    *ctr_ptr_reg = deposit64(*ctr_ptr_reg, 0, addr_reg_size,
-                             *ctr_ptr_reg + done);
-    *src_len_reg -= done;
+        clear_helper_retaddr();
+
+        /* update registers at end of each iteration */
+        *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
+                                 *src_ptr_reg + AES_BLOCK_SIZE);
+        *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
+                                 *dst_ptr_reg + AES_BLOCK_SIZE);
+        *ctr_ptr_reg = deposit64(*ctr_ptr_reg, 0, addr_reg_size,
+                                 *ctr_ptr_reg + AES_BLOCK_SIZE);
+        *src_len_reg -= AES_BLOCK_SIZE;
+        len -= AES_BLOCK_SIZE;
+    }
 
     return !len ? 0 : 3;
 }
@@ -888,8 +1012,9 @@ int cpacf_paes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
     uint8_t key[32], wkvp[32], tweak[AES_BLOCK_SIZE];
-    uint64_t len = *src_len_reg, done = 0;
+    S390Access srca, dsta, tweaka;
     int i, keysize, addr_reg_size;
+    uint64_t len = *src_len_reg;
     AES_KEY exkey;
 
     g_assert(type == S390_FEAT_TYPE_KM);
@@ -954,8 +1079,22 @@ int cpacf_paes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
-        /* fetch one AES block into in */
-        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
+        /* probe source, destination, and tweak access */
+        aes_prepare_block(env, mmu_idx, ra, &srca, *src_ptr_reg,
+                          MMU_DATA_LOAD);
+        aes_prepare_block(env, mmu_idx, ra, &dsta, *dst_ptr_reg,
+                          MMU_DATA_STORE);
+        aes_prepare_block(env, mmu_idx, ra, &tweaka,
+                          param_addr + keysize + sizeof(wkvp),
+                          MMU_DATA_STORE);
+
+        /*
+         * linux-user: the accessors below use host pointers. Record ra so a
+         * fault from a racing unmap of the probed page is unwound correctly.
+         */
+        set_helper_retaddr(ra);
+
+        aes_read_block(env, ra, &srca, in);
         if (mod) {
             /* decrypt in => out */
             AES_xts_decrypt(in, out, tweak, &exkey);
@@ -965,22 +1104,21 @@ int cpacf_paes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
         }
         /* prep tweak for next round */
         AES_xts_prep_next_tweak(tweak);
-        /* write out this processed block from out */
-        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
+        /* scatter block to destination */
+        aes_write_block(env, ra, &dsta, out);
+        /* write back running tweak */
+        aes_write_block(env, ra, &tweaka, tweak);
+
+        clear_helper_retaddr();
+
+        /* update registers at end of each iteration */
+        *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
+                                 *src_ptr_reg + AES_BLOCK_SIZE);
+        *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
+                                 *dst_ptr_reg + AES_BLOCK_SIZE);
+        *src_len_reg -= AES_BLOCK_SIZE;
         len -= AES_BLOCK_SIZE;
-        done += AES_BLOCK_SIZE;
     }
-
-    /* update tweak in param block */
-    write_guest_wrap_u8(env, mmu_idx, ra,
-                        param_addr + keysize + sizeof(wkvp),
-                        tweak, AES_BLOCK_SIZE);
-
-    *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
-                             *src_ptr_reg + done);
-    *dst_ptr_reg = deposit64(*dst_ptr_reg, 0, addr_reg_size,
-                             *dst_ptr_reg + done);
-    *src_len_reg -= done;
 
     return !len ? 0 : 3;
 }
