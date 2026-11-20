@@ -1674,8 +1674,9 @@ static int lsi_post_load(void *opaque, int version_id)
 
 const VMStateDescription vmstate_ncr710 = {
     .name = "ncr710",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    /* minimum_version_id rejects streams from the earlier 53C710 model. */
+    .version_id = 3,
+    .minimum_version_id = 2,
     .pre_save = lsi_pre_save,
     .post_load = lsi_post_load,
     .fields = (const VMStateField[]) {
@@ -1689,7 +1690,11 @@ const VMStateDescription vmstate_ncr710 = {
         VMSTATE_UINT32(select_tag, NCR710State),
         VMSTATE_INT32(command_complete, NCR710State),
         VMSTATE_BOOL(script_running, NCR710State),
-        VMSTATE_BOOL(sigp_pending_resume, NCR710State),
+        /*
+         * Version 3+.  A deferred SIGP kick can be live across a migration
+         * point.
+         */
+        VMSTATE_BOOL_V(sigp_pending_resume, NCR710State, 3),
 
         VMSTATE_UINT8(scntl0, NCR710State),
         VMSTATE_UINT8(scntl1, NCR710State),
