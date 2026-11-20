@@ -29,6 +29,9 @@ hardware available to the guest, including CPUs, interrupt controller,
 console, virtio devices, and accelerator capabilities. See :doc:`boot` for
 its boot protocol.
 
+``virt`` is an alias for the latest versioned machine type, currently
+``virt-11.2``.
+
 Board-specific CDSP and NSP machines
 ------------------------------------
 
