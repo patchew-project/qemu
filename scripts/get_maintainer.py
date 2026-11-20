@@ -425,6 +425,12 @@ def parse_args():
                         default=None,
                         help="Just validate MAINTAINERS file")
 
+    # List sections matching regex
+    parser.add_argument('--list-maintained-by', metavar='REGEX',
+                        help='List sections where maintainer matches REGEX')
+    parser.add_argument('--list-reviewed-by', metavar='REGEX',
+                        help='List sections where reviewer matches REGEX')
+
     # We need to know or be told where the root of the source tree is
     src = find_src_root()
 
@@ -470,6 +476,21 @@ def main():
         print(f"loaded {len(maint_sections)} from MAINTAINERS")
         sys.exit(0)
 
+    # Build array of Path objects representing the files
+    if args.list_maintained_by or args.list_reviewed_by:
+        if args.list_maintained_by:
+            pattern = re_compile(args.list_maintained_by, IGNORECASE)
+            for m in maint_sections:
+                if any(pattern.search(str(p)) for p in m.maintainers):
+                    print(m.section)
+        if args.list_reviewed_by:
+            pattern = re_compile(args.list_reviewed_by, IGNORECASE)
+            for m in maint_sections:
+                if any(pattern.search(str(p)) for p in m.reviewers):
+                    print(m.section)
+        sys.exit(0)
+
+    # Build array of Path objects representing the files
     files = []
 
     if args.file:
