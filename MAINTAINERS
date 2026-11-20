@@ -3141,7 +3141,7 @@ F: include/hw/timer/mips_gictimer.h
 S390 3270 device
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
-R: Collin Walling <walling@linux.ibm.com>
+R: Collin L. Walling <walling@linux.ibm.com>
 S: Odd Fixes
 F: include/hw/s390x/3270-ccw.h
 F: hw/char/terminal3270.c
@@ -3151,7 +3151,7 @@ L: qemu-s390x@nongnu.org
 S390 diag 288 watchdog
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
-R: Collin Walling <walling@linux.ibm.com>
+R: Collin L. Walling <walling@linux.ibm.com>
 S: Supported
 F: hw/watchdog/wdt_diag288.c
 F: include/hw/watchdog/wdt_diag288.h
