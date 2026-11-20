@@ -5,6 +5,7 @@ tests_hexagon_system_thorough = [
   'qcom_dsp_firmware',
   'systests',
   'hlx',
+  'linux',
   'minivm',
 ]
 
@@ -13,4 +14,5 @@ test_hexagon_timeouts = {
   'qcom_dsp_firmware': 240,
   'systests': 180,
   'hlx': 180,
+  'linux': 240,
 }
