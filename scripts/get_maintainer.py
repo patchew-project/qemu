@@ -546,7 +546,14 @@ def main():
         sys.exit(-1)
 
     if args.validate:
-        print(f"loaded {len(maint_sections)} from MAINTAINERS")
+        writer = csv_writer(sys.stdout)
+        writer.writerow(["Section", "Status",
+                         "Num Maintainers", "Num Reviewers", "Num Lists",
+                         "Num Matches", "Num Keywords", "Num Trees"])
+        for ms in maint_sections:
+            writer.writerow([ms.section, str(ms.status),
+                             len(ms.maintainers), len(ms.reviewers), len(ms.lists),
+                             len(ms.files), len(ms.keywords), len(ms.trees)])
         sys.exit(0)
 
     # Build array of Path objects representing the files
