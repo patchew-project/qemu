@@ -98,7 +98,6 @@ static const char * const csr_names[] = {
     CSR_NAME(TLBRELO1),
     CSR_NAME(TLBREHI),
     CSR_NAME(TLBRPRMD),
-    CSR_NAME(CTAG),
     CSR_NAME(DMW(0)),
     CSR_NAME(DMW(1)),
     CSR_NAME(DMW(2)),
