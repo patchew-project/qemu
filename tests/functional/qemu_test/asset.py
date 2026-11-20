@@ -244,6 +244,15 @@ class Asset:
             self.log.debug("Unable to set xattr on %s: %s", tmp_cache_file, e)
 
         if not self._check(tmp_cache_file):
+            # Open in binary mode in case the file is binary
+            # content that can't decode as valid utf-8
+            with open(tmp_cache_file, mode='rb') as fh:
+                f = fh.read(10*1024)
+                if "anubis".encode() in f:
+                    tmp_cache_file.unlink()
+                    raise AssetError(self,
+                                     f"Got Anubis challenge instead of content",
+                                     transient=True)
             tmp_cache_file.unlink()
             raise AssetError(self, f"Hash does not match {self.hash}")
         tmp_cache_file.replace(self.cache_file)
