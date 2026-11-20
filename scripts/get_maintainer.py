@@ -71,6 +71,39 @@ class Status(StrEnum):
         raise BadStatus(f"'{value}' is not a valid maintenance status.")
 
 
+#
+# Helpers for GitLab handles
+#
+
+
+def load_gitlab_handles(src):
+    """
+    Load GitLab handle to name mappings from .gitlab-map-auto and
+    .gitlab-map-manual. Returns a dictionary mapping name to handle.
+    """
+    name_to_handle = {}
+    for mapfile in ['.gitlab-map-auto', '.gitlab-map-manual']:
+        p = path.join(src, mapfile)
+        if path.exists(p):
+            with open(p, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if not line.startswith('#'):
+                        parts = line.rstrip('\r\n').split('\t', 1)
+                        if len(parts) == 2:
+                            name_to_handle[parts[1]] = parts[0]
+    return name_to_handle
+
+
+def map_gitlab_handle(name, gitlab_map):
+    """
+    Lookup GitLab handle for a real name, stripping quotes.
+    """
+    if not gitlab_map or not name:
+        return None
+    clean_name = name.replace('"', '')
+    return gitlab_map.get(clean_name)
+
+
 person_re = re_compile(r"^(?P<name>[^<]+?)\s*<(?P<email>[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})>$")
 
 
@@ -81,7 +114,7 @@ class BadPerson(Exception):
 class Person:
     "Class representing a maintainer or reviewer and their details"
 
-    def __init__(self, info):
+    def __init__(self, info, gitlab_map=None):
         match = person_re.search(info)
 
         if match is None:
@@ -89,9 +122,18 @@ class Person:
 
         self.name = match.group('name')
         self.email = match.group('email')
+        if gitlab_map is not None:
+            self.handle = map_gitlab_handle(self.name, gitlab_map)
+        else:
+            self.handle = None
 
     def __str__(self):
         return f"{self.name} <{self.email}>"
+
+    def format_role(self, role: str) -> str:
+        if self.handle:
+            return f"{role}, gitlab:@{self.handle}"
+        return role
 
 
 class MaintainerSection:
@@ -102,7 +144,7 @@ class MaintainerSection:
             pattern = f"{pattern}*"
         return re_compile(fn_translate(pattern))
 
-    def __init__(self, section, entries):
+    def __init__(self, section, entries, gitlab_map=None):
         self.section = section
         self.status = Status.UNKNOWN
         self.maintainers = []
@@ -118,10 +160,10 @@ class MaintainerSection:
             (tag, data) = e.split(": ", 2)
 
             if tag == "M":
-                person = Person(data)
+                person = Person(data, gitlab_map=gitlab_map)
                 self.maintainers.append(person)
             elif tag == "R":
-                person = Person(data)
+                person = Person(data, gitlab_map=gitlab_map)
                 self.reviewers.append(person)
             elif tag == "S":
                 self.status = Status(data)
@@ -147,10 +189,12 @@ class MaintainerSection:
         entries = []
 
         for m in self.maintainers:
-            entries.append(f"{m.name} <{m.email}> (maintainer: {self.section})")
+            role = m.format_role(f"maintainer: {self.section}")
+            entries.append(f"{m} ({role})")
 
         for r in self.reviewers:
-            entries.append(f"{r.name} <{r.email}> (reviewer: {self.section})")
+            role = r.format_role(f"reviewer: {self.section}")
+            entries.append(f"{r} ({role})")
 
         for l in self.lists:
             entries.append(f"{l} (open list: {self.section})")
@@ -183,11 +227,10 @@ class MaintainerSection:
         return False
 
 
-def read_maintainers(src):
+def read_maintainers(src, gitlab_map=None):
     """
     Read the MAINTAINERS file, return a list of MaintainerSection objects.
     """
-
     mfile = path.join(src, 'MAINTAINERS')
     entries = []
 
@@ -198,7 +241,7 @@ def read_maintainers(src):
         for line in f:
             if not line.strip():  # Blank line found, potential end of a section
                 if section and fields:
-                    new_section = MaintainerSection(section, fields)
+                    new_section = MaintainerSection(section, fields, gitlab_map)
                     entries.append(new_section)
                 # reset for next section
                 section = None
@@ -212,7 +255,7 @@ def read_maintainers(src):
                 section = line.strip()
 
         if section and fields:
-            new_section = MaintainerSection(section, fields)
+            new_section = MaintainerSection(section, fields, gitlab_map)
             entries.append(new_section)
 
     return entries
@@ -258,6 +301,7 @@ class GitOptions:
     min_sig: int
     max_maint: int
     min_percent: int
+    gitlab_map: dict = None
 
 
 def rank_signers(git_opts, all_signers, total_commits):
@@ -289,7 +333,7 @@ def rank_signers(git_opts, all_signers, total_commits):
 sig_line_re = re_compile(r"^\s*[\w-]+-by:\s*(?P<person_info>.*)", IGNORECASE)
 
 
-def extract_signers(commit_message):
+def extract_signers(commit_message, gitlab_map=None):
     """
     Return a list of Persons found in commit.
     """
@@ -298,7 +342,7 @@ def extract_signers(commit_message):
         match = sig_line_re.match(line)
         if match:
             try:
-                p = Person(match.group('person_info'))
+                p = Person(match.group('person_info'), gitlab_map=gitlab_map)
                 signers.append(p)
             except BadPerson:
                 continue
@@ -324,7 +368,8 @@ def extract_from_git(git_opts, src_file):
     all_signers = []
 
     for c in commits:
-        all_signers.extend(extract_signers(f"{c.message}"))
+        all_signers.extend(extract_signers(f"{c.message}",
+                                           git_opts.gitlab_map))
 
     ranked = rank_signers(git_opts, all_signers, len(commits))
     results = []
@@ -481,8 +526,9 @@ def main():
     args = parse_args()
 
     try:
-        # Now we start by reading the MAINTAINERS file
-        maint_sections = read_maintainers(args.src)
+        # We need the gitlab map before we read the MAINTAINERS file
+        gitlab_map = load_gitlab_handles(args.src)
+        maint_sections = read_maintainers(args.src, gitlab_map)
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(-1)
@@ -558,13 +604,14 @@ def main():
                               since=args.git_since,
                               min_sig=args.git_min_signatures,
                               max_maint=args.git_max_maintainers,
-                              min_percent=args.git_min_percent)
+                              min_percent=args.git_min_percent,
+                              gitlab_map=gitlab_map)
 
         for f in files:
             gmaint = extract_from_git(git_opts, f)
 
             for (person, role) in gmaint:
-                print(f"{person} ({role})")
+                print(f"{person} ({person.format_role(role)})")
 
 
 if __name__ == '__main__':
