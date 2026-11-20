@@ -1621,6 +1621,11 @@ static bool pkt_crosses_page(CPUHexagonState *env, DisasContext *ctx)
     int nwords;
 
     for (nwords = 0; !found_end && nwords < PACKET_WORDS_MAX; nwords++) {
+        /* Look ahead only on this page; a fault must not discard this TB. */
+        if (ctx->base.pc_next + nwords * sizeof(uint32_t) - page_start >=
+            TARGET_PAGE_SIZE) {
+            return true;
+        }
         uint32_t word = translator_ldl_end(env, &ctx->base,
                                            ctx->base.pc_next
                                            + nwords * sizeof(uint32_t),
