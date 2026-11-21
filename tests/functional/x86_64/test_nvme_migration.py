@@ -94,6 +94,8 @@ class X8664NVMeMigrationTest(MigrationTest):
                                           prompt, vm=vm)
         exec_command_and_wait_for_pattern(self, 'mount -t sysfs sysfs /sys',
                                           prompt, vm=vm)
+        exec_command_and_wait_for_pattern(self, 'mount -t tmpfs tmpfs /tmp',
+                                          prompt, vm=vm)
 
         # Run workload before migration to check if it continues
         # to run properly after migration.
