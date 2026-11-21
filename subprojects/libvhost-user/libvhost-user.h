@@ -290,7 +290,7 @@ typedef struct VuDevIface {
      * on unmanaged exit/crash.
      */
     vu_queue_is_processed_in_order_cb queue_is_processed_in_order;
-    /* get the config space of the device */
+    /* get the first len bytes of the config space of the device */
     vu_get_config_cb get_config;
     /* set the config space of the device */
     vu_set_config_cb set_config;

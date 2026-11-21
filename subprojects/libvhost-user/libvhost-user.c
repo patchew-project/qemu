@@ -1903,16 +1903,27 @@ vu_set_backend_req_fd(VuDev *dev, VhostUserMsg *vmsg)
 static bool
 vu_get_config(VuDev *dev, VhostUserMsg *vmsg)
 {
+    uint32_t offset = vmsg->payload.config.offset;
+    uint32_t size = vmsg->payload.config.size;
+    uint8_t *region = vmsg->payload.config.region;
     int ret = -1;
 
-    if (dev->iface->get_config) {
-        ret = dev->iface->get_config(dev, vmsg->payload.config.region,
-                                     vmsg->payload.config.size);
+    /*
+     * The get_config() callback takes no offset and fills in the config
+     * space from its start. So get everything up to the end of the
+     * requested range, and move the range to the start of the reply.
+     */
+    if (dev->iface->get_config &&
+        offset <= VHOST_USER_MAX_CONFIG_SIZE &&
+        size <= VHOST_USER_MAX_CONFIG_SIZE - offset) {
+        ret = dev->iface->get_config(dev, region, offset + size);
     }
 
     if (ret) {
         /* resize to zero to indicate an error to frontend */
         vmsg->size = 0;
+    } else if (offset > 0) {
+        memmove(region, region + offset, size);
     }
 
     return true;
