@@ -1326,6 +1326,9 @@ static const Property arm_cpu_reset_hivecs_property =
 static const Property arm_cpu_has_el2_property =
             DEFINE_PROP_BOOL("has_el2", ARMCPU, has_el2, true);
 
+static const Property arm_cpu_has_vhe_property =
+            DEFINE_PROP_BOOL("has_vhe", ARMCPU, has_vhe, true);
+
 static const Property arm_cpu_has_el3_property =
             DEFINE_PROP_BOOL("has_el3", ARMCPU, has_el3, true);
 
@@ -1622,6 +1625,7 @@ static void arm_cpu_post_init(Object *obj)
 
     if (arm_feature(&cpu->env, ARM_FEATURE_EL2)) {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_has_el2_property);
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_has_vhe_property);
     }
 #endif
 
@@ -1869,6 +1873,13 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
             error_propagate(errp, cpu->host_cpu_probe_err);
         }
         cpu->host_cpu_probe_err = NULL;
+        return;
+    }
+
+    if (cpu->has_el2 && !cpu->has_vhe && kvm_enabled() &&
+        !kvm_arm_el2_e2h0_supported()) {
+        error_setg(errp, "KVM does not support disabling VHE (E2H0 "
+                   "unavailable)");
         return;
     }
 
@@ -2244,6 +2255,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 
     if (!cpu->has_el2) {
         unset_feature(env, ARM_FEATURE_EL2);
+    }
+
+    if (cpu->has_el2 && !cpu->has_vhe && tcg_enabled()) {
+        FIELD_DP64_IDREG(isar, ID_AA64MMFR1, VH, 0);
     }
 
     if (!cpu->has_pmu) {

@@ -182,6 +182,13 @@ bool kvm_arm_mte_supported(void);
  * Returns true if KVM can enable EL2 and false otherwise.
  */
 bool kvm_arm_el2_supported(void);
+
+/**
+ * kvm_arm_el2_e2h0_supported:
+ *
+ * Returns true if KVM supports limiting EL2 to E2H=0, and false otherwise.
+ */
+bool kvm_arm_el2_e2h0_supported(void);
 #else
 
 static inline bool kvm_arm_aarch32_supported(void)
@@ -195,6 +202,11 @@ static inline bool kvm_arm_mte_supported(void)
 }
 
 static inline bool kvm_arm_el2_supported(void)
+{
+    return false;
+}
+
+static inline bool kvm_arm_el2_e2h0_supported(void)
 {
     return false;
 }

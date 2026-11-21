@@ -174,6 +174,7 @@ struct VirtMachineState {
     bool highmem_redists;
     bool tcg_its;
     bool virt;
+    bool vhe;
     bool ras;
     bool mte;
     bool dtb_randomness;

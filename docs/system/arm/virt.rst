@@ -116,6 +116,16 @@ virtualization
   Set ``on``/``off`` to enable/disable emulating a guest CPU which implements the
   Arm Virtualization Extensions. The default is ``off``.
 
+vhe
+  Set ``on``/``off`` to allow/disallow a guest hypervisor to use the Arm
+  Virtualization Host Extensions (``FEAT_VHE``) when ``virtualization`` is
+  ``on``. The default is ``on``, which places no restriction on the selected
+  CPU model (it does not add VHE to a CPU model which lacks it). ``off``
+  exposes EL2 in nVHE mode for a type-1 guest hypervisor: with TCG this hides
+  ``FEAT_VHE``, with KVM it requires host ``E2H0`` support, and it is not
+  supported with HVF. This option has no effect when ``virtualization`` is
+  ``off``.
+
 mte
   Set ``on``/``off`` to enable/disable emulating a guest CPU which implements the
   Arm Memory Tagging Extensions. The default is ``off``.

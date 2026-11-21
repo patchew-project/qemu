@@ -3025,6 +3025,12 @@ static void machvirt_init(MachineState *machine)
         exit(1);
     }
 
+    if (vms->virt && !vms->vhe && hvf_enabled()) {
+        error_report("mach-virt: %s does not support disabling VHE",
+                     current_accel_name());
+        exit(1);
+    }
+
     if (vms->mte && hvf_enabled()) {
         error_report("mach-virt: %s does not support providing "
                      "MTE to the guest CPU",
@@ -3067,6 +3073,10 @@ static void machvirt_init(MachineState *machine)
 
         if (!vms->virt && object_property_find(cpuobj, "has_el2")) {
             object_property_set_bool(cpuobj, "has_el2", false, NULL);
+        }
+
+        if (vms->virt && object_property_find(cpuobj, "has_vhe")) {
+            object_property_set_bool(cpuobj, "has_vhe", vms->vhe, NULL);
         }
 
         if (vmc->no_kvm_steal_time &&
@@ -3306,6 +3316,20 @@ static void virt_set_virt(Object *obj, bool value, Error **errp)
      * However, it needs to know if nested virt is enabled at init time.
      */
     hvf_nested_virt_enable(value);
+}
+
+static bool virt_get_vhe(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->vhe;
+}
+
+static void virt_set_vhe(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->vhe = value;
 }
 
 static bool virt_get_highmem(Object *obj, Error **errp)
@@ -4235,6 +4259,13 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
                                           "guest CPU which implements the ARM "
                                           "Virtualization Extensions");
 
+    object_class_property_add_bool(oc, "vhe", virt_get_vhe,
+                                   virt_set_vhe);
+    object_class_property_set_description(oc, "vhe",
+                                          "Set on/off to enable/disable the ARM "
+                                          "Virtualization Host Extensions (applicable "
+                                          "only when virtualization=on)");
+
     object_class_property_add_bool(oc, "highmem", virt_get_highmem,
                                    virt_set_highmem);
     object_class_property_set_description(oc, "highmem",
@@ -4374,6 +4405,12 @@ static void virt_instance_init(Object *obj)
 
     /* EL2 is also disabled by default, for similar reasons */
     vms->virt = false;
+
+    /*
+     * VHE is unrestricted by default when virtualization=on is set.
+     * With vhe=off, EL2 is limited to nVHE mode.
+     */
+    vms->vhe = true;
 
     /* High memory is enabled by default */
     vms->highmem = true;

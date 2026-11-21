@@ -40,7 +40,9 @@ class Aarch64VirtKVMTests(LinuxKernelTest):
                                f"console=ttyAMA0 kvm-arm.mode={kvm_mode}")
 
         self.vm.add_args("-cpu", "max")
-        self.vm.add_args("-machine", "virt,gic-version=3,virtualization=on",
+        vhe = "on" if kvm_mode == "vhe" else "off"
+        self.vm.add_args("-machine",
+                         f"virt,gic-version=3,virtualization=on,vhe={vhe}",
                          '-kernel', kernel_path,
                          '-append', kernel_command_line)
         self.vm.add_args("-smp", "2", "-m", "320")
@@ -48,8 +50,10 @@ class Aarch64VirtKVMTests(LinuxKernelTest):
         try:
             self.vm.launch()
         except VMLaunchFailure as excp:
-            if "does not support providing Virtualization" in excp.output:
-                self.skipTest("accelerator has no virtualization support")
+            if ("does not support providing Virtualization" in excp.output or
+                    "does not support disabling VHE" in excp.output):
+                self.skipTest("accelerator lacks the required virtualization "
+                              "support")
             else:
                 self.log.info("unhandled launch failure: %s", excp.output)
                 raise excp
