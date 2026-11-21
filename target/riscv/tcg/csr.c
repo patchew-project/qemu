@@ -4997,6 +4997,33 @@ static RISCVException rmw_hideleg64(CPURISCVState *env, int csrno,
 {
     uint64_t mask = wr_mask & vs_delegable_ints;
 
+    /*
+     * The spec mentions only "when H is implemented", but since we're
+     * reading a CSR that exists only with ext_smaia is enabled (mvien),
+     * we're also checking for smaia.
+     */
+    if (riscv_has_ext(env, RVH)
+        && riscv_cpu_cfg(env)->ext_smaia) {
+        /*
+         * The AIA spec states in section "Interrupt filtering and virtual
+         * interrupts for supervisor level":
+         *
+         * "When the H extension is implemented, if a bit is zero in the
+         * same position in both mideleg and mvien, then that bit is
+         * read-only zero in hideleg (...). But if a bit for one of
+         * interrupts 13-63 is a one in either mideleg or mvien, then the
+         * same bit in hideleg may be writable or may be read-only zero,
+         * depending on the implementation."
+         *
+         * We're making the simpler choice of making all bits read-only
+         * zero if the bit is zero on both mideleg and mvien, and writable
+         * otherwise.  We're not going to special case bits 63:13.
+         */
+        mask &= (env->mideleg | env->mvien);
+    } else {
+        mask &= env->mideleg;
+    }
+
     if (ret_val) {
         *ret_val = env->hideleg & vs_delegable_ints;
     }
