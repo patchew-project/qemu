@@ -1159,6 +1159,7 @@ vu_set_log_base_exec(VuDev *dev, VhostUserMsg *vmsg)
     int fd;
     uint64_t log_mmap_size, log_mmap_offset;
     void *rc;
+    int err;
 
     if (vmsg->fd_num != 1 ||
         vmsg->size != sizeof(vmsg->payload.log)) {
@@ -1174,9 +1175,11 @@ vu_set_log_base_exec(VuDev *dev, VhostUserMsg *vmsg)
 
     rc = mmap(0, log_mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
               log_mmap_offset);
+    err = errno;
     close(fd);
     if (rc == MAP_FAILED) {
-        perror("log mmap error");
+        vu_panic(dev, "log mmap error: %s", strerror(err));
+        return false;
     }
 
     if (dev->log_table) {
