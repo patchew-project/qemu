@@ -1700,12 +1700,14 @@
 #     Guest operating systems supporting CPU statistics
 #
 # @linux: Linux
+# @bsd: FreeBSD (Since 12.0)
 #
 # Since: 7.1
 ##
 { 'enum': 'GuestCpuStatsType',
-  'data': [ 'linux' ],
-  'if': 'CONFIG_LINUX' }
+  'data': [ 'linux', 'bsd' ],
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_FREEBSD'] }
+}
 
 ##
 # @GuestLinuxCpuStats:
@@ -1752,6 +1754,34 @@
   'if': 'CONFIG_LINUX' }
 
 ##
+# @GuestBsdCpuStats:
+#     CPU statistics of BSD
+#
+# @cpu: CPU index in guest OS
+#
+# @user: Time spent in user mode
+#
+# @nice: Time spent in user mode with low priority (nice)
+#
+# @system: Time spent in system mode
+#
+# @idle: Time spent in the idle task
+#
+# @irq: Time servicing interrupts
+#
+# Since: 12.0
+##
+{ 'struct': 'GuestBsdCpuStats',
+  'data': {'cpu': 'int',
+           'user': 'uint64',
+           'nice': 'uint64',
+           'system': 'uint64',
+           'idle': 'uint64',
+           'irq': 'uint64'
+           },
+  'if': 'CONFIG_FREEBSD' }
+
+##
 # @GuestCpuStats:
 #     Get statistics of each CPU in millisecond.
 #
@@ -1762,8 +1792,12 @@
 { 'union': 'GuestCpuStats',
   'base': { 'type': 'GuestCpuStatsType' },
   'discriminator': 'type',
-  'data': { 'linux': 'GuestLinuxCpuStats' },
-  'if': 'CONFIG_LINUX' }
+  'data': {
+      'linux': { 'type': 'GuestLinuxCpuStats', 'if': 'CONFIG_LINUX'},
+      'bsd': { 'type': 'GuestBsdCpuStats', 'if': 'CONFIG_FREEBSD' }
+  },
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_FREEBSD'] }
+}
 
 ##
 # @guest-get-cpustats:
@@ -1775,7 +1809,7 @@
 ##
 { 'command': 'guest-get-cpustats',
   'returns': ['GuestCpuStats'],
-  'if': 'CONFIG_LINUX'
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_FREEBSD'] }
 }
 
 ##

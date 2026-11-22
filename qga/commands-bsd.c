@@ -558,4 +558,66 @@ GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
     return head;
 }
 
+GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
+{
+    GuestCpuStatsList *head = NULL, **tail = &head;
+    int maxcpu;
+    int maxid;
+    g_autofree long *times = NULL;
+    size_t size;
+    int i, j, empty;
+    struct clockinfo clockrate;
+    int hz;
+
+    size = sizeof(clockrate);
+    if (sysctlbyname("kern.clockrate", &clockrate, &size, NULL, 0) == -1) {
+        error_setg_errno(errp, errno, "sysctlbyname(kern.clockrate)");
+        return NULL;
+    }
+    hz = clockrate.stathz ? clockrate.stathz : clockrate.hz;
+
+    size = sizeof(maxcpu);
+    if (sysctlbyname("kern.smp.maxcpus", &maxcpu, &size, NULL, 0) == -1) {
+        error_setg_errno(errp, errno, "sysctlbyname(kern.smp.maxcpus)");
+        return NULL;
+    }
+    times = g_new0(long, maxcpu * CPUSTATES);
+    size = sizeof(long) * maxcpu * CPUSTATES;
+    if (sysctlbyname("kern.cp_times", times, &size, NULL, 0) == -1) {
+        error_setg_errno(errp, errno, "sysctlbyname(kern.cp_times)");
+        return NULL;
+    }
+
+    maxid = MIN(size / CPUSTATES / sizeof(long) - 1, CPU_SETSIZE - 1);
+    for (i = 0; i <= maxid; i++) {
+        GuestCpuStats *cpustat = NULL;
+        GuestBsdCpuStats *bsdcpustat;
+
+        empty = 1;
+        for (j = 0; empty && j < CPUSTATES; j++) {
+            if (times[i * CPUSTATES + j] != 0) {
+                empty = 0;
+            }
+        }
+        if (empty) {
+            continue;
+        }
+
+        cpustat = g_new0(GuestCpuStats, 1);
+        cpustat->type = GUEST_CPU_STATS_TYPE_BSD;
+
+        bsdcpustat = &cpustat->u.bsd;
+        bsdcpustat->cpu = i;
+#define TO_MS(X) ((uint64_t)(unsigned long)(X) * 1000 / hz)
+        bsdcpustat->user = TO_MS(times[i * CPUSTATES + CP_USER]);
+        bsdcpustat->nice = TO_MS(times[i * CPUSTATES + CP_NICE]);
+        bsdcpustat->system = TO_MS(times[i * CPUSTATES + CP_SYS]);
+        bsdcpustat->idle = TO_MS(times[i * CPUSTATES + CP_IDLE]);
+        bsdcpustat->irq = TO_MS(times[i * CPUSTATES + CP_INTR]);
+#undef TO_MS
+
+        QAPI_LIST_APPEND(tail, cpustat);
+    }
+    return head;
+}
 #endif /* __FreeBSD__ */
