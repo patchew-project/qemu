@@ -23,6 +23,7 @@
 #include <net/if_dl.h>
 #include <sys/statvfs.h>
 #if defined(__FreeBSD__)
+#include <sys/cpuset.h>
 #include <sys/sysctl.h>
 #include <net/route.h>
 #include <net/if.h>
@@ -526,4 +527,35 @@ GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
 
     return head;
 }
+
+GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
+{
+    cpuset_t mask;
+    GuestLogicalProcessorList *head, **tail;
+    int bit;
+
+    head = NULL;
+    tail = &head;
+
+    if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_CPUSET, 0,
+                           sizeof(mask), &mask) != 0) {
+        error_setg_errno(errp, errno, "getaffinity");
+        return NULL;
+    }
+
+    for (bit = 0; bit < CPU_SETSIZE; bit++) {
+        if (CPU_ISSET(bit, &mask)) {
+            GuestLogicalProcessor *vcpu;
+            vcpu = g_new0(GuestLogicalProcessor, 1);
+            vcpu->logical_id = bit;
+            vcpu->online = true;
+            vcpu->has_can_offline = true;
+            vcpu->can_offline = false;
+            QAPI_LIST_APPEND(tail, vcpu);
+        }
+    }
+
+    return head;
+}
+
 #endif /* __FreeBSD__ */
