@@ -1095,6 +1095,30 @@ static void test_qga_guest_get_osinfo(gconstpointer data)
     fixture_tear_down(&fixture, NULL);
 }
 
+#if defined(CONFIG_WIN32) || defined(CONFIG_LIBUDEV) || defined(CONFIG_FREEBSD)
+static void test_qga_get_disks(gconstpointer fix)
+{
+    const TestFixture *fixture = fix;
+    g_autoptr(QDict) ret = NULL;
+    QList *list;
+    const QListEntry *entry;
+
+    ret = qmp_fd(fixture->fd, "{'execute': 'guest-get-disks'}");
+    g_assert_nonnull(ret);
+    qmp_assert_no_error(ret);
+
+    list = qdict_get_qlist(ret, "return");
+    QLIST_FOREACH_ENTRY(list, entry) {
+        QDict *qdict;
+
+        qdict = qobject_to(QDict, entry->value);
+        g_assert(qdict);
+        g_assert_cmpuint(strlen(qdict_get_str(qdict, "name")), >, 0);
+        g_assert_nonnull(qobject_to(QBool, qdict_get(qdict, "partition")));
+    }
+}
+#endif
+
 int main(int argc, char **argv)
 {
     TestFixture fix;
@@ -1158,6 +1182,9 @@ int main(int argc, char **argv)
                          test_qga_guest_get_timezone);
     g_test_add_data_func("/qga/guest-get-users", &fix,
                          test_qga_guest_get_users);
+#if defined(CONFIG_WIN32) || defined(CONFIG_LIBUDEV) || defined(CONFIG_FREEBSD)
+    g_test_add_data_func("/qga/get-disks", &fix, test_qga_get_disks);
+#endif
 
     ret = g_test_run();
 
