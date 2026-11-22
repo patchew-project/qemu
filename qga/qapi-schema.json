@@ -947,7 +947,7 @@
            'media-errors-hi': 'uint64',
            'number-of-error-log-entries-lo': 'uint64',
            'number-of-error-log-entries-hi': 'uint64' },
-  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LIBUDEV' ] } }
+  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LIBUDEV', 'CONFIG_FREEBSD' ] } }
 
 ##
 # @GuestDiskSmart:
@@ -961,12 +961,12 @@
   'base': { 'type': 'GuestDiskBusType' },
   'discriminator': 'type',
   'data': { 'nvme': 'GuestNVMeSmart' },
-  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LIBUDEV' ] } }
+  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LIBUDEV', 'CONFIG_FREEBSD' ] } }
 
 ##
 # @GuestDiskInfo:
 #
-# @name: device node (Linux) or device UNC (Windows)
+# @name: device node (Linux, FreeBSD) or device UNC (Windows)
 #
 # @partition: whether this is a partition or disk
 #
@@ -987,7 +987,7 @@
   'data': {'name': 'str', 'partition': 'bool', '*dependencies': ['str'],
            '*address': 'GuestDiskAddress', '*alias': 'str',
            '*smart': 'GuestDiskSmart'},
-  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LIBUDEV' ] } }
+  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LIBUDEV', 'CONFIG_FREEBSD' ] } }
 
 ##
 # @guest-get-disks:
@@ -995,13 +995,14 @@
 # Returns: The list of disks in the guest.  For Windows these are only
 #     the physical disks.  On Linux these are all root block devices
 #     of non-zero size including e.g. removable devices, loop devices,
-#     NBD, etc.
+#     NBD, etc.  On FreeBSD these are nonzero-size GEOM DISK and PART
+#     providers (since 12.0).
 #
 # Since: 5.2
 ##
 { 'command': 'guest-get-disks',
   'returns': ['GuestDiskInfo'],
-  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LIBUDEV' ] } }
+  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LIBUDEV', 'CONFIG_FREEBSD' ] } }
 
 ##
 # @GuestFilesystemInfo:

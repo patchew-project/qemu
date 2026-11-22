@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qga-qapi-commands.h"
 #include "qapi/error.h"
+#include "qemu/cutils.h"
 #include "qemu/queue.h"
 #include "block/block-common.h"
 #include "commands-common.h"
@@ -620,4 +621,80 @@ GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
     }
     return head;
 }
+
+GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
+{
+    GuestDiskInfoList *ret = NULL;
+    GuestDiskInfo *disk;
+    g_autofree char *buf = NULL;
+    g_auto(GStrv) lines = NULL;
+    g_autoptr(GHashTable) providers = NULL;
+    size_t len;
+    int i;
+
+    if (sysctlbyname("kern.geom.conftxt", NULL, &len, NULL, 0) == -1) {
+        error_setg_errno(errp, errno, "sysctlbyname(kern.geom.conftxt)");
+        return NULL;
+    }
+
+    buf = g_malloc0(len);
+
+    if (sysctlbyname("kern.geom.conftxt", buf, &len, NULL, 0) == -1) {
+        error_setg_errno(errp, errno, "sysctlbyname(kern.geom.conftxt)");
+        return NULL;
+    }
+
+    providers = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+    lines = g_strsplit(buf, "\n", -1);
+    for (i = 0; lines[i] != NULL; ++i) {
+        g_auto(GStrv) tokens = NULL;
+        bool is_part = false;
+        uint64_t mediasize;
+
+        if (strlen(lines[i]) == 0) {
+            continue;
+        }
+
+        tokens = g_strsplit(lines[i], " ", -1);
+
+        /*
+         * kern.geom.conftxt format:
+         *
+         * 0 DISK ada0 8001563222016 512 hd 16 sc 63
+         * 1 PART ada0p1 8001563181056 512 i 1 o 20480 ty freebsd-ufs xs GPT xt <uuid>
+         */
+        if (g_strv_length(tokens) < 5) {
+            continue;
+        }
+
+        if (g_str_equal(tokens[1], "DISK")) {
+            /* nada */
+        } else if (g_str_equal(tokens[1], "PART")) {
+            is_part = true;
+        } else {
+            continue;
+        }
+
+        if (qemu_strtou64(tokens[3], NULL, 10, &mediasize) < 0 ||
+            mediasize == 0) {
+            continue;
+        }
+
+        /* Filter out duplicate providers, for example for mirrors */
+        if (g_hash_table_contains(providers, tokens[2])) {
+            continue;
+        } else {
+            g_hash_table_add(providers, g_strdup(tokens[2]));
+        }
+
+        disk = g_new0(GuestDiskInfo, 1);
+        disk->name = g_strdup_printf("/dev/%s", tokens[2]);
+        disk->partition = is_part;
+
+        QAPI_LIST_PREPEND(ret, disk);
+    }
+
+    return ret;
+}
+
 #endif /* __FreeBSD__ */
