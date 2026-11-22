@@ -469,6 +469,9 @@ qemu_graphic_console_finalize(Object *obj)
     QemuGraphicConsole *c = QEMU_GRAPHIC_CONSOLE(obj);
 
     g_clear_pointer(&c->device, object_unref);
+
+    /* Release the reference taken by qemu_console_set_cursor() */
+    g_clear_pointer(&c->cursor, cursor_unref);
 }
 
 static void
