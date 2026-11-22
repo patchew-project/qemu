@@ -1119,6 +1119,38 @@ static void test_qga_get_disks(gconstpointer fix)
 }
 #endif
 
+static void test_qga_get_cpustats(gconstpointer fix)
+{
+    const TestFixture *fixture = fix;
+    g_autoptr(QDict) ret = NULL;
+    QList *list;
+    const QListEntry *entry;
+
+    ret = qmp_fd(fixture->fd, "{'execute': 'guest-get-cpustats'}");
+    g_assert_nonnull(ret);
+    qmp_assert_no_error(ret);
+
+    list = qdict_get_qlist(ret, "return");
+    g_assert(!qlist_empty(list));
+    QLIST_FOREACH_ENTRY(list, entry) {
+        QDict *qdict;
+
+        qdict = qobject_to(QDict, entry->value);
+        g_assert(qdict);
+#if defined(CONFIG_LINUX)
+        g_assert_cmpstr(qdict_get_str(qdict, "type"), ==, "linux");
+#else
+        g_assert_cmpstr(qdict_get_str(qdict, "type"), ==, "bsd");
+        g_assert(qdict_haskey(qdict, "irq"));
+#endif
+        g_assert(qdict_haskey(qdict, "cpu"));
+        g_assert(qdict_haskey(qdict, "user"));
+        g_assert(qdict_haskey(qdict, "nice"));
+        g_assert(qdict_haskey(qdict, "system"));
+        g_assert(qdict_haskey(qdict, "idle"));
+    }
+}
+
 int main(int argc, char **argv)
 {
     TestFixture fix;
@@ -1184,6 +1216,9 @@ int main(int argc, char **argv)
                          test_qga_guest_get_users);
 #if defined(CONFIG_WIN32) || defined(CONFIG_LIBUDEV) || defined(CONFIG_FREEBSD)
     g_test_add_data_func("/qga/get-disks", &fix, test_qga_get_disks);
+#endif
+#if defined(CONFIG_LINUX) || defined(CONFIG_FREEBSD)
+    g_test_add_data_func("/qga/get-cpustats", &fix, test_qga_get_cpustats);
 #endif
 
     ret = g_test_run();
