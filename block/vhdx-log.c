@@ -427,7 +427,6 @@ vhdx_log_flush_desc(BlockDriverState *bs, VHDXLogDescriptor *desc,
     uint32_t offset = 0;
     void *buffer = NULL;
     uint64_t count = 1;
-    int i;
 
     buffer = qemu_blockalign(bs, VHDX_LOG_SECTOR_SIZE);
 
@@ -473,7 +472,7 @@ vhdx_log_flush_desc(BlockDriverState *bs, VHDXLogDescriptor *desc,
     file_offset = desc->file_offset;
 
     /* count is only > 1 if we are writing zeroes */
-    for (i = 0; i < count; i++) {
+    for (uint64_t i = 0; i < count; i++) {
         ret = bdrv_pwrite_sync(bs->file, file_offset, VHDX_LOG_SECTOR_SIZE,
                                buffer, 0);
         if (ret < 0) {
