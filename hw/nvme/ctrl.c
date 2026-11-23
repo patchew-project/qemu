@@ -6458,18 +6458,26 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req)
     }
 
     if (nvme_feature_cap[fid] & NVME_FEAT_CAP_NS) {
-        if (!nvme_nsid_valid(n, nsid) || nsid == NVME_NSID_BROADCAST) {
+        if (nsid == NVME_NSID_BROADCAST) {
             /*
-             * The Reservation Notification Mask and Reservation Persistence
-             * features require a status code of Invalid Field in Command when
-             * NSID is FFFFFFFFh. Since the device does not support those
-             * features we can always return Invalid Namespace or Format as we
-             * should do for all other features.
+             * Base 2.4, section 4.4, if broadcast NSID:
+             * - If feature is RUH-scoped:
+             *   abort with Invalid field
+             * - If feature is NS-scoped:
+             *   Unless otherwise stated in 5.2.30, abort with
+             *   status Invalid Namespace or Format
              */
+            switch (fid) {
+            case NVME_FDP_EVENTS:
+                return NVME_INVALID_FIELD | NVME_DNR;
+            default:
+                return NVME_INVALID_NSID | NVME_DNR;
+            }
+        } else if (!nvme_nsid_valid(n, nsid)) {
             return NVME_INVALID_NSID | NVME_DNR;
         }
-
-        if (!nvme_ns(n, nsid)) {
+        ns = nvme_ns(n, nsid);
+        if (!ns) {
             return NVME_INVALID_FIELD | NVME_DNR;
         }
     }
@@ -6511,15 +6519,6 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req)
 
         return NVME_INVALID_FIELD | NVME_DNR;
     case NVME_ERROR_RECOVERY:
-        if (!nvme_nsid_valid(n, nsid)) {
-            return NVME_INVALID_NSID | NVME_DNR;
-        }
-
-        ns = nvme_ns(n, nsid);
-        if (unlikely(!ns)) {
-            return NVME_INVALID_FIELD | NVME_DNR;
-        }
-
         result = ns->features.err_rec;
         goto out;
     case NVME_VOLATILE_WRITE_CACHE:
@@ -6558,15 +6557,6 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req)
         }
         goto out;
     case NVME_FDP_EVENTS:
-        if (!nvme_nsid_valid(n, nsid)) {
-            return NVME_INVALID_NSID | NVME_DNR;
-        }
-
-        ns = nvme_ns(n, nsid);
-        if (unlikely(!ns)) {
-            return NVME_INVALID_FIELD | NVME_DNR;
-        }
-
         ret = nvme_get_feature_fdp_events(n, ns, req, &result);
         if (ret) {
             return ret;
