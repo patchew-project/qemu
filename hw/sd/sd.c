@@ -1481,6 +1481,17 @@ static inline bool sd_wp_addr(SDState *sd, uint64_t addr)
     return test_bit(sd_addr_to_wpnum(addr), sd->wp_group_bmap);
 }
 
+/* Return true if writing at @addr violates a write protection */
+static bool sd_wp_violation(SDState *sd, uint64_t addr)
+{
+    /* Permanent or temporary write protection of the whole card */
+    if (sd->csd[14] & 0x30) {
+        return true;
+    }
+    /* Only SDSC cards support write protect groups */
+    return sd->size <= SDSC_MAX_CAPACITY && sd_wp_addr(sd, addr);
+}
+
 static void sd_lock_command(SDState *sd)
 {
     int erase, lock, clr_pwd, set_pwd, pwd_len;
@@ -2691,6 +2702,10 @@ static size_t sd_write_data(SDState *sd, const void *buf, size_t length)
     switch (sd->current_cmd) {
     case 24:  /* CMD24:  WRITE_SINGLE_BLOCK */
         if (sd_generic_write_data(sd, buf, &length)) {
+            if (sd_wp_violation(sd, sd->data_start)) {
+                sd->card_status |= WP_VIOLATION;
+                break;
+            }
             /* TODO: Check CRC before committing */
             sd->state = sd_programming_state;
             sd_blk_write(sd, sd->data_start, sd->data_offset);
@@ -2714,11 +2729,9 @@ static size_t sd_write_data(SDState *sd, const void *buf, size_t length)
                                   sd->data_start, blk_len)) {
                 break;
             }
-            if (sd->size <= SDSC_MAX_CAPACITY) {
-                if (sd_wp_addr(sd, sd->data_start)) {
-                    sd->card_status |= WP_VIOLATION;
-                    break;
-                }
+            if (sd_wp_violation(sd, sd->data_start)) {
+                sd->card_status |= WP_VIOLATION;
+                break;
             }
         }
         sd->data[sd->data_offset++] = value[0];
