@@ -32,6 +32,8 @@
  * Interfaces for IBM EEH (Enhanced Error Handling)
  */
 #ifdef CONFIG_VFIO_PCI
+#include "hw/vfio/pci.h"
+
 static bool vfio_eeh_container_ok(VFIOLegacyContainer *container)
 {
     /*
@@ -233,47 +235,72 @@ int spapr_phb_vfio_eeh_get_state(SpaprPhbState *sphb, int *state)
     return RTAS_OUT_SUCCESS;
 }
 
-static void spapr_phb_vfio_eeh_clear_dev_msix(PCIBus *bus,
-                                              PCIDevice *pdev,
-                                              void *opaque)
+static void spapr_phb_vfio_eeh_prepare_dev(PCIBus *bus,
+                                           PCIDevice *pdev,
+                                           void *opaque)
 {
-    /* Check if the device is VFIO PCI device */
+    VFIOPCIDevice *vdev;
+    uint16_t flags;
+
     if (!object_dynamic_cast(OBJECT(pdev), "vfio-pci")) {
         return;
     }
 
-    /*
-     * The MSIx table will be cleaned out by reset. We need
-     * disable it so that it can be reenabled properly. Also,
-     * the cached MSIx table should be cleared as it's not
-     * reflecting the contents in hardware.
-     */
-    if (msix_enabled(pdev)) {
-        uint16_t flags;
+    vdev = VFIO_PCI_DEVICE(pdev);
 
-        flags = pci_host_config_read_common(pdev,
-                                            pdev->msix_cap + PCI_MSIX_FLAGS,
-                                            pci_config_size(pdev), 2);
-        flags &= ~PCI_MSIX_FLAGS_ENABLE;
-        pci_host_config_write_common(pdev,
-                                     pdev->msix_cap + PCI_MSIX_FLAGS,
-                                     pci_config_size(pdev), flags, 2);
+    /*
+     * Direct BAR mmap access may not be reliable after an EEH PE reset.
+     * Block mmap before changing MSI-X state so any resulting interrupt
+     * mode transition cannot re-enable it, and keep BAR accesses on the
+     * VFIO pread()/pwrite() path after the reset.  This avoids restoring
+     * the direct mmap path at an unproven point in EEH recovery.
+     */
+    vfio_pci_mmap_block(vdev);
+
+    if (!msix_enabled(pdev)) {
+        return;
     }
 
-    msix_reset(pdev);
+    /*
+     * Disable MSI-X by clearing the Enable bit in the MSI-X Message
+     * Control register.  We use the cached config value to avoid a
+     * config-space read while the PE may still be frozen.
+     *
+     * Writing through pci_host_config_write_common() causes VFIO to:
+     *   - release the active MSI-X vector eventfds,
+     *   - remove the KVM irqchip routes,
+     *   - disable the VFIO MSIX_IRQ_INDEX,
+     * so that the subsequent MSI-X Enable write from the guest driver
+     * is seen as a clean disabled-to-enabled transition and all
+     * vectors are re-armed through vfio_msix_vector_do_use().
+     *
+     * Do NOT call msix_reset() here.  On pSeries, QEMU's MSI-X table
+     * is a software shadow populated by the ibm,change-msi RTAS call.
+     * The EEH recovery sequence does not necessarily re-issue
+     * ibm,change-msi, so the shadow contains the only copy of the
+     * message addresses and data that Linux EEH will restore.
+     * msix_reset() would zero those shadow entries, leaving
+     * vfio_msix_enable() with no vectors to pass to
+     * vfio_msix_vector_do_use() and the device would never recover
+     * interrupts.
+     */
+    flags = pci_get_word(pdev->config + pdev->msix_cap + PCI_MSIX_FLAGS);
+    flags &= ~PCI_MSIX_FLAGS_ENABLE;
+    pci_host_config_write_common(pdev,
+                                 pdev->msix_cap + PCI_MSIX_FLAGS,
+                                 pci_config_size(pdev), flags, 2);
 }
 
-static void spapr_phb_vfio_eeh_clear_bus_msix(PCIBus *bus, void *opaque)
+static void spapr_phb_vfio_eeh_prepare_bus(PCIBus *bus, void *opaque)
 {
-       pci_for_each_device_under_bus(bus, spapr_phb_vfio_eeh_clear_dev_msix,
-                                     NULL);
+    pci_for_each_device_under_bus(bus, spapr_phb_vfio_eeh_prepare_dev, NULL);
 }
 
 static void spapr_phb_vfio_eeh_pre_reset(SpaprPhbState *sphb)
 {
-       PCIHostState *phb = PCI_HOST_BRIDGE(sphb);
+    PCIHostState *phb = PCI_HOST_BRIDGE(sphb);
 
-       pci_for_each_bus(phb->bus, spapr_phb_vfio_eeh_clear_bus_msix, NULL);
+    pci_for_each_bus(phb->bus, spapr_phb_vfio_eeh_prepare_bus, NULL);
 }
 
 int spapr_phb_vfio_eeh_reset(SpaprPhbState *sphb, int option)
