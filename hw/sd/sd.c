@@ -1100,16 +1100,60 @@ static int sd_vmstate_pre_load(void *opaque)
     return 0;
 }
 
-static int sd_vmstate_post_load(void *opaque, int version_id)
+static bool sd_vmstate_post_load(void *opaque, int version_id, Error **errp)
 {
     SDState *sd = opaque;
 
-    /* Check for blk_len that overflows data[] */
+    /* Values used to access the data and password buffers */
+    if (sd->data_offset > sizeof(sd->data)) {
+        error_setg(errp, "sd-card: invalid data_offset %u", sd->data_offset);
+        return false;
+    }
+    if (sd->data_size > sizeof(sd->data)) {
+        error_setg(errp, "sd-card: invalid data_size %u", sd->data_size);
+        return false;
+    }
     if (sd->blk_len > sizeof(sd->data)) {
-        return -EINVAL;
+        error_setg(errp, "sd-card: invalid blk_len %u", sd->blk_len);
+        return false;
+    }
+    if (sd->pwd_len > sizeof(sd->pwd)) {
+        error_setg(errp, "sd-card: invalid pwd_len %u", sd->pwd_len);
+        return false;
+    }
+    /* In a data state, data_offset must be below the active transfer size */
+    if (sd->state == sd_sendingdata_state
+        || sd->state == sd_receivingdata_state) {
+        uint32_t limit = sd->data_size;
+
+        if (sd->current_cmd == 18 || sd->current_cmd == 25) {
+            /* CMD18/CMD25 are bounded by the effective block length */
+            limit = sd_blk_len(sd);
+        }
+
+        if (sd->data_offset >= limit) {
+            error_setg(errp, "sd-card: invalid data_offset %u (limit %u)",
+                       sd->data_offset, limit);
+            return false;
+        }
     }
 
-    return 0;
+    switch (sd->state) {
+    case sd_inactive_state:
+    case sd_idle_state ... sd_disconnect_state:
+        return true;
+    case sd_waitirq_state:
+    case sd_bus_test_state:
+    case sd_sleep_state:
+        if (sd_is_emmc(sd)) {
+            return true;
+        }
+        break;
+    default:
+        break;
+    }
+    error_setg(errp, "sd-card: invalid state %d", sd->state);
+    return false;
 }
 
 static const VMStateDescription sd_vmstate = {
@@ -1117,7 +1161,7 @@ static const VMStateDescription sd_vmstate = {
     .version_id = 2,
     .minimum_version_id = 2,
     .pre_load = sd_vmstate_pre_load,
-    .post_load = sd_vmstate_post_load,
+    .post_load_errp = sd_vmstate_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UNUSED(4),
         VMSTATE_INT32(state, SDState),
