@@ -4837,6 +4837,10 @@ static int nvme_init_cq_ioeventfd(NvmeCQueue *cq)
     uint16_t offset = (cq->cqid << 3) + (1 << 2);
     int ret;
 
+    if (cq->notifier.initialized) {
+        return 0;
+    }
+
     ret = event_notifier_init(&cq->notifier, 0);
     if (ret < 0) {
         return ret;
@@ -4865,6 +4869,10 @@ static int nvme_init_sq_ioeventfd(NvmeSQueue *sq)
     NvmeCtrl *n = sq->ctrl;
     uint16_t offset = sq->sqid << 3;
     int ret;
+
+    if (sq->notifier.initialized) {
+        return 0;
+    }
 
     ret = event_notifier_init(&sq->notifier, 0);
     if (ret < 0) {
