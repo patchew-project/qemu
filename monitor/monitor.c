@@ -360,13 +360,14 @@ monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
         MonitorQAPIEventState key = { .event = event, .data = data };
 
         evstate = g_hash_table_lookup(monitor_qapi_event_state, &key);
-        assert(!evstate || timer_pending(evstate->timer));
 
         if (evstate) {
             /*
              * Timer is pending for (at least) evconf->rate ns after
-             * last send.  Store event for sending when timer fires,
-             * replacing a prior stored event if any.
+             * last send, or it has expired and its handler has not
+             * taken monitor_lock yet. Either way the handler will
+             * send what is stored here. Store event for sending
+             * then, replacing a prior stored event if any.
              */
             qobject_unref(evstate->qdict);
             evstate->qdict = qobject_ref(qdict);
