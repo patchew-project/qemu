@@ -280,7 +280,7 @@ xtensa_isa xtensa_isa_init(void *xtensa_modules, xtensa_isa_status *errno_p,
         }
     }
     for (n = 0; n < isa->num_sysregs; n++) {
-        xtensa_sysreg_internal *sreg = &isa->sysregs[n];
+        const xtensa_sysreg_internal *sreg = &isa->sysregs[n];
         is_user = sreg->is_user;
 
         if (sreg->number >= 0) {
@@ -391,7 +391,7 @@ int xtensa_isa_length_from_chars(xtensa_isa isa, const unsigned char *cp)
 int xtensa_isa_num_pipe_stages(xtensa_isa isa)
 {
     xtensa_opcode opcode;
-    xtensa_funcUnit_use *use;
+    const xtensa_funcUnit_use *use;
     int num_opcodes, num_uses;
     int i, stage, max_stage;
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
@@ -801,8 +801,8 @@ int xtensa_opcode_num_funcUnit_uses(xtensa_isa isa, xtensa_opcode opc)
 }
 
 
-xtensa_funcUnit_use *xtensa_opcode_funcUnit_use(xtensa_isa isa,
-                                                xtensa_opcode opc, int u)
+const xtensa_funcUnit_use *xtensa_opcode_funcUnit_use(xtensa_isa isa,
+                                                      xtensa_opcode opc, int u)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
 
@@ -833,10 +833,10 @@ xtensa_funcUnit_use *xtensa_opcode_funcUnit_use(xtensa_isa isa,
     } while (0)
 
 
-static xtensa_operand_internal *get_operand(xtensa_isa_internal *intisa,
-                                            xtensa_opcode opc, int opnd)
+static const xtensa_operand_internal *get_operand(xtensa_isa_internal *intisa,
+                                                  xtensa_opcode opc, int opnd)
 {
-    xtensa_iclass_internal *iclass;
+    const xtensa_iclass_internal *iclass;
     int iclass_id, operand_id;
 
     CHECK_OPCODE(intisa, opc, NULL);
@@ -851,7 +851,7 @@ static xtensa_operand_internal *get_operand(xtensa_isa_internal *intisa,
 const char *xtensa_operand_name(xtensa_isa isa, xtensa_opcode opc, int opnd)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_operand_internal *intop;
+    const xtensa_operand_internal *intop;
 
     intop = get_operand(intisa, opc, opnd);
     if (!intop) {
@@ -864,9 +864,9 @@ const char *xtensa_operand_name(xtensa_isa isa, xtensa_opcode opc, int opnd)
 int xtensa_operand_is_visible(xtensa_isa isa, xtensa_opcode opc, int opnd)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_iclass_internal *iclass;
+    const xtensa_iclass_internal *iclass;
     int iclass_id, operand_id;
-    xtensa_operand_internal *intop;
+    const xtensa_operand_internal *intop;
 
     CHECK_OPCODE(intisa, opc, XTENSA_UNDEFINED);
     iclass_id = intisa->opcodes[opc].iclass_id;
@@ -891,7 +891,7 @@ int xtensa_operand_is_visible(xtensa_isa isa, xtensa_opcode opc, int opnd)
 char xtensa_operand_inout(xtensa_isa isa, xtensa_opcode opc, int opnd)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_iclass_internal *iclass;
+    const xtensa_iclass_internal *iclass;
     int iclass_id;
     char inout;
 
@@ -917,7 +917,7 @@ int xtensa_operand_get_field(xtensa_isa isa, xtensa_opcode opc, int opnd,
                              const xtensa_insnbuf slotbuf, uint32_t *valp)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_operand_internal *intop;
+    const xtensa_operand_internal *intop;
     int slot_id;
     xtensa_get_field_fn get_fn;
 
@@ -953,7 +953,7 @@ int xtensa_operand_set_field(xtensa_isa isa, xtensa_opcode opc, int opnd,
                              xtensa_insnbuf slotbuf, uint32_t val)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_operand_internal *intop;
+    const xtensa_operand_internal *intop;
     int slot_id;
     xtensa_set_field_fn set_fn;
 
@@ -988,7 +988,7 @@ int xtensa_operand_encode(xtensa_isa isa, xtensa_opcode opc, int opnd,
                           uint32_t *valp)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_operand_internal *intop;
+    const xtensa_operand_internal *intop;
     uint32_t test_val, orig_val;
 
     intop = get_operand(intisa, opc, opnd);
@@ -1062,7 +1062,7 @@ int xtensa_operand_decode(xtensa_isa isa, xtensa_opcode opc, int opnd,
                           uint32_t *valp)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_operand_internal *intop;
+    const xtensa_operand_internal *intop;
 
     intop = get_operand(intisa, opc, opnd);
     if (!intop) {
@@ -1086,7 +1086,7 @@ int xtensa_operand_decode(xtensa_isa isa, xtensa_opcode opc, int opnd,
 int xtensa_operand_is_register(xtensa_isa isa, xtensa_opcode opc, int opnd)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_operand_internal *intop;
+    const xtensa_operand_internal *intop;
 
     intop = get_operand(intisa, opc, opnd);
     if (!intop) {
@@ -1104,7 +1104,7 @@ xtensa_regfile xtensa_operand_regfile(xtensa_isa isa, xtensa_opcode opc,
                                       int opnd)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_operand_internal *intop;
+    const xtensa_operand_internal *intop;
 
     intop = get_operand(intisa, opc, opnd);
     if (!intop) {
@@ -1118,7 +1118,7 @@ xtensa_regfile xtensa_operand_regfile(xtensa_isa isa, xtensa_opcode opc,
 int xtensa_operand_num_regs(xtensa_isa isa, xtensa_opcode opc, int opnd)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_operand_internal *intop;
+    const xtensa_operand_internal *intop;
 
     intop = get_operand(intisa, opc, opnd);
     if (!intop) {
@@ -1132,7 +1132,7 @@ int xtensa_operand_num_regs(xtensa_isa isa, xtensa_opcode opc, int opnd)
 int xtensa_operand_is_known_reg(xtensa_isa isa, xtensa_opcode opc, int opnd)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_operand_internal *intop;
+    const xtensa_operand_internal *intop;
 
     intop = get_operand(intisa, opc, opnd);
     if (!intop) {
@@ -1149,7 +1149,7 @@ int xtensa_operand_is_known_reg(xtensa_isa isa, xtensa_opcode opc, int opnd)
 int xtensa_operand_is_PCrelative(xtensa_isa isa, xtensa_opcode opc, int opnd)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_operand_internal *intop;
+    const xtensa_operand_internal *intop;
 
     intop = get_operand(intisa, opc, opnd);
     if (!intop) {
@@ -1167,7 +1167,7 @@ int xtensa_operand_do_reloc(xtensa_isa isa, xtensa_opcode opc, int opnd,
                             uint32_t *valp, uint32_t pc)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_operand_internal *intop;
+    const xtensa_operand_internal *intop;
 
     intop = get_operand(intisa, opc, opnd);
     if (!intop) {
@@ -1199,7 +1199,7 @@ int xtensa_operand_undo_reloc(xtensa_isa isa, xtensa_opcode opc, int opnd,
                               uint32_t *valp, uint32_t pc)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_operand_internal *intop;
+    const xtensa_operand_internal *intop;
 
     intop = get_operand(intisa, opc, opnd);
     if (!intop) {
@@ -1247,7 +1247,7 @@ xtensa_state xtensa_stateOperand_state(xtensa_isa isa, xtensa_opcode opc,
                                        int stOp)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_iclass_internal *iclass;
+    const xtensa_iclass_internal *iclass;
     int iclass_id;
 
     CHECK_OPCODE(intisa, opc, XTENSA_UNDEFINED);
@@ -1261,7 +1261,7 @@ xtensa_state xtensa_stateOperand_state(xtensa_isa isa, xtensa_opcode opc,
 char xtensa_stateOperand_inout(xtensa_isa isa, xtensa_opcode opc, int stOp)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_iclass_internal *iclass;
+    const xtensa_iclass_internal *iclass;
     int iclass_id;
 
     CHECK_OPCODE(intisa, opc, 0);
@@ -1294,7 +1294,7 @@ xtensa_interface xtensa_interfaceOperand_interface(xtensa_isa isa,
                                                    int ifOp)
 {
     xtensa_isa_internal *intisa = (xtensa_isa_internal *)isa;
-    xtensa_iclass_internal *iclass;
+    const xtensa_iclass_internal *iclass;
     int iclass_id;
 
     CHECK_OPCODE(intisa, opc, XTENSA_UNDEFINED);

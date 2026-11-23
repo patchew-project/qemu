@@ -437,8 +437,8 @@ typedef struct xtensa_funcUnit_use_struct {
 
 int xtensa_opcode_num_funcUnit_uses(xtensa_isa isa, xtensa_opcode opc);
 
-xtensa_funcUnit_use *xtensa_opcode_funcUnit_use(xtensa_isa isa,
-                                                xtensa_opcode opc, int u);
+const xtensa_funcUnit_use *xtensa_opcode_funcUnit_use(xtensa_isa isa,
+                                                      xtensa_opcode opc, int u);
 
 
 

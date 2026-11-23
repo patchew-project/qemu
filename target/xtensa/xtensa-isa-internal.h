@@ -66,7 +66,7 @@ typedef struct xtensa_format_internal_struct {
     int length;                 /* Instruction length in bytes. */
     xtensa_format_encode_fn encode_fn;
     int num_slots;
-    int *slot_id;               /* Array[num_slots] of slot IDs. */
+    const int *slot_id;         /* Array[num_slots] of slot IDs. */
 } xtensa_format_internal;
 
 typedef struct xtensa_slot_internal_struct {
@@ -75,8 +75,8 @@ typedef struct xtensa_slot_internal_struct {
     int position;
     xtensa_get_slot_fn get_fn;
     xtensa_set_slot_fn set_fn;
-    xtensa_get_field_fn *get_field_fns; /* Array[field_id]. */
-    xtensa_set_field_fn *set_field_fns; /* Array[field_id]. */
+    const xtensa_get_field_fn *get_field_fns; /* Array[field_id]. */
+    const xtensa_set_field_fn *set_field_fns; /* Array[field_id]. */
     xtensa_opcode_decode_fn opcode_decode_fn;
     const char *nop_name;
 } xtensa_slot_internal;
@@ -103,22 +103,22 @@ typedef struct xtensa_arg_internal_struct {
 
 typedef struct xtensa_iclass_internal_struct {
     int num_operands;           /* Size of "operands" array. */
-    xtensa_arg_internal *operands;          /* Array[num_operands]. */
+    const xtensa_arg_internal *operands;        /* Array[num_operands]. */
 
     int num_stateOperands;      /* Size of "stateOperands" array. */
-    xtensa_arg_internal *stateOperands;     /* Array[num_stateOperands]. */
+    const xtensa_arg_internal *stateOperands;   /* Array[num_stateOperands]. */
 
     int num_interfaceOperands;  /* Size of "interfaceOperands". */
-    xtensa_interface *interfaceOperands;    /* Array[num_interfaceOperands]. */
+    const xtensa_interface *interfaceOperands;  /* Array[num_interfaceOperands]. */
 } xtensa_iclass_internal;
 
 typedef struct xtensa_opcode_internal_struct {
     const char *name;           /* Opcode mnemonic. */
     int iclass_id;              /* Iclass for this opcode. */
     uint32_t flags;             /* See XTENSA_OPCODE_* flags. */
-    xtensa_opcode_encode_fn *encode_fns;    /* Array[slot_id]. */
+    const xtensa_opcode_encode_fn *encode_fns;  /* Array[slot_id]. */
     int num_funcUnit_uses;      /* Number of funcUnit_use entries. */
-    xtensa_funcUnit_use *funcUnit_uses;     /* Array[num_funcUnit_uses]. */
+    const xtensa_funcUnit_use *funcUnit_uses;   /* Array[num_funcUnit_uses]. */
 } xtensa_opcode_internal;
 
 typedef struct xtensa_regfile_internal_struct {
@@ -171,34 +171,34 @@ typedef struct xtensa_isa_internal_struct {
     int insnbuf_size;           /* Number of insnbuf_words. */
 
     int num_formats;
-    xtensa_format_internal *formats;
+    const xtensa_format_internal *formats;
     xtensa_format_decode_fn format_decode_fn;
     xtensa_length_decode_fn length_decode_fn;
 
     int num_slots;
-    xtensa_slot_internal *slots;
+    const xtensa_slot_internal *slots;
 
     int num_fields;
 
     int num_operands;
-    xtensa_operand_internal *operands;
+    const xtensa_operand_internal *operands;
 
     int num_iclasses;
-    xtensa_iclass_internal *iclasses;
+    const xtensa_iclass_internal *iclasses;
 
     int num_opcodes;
-    xtensa_opcode_internal *opcodes;
+    const xtensa_opcode_internal *opcodes;
     xtensa_lookup_entry *opname_lookup_table;
 
     int num_regfiles;
-    xtensa_regfile_internal *regfiles;
+    const xtensa_regfile_internal *regfiles;
 
     int num_states;
-    xtensa_state_internal *states;
+    const xtensa_state_internal *states;
     xtensa_lookup_entry *state_lookup_table;
 
     int num_sysregs;
-    xtensa_sysreg_internal *sysregs;
+    const xtensa_sysreg_internal *sysregs;
     xtensa_lookup_entry *sysreg_lookup_table;
 
     /*
@@ -213,11 +213,11 @@ typedef struct xtensa_isa_internal_struct {
     xtensa_sysreg *sysreg_table[2];
 
     int num_interfaces;
-    xtensa_interface_internal *interfaces;
+    const xtensa_interface_internal *interfaces;
     xtensa_lookup_entry *interface_lookup_table;
 
     int num_funcUnits;
-    xtensa_funcUnit_internal *funcUnits;
+    const xtensa_funcUnit_internal *funcUnits;
     xtensa_lookup_entry *funcUnit_lookup_table;
 
     int num_stages;             /* Number of pipe stages. */
