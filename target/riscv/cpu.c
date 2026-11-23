@@ -39,6 +39,7 @@
 #include "fpu/softfloat-helpers.h"
 #include "system/device_tree.h"
 #include "system/kvm.h"
+#include "system/qtest.h"
 #include "system/tcg.h"
 #include "kvm/kvm_riscv.h"
 #include "tcg/tcg-cpu.h"
@@ -1459,20 +1460,24 @@ static void riscv_cpu_set_irq(void *opaque, int irq, int level)
                 kvm_riscv_set_irq(cpu, irq, level);
             }
 
-            if (tcg_enabled()) {
+#ifdef CONFIG_TCG
+            if (tcg_enabled() || qtest_enabled()) {
                 riscv_cpu_update_mip(env, 1 << irq, BOOL_TO_MASK(level));
             }
+#endif
              break;
         case IRQ_S_EXT:
             if (kvm_enabled()) {
                 kvm_riscv_set_irq(cpu, irq, level);
             }
 
-            if (tcg_enabled()) {
+#ifdef CONFIG_TCG
+            if (tcg_enabled() || qtest_enabled()) {
                 env->external_seip = level;
                 riscv_cpu_update_mip(env, 1 << irq,
                                      BOOL_TO_MASK(level | env->software_seip));
             }
+#endif
             break;
         default:
             g_assert_not_reached();
@@ -1498,11 +1503,13 @@ static void riscv_cpu_set_irq(void *opaque, int irq, int level)
         if (kvm_enabled()) {
             kvm_riscv_set_irq(cpu, irq, level);
         }
-        if (tcg_enabled()) {
+#ifdef CONFIG_TCG
+        if (tcg_enabled() || qtest_enabled()) {
             /* Update mip.SGEIP bit */
             riscv_cpu_update_mip(env, MIP_SGEIP,
                                  BOOL_TO_MASK(!!(env->hgeie & env->hgeip)));
         }
+#endif
     } else {
         g_assert_not_reached();
     }

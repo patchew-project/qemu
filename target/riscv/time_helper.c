@@ -23,6 +23,7 @@
 #include "hw/intc/riscv_aclint.h"
 #include "kvm/kvm_riscv.h"
 #include "system/kvm.h"
+#include "system/qtest.h"
 #include "system/tcg.h"
 
 static void riscv_accel_set_irq(RISCVCPU *cpu,
@@ -35,12 +36,14 @@ static void riscv_accel_set_irq(RISCVCPU *cpu,
         kvm_riscv_set_irq(cpu, irq, level);
     }
 
-    if (tcg_enabled()) {
+#ifdef CONFIG_TCG
+    if (tcg_enabled() || qtest_enabled()) {
         uint64_t mask = irq_or_mask;
         uint64_t value = level_or_value;
 
         riscv_cpu_update_mip(&cpu->env, mask, value);
     }
+#endif
 }
 
 static void riscv_vstimer_cb(void *opaque)
