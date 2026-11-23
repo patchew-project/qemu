@@ -194,7 +194,7 @@ struct SDState {
 
     uint64_t data_start;
     uint32_t data_offset;
-    size_t data_size;
+    uint32_t data_size;
     uint8_t data[512];
     struct {
         uint32_t write_counter;
@@ -1002,6 +1002,25 @@ static bool sd_ocr_vmstate_needed(void *opaque)
     return !FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP);
 }
 
+static bool sd_data_size_vmstate_needed(void *opaque)
+{
+    SDState *sd = opaque;
+
+    return sd->state == sd_sendingdata_state
+           || sd->state == sd_receivingdata_state;
+}
+
+static const VMStateDescription sd_data_size_vmstate = {
+    .name = "sd-card/data-size",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = sd_data_size_vmstate_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(data_size, SDState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription sd_ocr_vmstate = {
     .name = "sd-card/ocr-state",
     .version_id = 1,
@@ -1072,6 +1091,11 @@ static int sd_vmstate_pre_load(void *opaque)
     if (!FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP)) {
         sd_ocr_powerup(sd);
     }
+    /*
+     * The data size is not included by older versions: assume the
+     * whole buffer. Replaced by the state restore when included.
+     */
+    sd->data_size = sizeof(sd->data);
 
     return 0;
 }
@@ -1110,6 +1134,7 @@ static const VMStateDescription sd_vmstate = {
     },
     .subsections = (const VMStateDescription * const []) {
         &sd_ocr_vmstate,
+        &sd_data_size_vmstate,
         &emmc_extcsd_vmstate,
         &emmc_rpmb_vmstate,
         NULL
