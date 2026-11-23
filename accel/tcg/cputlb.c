@@ -1896,6 +1896,10 @@ static uint64_t int_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
                                 int mmu_idx, MMUAccessType type, uintptr_t ra,
                                 MemoryRegion *mr, hwaddr mr_offset)
 {
+    if (!mr->ops->valid.unaligned && (mr_offset & (size - 1))) {
+        cpu_unaligned_access(cpu, addr, MMU_DATA_LOAD, mmu_idx, ra);
+    }
+
     do {
         MemOp this_mop;
         unsigned this_size;
@@ -2410,6 +2414,10 @@ static uint64_t int_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full,
                                 int mmu_idx, uintptr_t ra,
                                 MemoryRegion *mr, hwaddr mr_offset)
 {
+    if (!mr->ops->valid.unaligned && (mr_offset & (size - 1))) {
+        cpu_unaligned_access(cpu, addr, MMU_DATA_STORE, mmu_idx, ra);
+    }
+
     do {
         MemOp this_mop;
         unsigned this_size;
