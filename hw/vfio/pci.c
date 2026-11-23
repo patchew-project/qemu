@@ -1949,9 +1949,68 @@ static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled)
 {
     int i;
 
+    /*
+     * Some recovery flows require direct BAR mmap to remain disabled
+     * after a device reset.  Honour mmap_blocked so that INTx timer
+     * callbacks and interrupt-mode transitions cannot re-enable
+     * the direct mmap subregions once the device has been blocked.
+     */
+    if (enabled && vdev->mmap_blocked) {
+        return;
+    }
+
     for (i = 0; i < PCI_ROM_SLOT; i++) {
         vfio_region_mmaps_set_enabled(&vdev->bars[i].region, enabled);
     }
+}
+
+/**
+ * vfio_pci_mmap_block - Persistently block direct BAR mmap access
+ * @vdev: the VFIO PCI device
+ *
+ * Some recovery flows cannot safely resume direct BAR mmap access using
+ * mappings that were established before the device was reset.  Once the
+ * device is blocked, keep accesses on the VFIO region read/write path
+ * rather than allowing later interrupt-mode or timer activity to restore
+ * the direct mmap subregions.
+ *
+ * This helper:
+ *   1. Sets mmap_blocked so that no subsequent interrupt-mode
+ *      transition or INTx mmap timer callback can re-enable direct
+ *      BAR mmap access.
+ *   2. Cancels any pending INTx mmap re-enable timer.
+ *   3. Disables all currently active BAR mmap subregions.
+ *
+ * The parent slow-path VFIO MemoryRegion remains enabled, so BAR
+ * accesses continue via vfio_region_read()/vfio_region_write() which
+ * use pread()/pwrite() on the VFIO device fd.  This is slower than
+ * the direct mmap path but remains available while mmap is blocked.
+ *
+ * The flag is intentionally not cleared by this helper.  Blocking is
+ * persistent for the lifetime of the VFIO device object unless a future
+ * change introduces an explicit, proven-safe unblock operation.
+ *
+ * The function is idempotent.
+ */
+void vfio_pci_mmap_block(VFIOPCIDevice *vdev)
+{
+    if (vdev->mmap_blocked) {
+        return;
+    }
+
+    vdev->mmap_blocked = true;
+
+    /*
+     * Cancel any pending INTx mmap re-enable timer.  Without this the
+     * timer could still fire and call vfio_mmap_set_enabled() with
+     * enabled=true.  That would be blocked by the flag above, but
+     * cancelling it avoids the unnecessary wakeup.
+     */
+    if (vdev->intx.mmap_timer) {
+        timer_del(vdev->intx.mmap_timer);
+    }
+
+    vfio_mmap_set_enabled(vdev, false);
 }
 
 static void vfio_bar_prepare(VFIOPCIDevice *vdev, int nr)

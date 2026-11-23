@@ -187,6 +187,12 @@ struct VFIOPCIDevice {
     bool defer_kvm_irq_routing;
     bool clear_parent_atomics_on_exit;
     bool skip_vsc_check;
+    /*
+     * Block direct BAR mmap subregions for the lifetime of this
+     * VFIO device.  Calls that would re-enable mmap are ignored
+     * while this flag is set.
+     */
+    bool mmap_blocked;
     uint16_t vpasid_cap_offset;
     OnOffAuto ats;
     VFIODisplay *dpy;
@@ -243,6 +249,7 @@ bool vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp);
 /* BARs */
 void vfio_pci_bars_exit(VFIOPCIDevice *vdev);
 void vfio_sub_page_bar_update_mappings(VFIOPCIDevice *vdev);
+void vfio_pci_mmap_block(VFIOPCIDevice *vdev);
 
 /* Capabilities */
 bool vfio_pci_add_capabilities(VFIOPCIDevice *vdev, Error **errp);
