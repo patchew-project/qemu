@@ -5558,7 +5558,14 @@ static uint16_t nvme_fdp_events(NvmeCtrl *n, uint32_t endgrpid,
         ebuf = &endgrp->fdp.ctrl_events;
     }
 
-    log_size = sizeof(NvmeFdpEventsLog) + ebuf->nelems * sizeof(NvmeFdpEvent);
+    /* Base 2.4, 5.2.13.1.32: log page is defined as 4KiB */
+    enum { NVME_FDP_EVENTS_LOG_SIZE = 4096 };
+
+    QEMU_BUILD_BUG_ON(sizeof(NvmeFdpEventsLog) +
+                      NVME_FDP_MAX_EVENTS * sizeof(NvmeFdpEvent) >
+                      NVME_FDP_EVENTS_LOG_SIZE);
+
+    log_size = NVME_FDP_EVENTS_LOG_SIZE;
 
     if (off >= log_size) {
         return NVME_INVALID_FIELD | NVME_DNR;
