@@ -604,6 +604,7 @@ static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
                                            uint32_t *len)
 {
     uint16_t last_used;
+    VirtQueueElement *detached_buf;
 
     if (!vhost_svq_more_used(svq)) {
         return NULL;
@@ -637,9 +638,10 @@ static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
         return NULL;
     }
 
+    detached_buf = vhost_svq_detach_buf(svq, last_used);
     svq->num_free += svq->desc_state[last_used].ndescs;
     svq->desc_state[last_used].ndescs = 0;
-    return vhost_svq_detach_buf(svq, last_used);
+    return detached_buf;
 }
 
 /**
