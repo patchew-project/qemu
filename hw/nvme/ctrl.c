@@ -5411,7 +5411,7 @@ static uint16_t nvme_fdp_confs(NvmeCtrl *n, uint32_t endgrpid, uint32_t buf_len,
     fdp_descr_size = sizeof_fdp_conf_descr(nruh, FDPVSS);
     log_size = sizeof(NvmeFdpConfsHdr) + fdp_descr_size;
 
-    if (off >= log_size) {
+    if (off > log_size) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
@@ -5479,7 +5479,7 @@ static uint16_t nvme_fdp_ruh_usage(NvmeCtrl *n, uint32_t endgrpid,
 
     log_size = sizeof(NvmeRuhuLog) + endgrp->fdp.nruh * sizeof(NvmeRuhuDescr);
 
-    if (off >= log_size) {
+    if (off > log_size) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
@@ -5506,7 +5506,7 @@ static uint16_t nvme_fdp_stats(NvmeCtrl *n, uint32_t endgrpid, uint32_t buf_len,
     NvmeFdpStatsLog log = {};
     uint32_t trans_len;
 
-    if (off >= sizeof(NvmeFdpStatsLog)) {
+    if (off > sizeof(NvmeFdpStatsLog)) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
@@ -5567,7 +5567,7 @@ static uint16_t nvme_fdp_events(NvmeCtrl *n, uint32_t endgrpid,
 
     log_size = NVME_FDP_EVENTS_LOG_SIZE;
 
-    if (off >= log_size) {
+    if (off > log_size) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
