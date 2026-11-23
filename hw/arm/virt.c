@@ -94,6 +94,7 @@
 #include "hw/cxl/cxl_host.h"
 #include "qemu/guest-random.h"
 #include "hw/watchdog/sbsa_gwdt.h"
+#include "hw/pci/pci-fixed-bar.h"
 
 static GlobalProperty arm_virt_compat_defaults[] = {
     { TYPE_VIRTIO_IOMMU_PCI, "aw-bits", "48" },
@@ -2451,6 +2452,22 @@ void virt_machine_done(Notifier *notifier, void *data)
                                        vms->memmap[VIRT_PLATFORM_BUS].size,
                                        vms->irqmap[VIRT_PLATFORM_BUS]);
     }
+    if (fixed_bars_check(vms->memmap[VIRT_PCIE_MMIO].base,
+                         vms->memmap[VIRT_PCIE_MMIO].size,
+                         vms->memmap[VIRT_HIGH_PCIE_MMIO].base,
+                         vms->highmem_mmio ?
+                         vms->memmap[VIRT_HIGH_PCIE_MMIO].size : 0,
+                         &error_fatal)) {
+        if (!(vms->bootinfo.firmware_loaded && virt_is_acpi_enabled(vms))) {
+            error_report("fixed-bar: fixed BAR placement requires firmware "
+                         "and ACPI to preserve the PCI boot configuration, "
+                         "otherwise these BAR assignments could be "
+                         "reassigned later with no protection");
+            exit(1);
+        }
+        vms->pci_preserve_config = true;
+    }
+
     if (arm_load_dtb(info->dtb_start, info, info->dtb_limit, as, ms, cpu) < 0) {
         exit(1);
     }
@@ -4203,6 +4220,7 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
     hc->unplug_request = virt_machine_device_unplug_request_cb;
     hc->unplug = virt_machine_device_unplug_cb;
     mc->nvdimm_supported = true;
+    mc->pci_fixed_bar_supported = true;
     mc->smp_props.clusters_supported = true;
 
     /* Supported caches */
