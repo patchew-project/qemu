@@ -390,6 +390,17 @@ static inline bool nvme_fdp_enabled(NvmeCtrl *n)
     return n->subsys && n->subsys->endgrp.fdp.enabled;
 }
 
+/*
+ * MAXPIDS shall be less than the product of NRG * NRUH, also bounded
+ * by NVME_FDP_MAXPIDS. Value is zero-indexed
+ */
+static inline uint16_t nvme_fdp_maxpids(uint16_t nrg, uint16_t nruh)
+{
+    uint32_t product = (uint32_t)nrg * nruh;
+
+    return MIN(NVME_FDP_MAXPIDS, product) - 1;
+}
+
 static void nvme_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
                                    NvmeZoneState state)
 {
@@ -4651,15 +4662,17 @@ static uint16_t nvme_io_mgmt_send_ruh_update(NvmeCtrl *n, NvmeRequest *req)
     uint32_t npid = (cdw10 >> 16) + 1;
     unsigned int i = 0;
     g_autofree uint16_t *pids = NULL;
-    uint32_t maxnpid;
+    uint16_t maxpids;
 
     if (!ns->endgrp || !ns->endgrp->fdp.enabled) {
         return NVME_FDP_DISABLED | NVME_DNR;
     }
 
-    maxnpid = n->subsys->endgrp.fdp.nrg * n->subsys->endgrp.fdp.nruh;
+    maxpids = nvme_fdp_maxpids(ns->endgrp->fdp.nrg,
+                               ns->endgrp->fdp.nruh);
 
-    if (unlikely(npid >= MIN(NVME_FDP_MAXPIDS, maxnpid))) {
+    /* maxpid is zero-based, adjust npid for comparison */
+    if (unlikely((npid - 1) > maxpids)) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
@@ -5418,7 +5431,8 @@ static uint16_t nvme_fdp_confs(NvmeCtrl *n, uint32_t endgrpid, uint32_t buf_len,
         hdr->fdpa = FIELD_DP8(hdr->fdpa, FDPA, RGIF, endgrp->fdp.rgif);
         hdr->nrg = cpu_to_le16(endgrp->fdp.nrg);
         hdr->nruh = cpu_to_le16(endgrp->fdp.nruh);
-        hdr->maxpids = cpu_to_le16(NVME_FDP_MAXPIDS - 1);
+        hdr->maxpids = cpu_to_le16(nvme_fdp_maxpids(endgrp->fdp.nrg,
+                                                    endgrp->fdp.nruh));
         hdr->nnss = cpu_to_le32(NVME_MAX_NAMESPACES);
         hdr->runs = cpu_to_le64(endgrp->fdp.runs);
 
@@ -5430,7 +5444,7 @@ static uint16_t nvme_fdp_confs(NvmeCtrl *n, uint32_t endgrpid, uint32_t buf_len,
         /* 1 bit for RUH in PIF -> 2 RUHs max. */
         hdr->nrg = cpu_to_le16(1);
         hdr->nruh = cpu_to_le16(1);
-        hdr->maxpids = cpu_to_le16(NVME_FDP_MAXPIDS - 1);
+        hdr->maxpids = cpu_to_le16(nvme_fdp_maxpids(1, 1));
         hdr->nnss = cpu_to_le32(1);
         hdr->runs = cpu_to_le64(96 * MiB);
 
