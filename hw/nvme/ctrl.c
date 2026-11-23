@@ -6364,16 +6364,17 @@ static uint16_t nvme_get_feature_timestamp(NvmeCtrl *n, NvmeRequest *req)
     return nvme_c2h(n, (uint8_t *)&timestamp, sizeof(timestamp), req);
 }
 
-static int nvme_get_feature_fdp(NvmeCtrl *n, uint32_t endgrpid,
-                                uint32_t *result)
+static uint16_t nvme_get_feature_fdp(NvmeCtrl *n, uint16_t endgrpid,
+                                     bool current,
+                                     uint32_t *result)
 {
     *result = 0;
 
-    if (!n->subsys || !n->subsys->endgrp.fdp.enabled) {
+    if (!nvme_fdp_enabled(n) || endgrpid != 0x1) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
-    *result = FIELD_DP16(0, FEAT_FDP, FDPE, 1);
+    *result = FIELD_DP16(0, FEAT_FDP, FDPE, current ? 1 : 0);
     *result = FIELD_DP16(*result, FEAT_FDP, CONF_NDX, 0);
 
     return NVME_SUCCESS;
@@ -6450,7 +6451,7 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req)
     uint16_t iv;
     NvmeNamespace *ns;
     int i;
-    uint16_t endgrpid = 0, ret = NVME_SUCCESS;
+    uint16_t ret = NVME_SUCCESS;
 
     static const uint32_t nvme_feature_default[NVME_FID_MAX] = {
         [NVME_ARBITRATION] = NVME_ARB_AB_NOLIMIT,
@@ -6550,13 +6551,7 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req)
         return nvme_c2h(n, (uint8_t *)&n->features.hbs,
                         sizeof(n->features.hbs), req);
     case NVME_FDP_MODE:
-        endgrpid = dw11 & 0xff;
-
-        if (endgrpid != 0x1) {
-            return NVME_INVALID_FIELD | NVME_DNR;
-        }
-
-        ret = nvme_get_feature_fdp(n, endgrpid, &result);
+        ret = nvme_get_feature_fdp(n, dw11 & 0xffff, true, &result);
         if (ret) {
             return ret;
         }
@@ -6601,13 +6596,7 @@ defaults:
         }
         break;
     case NVME_FDP_MODE:
-        endgrpid = dw11 & 0xff;
-
-        if (endgrpid != 0x1) {
-            return NVME_INVALID_FIELD | NVME_DNR;
-        }
-
-        ret = nvme_get_feature_fdp(n, endgrpid, &result);
+        ret = nvme_get_feature_fdp(n, dw11 & 0xffff, false, &result);
         if (ret) {
             return ret;
         }
