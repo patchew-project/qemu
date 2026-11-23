@@ -91,6 +91,18 @@ static const Property pci_props[] = {
     DEFINE_PROP_STRING("romfile", PCIDevice, romfile),
     DEFINE_PROP_UINT32("romsize", PCIDevice, romsize, UINT32_MAX),
     DEFINE_PROP_INT32("rombar",  PCIDevice, rom_bar, -1),
+    DEFINE_PROP_SIZE("fixed-bar-0", PCIDevice, fixed_bar_addr[0],
+                     PCI_BAR_UNMAPPED),
+    DEFINE_PROP_SIZE("fixed-bar-1", PCIDevice, fixed_bar_addr[1],
+                     PCI_BAR_UNMAPPED),
+    DEFINE_PROP_SIZE("fixed-bar-2", PCIDevice, fixed_bar_addr[2],
+                     PCI_BAR_UNMAPPED),
+    DEFINE_PROP_SIZE("fixed-bar-3", PCIDevice, fixed_bar_addr[3],
+                     PCI_BAR_UNMAPPED),
+    DEFINE_PROP_SIZE("fixed-bar-4", PCIDevice, fixed_bar_addr[4],
+                     PCI_BAR_UNMAPPED),
+    DEFINE_PROP_SIZE("fixed-bar-5", PCIDevice, fixed_bar_addr[5],
+                     PCI_BAR_UNMAPPED),
     DEFINE_PROP_BIT("multifunction", PCIDevice, cap_present,
                     QEMU_PCI_CAP_MULTIFUNCTION_BITNR, false),
     DEFINE_PROP_BIT("x-pcie-lnksta-dllla", PCIDevice, cap_present,
@@ -228,6 +240,58 @@ static void pci_bus_unrealize(BusState *qbus)
     qemu_remove_machine_init_done_notifier(&bus->machine_done);
 
     vmstate_unregister(NULL, &vmstate_pcibus, bus);
+}
+
+static bool pci_dev_has_fixed_bar(PCIDevice *pci_dev)
+{
+    int i;
+
+    for (i = 0; i < PCI_NUM_REGIONS - 1; i++) {
+        if (pci_dev->fixed_bar_addr[i] != PCI_BAR_UNMAPPED) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void pci_check_fixed_bars(PCIDevice *pci_dev, Error **errp)
+{
+    PCIIORegion *r;
+    int i;
+
+    if (!pci_dev_has_fixed_bar(pci_dev)) {
+        return;
+    }
+
+    if (!MACHINE_GET_CLASS(qdev_get_machine())->pci_fixed_bar_supported) {
+        error_setg(errp, "fixed BAR placement is not supported by this "
+                   "machine type");
+        return;
+    }
+
+    if (DEVICE(pci_dev)->hotplugged) {
+        error_setg(errp, "fixed BAR placement is not supported on "
+                   "hot-plugged devices");
+        return;
+    }
+
+    for (i = 0; i < PCI_NUM_REGIONS - 1; i++) {
+        if (pci_dev->fixed_bar_addr[i] == PCI_BAR_UNMAPPED) {
+            continue;
+        }
+
+        r = &pci_dev->io_regions[i];
+        if (!r->size) {
+            error_setg(errp, "fixed-bar-%d: bar%d does not exist on %s",
+                       i, i, pci_dev->name);
+            return;
+        }
+        if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
+            error_setg(errp, "fixed-bar-%d: bar%d on %s is an I/O BAR, "
+                       "not a memory BAR", i, i, pci_dev->name);
+            return;
+        }
+    }
 }
 
 static int pcibus_num(PCIBus *bus)
@@ -2406,6 +2470,13 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     if (pci_dev->romfile == NULL && pc->romfile != NULL) {
         pci_dev->romfile = g_strdup(pc->romfile);
         is_default_rom = true;
+    }
+
+    pci_check_fixed_bars(pci_dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        pci_qdev_unrealize(DEVICE(pci_dev));
+        return;
     }
 
     pci_add_option_rom(pci_dev, is_default_rom, &local_err);

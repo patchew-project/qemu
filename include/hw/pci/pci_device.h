@@ -187,6 +187,13 @@ struct PCIDevice {
     uint32_t max_bounce_buffer_size;
 
     char *sriov_pf;
+
+    /*
+     * fixed_bar_addr[N] holds the guest address configured via the
+     * fixed-bar-N property for memory BAR N. PCI_BAR_UNMAPPED means
+     * the BAR's address is not fixed.
+     */
+    uint64_t fixed_bar_addr[PCI_NUM_REGIONS - 1];
 };
 
 static inline int pci_intx(PCIDevice *pci_dev)

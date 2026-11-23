@@ -242,6 +242,8 @@ typedef struct {
  *    is not needed.
  * @numa_mem_supported:
  *    true if '--numa node.mem' option is supported and false otherwise
+ * @pci_fixed_bar_supported:
+ *    true if the machine supports fixed PCI BAR placement and false otherwise
  * @hotplug_allowed:
  *    If the hook is provided, then it'll be called for each device
  *    hotplug to check whether the device hotplug is allowed.  Return
@@ -317,6 +319,7 @@ struct MachineClass {
     bool ignore_boot_device_suffixes;
     bool nvdimm_supported;
     bool numa_mem_supported;
+    bool pci_fixed_bar_supported;
     bool auto_enable_numa;
     bool cpu_cluster_has_numa_boundary;
     SMPCompatProps smp_props;
