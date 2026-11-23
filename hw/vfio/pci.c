@@ -2759,6 +2759,58 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev, bool ats_needed)
     g_free(config);
 }
 
+static bool vfio_add_fixed_bar_ea_cap(VFIOPCIDevice *vdev, Error **errp)
+{
+    PCIDevice *pdev = PCI_DEVICE(vdev);
+    uint8_t size = 0, last = 0, tmp;
+    int pos;
+
+    if (!pci_dev_has_fixed_bar(pdev)) {
+        return true;
+    }
+
+    /* The device already has an EA capability, we cannot add ours. */
+    if (pci_find_capability(pdev, PCI_CAP_ID_EA)) {
+        error_setg(errp, "%s already has an Enhanced Allocation capability, "
+                   "fixed-bar-N cannot be used", vdev->vbasedev.name);
+        return false;
+    }
+
+    /*
+     * vfio gives each capability all the space up to the next one, so the
+     * last capability owns the rest of the standard config space. If it is
+     * a vendor-specific capability its real length is known, give the
+     * unused tail back.
+     */
+    for (tmp = pdev->config[PCI_CAPABILITY_LIST]; tmp;
+         tmp = pdev->config[tmp + PCI_CAP_LIST_NEXT]) {
+        if (tmp > last) {
+            last = tmp;
+        }
+    }
+    if (last && pdev->config[last + PCI_CAP_LIST_ID] == PCI_CAP_ID_VNDR) {
+        uint8_t len = pdev->config[last + PCI_CAP_FLAGS];
+
+        /* The length comes from the host device, use it only if sane. */
+        if (len > PCI_CAP_FLAGS && last + len <= PCI_CONFIG_SPACE_SIZE) {
+            memset(pdev->used + last + len, 0,
+                   PCI_CONFIG_SPACE_SIZE - last - len);
+        }
+    }
+
+    pos = pci_add_fixed_bar_ea_cap(pdev, &size, errp);
+    if (pos < 0) {
+        return false;
+    }
+    if (pos) {
+        /* Emulate the whole capability, including its next pointer. */
+        memset(vdev->emulated_config_bits + pos, 0xff, size);
+        /* The new capability is the head of the chain, so is the list. */
+        vdev->emulated_config_bits[PCI_CAPABILITY_LIST] = 0xff;
+    }
+    return true;
+}
+
 bool vfio_pci_add_capabilities(VFIOPCIDevice *vdev, Error **errp)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
@@ -2766,10 +2818,14 @@ bool vfio_pci_add_capabilities(VFIOPCIDevice *vdev, Error **errp)
 
     if (!(pdev->config[PCI_STATUS] & PCI_STATUS_CAP_LIST) ||
         !pdev->config[PCI_CAPABILITY_LIST]) {
-        return true; /* Nothing to add */
+        return vfio_add_fixed_bar_ea_cap(vdev, errp);
     }
 
     if (!vfio_add_std_cap(vdev, pdev->config[PCI_CAPABILITY_LIST], errp)) {
+        return false;
+    }
+
+    if (!vfio_add_fixed_bar_ea_cap(vdev, errp)) {
         return false;
     }
 

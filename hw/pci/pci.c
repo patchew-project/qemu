@@ -242,7 +242,7 @@ static void pci_bus_unrealize(BusState *qbus)
     vmstate_unregister(NULL, &vmstate_pcibus, bus);
 }
 
-static bool pci_dev_has_fixed_bar(PCIDevice *pci_dev)
+bool pci_dev_has_fixed_bar(PCIDevice *pci_dev)
 {
     int i;
 
@@ -292,6 +292,133 @@ static void pci_check_fixed_bars(PCIDevice *pci_dev, Error **errp)
             return;
         }
     }
+}
+
+static uint8_t pci_find_space(PCIDevice *pdev, uint8_t size);
+
+/* Place @val in the bit field of an EA dword selected by @mask. */
+static uint32_t pci_ea_field(uint32_t mask, uint32_t val)
+{
+    return (val << ctz32(mask)) & mask;
+}
+
+/*
+ * The upper halves of Base and MaxOffset of a 64-bit EA entry follow
+ * MaxOffset, pci_regs.h has no definitions for them.
+ */
+#define PCI_EA_BASE_UPPER        (PCI_EA_MAX_OFFSET + sizeof(uint32_t))
+#define PCI_EA_MAX_OFFSET_UPPER  (PCI_EA_BASE_UPPER + sizeof(uint32_t))
+
+/*
+ * Dwords in an EA entry, which ends with MaxOffset, or with the upper half
+ * of MaxOffset for a 64-bit BAR.
+ */
+static unsigned pci_ea_entry_dwords(bool is64)
+{
+    return ((is64 ? PCI_EA_MAX_OFFSET_UPPER : PCI_EA_MAX_OFFSET) +
+            sizeof(uint32_t)) / sizeof(uint32_t);
+}
+
+/*
+ * Describe the fixed-bar-N addresses of a device with an Enhanced Allocation
+ * (EA) capability. Firmware and the guest read the address of each fixed BAR
+ * from the capability instead of assigning one, and the BAR register of such
+ * a BAR is hardwired to zero.
+ *
+ * Returns the offset of the capability, 0 if the device has no fixed BAR to
+ * describe, or -1 on error.
+ */
+int pci_add_fixed_bar_ea_cap(PCIDevice *d, uint8_t *cap_size, Error **errp)
+{
+    int i, n = 0, pos;
+    unsigned total = PCI_EA_FIRST_ENT;
+    uint8_t size, *p;
+
+    /*
+     * A BAR that does not exist or is not a memory BAR is reported by
+     * pci_check_fixed_bars(), skip it here.
+     */
+    for (i = 0; i < PCI_ROM_SLOT; i++) {
+        if (d->fixed_bar_addr[i] != PCI_BAR_UNMAPPED &&
+            d->io_regions[i].size &&
+            !(d->io_regions[i].type & PCI_BASE_ADDRESS_SPACE_IO)) {
+            n++;
+            total += pci_ea_entry_dwords(d->io_regions[i].type &
+                                         PCI_BASE_ADDRESS_MEM_TYPE_64) *
+                     sizeof(uint32_t);
+        }
+    }
+    if (!n) {
+        return 0;
+    }
+
+    size = total;
+    pos = pci_find_space(d, size);
+    if (!pos) {
+        error_setg(errp, "fixed-bar: no room in the configuration space of "
+                   "%s for an Enhanced Allocation capability", d->name);
+        return -1;
+    }
+    pos = pci_add_capability(d, PCI_CAP_ID_EA, pos, size, errp);
+    if (pos < 0) {
+        return -1;
+    }
+
+    pci_set_word(d->config + pos + PCI_EA_NUM_ENT, n);
+    p = d->config + pos + PCI_EA_FIRST_ENT;
+
+    for (i = 0; i < PCI_ROM_SLOT; i++) {
+        PCIIORegion *r = &d->io_regions[i];
+        uint64_t base, max;
+        uint32_t hdr;
+        bool is64 = r->type & PCI_BASE_ADDRESS_MEM_TYPE_64;
+
+        if (d->fixed_bar_addr[i] == PCI_BAR_UNMAPPED || !r->size ||
+            (r->type & PCI_BASE_ADDRESS_SPACE_IO)) {
+            continue;
+        }
+
+        base = d->fixed_bar_addr[i];
+        max = r->size - 1;
+        /*
+         * Entry header: BEI = BAR number, primary properties = memory
+         * (prefetchable or not), secondary properties unused, enabled.
+         * A 64-bit BAR has an entry of four dwords after the header, Base and
+         * MaxOffset each with an upper dword. A 32-bit BAR has two dwords.
+         * Bit 1 of the low dword of Base and MaxOffset marks a 64-bit field,
+         * so it is set only for a 64-bit BAR. The entry size field is the
+         * number of dwords after the header.
+         */
+        hdr = pci_ea_field(PCI_EA_ES, pci_ea_entry_dwords(is64) - 1) |
+              pci_ea_field(PCI_EA_BEI, PCI_EA_BEI_BAR0 + i) |
+              pci_ea_field(PCI_EA_PP, r->type & PCI_BASE_ADDRESS_MEM_PREFETCH ?
+                           PCI_EA_P_MEM_PREFETCH : PCI_EA_P_MEM) |
+              pci_ea_field(PCI_EA_SP, PCI_EA_P_UNAVAILABLE) |
+              PCI_EA_ENABLE;
+        pci_set_long(p, hdr);
+        pci_set_long(p + PCI_EA_BASE,
+                     (base & PCI_EA_FIELD_MASK) | (is64 ? PCI_EA_IS_64 : 0));
+        pci_set_long(p + PCI_EA_MAX_OFFSET,
+                     (max & PCI_EA_FIELD_MASK) | (is64 ? PCI_EA_IS_64 : 0));
+        if (is64) {
+            pci_set_long(p + PCI_EA_BASE_UPPER, base >> 32);
+            pci_set_long(p + PCI_EA_MAX_OFFSET_UPPER, max >> 32);
+        }
+        p += pci_ea_entry_dwords(is64) * sizeof(uint32_t);
+
+        /* The BAR register is hardwired to zero for an EA BAR. */
+        pci_set_long(d->config + pci_bar(d, i), 0);
+        pci_set_long(d->wmask + pci_bar(d, i), 0);
+        if (is64) {
+            pci_set_long(d->config + pci_bar(d, i + 1), 0);
+            pci_set_long(d->wmask + pci_bar(d, i + 1), 0);
+        }
+    }
+
+    if (cap_size) {
+        *cap_size = size;
+    }
+    return pos;
 }
 
 static int pcibus_num(PCIBus *bus)
@@ -616,6 +743,7 @@ static uint8_t pci_pm_update(PCIDevice *d, uint32_t addr, int l, uint8_t old)
 
 static void pci_reset_regions(PCIDevice *dev)
 {
+    uint8_t type;
     int r;
     if (pci_is_vf(dev)) {
         return;
@@ -627,11 +755,15 @@ static void pci_reset_regions(PCIDevice *dev)
             continue;
         }
 
+        /* A fixed BAR is described by EA, all bits of its BAR are 0. */
+        type = (r < PCI_ROM_SLOT &&
+                dev->fixed_bar_addr[r] != PCI_BAR_UNMAPPED) ? 0 : region->type;
+
         if (!(region->type & PCI_BASE_ADDRESS_SPACE_IO) &&
             region->type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
-            pci_set_quad(dev->config + pci_bar(dev, r), region->type);
+            pci_set_quad(dev->config + pci_bar(dev, r), type);
         } else {
-            pci_set_long(dev->config + pci_bar(dev, r), region->type);
+            pci_set_long(dev->config + pci_bar(dev, r), type);
         }
     }
 }
@@ -1776,6 +1908,10 @@ pcibus_t pci_bar_address(PCIDevice *d,
     if (!(cmd & PCI_COMMAND_MEMORY)) {
         return PCI_BAR_UNMAPPED;
     }
+    if (reg < PCI_ROM_SLOT && d->fixed_bar_addr[reg] != PCI_BAR_UNMAPPED) {
+        /* A fixed BAR decodes at its EA base, not at the BAR register. */
+        return d->fixed_bar_addr[reg];
+    }
     new_addr = pci_config_get_bar_addr(d, reg, type, size);
     /* the ROM slot has a specific enable bit */
     if (reg == PCI_ROM_SLOT && !(new_addr & PCI_ROM_ADDRESS_ENABLE)) {
@@ -2474,6 +2610,14 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
 
     pci_check_fixed_bars(pci_dev, &local_err);
     if (local_err) {
+        error_propagate(errp, local_err);
+        pci_qdev_unrealize(DEVICE(pci_dev));
+        return;
+    }
+
+    /* vfio-pci adds the EA capability itself, to fit its capability chain */
+    if (!pci_find_capability(pci_dev, PCI_CAP_ID_EA) &&
+        pci_add_fixed_bar_ea_cap(pci_dev, NULL, &local_err) < 0) {
         error_propagate(errp, local_err);
         pci_qdev_unrealize(DEVICE(pci_dev));
         return;

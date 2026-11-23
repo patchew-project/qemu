@@ -17,6 +17,7 @@
 #include "qemu/units.h"
 #include "pci-internal.h"
 #include "pci-fixed-bar-validate.h"
+#include "hw/pci/pci-fixed-bar.h"
 
 /*
  * Claimed BAR ranges — detect inter-device and inter-hierarchy overlaps
@@ -373,4 +374,32 @@ bool fixed_bars_validate(FixedBarsInfo *info, Error **errp)
     info->any_fixed = false;
     scan_all_host_bridges(info, errp);
     return !*errp;
+}
+
+bool fixed_bars_check(uint64_t mmio32_base, uint64_t mmio32_size,
+                      uint64_t mmio64_base, uint64_t mmio64_size,
+                      Error **errp)
+{
+    FixedBarsInfo info;
+
+    if (!mmio32_size) {
+        error_setg(errp, "fixed-bar: zero-size 32-bit PCIe MMIO aperture");
+        return false;
+    }
+    if (mmio32_size - 1 > UINT64_MAX - mmio32_base ||
+        (mmio64_size && mmio64_size - 1 > UINT64_MAX - mmio64_base)) {
+        error_setg(errp, "fixed-bar: PCIe MMIO aperture base+size overflows "
+                   "(32-bit base=0x%"PRIx64" size=0x%"PRIx64", "
+                   "64-bit base=0x%"PRIx64" size=0x%"PRIx64")",
+                   mmio32_base, mmio32_size, mmio64_base, mmio64_size);
+        return false;
+    }
+
+    info.mmio32_base = mmio32_base;
+    info.mmio32_limit = mmio32_base + mmio32_size - 1;
+    /* An absent 64-bit aperture is an empty window, no BAR fits in it. */
+    info.mmio64_base = mmio64_size ? mmio64_base : 1;
+    info.mmio64_limit = mmio64_size ? mmio64_base + mmio64_size - 1 : 0;
+
+    return fixed_bars_validate(&info, errp) && info.any_fixed;
 }
