@@ -6899,8 +6899,25 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
         }
         break;
     case NVME_FDP_MODE:
-        /* spec: abort with cmd seq err if there's one or more NS' in endgrp */
-        return NVME_CMD_SEQ_ERROR | NVME_DNR;
+        {
+            uint32_t dw12 = le32_to_cpu(cmd->cdw12);
+            bool fdpe = (bool) FIELD_EX32(dw12, FEAT_FDP, FDPE);
+            uint8_t cidx = (uint8_t) FIELD_EX32(dw12, FEAT_FDP, CONF_NDX);
+            uint16_t endgrpid = dw11 & 0xffff;
+
+            if (!nvme_fdp_enabled(n) || cidx != 0 || endgrpid != 0x1) {
+                return NVME_INVALID_FIELD | NVME_DNR;
+            } else if (fdpe != 1) {
+                /*
+                 * if call attempts to toggle FDP or change configuration while
+                 * endurance group has one or more namespaces exist, return
+                 * command sequence error (2.4 Base, 8.1.12.1)
+                 */
+                return NVME_CMD_SEQ_ERROR | NVME_DNR;
+            } else {
+                return NVME_SUCCESS;
+            }
+        }
     case NVME_FDP_EVENTS:
         return nvme_set_feature_fdp_events(n, ns, req);
     case NVME_WRITE_ATOMICITY:
