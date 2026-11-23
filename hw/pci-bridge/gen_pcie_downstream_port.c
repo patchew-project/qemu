@@ -72,10 +72,12 @@ static void gen_downstream_write_config(PCIDevice *d, uint32_t address,
 static void gen_downstream_reset(DeviceState *qdev)
 {
     PCIDevice *d = PCI_DEVICE(qdev);
+    PCIEPort *p = PCIE_PORT(d);
 
     pcie_cap_deverr_reset(d);
     pcie_cap_slot_reset(d);
     pcie_cap_arifwd_reset(d);
+    pcie_acs_reset(d, p->acs_ctrl);
     pci_bridge_reset(qdev);
 }
 
@@ -115,10 +117,16 @@ static void gen_downstream_realize(PCIDevice *d, Error **errp)
         goto err_chassis;
     }
 
-    pcie_acs_init(d, GEN_PCIE_DOWNSTREAM_PORT_ACS_OFFSET);
+    rc = pcie_acs_init(d, GEN_PCIE_DOWNSTREAM_PORT_ACS_OFFSET, p->acs_ctrl,
+                       errp);
+    if (rc < 0) {
+        goto err_aer;
+    }
 
     return;
 
+err_aer:
+    pcie_aer_exit(d);
 err_chassis:
     pcie_chassis_del_slot(s);
 err_cap:
@@ -163,6 +171,7 @@ static const Property gen_pcie_downstream_port_props[] = {
                                 speed, PCIE_LINK_SPEED_64),
     DEFINE_PROP_PCIE_LINK_WIDTH("width", PCIESlot,
                                 width, PCIE_LINK_WIDTH_32),
+    DEFINE_PROP_UINT16("acs-ctrl", PCIEPort, acs_ctrl, 0),
 };
 
 static void gen_pcie_downstream_port_class_init(ObjectClass *klass,

@@ -1278,7 +1278,8 @@ void pcie_ats_init(PCIDevice *dev, uint16_t offset, bool aligned)
 }
 
 /* ACS (Access Control Services) */
-void pcie_acs_init(PCIDevice *dev, uint16_t offset)
+int pcie_acs_init(PCIDevice *dev, uint16_t offset, uint16_t ctrl_bits,
+                  Error **errp)
 {
     bool is_downstream = pci_is_express_downstream_port(dev);
     uint16_t cap_bits = 0;
@@ -1302,16 +1303,26 @@ void pcie_acs_init(PCIDevice *dev, uint16_t offset)
          */
         cap_bits = PCI_ACS_SV | PCI_ACS_TB | PCI_ACS_RR |
             PCI_ACS_CR | PCI_ACS_UF | PCI_ACS_DT;
+
+        if (ctrl_bits & ~cap_bits) {
+            error_setg(errp,
+                       "acs-ctrl 0x%hx has bits not supported by this port "
+                       "(supported: 0x%hx)", ctrl_bits, cap_bits);
+            return -EINVAL;
+        }
     }
 
     pci_set_word(dev->config + offset + PCI_ACS_CAP, cap_bits);
     pci_set_word(dev->wmask + offset + PCI_ACS_CTRL, cap_bits);
+    pci_set_word(dev->config + offset + PCI_ACS_CTRL, ctrl_bits);
+
+    return 0;
 }
 
-void pcie_acs_reset(PCIDevice *dev)
+void pcie_acs_reset(PCIDevice *dev, uint16_t val)
 {
     if (dev->exp.acs_cap) {
-        pci_set_word(dev->config + dev->exp.acs_cap + PCI_ACS_CTRL, 0);
+        pci_set_word(dev->config + dev->exp.acs_cap + PCI_ACS_CTRL, val);
     }
 }
 

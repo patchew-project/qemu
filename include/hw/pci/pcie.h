@@ -137,8 +137,9 @@ bool pcie_insert_capability(PCIDevice *dev, uint16_t cap_id, uint8_t cap_ver,
                             uint16_t offset, uint16_t size);
 void pcie_sync_bridge_lnk(PCIDevice *dev);
 
-void pcie_acs_init(PCIDevice *dev, uint16_t offset);
-void pcie_acs_reset(PCIDevice *dev);
+int pcie_acs_init(PCIDevice *dev, uint16_t offset, uint16_t ctrl_bits,
+                  Error **errp);
+void pcie_acs_reset(PCIDevice *dev, uint16_t val);
 
 void pcie_ari_init(PCIDevice *dev, uint16_t offset);
 void pcie_dev_ser_num_init(PCIDevice *dev, uint16_t offset, uint64_t ser_num);
