@@ -1897,8 +1897,8 @@ typedef struct QEMU_PACKED NvmeFdpEvent {
     uint32_t nsid;
     uint64_t type_specific[2];
     uint16_t rgid;
-    uint8_t  ruhid;
-    uint8_t  rsvd35[5];
+    uint16_t ruhid;
+    uint8_t  rsvd36[4];
     uint64_t vendor[3];
 } NvmeFdpEvent;
 
