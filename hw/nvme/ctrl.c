@@ -6381,19 +6381,16 @@ static uint16_t nvme_get_feature_fdp(NvmeCtrl *n, uint16_t endgrpid,
 }
 
 static uint16_t nvme_get_feature_fdp_events(NvmeCtrl *n, NvmeNamespace *ns,
-                                            NvmeRequest *req, uint32_t *result)
+                                            NvmeRequest *req, bool current,
+                                            uint32_t *result)
 {
+    NvmeFdpEventDescr evds[FDP_EVT_MAX + 1] = {0};
     NvmeCmd *cmd = &req->cmd;
+    NvmeRuHandle *ruh;
     uint32_t cdw11 = le32_to_cpu(cmd->cdw11);
     uint16_t ph = cdw11 & 0xffff;
-    uint8_t noet = (cdw11 >> 16) & 0xff;
     uint16_t ruhid, ret;
-    uint32_t nentries = 0;
-    uint8_t s_events_ndx = 0;
-    size_t s_events_siz = sizeof(NvmeFdpEventDescr) * noet;
-    g_autofree NvmeFdpEventDescr *s_events = g_malloc0(s_events_siz);
-    NvmeRuHandle *ruh;
-    NvmeFdpEventDescr *s_event;
+    uint8_t noet = 0;
 
     if (!nvme_fdp_enabled(n)) {
         return NVME_FDP_DISABLED | NVME_DNR;
@@ -6408,34 +6405,27 @@ static uint16_t nvme_get_feature_fdp_events(NvmeCtrl *n, NvmeNamespace *ns,
 
     assert(ruh);
 
-    if (unlikely(noet == 0)) {
-        return NVME_INVALID_FIELD | NVME_DNR;
-    }
+    /* Saved selectors fall back to the default because nothing is saved. */
+    uint64_t event_filter = current ? ruh->event_filter : 0;
 
-    for (uint8_t event_type = 0; event_type < FDP_EVT_MAX; event_type++) {
-        uint8_t shift = nvme_fdp_evf_shifts[event_type];
-        if (!shift && event_type) {
+    for (uint8_t evt = 0; evt < FDP_EVT_MAX; evt++) {
+        uint8_t shift = nvme_fdp_evf_shifts[evt];
+        if (!shift && evt) {
             continue;
         }
-
-        nentries++;
-
-        s_event = &s_events[s_events_ndx];
-        s_event->evt = event_type;
-        s_event->evta = (ruh->event_filter >> shift) & 0x1;
-
-        /* break if all `noet` entries are filled */
-        if ((++s_events_ndx) == noet) {
-            break;
-        }
+        evds[noet] = (NvmeFdpEventDescr){
+            .evt = evt,
+            .evta = (event_filter >> shift) & 0x1,
+        };
+        noet++;
     }
 
-    ret = nvme_c2h(n, s_events, s_events_siz, req);
+    ret = nvme_c2h(n, &evds, noet * sizeof(evds[0]), req);
     if (ret) {
         return ret;
     }
 
-    *result = nentries;
+    *result = noet;
     return NVME_SUCCESS;
 }
 
@@ -6557,7 +6547,7 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req)
         }
         goto out;
     case NVME_FDP_EVENTS:
-        ret = nvme_get_feature_fdp_events(n, ns, req, &result);
+        ret = nvme_get_feature_fdp_events(n, ns, req, true, &result);
         if (ret) {
             return ret;
         }
@@ -6597,6 +6587,12 @@ defaults:
         break;
     case NVME_FDP_MODE:
         ret = nvme_get_feature_fdp(n, dw11 & 0xffff, false, &result);
+        if (ret) {
+            return ret;
+        }
+        break;
+    case NVME_FDP_EVENTS:
+        ret = nvme_get_feature_fdp_events(n, ns, req, false, &result);
         if (ret) {
             return ret;
         }
