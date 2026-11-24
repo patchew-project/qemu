@@ -11,6 +11,7 @@
 #include "accel/tcg/cpu-ldst.h"
 #include "fpu/softfloat.h"
 #include "internals.h"
+#include "tcg/tcg_loongarch.h"
 
 static inline uint64_t nanbox_s(float32 fp)
 {

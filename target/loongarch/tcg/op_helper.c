@@ -15,6 +15,7 @@
 #include "qemu/crc32c.h"
 #include <zlib.h> /* for crc32 */
 #include "cpu-csr.h"
+#include "tcg/tcg_loongarch.h"
 
 /* Exceptions helpers */
 void HELPER(raise_exception)(CPULoongArchState *env, uint32_t exception)

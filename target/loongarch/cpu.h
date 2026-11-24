@@ -424,6 +424,19 @@ typedef struct CPUArchState {
 #ifndef CONFIG_USER_ONLY
     LoongArchTLB  tlb[LOONGARCH_TLB_MAX];
 #endif
+
+    /*
+     * Information associated with an exception about to be taken:
+     * code which raises an exception must set cs->exception_index and
+     * the relevant parts of this structure
+     */
+#define LOONGARCH_EXCEPTION_MM                0x1
+#define LOONGARCH_EXCEPTION_TLB               0x2
+#define LOONGARCH_EXCEPTION_REFILL            0x4
+    struct {
+        uint64_t badv;
+        uint32_t flags;
+    } exception;
 #endif
 
     /* Fields up to this point are cleared by a CPU reset */

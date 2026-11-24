@@ -18,9 +18,11 @@
 #include "tcg_loongarch.h"
 #include "internals.h"
 
-void G_NORETURN do_raise_exception(CPULoongArchState *env,
-                                   uint32_t exception,
-                                   uintptr_t pc)
+void G_NORETURN raise_exception_full(CPULoongArchState *env,
+                                     uint32_t exception,
+                                     uintptr_t pc,
+                                     uint32_t flags,
+                                     uint64_t badv)
 {
     CPUState *cs = env_cpu(env);
 
@@ -28,6 +30,8 @@ void G_NORETURN do_raise_exception(CPULoongArchState *env,
                   __func__,
                   exception,
                   loongarch_exception_name(exception));
+    env->exception.flags = flags;
+    env->exception.badv = badv;
     cs->exception_index = exception;
 
     cpu_loop_exit_restore(cs, pc);

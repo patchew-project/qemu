@@ -24,4 +24,13 @@ TLBRet loongarch_get_addr_from_tlb(CPULoongArchState *env,
                                    MMUContext *context,
                                    MMUAccessType access_type, int mmu_idx);
 
+void G_NORETURN raise_exception_full(CPULoongArchState *env,
+                                     uint32_t exception,
+                                     uintptr_t pc,
+                                     uint32_t flags,
+                                     uint64_t badv);
+
+#define do_raise_exception(env, exception, pc)             \
+                           raise_exception_full(env, exception, pc, 0, 0)
+
 #endif  /* TARGET_LOONGARCH_TCG_LOONGARCH_H */

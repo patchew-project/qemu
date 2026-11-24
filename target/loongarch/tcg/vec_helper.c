@@ -13,6 +13,7 @@
 #include "tcg/tcg.h"
 #include "vec.h"
 #include "tcg/tcg-gvec-desc.h"
+#include "tcg/tcg_loongarch.h"
 
 #define DO_ODD_EVEN(NAME, BIT, E1, E2, DO_OP)                        \
 void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)       \
