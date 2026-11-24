@@ -5752,14 +5752,21 @@ static RISCVException write_mnscratch(CPURISCVState *env, int csrno,
 static RISCVException read_mnepc(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
-    *val = env->mnepc;
+    *val = env->mnepc & get_xepc_mask(env);
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_mnepc(CPURISCVState *env, int csrno,
                                   target_ulong val, uintptr_t ra)
 {
-    env->mnepc = val;
+    target_ulong mask = get_xepc_mask(env);
+
+    /* Preserve bit 1 when IALIGN can change from 32 to 16. */
+    if (riscv_cpu_cfg(env)->misa_w && (env->misa_ext_mask & RVC)) {
+        mask = ~(target_ulong)1;
+    }
+
+    env->mnepc = val & mask;
     return RISCV_EXCP_NONE;
 }
 

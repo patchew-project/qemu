@@ -543,7 +543,7 @@ void HELPER(sdext_ebreak)(CPURISCVState *env, target_ulong pc)
 
 target_ulong HELPER(mnret)(CPURISCVState *env)
 {
-    target_ulong retpc = env->mnepc;
+    target_ulong retpc = env->mnepc & get_xepc_mask(env);
     privilege_mode_t prev_priv = get_field(env->mnstatus, MNSTATUS_MNPP);
     bool prev_virt;
     uintptr_t ra = GETPC();
