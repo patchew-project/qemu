@@ -1289,23 +1289,20 @@ int xen_evtchn_bind_pirq_op(struct evtchn_bind_pirq *pirq)
 
     BQL_LOCK_GUARD();
 
-    if (s->pirq[pirq->pirq].port) {
-        return -EBUSY;
+    WITH_QEMU_LOCK_GUARD(&s->port_lock) {
+        if (s->pirq[pirq->pirq].port) {
+            return -EBUSY;
+        }
+
+        ret = allocate_port(s, 0, EVTCHNSTAT_pirq, pirq->pirq,
+                            &pirq->port);
+        if (ret) {
+            return ret;
+        }
+
+        s->pirq[pirq->pirq].port = pirq->port;
+        trace_kvm_xen_bind_pirq(pirq->pirq, pirq->port);
     }
-
-    qemu_mutex_lock(&s->port_lock);
-
-    ret = allocate_port(s, 0, EVTCHNSTAT_pirq, pirq->pirq,
-                        &pirq->port);
-    if (ret) {
-        qemu_mutex_unlock(&s->port_lock);
-        return ret;
-    }
-
-    s->pirq[pirq->pirq].port = pirq->port;
-    trace_kvm_xen_bind_pirq(pirq->pirq, pirq->port);
-
-    qemu_mutex_unlock(&s->port_lock);
 
     /*
      * Need to do the unmask outside port_lock because it may call
