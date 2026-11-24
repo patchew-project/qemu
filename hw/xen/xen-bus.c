@@ -1082,7 +1082,6 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
     xen_device_backend_printf(xendev, "hotplug-status", "connected");
 
     xen_device_backend_set_online(xendev, true);
-    xen_device_backend_set_state(xendev, XenbusStateInitWait);
 
     if (!xen_device_frontend_exists(xendev)) {
         xen_device_frontend_printf(xendev, "backend", "%s",
@@ -1093,12 +1092,27 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
         xen_device_frontend_set_state(xendev, XenbusStateInitialising, true);
     }
 
+    /*
+     * The implementation's realize method may write feature nodes to
+     * the backend area (e.g. 'max-ring-page-order' for xen-block,
+     * 'feature-rx-copy' for xen-net). It must be called after the
+     * backend and frontend areas are populated, because it can invoke
+     * aio_poll() (e.g. through blkconf_geometry()) and thus process
+     * watch events which need to read the 'state' nodes. But it must
+     * be called *before* the backend state is set to InitWait below,
+     * because InitWait is the frontend's cue that the backend's
+     * feature nodes can be read; a frontend which reads them promptly
+     * (as Linux blkfront and netfront do, without waiting or retrying)
+     * must not find them missing.
+     */
     if (xendev_class->realize) {
         xendev_class->realize(xendev, errp);
         if (*errp) {
             goto unrealize;
         }
     }
+
+    xen_device_backend_set_state(xendev, XenbusStateInitWait);
 
     xendev->exit.notify = xen_device_exit;
     qemu_add_exit_notifier(&xendev->exit);
