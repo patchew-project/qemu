@@ -448,6 +448,11 @@ end:
 static void
 vhost_user_gpu_update_blocked(VhostUserGPU *g, bool blocked)
 {
+    /* the display socket doesn't exist before DRIVER_OK */
+    if (g->vhost_gpu_fd == -1) {
+        return;
+    }
+
     qemu_set_fd_handler(g->vhost_gpu_fd,
                         blocked ? NULL : vhost_user_gpu_chr_read, NULL, g);
 }
