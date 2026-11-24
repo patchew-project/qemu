@@ -321,8 +321,18 @@ void cpu_ioreq_pio(ioreq_t *req)
     trace_cpu_ioreq_pio(req, req->dir, req->df, req->data_is_ptr, req->addr,
                          req->data, req->count, req->size);
 
-    if (req->size > sizeof(uint32_t)) {
+    if (req->size == 0 || req->size > sizeof(uint32_t)) {
         hw_error("PIO: bad size (%u)", req->size);
+    }
+
+    /*
+     * Xen's instruction emulator clips a rep batch to at most 4096
+     * repetitions (hvmemul_virtual_to_linear(), hvmemul_linear_to_phys()),
+     * so the count of a well-formed ioreq is bounded. Don't spin for
+     * 2^32 iterations on a corrupted one.
+     */
+    if (req->data_is_ptr && req->count > 4096) {
+        hw_error("PIO: bad count (%u)", req->count);
     }
 
     if (req->dir == IOREQ_READ) {
@@ -361,8 +371,13 @@ static void cpu_ioreq_move(ioreq_t *req)
     trace_cpu_ioreq_move(req, req->dir, req->df, req->data_is_ptr, req->addr,
                          req->data, req->count, req->size);
 
-    if (req->size > sizeof(req->data)) {
+    if (req->size == 0 || req->size > sizeof(req->data)) {
         hw_error("MMIO: bad size (%u)", req->size);
+    }
+
+    /* As for PIO: Xen clips a rep batch to at most 4096 repetitions. */
+    if (req->count > 4096) {
+        hw_error("MMIO: bad count (%u)", req->count);
     }
 
     if (!req->data_is_ptr) {
