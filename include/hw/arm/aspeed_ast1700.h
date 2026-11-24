@@ -41,7 +41,7 @@ struct AspeedAST1700SoCState {
     MemoryRegion sram;
     AspeedSMCState spi;
     AspeedADCState adc;
-    Aspeed2700SCUState scu;
+    AspeedSCUState scuio;
     AspeedGPIOState gpio;
     AspeedSGPIOState sgpiom[AST1700_SGPIO_NUM];
     AspeedI2CState i2c;
