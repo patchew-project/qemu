@@ -44,10 +44,16 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
     CPUSysState *sys = env_sys(env);
     bool update_badinstr = 1;
     int cause = -1;
-    bool tlbfill = FIELD_EX64(sys->CSR_TLBRERA, CSR_TLBRERA, ISTLBR);
-    uint32_t vec_size = FIELD_EX64(sys->CSR_ECFG, CSR_ECFG, VS);
+    bool tlbfill;
+    uint32_t vec_size = FIELD_EX64(sys->CSR_ECFG, CSR_ECFG, VS), flags;
     uint64_t last_pc = env->pc;
+    vaddr address;
 
+    flags = env->exception.flags;
+    address = env->exception.badv;
+    env->exception.flags = 0;
+    env->exception.badv = 0;
+    tlbfill = !!(flags & LOONGARCH_EXCEPTION_REFILL);
     if (cs->exception_index != EXCCODE_INT) {
         qemu_log_mask(CPU_LOG_INT,
                      "%s enter: pc " TARGET_FMT_lx " ERA " TARGET_FMT_lx
@@ -113,6 +119,15 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
 
     /* Save PLV and IE */
     if (tlbfill) {
+        sys->CSR_TLBRBADV = address;
+        if (is_la64(env)) {
+            sys->CSR_TLBREHI = FIELD_DP64(sys->CSR_TLBREHI, CSR_TLBREHI_64,
+                                        VPPN, extract64(address, 13, 35));
+        } else {
+            sys->CSR_TLBREHI = FIELD_DP64(sys->CSR_TLBREHI, CSR_TLBREHI_32,
+                                        VPPN, extract64(address, 13, 19));
+        }
+
         sys->CSR_TLBRPRMD = FIELD_DP64(sys->CSR_TLBRPRMD, CSR_TLBRPRMD, PPLV,
                                        FIELD_EX64(sys->CSR_CRMD,
                                        CSR_CRMD, PLV));
@@ -121,9 +136,17 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
         /* set the DA mode */
         sys->CSR_CRMD = FIELD_DP64(sys->CSR_CRMD, CSR_CRMD, DA, 1);
         sys->CSR_CRMD = FIELD_DP64(sys->CSR_CRMD, CSR_CRMD, PG, 0);
+        sys->CSR_TLBRERA = FIELD_DP64(sys->CSR_TLBRERA, CSR_TLBRERA, ISTLBR, 1);
         sys->CSR_TLBRERA = FIELD_DP64(sys->CSR_TLBRERA, CSR_TLBRERA,
                                       PC, (env->pc >> 2));
     } else {
+        if (flags & LOONGARCH_EXCEPTION_TLB) {
+            if (!FIELD_EX64(sys->CSR_DBG, CSR_DBG, DST)) {
+                sys->CSR_BADV = address;
+            }
+            sys->CSR_TLBEHI = address & (TARGET_PAGE_MASK << 1);
+        }
+
         sys->CSR_ESTAT = FIELD_DP64(sys->CSR_ESTAT, CSR_ESTAT, ECODE,
                                     EXCODE_MCODE(cause));
         sys->CSR_ESTAT = FIELD_DP64(sys->CSR_ESTAT, CSR_ESTAT, ESUBCODE,

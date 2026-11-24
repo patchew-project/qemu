@@ -50,8 +50,7 @@ static G_NORETURN void raise_mmu_exception(CPULoongArchState *env,
                                            TLBRet tlb_error,
                                            uintptr_t retaddr)
 {
-    int32_t excp = 0;
-    CPUSysState *sys = env_sys(env);
+    int32_t excp = 0, flags;
 
     switch (tlb_error) {
     default:
@@ -59,7 +58,6 @@ static G_NORETURN void raise_mmu_exception(CPULoongArchState *env,
         excp = (access_type == MMU_INST_FETCH) ? EXCCODE_ADEF : EXCCODE_ADEM;
         break;
     case TLBRET_NOMATCH:
-        sys->CSR_TLBRERA = FIELD_DP64(sys->CSR_TLBRERA, CSR_TLBRERA, ISTLBR, 1);
         /* fallthrough */
     case TLBRET_INVALID:
         /* TLB match with no valid bit */
@@ -90,22 +88,12 @@ static G_NORETURN void raise_mmu_exception(CPULoongArchState *env,
     }
 
     if (tlb_error == TLBRET_NOMATCH) {
-        sys->CSR_TLBRBADV = address;
-        if (is_la64(env)) {
-            sys->CSR_TLBREHI = FIELD_DP64(sys->CSR_TLBREHI, CSR_TLBREHI_64,
-                                        VPPN, extract64(address, 13, 35));
-        } else {
-            sys->CSR_TLBREHI = FIELD_DP64(sys->CSR_TLBREHI, CSR_TLBREHI_32,
-                                        VPPN, extract64(address, 13, 19));
-        }
+        flags = LOONGARCH_EXCEPTION_REFILL;
     } else {
-        if (!FIELD_EX64(sys->CSR_DBG, CSR_DBG, DST)) {
-            sys->CSR_BADV = address;
-        }
-        sys->CSR_TLBEHI = address & (TARGET_PAGE_MASK << 1);
+        flags = LOONGARCH_EXCEPTION_TLB;
     }
 
-    do_raise_exception(env, excp, retaddr);
+    raise_exception_full(env, excp, retaddr, flags, address);
 }
 
 static void invalidate_tlb_entry(CPULoongArchState *env, int index)
