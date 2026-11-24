@@ -57,16 +57,8 @@ static void raise_mmu_exception(CPULoongArchState *env, vaddr address,
         excp = (access_type == MMU_INST_FETCH) ? EXCCODE_ADEF : EXCCODE_ADEM;
         break;
     case TLBRET_NOMATCH:
-        /* No TLB match for a mapped address */
-        if (access_type == MMU_DATA_LOAD) {
-            excp = EXCCODE_PIL;
-        } else if (access_type == MMU_DATA_STORE) {
-            excp = EXCCODE_PIS;
-        } else if (access_type == MMU_INST_FETCH) {
-            excp = EXCCODE_PIF;
-        }
         sys->CSR_TLBRERA = FIELD_DP64(sys->CSR_TLBRERA, CSR_TLBRERA, ISTLBR, 1);
-        break;
+        /* fallthrough */
     case TLBRET_INVALID:
         /* TLB match with no valid bit */
         if (access_type == MMU_DATA_LOAD) {
