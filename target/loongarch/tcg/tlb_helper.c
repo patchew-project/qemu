@@ -696,14 +696,13 @@ G_NORETURN void loongarch_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
                                                   uintptr_t retaddr)
 {
     CPULoongArchState *env = cpu_env(cs);
-    CPUSysState *sys = env_sys(env);
 
     /*
      * Unaligned accesses are currently triggered by atomic instructions
      * that impose alignment requirements on memory operands.
      */
-    sys->CSR_BADV = vaddr;
-    do_raise_exception(env, EXCCODE_ALE, retaddr);
+    raise_exception_full(env, EXCCODE_ALE, retaddr, LOONGARCH_EXCEPTION_MM,
+                         vaddr);
 }
 
 static inline uint64_t loongarch_sanitize_hw_pte(CPULoongArchState *env,

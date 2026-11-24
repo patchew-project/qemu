@@ -26,41 +26,34 @@ void HELPER(raise_exception)(CPULoongArchState *env, uint32_t exception)
 /* loongarch assert op */
 void HELPER(asrtle_d)(CPULoongArchState *env, target_ulong rj, target_ulong rk)
 {
-    CPUSysState *sys = env_sys(env);
 
     if ((target_long)rj > (target_long)rk) {
-        sys->CSR_BADV = rj;
-        do_raise_exception(env, EXCCODE_BCE, GETPC());
+        raise_exception_full(env, EXCCODE_BCE, GETPC(), LOONGARCH_EXCEPTION_MM,
+                             rj);
     }
 }
 
 void HELPER(asrtgt_d)(CPULoongArchState *env, target_ulong rj, target_ulong rk)
 {
-    CPUSysState *sys = env_sys(env);
-
     if ((target_long)rj <= (target_long)rk) {
-        sys->CSR_BADV = rj;
-        do_raise_exception(env, EXCCODE_BCE, GETPC());
+        raise_exception_full(env, EXCCODE_BCE, GETPC(), LOONGARCH_EXCEPTION_MM,
+                             rj);
     }
 }
 
 void HELPER(asrtle_du)(CPULoongArchState *env, target_ulong rj, target_ulong rk)
 {
-    CPUSysState *sys = env_sys(env);
-
     if (rj > rk) {
-        sys->CSR_BADV = rj;
-        do_raise_exception(env, EXCCODE_BCE, GETPC());
+        raise_exception_full(env, EXCCODE_BCE, GETPC(), LOONGARCH_EXCEPTION_MM,
+                             rj);
     }
 }
 
 void HELPER(asrtgt_du)(CPULoongArchState *env, target_ulong rj, target_ulong rk)
 {
-    CPUSysState *sys = env_sys(env);
-
     if (rj <= rk) {
-        sys->CSR_BADV = rj;
-        do_raise_exception(env, EXCCODE_BCE, GETPC());
+        raise_exception_full(env, EXCCODE_BCE, GETPC(), LOONGARCH_EXCEPTION_MM,
+                             rj);
     }
 }
 

@@ -140,6 +140,10 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
         sys->CSR_TLBRERA = FIELD_DP64(sys->CSR_TLBRERA, CSR_TLBRERA,
                                       PC, (env->pc >> 2));
     } else {
+        if (flags & LOONGARCH_EXCEPTION_MM) {
+            sys->CSR_BADV = address;
+        }
+
         if (flags & LOONGARCH_EXCEPTION_TLB) {
             if (!FIELD_EX64(sys->CSR_DBG, CSR_DBG, DST)) {
                 sys->CSR_BADV = address;
@@ -215,13 +219,13 @@ static void loongarch_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
                                                 uintptr_t retaddr)
 {
     CPULoongArchState *env = cpu_env(cs);
-    CPUSysState *sys = env_sys(env);
 
-    sys->CSR_BADV = addr;
     if (access_type == MMU_INST_FETCH) {
-        do_raise_exception(env, EXCCODE_ADEF, retaddr);
+        raise_exception_full(env, EXCCODE_ADEF, retaddr, LOONGARCH_EXCEPTION_MM,
+                             addr);
     } else {
-        do_raise_exception(env, EXCCODE_ADEM, retaddr);
+        raise_exception_full(env, EXCCODE_ADEM, retaddr, LOONGARCH_EXCEPTION_MM,
+                             addr);
     }
 }
 
