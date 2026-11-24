@@ -1077,12 +1077,15 @@ static void riscv_cpu_reset_hold(Object *obj, ResetType type)
     env->priv = PRV_U;
     env->senvcfg = 0;
     /*
-     * Match the user-mode view of a typical firmware/kernel setup where
-     * cbo.zero is enabled for user mode; the CBCFE/CBIE bits stay zero,
-     * so the cache-management operations remain illegal in user mode.
+     * Match Linux, which enables cbo.zero for user mode when the harts
+     * have Zicboz and cbo.clean/cbo.flush when they have Zicbom, but
+     * never cbo.inval.
      */
     if (riscv_cpu_cfg(env)->ext_zicboz) {
         env->senvcfg |= SENVCFG_CBZE;
+    }
+    if (riscv_cpu_cfg(env)->ext_zicbom) {
+        env->senvcfg |= SENVCFG_CBCFE;
     }
     env->menvcfg = 0;
 #endif /* !CONFIG_USER_ONLY */
