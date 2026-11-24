@@ -2052,6 +2052,16 @@ static int find_be_port(XenEvtchnState *s, struct xenevtchn_handle *xc)
 {
     int i;
 
+    /*
+     * A handle may still own a backend port from before a guest soft reset;
+     * close_port() clears only the guest side. Reuse it rather than leaking
+     * the old slot and allocating a second one.
+     */
+    if (xc->be_port && xc->be_port < EVTCHN_2L_NR_CHANNELS &&
+        s->be_handles[xc->be_port] == xc) {
+        return xc->be_port;
+    }
+
     for (i = 1; i < EVTCHN_2L_NR_CHANNELS; i++) {
         if (!s->be_handles[i]) {
             s->be_handles[i] = xc;
