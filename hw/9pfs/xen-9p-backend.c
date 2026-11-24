@@ -453,7 +453,7 @@ static int xen_9pfs_connect(struct XenLegacyDevice *xendev)
     xen_9pdev->rings = g_new0(Xen9pfsRing, xen_9pdev->num_rings);
     for (i = 0; i < xen_9pdev->num_rings; i++) {
         char *str;
-        int ring_order;
+        uint32_t ring_order;
 
         xen_9pdev->rings[i].priv = xen_9pdev;
         xen_9pdev->rings[i].evtchn = -1;
@@ -515,7 +515,7 @@ static int xen_9pfs_connect(struct XenLegacyDevice *xendev)
                                             (xen_9pdev->rings[i].evtchndev,
                                              xendev->dom,
                                              xen_9pdev->rings[i].evtchn);
-        if (xen_9pdev->rings[i].local_port == -1) {
+        if (xen_9pdev->rings[i].local_port < 0) {
             xen_pv_printf(xendev, 0,
                           "xenevtchn_bind_interdomain failed port=%d\n",
                           xen_9pdev->rings[i].evtchn);
@@ -531,6 +531,9 @@ static int xen_9pfs_connect(struct XenLegacyDevice *xendev)
     xen_9pdev->id = s->fsconf.fsdev_id =
         g_strdup_printf("xen9p%d", xendev->dev);
     xen_9pdev->tag = s->fsconf.tag = xenstore_read_fe_str(xendev, "tag");
+    if (!xen_9pdev->tag) {
+        goto out;
+    }
     fsdev = qemu_opts_create(qemu_find_opts("fsdev"),
             s->fsconf.tag,
             1, NULL);
