@@ -138,6 +138,12 @@ static bool net_tx_packets(struct XenNetDev *netdev)
         rp = netdev->tx_ring.sring->req_prod;
         xen_rmb(); /* Ensure we see queued requests up to 'rp'. */
 
+        if (RING_REQUEST_PROD_OVERFLOW(&netdev->tx_ring, rp)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "vif%u: bad req_prod %u\n",
+                          netdev->dev, rp);
+            break;
+        }
+
         while ((rc != rp)) {
             if (RING_REQUEST_CONS_OVERFLOW(&netdev->tx_ring, rc)) {
                 break;
@@ -268,7 +274,8 @@ static ssize_t net_rx_packet(NetClientState *nc, const uint8_t *buf, size_t size
     rp = netdev->rx_ring.sring->req_prod;
     xen_rmb(); /* Ensure we see queued requests up to 'rp'. */
 
-    if (rc == rp || RING_REQUEST_CONS_OVERFLOW(&netdev->rx_ring, rc)) {
+    if (rc == rp || RING_REQUEST_PROD_OVERFLOW(&netdev->rx_ring, rp) ||
+        RING_REQUEST_CONS_OVERFLOW(&netdev->rx_ring, rc)) {
         return 0;
     }
     if (size > XEN_PAGE_SIZE - NET_IP_ALIGN) {
