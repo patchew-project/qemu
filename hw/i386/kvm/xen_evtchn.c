@@ -1925,13 +1925,15 @@ int xen_physdev_unmap_pirq(struct physdev_unmap_pirq *unmap)
 
     gsi = s->pirq[pirq].gsi;
 
-    /* We can only unmap GSI PIRQs */
-    if (gsi < 0) {
+    /* We can only unmap GSI PIRQs and emulated MSIs */
+    if (gsi < 0 && gsi != IRQ_MSI_EMU) {
         qemu_mutex_unlock(&s->port_lock);
         return -EINVAL;
     }
 
-    s->gsi_pirq[gsi] = 0;
+    if (gsi >= 0) {
+        s->gsi_pirq[gsi] = 0;
+    }
     s->pirq[pirq].gsi = IRQ_UNBOUND; /* Doesn't actually matter because: */
     pirq_inuse_word(s, pirq) &= ~pirq_inuse_bit(pirq);
 
