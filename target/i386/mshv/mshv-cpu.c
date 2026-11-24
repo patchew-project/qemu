@@ -2564,8 +2564,15 @@ int mshv_get_vp_state(int cpu_fd, struct mshv_get_set_vp_state *state)
 static void mshv_cpu_instance_init(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
+    X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
 
     host_cpu_instance_init(cpu);
+
+    if (xcc->max_features) {
+        cpu->env.cpuid_min_xlevel =
+            mshv_get_supported_cpuid(0x80000000, 0, R_EAX);
+    }
+
     mshv_cpu_xsave_init();
 }
 
