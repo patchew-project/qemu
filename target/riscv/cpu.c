@@ -285,6 +285,7 @@ const RISCVIsaExtData isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(ssdbltrp, PRIV_VERSION_1_13_0, ext_ssdbltrp),
     ISA_EXT_DATA_ENTRY(ssnpm, PRIV_VERSION_1_13_0, ext_ssnpm),
     ISA_EXT_DATA_ENTRY(sspm, PRIV_VERSION_1_13_0, ext_sspm),
+    ISA_EXT_DATA_ENTRY(ssqosid, PRIV_VERSION_1_13_0, ext_ssqosid),
     ISA_INTERNAL_EXT_DATA_ENTRY(ssstateen, PRIV_VERSION_1_12_0, ext_ssstateen),
     ISA_INTERNAL_EXT_DATA_ENTRY(ssstrict, PRIV_VERSION_1_12_0, has_priv_1_12),
     ISA_EXT_DATA_ENTRY(sstc, PRIV_VERSION_1_12_0, ext_sstc),
@@ -1030,6 +1031,7 @@ static void riscv_cpu_reset_hold(Object *obj, ResetType type)
                    (!cpu->cfg.ext_svade && cpu->cfg.ext_svadu ?
                     MENVCFG_ADUE : 0);
     env->henvcfg = 0;
+    env->srmcfg = 0;
 
 #ifdef CONFIG_TCG
     uint8_t iprio;
@@ -3527,6 +3529,7 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .cfg.ext_zbc = true,
         .cfg.ext_zbs = true,
         .cfg.ext_sstc = true,
+        .cfg.ext_ssqosid = true,
         .cfg.ext_svadu = true,
         .cfg.ext_svvptc = true,
     ),
@@ -3600,6 +3603,7 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .cfg.ext_zbc = true,
         .cfg.ext_zbs = true,
         .cfg.ext_sstc = true,
+        .cfg.ext_ssqosid = true,
         .cfg.ext_svadu = true,
         .cfg.ext_svvptc = true,
     ),

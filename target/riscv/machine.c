@@ -382,6 +382,24 @@ static const VMStateDescription vmstate_sdext = {
     }
 };
 
+static bool ssqosid_needed(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+
+    return cpu->cfg.ext_ssqosid;
+}
+
+static const VMStateDescription vmstate_ssqosid = {
+    .name = "cpu/ssqosid",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ssqosid_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINTTL(env.srmcfg, RISCVCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static int riscv_cpu_post_load(void *opaque, int version_id)
 {
     RISCVCPU *cpu = opaque;
@@ -656,6 +674,7 @@ const VMStateDescription vmstate_riscv_cpu = {
         &vmstate_sstc,
         &vmstate_mseccfg,
         &vmstate_sdext,
+        &vmstate_ssqosid,
         NULL
     }
 };
