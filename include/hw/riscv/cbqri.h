@@ -17,6 +17,14 @@
 #define TYPE_RISCV_CBQRI_CC         "riscv.cbqri.capacity"
 #define TYPE_RISCV_CBQRI_BC         "riscv.cbqri.bandwidth"
 
+/* Monitoring counter, one per MCID in both controllers */
+typedef struct RiscvCbqriMonitorCounter {
+    uint64_t ctr_val;
+    int at;
+    int evt_id;
+    bool active;
+} RiscvCbqriMonitorCounter;
+
 /* Capacity Controller hardware capabilities */
 typedef struct RiscvCbqriCapacityCaps {
     uint16_t nb_mcids;
