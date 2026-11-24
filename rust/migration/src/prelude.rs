@@ -16,4 +16,3 @@ pub use crate::vmstate_fields;
 pub use crate::vmstate_of;
 pub use crate::vmstate_subsections;
 pub use crate::vmstate_unused;
-pub use crate::vmstate_validate;

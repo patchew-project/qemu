@@ -384,23 +384,6 @@ macro_rules! vmstate_fields {
     }}
 }
 
-#[doc(alias = "VMSTATE_VALIDATE")]
-#[macro_export]
-macro_rules! vmstate_validate {
-    ($struct_name:ty, $test_name:expr, $test_fn:expr $(,)?) => {
-        $crate::bindings::VMStateField {
-            name: ::std::ffi::CStr::as_ptr($test_name),
-            field_exists: $crate::vmstate_exist_fn!($struct_name, $test_fn),
-            flags: $crate::bindings::VMStateFlags(
-                $crate::bindings::VMStateFlags::VMS_MUST_EXIST.0
-                    | $crate::bindings::VMStateFlags::VMS_NO_STATE.0,
-            ),
-            num: 0, // 0 elements: no data, only run test_fn callback
-            ..::common::zeroable::Zeroable::ZERO
-        }
-    };
-}
-
 /// Helper macro to allow using a struct in [`vmstate_of!`]
 ///
 /// # Safety
