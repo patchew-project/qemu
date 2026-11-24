@@ -72,6 +72,26 @@ int probe_access_flags(CPUArchState *env, vaddr addr, int size,
 #ifndef CONFIG_USER_ONLY
 
 /**
+ * probe_access_perm:
+ * @env: CPUArchState
+ * @addr: guest virtual address to look up
+ * @fault_size: size passed to the target's tlb_fill (not asserted to
+ *              stay within one page; the caller splits page crossings)
+ * @access_type: read, write or execute permission
+ * @mmu_idx: MMU index to use for lookup
+ * @retaddr: return address for unwinding
+ *
+ * Permission-only lookup.  Raise an exception if the page does not
+ * satisfy @access_type.  Unlike probe_access, after a successful lookup
+ * do not process watchpoints or mark clean RAM dirty, and do not request
+ * plugin slow-path.  Side effects of the target's tlb_fill hook still
+ * apply, for example a page walk updating guest PTE A/D bits.
+ */
+void probe_access_perm(CPUArchState *env, vaddr addr, int fault_size,
+                       MMUAccessType access_type, int mmu_idx,
+                       uintptr_t retaddr);
+
+/**
  * probe_access_full:
  * Like probe_access_flags, except also return into @pfull.
  *

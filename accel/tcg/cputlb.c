@@ -1435,6 +1435,17 @@ int probe_access_flags(CPUArchState *env, vaddr addr, int size,
     return flags;
 }
 
+void probe_access_perm(CPUArchState *env, vaddr addr, int fault_size,
+                       MMUAccessType access_type, int mmu_idx,
+                       uintptr_t retaddr)
+{
+    CPUTLBEntryFull *full;
+    void *host;
+
+    probe_access_internal(env_cpu(env), addr, fault_size, access_type,
+                          mmu_idx, false, &host, &full, retaddr, false);
+}
+
 void *probe_access(CPUArchState *env, vaddr addr, int size,
                    MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
 {
