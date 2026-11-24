@@ -2342,6 +2342,7 @@ void qmp_xen_event_inject(uint32_t port, Error **errp)
 
     if (!valid_port(port)) {
         error_setg(errp, "Invalid port %u", port);
+        return;
     }
 
     QEMU_LOCK_GUARD(&s->port_lock);
