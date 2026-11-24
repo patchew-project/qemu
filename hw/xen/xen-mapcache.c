@@ -199,7 +199,7 @@ static void xen_remap_bucket(MapCache *mc,
     uint8_t *vaddr_base;
     g_autofree uint32_t *refs = NULL;
     g_autofree xen_pfn_t *pfns = NULL;
-    g_autofree int *err;
+    g_autofree int *err = NULL;
     unsigned int i;
     hwaddr nb_pfn = size >> XC_PAGE_SHIFT;
 
