@@ -314,7 +314,6 @@ static int xen_9pfs_receive(Xen9pfsRing *ring)
     if (queued < sizeof(h)) {
         return 0;
     }
-    ring->inprogress = true;
 
     masked_prod = xen_9pfs_mask(prod, XEN_FLEX_RING_SIZE(ring->ring_order));
     masked_cons = xen_9pfs_mask(cons, XEN_FLEX_RING_SIZE(ring->ring_order));
@@ -322,9 +321,18 @@ static int xen_9pfs_receive(Xen9pfsRing *ring)
     xen_9pfs_read_packet((uint8_t *) &h, ring->ring.out, sizeof(h),
                          masked_prod, &masked_cons,
                          XEN_FLEX_RING_SIZE(ring->ring_order));
-    if (queued < le32_to_cpu(h.size_le)) {
+    /*
+     * A size smaller than the header itself is malformed; returning
+     * with inprogress still clear means it is simply ignored until the
+     * guest fixes up the ring contents. Do not set inprogress before
+     * the request is accepted, or a half-arrived request would wedge
+     * the ring forever.
+     */
+    if (le32_to_cpu(h.size_le) < sizeof(h) ||
+        queued < le32_to_cpu(h.size_le)) {
         return 0;
     }
+    ring->inprogress = true;
 
     /* cannot fail, because we only handle one request per ring at a time */
     pdu = pdu_alloc(&ring->priv->state);
