@@ -1959,6 +1959,9 @@ void memory_region_set_nonvolatile(MemoryRegion *mr, bool nonvolatile);
  * device is mapped to guest memory and satisfies read access directly.
  * When in MMIO mode, reads are forwarded to the #MemoryRegion.read function.
  * Writes are always handled by the #MemoryRegion.write function.
+ * Switching to MMIO mode when currently in ROMD mode, and switching to ROMD
+ * mode, both drop the translated blocks of the whole region, so the device
+ * may modify its contents while in MMIO mode.
  *
  * @mr: the memory region to be updated
  * @romd_mode: %true to put the region into ROMD mode
