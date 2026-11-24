@@ -392,8 +392,7 @@ static void xen_9pfs_disconnect(struct XenLegacyDevice *xendev)
         if (xen_9pdev->rings[i].evtchndev != NULL) {
             qemu_set_fd_handler(qemu_xen_evtchn_fd(xen_9pdev->rings[i].evtchndev),
                                 NULL, NULL, NULL);
-            qemu_xen_evtchn_unbind(xen_9pdev->rings[i].evtchndev,
-                                   xen_9pdev->rings[i].local_port);
+            qemu_xen_evtchn_close(xen_9pdev->rings[i].evtchndev);
             xen_9pdev->rings[i].evtchndev = NULL;
         }
         if (xen_9pdev->rings[i].data != NULL) {
