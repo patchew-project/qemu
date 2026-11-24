@@ -163,12 +163,16 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
 {
     MachineState *machine = MACHINE(hms);
     MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *ram = machine->ram;
     size_t i;
 
     /* Main DDR. */
-    memory_region_init_ram(&hms->ram, NULL, "ddr.ram", machine->ram_size,
-                           &error_fatal);
-    memory_region_add_subregion(sysmem, m_cfg->ddr_base, &hms->ram);
+    if (!ram) {
+        memory_region_init_ram(&hms->ram, NULL, "ddr.ram", machine->ram_size,
+                               &error_fatal);
+        ram = &hms->ram;
+    }
+    memory_region_add_subregion(sysmem, m_cfg->ddr_base, ram);
 
     /* Config-table ROM and the blob that backs it. */
     memory_region_init_rom(&hms->cfgtable_rom, NULL, "config_table.rom",
