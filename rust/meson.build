@@ -30,7 +30,7 @@ cargo = find_program('cargo', required: false)
 if cargo.found()
   run_target('rustfmt',
     command: [config_host['MESON'], 'devenv',
-              '--workdir', '@CURRENT_SOURCE_DIR@',
+              '--workdir', meson.project_source_root(),
               cargo, 'fmt'],
     depends: genrs)
 endif
