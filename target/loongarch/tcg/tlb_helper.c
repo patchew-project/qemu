@@ -47,51 +47,51 @@ bool check_ps(CPULoongArchState *env, uint8_t tlb_ps)
 static void raise_mmu_exception(CPULoongArchState *env, vaddr address,
                                 MMUAccessType access_type, TLBRet tlb_error)
 {
+    int32_t excp = 0;
     CPUState *cs = env_cpu(env);
     CPUSysState *sys = env_sys(env);
 
     switch (tlb_error) {
     default:
     case TLBRET_BADADDR:
-        cs->exception_index = access_type == MMU_INST_FETCH
-                              ? EXCCODE_ADEF : EXCCODE_ADEM;
+        excp = (access_type == MMU_INST_FETCH) ? EXCCODE_ADEF : EXCCODE_ADEM;
         break;
     case TLBRET_NOMATCH:
         /* No TLB match for a mapped address */
         if (access_type == MMU_DATA_LOAD) {
-            cs->exception_index = EXCCODE_PIL;
+            excp = EXCCODE_PIL;
         } else if (access_type == MMU_DATA_STORE) {
-            cs->exception_index = EXCCODE_PIS;
+            excp = EXCCODE_PIS;
         } else if (access_type == MMU_INST_FETCH) {
-            cs->exception_index = EXCCODE_PIF;
+            excp = EXCCODE_PIF;
         }
         sys->CSR_TLBRERA = FIELD_DP64(sys->CSR_TLBRERA, CSR_TLBRERA, ISTLBR, 1);
         break;
     case TLBRET_INVALID:
         /* TLB match with no valid bit */
         if (access_type == MMU_DATA_LOAD) {
-            cs->exception_index = EXCCODE_PIL;
+            excp = EXCCODE_PIL;
         } else if (access_type == MMU_DATA_STORE) {
-            cs->exception_index = EXCCODE_PIS;
+            excp = EXCCODE_PIS;
         } else if (access_type == MMU_INST_FETCH) {
-            cs->exception_index = EXCCODE_PIF;
+            excp = EXCCODE_PIF;
         }
         break;
     case TLBRET_DIRTY:
         /* TLB match but 'D' bit is cleared */
-        cs->exception_index = EXCCODE_PME;
+        excp = EXCCODE_PME;
         break;
     case TLBRET_XI:
         /* Execute-Inhibit Exception */
-        cs->exception_index = EXCCODE_PNX;
+        excp = EXCCODE_PNX;
         break;
     case TLBRET_RI:
         /* Read-Inhibit Exception */
-        cs->exception_index = EXCCODE_PNR;
+        excp = EXCCODE_PNR;
         break;
     case TLBRET_PE:
         /* Privileged Exception */
-        cs->exception_index = EXCCODE_PPI;
+        excp = EXCCODE_PPI;
         break;
     }
 
@@ -109,7 +109,9 @@ static void raise_mmu_exception(CPULoongArchState *env, vaddr address,
             sys->CSR_BADV = address;
         }
         sys->CSR_TLBEHI = address & (TARGET_PAGE_MASK << 1);
-   }
+    }
+
+    cs->exception_index = excp;
 }
 
 static void invalidate_tlb_entry(CPULoongArchState *env, int index)
