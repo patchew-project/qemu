@@ -1,3 +1,6 @@
+config RISCV_CBQRI
+    bool
+
 config RISCV_IOMMU
     bool
 
@@ -73,6 +76,7 @@ config RISCV_VIRT
     select ACPI
     select ACPI_PCI
     select RISCV_DEVICE_COMMON
+    imply RISCV_CBQRI
 
 config RISCV_SERVER_PLATFORM_REF
     bool
