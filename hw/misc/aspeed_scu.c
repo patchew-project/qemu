@@ -952,12 +952,16 @@ static void aspeed_2700_scu_instance_init(Object *obj)
     Aspeed2700SCUState *a = ASPEED_2700_SCU(obj);
 
     a->ssp_cpuid = -1;
+    a->tsp_cpuid = -1;
 
     object_property_add_link(obj, "ssp-remap0", TYPE_MEMORY_REGION,
                              (Object **)&a->ssp_remap[0],
                              object_property_allow_set_link, 0);
     object_property_add_link(obj, "ssp-remap1", TYPE_MEMORY_REGION,
                              (Object **)&a->ssp_remap[1],
+                             object_property_allow_set_link, 0);
+    object_property_add_link(obj, "tsp-remap", TYPE_MEMORY_REGION,
+                             (Object **)&a->tsp_remap,
                              object_property_allow_set_link, 0);
 }
 

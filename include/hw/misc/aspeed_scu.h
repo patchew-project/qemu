@@ -46,7 +46,9 @@ struct Aspeed2700SCUState {
     AspeedSCUState parent_obj;
 
     MemoryRegion *ssp_remap[2];
+    MemoryRegion *tsp_remap;
     int ssp_cpuid;
+    int tsp_cpuid;
 };
 
 #define AST2400_A1_SILICON_REV   0x02010303U
