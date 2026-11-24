@@ -1442,7 +1442,7 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
     case SDHC_FEAER:
         s->acmd12errsts |= value;
         s->errintsts |= (value >> 16) & s->errintstsen;
-        if (s->acmd12errsts) {
+        if (s->acmd12errsts && (s->errintstsen & SDHC_EISEN_CMD12ERR)) {
             s->errintsts |= SDHC_EIS_CMD12ERR;
         }
         if (s->errintsts) {
