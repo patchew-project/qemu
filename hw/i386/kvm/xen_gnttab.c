@@ -363,7 +363,9 @@ static void *xen_be_gnttab_map_refs(struct xengntdev_handle *xgt,
     act = g_hash_table_lookup(xgt->active_maps, GINT_TO_POINTER(refs[0]));
     if (act) {
         if ((prot & PROT_WRITE) && !(act->prot & PROT_WRITE)) {
-            if (gnt_ref(s, refs[0], prot) == INVALID_GPA) {
+            if (act->mrs.readonly ||
+                gnt_ref(s, refs[0], prot) == INVALID_GPA) {
+                errno = EINVAL;
                 return NULL;
             }
             act->prot |= PROT_WRITE;
@@ -376,12 +378,19 @@ static void *xen_be_gnttab_map_refs(struct xengntdev_handle *xgt,
             return NULL;
         }
 
+        /*
+         * Keep the map_track[] count balanced with the gnt_unref() in the
+         * failure path below, which asserts that it never underflows.
+         */
+        s->map_track[refs[0]]++;
+
         act = g_new0(struct active_ref, 1);
         act->prot = prot;
         act->refcnt = 1;
         act->mrs = memory_region_find(get_system_memory(), gpa, XEN_PAGE_SIZE);
 
         if (act->mrs.mr &&
+            !(act->mrs.readonly && (prot & PROT_WRITE)) &&
             !int128_lt(act->mrs.size, int128_make64(XEN_PAGE_SIZE)) &&
             memory_region_get_ram_addr(act->mrs.mr) != RAM_ADDR_INVALID) {
             act->virtaddr = qemu_map_ram_ptr(act->mrs.mr->ram_block,
@@ -394,7 +403,6 @@ static void *xen_be_gnttab_map_refs(struct xengntdev_handle *xgt,
             return NULL;
         }
 
-        s->map_track[refs[0]]++;
         g_hash_table_insert(xgt->active_maps, GINT_TO_POINTER(refs[0]), act);
     }
 
