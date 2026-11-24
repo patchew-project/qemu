@@ -473,6 +473,16 @@ static int xen_be_gnttab_copy(struct xengntdev_handle *xgt, bool to_domain,
         void *page;
         uint32_t ref = to_domain ? seg->dest.foreign.ref :
             seg->source.foreign.ref;
+        off_t offset = to_domain ? seg->dest.foreign.offset :
+            seg->source.foreign.offset;
+
+        if (offset < 0 || offset > XEN_PAGE_SIZE ||
+            seg->len > XEN_PAGE_SIZE - offset) {
+            if (errp) {
+                error_setg(errp, "grant copy segment out of page bounds");
+            }
+            return -EINVAL;
+        }
 
         page = xen_be_gnttab_map_refs(xgt, 1, domid, &ref, prot);
         if (!page) {

@@ -50,6 +50,17 @@ static int libxengnttab_fallback_grant_copy(xengnttab_handle *xgt,
 
     for (i = 0; i < nr_segs; i++) {
         XenGrantCopySegment *seg = &segs[i];
+        off_t offset = to_domain ? seg->dest.foreign.offset :
+            seg->source.foreign.offset;
+
+        if (offset < 0 || offset > XEN_PAGE_SIZE ||
+            seg->len > XEN_PAGE_SIZE - offset) {
+            if (errp) {
+                error_setg(errp, "grant copy segment out of page bounds");
+            }
+            rc = -EINVAL;
+            goto done;
+        }
 
         refs[i] = to_domain ? seg->dest.foreign.ref :
             seg->source.foreign.ref;
