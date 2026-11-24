@@ -44,11 +44,13 @@ bool check_ps(CPULoongArchState *env, uint8_t tlb_ps)
     return BIT_ULL(tlb_ps) & (sys->CSR_PRCFG2);
 }
 
-static void raise_mmu_exception(CPULoongArchState *env, vaddr address,
-                                MMUAccessType access_type, TLBRet tlb_error)
+static G_NORETURN void raise_mmu_exception(CPULoongArchState *env,
+                                           vaddr address,
+                                           MMUAccessType access_type,
+                                           TLBRet tlb_error,
+                                           uintptr_t retaddr)
 {
     int32_t excp = 0;
-    CPUState *cs = env_cpu(env);
     CPUSysState *sys = env_sys(env);
 
     switch (tlb_error) {
@@ -103,7 +105,7 @@ static void raise_mmu_exception(CPULoongArchState *env, vaddr address,
         sys->CSR_TLBEHI = address & (TARGET_PAGE_MASK << 1);
     }
 
-    cs->exception_index = excp;
+    do_raise_exception(env, excp, retaddr);
 }
 
 static void invalidate_tlb_entry(CPULoongArchState *env, int index)
@@ -696,8 +698,8 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     if (probe) {
         return false;
     }
-    raise_mmu_exception(env, address, access_type, ret);
-    cpu_loop_exit_restore(cs, retaddr);
+
+    raise_mmu_exception(env, address, access_type, ret, retaddr);
 }
 
 G_NORETURN void loongarch_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
