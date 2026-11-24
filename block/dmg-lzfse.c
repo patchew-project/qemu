@@ -37,12 +37,17 @@ static int dmg_uncompress_lzfse_do(char *next_in, unsigned int avail_in,
                                           (uint8_t *) next_in, avail_in,
                                           NULL);
 
-    /* We need to decode the single chunk only. */
-    /* So, out_size == avail_out is not an error here. */
-    if (out_size > 0) {
-        return out_size;
+    /*
+     * lzfse_decode_buffer() returns the number of bytes written to the
+     * destination buffer, or the destination capacity if the buffer is
+     * too small.  Reject any decode that did not fill the full chunk:
+     * a truncated decode would expose the uninitialized tail of the
+     * uncompressed_chunk buffer to the guest.
+     */
+    if (out_size < avail_out) {
+        return -1;
     }
-    return -1;
+    return out_size;
 }
 
 __attribute__((constructor))
