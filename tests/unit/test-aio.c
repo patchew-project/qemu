@@ -830,6 +830,38 @@ static void test_worker_thread_co_enter(void)
     g_assert(!aio_poll(ctx, false));
 }
 
+/*
+ * aio_poll() can run between the glib event loop's prepare and poll steps,
+ * e.g. in a vCPU thread holding the BQL.  aio_notify() must still wake the
+ * glib event loop afterwards.
+ */
+static void test_source_notify_after_aio_poll(void)
+{
+    GMainContext *gctx = g_main_context_default();
+    GPollFD fds[16];
+    gint max_priority, timeout, nfds;
+
+    do {} while (g_main_context_iteration(NULL, false));
+
+    g_assert(g_main_context_acquire(gctx));
+    g_main_context_prepare(gctx, &max_priority);
+    nfds = g_main_context_query(gctx, max_priority, &timeout,
+                                fds, G_N_ELEMENTS(fds));
+    g_assert_cmpint(nfds, <=, G_N_ELEMENTS(fds));
+
+    aio_notify(ctx);
+    aio_poll(ctx, false);
+
+    aio_notify(ctx);
+    g_assert_cmpint(g_poll(fds, nfds, 1000), >, 0);
+
+    g_main_context_check(gctx, max_priority, fds, nfds);
+    g_main_context_dispatch(gctx);
+    g_main_context_release(gctx);
+
+    do {} while (g_main_context_iteration(NULL, false));
+}
+
 /* End of tests.  */
 
 int main(int argc, char **argv)
@@ -869,5 +901,6 @@ int main(int argc, char **argv)
     g_test_add_func("/aio-gsource/event/wait/no-flush-cb",  test_source_wait_event_notifier_noflush);
     g_test_add_func("/aio-gsource/event/flush",             test_source_flush_event_notifier);
     g_test_add_func("/aio-gsource/timer/schedule",          test_source_timer_schedule);
+    g_test_add_func("/aio-gsource/notify-after-aio-poll",   test_source_notify_after_aio_poll);
     return g_test_run();
 }
