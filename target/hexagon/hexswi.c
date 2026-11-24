@@ -972,6 +972,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         break;
 
     case HEX_EVENT_FPTRAP:
+        env->imprecise_exception = 0;
         if (event_to_guest(env, CCR_GEE)) {
             guest_event_entry(env, env->cause_code, env->gpr[HEX_REG_PC],
                               HEX_GEVB_HW_FPTRAP, false);
