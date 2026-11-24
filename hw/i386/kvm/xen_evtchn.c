@@ -1701,7 +1701,7 @@ static void do_remove_pci_vector(XenEvtchnState *s, PCIDevice *dev, int vector,
          * and cache lines).
          */
         if (!(pirq & 63) && !(pirq_inuse_word(s, pirq))) {
-            pirq += 64;
+            pirq += 63;
             continue;
         }
         if (except_pirq && pirq == except_pirq) {
