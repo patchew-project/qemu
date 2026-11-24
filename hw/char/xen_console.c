@@ -89,17 +89,25 @@ static bool buffer_append(XenConsole *con)
 
     if (buffer->max_capacity &&
         buffer->size > buffer->max_capacity) {
-        /* Discard the middle of the data. */
-
+        /*
+         * Discard the middle of the data: keep the head of the buffer
+         * up to where the overflowing data will be moved down to end
+         * at max_capacity, and the newest 'keep' bytes. If the buffer
+         * has grown to more than twice max_capacity (the frontend may
+         * set an arbitrarily small 'limit'), there is no head to keep
+         * and the newest max_capacity bytes alone remain.
+         */
         size_t over = buffer->size - buffer->max_capacity;
-        uint8_t *maxpos = buffer->data + buffer->max_capacity;
+        size_t keep = MIN(over, buffer->max_capacity);
 
-        memmove(maxpos - over, maxpos, over);
+        memmove(buffer->data + buffer->max_capacity - keep,
+                buffer->data + buffer->size - keep, keep);
         buffer->data = g_realloc(buffer->data, buffer->max_capacity);
         buffer->size = buffer->capacity = buffer->max_capacity;
 
-        if (buffer->consumed > buffer->max_capacity - over)
-            buffer->consumed = buffer->max_capacity - over;
+        if (buffer->consumed > buffer->max_capacity - keep) {
+            buffer->consumed = buffer->max_capacity - keep;
+        }
     }
     return true;
 }
