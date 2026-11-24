@@ -1150,6 +1150,25 @@ static bool gen_unary_per_ol(DisasContext *ctx, arg_r2 *a, DisasExtend ext,
     return gen_unary(ctx, a, ext, f_tl);
 }
 
+/*
+ * Zicfiss: without CF_PARALLEL, TCG lowers AMOs to load+store, so check
+ * store permission up front.  The parallel helpers (atomic_mmu_lookup)
+ * already do the store lookup first.  @strict: the real op enforces
+ * natural alignment.
+ */
+static void gen_amo_probe(DisasContext *ctx, TCGv addr, MemOp mop,
+                          bool strict)
+{
+#ifndef CONFIG_USER_ONLY
+    if (ctx->bcfi_enabled &&
+        !(tb_cflags(ctx->base.tb) & CF_PARALLEL)) {
+        gen_helper_amo_probe_write(tcg_env, addr,
+                                   tcg_constant_tl(memop_size(mop)),
+                                   tcg_constant_tl(strict));
+    }
+#endif
+}
+
 static bool gen_amo(DisasContext *ctx, arg_atomic *a,
                     void(*func)(TCGv, TCGv, TCGv, TCGArg, MemOp),
                     MemOp mop)
@@ -1157,16 +1176,19 @@ static bool gen_amo(DisasContext *ctx, arg_atomic *a,
     TCGv dest = dest_gpr(ctx, a->rd);
     TCGv src1, src2 = get_gpr(ctx, a->rs2, EXT_NONE);
     MemOp size = mop & MO_SIZE;
+    bool strict = true;
 
     mop |= ctx->mo_endianness;
     if (ctx->cfg_ptr->ext_zama16b && size >= MO_32) {
         mop |= MO_ATOM_WITHIN16;
+        strict = false;
     } else {
         mop |= MO_ALIGN;
     }
 
     decode_save_opc(ctx, RISCV_UW2_ALWAYS_STORE_AMO);
     src1 = get_address(ctx, a->rs1, 0);
+    gen_amo_probe(ctx, src1, mop, strict);
     func(dest, src1, src2, ctx->mem_idx, mop);
 
     gen_set_gpr(ctx, a->rd, dest);
@@ -1181,6 +1203,7 @@ static bool gen_cmpxchg(DisasContext *ctx, arg_atomic *a, MemOp mop)
 
     mop |= ctx->mo_endianness;
     decode_save_opc(ctx, RISCV_UW2_ALWAYS_STORE_AMO);
+    gen_amo_probe(ctx, src1, mop, true);
     tcg_gen_atomic_cmpxchg_tl(dest, src1, dest, src2, ctx->mem_idx, mop);
 
     gen_set_gpr(ctx, a->rd, dest);

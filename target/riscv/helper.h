@@ -1387,6 +1387,11 @@ DEF_HELPER_1(ssamoswap_disabled, void, env)
 /* Zalrsc SC write probe */
 DEF_HELPER_FLAGS_3(sc_probe_write, TCG_CALL_NO_WG, void, env, tl, tl)
 
+#ifndef CONFIG_USER_ONLY
+/* Zicfiss: store-permission check before the load of a split AMO */
+DEF_HELPER_FLAGS_4(amo_probe_write, TCG_CALL_NO_WG, void, env, tl, tl, tl)
+#endif
+
 /* SiFive Custom int8 Matrix-Multiply */
 DEF_HELPER_5(sf_vqmaccu_4x8x4, void, ptr, ptr, ptr, env, i32)
 DEF_HELPER_5(sf_vqmacc_4x8x4, void, ptr, ptr, ptr, env, i32)

@@ -29,6 +29,10 @@
 #include "accel/tcg/cpu-ldst.h"
 #include "accel/tcg/cpu-loop.h"
 #include "accel/tcg/probe.h"
+#ifndef CONFIG_USER_ONLY
+#include "accel/tcg/cpu-ops.h"
+#include "exec/target_page.h"
+#endif
 #include "exec/helper-proto.h"
 #include "exec/tlb-flags.h"
 #include "trace.h"
@@ -299,6 +303,39 @@ void HELPER(sc_probe_write)(CPURISCVState *env, target_ulong addr,
 }
 
 #ifndef CONFIG_USER_ONLY
+
+/*
+ * Check store permission before the load of an AMO that TCG lowers to
+ * load+store.  Needed when the load itself would be allowed (e.g. a
+ * cached read translation on a shadow-stack page) so that the AMO
+ * faults with the store cause before any load side effect.
+ *
+ * The first lookup carries the full size (matching mmu_lookup, so PMP
+ * sees the same range); a page crossing adds a second lookup for the
+ * remaining bytes at the wrapped page base.
+ */
+void HELPER(amo_probe_write)(CPURISCVState *env, target_ulong addr,
+                             target_ulong size, target_ulong strict)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = riscv_env_mmu_index(env, false);
+    CPUState *cs = env_cpu(env);
+    vaddr last = addr + size - 1;
+
+    if (strict && (addr & (size - 1))) {
+        return;                 /* the real op raises misaligned first */
+    }
+
+    probe_access_perm(env, addr, size, MMU_DATA_STORE, mmu_idx, ra);
+
+    if ((addr ^ last) & TARGET_PAGE_MASK) {
+        vaddr addr1 = last & TARGET_PAGE_MASK;
+        int size1 = size - (addr1 - addr);  /* before wrapping */
+
+        addr1 = cs->cc->tcg_ops->pointer_wrap(cs, mmu_idx, addr1, addr);
+        probe_access_perm(env, addr1, size1, MMU_DATA_STORE, mmu_idx, ra);
+    }
+}
 
 target_ulong HELPER(sret)(CPURISCVState *env)
 {
