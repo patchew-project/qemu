@@ -1283,7 +1283,7 @@ int xen_evtchn_bind_pirq_op(struct evtchn_bind_pirq *pirq)
         return -ENOTSUP;
     }
 
-    if (pirq->pirq >= s->nr_pirqs) {
+    if (!pirq->pirq || pirq->pirq >= s->nr_pirqs) {
         return -EINVAL;
     }
 
@@ -1877,7 +1877,7 @@ int xen_physdev_map_pirq(struct physdev_map_pirq *map)
             return pirq;
         }
         map->pirq = pirq;
-    } else if (pirq >= s->nr_pirqs) {
+    } else if (!pirq || pirq >= s->nr_pirqs) {
         return -EINVAL;
     } else {
         /*
@@ -1958,6 +1958,10 @@ int xen_physdev_eoi_pirq(struct physdev_eoi *eoi)
         return -ENOTSUP;
     }
 
+    if (pirq < 0 || pirq >= s->nr_pirqs) {
+        return -EINVAL;
+    }
+
     BQL_LOCK_GUARD();
     QEMU_LOCK_GUARD(&s->port_lock);
 
@@ -1988,6 +1992,10 @@ int xen_physdev_query_pirq(struct physdev_irq_status_query *query)
 
     if (!s) {
         return -ENOTSUP;
+    }
+
+    if (pirq < 0 || pirq >= s->nr_pirqs) {
+        return -EINVAL;
     }
 
     BQL_LOCK_GUARD();
