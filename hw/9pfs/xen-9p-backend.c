@@ -105,34 +105,29 @@ static void xen_9pfs_out_sg(Xen9pfsRing *ring,
                             int *num,
                             uint32_t idx)
 {
-    RING_IDX cons, prod, masked_prod, masked_cons;
+    RING_IDX cons, masked_cons;
+    RING_IDX ring_size = XEN_FLEX_RING_SIZE(ring->ring_order);
 
-    cons = ring->intf->out_cons;
-    prod = ring->intf->out_prod;
-    xen_rmb();
-    masked_prod = xen_9pfs_mask(prod, XEN_FLEX_RING_SIZE(ring->ring_order));
-    masked_cons = xen_9pfs_mask(cons, XEN_FLEX_RING_SIZE(ring->ring_order));
+    /*
+     * Use the consumer index and request size snapshotted when the
+     * request was validated in xen_9pfs_receive(). Do not re-read the
+     * index from the shared page: the guest may have changed it since
+     * validation, and out_size (bounded by the ring size at validation
+     * time) could then reach past the end of the ring mapping.
+     */
+    cons = ring->out_cons - ring->out_size;
+    masked_cons = xen_9pfs_mask(cons, ring_size);
 
-    if (masked_cons < masked_prod) {
+    if (ring->out_size <= ring_size - masked_cons) {
         out_sg[0].iov_base = ring->ring.out + masked_cons;
         out_sg[0].iov_len = ring->out_size;
         *num = 1;
     } else {
-        if (ring->out_size >
-            (XEN_FLEX_RING_SIZE(ring->ring_order) - masked_cons)) {
-            out_sg[0].iov_base = ring->ring.out + masked_cons;
-            out_sg[0].iov_len = XEN_FLEX_RING_SIZE(ring->ring_order) -
-                                masked_cons;
-            out_sg[1].iov_base = ring->ring.out;
-            out_sg[1].iov_len = ring->out_size -
-                                (XEN_FLEX_RING_SIZE(ring->ring_order) -
-                                 masked_cons);
-            *num = 2;
-        } else {
-            out_sg[0].iov_base = ring->ring.out + masked_cons;
-            out_sg[0].iov_len = ring->out_size;
-            *num = 1;
-        }
+        out_sg[0].iov_base = ring->ring.out + masked_cons;
+        out_sg[0].iov_len = ring_size - masked_cons;
+        out_sg[1].iov_base = ring->ring.out;
+        out_sg[1].iov_len = ring->out_size - (ring_size - masked_cons);
+        *num = 2;
     }
 }
 
