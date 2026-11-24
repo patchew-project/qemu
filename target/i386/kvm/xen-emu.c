@@ -435,6 +435,13 @@ void kvm_xen_maybe_deassert_callback(CPUState *cs)
         return;
     }
 
+    if (env->xen_vcpu_callback_vector) {
+        BQL_LOCK_GUARD();
+        env->xen_callback_asserted = false;
+        xen_evtchn_set_callback_level(0);
+        return;
+    }
+
     /* If the evtchn_upcall_pending flag is cleared, turn the GSI off. */
     if (!vi->evtchn_upcall_pending) {
         bql_lock();
