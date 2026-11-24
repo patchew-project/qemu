@@ -1218,7 +1218,7 @@ static unsigned int get_req(XenXenstoreState *s)
 
     if (s->req_offset < XENSTORE_HEADER_SIZE) {
         void *ptr = s->req_data + s->req_offset;
-        unsigned int len = XENSTORE_HEADER_SIZE;
+        unsigned int len = XENSTORE_HEADER_SIZE - s->req_offset;
         unsigned int copylen = copy_from_ring(s, ptr, len);
 
         copied += copylen;
