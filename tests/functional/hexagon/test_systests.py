@@ -87,6 +87,11 @@ class SysTestsStandaloneTests(QemuSystemTest):
         that caused them commits."""
         self.run_exit_zero("float_excp")
 
+    def test_framelimit(self):
+        """allocframe past FRAMELIMIT in user mode raises the stack limit
+        exception at the allocframe packet."""
+        self.run_exit_zero("framelimit")
+
     def test_access(self):
         """access checks R_OK|W_OK on _testfile_access."""
         testfile = self.scratch_file("_testfile_access")
