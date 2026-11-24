@@ -271,13 +271,22 @@ void hex_gen_exception_end_tb(DisasContext *ctx, int cause)
  */
 static void gen_exception_decode_fail(DisasContext *ctx, int nwords, int cause)
 {
-    target_ulong fail_pc = ctx->base.pc_next + nwords * sizeof(uint32_t);
+    target_ulong next_pc = ctx->base.pc_next + nwords * sizeof(uint32_t);
+#ifdef CONFIG_USER_ONLY
+    target_ulong fail_pc = next_pc;
+#else
+    /*
+     * A guest handler skips the packet by advancing ELR, so it must be the
+     * address of the faulting packet and not the one after it.
+     */
+    target_ulong fail_pc = ctx->base.pc_next;
+#endif
 
     gen_exec_counters(ctx);
     tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], fail_pc);
     gen_precise_exception(cause, fail_pc);
     ctx->base.is_jmp = DISAS_NORETURN;
-    ctx->base.pc_next = fail_pc;
+    ctx->base.pc_next = next_pc;
 }
 
 static int read_packet_words(CPUHexagonState *env, DisasContext *ctx,
