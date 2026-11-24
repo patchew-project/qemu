@@ -28,7 +28,7 @@ malicious:
 
 - Guest
 - User-facing interfaces (e.g. VNC, SPICE, WebSocket)
-- Network protocols (e.g. NBD, live migration)
+- Network protocols (e.g. NBD)
 - User-supplied files (e.g. disk images, kernels, device trees)
 - Passthrough devices (e.g. PCI, USB)
 
@@ -133,15 +133,21 @@ an issue as a normal bug.
   that affect the level 0 QEMU process. While these bugs should be
   fixed, they will not be triaged as security flaws at this time.
 
-* **migration/snapshots**. Migration failures and snapshot load
-  failures are considered part of normal operation as long as the
-  source virtual machine and savevm file, respectively, are still
-  functional. Aborting the QEMU process at the migration/snapshot
-  destination is similarly not considered a security issue. The
-  migration stream is assumed to be secure as long as the design
-  principles described in the Architecture section are held, in
-  which case plain manipulation of the stream is not considered as
-  an attack vector.
+* **migration/snapshots**. The user must deploy QEMU following the
+  design principles described in the Architecture section to ensure
+  that the migration stream is secure. Plain manipulation of the
+  stream is not considered to be an attack vector. This means that:
+
+  * Migration failures and snapshot load failures are part of normal
+    operation; these are not bugs as long as the source virtual
+    machine or savevm file are still functional.
+  * Aborts, crashes or misbehaviour of the destination QEMU due to an
+    externally manipulated migration stream are bugs, but not security
+    issues.
+  * A crash of the destination QEMU that can be triggered by a guest
+    manipulating a device on the source QEMU before a migration may be
+    a security issue, if it meets the other criteria we document for
+    security issues.
 
 * **uninitialized stack variables**. If the bug scenario relies on
   undefined behaviour from stack variables that lack explicit
@@ -343,3 +349,23 @@ authenticated client to send the bytes that will trigger any QEMU
 misbehavior.  Use of a hardened connection is therefore an
 environmental factor used in determining the risk and severity of a
 network-triggered bug.
+
+Migration (including live updates and snapshots)
+''''''''''''''''''''''''''''''''''''''''''''''''
+
+The act of moving a guest around via the various migration mechanisms
+requires careful consideration of security boundaries being crossed.
+A live migration must only be allowed to occur if measures are in
+place to secure the transport being used against access or
+modification. In some configurations QEMU supports encryption of the
+migration stream. For setups that don't make use of this feature, it's
+the network owner's responsibility to provide proper isolation.
+
+For the non-live modalities such as snapshots, the media used to store
+the migration data (e.g. qcow2 file) must be accessible only to the
+entity in control of the migration infrastructure (e.g. cloud
+administrator or virtual machine management software). The guest owner
+is explicitly excluded in order to safeguard the infrastructure
+provider as well as avoid security policy conflicts. Moreover, end
+users operating QEMU directly should take care to only load a snapshot
+or migration from media originating from a trusted source.
