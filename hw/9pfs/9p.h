@@ -448,6 +448,14 @@ v9fs_path_unlock(V9fsState *s)
     }
 }
 
+static inline void coroutine_fn
+v9fs_path_write_lock_upgrade(V9fsState *s)
+{
+    if (s->ctx.export_flags & V9FS_PATHNAME_FSCONTEXT) {
+        qemu_co_rwlock_upgrade(&s->rename_lock);
+    }
+}
+
 static inline uint8_t v9fs_request_cancelled(V9fsPDU *pdu)
 {
     return pdu->cancelled;

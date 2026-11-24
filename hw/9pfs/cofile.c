@@ -147,10 +147,11 @@ int coroutine_fn v9fs_co_open2(V9fsPDU *pdu, V9fsFidState *fidp,
     v9fs_path_init(&path);
     /*
      * Hold the directory fid lock so that directory path name
-     * don't change. Take the write lock since the fid path is
-     * mutated below on success.
+     * don't change. The worker thread only reads the fid path, so
+     * a read-lock is sufficient (avoiding an exclusive lock being
+     * held across the entire worker block).
      */
-    v9fs_path_write_lock(s);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->open2(&s->ctx, &fidp->path,
@@ -174,10 +175,12 @@ int coroutine_fn v9fs_co_open2(V9fsPDU *pdu, V9fsFidState *fidp,
      * The fid path must not be mutated from the worker thread: other
      * requests may access the same fid on the main thread, and the main
      * thread never takes the path lock for reads. Mutate the new path
-     * here, on the main thread and still under the held write lock, like
-     * every other mutation of a fid path.
+     * here, on the main thread, after upgrading the held read lock to
+     * a write lock (i.e. no unlock and relock, to avoid a potential
+     * short unlocked gap).
      */
     if (!err) {
+        v9fs_path_write_lock_upgrade(s);
         v9fs_path_copy(&fidp->path, &path);
     }
     v9fs_path_unlock(s);
