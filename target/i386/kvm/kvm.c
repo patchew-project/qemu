@@ -2556,6 +2556,12 @@ int kvm_arch_destroy_vcpu(CPUState *cs)
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
 
+#ifdef CONFIG_XEN_EMU
+    if (cs->kvm_state->xen_version) {
+        kvm_xen_destroy_vcpu(cs);
+    }
+#endif
+
     g_free(env->xsave_buf);
 
     g_free(cpu->kvm_msr_buf);

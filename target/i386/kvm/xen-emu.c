@@ -276,6 +276,28 @@ int kvm_xen_init_vcpu(CPUState *cs)
     return 0;
 }
 
+void kvm_xen_destroy_vcpu(CPUState *cs)
+{
+    CPUX86State *env = &X86_CPU(cs)->env;
+
+    /*
+     * This runs on the vCPU's own thread with the BQL held, and the
+     * timer callbacks run from the main loop thread also with the BQL
+     * held, so freeing the timers cannot race against an in-flight
+     * callback. It *can* race against a Xen hypercall from another
+     * vCPU targeting this one (hypercalls are handled without the
+     * BQL), so clear the pointers under xen_timers_lock to let those
+     * paths observe the vCPU's demise.
+     */
+    QEMU_LOCK_GUARD(&env->xen_timers_lock);
+
+    timer_free(env->xen_singleshot_timer);
+    env->xen_singleshot_timer = NULL;
+
+    timer_free(env->xen_periodic_timer);
+    env->xen_periodic_timer = NULL;
+}
+
 uint32_t kvm_xen_get_caps(void)
 {
     return kvm_state->xen_caps;
@@ -1079,9 +1101,14 @@ static int do_set_periodic_timer(CPUState *target, uint64_t period_ns)
     CPUX86State *tenv = &X86_CPU(target)->env;
     int64_t qemu_now;
 
-    timer_del(tenv->xen_periodic_timer);
-
     qemu_mutex_lock(&tenv->xen_timers_lock);
+
+    if (!tenv->xen_periodic_timer) {
+        qemu_mutex_unlock(&tenv->xen_timers_lock);
+        return -ENOENT;
+    }
+
+    timer_del(tenv->xen_periodic_timer);
 
     qemu_now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     timer_mod_ns(tenv->xen_periodic_timer, qemu_now + period_ns);
@@ -1119,6 +1146,11 @@ static int vcpuop_stop_periodic_timer(CPUState *target)
     CPUX86State *tenv = &X86_CPU(target)->env;
 
     qemu_mutex_lock(&tenv->xen_timers_lock);
+
+    if (!tenv->xen_periodic_timer) {
+        qemu_mutex_unlock(&tenv->xen_timers_lock);
+        return -ENOENT;
+    }
 
     timer_del(tenv->xen_periodic_timer);
     tenv->xen_periodic_timer_period = 0;
