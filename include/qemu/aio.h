@@ -126,6 +126,16 @@ typedef struct {
     bool (*dispatch)(AioContext *ctx);
 
     /*
+     * post_dispatch:
+     * @ctx: the AioContext
+     *
+     * Called by aio_poll() after ready handlers have been dispatched.
+     *
+     * This function is optional and may be NULL.
+     */
+    void (*post_dispatch)(AioContext *ctx);
+
+    /*
      * gsource_prepare:
      * @ctx: the AioContext
      *

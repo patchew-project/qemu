@@ -745,6 +745,10 @@ bool aio_poll(AioContext *ctx, bool blocking)
     progress |= aio_bh_poll(ctx);
     progress |= aio_dispatch_ready_handlers(ctx, &ready_list, dispatch_ns);
 
+    if (ctx->fdmon_ops->post_dispatch) {
+        ctx->fdmon_ops->post_dispatch(ctx);
+    }
+
     aio_free_deleted_handlers(ctx);
 
     if (ctx->poll_max_ns) {

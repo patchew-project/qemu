@@ -433,6 +433,20 @@ static int fdmon_io_uring_wait(AioContext *ctx, AioHandlerList *ready_list,
     return process_cq_ring(ctx, ready_list);
 }
 
+/*
+ * Called by aio_poll() after dispatching handlers.  Submit IORING_OP_POLL_ADD
+ * re-arms now rather than with the next wait: aio_poll() may run in a vCPU
+ * thread holding the BQL while the glib event loop sleeps in ppoll().
+ */
+static void fdmon_io_uring_post_dispatch(AioContext *ctx)
+{
+    if (io_uring_sq_ready(&ctx->fdmon_io_uring)) {
+        while (io_uring_submit(&ctx->fdmon_io_uring) == -EINTR) {
+            /* Keep trying if syscall was interrupted */
+        }
+    }
+}
+
 static bool fdmon_io_uring_need_wait(AioContext *ctx)
 {
     /* Have io_uring events completed? */
@@ -458,6 +472,7 @@ static const FDMonOps fdmon_io_uring_ops = {
     .wait = fdmon_io_uring_wait,
     .need_wait = fdmon_io_uring_need_wait,
     .dispatch = fdmon_io_uring_dispatch,
+    .post_dispatch = fdmon_io_uring_post_dispatch,
     .gsource_prepare = fdmon_io_uring_gsource_prepare,
     .gsource_check = fdmon_io_uring_gsource_check,
     .gsource_dispatch = fdmon_io_uring_gsource_dispatch,
