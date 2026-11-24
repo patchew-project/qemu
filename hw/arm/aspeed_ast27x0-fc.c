@@ -153,6 +153,8 @@ static bool ast2700fc_ssp_init(Ast2700FCState *s, AspeedSoCState *psp,
                             &error_abort);
     object_property_set_link(OBJECT(&s->ssp), "sram",
                              OBJECT(&psp->sram), &error_abort);
+    object_property_set_link(OBJECT(&s->ssp), "dram",
+                             OBJECT(psp->dram_mr), &error_abort);
     object_property_set_link(OBJECT(&s->ssp), "scu",
                              OBJECT(&s->ca35.scu), &error_abort);
     object_property_set_link(OBJECT(&s->ssp), "scuio",
@@ -162,6 +164,13 @@ static bool ast2700fc_ssp_init(Ast2700FCState *s, AspeedSoCState *psp,
     if (!qdev_realize(DEVICE(&s->ssp), NULL, errp)) {
         return false;
     }
+
+    /* The remap aliases and cpu_index only exist once the SSP is realized. */
+    object_property_set_link(OBJECT(&s->ca35.scu), "ssp-remap0",
+                             OBJECT(&s->ssp.dram_remap[0]), &error_abort);
+    object_property_set_link(OBJECT(&s->ca35.scu), "ssp-remap1",
+                             OBJECT(&s->ssp.dram_remap[1]), &error_abort);
+    s->ca35.scu.ssp_cpuid = CPU(s->ssp.armv7m.cpu)->cpu_index;
 
     return true;
 }

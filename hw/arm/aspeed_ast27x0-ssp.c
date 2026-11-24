@@ -181,6 +181,12 @@ static void aspeed_soc_ast27x0ssp_realize(DeviceState *dev_soc, Error **errp)
         return;
     }
 
+    if (!a->dram) {
+        error_setg(errp, TYPE_ASPEED27X0SSP_COPROCESSOR
+                   ": 'dram' link is not set");
+        return;
+    }
+
     /* AST27X0 SSP Core */
     armv7m = DEVICE(&a->armv7m);
     qdev_prop_set_uint32(armv7m, "num-irq", 256);
@@ -228,6 +234,22 @@ static void aspeed_soc_ast27x0ssp_realize(DeviceState *dev_soc, Error **errp)
                              memory_region_size(&a->scuio->iomem));
     memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_SCUIO],
                                 &a->scuio_alias);
+
+    /*
+     * DRAM remap aliases used by PSP to access SSP SDRAM:
+     * - remap[0] maps PSP DRAM at 0x400000000 (size: 0x1A77E000) to
+     *   SSP SDRAM offset 0x5880000
+     * - remap[1] maps PSP DRAM at 0x42C000000 (size: 0x05880000) to
+     *   SSP SDRAM offset 0x0
+     */
+    memory_region_init_alias(&a->dram_remap[0], OBJECT(a), "ssp.dram.remap1",
+                             a->dram, 0, 0x1a77e000);
+    memory_region_init_alias(&a->dram_remap[1], OBJECT(a), "ssp.dram.remap2",
+                             a->dram, 0x2c000000, 0x05880000);
+    memory_region_add_subregion(&s->sdram, 0, &a->dram_remap[1]);
+    memory_region_add_subregion(&s->sdram,
+                                memory_region_size(&a->dram_remap[1]),
+                                &a->dram_remap[0]);
 
     /* INTC */
     if (!sysbus_realize(SYS_BUS_DEVICE(&a->intc[0]), errp)) {
@@ -298,6 +320,8 @@ static const Property aspeed_27x0_coprocessor_properties[] = {
                      TYPE_ASPEED_SCU, AspeedSCUState *),
     DEFINE_PROP_LINK("fmc", Aspeed27x0CoprocessorState, fmc, TYPE_ASPEED_SMC,
                      AspeedSMCState *),
+    DEFINE_PROP_LINK("dram", Aspeed27x0CoprocessorState, dram,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
 static void aspeed_soc_ast27x0ssp_class_init(ObjectClass *klass,

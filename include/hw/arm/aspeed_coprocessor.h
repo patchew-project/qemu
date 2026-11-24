@@ -54,6 +54,8 @@ struct Aspeed27x0CoprocessorState {
     MemoryRegion scu_alias;
     MemoryRegion scuio_alias;
     MemoryRegion fmc_alias;
+    MemoryRegion dram_remap[2];
+    MemoryRegion *dram;
     Aspeed2700SCUState *scu;
     AspeedSCUState *scuio;
     AspeedSMCState *fmc;
