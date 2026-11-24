@@ -97,8 +97,8 @@ pub unsafe trait VMState {
 
     /// A flag that is added to another field's `VMStateField` to specify the
     /// length's type in a variable-sized array.  If this is not a supported
-    /// type for the length (i.e. if it is not `u8`, `u16`, `u32`), using it
-    /// in a call to [`vmstate_of!`](crate::vmstate_of) will cause a
+    /// type for the length (i.e. if it is not `u8`, `u16`, `u32`, `usize`),
+    /// using it in a call to [`vmstate_of!`](crate::vmstate_of) will cause a
     /// compile-time error.
     #[doc(hidden)] // https://github.com/rust-lang/rust/issues/149635
     const VARRAY_FLAG: VMStateFlags = {
@@ -255,6 +255,18 @@ impl_vmstate_scalar!(vmstate_info_uint16, u16, VMS_VARRAY);
 impl_vmstate_scalar!(vmstate_info_uint32, u32, VMS_VARRAY);
 impl_vmstate_scalar!(vmstate_info_uint64, u64);
 impl_vmstate_scalar!(vmstate_info_timer, util::timer::Timer);
+
+// SAFETY: BASE is never produced (any use of a usize as migrated data will
+// always result in a compile-time error). VARRAY_FLAG only tells the C code to
+// read `size_of::<usize>()` bytes (see `size_of_field_type!`) at the length's
+// offset.
+unsafe impl VMState for usize {
+    #[doc(hidden)] // https://github.com/rust-lang/rust/issues/149635
+    const BASE: VMStateField = {
+        panic!("usize cannot be migrated, use a fixed-size integer type");
+    };
+    const VARRAY_FLAG: VMStateFlags = VMStateFlags::VMS_VARRAY;
+}
 
 #[macro_export]
 macro_rules! impl_vmstate_c_struct {
