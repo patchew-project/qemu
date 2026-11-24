@@ -184,6 +184,9 @@ int xen_primary_console_reset(void)
 
     trace_xen_primary_console_reset(s->guest_port);
 
+    if (s->gt) {
+        qemu_xen_gnttab_close(s->gt);
+    }
     s->gt = qemu_xen_gnttab_open();
     uint32_t xs_gntref = GNTTAB_RESERVED_CONSOLE;
     s->granted_xs = qemu_xen_gnttab_map_refs(s->gt, 1, xen_domid, &xs_gntref,

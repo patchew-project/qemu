@@ -1490,6 +1490,9 @@ int xen_xenstore_reset(void)
      * first place. Map the grant anyway, mostly for cosmetic purposes so
      * it *looks* like it's in use in the guest-visible grant table.
      */
+    if (s->gt) {
+        qemu_xen_gnttab_close(s->gt);
+    }
     s->gt = qemu_xen_gnttab_open();
     uint32_t xs_gntref = GNTTAB_RESERVED_XENSTORE;
     s->granted_xs = qemu_xen_gnttab_map_refs(s->gt, 1, xen_domid, &xs_gntref,
