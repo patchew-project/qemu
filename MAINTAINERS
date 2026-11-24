@@ -1706,6 +1706,9 @@ F: tests/qtest/libqos/rtas*
 F: tests/functional/ppc64/test_pseries.py
 F: tests/functional/ppc64/test_hv.py
 F: tests/functional/ppc64/test_tuxrun.py
+F: tests/functional/ppc64/test_hotplug_blk.py
+F: tests/functional/ppc64/test_hotplug_cpu.py
+F: tests/functional/ppc64/test_pseries_caps.py
 
 PowerNV (Non-Virtualized)
 M: Nicholas Piggin <npiggin@gmail.com>
