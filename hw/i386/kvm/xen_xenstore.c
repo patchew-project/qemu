@@ -614,6 +614,21 @@ static void xs_append_strings(XenXenstoreState *s, struct xsd_sockmsg *rsp,
         size_t len = strlen(l->data) + 1; /* Including the NUL termination */
         char *str = l->data;
 
+        /*
+         * Skip to the requested offset before checking what fits, so that
+         * truncation does not corrupt the offset accounting.
+         */
+        if (start) {
+            if (start >= len) {
+                start -= len;
+                continue;
+            }
+
+            str += start;
+            len -= start;
+            start = 0;
+        }
+
         if (rsp->len + len > XENSTORE_PAYLOAD_MAX) {
             if (truncate) {
                 len = XENSTORE_PAYLOAD_MAX - rsp->len;
@@ -624,17 +639,6 @@ static void xs_append_strings(XenXenstoreState *s, struct xsd_sockmsg *rsp,
                 xs_error(s, rsp->req_id, rsp->tx_id, E2BIG);
                 return;
             }
-        }
-
-        if (start) {
-            if (start >= len) {
-                start -= len;
-                continue;
-            }
-
-            str += start;
-            len -= start;
-            start = 0;
         }
 
         memcpy(&rsp_data[rsp->len], str, len);
