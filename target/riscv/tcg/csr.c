@@ -3999,15 +3999,27 @@ static RISCVException rmw_mip64(CPURISCVState *env, int csrno,
         new_val |= env->external_seip * MIP_SEIP;
     }
 
-    if (riscv_cpu_cfg(env)->ext_sstc && (env->priv == PRV_M) &&
+    if (riscv_cpu_cfg(env)->ext_sstc &&
         get_field(env->menvcfg, MENVCFG_STCE)) {
-        /* sstc extension forbids STIP & VSTIP to be writeable in mip */
-
-        /* STIP is not writable when menvcfg.STCE is enabled. */
+        /*
+         * With Sstc active, mip.STIP is read-only and driven by stimecmp,
+         * so drop software writes to STIP regardless of privilege level
+         * or which CSR view (mip/sip) the write arrives through.
+         *
+         * VSTIP is different: hvip.VSTIP stays a writable software
+         * injection source (hip.VSTIP is the logical-OR of hvip.VSTIP
+         * and the vstimecmp timer signal, which QEMU keeps separately in
+         * env->vstime_irq and ORs in on read below). Blocking hvip
+         * writes here would both disable legal VS timer injection from
+         * HS-mode and leave a previously injected bit stuck in env->mip,
+         * uncleanable from M-mode. Only block the mip view of VSTIP
+         * (an alias of the read-only hip.VSTIP), and only when
+         * vstimecmp is active for the guest, matching upstream commit
+         * 3cb2edae7401 ("target/riscv: Fix VSTIP bit in sstc extension.").
+         */
         mask = mask & ~MIP_STIP;
-
-        /* VSTIP is not writable when both [mh]envcfg.STCE are enabled. */
-        if (get_field(env->henvcfg, HENVCFG_STCE)) {
+        if (csrno != CSR_HVIP && csrno != CSR_HVIPH &&
+            get_field(env->henvcfg, HENVCFG_STCE)) {
             mask = mask & ~MIP_VSTIP;
         }
     }
@@ -4126,9 +4138,12 @@ static RISCVException rmw_mvip64(CPURISCVState *env, int csrno,
 
     /*
      * If sstc is present, mvip.STIP is not an alias of mip.STIP so clear
-     * that our in mip returned value.
+     * that our in mip returned value. This only applies to accesses to
+     * mvip itself (an M-mode-only CSR, so no privilege check is needed);
+     * for the sip view an interrupt delegated via mideleg must keep the
+     * (read-only, stimecmp-driven) mip.STIP state visible to S-mode.
      */
-    if (cpu->cfg.ext_sstc && (env->priv == PRV_M) &&
+    if (cpu->cfg.ext_sstc && (csrno == CSR_MVIP || csrno == CSR_MVIPH) &&
         get_field(env->menvcfg, MENVCFG_STCE)) {
         alias_mask &= ~MIP_STIP;
     }
