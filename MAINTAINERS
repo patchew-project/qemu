@@ -1858,8 +1858,10 @@ Spacemit Machines
 M: Anirudh Srinivasan <asrinivasan@oss.tenstorrent.com>
 L: qemu-riscv@nongnu.org
 S: Supported
+F: hw/misc/spacemit_*.c
 F: hw/ssi/spacemit_*.c
 F: hw/ufs/spacemit_*.c
+F: include/hw/misc/spacemit_*.h
 F: include/hw/ssi/spacemit_*.h
 F: target/riscv/tcg/spacemit_csr.c
 
