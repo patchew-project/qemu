@@ -2254,10 +2254,18 @@ void memory_region_rom_device_set_romd(MemoryRegion *mr, bool romd_mode)
     if (mr->romd_mode == romd_mode) {
         return;
     }
+    if (!romd_mode) {
+        /* Drop TBs while memory_region_flush_rom_device() can still run */
+        memory_region_flush_rom_device(mr, 0, memory_region_size(mr));
+    }
     memory_region_transaction_begin();
     mr->romd_mode = romd_mode;
     memory_region_update_pending |= mr->enabled;
     memory_region_transaction_commit();
+    if (romd_mode) {
+        /* Drop TBs another vCPU built from the old contents */
+        memory_region_flush_rom_device(mr, 0, memory_region_size(mr));
+    }
 }
 
 void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,

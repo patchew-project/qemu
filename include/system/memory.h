@@ -1960,6 +1960,10 @@ void memory_region_set_nonvolatile(MemoryRegion *mr, bool nonvolatile);
  * When in MMIO mode, reads are forwarded to the #MemoryRegion.read function.
  * Writes are always handled by the #MemoryRegion.write function.
  *
+ * The device may modify its contents while in MMIO mode. Under TCG,
+ * switching the mode drops the TBs of the whole region, so the modified
+ * code is retranslated.
+ *
  * @mr: the memory region to be updated
  * @romd_mode: %true to put the region into ROMD mode
  */
