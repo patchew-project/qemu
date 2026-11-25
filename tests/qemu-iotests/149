@@ -404,7 +404,8 @@ def test_once(config, qemu_img=False):
 
 
 # Obviously we only work with the luks image format
-iotests.script_initialize(supported_fmts=['luks'])
+iotests.script_initialize(supported_fmts=['luks'],
+                          supported_platforms=['linux'])
 
 # We need sudo in order to run cryptsetup to create
 # dm-crypt devices. This is safe to use on any
