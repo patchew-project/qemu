@@ -2251,12 +2251,13 @@ void memory_region_set_nonvolatile(MemoryRegion *mr, bool nonvolatile)
 
 void memory_region_rom_device_set_romd(MemoryRegion *mr, bool romd_mode)
 {
-    if (mr->romd_mode != romd_mode) {
-        memory_region_transaction_begin();
-        mr->romd_mode = romd_mode;
-        memory_region_update_pending |= mr->enabled;
-        memory_region_transaction_commit();
+    if (mr->romd_mode == romd_mode) {
+        return;
     }
+    memory_region_transaction_begin();
+    mr->romd_mode = romd_mode;
+    memory_region_update_pending |= mr->enabled;
+    memory_region_transaction_commit();
 }
 
 void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
