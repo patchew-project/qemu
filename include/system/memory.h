@@ -1919,8 +1919,8 @@ void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
  * to mark byte ranges that have been modified internally, such as by directly
  * accessing the memory returned by memory_region_get_ram_ptr().
  *
- * This function marks the range dirty and invalidates TBs so that TCG can
- * detect self-modifying code.
+ * The range is marked dirty. Under TCG, the TBs of the range are also
+ * dropped, so the modified code is retranslated.
  *
  * @mr: the region being flushed.
  * @addr: the start, relative to the start of the region, of the range being
