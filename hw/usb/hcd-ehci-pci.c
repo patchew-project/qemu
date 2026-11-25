@@ -23,7 +23,6 @@
 #include "qemu/range.h"
 
 typedef struct EHCIPCIInfo {
-    const char *name;
     uint16_t vendor_id;
     uint16_t device_id;
     uint8_t  revision;
@@ -164,20 +163,6 @@ static void ehci_class_init(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, usb_ehci_pci_reset);
 }
 
-static const TypeInfo ehci_pci_type_info = {
-    .name = TYPE_PCI_EHCI,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(EHCIPCIState),
-    .instance_init = usb_ehci_pci_init,
-    .instance_finalize = usb_ehci_pci_finalize,
-    .abstract = true,
-    .class_init = ehci_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
-};
-
 static void ehci_data_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -193,42 +178,58 @@ static void ehci_data_class_init(ObjectClass *klass, const void *data)
     }
 }
 
-static struct EHCIPCIInfo ehci_pci_info[] = {
-    {
-        .name      = "usb-ehci",
-        .vendor_id = PCI_VENDOR_ID_INTEL,
-        .device_id = PCI_DEVICE_ID_INTEL_82801D, /* ich4 */
-        .revision  = 0x10,
-    },{
-        .name      = "ich9-usb-ehci1", /* 00:1d.7 */
-        .vendor_id = PCI_VENDOR_ID_INTEL,
-        .device_id = PCI_DEVICE_ID_INTEL_82801I_EHCI1,
-        .revision  = 0x03,
-        .companion = true,
-    },{
-        .name      = "ich9-usb-ehci2", /* 00:1a.7 */
-        .vendor_id = PCI_VENDOR_ID_INTEL,
-        .device_id = PCI_DEVICE_ID_INTEL_82801I_EHCI2,
-        .revision  = 0x03,
-        .companion = true,
-    }
+static const EHCIPCIInfo usb_ehci_info = {
+    .vendor_id = PCI_VENDOR_ID_INTEL,
+    .device_id = PCI_DEVICE_ID_INTEL_82801D, /* ich4 */
+    .revision  = 0x10,
 };
 
-static void ehci_pci_register_types(void)
-{
-    TypeInfo ehci_type_info = {
+static const EHCIPCIInfo ich9_usb_ehci1_info = {
+    .vendor_id = PCI_VENDOR_ID_INTEL,
+    .device_id = PCI_DEVICE_ID_INTEL_82801I_EHCI1,
+    .revision  = 0x03,
+    .companion = true,
+};
+
+static const EHCIPCIInfo ich9_usb_ehci2_info = {
+    .vendor_id = PCI_VENDOR_ID_INTEL,
+    .device_id = PCI_DEVICE_ID_INTEL_82801I_EHCI2,
+    .revision  = 0x03,
+    .companion = true,
+};
+
+static const TypeInfo ehci_pci_types[] = {
+    {
+        .name          = TYPE_PCI_EHCI,
+        .parent        = TYPE_PCI_DEVICE,
+        .instance_size = sizeof(EHCIPCIState),
+        .instance_init = usb_ehci_pci_init,
+        .instance_finalize = usb_ehci_pci_finalize,
+        .abstract      = true,
+        .class_init    = ehci_class_init,
+        .interfaces    = (const InterfaceInfo[]) {
+            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+            { },
+        },
+    },
+    {
+        .name          = "usb-ehci",
         .parent        = TYPE_PCI_EHCI,
         .class_init    = ehci_data_class_init,
-    };
-    int i;
+        .class_data    = &usb_ehci_info,
+    },
+    {
+        .name          = "ich9-usb-ehci1", /* 00:1d.7 */
+        .parent        = TYPE_PCI_EHCI,
+        .class_init    = ehci_data_class_init,
+        .class_data    = &ich9_usb_ehci1_info,
+    },
+    {
+        .name          = "ich9-usb-ehci2", /* 00:1a.7 */
+        .parent        = TYPE_PCI_EHCI,
+        .class_init    = ehci_data_class_init,
+        .class_data    = &ich9_usb_ehci2_info,
+    },
+};
 
-    type_register_static(&ehci_pci_type_info);
-
-    for (i = 0; i < ARRAY_SIZE(ehci_pci_info); i++) {
-        ehci_type_info.name = ehci_pci_info[i].name;
-        ehci_type_info.class_data = ehci_pci_info + i;
-        type_register_static(&ehci_type_info);
-    }
-}
-
-type_init(ehci_pci_register_types)
+DEFINE_TYPES(ehci_pci_types)
