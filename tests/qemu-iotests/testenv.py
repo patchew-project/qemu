@@ -171,6 +171,8 @@ class TestEnv(contextlib.AbstractContextManager['TestEnv']):
         arch = os.uname().machine
         if 'ppc64' in arch:
             arch = 'ppc64'
+        elif arch == 'amd64':
+            arch = 'x86_64'
 
         self.qemu_prog = os.getenv('QEMU_PROG', root(f'qemu-system-{arch}'))
         if not os.path.exists(self.qemu_prog):
