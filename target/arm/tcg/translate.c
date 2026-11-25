@@ -2137,10 +2137,15 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
         tcg_gen_setcond_i32(TCG_COND_NE, t0, t0, t2);
     }
     tcg_gen_mov_i32(cpu_R[rd], t0);
-    tcg_gen_br(done_label);
+    tcg_gen_brcondi_i32(TCG_COND_EQ, t0, 0, done_label);
 
     gen_set_label(fail_label);
     tcg_gen_movi_i32(cpu_R[rd], 1);
+    /*
+     * A failing store-exclusive means the global monitor was cleared, which
+     * generates a WFE wakeup event.
+     */
+    gen_event_reg();
     gen_set_label(done_label);
     tcg_gen_movi_i64(cpu_exclusive_addr, -1);
 }
