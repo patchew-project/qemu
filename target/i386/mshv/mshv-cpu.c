@@ -2467,6 +2467,11 @@ static int set_unimplemented_msr_action(int vm_fd)
     return 0;
 }
 
+void mshv_arch_reset_vcpu(CPUState *cpu)
+{
+    mshv_init_synic(cpu);
+}
+
 int mshv_arch_post_init_vm(int vm_fd)
 {
     int ret;

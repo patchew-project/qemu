@@ -204,3 +204,17 @@ int mshv_set_siefp(int cpu_fd, const uint8_t *page)
 
     return 0;
 }
+
+void mshv_init_synic(CPUState *cpu)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+    size_t i;
+
+    env->msr_hv_synic_control  = 1;
+    env->msr_hv_synic_evt_page = 0;
+    env->msr_hv_synic_msg_page = 0;
+    for (i = 0; i < HV_SINT_COUNT; i++) {
+        env->msr_hv_synic_sint[i] = 0x10000;
+    }
+}

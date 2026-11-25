@@ -9569,6 +9569,10 @@ static void x86_cpu_reset_hold(Object *obj, ResetType type)
         kvm_arch_reset_vcpu(cpu);
     }
 
+    if (mshv_enabled()) {
+        mshv_arch_reset_vcpu(cs);
+    }
+
     x86_cpu_set_sgxlepubkeyhash(env);
 
     env->amd_tsc_scale_msr =  MSR_AMD64_TSC_RATIO_DEFAULT;
