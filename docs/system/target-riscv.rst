@@ -74,6 +74,7 @@ undocumented; you can get a complete list by running
    riscv/riscv-server-ref
    riscv/shakti-c
    riscv/sifive_u
+   riscv/spacemit_k3
    riscv/tt_atlantis
    riscv/virt
    riscv/xiangshan-kunminghu
