@@ -151,6 +151,19 @@ static int qtest_socket_accept(QTestState *s, int sock)
     }
     if (ret == -1) {
         fprintf(stderr, "%s failed: %s\n", __func__, strerror(errno));
+    } else {
+        /*
+         * Accepted sockets might inherit listener's timeout on
+         * BSD systems, so set it to 0 explicitly
+         */
+        memset(&timeout, 0, sizeof(timeout));
+        if (setsockopt(ret, SOL_SOCKET, SO_RCVTIMEO,
+                       (void *)&timeout, sizeof(timeout))) {
+            fprintf(stderr, "%s failed to set SO_RCVTIMEO: %s\n",
+                    __func__, strerror(errno));
+            close(ret);
+            return -1;
+        }
     }
 
     return ret;
