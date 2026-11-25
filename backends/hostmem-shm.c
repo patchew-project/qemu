@@ -59,9 +59,18 @@ have_fd:
     ram_flags |= backend->reserve ? 0 : RAM_NORESERVE;
     ram_flags |= backend->guest_memfd_private ? RAM_GUEST_MEMFD_PRIVATE : 0;
 
-    return memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend),
-                                              backend_name, backend->size,
-                                              ram_flags, fd, 0, errp);
+    if (!memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend),
+                                        backend_name, backend->size,
+                                        ram_flags, fd, 0, errp)) {
+        /*
+         * No RAM block took ownership of the fd, so qemu_ram_free() won't
+         * clean up after it: drop the CPR entry and close the fd here.
+         */
+        cpr_delete_fd(backend_name, 0);
+        close(fd);
+        return false;
+    }
+    return true;
 }
 
 static void
