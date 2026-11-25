@@ -428,8 +428,21 @@ void mshv_log_sync(MemoryListener *listener, MemoryRegionSection *section)
     ram_addr_t ram_addr;
     int ret;
     MemoryRegion *mr = section->mr;
+    bool vga_logging, migration_logging;
 
     if (!memory_region_is_ram(mr) || memory_region_is_rom(mr)) {
+        return;
+    }
+
+    /* mark VGA always dirty, but keep bitmap tracking during migration */
+    vga_logging = memory_region_get_dirty_log_mask(mr) & BIT(DIRTY_MEMORY_VGA);
+    migration_logging = memory_region_get_dirty_log_mask(mr) &
+                        BIT(DIRTY_MEMORY_MIGRATION);
+    if (vga_logging && !migration_logging) {
+        mr_offset = section->offset_within_region;
+        size = int128_get64(section->size);
+
+        memory_region_set_dirty(mr, mr_offset, size);
         return;
     }
 
