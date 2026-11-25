@@ -666,6 +666,68 @@ static void test_cancel_src_after_status(char *test_path, MigrateCommon *args)
     migrate_end(from, to, false);
 }
 
+#ifdef CONFIG_LINUX
+/* On Linux connect() to a unix socket with a full backlog blocks */
+static int unix_listen_full(const char *path, int *filler)
+{
+    struct sockaddr_un addr = { .sun_family = AF_UNIX };
+    int lfd = socket(AF_UNIX, SOCK_STREAM, 0);
+
+    *filler = socket(AF_UNIX, SOCK_STREAM, 0);
+    g_assert_cmpint(lfd, >=, 0);
+    g_assert_cmpint(*filler, >=, 0);
+
+    g_assert_cmpuint(strlen(path), <, sizeof(addr.sun_path));
+    strcpy(addr.sun_path, path);
+    g_assert_cmpint(bind(lfd, (struct sockaddr *)&addr, sizeof(addr)), ==, 0);
+    g_assert_cmpint(listen(lfd, 0), ==, 0);
+    g_assert_cmpint(connect(*filler, (struct sockaddr *)&addr, sizeof(addr)),
+                    ==, 0);
+    return lfd;
+}
+
+static void test_cancel_src_before_connect(char *name, MigrateCommon *args)
+{
+    g_autofree char *full_path = g_strdup_printf("%s/migsocket-full", tmpfs);
+    g_autofree char *full_uri = g_strdup_printf("unix:%s", full_path);
+    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    QTestState *from, *to;
+    int lfd, filler, accepted;
+
+    if (migrate_start(&from, &to, &args->start)) {
+        return;
+    }
+
+    migrate_set_capability(from, "return-path", true);
+    migrate_set_capability(to, "return-path", true);
+
+    lfd = unix_listen_full(full_path, &filler);
+    migrate_qmp(from, to, full_uri, NULL, "{}");
+    migrate_cancel(from);
+
+    /* Taking the filler off the backlog lets the source's connect() finish */
+    accepted = accept(lfd, NULL, NULL);
+    g_assert_cmpint(accepted, >=, 0);
+
+    wait_for_migration_status(from, "cancelled",
+                              (const char * []) { "completed", NULL });
+
+    close(accepted);
+    close(filler);
+    close(lfd);
+    unlink(full_path);
+
+    migrate_incoming_qmp(to, uri, NULL, "{}");
+    wait_for_serial("src_serial");
+    migrate_ensure_converge(from);
+    migrate_qmp(from, to, uri, NULL, "{}");
+    wait_for_migration_complete(from);
+    wait_for_migration_complete(to);
+
+    migrate_end(from, to, true);
+}
+#endif
+
 static void calc_dirty_rate(QTestState *who, uint64_t calc_time)
 {
     qtest_qmp_assert_success(who,
@@ -1174,4 +1236,8 @@ void migration_test_add_precopy(MigrationTestEnv *env)
                                       test_cancel_src_after_status);
         }
     }
+#ifdef CONFIG_LINUX
+    migration_test_add("/migration/cancel/src/before/connect",
+                       test_cancel_src_before_connect);
+#endif
 }
