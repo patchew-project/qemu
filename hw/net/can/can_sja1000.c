@@ -57,6 +57,7 @@ static void can_sja_software_reset(CanSJA1000State *s)
     s->status_pel  |= 0x34;
 
     s->rxbuf_start = 0x00;
+    s->rx_ptr      = 0x00;
     s->rxmsg_cnt   = 0x00;
     s->rx_cnt      = 0x00;
 }
@@ -69,6 +70,7 @@ void can_sja_hardware_reset(CanSJA1000State *s)
     s->interrupt_pel = 0x00;
     s->clock       = 0x00;
     s->rxbuf_start = 0x00;
+    s->rx_ptr      = 0x00;
     s->rxmsg_cnt   = 0x00;
     s->rx_cnt      = 0x00;
 
@@ -345,6 +347,8 @@ static int frame2buff_pel(const qemu_can_frame *frame, uint8_t *buff)
     buff[0] = 0x0f & frame->can_dlc; /* DLC */
     if (frame->can_id & QEMU_CAN_RTR_FLAG) { /* RTR */
         buff[0] |= (1 << 6);
+        /* RTR DLC is the requested length, not payload stored in the FIFO. */
+        dlen = 0;
     }
     if (frame->can_id & QEMU_CAN_EFF_FLAG) { /* EFF */
         buff[0] |= (1 << 7);
