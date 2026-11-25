@@ -157,6 +157,7 @@ static void prepare_elf64_header(DumpState *s, Elf64_Ehdr *elf_header)
     elf_header->e_type = cpu_to_dump16(s, ET_CORE);
     elf_header->e_machine = cpu_to_dump16(s, s->dump_info.d_machine);
     elf_header->e_version = cpu_to_dump32(s, EV_CURRENT);
+    elf_header->e_flags = cpu_to_dump32(s, s->dump_info.d_flags);
     elf_header->e_ehsize = cpu_to_dump16(s, sizeof(*elf_header));
     elf_header->e_phoff = cpu_to_dump64(s, s->phdr_offset);
     elf_header->e_phentsize = cpu_to_dump16(s, sizeof(Elf64_Phdr));
@@ -184,6 +185,7 @@ static void prepare_elf32_header(DumpState *s, Elf32_Ehdr *elf_header)
     elf_header->e_type = cpu_to_dump16(s, ET_CORE);
     elf_header->e_machine = cpu_to_dump16(s, s->dump_info.d_machine);
     elf_header->e_version = cpu_to_dump32(s, EV_CURRENT);
+    elf_header->e_flags = cpu_to_dump32(s, s->dump_info.d_flags);
     elf_header->e_ehsize = cpu_to_dump16(s, sizeof(*elf_header));
     elf_header->e_phoff = cpu_to_dump32(s, s->phdr_offset);
     elf_header->e_phentsize = cpu_to_dump16(s, sizeof(Elf32_Phdr));
