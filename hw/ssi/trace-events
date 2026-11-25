@@ -62,3 +62,8 @@ allwinner_a10_spi_tx(uint8_t byte) "write 0x%02x"
 allwinner_a10_spi_rx(uint8_t byte) "read 0x%02x"
 allwinner_a10_spi_read(const char* regname, uint32_t value) "reg[%s] => 0x%08x"
 allwinner_a10_spi_write(const char* regname, uint32_t value) "reg[%s] <= 0x%08x"
+
+# spacemit_k3_spi.c
+spacemit_k3_spi_read(uint64_t offset, uint32_t size, uint64_t data) "offset 0x%" PRIx64 " size %u: data 0x%" PRIx64
+spacemit_k3_spi_write(uint64_t offset, uint32_t size, uint64_t data) "offset 0x%" PRIx64 " size %u: data 0x%" PRIx64
+spacemit_k3_spi_ahb_read(uint64_t offset, uint32_t size, uint64_t data) "offset 0x%" PRIx64 " size %u: data 0x%" PRIx64
