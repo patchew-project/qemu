@@ -57,6 +57,7 @@ static void can_sja_software_reset(CanSJA1000State *s)
     s->status_pel  |= 0x34;
 
     s->rxbuf_start = 0x00;
+    s->rx_ptr      = 0x00;
     s->rxmsg_cnt   = 0x00;
     s->rx_cnt      = 0x00;
 }
@@ -69,6 +70,7 @@ void can_sja_hardware_reset(CanSJA1000State *s)
     s->interrupt_pel = 0x00;
     s->clock       = 0x00;
     s->rxbuf_start = 0x00;
+    s->rx_ptr      = 0x00;
     s->rxmsg_cnt   = 0x00;
     s->rx_cnt      = 0x00;
 
@@ -312,7 +314,7 @@ static void buff2frame_bas(const uint8_t *buff, qemu_can_frame *frame)
     frame->flags = 0;
     frame->can_id = ((buff[0] << 3) & (0xff << 3)) + ((buff[1] >> 5) & 0x07);
     if (buff[1] & 0x10) { /* RTR */
-        frame->can_id = QEMU_CAN_RTR_FLAG;
+        frame->can_id |= QEMU_CAN_RTR_FLAG;
     }
     frame->can_dlc = buff[1] & 0x0f;
 
@@ -345,6 +347,8 @@ static int frame2buff_pel(const qemu_can_frame *frame, uint8_t *buff)
     buff[0] = 0x0f & frame->can_dlc; /* DLC */
     if (frame->can_id & QEMU_CAN_RTR_FLAG) { /* RTR */
         buff[0] |= (1 << 6);
+        /* RTR DLC is the requested length, not payload stored in the FIFO. */
+        dlen = 0;
     }
     if (frame->can_id & QEMU_CAN_EFF_FLAG) { /* EFF */
         buff[0] |= (1 << 7);
@@ -392,6 +396,7 @@ static int frame2buff_bas(const qemu_can_frame *frame, uint8_t *buff)
     buff[1] = extract32(frame->can_id, 0, 3) << 5; /* ID.02~ID.00,xxxxx */
     if (frame->can_id & QEMU_CAN_RTR_FLAG) { /* RTR */
         buff[1] |= (1 << 4);
+        dlen = 0;
     }
     buff[1] |= frame->can_dlc & 0x0f;
     for (i = 0; i < dlen; i++) {
@@ -610,7 +615,10 @@ void can_sja_mem_write(CanSJA1000State *s, hwaddr addr, uint64_t val,
                 }
 
                 tmp8 = s->rx_buff[(s->rxbuf_start + 1) % SJA_RCV_BUF_LEN];
-                count = 2 + (tmp8 & 0x0f);
+                count = 2;
+                if (!(tmp8 & (1 << 4))) { /* DATA */
+                    count += tmp8 & 0x0f;
+                }
 
                 if (DEBUG_FILTER) {
                     qemu_log("[cansja]: message released from "
