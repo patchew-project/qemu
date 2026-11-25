@@ -332,6 +332,8 @@ static bool msr_is_runtime_safe(uint32_t name)
      * while the guest's timer is not frozen.
      */
     case HV_X64_REGISTER_TSC:
+    /* Once locked, the hypercall MSR rejects writes even w/ the same value */
+    case HV_X64_REGISTER_HYPERCALL:
         return false;
     default:
         return true;
