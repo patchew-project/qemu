@@ -1588,6 +1588,22 @@ def verify_qcow2_zstd_compression():
     if not supports_qcow2_zstd_compression():
         notrun('zstd compression not supported')
 
+def supports_ofd_lock() -> bool:
+    with FilePath('ofdlock.raw') as img_file:
+        qemu_img_create('-f', 'raw', img_file, '1M')
+        res = qemu_img('info', '--image-opts',
+                       f'driver=file,locking=on,filename={img_file}',
+                       check=False)
+        res.check_returncode()
+        if "falling back to POSIX file" in res.stdout:
+            return False
+        else:
+            return True
+
+def verify_ofd_lock():
+    if not supports_ofd_lock():
+        notrun('OFD locking is unavailable')
+
 def qemu_pipe(*args: str) -> str:
     """
     Run qemu with an option to print something and exit (e.g. a help option).

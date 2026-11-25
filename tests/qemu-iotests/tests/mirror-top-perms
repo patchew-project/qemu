@@ -33,6 +33,9 @@ source = os.path.join(iotests.test_dir, 'source.img')
 
 class TestMirrorTopPerms(iotests.QMPTestCase):
     def setUp(self):
+        if not iotests.supports_ofd_lock():
+            self.case_skip("OFD locking is unavailable")
+
         qemu_img('create', '-f', iotests.imgfmt, source, str(image_size))
         self.vm = iotests.VM()
         self.vm.add_drive(source)
