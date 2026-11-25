@@ -1353,6 +1353,7 @@ blk_co_do_preadv_part(BlockBackend *blk, int64_t offset, int64_t bytes,
 
     ret = blk_check_byte_request(blk, offset, bytes);
     if (ret < 0) {
+        trace_blk_co_preadv_done(blk, bs, offset, bytes, ret);
         return ret;
     }
 
@@ -1365,6 +1366,7 @@ blk_co_do_preadv_part(BlockBackend *blk, int64_t offset, int64_t bytes,
 
     ret = bdrv_co_preadv_part(blk->root, offset, bytes, qiov, qiov_offset,
                               flags);
+    trace_blk_co_preadv_done(blk, bs, offset, bytes, ret);
     bdrv_dec_in_flight(bs);
     return ret;
 }
@@ -1428,6 +1430,7 @@ blk_co_do_pwritev_part(BlockBackend *blk, int64_t offset, int64_t bytes,
 
     ret = blk_check_byte_request(blk, offset, bytes);
     if (ret < 0) {
+        trace_blk_co_pwritev_done(blk, bs, offset, bytes, ret);
         return ret;
     }
 
@@ -1443,6 +1446,7 @@ blk_co_do_pwritev_part(BlockBackend *blk, int64_t offset, int64_t bytes,
 
     ret = bdrv_co_pwritev_part(blk->root, offset, bytes, qiov, qiov_offset,
                                flags);
+    trace_blk_co_pwritev_done(blk, bs, offset, bytes, ret);
     bdrv_dec_in_flight(bs);
     return ret;
 }
