@@ -77,4 +77,14 @@ enum {
     SPACEMIT_K3_BOOT_MODE_UART,
 };
 
+enum {
+    SPACEMIT_K3_SELECTED_BOOT_MODE_EMMC,
+    SPACEMIT_K3_SELECTED_BOOT_MODE_NOR,
+    SPACEMIT_K3_SELECTED_BOOT_MODE_UFS,
+    SPACEMIT_K3_SELECTED_BOOT_MODE_SD,
+};
+
+void spacemit_k3_set_selected_boot_mode(SpacemitK3CPUConfigState *s,
+                                        int selected_boot_mode);
+
 #endif /* HW_MISC_SPACEMIT_K3_SYSCON_H */

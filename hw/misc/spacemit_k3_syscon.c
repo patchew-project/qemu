@@ -30,8 +30,14 @@
 #define BOOT_MODE_VALUE_USB 0x10001000
 #define BOOT_MODE_VALUE_UART 0x10001800
 
+#define SELECTED_BOOT_MODE_VALUE_EMMC 0xb00
+#define SELECTED_BOOT_MODE_VALUE_NOR 0xb01
+#define SELECTED_BOOT_MODE_VALUE_UFS 0xb03
+#define SELECTED_BOOT_MODE_VALUE_SD 0xb10
+
 /* CPU Config register offsets */
 #define BOOT_PIN_SELECT 0x20
+#define BOOT_DEV_FLAG_REG 0x110
 
 /* Syscon APMU register offsets */
 #define APMU_RCPU_CLK_RES_CTRL 0x14c
@@ -181,6 +187,31 @@ static uint32_t spacemit_k3_boot_mode_value(int boot_mode)
     }
 
     return boot_mode_values[boot_mode];
+}
+
+void spacemit_k3_set_selected_boot_mode(SpacemitK3CPUConfigState *s,
+                                        int selected_boot_mode) {
+    static const uint32_t selected_boot_mode_values[] = {
+      [SPACEMIT_K3_SELECTED_BOOT_MODE_EMMC] =
+          SELECTED_BOOT_MODE_VALUE_EMMC,
+      [SPACEMIT_K3_SELECTED_BOOT_MODE_NOR] =
+          SELECTED_BOOT_MODE_VALUE_NOR,
+      [SPACEMIT_K3_SELECTED_BOOT_MODE_UFS] =
+          SELECTED_BOOT_MODE_VALUE_UFS,
+      [SPACEMIT_K3_SELECTED_BOOT_MODE_SD] =
+          SELECTED_BOOT_MODE_VALUE_SD,
+    };
+
+    if (selected_boot_mode < 0 ||
+          selected_boot_mode >= ARRAY_SIZE(selected_boot_mode_values)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: bad selected boot mode %d\n",
+                      __func__,
+                      selected_boot_mode);
+        return;
+    }
+
+    s->regs[TO_REG(BOOT_DEV_FLAG_REG)] =
+      selected_boot_mode_values[selected_boot_mode];
 }
 
 static const MemoryRegionOps spacemit_k3_syscon_mpmu_ops = {

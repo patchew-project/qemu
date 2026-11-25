@@ -27,8 +27,14 @@
 #include "hw/ssi/ssi.h"
 
 #include "system/system.h"
+#include "system/block-backend-io.h"
+#include "qemu/error-report.h"
+#include <stdint.h>
+#include <zlib.h>
 
 #include "hw/riscv/spacemit_k3.h"
+
+#include "system/qtest.h"
 
 #define SPACEMIT_K3_IRQCHIP_NUM_MSIS       511
 #define SPACEMIT_K3_IRQCHIP_NUM_SOURCES    512
@@ -42,6 +48,11 @@
 #define SPACEMIT_K3_ACLINT_MTIME         0xbff8
 #define SPACEMIT_K3_ACLINT_MTIMECMP      0x4000
 #define SPACEMIT_K3_ACLINT_TIMEBASE_FREQ 24000000
+
+#define SPACEMIT_K3_FSBL_NOR_OFFSET  0x0
+#define SPACEMIT_K3_FSBL_SD_OFFSET   0x100000
+#define SPACEMIT_K3_FSBL_EMMC_OFFSET 0x100000
+#define SPACEMIT_K3_FSBL_UFS_OFFSET  0x100000
 
 static const MemMapEntry spacemit_k3_memmap[] = {
     [SPACEMIT_K3_PCIE] =              {  0x80000000,    0x4000000 },
@@ -92,6 +103,130 @@ static const MemMapEntry spacemit_k3_memmap[] = {
     [SPACEMIT_K3_DRAM] =              { 0x100000000,  0x400000000 },
 };
 
+static int spacemit_k3_load_fsbl(SpacemitK3State *ms, DriveInfo *di,
+                                 uint64_t bootinfo_offset,
+                                 int selected_boot_mode)
+{
+    /* Read Bootinfo block */
+    g_autofree void *bootinfo = g_malloc(0x44);
+    uint32_t spl0_offset, spl_max_size, spl_size, target_crc, computed_crc;
+    if (blk_pread(blk_by_legacy_dinfo(di), bootinfo_offset, 0x44, bootinfo, 0) <
+        0) {
+        error_report("Cannot read bootinfo from boot media");
+        return -1;
+    }
+
+    /* Check CRC of Bootinfo block */
+    target_crc = ldl_le_p(bootinfo + 0x40);
+    computed_crc = crc32(0, bootinfo, 0x40);
+
+    if (target_crc != computed_crc) {
+        error_report("Bootinfo CRC doesn't match");
+        return -1;
+    }
+
+    /* Get SPL Offset and Max Size from bootinfo */
+    spl0_offset = ldl_le_p(bootinfo + 0x20);
+    spl_max_size = ldl_le_p(bootinfo + 0x28);
+
+    if (spl_max_size < 0x1000) {
+        error_report("SPL Max Size value is too small");
+        return -1;
+    }
+
+    /*
+     * Every bootinfo block generated from the vendor
+     * BSP seems to have this as the max value, so
+     * cap it at that.
+     */
+    if (spl_max_size > 0x74000) {
+        error_report("SPL Max Size value is too big");
+        return -1;
+    }
+
+    g_autofree void *fsbl = g_malloc(spl_max_size);
+
+    /* Read SPL */
+    if (blk_pread(blk_by_legacy_dinfo(di), spl0_offset, spl_max_size, fsbl, 0) <
+        0) {
+        error_report("Cannot read FSBL from boot media");
+        return -1;
+    }
+
+    spl_size = ldq_le_p(fsbl + 0xfe0 + 0x8);
+    if (spl_size > spl_max_size - 0x1000) {
+        error_report("SPL Size is too big");
+        return -1;
+    }
+
+    /* Check CRC of SPL*/
+    target_crc = ldl_le_p(fsbl + 0xfe0 + 28);
+    computed_crc = crc32(0, fsbl + 0x1000, spl_size);
+
+    if (target_crc != computed_crc) {
+        error_report("FSBL CRC doesn't match");
+        return -1;
+    }
+
+    rom_add_blob_fixed("spacemit-k3.fsbl", fsbl + 0x1000, spl_size,
+                       ms->memmap[SPACEMIT_K3_SRAM].base + 0x1000);
+
+    /*
+     * Bootrom writes to this register to specify boot medium it picked
+     * Subsequnent stages read this register. Simulate this write
+     */
+    spacemit_k3_set_selected_boot_mode(&ms->cpu_config, selected_boot_mode);
+    return 0;
+}
+
+static int spacemit_k3_load_fsbl_sd(SpacemitK3State *ms)
+{
+    DriveInfo *sd = drive_get(IF_SD, 0, 0);
+    if (!sd) {
+        error_report("Failed to get sd");
+        return -1;
+    }
+
+    return spacemit_k3_load_fsbl(ms, sd, SPACEMIT_K3_FSBL_SD_OFFSET,
+                                 SPACEMIT_K3_SELECTED_BOOT_MODE_SD);
+}
+
+static int spacemit_k3_load_fsbl_emmc(SpacemitK3State *ms)
+{
+    DriveInfo *emmc = drive_get(IF_SD, 0, 2);
+    if (!emmc) {
+        error_report("Failed to get emmc");
+        return -1;
+    }
+
+    return spacemit_k3_load_fsbl(ms, emmc, SPACEMIT_K3_FSBL_EMMC_OFFSET,
+                                 SPACEMIT_K3_SELECTED_BOOT_MODE_EMMC);
+}
+
+static int spacemit_k3_load_fsbl_ufs(SpacemitK3State *ms)
+{
+    DriveInfo *ufs = drive_get(IF_SCSI, 0, 0);
+    if (!ufs) {
+        error_report("Failed to get ufs");
+        return -1;
+    }
+
+    return spacemit_k3_load_fsbl(ms, ufs, SPACEMIT_K3_FSBL_UFS_OFFSET,
+                                 SPACEMIT_K3_SELECTED_BOOT_MODE_UFS);
+}
+
+static int spacemit_k3_load_fsbl_nor(SpacemitK3State *ms)
+{
+    DriveInfo *nor = drive_get(IF_MTD, 0, 0);
+    if (!nor) {
+        error_report("Failed to get nor flash");
+        return -1;
+    }
+
+    return spacemit_k3_load_fsbl(ms, nor, SPACEMIT_K3_FSBL_NOR_OFFSET,
+                                 SPACEMIT_K3_SELECTED_BOOT_MODE_NOR);
+}
+
 static void spacemit_k3_machine_done(Notifier *notifier, void *data)
 {
     SpacemitK3State *s = container_of(notifier, SpacemitK3State,
@@ -103,9 +238,65 @@ static void spacemit_k3_machine_done(Notifier *notifier, void *data)
 
     riscv_boot_info_init(&boot_info, &s->soc);
 
-    riscv_find_and_load_firmware(machine, &boot_info,
-                                 firmware_name,
-                                 &start_addr, NULL);
+    /*
+     * Load bootrom supplied via -bios.
+     * If no file is supplied, load next stage from supplied images
+     * exactly as how bootrom would.
+     */
+    if (machine->firmware && strcmp(machine->firmware, "default") &&
+        strcmp(machine->firmware, "none")) {
+        riscv_find_and_load_firmware(machine, &boot_info, firmware_name,
+                                     &start_addr, NULL);
+    } else {
+        switch (s->boot_mode) {
+        case SPACEMIT_K3_BOOT_MODE_NOR:
+            if (spacemit_k3_load_fsbl_sd(s) < 0) {
+                error_report("Booting from SD failed, trying NOR");
+                if (spacemit_k3_load_fsbl_nor(s) < 0) {
+                    error_report("Booting from NOR Failed");
+                    if (qtest_enabled()) {
+                        return;
+                    }
+                    exit(1);
+                }
+            }
+            break;
+        case SPACEMIT_K3_BOOT_MODE_EMMC:
+            if (spacemit_k3_load_fsbl_sd(s) < 0) {
+                error_report("Booting from SD failed, trying EMMC");
+                if (spacemit_k3_load_fsbl_emmc(s) < 0) {
+                    error_report("Booting from EMMC Failed");
+                    if (qtest_enabled()) {
+                        return;
+                    }
+                    exit(1);
+                }
+            }
+            break;
+        case SPACEMIT_K3_BOOT_MODE_UFS:
+            if (spacemit_k3_load_fsbl_sd(s) < 0) {
+                error_report("Booting from SD failed, trying UFS");
+                if (spacemit_k3_load_fsbl_ufs(s) < 0) {
+                    error_report("Booting from UFS Failed");
+                    if (qtest_enabled()) {
+                        return;
+                    }
+                    exit(1);
+                }
+            }
+            break;
+        case SPACEMIT_K3_BOOT_MODE_NAND:
+        case SPACEMIT_K3_BOOT_MODE_USB:
+        case SPACEMIT_K3_BOOT_MODE_UART:
+            error_report("Supply bootrom via -bios to use these boot methods");
+            if (qtest_enabled()) {
+                return;
+            }
+            exit(1);
+        }
+        s->soc.harts[0].env.resetvec =
+            s->memmap[SPACEMIT_K3_SRAM].base + 0x1000;
+    }
 }
 
 static void spacemit_k3_machine_init(MachineState *machine)
