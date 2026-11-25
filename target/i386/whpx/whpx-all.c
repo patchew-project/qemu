@@ -530,7 +530,8 @@ void whpx_set_registers(CPUState *cpu, WHPXStateLevel level)
     assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
 
     /* Assumes that cpu_synchronize_all_post_reset() runs cpu 0 first. */
-    if (level == WHPX_LEVEL_RESET_STATE && cpu->cpu_index == 0) {
+    if (whp_dispatch.WHvResetPartition &&
+        level == WHPX_LEVEL_RESET_STATE && cpu->cpu_index == 0) {
         hr = whp_dispatch.WHvResetPartition(whpx->partition);
         if (FAILED(hr)) {
             error_report("WHPX: Failed to reset partition, hr=%08lx", hr);
