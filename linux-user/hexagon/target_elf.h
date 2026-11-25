@@ -23,6 +23,13 @@
 
 #define HAVE_ELF_HWCAP          1
 
+#include "target/hexagon/core-dump.h"
+
+#define HAVE_ELF_CORE_DUMP      1
+#define elf_core_eflags(info)   ((info)->elf_flags)
+
+typedef HexagonUserRegs target_elf_gregset_t;
+
 enum {
     HWCAP_HEXAGON_ISA_MASK          = 0x7F,
     HWCAP_HEXAGON_ISA_V2            = 1,

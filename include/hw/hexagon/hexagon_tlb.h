@@ -26,6 +26,16 @@ struct HexagonTLBState {
     QemuMutex lock;
 };
 
+typedef struct HexagonTLBMapping {
+    uint64_t va;        /* Start of the page, aligned to @size */
+    uint64_t pa;        /* Start of the physical page */
+    uint64_t size;      /* Page size in bytes */
+    uint32_t asid;      /* Valid only when !@global */
+    bool global;        /* Entry matches in every ASID */
+} HexagonTLBMapping;
+
+bool hexagon_tlb_decode_entry(uint64_t entry, HexagonTLBMapping *mapping);
+
 uint64_t hexagon_tlb_read(HexagonTLBState *tlb, uint32_t index);
 uint64_t hexagon_tlb_write(HexagonTLBState *tlb, uint32_t index,
                            uint64_t value);

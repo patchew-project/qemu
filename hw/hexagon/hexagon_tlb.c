@@ -302,6 +302,23 @@ static bool hex_tlb_is_match(uint64_t entry1, uint64_t entry2,
 
 /* Public API */
 
+bool hexagon_tlb_decode_entry(uint64_t entry, HexagonTLBMapping *mapping)
+{
+    uint64_t size;
+
+    if (!GET_PTE_V(entry)) {
+        return false;
+    }
+
+    size = hex_tlb_page_size_bytes(entry);
+    mapping->size = size;
+    mapping->va = ROUND_DOWN(hex_tlb_virt_addr(entry), size);
+    mapping->pa = hex_tlb_phys_addr(entry);
+    mapping->global = GET_PTE_G(entry);
+    mapping->asid = GET_PTE_ASID(entry);
+    return true;
+}
+
 uint64_t hexagon_tlb_read(HexagonTLBState *tlb, uint32_t index)
 {
     g_assert(index < tlb->num_entries);

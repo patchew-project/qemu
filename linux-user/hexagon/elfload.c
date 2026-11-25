@@ -6,6 +6,10 @@
 #include "target_elf.h"
 #include "target/hexagon/cpu.h"
 
+void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUHexagonState *env)
+{
+    hexagon_core_copy_regs(regs, env);
+}
 
 abi_ulong get_elf_hwcap(CPUState *cs)
 {

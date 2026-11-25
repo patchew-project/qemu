@@ -60,6 +60,14 @@ void G_NORETURN do_raise_exception(CPUHexagonState *env,
 
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_hexagon_cpu;
+int hexagon_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
+                                 int cpuid, DumpState *s);
+void hexagon_get_dump_info(const CPUState *cs, ArchDumpInfo *info,
+                           const GuestPhysBlockList *guest_phys_blocks);
+size_t hexagon_get_note_size(const CPUState *cs, int class, int machine,
+                             int nr_cpus);
+bool hexagon_cpu_get_memory_mapping(CPUState *cs, MemoryMappingList *list,
+                                    Error **errp);
 #endif
 
 #endif

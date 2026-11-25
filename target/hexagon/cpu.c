@@ -870,9 +870,22 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
 
 #include "hw/core/sysemu-cpu-ops.h"
 
+static bool hexagon_cpu_get_paging_enabled(const CPUState *cs)
+{
+    const HexagonCPU *cpu = HEXAGON_CPU(cs);
+
+    return GET_SYSCFG_FIELD(SYSCFG_MMUEN,
+        hexagon_globalreg_read_syscfg_unlocked(cpu->globalregs));
+}
+
 static const struct SysemuCPUOps hexagon_sysemu_ops = {
     .has_work = hexagon_cpu_has_work,
+    .get_memory_mapping = hexagon_cpu_get_memory_mapping,
+    .get_paging_enabled = hexagon_cpu_get_paging_enabled,
     .translate_for_debug = hexagon_cpu_translate_for_debug,
+    .write_elf32_note = hexagon_cpu_write_elf32_note,
+    .get_dump_info = hexagon_get_dump_info,
+    .get_note_size = hexagon_get_note_size,
 };
 
 static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
