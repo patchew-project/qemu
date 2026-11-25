@@ -990,11 +990,11 @@ static void hexagon_cpu_class_init(ObjectClass *c, const void *data)
 }
 
 #ifndef CONFIG_USER_ONLY
-uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
+uint32_t hexagon_greg_read(const CPUHexagonState *env, uint32_t reg)
 {
     uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
     int ssr_ce = GET_SSR_FIELD(SSR_CE, ssr);
-    HexagonCPU *cpu = env_archcpu(env);
+    const HexagonCPU *cpu = env_archcpu(env);
 
     if (reg <= HEX_GREG_G3) {
         return env->greg[reg];

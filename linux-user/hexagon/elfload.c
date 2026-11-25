@@ -11,6 +11,16 @@ void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUHexagonState *env)
     hexagon_core_copy_regs(regs, env);
 }
 
+size_t elf_core_extra_notes_size(const CPUHexagonState *env)
+{
+    return hexagon_core_notes_size(env);
+}
+
+void elf_core_fill_extra_notes(void *buf, const CPUHexagonState *env)
+{
+    hexagon_core_fill_notes(buf, env);
+}
+
 abi_ulong get_elf_hwcap(CPUState *cs)
 {
     HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(cs);

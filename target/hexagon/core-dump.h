@@ -34,6 +34,22 @@ typedef struct target_elf_gregset_t {
 
 QEMU_BUILD_BUG_ON(sizeof(HexagonUserRegs) != 48 * sizeof(uint32_t));
 
+#define HEXAGON_CORE_NOTE_OWNER "QEMU"
+#define HEXAGON_CORE_NOTE_VERSION 1
+
+enum {
+    HEXAGON_NT_CTRL = 0x100,
+    HEXAGON_NT_HVX = 0x101,
+    HEXAGON_NT_HLX = 0x102,
+    HEXAGON_NT_SYSREGS = 0x103,
+    HEXAGON_NT_THREAD = 0x104,
+    HEXAGON_NT_TLB = 0x105,
+};
+
+size_t hexagon_core_notes_size(const CPUHexagonState *env);
+
+void hexagon_core_fill_notes(void *buf, const CPUHexagonState *env);
+
 static inline void hexagon_core_copy_regs(HexagonUserRegs *regs,
                                           const CPUHexagonState *env)
 {

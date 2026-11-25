@@ -39,18 +39,29 @@ typedef struct HexagonElfNote {
 int hexagon_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
                                  int cpuid, DumpState *s)
 {
+    CPUHexagonState *env = cpu_env(cs);
     HexagonElfNote note = { 0 };
     HexagonUserRegs regs;
+    g_autofree void *extra = NULL;
+    size_t extra_size = hexagon_core_notes_size(env);
+    int ret;
 
     note.header.n_namesz = cpu_to_dump32(s, sizeof("CORE"));
     note.header.n_descsz = cpu_to_dump32(s, sizeof(note.prstatus));
     note.header.n_type = cpu_to_dump32(s, NT_PRSTATUS);
     memcpy(note.name, "CORE", sizeof("CORE"));
     note.prstatus.pr_pid = cpu_to_dump32(s, cpuid);
-    hexagon_core_copy_regs(&regs, cpu_env(cs));
+    hexagon_core_copy_regs(&regs, env);
     memcpy(&note.prstatus.pr_reg, &regs, sizeof(regs));
 
-    return f(&note, sizeof(note), s);
+    ret = f(&note, sizeof(note), s);
+    if (ret < 0) {
+        return ret;
+    }
+
+    extra = g_malloc(extra_size);
+    hexagon_core_fill_notes(extra, env);
+    return f(extra, extra_size, s);
 }
 
 void hexagon_get_dump_info(const CPUState *cs, ArchDumpInfo *info,
@@ -68,7 +79,13 @@ void hexagon_get_dump_info(const CPUState *cs, ArchDumpInfo *info,
 size_t hexagon_get_note_size(const CPUState *cs, int class, int machine,
                              int nr_cpus)
 {
-    return sizeof(HexagonElfNote) * nr_cpus;
+    CPUState *cpu;
+    size_t size = 0;
+
+    CPU_FOREACH(cpu) {
+        size += sizeof(HexagonElfNote) + hexagon_core_notes_size(cpu_env(cpu));
+    }
+    return size;
 }
 
 static bool hexagon_mapping_overlaps(const MemoryMappingList *list,

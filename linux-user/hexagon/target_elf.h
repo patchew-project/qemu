@@ -26,6 +26,7 @@
 #include "target/hexagon/core-dump.h"
 
 #define HAVE_ELF_CORE_DUMP      1
+#define HAVE_ELF_CORE_EXTRA_NOTES 1
 #define elf_core_eflags(info)   ((info)->elf_flags)
 
 typedef HexagonUserRegs target_elf_gregset_t;
