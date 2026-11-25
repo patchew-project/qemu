@@ -240,7 +240,7 @@ static void ctucan_send_ready_buffers(CtuCanCoreState *s)
     qemu_can_frame frame;
     uint8_t *pf;
     int buff2tx_idx;
-    uint32_t tx_prio_max;
+    int tx_prio_max;
 
     if (!s->mode_settings.s.ena) {
         return;
@@ -250,10 +250,10 @@ static void ctucan_send_ready_buffers(CtuCanCoreState *s)
         union ctu_can_fd_int_stat int_stat;
         int i;
         buff2tx_idx = -1;
-        tx_prio_max = 0;
+        tx_prio_max = -1;
 
         for (i = 0; i < CTUCAN_CORE_TXBUF_NUM; i++) {
-            uint32_t prio;
+            int prio;
 
             if (extract32(s->tx_status.u32, i * 4, 4) != TXT_RDY) {
                 continue;
