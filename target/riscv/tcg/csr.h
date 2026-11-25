@@ -81,6 +81,9 @@ bool riscv_csr_is_vpu(int csrno);
 void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops);
 void riscv_set_csr_ops(int csrno, const riscv_csr_operations *ops);
 
+/* In spacemit_csr.c */
+extern const RISCVCSR spacemit_csr_list[];
+
 /* In th_csr.c */
 extern const RISCVCSR th_csr_list[];
 

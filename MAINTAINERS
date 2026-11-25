@@ -1854,6 +1854,12 @@ F: hw/*/*sifive*.c
 F: include/hw/*/*sifive*.h
 F: tests/functional/riscv64/test_sifive_u.py
 
+Spacemit Machines
+M: Anirudh Srinivasan <asrinivasan@oss.tenstorrent.com>
+L: qemu-riscv@nongnu.org
+S: Supported
+F: target/riscv/tcg/spacemit_csr.c
+
 Tenstorrent Machines
 M: Joel Stanley <joel@jms.id.au>
 M: Nicholas Piggin <npiggin@gmail.com>

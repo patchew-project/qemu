@@ -24,6 +24,7 @@ riscv_system_ss.add(files(
   'mips_csr.c',
   'pmp.c',
   'pmu.c',
+  'spacemit_csr.c',
   'th_csr.c',
 ))
 
