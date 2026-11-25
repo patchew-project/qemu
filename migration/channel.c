@@ -563,6 +563,12 @@ void migration_channel_connect_outgoing(MigrationState *s, QIOChannel *ioc)
 {
     trace_migration_outgoing_channel_set(ioc, object_get_typename(OBJECT(ioc)));
 
+    /* migration_cancel() leaves a cancel during connect for us to finish */
+    if (s->state == MIGRATION_STATUS_CANCELLING) {
+        migration_cleanup(s);
+        return;
+    }
+
     if (migrate_channel_requires_tls_upgrade(ioc)) {
         Error *local_err = NULL;
 

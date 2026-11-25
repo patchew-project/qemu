@@ -594,6 +594,7 @@ bool migration_incoming_setup(QIOChannel *ioc, uint8_t channel, Error **errp);
 void migration_outgoing_setup(QIOChannel *ioc);
 
 void migration_connect_error_propagate(MigrationState *s, Error *error);
+void migration_cleanup(MigrationState *s);
 void migrate_error_propagate(MigrationState *s, Error *error);
 bool migrate_has_error(MigrationState *s);
 
