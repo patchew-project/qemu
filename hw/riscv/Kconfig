@@ -133,6 +133,22 @@ config SIFIVE_U
     select SSI_SD
     select UNIMP
 
+config SPACEMIT
+    bool
+    default y
+    depends on RISCV64
+    select DEVICE_TREE
+    select RISCV_ACLINT
+    select RISCV_APLIC
+    select RISCV_IMSIC
+    select SD
+    select SDHCI
+    select SERIAL_MM
+    select SSI
+    select SSI_M25P80
+    select UFS_SYSBUS
+    select UNIMP
+
 config SPIKE
     bool
     default y
