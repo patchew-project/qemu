@@ -107,7 +107,24 @@ with iotests.FilePath('t.vdi') as disk_path, \
     vm.shutdown()
 
     iotests.img_info_log(disk_path)
-    iotests.log(iotests.qemu_img_map(disk_path))
+    img_map = iotests.qemu_img_map(disk_path)
+
+    assert len(img_map) > 0
+    assert img_map[0]['start'] == 0
+    mapping_offset = img_map[0]['offset'] - img_map[0]['start']
+    for i, ext in enumerate(img_map):
+        assert ext['length'] > 0
+        assert ext['compressed'] is False
+        assert ext['present'] is True
+        assert ext['data'] is True
+        assert ext['depth'] == 0
+        assert 'offset' in ext
+        if i != 0:
+            assert ext['offset'] - ext['start'] == mapping_offset
+            assert img_map[i - 1]['start'] + img_map[i - 1]['length'] == \
+                    ext['start']
+
+    assert img_map[-1]['start'] + img_map[-1]['length'] == size
 
     #
     # Invalid BlockdevRef
