@@ -259,7 +259,7 @@ static void ctucan_send_ready_buffers(CtuCanCoreState *s)
                 continue;
             }
             prio = (s->tx_priority.u32 >> (i * 4)) & 0x7;
-            if (tx_prio_max < prio) {
+            if (tx_prio_max < prio || buff2tx_idx == -1) {
                 tx_prio_max = prio;
                 buff2tx_idx = i;
             }
