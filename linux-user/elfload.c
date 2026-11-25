@@ -1717,6 +1717,11 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
  *     env - copy registers from here
  *
  * Example for ARM target is provided in this file.
+ *
+ * A target that has more per-thread state worth dumping can also define
+ * HAVE_ELF_CORE_EXTRA_NOTES and implement elf_core_extra_notes_size() and
+ * elf_core_fill_extra_notes(), to add notes of its own after each thread's
+ * NT_PRSTATUS note.
  */
 
 struct target_elf_siginfo {
@@ -2184,6 +2189,11 @@ static int elf_core_dump(int signr, const CPUArchState *env)
 #ifdef HAVE_ELF_CORE_FPREGS
     offset += size_note("CORE", sizeof(target_elf_fpregset_t)) * cpus;
 #endif
+#ifdef HAVE_ELF_CORE_EXTRA_NOTES
+    CPU_FOREACH(cpu_iter) {
+        offset += elf_core_extra_notes_size(cpu_env(cpu_iter));
+    }
+#endif
     note_size = offset - note_offset;
     data_offset = TARGET_PAGE_ALIGN(offset);
 
@@ -2245,6 +2255,10 @@ static int elf_core_dump(int signr, const CPUArchState *env)
             dptr = fill_note(&hptr, NT_FPREGSET, "CORE",
                              sizeof(target_elf_fpregset_t));
             fill_fpregset_note(dptr, cpu_iter);
+#endif
+#ifdef HAVE_ELF_CORE_EXTRA_NOTES
+            elf_core_fill_extra_notes(hptr, cpu_env(cpu_iter));
+            hptr += elf_core_extra_notes_size(cpu_env(cpu_iter));
 #endif
         }
 

@@ -112,6 +112,15 @@ void elf_core_copy_regs(struct target_elf_gregset_t *, const CPUArchState *);
 /* Only defined by a target whose target_elf.h sets HAVE_ELF_CORE_FPREGS. */
 struct target_elf_fpregset_t;
 void elf_core_copy_fpregs(struct target_elf_fpregset_t *, const CPUArchState *);
+/*
+ * Only defined by a target whose target_elf.h sets HAVE_ELF_CORE_EXTRA_NOTES.
+ * The notes follow the thread's NT_PRSTATUS (and NT_FPREGSET) note.
+ * elf_core_extra_notes_size() returns the size in bytes of the complete,
+ * 4-byte aligned ELF notes that elf_core_fill_extra_notes() stores in the
+ * buffer for the same CPU.
+ */
+size_t elf_core_extra_notes_size(const CPUArchState *);
+void elf_core_fill_extra_notes(void *buf, const CPUArchState *);
 
 typedef struct {
     const uint8_t *image;
