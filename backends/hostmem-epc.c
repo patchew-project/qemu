@@ -37,8 +37,14 @@ sgx_epc_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
     backend->aligned = true;
     name = object_get_canonical_path(OBJECT(backend));
     ram_flags = (backend->share ? RAM_SHARED : RAM_PRIVATE) | RAM_PROTECTED;
-    return memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend), name,
-                                          backend->size, ram_flags, fd, 0, errp);
+    if (!memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend), name,
+                                        backend->size, ram_flags, fd, 0,
+                                        errp)) {
+        /* No RAM block took ownership of the fd, so close it here */
+        close(fd);
+        return false;
+    }
+    return true;
 }
 
 static void sgx_epc_backend_instance_init(Object *obj)
