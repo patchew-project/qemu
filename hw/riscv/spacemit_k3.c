@@ -35,6 +35,7 @@
 #include "hw/riscv/spacemit_k3.h"
 
 #include "system/qtest.h"
+#include "qobject/qlist.h"
 
 #define SPACEMIT_K3_IRQCHIP_NUM_MSIS       511
 #define SPACEMIT_K3_IRQCHIP_NUM_SOURCES    512
@@ -308,6 +309,9 @@ static void spacemit_k3_machine_init(MachineState *machine)
     MemoryRegion *ddr_train_buf = g_new(MemoryRegion, 1);
     int hart_count = machine->smp.cpus;
     int i;
+    DeviceState *imsic_m[SPACEMIT_K3_MAX_NUM_HARTS];
+    QList *cpulist = qlist_new();
+    QList *mimsiclist = qlist_new();
 
     s->memmap = spacemit_k3_memmap;
 
@@ -329,10 +333,10 @@ static void spacemit_k3_machine_init(MachineState *machine)
      * so that we get handles to misic memory regions.
      */
     for (i = 0; i < hart_count; i++) {
-        riscv_imsic_create(get_system_memory(),
-                         s->memmap[SPACEMIT_K3_MIMSIC].base +
-                             i * SPACEMIT_K3_IMSIC_MSTRIDE,
-                         i, true, 1, SPACEMIT_K3_IRQCHIP_NUM_MSIS);
+        imsic_m[i] = riscv_imsic_create(get_system_memory(),
+                                      s->memmap[SPACEMIT_K3_MIMSIC].base +
+                                          i * SPACEMIT_K3_IMSIC_MSTRIDE,
+                                      i, true, 1, SPACEMIT_K3_IRQCHIP_NUM_MSIS);
     }
 
     for (i = 0; i < hart_count; i++) {
@@ -488,10 +492,18 @@ static void spacemit_k3_machine_init(MachineState *machine)
                                 s->memmap[SPACEMIT_K3_THERMAL].base,
                                 s->memmap[SPACEMIT_K3_THERMAL].size);
 
+    for (int cpu_idx = 0; cpu_idx < hart_count; cpu_idx++) {
+        qlist_append_link(cpulist, OBJECT(&s->soc.harts[cpu_idx]));
+        qlist_append_link(mimsiclist,
+                          OBJECT(sysbus_mmio_get_region(
+                              SYS_BUS_DEVICE(imsic_m[cpu_idx]), 0)));
+    }
+
     object_initialize_child(OBJECT(machine), "spacemit-k3.cpu_config",
                             &s->cpu_config, TYPE_SPACEMIT_K3_CPU_CONFIG);
     object_property_set_int(OBJECT(&s->cpu_config),
                                 "boot-mode", s->boot_mode, &error_fatal);
+    qdev_prop_set_array(DEVICE(&s->cpu_config), "cpus", qobject_ref(cpulist));
     sysbus_realize(SYS_BUS_DEVICE(&s->cpu_config), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->cpu_config), 0,
                     s->memmap[SPACEMIT_K3_CPU_CONFIG_UNIT].base);
@@ -510,9 +522,18 @@ static void spacemit_k3_machine_init(MachineState *machine)
 
     object_initialize_child(OBJECT(machine), "spacemit-k3.syscon_apmu",
                             &s->syscon_apmu, TYPE_SPACEMIT_K3_SYSCON_APMU_UNIT);
+    qdev_prop_set_array(DEVICE(&s->syscon_apmu), "cpus", cpulist);
+    qdev_prop_set_array(DEVICE(&s->syscon_apmu), "mimsic-regions",
+                      mimsiclist);
+
     sysbus_realize(SYS_BUS_DEVICE(&s->syscon_apmu), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->syscon_apmu), 0,
                     s->memmap[SPACEMIT_K3_SYSCON_APMU].base);
+
+    /* Map IMSIC Overlay Region of Syscon APMU over MIMSIC range */
+    memory_region_add_subregion_overlap(
+        get_system_memory(), s->memmap[SPACEMIT_K3_MIMSIC].base,
+        &SPACEMIT_K3_SYSCON_APMU_UNIT(&s->syscon_apmu)->mimsic_overlay, 2);
 
     object_initialize_child(OBJECT(machine), "spacemit-k3.syscon_mpmu",
                             &s->syscon_mpmu, TYPE_SPACEMIT_K3_SYSCON_MPMU_UNIT);
@@ -629,6 +650,13 @@ static void spacemit_k3_machine_init(MachineState *machine)
                    qdev_get_gpio_in(s->irqchip, SPACEMIT_K3_UART0_IRQ), 115200,
                    serial_hd(0), DEVICE_LITTLE_ENDIAN);
 
+    /* Hold all harts but the boot hart in reset */
+    for (int cpu_idx = 1; cpu_idx < hart_count; cpu_idx++) {
+        CPUState *cs = CPU(&s->soc.harts[cpu_idx]);
+        cs->start_powered_off = true;
+        cs->halted = 1;
+    }
+
     s->machine_done.notify = spacemit_k3_machine_done;
     qemu_add_machine_init_done_notifier(&s->machine_done);
 }
@@ -684,8 +712,9 @@ static void spacemit_k3_machine_class_init(ObjectClass *oc, const void *data)
 
     mc->desc = "Spacemit K3 board";
     mc->init = spacemit_k3_machine_init;
-    mc->max_cpus = 1;
-    mc->default_cpus = 1;
+    mc->min_cpus = SPACEMIT_K3_MAX_NUM_HARTS;
+    mc->max_cpus = SPACEMIT_K3_MAX_NUM_HARTS;
+    mc->default_cpus = SPACEMIT_K3_MAX_NUM_HARTS;
     mc->default_ram_id = "spacemit-k3.dram";
     mc->default_ram_size = 16 * GiB;
     mc->default_cpu_type = TYPE_RISCV_CPU_SPACEMIT_X100;

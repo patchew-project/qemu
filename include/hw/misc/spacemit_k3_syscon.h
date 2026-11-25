@@ -19,6 +19,8 @@
 #define SPACEMIT_K3_SYSCON_APMU_SIZE 0x400
 #define SPACEMIT_K3_DDRC_SIZE 0x1000000
 
+#define SPACEMIT_K3_MAX_NUM_HARTS 8
+
 #define TYPE_SPACEMIT_K3_SYSCON_MPMU_UNIT "spacemit-k3-syscon-mpmu"
 OBJECT_DECLARE_SIMPLE_TYPE(SpacemitK3SysconMPMUState,
                            SPACEMIT_K3_SYSCON_MPMU_UNIT)
@@ -45,6 +47,14 @@ struct SpacemitK3SysconAPMUState {
     /*< public >*/
 
     MemoryRegion mmio;
+
+    MemoryRegion mimsic_overlay;
+    MemoryRegion **mimsic_regions;
+    uint32_t num_imsics;
+
+    CPUState **cpus;
+    uint32_t num_cpus;
+    bool released[SPACEMIT_K3_MAX_NUM_HARTS];
 };
 
 struct SpacemitK3DDRCState {
@@ -66,6 +76,9 @@ struct SpacemitK3CPUConfigState {
     MemoryRegion mmio;
     uint32_t regs[SPACEMIT_K3_CPU_CONFIG_SIZE >> 2];
     int boot_mode;
+
+    CPUState **cpus;
+    uint32_t num_cpus;
 };
 
 enum {

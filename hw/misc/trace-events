@@ -478,6 +478,8 @@ tt_atlantis_prcm_write(uint32_t domain, uint64_t offset, uint64_t data) "domain 
 # spacemit_k3_syscon.c
 spacemit_k3_syscon_apmu_read(uint64_t offset, unsigned size, uint64_t value) "offset 0x%04" PRIx64 " size %u value 0x%08" PRIx64
 spacemit_k3_syscon_apmu_write(uint64_t offset, unsigned size, uint64_t value) "offset 0x%04" PRIx64 " size %u value 0x%08" PRIx64
+spacemit_k3_syscon_apmu_cpu_release(int cpu) "release cpu %d from reset"
+spacemit_k3_syscon_apmu_overlay_write(int hart, uint64_t offset, uint64_t value) "hart %d offset 0x%04" PRIx64 " value 0x%08" PRIx64
 spacemit_k3_syscon_mpmu_read(uint64_t offset, unsigned size, uint64_t value) "offset 0x%04" PRIx64 " size %u value 0x%08" PRIx64
 spacemit_k3_syscon_mpmu_write(uint64_t offset, unsigned size, uint64_t value) "offset 0x%04" PRIx64 " size %u value 0x%08" PRIx64
 spacemit_k3_cpu_config_read(uint64_t offset, unsigned size, uint64_t value) "offset 0x%04" PRIx64 " size %u value 0x%08" PRIx64
