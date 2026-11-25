@@ -89,12 +89,29 @@ static void aspeed_pcie_root_port_class_init(ObjectClass *klass,
 
 #define ASPEED_PCIE_CFG_RC_MAX_MSI 64
 
+/*
+ * INTx and MSI share one RC interrupt line. Compute it from both, so one
+ * does not lower the line while the other is still pending.
+ */
+static void aspeed_pcie_rc_update_irq(AspeedPCIECfgState *cfg)
+{
+    uint32_t msi_sts0 = cfg->regs[cfg->rc_regs->msi_sts0_reg];
+    uint32_t msi_sts1 = cfg->regs[cfg->rc_regs->msi_sts1_reg];
+    uint32_t int_sts = cfg->regs[cfg->rc_regs->int_sts_reg];
+    uint32_t int_en = cfg->regs[cfg->rc_regs->int_en_reg];
+    bool level;
+
+    level = (int_sts & int_en) || msi_sts0 || msi_sts1;
+    trace_aspeed_pcie_rc_update_irq(cfg->id, int_sts, int_en, msi_sts0,
+                                    msi_sts1, level);
+    qemu_set_irq(cfg->rc.irq, level);
+}
+
 static void aspeed_pcie_rc_set_irq(void *opaque, int irq, int level)
 {
     AspeedPCIERcState *rc = (AspeedPCIERcState *) opaque;
     AspeedPCIECfgState *cfg =
         container_of(rc, AspeedPCIECfgState, rc);
-    bool intx;
 
     assert(irq < PCI_NUM_PINS);
 
@@ -104,10 +121,8 @@ static void aspeed_pcie_rc_set_irq(void *opaque, int irq, int level)
         cfg->regs[cfg->rc_regs->int_sts_reg] &= ~BIT(irq);
     }
 
-    intx = !!(cfg->regs[cfg->rc_regs->int_sts_reg] &
-              cfg->regs[cfg->rc_regs->int_en_reg]);
-    trace_aspeed_pcie_rc_intx_set_irq(cfg->id, irq, intx);
-    qemu_set_irq(rc->irq, intx);
+    trace_aspeed_pcie_rc_intx_set_irq(cfg->id, irq, level);
+    aspeed_pcie_rc_update_irq(cfg);
 }
 
 static int aspeed_pcie_rc_map_irq(PCIDevice *pci_dev, int irq_num)
@@ -129,7 +144,7 @@ static void aspeed_pcie_rc_msi_notify(AspeedPCIERcState *rc, uint64_t data)
     cfg->regs[reg] |= BIT(data % 32);
 
     trace_aspeed_pcie_rc_msi_set_irq(cfg->id, data, 1);
-    qemu_set_irq(rc->irq, 1);
+    aspeed_pcie_rc_update_irq(cfg);
 }
 
 static void aspeed_pcie_rc_msi_write(void *opaque, hwaddr addr, uint64_t data,
@@ -541,6 +556,10 @@ static void aspeed_pcie_cfg_write(void *opaque, hwaddr addr, uint64_t data,
             s->regs[R_H2X_TX_STS] |= R_H2X_TX_STS_IDLE_MASK;
         }
         break;
+    case R_H2X_RC_H_INT_EN:
+        s->regs[reg] = data;
+        aspeed_pcie_rc_update_irq(s);
+        break;
     /* preserve INTx status */
     case R_H2X_RC_H_INT_STS:
         if (data & H2X_RC_INT_INTDONE_MASK) {
@@ -567,8 +586,7 @@ static void aspeed_pcie_cfg_write(void *opaque, hwaddr addr, uint64_t data,
 
         if (!s->regs[R_H2X_RC_H_MSI_STS0] &&
             !s->regs[R_H2X_RC_H_MSI_STS1]) {
-            trace_aspeed_pcie_rc_msi_clear_irq(s->id, 0);
-            qemu_set_irq(s->rc.irq, 0);
+            aspeed_pcie_rc_update_irq(s);
         }
         break;
     default:
@@ -718,6 +736,10 @@ static void aspeed_2700_pcie_cfg_write(void *opaque, hwaddr addr,
         }
         break;
 
+    case R_H2X_INT_EN:
+        s->regs[reg] = data;
+        aspeed_pcie_rc_update_irq(s);
+        break;
     case R_H2X_INT_STS:
         s->regs[reg] &= ~data | R_H2X_INT_STS_INTX_MASK;
         break;
@@ -740,8 +762,7 @@ static void aspeed_2700_pcie_cfg_write(void *opaque, hwaddr addr,
 
         if (!s->regs[R_H2X_MSI_STS0] &&
             !s->regs[R_H2X_MSI_STS1]) {
-            trace_aspeed_pcie_rc_msi_clear_irq(s->id, 0);
-            qemu_set_irq(s->rc.irq, 0);
+            aspeed_pcie_rc_update_irq(s);
         }
         break;
     default:
