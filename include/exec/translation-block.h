@@ -113,7 +113,11 @@ struct TranslationBlock {
     tb_page_addr_t page_addr[2];
 #endif
 
-    /* jmp_lock placed here to fill a 4-byte hole. Its documentation is below */
+    /*
+     * jmp_lock, jmp_reset_offset[] and jmp_insn_offset[] take 12 bytes,
+     * leaving a 4-byte hole before jmp_target_addr[].
+     * jmp_lock documentation is below.
+     */
     QemuSpin jmp_lock;
 
     /* The following data are used to directly call another TB from
