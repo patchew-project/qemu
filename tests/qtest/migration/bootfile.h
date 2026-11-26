@@ -15,10 +15,26 @@
  */
 #ifdef __ASSEMBLER__
 #define MIGRATION_GUEST_CODE
+#else
+#include "libqtest.h"
 #endif
 
 /* Common */
 #define TEST_MEM_PAGE_SIZE 4096
+
+/*
+ * An initial 3 MB offset is used as that corresponds
+ * to ~1 sec of data transfer with our bandwidth setting.
+ */
+#define MAGIC_OFFSET_BASE (3 * 1024 * 1024)
+/*
+ * A further 1k is added to ensure we're not a multiple
+ * of TEST_MEM_PAGE_SIZE, thus avoid clash with writes
+ * from the migration guest workload.
+ */
+#define MAGIC_OFFSET_SHUFFLE 1024
+#define MAGIC_OFFSET (MAGIC_OFFSET_BASE + MAGIC_OFFSET_SHUFFLE)
+#define MAGIC_MARKER 0xFEED12345678CAFEULL
 
 /* x86 */
 #define X86_TEST_MEM_START (1 * 1024 * 1024)
@@ -50,6 +66,10 @@
 void bootfile_delete(void);
 char *bootfile_create(const char *arch, const char *dir, bool suspend_me);
 char *bootfile_get(void);
+char *bootfile_get_opts(const char *arch, char **memory_size);
+void migrate_prepare_for_dirty_mem(QTestState *from);
+void migrate_wait_for_dirty_mem(QTestState *from, QTestState *to);
+void migrate_check_guests_ram(QTestState *who);
 #endif
 
 #endif /* BOOTFILE_H */

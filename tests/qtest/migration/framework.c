@@ -36,26 +36,9 @@
 #define QEMU_ENV_DST "QTEST_QEMU_BINARY_DST"
 #define MULTIFD_TEST_CHANNELS 4
 
-unsigned start_address;
-unsigned end_address;
 static QTestMigrationState src_state;
 static QTestMigrationState dst_state;
 static char *tmpfs;
-
-/*
- * An initial 3 MB offset is used as that corresponds
- * to ~1 sec of data transfer with our bandwidth setting.
- */
-#define MAGIC_OFFSET_BASE (3 * 1024 * 1024)
-/*
- * A further 1k is added to ensure we're not a multiple
- * of TEST_MEM_PAGE_SIZE, thus avoid clash with writes
- * from the migration guest workload.
- */
-#define MAGIC_OFFSET_SHUFFLE 1024
-#define MAGIC_OFFSET (MAGIC_OFFSET_BASE + MAGIC_OFFSET_SHUFFLE)
-#define MAGIC_MARKER 0xFEED12345678CAFEULL
-
 
 /*
  * Wait for some output in the serial output file,
@@ -90,108 +73,6 @@ void wait_for_serial(const char *side)
             g_assert_not_reached();
         }
     } while (true);
-}
-
-void migrate_prepare_for_dirty_mem(QTestState *from)
-{
-    /*
-     * The guest workflow iterates from start_address to
-     * end_address, writing 1 byte every TEST_MEM_PAGE_SIZE
-     * bytes.
-     *
-     * IOW, if we write to mem at a point which is NOT
-     * a multiple of TEST_MEM_PAGE_SIZE, our write won't
-     * conflict with the migration workflow.
-     *
-     * We put in a marker here, that we'll use to determine
-     * when the data has been transferred to the dst.
-     */
-    qtest_writeq(from, start_address + MAGIC_OFFSET, MAGIC_MARKER);
-}
-
-void migrate_wait_for_dirty_mem(QTestState *from, QTestState *to)
-{
-    uint64_t watch_address = start_address + MAGIC_OFFSET_BASE;
-    uint64_t marker_address = start_address + MAGIC_OFFSET;
-    uint8_t watch_byte;
-
-    /*
-     * Wait for the MAGIC_MARKER to get transferred, as an
-     * indicator that a migration pass has made some known
-     * amount of progress.
-     */
-    do {
-        usleep(1000 * 10);
-    } while (qtest_readq(to, marker_address) != MAGIC_MARKER);
-
-
-    /* If suspended, src only iterates once, and watch_byte may never change */
-    if (src_state.suspend_me) {
-        return;
-    }
-
-    /*
-     * Now ensure that already transferred bytes are
-     * dirty again from the guest workload. Note the
-     * guest byte value will wrap around and by chance
-     * match the original watch_byte. This is harmless
-     * as we'll eventually see a different value if we
-     * keep watching
-     */
-    watch_byte = qtest_readb(from, watch_address);
-    do {
-        usleep(1000 * 10);
-    } while (qtest_readb(from, watch_address) == watch_byte);
-}
-
-static void check_guests_ram(QTestState *who)
-{
-    /*
-     * Our ASM test will have been incrementing one byte from each page from
-     * start_address to < end_address in order. This gives us a constraint
-     * that any page's byte should be equal or less than the previous pages
-     * byte (mod 256); and they should all be equal except for one transition
-     * at the point where we meet the incrementer. (We're running this with
-     * the guest stopped).
-     */
-    unsigned address;
-    uint8_t first_byte;
-    uint8_t last_byte;
-    bool hit_edge = false;
-    int bad = 0;
-
-    qtest_memread(who, start_address, &first_byte, 1);
-    last_byte = first_byte;
-
-    for (address = start_address + TEST_MEM_PAGE_SIZE; address < end_address;
-         address += TEST_MEM_PAGE_SIZE)
-    {
-        uint8_t b;
-        qtest_memread(who, address, &b, 1);
-        if (b != last_byte) {
-            if (((b + 1) % 256) == last_byte && !hit_edge) {
-                /*
-                 * This is OK, the guest stopped at the point of
-                 * incrementing the previous page but didn't get
-                 * to us yet.
-                 */
-                hit_edge = true;
-                last_byte = b;
-            } else {
-                bad++;
-                if (bad <= 10) {
-                    fprintf(stderr, "Memory content inconsistency at %x"
-                            " first_byte = %x last_byte = %x current = %x"
-                            " hit_edge = %x\n",
-                            address, first_byte, last_byte, b, hit_edge);
-                }
-            }
-        }
-    }
-    if (bad >= 10) {
-        fprintf(stderr, "and in another %d pages", bad - 10);
-    }
-    g_assert(bad == 0);
 }
 
 static void cleanup(const char *filename)
@@ -319,60 +200,41 @@ int migrate_args(char **from, char **to, MigrateStart *args)
 {
     /* options for source and target */
     g_autofree gchar *arch_opts = NULL;
+    g_autofree gchar *boot_opts = NULL;
     gchar *cmd_source = NULL;
     gchar *cmd_target = NULL;
     const gchar *ignore_stderr;
     g_autofree char *mem_object = NULL;
     const char *kvm_opts = NULL;
     const char *arch = qtest_get_arch();
-    const char *memory_size;
+    g_autofree char *memory_size = NULL;
     const char *machine_alias, *machine_opts = "";
     g_autofree char *machine = NULL;
-    const char *bootpath = bootfile_get();
     g_autofree char *memory_backend = NULL;
     const char *events;
 
+    boot_opts = bootfile_get_opts(arch, &memory_size);
+
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        memory_size = "150M";
 
         if (g_str_equal(arch, "i386")) {
             machine_alias = "pc";
         } else {
             machine_alias = "q35";
         }
-        arch_opts = g_strdup_printf(
-            "-drive if=none,id=d0,file=%s,format=raw "
-            "-device ide-hd,drive=d0,secs=1,cyls=1,heads=1", bootpath);
-        start_address = X86_TEST_MEM_START;
-        end_address = X86_TEST_MEM_END;
     } else if (g_str_equal(arch, "s390x")) {
-        memory_size = "128M";
         machine_alias = "s390-ccw-virtio";
-        arch_opts = g_strdup_printf("-bios %s", bootpath);
-        start_address = S390_TEST_MEM_START;
-        end_address = S390_TEST_MEM_END;
     } else if (strcmp(arch, "ppc64") == 0) {
-        memory_size = "256M";
-        start_address = PPC_TEST_MEM_START;
-        end_address = PPC_TEST_MEM_END;
         machine_alias = "pseries";
         machine_opts = "vsmt=8";
         arch_opts = g_strdup_printf(
-            "-nodefaults -machine " PSERIES_DEFAULT_CAPABILITIES " "
-            "-bios %s", bootpath);
+            "-nodefaults -machine " PSERIES_DEFAULT_CAPABILITIES);
     } else if (strcmp(arch, "aarch64") == 0) {
-        memory_size = "150M";
         machine_alias = "virt";
         machine_opts = "gic-version=3";
-        arch_opts = g_strdup_printf("-cpu max -kernel %s", bootpath);
-        start_address = ARM_TEST_MEM_START;
-        end_address = ARM_TEST_MEM_END;
+        arch_opts = g_strdup_printf("-cpu max");
     } else if (strcmp(arch, "loongarch64") == 0) {
-        memory_size = "256M";
         machine_alias = "virt";
-        arch_opts = g_strdup_printf("-bios %s", bootpath);
-        start_address = LOONGARCH_TEST_MEM_START;
-        end_address = LOONGARCH_TEST_MEM_END;
     } else {
         g_assert_not_reached();
     }
@@ -416,10 +278,11 @@ int migrate_args(char **from, char **to, MigrateStart *args)
                                  "-name source,debug-threads=on "
                                  "%s "
                                  "-serial file:%s/src_serial "
-                                 "%s %s %s",
+                                 "%s %s %s %s",
                                  kvm_opts ? kvm_opts : "",
                                  machine, machine_opts,
                                  memory_backend, tmpfs,
+                                 boot_opts ? boot_opts : "",
                                  arch_opts ? arch_opts : "",
                                  args->opts_source ? args->opts_source : "",
                                  ignore_stderr);
@@ -437,11 +300,12 @@ int migrate_args(char **from, char **to, MigrateStart *args)
                                  "%s "
                                  "-serial file:%s/dest_serial "
                                  "-incoming defer "
-                                 "%s %s %s %s",
+                                 "%s %s %s %s %s",
                                  kvm_opts ? kvm_opts : "",
                                  machine, machine_opts,
                                  memory_backend, tmpfs,
                                  events,
+                                 boot_opts ? boot_opts : "",
                                  arch_opts ? arch_opts : "",
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr);
@@ -584,28 +448,10 @@ int migrate_start(QTestState **from, QTestState **to, MigrateStart *args)
 
 void migrate_end(QTestState *from, QTestState *to, bool test_dest)
 {
-    unsigned char dest_byte_a, dest_byte_b, dest_byte_c, dest_byte_d;
-
     qtest_quit(from);
 
     if (test_dest) {
-        qtest_memread(to, start_address, &dest_byte_a, 1);
-
-        /* Destination still running, wait for a byte to change */
-        do {
-            qtest_memread(to, start_address, &dest_byte_b, 1);
-            usleep(1000 * 10);
-        } while (dest_byte_a == dest_byte_b);
-
-        qtest_qmp_assert_success(to, "{ 'execute' : 'stop'}");
-
-        /* With it stopped, check nothing changes */
-        qtest_memread(to, start_address, &dest_byte_c, 1);
-        usleep(1000 * 200);
-        qtest_memread(to, start_address, &dest_byte_d, 1);
-        g_assert_cmpint(dest_byte_c, ==, dest_byte_d);
-
-        check_guests_ram(to);
+        migrate_check_guests_ram(to);
     }
 
     qtest_quit(to);

@@ -230,8 +230,6 @@ typedef struct {
 } MigrateCommon;
 
 void wait_for_serial(const char *side);
-void migrate_prepare_for_dirty_mem(QTestState *from);
-void migrate_wait_for_dirty_mem(QTestState *from, QTestState *to);
 
 int migrate_args(char **from, char **to, MigrateStart *args);
 int migrate_start(QTestState **from, QTestState **to, MigrateStart *args);

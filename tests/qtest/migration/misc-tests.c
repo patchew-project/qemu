@@ -14,6 +14,7 @@
 #include "qapi/error.h"
 #include "qobject/qjson.h"
 #include "libqtest.h"
+#include "migration/bootfile.h"
 #include "migration/framework.h"
 #include "migration/migration-qmp.h"
 #include "migration/migration-util.h"
