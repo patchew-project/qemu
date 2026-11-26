@@ -33,3 +33,37 @@ HVX uses 128-byte vectors; 64-byte mode is not implemented.
 See :doc:`../../devel/hexagon-sys` and
 :doc:`../../devel/hexagon-l2vic` for system-register, TLB, and interrupt
 details relevant to OS and firmware authors.
+
+Performance Monitoring Unit (PMU)
+----------------------------------
+
+Every Hexagon system machine has a PMU with 12 event counters (``PMUCNT0``
+to ``PMUCNT11``), selected through ``PMUEVTCFG``, ``PMUEVTCFG1``,
+``PMUEVTCFG2`` and ``PMUCFG``. The ``GPMUCNT`` and ``UPMUCNT`` aliases are
+readable when ``SSR.PE`` is set. Counting is enabled by ``SYSCFG.PM``; while
+it is clear, no counting code is generated, so an idle PMU costs nothing.
+
+Only events that follow from decoding and committing packets are counted:
+
+- committed packets, in total and per hw thread
+- scalar loads, stores and memops
+- HVX packets and the HVX ALU, multiply, shift and permute instructions
+- HLX packets, loads, stores and the HLX execution slots
+
+When guests select other events the counter does not advance.
+
+Limitations
+^^^^^^^^^^^
+
+- The hardware threads of a machine share one bank of counters. Events that
+  have no per-thread variant are summed across all threads.
+- ``PMUCFG`` thread mode and ``PMUSTID`` filtering are stored and read back
+  but not acted on.
+
+For the full event list and register layout, refer to the
+`Hexagon V85 PMU Events reference
+<https://docs.qualcomm.com/doc/80-N2040-60/topic/pmu-events.html>`_, the
+`Hexagon V85 HVX PMU Events reference
+<https://docs.qualcomm.com/doc/80-N2040-61/topic/hvx-pmu-events.html>`_ and,
+for the HLX events, the `HLX reference manual
+<https://docs.qualcomm.com/doc/80-N3040-23/topic/hlx.html>`_.
