@@ -23,6 +23,7 @@
 #include "qemu/module.h"
 #include "qemu/log.h"
 #include "qom/object.h"
+#include "qapi/error.h"
 
 /* SCOOP devices */
 
@@ -188,11 +189,18 @@ static void scoop_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static int scoop_post_load(void *opaque, int version_id)
+static bool scoop_post_load(void *opaque, int version_id, Error **errp)
 {
     ScoopInfo *s = (ScoopInfo *) opaque;
     int i;
     uint32_t level;
+
+    if (s->prev_level & 0xffff0000 ||
+        s->gpio_level & 0xffff0000 ||
+        s->gpio_dir & 0xffff0000) {
+        error_setg(errp, "irq levels are not 16-bits");
+        return false;
+    }
 
     level = s->gpio_level & s->gpio_dir;
 
@@ -202,7 +210,7 @@ static int scoop_post_load(void *opaque, int version_id)
 
     s->prev_level = level;
 
-    return 0;
+    return true;
 }
 
 static bool is_version_0(void *opaque, int version_id)
@@ -210,27 +218,17 @@ static bool is_version_0(void *opaque, int version_id)
     return version_id == 0;
 }
 
-static bool vmstate_scoop_validate(void *opaque, int version_id)
-{
-    ScoopInfo *s = opaque;
-
-    return !(s->prev_level & 0xffff0000) &&
-        !(s->gpio_level & 0xffff0000) &&
-        !(s->gpio_dir & 0xffff0000);
-}
-
 static const VMStateDescription vmstate_scoop_regs = {
     .name = "scoop",
     .version_id = 1,
     .minimum_version_id = 0,
-    .post_load = scoop_post_load,
+    .post_load_errp = scoop_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT16(status, ScoopInfo),
         VMSTATE_UINT16(power, ScoopInfo),
         VMSTATE_UINT32(gpio_level, ScoopInfo),
         VMSTATE_UINT32(gpio_dir, ScoopInfo),
         VMSTATE_UINT32(prev_level, ScoopInfo),
-        VMSTATE_VALIDATE("irq levels are 16 bit", vmstate_scoop_validate),
         VMSTATE_UINT16(mcr, ScoopInfo),
         VMSTATE_UINT16(cdr, ScoopInfo),
         VMSTATE_UINT16(ccr, ScoopInfo),
