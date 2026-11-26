@@ -1438,6 +1438,19 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
             return TRANSLATE_FAIL;
         }
         break;
+    case PTE_R | PTE_W:
+    case PTE_R | PTE_W | PTE_X:
+    case PTE_X:
+    case PTE_R | PTE_X:
+        /*
+         * Zicfiss: a shadow stack access may only target a shadow stack
+         * page (xwr=010) or a read-only page (handled above as a store
+         * page fault). Any other leaf is a store/AMO access fault.
+         */
+        if (is_sstack_idx && first_stage) {
+            return TRANSLATE_SS_ACCESS_FAULT;
+        }
+        break;
     }
 
     int prot = 0;
@@ -1780,6 +1793,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     bool two_stage_lookup = mmuidx_2stage(mmu_idx);
     bool two_stage_indirect_error = false;
     int ret = TRANSLATE_FAIL;
+    MMUAccessType fault_type = access_type;
     privilege_mode_t mode = mmuidx_priv(mmu_idx);
     /* default TLB page size */
     hwaddr tlb_size = TARGET_PAGE_SIZE;
@@ -1877,6 +1891,13 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
     if (ret == TRANSLATE_PMP_FAIL || ret == TRANSLATE_PMA_FAIL) {
         pmp_pma_violation = true;
+    } else if (ret == TRANSLATE_SS_ACCESS_FAULT) {
+        /*
+         * Shadow stack accesses to non-SS pages are always store/AMO
+         * access faults.
+         */
+        pmp_pma_violation = true;
+        fault_type = MMU_DATA_STORE;
     }
 
     if (ret == TRANSLATE_SUCCESS) {
@@ -1903,7 +1924,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         cpu_check_watchpoint(cs, address, size, MEMTXATTRS_UNSPECIFIED,
                              wp_access, retaddr);
 
-        raise_mmu_exception(env, address, access_type, pmp_pma_violation,
+        raise_mmu_exception(env, address, fault_type, pmp_pma_violation,
                             first_stage_error, two_stage_lookup,
                             two_stage_indirect_error);
         cpu_loop_exit_restore(cs, retaddr);
