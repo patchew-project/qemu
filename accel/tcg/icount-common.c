@@ -125,6 +125,7 @@ static int64_t icount_to_virtual_ns(int64_t icount)
     return qatomic_read(&timers_state.qemu_icount_bias) + icount_to_ns(icount);
 }
 
+/* Callers hold vm_clock_lock (used by REPLAY_CLOCK_LOCKED) */
 static int64_t icount_get_raw_locked(void)
 {
     CPUState *cpu = icount_running_cpu();
@@ -137,19 +138,28 @@ static int64_t icount_get_raw_locked(void)
     return qatomic_read(&timers_state.qemu_icount);
 }
 
+/* Callers hold vm_clock_lock */
 static int64_t icount_get_locked(void)
 {
     return icount_to_virtual_ns(icount_get_raw_locked());
 }
 
+/*
+ * Readers never write qemu_icount inside the seqlock read section:
+ * the running vCPU folds in what it has executed under the write lock.
+ */
 int64_t icount_get_raw(void)
 {
+    CPUState *cpu = icount_running_cpu();
     int64_t icount;
     unsigned start;
 
+    if (cpu) {
+        icount_update(cpu);
+    }
     do {
         start = seqlock_read_begin(&timers_state.vm_clock_seqlock);
-        icount = icount_get_raw_locked();
+        icount = qatomic_read(&timers_state.qemu_icount);
     } while (seqlock_read_retry(&timers_state.vm_clock_seqlock, start));
 
     return icount;
@@ -158,12 +168,16 @@ int64_t icount_get_raw(void)
 /* Return the virtual CPU time, based on the instruction counter.  */
 int64_t icount_get(void)
 {
+    CPUState *cpu = icount_running_cpu();
     int64_t icount;
     unsigned start;
 
+    if (cpu) {
+        icount_update(cpu);
+    }
     do {
         start = seqlock_read_begin(&timers_state.vm_clock_seqlock);
-        icount = icount_get_locked();
+        icount = icount_to_virtual_ns(qatomic_read(&timers_state.qemu_icount));
     } while (seqlock_read_retry(&timers_state.vm_clock_seqlock, start));
 
     return icount;
