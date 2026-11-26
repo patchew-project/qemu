@@ -273,6 +273,7 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
 
 
 if __name__ == '__main__':
+    iotests.verify_ofd_lock()
     # support only raw luks since luks encrypted qcow2 is a proper
     # format driver which doesn't allow any sharing
     iotests.activate_logging()

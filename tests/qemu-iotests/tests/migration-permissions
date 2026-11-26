@@ -30,6 +30,9 @@ mig_sock = os.path.join(iotests.sock_dir, 'mig.sock')
 
 class TestMigrationPermissions(iotests.QMPTestCase):
     def setUp(self):
+        if not iotests.supports_ofd_lock():
+            self.case_skip("OFD locking is unavailable")
+
         qemu_img_create('-f', imgfmt, test_img, '1M')
 
         # Set up two VMs (source and destination) accessing the same raw
