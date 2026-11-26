@@ -184,6 +184,24 @@ _start:
         TRY_FETCH 20, 8
         WRITE_PTE (G_L0 + 0x20), (((VS_ROOT >> 12) << 10) | 0xdf)
 
+        /*
+         * VS A/D updating re-runs G-stage with store semantics. Its leaf D
+         * update is rejected by PMP, after the initial read walk succeeded.
+         */
+        WRITE_PTE (VS_L0 + 0x20), 0x200f
+        WRITE_PTE (G_L0 + 0x30), (((VS_L0 >> 12) << 10) | 0x5f)
+        PMP_PAGE G_L0, 1
+        TRY_DATA 0, 5, 9
+        TRY_DATA 1, 7, 10
+        li t0, (G_L0 + 0x30)
+        ld t1, 0(t0)
+        andi t1, t1, 0x80
+        li a0, 11
+        bnez t1, fail
+        PMP_ALL
+        WRITE_PTE (VS_L0 + 0x20), 0x20cf
+        WRITE_PTE (G_L0 + 0x30), (((VS_L0 >> 12) << 10) | 0xdf)
+
         /* An unmapped physical G-stage root produces PMA access faults. */
         li t0, 0x8000000000090000
         csrw hgatp, t0
