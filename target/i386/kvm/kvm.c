@@ -1607,7 +1607,8 @@ static int hyperv_fill_cpuids(CPUState *cs,
     c->eax |= HV_HYPERCALL_AVAILABLE;
 
     /* SynIC and Vmbus devices require messages/signals hypercalls */
-    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC)) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC) &&
+        !cpu->hyperv_synic_kvm_only) {
         c->ebx |= HV_POST_MESSAGES | HV_SIGNAL_EVENTS;
     }
 
@@ -1757,11 +1758,13 @@ static int hyperv_init_vcpu(X86CPU *cpu)
             return ret;
         }
 
-        ret = hyperv_enable_synic(cpu);
-        if (ret < 0) {
-            error_report("failed to create HyperV SynIC: %s",
-                         strerror(-ret));
-            return ret;
+        if (!cpu->hyperv_synic_kvm_only) {
+            ret = hyperv_enable_synic(cpu);
+            if (ret < 0) {
+                error_report("failed to create HyperV SynIC: %s",
+                             strerror(-ret));
+                return ret;
+            }
         }
     }
 
