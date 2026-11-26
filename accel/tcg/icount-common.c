@@ -119,6 +119,12 @@ static CPUState *icount_running_cpu(void)
     return cpu;
 }
 
+/* Convert @icount executed instructions to QEMU_CLOCK_VIRTUAL ns */
+static int64_t icount_to_virtual_ns(int64_t icount)
+{
+    return qatomic_read(&timers_state.qemu_icount_bias) + icount_to_ns(icount);
+}
+
 static int64_t icount_get_raw_locked(void)
 {
     CPUState *cpu = icount_running_cpu();
@@ -133,8 +139,7 @@ static int64_t icount_get_raw_locked(void)
 
 static int64_t icount_get_locked(void)
 {
-    int64_t icount = icount_get_raw_locked();
-    return qatomic_read(&timers_state.qemu_icount_bias) + icount_to_ns(icount);
+    return icount_to_virtual_ns(icount_get_raw_locked());
 }
 
 int64_t icount_get_raw(void)
