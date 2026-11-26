@@ -854,6 +854,7 @@ static int vscsi_queue_cmd(VSCSIState *s, vscsi_req *req)
 
         /* Preprocess RDMA descriptors */
         if (vscsi_preprocess_desc(req) < 0) {
+            req->dma_error = true;
             scsi_req_cancel(req->sreq);
             return 1;
         }
