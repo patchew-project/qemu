@@ -1121,7 +1121,7 @@ static void xtensa_tr_init_disas_context(DisasContextBase *dcbase,
                                          CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    uint32_t tb_flags = dc->base.tb->flags;
+    uint64_t tb_flags = dc->base.tb->flags;
 
     dc->config = cpu_env(cpu)->config;
     dc->pc = dc->base.pc_first;
