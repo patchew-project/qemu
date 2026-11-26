@@ -53,7 +53,8 @@ static void x86_cpu_exec_exit(CPUState *cs)
 static TCGTBCPUState x86_get_tb_cpu_state(CPUState *cs)
 {
     CPUX86State *env = cpu_env(cs);
-    uint32_t flags, cs_base;
+    uint64_t flags;
+    uint32_t cs_base;
     vaddr pc;
 
     flags = env->hflags |

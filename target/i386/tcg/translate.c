@@ -122,7 +122,7 @@ typedef struct DisasContext {
 
     CCOp cc_op;  /* current CC operation */
     int mem_index; /* select memory access functions */
-    uint32_t flags; /* all execution flags */
+    uint64_t flags; /* all execution flags */
     int cpuid_features;
     int cpuid_ext_features;
     int cpuid_ext2_features;
@@ -3535,7 +3535,7 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     CPUX86State *env = cpu_env(cpu);
-    uint32_t flags = dc->base.tb->flags;
+    uint64_t flags = dc->base.tb->flags;
     uint32_t cflags = tb_cflags(dc->base.tb);
     int cpl = (flags >> HF_CPL_SHIFT) & 3;
     int iopl = (flags >> IOPL_SHIFT) & 3;
