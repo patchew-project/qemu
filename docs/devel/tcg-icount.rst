@@ -73,16 +73,14 @@ system registers are the common examples here. These instructions have
 to be handled by the individual translators which have the knowledge
 of which operations are I/O operations.
 
-When the translator is handling an instruction of this kind:
-
-* it must call gen_io_start() if icount is enabled, at some
-   point before the generation of the code which actually does
-   the I/O, using a code fragment similar to:
+When the translator is handling an instruction of this kind, it must
+call translator_io_start() before generating the code which actually
+does the I/O:
 
 .. code:: c
 
-    if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+    translator_io_start(&s->base);
 
-* it must end the TB immediately after this instruction
+This makes the instruction the last one of the TB, whether or not
+icount is enabled, so that it executes with ``can_do_io`` set and,
+with icount, reads an exact clock.
