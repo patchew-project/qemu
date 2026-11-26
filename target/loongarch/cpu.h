@@ -226,15 +226,6 @@ FIELD(CPUCFG20, L3IU_WAYS, 0, 16)
 FIELD(CPUCFG20, L3IU_SETS, 16, 8)
 FIELD(CPUCFG20, L3IU_SIZE, 24, 7)
 
-/*CSR_CRMD */
-FIELD(CSR_CRMD, PLV, 0, 2)
-FIELD(CSR_CRMD, IE, 2, 1)
-FIELD(CSR_CRMD, DA, 3, 1)
-FIELD(CSR_CRMD, PG, 4, 1)
-FIELD(CSR_CRMD, DATF, 5, 2)
-FIELD(CSR_CRMD, DATM, 7, 2)
-FIELD(CSR_CRMD, WE, 9, 1)
-
 extern const char * const regnames[32];
 extern const char * const fregnames[32];
 
@@ -243,7 +234,6 @@ extern const char * const fregnames[32];
 #define IRQ_IPI     12
 #define INT_DMSI    14
 
-#define MAX_PERF_EVENTS        16
 #define LOONGARCH_STLB         2048 /* 2048 STLB */
 #define LOONGARCH_MTLB         64   /* 64 MTLB */
 #define LOONGARCH_TLB_MAX      (LOONGARCH_STLB + LOONGARCH_MTLB)
@@ -255,13 +245,6 @@ FIELD(TLB_MISC, E, 0, 1)
 FIELD(TLB_MISC, ASID, 1, 10)
 FIELD(TLB_MISC, VPPN, 13, 35)
 FIELD(TLB_MISC, PS, 48, 6)
-
-/*Msg interrupt registers */
-#define N_MSGIS                4
-FIELD(CSR_MSGIS, IS, 0, 63)
-FIELD(CSR_MSGIR, INTNUM, 0, 8)
-FIELD(CSR_MSGIR, ACTIVE, 31, 1)
-FIELD(CSR_MSGIE, PT, 0, 8)
 
 #define LSX_LEN    (128)
 #define LASX_LEN   (256)
