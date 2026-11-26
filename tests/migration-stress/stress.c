@@ -156,14 +156,31 @@ static unsigned long long now(void)
     return (tv.tv_sec * 1000ull) + (tv.tv_usec / 1000ull);
 }
 
+static inline void xor_1M(void *ram_start, void *data_page)
+{
+    unsigned long long *addr, *data;
+    int i, j, pages_per_mb = RAM_PAGE_SIZE >> 4;
+    int n = RAM_PAGE_SIZE / sizeof(unsigned long long);
+
+    addr = ram_start;
+
+    for (i = 0; i < pages_per_mb; i++) {
+        data = data_page;
+        j = n;
+
+        while (j--) {
+            *addr ^= *data;
+            addr++;
+            data++;
+        }
+    }
+}
+
 static void stressone(unsigned long long ramsizeMB)
 {
-    size_t pagesPerMB = 1024 * 1024 / RAM_PAGE_SIZE;
     g_autofree char *ram = g_malloc(ramsizeMB * 1024 * 1024);
-    char *ramptr;
-    size_t i, j, k;
+    size_t i;
     g_autofree char *data = g_malloc(RAM_PAGE_SIZE);
-    char *dataptr;
     size_t nMB = 0;
     unsigned long long before, after;
 
@@ -181,17 +198,9 @@ static void stressone(unsigned long long ramsizeMB)
     before = now();
 
     while (1) {
-
-        ramptr = ram;
-        for (i = 0; i < ramsizeMB; i++, nMB++) {
-            for (j = 0; j < pagesPerMB; j++) {
-                dataptr = data;
-                for (k = 0; k < RAM_PAGE_SIZE; k += sizeof(long long)) {
-                    ramptr += sizeof(long long);
-                    dataptr += sizeof(long long);
-                    *(unsigned long long *)ramptr ^= *(unsigned long long *)dataptr;
-                }
-            }
+        for (i = 0; i < ramsizeMB; i++) {
+            xor_1M(ram, data);
+            nMB++;
 
             if (nMB == 1024) {
                 after = now();
