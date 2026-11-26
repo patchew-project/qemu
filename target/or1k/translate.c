@@ -45,7 +45,7 @@
 typedef struct DisasContext {
     DisasContextBase base;
     uint32_t mem_idx;
-    uint32_t tb_flags;
+    uint64_t tb_flags;
     uint32_t delayed_branch;
     uint32_t cpucfgr;
     uint32_t avr;
