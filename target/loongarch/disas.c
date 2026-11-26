@@ -103,9 +103,6 @@ static const char * const csr_names[] = {
     CSR_NAME(DMW(1)),
     CSR_NAME(DMW(2)),
     CSR_NAME(DMW(3)),
-    CSR_NAME(DBG),
-    CSR_NAME(DERA),
-    CSR_NAME(DSAVE),
 };
 
 static const char *get_csr_name(unsigned num)

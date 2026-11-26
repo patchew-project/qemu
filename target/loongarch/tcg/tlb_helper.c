@@ -105,9 +105,7 @@ static void raise_mmu_exception(CPULoongArchState *env, vaddr address,
                                         VPPN, extract64(address, 13, 19));
         }
     } else {
-        if (!FIELD_EX64(sys->CSR_DBG, CSR_DBG, DST)) {
-            sys->CSR_BADV = address;
-        }
+        sys->CSR_BADV = address;
         sys->CSR_TLBEHI = address & (TARGET_PAGE_MASK << 1);
    }
 }
