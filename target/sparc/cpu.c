@@ -723,7 +723,7 @@ static void sparc_cpu_synchronize_from_tb(CPUState *cs,
 static TCGTBCPUState sparc_get_tb_cpu_state(CPUState *cs)
 {
     CPUSPARCState *env = cpu_env(cs);
-    uint32_t flags = cpu_mmu_index(cs, false);
+    uint64_t flags = cpu_mmu_index(cs, false);
 
 #ifndef CONFIG_USER_ONLY
     if (cpu_supervisor_mode(env)) {
@@ -742,7 +742,7 @@ static TCGTBCPUState sparc_get_tb_cpu_state(CPUState *cs)
     if ((env->pstate & PS_PEF) && (env->fprs & FPRS_FEF)) {
         flags |= TB_FLAG_FPU_ENABLED;
     }
-    flags |= env->asi << TB_FLAG_ASI_SHIFT;
+    flags |= (uint64_t)env->asi << TB_FLAG_ASI_SHIFT;
 #else
     if (env->psref) {
         flags |= TB_FLAG_FPU_ENABLED;

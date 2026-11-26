@@ -742,7 +742,7 @@ trap_state* cpu_tsptr(CPUSPARCState* env);
 #define TB_FLAG_FSR_QNE      (1 << 8)
 #define TB_FLAG_ASI_SHIFT    24
 
-static inline bool tb_fpu_enabled(int tb_flags)
+static inline bool tb_fpu_enabled(uint64_t tb_flags)
 {
 #if defined(CONFIG_USER_ONLY)
     return true;
@@ -751,7 +751,7 @@ static inline bool tb_fpu_enabled(int tb_flags)
 #endif
 }
 
-static inline bool tb_am_enabled(int tb_flags)
+static inline bool tb_am_enabled(uint64_t tb_flags)
 {
 #ifndef TARGET_SPARC64
     return false;
