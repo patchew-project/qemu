@@ -175,9 +175,9 @@ FIELD(CSR_LLBCTL, KLO, 2, 1)
 #define LOONGARCH_CSR_TLBRENTRY      0x88 /* TLB refill exception address */
 #define LOONGARCH_CSR_TLBRBADV       0x89 /* TLB refill badvaddr */
 #define LOONGARCH_CSR_TLBRERA        0x8a /* TLB refill ERA */
-#define LOONGARCH_CSR_TLBRSAVE       0x8b /* KScratch for TLB refill */
 FIELD(CSR_TLBRERA, ISTLBR, 0, 1)
 FIELD(CSR_TLBRERA, PC, 2, 62)
+#define LOONGARCH_CSR_TLBRSAVE       0x8b /* KScratch for TLB refill */
 #define LOONGARCH_CSR_TLBRELO0       0x8c /* TLB refill entrylo0 */
 #define LOONGARCH_CSR_TLBRELO1       0x8d /* TLB refill entrylo1 */
 #define LOONGARCH_CSR_TLBREHI        0x8e /* TLB refill entryhi */
