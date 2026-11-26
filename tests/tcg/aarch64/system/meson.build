@@ -75,7 +75,7 @@ tests += {
   'wfxt.c': {
     'cflags': cflags,
     'qemu_args': ['-M', 'virt,virtualization=on,gic-version=2',
-                  '-cpu', 'max', '-smp', '1',
+                  '-cpu', 'max', '-smp', '2',
                   '-semihosting-config', 'enable=on,arg=2',
                   qemu_base_args]
   },
