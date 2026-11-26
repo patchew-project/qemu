@@ -49,20 +49,19 @@ static __attribute__((noreturn)) void exit_failure(void)
     }
 }
 
-static int get_command_arg_str(const char *name,
-                               char **val)
+static int get_command_arg_str(const char *name, char **val)
 {
     static char line[1024];
     FILE *fp = fopen("/proc/cmdline", "r");
     char *start, *end;
 
-    if (fp == NULL) {
+    if (!fp) {
         fprintf(stderr, "%s (%05d): ERROR: cannot open /proc/cmdline: %s\n",
                 argv0, gettid(), strerror(errno));
         return -1;
     }
 
-    if (!fgets(line, sizeof line, fp)) {
+    if (!fgets(line, sizeof(line), fp)) {
         fprintf(stderr, "%s (%05d): ERROR: cannot read /proc/cmdline: %s\n",
                 argv0, gettid(), strerror(errno));
         fclose(fp);
@@ -71,37 +70,38 @@ static int get_command_arg_str(const char *name,
     fclose(fp);
 
     start = strstr(line, name);
-    if (!start)
+    if (!start) {
         return 0;
+    }
 
     start += strlen(name);
 
     if (*start != '=') {
-        fprintf(stderr, "%s (%05d): ERROR: no value provided for '%s' in /proc/cmdline\n",
-                argv0, gettid(), name);
+        fprintf(stderr, "%s (%05d): ERROR: no value provided for '%s' "
+                "in /proc/cmdline\n", argv0, gettid(), name);
     }
     start++;
 
     end = strstr(start, " ");
-    if (!end)
+    if (!end) {
         end = strstr(start, "\n");
+    }
 
     if (end == start) {
-        fprintf(stderr, "%s (%05d): ERROR: no value provided for '%s' in /proc/cmdline\n",
-                argv0, gettid(), name);
+        fprintf(stderr, "%s (%05d): ERROR: no value provided for '%s' "
+                "in /proc/cmdline\n", argv0, gettid(), name);
         return -1;
     }
 
-    if (end)
+    if (end) {
         *val = g_strndup(start, end - start);
-    else
+    } else {
         *val = g_strdup(start);
+    }
     return 1;
 }
 
-
-static int get_command_arg_ull(const char *name,
-                               unsigned long long *val)
+static int get_command_arg_ull(const char *name, unsigned long long *val)
 {
     char *valstr;
     char *end;
@@ -146,7 +146,6 @@ static int random_bytes(char *buf, size_t len)
     return 0;
 }
 
-
 static unsigned long long now(void)
 {
     struct timeval tv;
@@ -176,68 +175,67 @@ static inline void xor_1M(void *ram_start, void *data_page)
     }
 }
 
-static void stressone(unsigned long long ramsizeMB)
+static void stress_one(unsigned long long ramsize_mb)
 {
-    g_autofree char *ram = g_malloc(ramsizeMB * 1024 * 1024);
-    size_t i;
-    g_autofree char *data = g_malloc(RAM_PAGE_SIZE);
-    size_t nMB = 0;
+    g_autofree char *ram_start = g_malloc(ramsize_mb * 1024 * 1024);
+    g_autofree char *data_page = g_malloc(RAM_PAGE_SIZE);
     unsigned long long before, after;
+    int i, n_mb = 0;
 
-    /* We don't care about initial state, but we do want
+    /*
+     * init ram: We don't care about initial state, but we do want
      * to fault it all into RAM, otherwise the first iter
      * of the loop below will be quite slow. We can't use
      * 0x0 as the byte as gcc optimizes that away into a
-     * calloc instead :-) */
-    memset(ram, 0xfe, ramsizeMB * 1024 * 1024);
+     * calloc instead :-)
+     */
+    memset(ram_start, 0xfe, ramsize_mb * 1024 * 1024);
 
-    if (random_bytes(data, RAM_PAGE_SIZE) < 0) {
+    /* init data: write a page of garbage */
+    if (random_bytes(data_page, RAM_PAGE_SIZE) < 0) {
         return;
     }
 
     before = now();
 
-    while (1) {
-        for (i = 0; i < ramsizeMB; i++) {
-            xor_1M(ram, data);
-            nMB++;
+    for (;;) {
+        for (i = 0; i < ramsize_mb; i++) {
+            xor_1M(ram_start, data_page);
 
-            if (nMB == 1024) {
+            if (++n_mb == 1024) {
                 after = now();
                 fprintf(stderr, "%s (%05d): INFO: %06llums copied 1 GB in %05llums\n",
                         argv0, gettid(), after, after - before);
                 before = now();
-                nMB = 0;
+                n_mb = 0;
             }
         }
     }
 }
 
-
-static void *stressthread(void *arg)
+static void *stress_thread(void *arg)
 {
-    unsigned long long ramsizeMB = *(unsigned long long *)arg;
+    unsigned long long ramsize_mb = *(unsigned long long *)arg;
 
-    stressone(ramsizeMB);
+    stress_one(ramsize_mb);
 
     return NULL;
 }
 
-static void stress(unsigned long long ramsizeGB, int ncpus)
+static void stress(unsigned long long ramsize_gb, int n_cpus)
 {
     size_t i;
-    unsigned long long ramsizeMB = ramsizeGB * 1024 / ncpus;
-    ncpus--;
+    unsigned long long ramsize_mb = ramsize_gb * 1024 / n_cpus;
 
-    for (i = 0; i < ncpus; i++) {
+    n_cpus--;
+
+    for (i = 0; i < n_cpus; i++) {
         pthread_t thr;
-        pthread_create(&thr, NULL,
-                       stressthread,   &ramsizeMB);
+        pthread_create(&thr, NULL, stress_thread, &ramsize_mb);
     }
 
-    stressone(ramsizeMB);
+    stress_one(ramsize_mb);
 }
-
 
 static int mount_misc(const char *fstype, const char *dir)
 {
@@ -271,7 +269,7 @@ static int mount_all(void)
 
 int main(int argc, char **argv)
 {
-    unsigned long long ramsizeGB = 1;
+    unsigned long long ramsize_gb = 1;
     char *end;
     int ch;
     int opt_ind = 0;
@@ -283,7 +281,7 @@ int main(int argc, char **argv)
         { NULL, 0, NULL, 0 }
     };
     int ret;
-    int ncpus = 0;
+    int n_cpus = 0;
 
     argv0 = argv[0];
 
@@ -291,7 +289,7 @@ int main(int argc, char **argv)
         switch (ch) {
         case 'r':
             errno = 0;
-            ramsizeGB = strtoll(optarg, &end, 10);
+            ramsize_gb = strtoll(optarg, &end, 10);
             if (errno != 0 || *end) {
                 fprintf(stderr, "%s (%05d): ERROR: Cannot parse RAM size %s\n",
                         argv0, gettid(), optarg);
@@ -301,7 +299,7 @@ int main(int argc, char **argv)
 
         case 'c':
             errno = 0;
-            ncpus = strtoll(optarg, &end, 10);
+            n_cpus = strtoll(optarg, &end, 10);
             if (errno != 0 || *end) {
                 fprintf(stderr, "%s (%05d): ERROR: Cannot parse CPU count %s\n",
                         argv0, gettid(), optarg);
@@ -317,21 +315,24 @@ int main(int argc, char **argv)
     }
 
     if (getpid() == 1) {
-        if (mount_all() < 0)
+        if (mount_all() < 0) {
             exit_failure();
+        }
 
-        ret = get_command_arg_ull("ramsize", &ramsizeGB);
-        if (ret < 0)
+        ret = get_command_arg_ull("ramsize", &ramsize_gb);
+        if (ret < 0) {
             exit_failure();
+        }
     }
 
-    if (ncpus == 0)
-        ncpus = sysconf(_SC_NPROCESSORS_ONLN);
+    if (n_cpus == 0) {
+        n_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+    }
 
     fprintf(stdout, "%s (%05d): INFO: RAM %llu GiB across %d CPUs\n",
-            argv0, gettid(), ramsizeGB, ncpus);
+            argv0, gettid(), ramsize_gb, n_cpus);
 
-    stress(ramsizeGB, ncpus);
+    stress(ramsize_gb, n_cpus);
 
     exit_failure();
 }
