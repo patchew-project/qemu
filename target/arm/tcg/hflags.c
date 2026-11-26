@@ -753,8 +753,8 @@ static void assert_hflags_rebuild_correctly(CPUARMState *env)
 
     if (unlikely(c.flags != r.flags || c.flags2 != r.flags2)) {
         fprintf(stderr, "TCG hflags mismatch "
-                        "(current:(0x%08x,0x%016" PRIx64 ")"
-                        " rebuilt:(0x%08x,0x%016" PRIx64 ")\n",
+                        "(current:(0x%016" PRIx64 ",0x%016" PRIx64 ")"
+                        " rebuilt:(0x%016" PRIx64 ",0x%016" PRIx64 ")\n",
                 c.flags, c.flags2, r.flags, r.flags2);
         abort();
     }
