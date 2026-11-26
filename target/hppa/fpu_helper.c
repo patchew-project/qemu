@@ -177,6 +177,13 @@ float32 HELPER(fdiv_s)(CPUHPPAState *env, float32 a, float32 b)
     return ret;
 }
 
+float32 HELPER(frem_s)(CPUHPPAState *env, float32 a, float32 b)
+{
+    float32 ret = float32_rem(a, b, &env->fp_status);
+    update_fr0_op(env, GETPC());
+    return ret;
+}
+
 float64 HELPER(fsqrt_d)(CPUHPPAState *env, float64 arg)
 {
     float64 ret = float64_sqrt(arg, &env->fp_status);
@@ -215,6 +222,13 @@ float64 HELPER(fmpy_d)(CPUHPPAState *env, float64 a, float64 b)
 float64 HELPER(fdiv_d)(CPUHPPAState *env, float64 a, float64 b)
 {
     float64 ret = float64_div(a, b, &env->fp_status);
+    update_fr0_op(env, GETPC());
+    return ret;
+}
+
+float64 HELPER(frem_d)(CPUHPPAState *env, float64 a, float64 b)
+{
+    float64 ret = float64_rem(a, b, &env->fp_status);
     update_fr0_op(env, GETPC());
     return ret;
 }

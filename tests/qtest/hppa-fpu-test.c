@@ -1,5 +1,5 @@
 /*
- * HPPA CCR floating-point enable and lazy context switching tests.
+ * HPPA floating-point instruction and context switching tests.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -296,6 +296,104 @@ static void test_lazy(void)
     qtest_quit(qts);
 }
 
+typedef struct FremTest {
+    const char *name;
+    uint32_t instruction;
+    uint64_t dividend;
+    uint64_t divisor;
+    uint64_t result;
+    uint32_t fpsr;
+    uint32_t flags;
+} FremTest;
+
+static const FremTest frem_tests[] = {
+    {
+        .name = "single-tie",
+        .instruction = 0x318d860e, /* frem,sgl fr12,fr13,fr14 */
+        .dividend = 0x40e0000000000000ULL, /* 7.0f */
+        .divisor = 0x4000000000000000ULL, /* 2.0f */
+        .result = 0xbf80000089abcdefULL, /* -1.0f */
+        .fpsr = 0x200, /* round toward zero */
+    },
+    {
+        .name = "double-tie",
+        .instruction = 0x318d8e0e, /* frem,dbl fr12,fr13,fr14 */
+        .dividend = 0x4014000000000000ULL, /* 5.0 */
+        .divisor = 0x4000000000000000ULL, /* 2.0 */
+        .result = 0x3ff0000000000000ULL, /* 1.0 */
+        .fpsr = 0x400, /* round upward */
+    },
+    {
+        .name = "single-extended-subnormal",
+        .instruction = 0x398d96ce, /* frem,sgl fr12R,fr13R,fr14R */
+        .dividend = 0x0000000000000001ULL, /* smallest subnormal */
+        .divisor = 0x000000003f800000ULL, /* 1.0f */
+        .result = 0x0123456700000001ULL,
+        .fpsr = 0x600, /* round downward */
+    },
+    {
+        .name = "double-extended-negative-zero",
+        .instruction = 0x398d8e0e, /* frem,dbl fr12,fr13,fr14 */
+        .dividend = 0xc010000000000000ULL, /* -4.0 */
+        .divisor = 0x4000000000000000ULL, /* 2.0 */
+        .result = 0x8000000000000000ULL, /* -0.0 */
+    },
+    {
+        .name = "single-zero-divisor",
+        .instruction = 0x318d860e,
+        .dividend = 0x3f80000000000000ULL, /* 1.0f */
+        .divisor = 0,
+        .result = 0x7fa0000089abcdefULL, /* quiet NaN */
+        .flags = 0x80000000, /* invalid operation */
+    },
+    {
+        .name = "double-infinite-dividend",
+        .instruction = 0x398d8e0e,
+        .dividend = 0x7ff0000000000000ULL, /* infinity */
+        .divisor = 0x3ff0000000000000ULL, /* 1.0 */
+        .result = 0x7ff4000000000000ULL, /* quiet NaN */
+        .flags = 0x80000000, /* invalid operation */
+    },
+};
+
+static void test_frem(const void *opaque)
+{
+    const FremTest *test = opaque;
+    const uint32_t guest[] = {
+        0x34011000, /* ldi 0x800,r1 */
+        0x01c11840, /* mtctl r1,iva */
+        0x34103000, /* ldi 0x1800,r16 */
+        0x34113200, /* ldi 0x1900,r17 */
+        0x34010180, /* ldi 0xc0,r1 */
+        0x01411840, /* mtctl r1,ccr */
+        0x2e00100c, /* fldd 0(r16),fr12 */
+        0x2e10100d, /* fldd 8(r16),fr13 */
+        0x36100020, /* ldo 16(r16),r16 */
+        0x2e001000, /* fldd 0(r16),fr0 */
+        0x2e10100e, /* fldd 8(r16),fr14 */
+        test->instruction,
+        0x2e10120e, /* fstd fr14,8(r16) */
+        0x2e001200, /* fstd fr0,0(r16) */
+        0x34010002, /* ldi 1,r1 */
+        0x6a210000, /* stw r1,0(r17): completion */
+    };
+    QTestState *qts = start_guest(false);
+    uint32_t end = CODE + sizeof(guest);
+
+    write_words(qts, CODE, guest, G_N_ELEMENTS(guest));
+    qtest_writel(qts, end, branch(end, HALT));
+    qtest_writeq(qts, DATA, test->dividend);
+    qtest_writeq(qts, DATA + 8, test->divisor);
+    qtest_writeq(qts, DATA + 16, (uint64_t)test->fpsr << 32);
+    /* A single-precision write must preserve the other half of FR14. */
+    qtest_writeq(qts, DATA + 24, 0x0123456789abcdefULL);
+
+    run_guest(qts, 1);
+    g_assert_cmphex(qtest_readq(qts, DATA + 24), ==, test->result);
+    g_assert_cmphex(qtest_readl(qts, DATA + 16), ==, test->fpsr | test->flags);
+    qtest_quit(qts);
+}
+
 static const uint32_t fault_guest[] = {
     0x34011000, /* ldi 0x800,r1 */
     0x01c11840, /* mtctl r1,iva */
@@ -362,6 +460,11 @@ int main(int argc, char **argv)
         qtest_add_data_func(name, &fp_tests[i], test_fp);
     }
     qtest_add_func("fpu/lazy-contexts", test_lazy);
+    for (size_t i = 0; i < G_N_ELEMENTS(frem_tests); i++) {
+        g_autofree char *name = g_strdup_printf("fpu/frem/%s", frem_tests[i].name);
+
+        qtest_add_data_func(name, &frem_tests[i], test_frem);
+    }
     for (size_t i = 0; i < G_N_ELEMENTS(fault_tests); i++) {
         g_autofree char *name = g_strdup_printf("fpu/%s", fault_tests[i].name);
 

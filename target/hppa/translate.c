@@ -4498,6 +4498,16 @@ static bool trans_fdiv_d(DisasContext *ctx, arg_fclass3 *a)
     return do_fop_dedd(ctx, a->t, a->r1, a->r2, gen_helper_fdiv_d);
 }
 
+static bool trans_frem_f(DisasContext *ctx, arg_fclass3 *a)
+{
+    return do_fop_weww(ctx, a->t, a->r1, a->r2, gen_helper_frem_s);
+}
+
+static bool trans_frem_d(DisasContext *ctx, arg_fclass3 *a)
+{
+    return do_fop_dedd(ctx, a->t, a->r1, a->r2, gen_helper_frem_d);
+}
+
 static bool trans_xmpyu(DisasContext *ctx, arg_xmpyu *a)
 {
     TCGv_i64 x, y;
