@@ -122,7 +122,11 @@ static bool trans_csrrd(DisasContext *ctx, arg_csrrd *a)
             readfn(dest, tcg_env);
         } else {
             offset = get_csr_offset(csr, 0);
-            tcg_gen_ld_tl(dest, tcg_env, offset);
+            if (csr_get_width(csr) == 32) {
+                tcg_gen_ld32s_tl(dest, tcg_env, offset);
+            } else {
+                tcg_gen_ld_tl(dest, tcg_env, offset);
+            }
         }
     }
     gen_set_gpr(a->rd, dest, EXT_NONE);
@@ -160,7 +164,11 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
     } else {
         dest = tcg_temp_new();
         offset = get_csr_offset(csr, 0);
-        tcg_gen_ld_tl(dest, tcg_env, offset);
+        if (csr_get_width(csr) == 32) {
+            tcg_gen_ld32s_tl(dest, tcg_env, offset);
+        } else {
+            tcg_gen_ld_tl(dest, tcg_env, offset);
+        }
 
         if (!rdonly) {
             tcg_gen_st_tl(src1, tcg_env, offset);
@@ -196,7 +204,11 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
     temp = tcg_temp_new();
 
     offset = get_csr_offset(csr, 0);
-    tcg_gen_ld_tl(oldv, tcg_env, offset);
+    if (csr_get_width(csr) == 32) {
+        tcg_gen_ld_tl(oldv, tcg_env, offset);
+    } else {
+        tcg_gen_ld32s_tl(oldv, tcg_env, offset);
+    }
     if (rdonly) {
         /* So far only readonly csrs have readfn. */
         assert(csr->readfn == NULL);
