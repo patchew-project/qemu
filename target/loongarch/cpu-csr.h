@@ -182,17 +182,6 @@ FIELD(CSR_TLBRPRMD, PPLV, 0, 2)
 FIELD(CSR_TLBRPRMD, PIE, 2, 1)
 FIELD(CSR_TLBRPRMD, PWE, 4, 1)
 
-/* Machine Error CSRs */
-#define LOONGARCH_CSR_MERRCTL        0x90 /* ERRCTL */
-FIELD(CSR_MERRCTL, ISMERR, 0, 1)
-#define LOONGARCH_CSR_MERRINFO1      0x91
-#define LOONGARCH_CSR_MERRINFO2      0x92
-#define LOONGARCH_CSR_MERRENTRY      0x93 /* MError exception base */
-#define LOONGARCH_CSR_MERRERA        0x94 /* MError exception PC */
-#define LOONGARCH_CSR_MERRSAVE       0x95 /* KScratch for error exception */
-
-#define LOONGARCH_CSR_CTAG           0x98 /* TagLo + TagHi */
-
 #define LOONGARCH_CSR_MSGIS(N)       (0xa0 + N)
 #define LOONGARCH_CSR_MSGIR               0xa4
 
