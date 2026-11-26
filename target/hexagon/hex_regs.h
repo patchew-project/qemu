@@ -73,10 +73,6 @@ enum {
     HEX_REG_FRAMEKEY         = 49,
     HEX_REG_PKTCNTLO         = 50,
     HEX_REG_PKTCNTHI         = 51,
-    /* Use reserved control registers for qemu execution counts */
-    HEX_REG_QEMU_PKT_CNT      = 52,
-    HEX_REG_QEMU_INSN_CNT     = 53,
-    HEX_REG_QEMU_HVX_CNT      = 54,
     HEX_REG_VFRAMELIMIT       = 60,
     HEX_REG_VSP               = 61,
     HEX_REG_UTIMERLO          = 62,
