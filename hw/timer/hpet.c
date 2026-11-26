@@ -254,17 +254,20 @@ static int hpet_pre_save(void *opaque)
     return 0;
 }
 
-static bool hpet_validate_num_timers(void *opaque, int version_id)
+static bool hpet_validate_num_timers(HPETState *s)
 {
-    HPETState *s = opaque;
-
     return s->num_timers == s->num_timers_save;
 }
 
-static int hpet_post_load(void *opaque, int version_id)
+static bool hpet_post_load(void *opaque, int version_id, Error **errp)
 {
     HPETState *s = opaque;
     int i;
+
+    if (!hpet_validate_num_timers(s)) {
+        error_setg(errp, "num_timers must match");
+        return false;
+    }
 
     for (i = 0; i < s->num_timers; i++) {
         HPETTimer *t = &s->timer[i];
@@ -272,7 +275,7 @@ static int hpet_post_load(void *opaque, int version_id)
         t->last = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - NANOSECONDS_PER_SECOND;
     }
 
-    return 0;
+    return true;
 }
 
 static bool hpet_offset_needed(void *opaque)
@@ -332,14 +335,13 @@ static const VMStateDescription vmstate_hpet = {
     .version_id = 2,
     .minimum_version_id = 2,
     .pre_save = hpet_pre_save,
-    .post_load = hpet_post_load,
+    .post_load_errp = hpet_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT64(config, HPETState),
         VMSTATE_UINT64(isr, HPETState),
         VMSTATE_UINT64(hpet_counter, HPETState),
         VMSTATE_UINT8(num_timers_save, HPETState),
-        VMSTATE_VALIDATE("num_timers must match", hpet_validate_num_timers),
-        VMSTATE_STRUCT_VARRAY_UINT8(timer, HPETState, num_timers_save, 0,
+        VMSTATE_STRUCT_VARRAY_UINT8(timer, HPETState, num_timers, 0,
                                     vmstate_hpet_timer, HPETTimer),
         VMSTATE_END_OF_LIST()
     },
