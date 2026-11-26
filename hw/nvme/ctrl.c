@@ -1315,7 +1315,6 @@ static uint16_t nvme_tx_interleaved(NvmeCtrl *n, NvmeSg *sg, uint8_t *ptr,
                                     int32_t skip_bytes, int64_t offset,
                                     NvmeTxDirection dir)
 {
-    hwaddr addr;
     uint32_t trans_len, count = bytes;
     bool dma = sg->flags & NVME_SG_DMA;
     int64_t sge_len;
@@ -1343,19 +1342,25 @@ static uint16_t nvme_tx_interleaved(NvmeCtrl *n, NvmeSg *sg, uint8_t *ptr,
         trans_len = MIN(trans_len, sge_len - offset);
 
         if (dma) {
-            addr = sg->qsg.sg[sg_idx].base + offset;
-        } else {
-            addr = (hwaddr)(uintptr_t)sg->iov.iov[sg_idx].iov_base + offset;
-        }
+            hwaddr addr = sg->qsg.sg[sg_idx].base + offset;
 
-        if (dir == NVME_TX_DIRECTION_TO_DEVICE) {
-            ret = nvme_addr_read(n, addr, ptr, trans_len);
-        } else {
-            ret = nvme_addr_write(n, addr, ptr, trans_len);
-        }
+            if (dir == NVME_TX_DIRECTION_TO_DEVICE) {
+                ret = nvme_addr_read(n, addr, ptr, trans_len);
+            } else {
+                ret = nvme_addr_write(n, addr, ptr, trans_len);
+            }
 
-        if (ret) {
-            return NVME_DATA_TRAS_ERROR;
+            if (ret) {
+                return NVME_DATA_TRAS_ERROR;
+            }
+        } else {
+            uint8_t *seg = (uint8_t *)sg->iov.iov[sg_idx].iov_base + offset;
+
+            if (dir == NVME_TX_DIRECTION_TO_DEVICE) {
+                memcpy(ptr, seg, trans_len);
+            } else {
+                memcpy(seg, ptr, trans_len);
+            }
         }
 
         ptr += trans_len;
