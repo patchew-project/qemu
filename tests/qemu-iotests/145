@@ -25,8 +25,11 @@ echo "QA output created by $seq"
 
 status=1	# failure is the default!
 
+MIG_SOCKET="${SOCK_DIR}/migrate"
+
 _cleanup()
 {
+	rm -f "${MIG_SOCKET}"
 	_cleanup_test_img
 	true
 }
@@ -56,7 +59,7 @@ else
 fi
 
 echo quit | $QEMU -nographic $SYSEMU_EXTRA_ARGS -drive $SYSEMU_DRIVE_ARG \
-                  -incoming 'exec:true' -snapshot -serial none -monitor stdio \
+                  -incoming "unix:${MIG_SOCKET}" -snapshot -serial none -monitor stdio \
           | _filter_qemu | _filter_hmp
 
 # success, all done
