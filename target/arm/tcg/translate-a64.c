@@ -3236,7 +3236,7 @@ static void handle_sys(DisasContext *s, bool isread,
         g_assert_not_reached();
     }
 
-    if (ri->type & ARM_CP_IO) {
+    if (ri->type & ARM_CP_IO_ENDTB) {
         /* I/O operations must end the TB here (whether read or write) */
         need_exit_tb = translator_io_start(&s->base);
     }

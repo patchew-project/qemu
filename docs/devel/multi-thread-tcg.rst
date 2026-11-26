@@ -240,9 +240,11 @@ minimise contention.
 (Current solution)
 
 MMIO access automatically serialises hardware emulation by way of the
-BQL. Currently Arm targets serialise all ARM_CP_IO register accesses
-and also defer the reset/startup of vCPUs to the vCPU context by way
-of async_run_on_cpu().
+BQL. Currently Arm targets serialise all ARM_CP_IO_BQL register
+accesses (included in ARM_CP_IO) and also defer the reset/startup of
+vCPUs to the vCPU context by way of async_run_on_cpu(). Registers only
+marked ARM_CP_IO_ENDTB, such as the generic timer counters, end the TB
+but run their accessors without the BQL, so these must be thread-safe.
 
 Updates to interrupt state are also protected by the BQL as they can
 often be cross vCPU.

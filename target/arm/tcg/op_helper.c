@@ -1244,7 +1244,7 @@ void HELPER(set_cp_reg)(CPUARMState *env, const void *rip, uint32_t value)
 {
     const ARMCPRegInfo *ri = rip;
 
-    if (ri->type & ARM_CP_IO) {
+    if (ri->type & ARM_CP_IO_BQL) {
         bql_lock();
         ri->writefn(env, ri, value);
         bql_unlock();
@@ -1258,7 +1258,7 @@ uint32_t HELPER(get_cp_reg)(CPUARMState *env, const void *rip)
     const ARMCPRegInfo *ri = rip;
     uint32_t res;
 
-    if (ri->type & ARM_CP_IO) {
+    if (ri->type & ARM_CP_IO_BQL) {
         bql_lock();
         res = ri->readfn(env, ri);
         bql_unlock();
@@ -1273,7 +1273,7 @@ void HELPER(set_cp_reg64)(CPUARMState *env, const void *rip, uint64_t value)
 {
     const ARMCPRegInfo *ri = rip;
 
-    if (ri->type & ARM_CP_IO) {
+    if (ri->type & ARM_CP_IO_BQL) {
         bql_lock();
         ri->writefn(env, ri, value);
         bql_unlock();
@@ -1287,7 +1287,7 @@ uint64_t HELPER(get_cp_reg64)(CPUARMState *env, const void *rip)
     const ARMCPRegInfo *ri = rip;
     uint64_t res;
 
-    if (ri->type & ARM_CP_IO) {
+    if (ri->type & ARM_CP_IO_BQL) {
         bql_lock();
         res = ri->readfn(env, ri);
         bql_unlock();

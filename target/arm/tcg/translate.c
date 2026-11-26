@@ -1893,7 +1893,7 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
         g_assert_not_reached();
     }
 
-    if (ri->type & ARM_CP_IO) {
+    if (ri->type & ARM_CP_IO_ENDTB) {
         /* I/O operations must end the TB here (whether read or write) */
         need_exit_tb = translator_io_start(&s->base);
     }

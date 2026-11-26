@@ -82,8 +82,10 @@ enum {
      * Flag: Register does I/O and therefore its accesses need to be marked
      * with translator_io_start() and also end the TB. In particular,
      * registers which implement clocks or timers require this.
+     * Without ARM_CP_IO_BQL, the read and write hooks run without the BQL
+     * and must be thread-safe.
      */
-    ARM_CP_IO                    = 1 << 9,
+    ARM_CP_IO_ENDTB              = 1 << 9,
     /*
      * Flag: Register has no underlying state and does not support raw access
      * for state saving/loading; it will not be used for either migration or
@@ -154,6 +156,13 @@ enum {
      * ARM pseudocode function CheckFPMREnabled().
      */
     ARM_CP_FPMR                  = 1 << 23,
+    /*
+     * Flag: The read and write hooks are called with the BQL held, e.g.
+     * because they touch timers, interrupt lines or other cross-vCPU state.
+     */
+    ARM_CP_IO_BQL                = 1 << 24,
+    /* Flags: Register does I/O and its hooks need the BQL */
+    ARM_CP_IO                    = ARM_CP_IO_ENDTB | ARM_CP_IO_BQL,
 };
 
 /*

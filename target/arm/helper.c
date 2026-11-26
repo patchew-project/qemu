@@ -3976,7 +3976,7 @@ static void do_hcr_write(CPUARMState *env, uint64_t value, uint64_t valid_mask)
      * virtual interrupts, which are the logical OR of these bits
      * and the state of the input lines from the GIC. (This requires
      * that we have the BQL, which is done by marking the
-     * reginfo structs as ARM_CP_IO.)
+     * reginfo structs as ARM_CP_IO_BQL.)
      * Note that if a write to HCR pends a VIRQ or VFIQ or VINMI or
      * VFNMI, it is never possible for it to be taken immediately
      * because VIRQ, VFIQ, VINMI and VFNMI are masked unless running
@@ -4179,7 +4179,7 @@ static void hcrx_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * virtual NMI, which are the logical OR of these bits
      * and the state of the input lines from the GIC. (This requires
      * that we have the BQL, which is done by marking the
-     * reginfo structs as ARM_CP_IO.)
+     * reginfo structs as ARM_CP_IO_BQL.)
      * Note that if a write to HCRX pends a VINMI or VFNMI it is never
      * possible for it to be taken immediately, because VINMI and
      * VFNMI are masked unless running at EL0 or EL1, and HCRX
