@@ -1549,6 +1549,9 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
                                                MMUIdx_U, false, true,
                                                is_debug, false);
             if (gpa_ret != TRANSLATE_SUCCESS) {
+                if (is_physical_access_fault(gpa_ret)) {
+                    return gpa_ret;
+                }
                 if (fault_pte_addr) {
                     *fault_pte_addr = pte_gpa >> 2;
                 }
