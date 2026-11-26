@@ -246,7 +246,16 @@ static bool scsi_handle_rw_error(SCSIDiskReq *r, int ret, bool acct_failed)
         r->req.host_status = -1;
     }
 
-    if (ret < 0) {
+    if (ret < 0 && blk_get_zone_model(s->qdev.conf.blk) == BLK_Z_HM &&
+        scsi_sense_from_zone_errno(-ret, &sense)) {
+        /*
+         * The guest broke the zone rules. As for a reservation conflict,
+         * a retry fails the same way, so report the error whatever the
+         * error policy, and do not post it to QMP.
+         */
+        status = CHECK_CONDITION;
+        error = 0;
+    } else if (ret < 0) {
         status = scsi_sense_from_errno(-ret, &sense);
         error = -ret;
     } else {

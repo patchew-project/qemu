@@ -148,6 +148,7 @@ int scsi_cdb_length(uint8_t *buf);
 #endif
 
 int scsi_sense_from_errno(int errno_value, SCSISense *sense);
+bool scsi_sense_from_zone_errno(int errno_value, SCSISense *sense);
 int scsi_sense_from_host_status(uint8_t host_status, SCSISense *sense);
 
 #endif

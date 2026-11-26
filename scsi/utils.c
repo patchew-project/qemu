@@ -17,6 +17,7 @@
 #include "scsi/constants.h"
 #include "scsi/utils.h"
 #include "qemu/bswap.h"
+#include "block/block-common.h"
 
 uint32_t scsi_data_cdb_xfer(uint8_t *buf)
 {
@@ -595,6 +596,33 @@ const char *scsi_command_name(uint8_t cmd)
         return "*UNKNOWN*";
     }
     return names[cmd];
+}
+
+/*
+ * The sense code of a zone error, one of the BLK_ZE_* errnos with which a
+ * zoned block driver fails a request that breaks the zone rules. Other
+ * drivers use these errnos for other errors, so only ask for the errors of
+ * a zoned backend.
+ */
+bool scsi_sense_from_zone_errno(int errno_value, SCSISense *sense)
+{
+    switch (errno_value) {
+    case BLK_ZE_UNALIGNED_WRITE:
+        *sense = SENSE_CODE(UNALIGNED_WRITE);
+        return true;
+    case BLK_ZE_BOUNDARY:
+        *sense = SENSE_CODE(WRITE_BOUNDARY_VIOLATION);
+        return true;
+    case BLK_ZE_FULL:
+        *sense = SENSE_CODE(INVALID_FIELD);
+        return true;
+    case BLK_ZE_OPEN_RESOURCE:
+    case BLK_ZE_ACTIVE_RESOURCE:
+        *sense = SENSE_CODE(INSUFFICIENT_ZONE_RESOURCES);
+        return true;
+    default:
+        return false;
+    }
 }
 
 int scsi_sense_from_errno(int errno_value, SCSISense *sense)
