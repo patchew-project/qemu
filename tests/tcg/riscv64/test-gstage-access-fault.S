@@ -209,6 +209,10 @@ _start:
         TRY_DATA 1, 7, 13
         TRY_FETCH 1, 14
 
+        /* Also check PMA failure during the non-recursive G-stage path. */
+        csrw vsatp, zero
+        TRY_DATA 0, 5, 15
+
         li t0, 0x8000000000000004
         csrw vsatp, t0
         li t0, (0x8000000000000000 | (G_ROOT >> 12))
