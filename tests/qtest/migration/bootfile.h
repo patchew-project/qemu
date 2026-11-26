@@ -64,9 +64,10 @@
 
 #ifndef MIGRATION_GUEST_CODE
 void bootfile_delete(void);
-char *bootfile_create(const char *arch, const char *dir, bool suspend_me);
+char *bootfile_create(const char *arch, const char *kernel,
+                      const char *dir, bool suspend_me);
 char *bootfile_get(void);
-char *bootfile_get_opts(const char *arch, char **memory_size);
+char *bootfile_get_opts(const char *arch, int mem_type, char **memory_size);
 void migrate_prepare_for_dirty_mem(QTestState *from);
 void migrate_wait_for_dirty_mem(QTestState *from, QTestState *to);
 void migrate_check_guests_ram(QTestState *who);

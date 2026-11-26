@@ -172,6 +172,34 @@ static void test_mode_transfer_defer(char *name, MigrateCommon *args)
     test_mode_transfer_common(args, true, NULL);
 }
 
+static GStrv strv_concat(char **a, char **b, char **c, int max_len)
+{
+    /*
+     * We don't support g_strv_builder, so do a hacky pointer
+     * arithmetic. The arr only holds the pointers, the g_strdupv
+     * at the end is a deep copy.
+     */
+    g_autofree char **arr = g_new0(char *, max_len);
+    char **srcp, **dstp = arr;
+
+    /* +1 to skip the last element which is "" */
+    srcp = a;
+    while (*(srcp + 1)) {
+        *dstp++ = *srcp++;
+    }
+
+    *dstp++ = *b;
+
+    /* +1 to skip the first element which is "" */
+    srcp = c + 1;
+    while (*srcp) {
+        *dstp++ = *srcp++;
+    }
+
+    *dstp = NULL;
+    return (GStrv)g_strdupv(arr);
+}
+
 static void set_cpr_exec_args(QTestState *who, MigrateCommon *args)
 {
     g_autofree char *qtest_from_args = NULL;
@@ -209,8 +237,30 @@ static void set_cpr_exec_args(QTestState *who, MigrateCommon *args)
 
     exec_args = g_strconcat(qtest_qemu_binary(migration_get_env()->qemu_dst),
                             " -incoming defer ", from_str, NULL);
+
     argv = g_strsplit(exec_args, " ", -1);
-    migrate_set_parameter_strv(who, "cpr-exec-command", argv);
+
+    /*
+     * Handle the -append qemu option. QMP does the right thing if we
+     * pass it all the kernel options as a single string, no quotes.
+     */
+    if (strstr(exec_args, " -append ")) {
+        g_auto(GStrv) tmp = NULL;
+        g_auto(GStrv) head = NULL;
+        g_auto(GStrv) tail = NULL;
+        g_auto(GStrv) local_argv;
+        int max_len = g_strv_length(argv);
+
+        tmp = g_strsplit(exec_args, "'", -1);
+
+        head = g_strsplit(tmp[0], " ", -1);
+        tail = g_strsplit(tmp[2], " ", -1);
+
+        local_argv = strv_concat(head, &tmp[1], tail, max_len);
+        migrate_set_parameter_strv(who, "cpr-exec-command", local_argv);
+    } else {
+        migrate_set_parameter_strv(who, "cpr-exec-command", argv);
+    }
 }
 
 static void wait_for_migration_event(QTestState *who, const char *waitfor)

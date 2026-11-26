@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "framework.h"
 #include "migration-util.h"
+#include "qemu/cutils.h"
 
 /*
  * The boot file modifies memory area in [start_address, end_address)
@@ -29,6 +30,8 @@ unsigned start_address;
 unsigned end_address;
 
 static char *bootpath;
+static char *kernelpath;
+static char *initrdpath;
 
 void bootfile_delete(void)
 {
@@ -38,14 +41,30 @@ void bootfile_delete(void)
     unlink(bootpath);
     g_free(bootpath);
     bootpath = NULL;
+
+    g_free(kernelpath);
+    kernelpath = NULL;
+
+    g_free(initrdpath);
+    initrdpath = NULL;
 }
 
-char *bootfile_create(const char *arch, const char *dir, bool suspend_me)
+char *bootfile_create(const char *arch, const char *kernel,
+                      const char *dir, bool suspend_me)
 {
     unsigned char *content;
     size_t len;
 
     bootfile_delete();
+
+    if (kernel) {
+        kernelpath = g_strdup(kernel);
+        initrdpath = g_strdup("tests/migration-stress/initrd-stress.img");
+
+        g_test_message("Using guest workload \"stress.c\"");
+        return NULL;
+    }
+
     bootpath = g_strdup_printf("%s/bootsect", dir);
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         /* the assembled x86 boot sector should be exactly one sector large */
@@ -85,13 +104,167 @@ char *bootfile_create(const char *arch, const char *dir, bool suspend_me)
     g_assert_cmpint(fwrite(content, len, 1, bootfile), ==, 1);
     fclose(bootfile);
 
+    g_test_message("Using guest workload \"A-B\"");
+
     return bootpath;
 }
 
-char *bootfile_get_opts(const char *arch, char **mem_size)
+/* assumes guest uses 4k */
+static uint64_t pgtables_size(long size_gb)
+{
+    uint64_t pgtb_size = 0, size_b = size_gb << 30;
+    uint64_t n_pages, ptrs_per_lvl;
+
+    n_pages = size_b >> 12;
+
+    ptrs_per_lvl = n_pages >> 21;
+    pgtb_size += ptrs_per_lvl ?: 1;
+
+    ptrs_per_lvl >>= 30;
+    pgtb_size += ptrs_per_lvl ?: 1;
+
+    ptrs_per_lvl >>= 39;
+    pgtb_size += ptrs_per_lvl ?: 1;
+
+    ptrs_per_lvl >>= 48;
+    pgtb_size += ptrs_per_lvl ?: 1;
+
+    pgtb_size <<= 12;
+
+    size_b += pgtb_size;
+    return size_b;
+}
+
+static uint64_t rsvd_size(long size_gb)
+{
+    uint64_t size_b;
+
+    /*
+     * 300M for kernel text, bss, percpu areas, etc. Rough
+     * approximation from what's reported in dmesg: "Memory:
+     * 2110788K/3145208K available (16384K kernel code, 2951K rwdata,
+     * 12716K rodata, 4088K init, 4672K bss, 177440K reserved, 0K
+     * cma-reserved)"
+     */
+    size_b = (300UL << 20);
+
+    size_b += pgtables_size(size_gb);
+
+    /* FIXME: init keeps being killed due to OOM, add an arbitrary 1/8 */
+    size_b += size_b >> 3;
+
+    return size_b;
+}
+
+/*
+ * Build the kernel command line options string to be passed to QEMU's
+ * -append option. Allow a few of the more useful kernel command line
+ * options to be replaced by the user setting the QTEST_MIG_APPEND
+ * environment variable. A few options are required and will be added
+ * automatically if not present on the user-provided string.
+ *
+ * Returns:
+ * default options + required options + user options
+ */
+static char *build_append_str(long ramsize, long cpus)
+{
+    bool add_ramsize, add_cpus, add_quiet;
+    const char *user_opts = getenv("QTEST_MIG_APPEND");
+    const char *default_opts = "noapic printk.time=1 noreplace-smp "
+        "cgroup_disable=memory pci=noearly console=ttyS0";
+    g_autofree char *required_opts = NULL;
+    g_autofree char *r1 = NULL;
+    g_autofree char *r2 = NULL;
+    g_autofree char *r3 = NULL;
+
+    if (user_opts) {
+        add_ramsize = !strstr(user_opts, "ramsize=");
+        add_cpus = !strstr(user_opts, "cpus=");
+        /* let them remove 'quiet' by omitting it from the env var */
+        add_quiet = false;
+    } else {
+        add_ramsize = add_cpus = add_quiet = true;
+    }
+
+    if (add_quiet) {
+        r1 = g_strdup("quiet ");
+    }
+
+    if (add_ramsize) {
+        r2 = g_strdup_printf("ramsize=%ld ", ramsize);
+    }
+
+    if (add_cpus) {
+        r3 = g_strdup_printf("cpus=%ld ", cpus);
+    }
+
+    required_opts = g_strconcat(r1 ?: "", r2 ?: "", r3 ?: "", NULL);
+
+    return g_strconcat(default_opts, required_opts, user_opts, NULL);
+}
+
+static char *bootfile_get_kernel_opts(const char *arch, int mem_type,
+                                      char **size_mb_str)
+{
+    const char *size_gb_str;
+    const char *smp;
+    long size_gb, n_vcpus;
+    uint64_t size_b;
+
+    assert(g_str_equal(arch, "x86_64"));
+    assert(kernelpath);
+    assert(initrdpath);
+
+    /*
+     * The default is 1GB / 1vcpu guest, but it can be overridden via
+     * env variables.
+     */
+    size_gb_str = getenv("QTEST_MIG_MEM_G");
+    smp = getenv("QTEST_MIG_SMP");
+
+    if (!smp) {
+        smp = "1";
+    }
+
+    if (!size_gb_str) {
+        size_gb_str = "1";
+    }
+
+    assert(!qemu_strtol(smp, NULL, 0, &n_vcpus));
+    assert(n_vcpus > 0 && n_vcpus <= 4096);
+
+    assert(!qemu_strtol(size_gb_str, NULL, 0, &size_gb));
+    assert(size_gb > 0 && size_gb <= 256000);
+
+    /*
+     * stress.c dirties all of "ramsize", increase the memory size to
+     * avoid OOM.
+     */
+    size_b = rsvd_size(size_gb);
+
+    /* Align to the next MB to not lose the fractional bytes. */
+    size_b = QEMU_ALIGN_UP(size_b, 1UL << 20);
+
+    if (mem_type == MEM_TYPE_HUGETLB) {
+        size_b = QEMU_ALIGN_UP(size_b, 1UL << 30);
+    }
+
+    *size_mb_str = g_strdup_printf("%ldM", size_b >> 20);
+
+    return g_strdup_printf(
+        "-smp %s -kernel %s -initrd %s -cpu host "
+        "-append '%s' ", smp, kernelpath, initrdpath,
+        build_append_str(size_gb, n_vcpus));
+}
+
+char *bootfile_get_opts(const char *arch, int mem_type, char **mem_size)
 {
     const char *memory_size;
     char *boot;
+
+    if (!bootpath) {
+        return bootfile_get_kernel_opts(arch, mem_type, mem_size);
+    }
 
     if (g_str_equal(arch, "i386") || g_str_equal(arch, "x86_64")) {
         memory_size = "150M";
@@ -128,6 +301,10 @@ void migrate_wait_for_dirty_mem(QTestState *from, QTestState *to)
     uint64_t marker_address = start_address + MAGIC_OFFSET;
     uint8_t watch_byte;
 
+    if (!bootpath) {
+        return;
+    }
+
     /*
      * Wait for the MAGIC_MARKER to get transferred, as an
      * indicator that a migration pass has made some known
@@ -158,6 +335,10 @@ void migrate_wait_for_dirty_mem(QTestState *from, QTestState *to)
 
 void migrate_prepare_for_dirty_mem(QTestState *from)
 {
+    if (!bootpath) {
+        return;
+    }
+
     /*
      * The guest workflow iterates from start_address to
      * end_address, writing 1 byte every TEST_MEM_PAGE_SIZE
@@ -189,6 +370,10 @@ void migrate_check_guests_ram(QTestState *who)
     bool hit_edge = false;
     int bad = 0;
     unsigned char dest_byte_a, dest_byte_b, dest_byte_c, dest_byte_d;
+
+    if (!bootpath) {
+        return;
+    }
 
     qtest_memread(who, start_address, &dest_byte_a, 1);
 

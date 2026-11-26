@@ -124,7 +124,11 @@ void migration_test_add_postcopy(MigrationTestEnv *env)
                            test_multifd_postcopy_preempt);
         migration_test_add("/migration/multifd+postcopy/preempt/recovery/plain",
                            test_multifd_postcopy_preempt_recovery);
-        if (env->is_x86) {
+        /*
+         * TODO: The suspend test writes to the guest memory. That's not yet
+         * supported with a full kernel inside the guest.
+         */
+        if (env->is_x86 && !env->kernel) {
             migration_test_add("/migration/postcopy/suspend",
                                test_postcopy_suspend);
         }

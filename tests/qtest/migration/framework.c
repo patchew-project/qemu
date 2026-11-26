@@ -261,7 +261,7 @@ int migrate_args(char **from, char **to, MigrateStart *args)
     g_autofree char *memory_backend = NULL;
     const char *events;
 
-    boot_opts = bootfile_get_opts(arch, &memory_size);
+    boot_opts = bootfile_get_opts(arch, args->mem_type, &memory_size);
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
 
@@ -454,6 +454,7 @@ static void migrate_mem_type_cleanup(MemType type)
 
 int migrate_start(QTestState **from, QTestState **to, MigrateStart *args)
 {
+    MigrationTestEnv *env = migration_get_env();
     g_autofree gchar *cmd_source = NULL;
     g_autofree gchar *cmd_target = NULL;
     g_autoptr(QList) capabilities = migrate_start_get_qmp_capabilities(args);
@@ -464,7 +465,7 @@ int migrate_start(QTestState **from, QTestState **to, MigrateStart *args)
 
     dst_state = (QTestMigrationState) { };
     src_state = (QTestMigrationState) { };
-    bootfile_create(qtest_get_arch(), tmpfs, args->suspend_me);
+    bootfile_create(qtest_get_arch(), env->kernel, tmpfs, args->suspend_me);
     src_state.suspend_me = args->suspend_me;
 
     if (migrate_args(&cmd_source, &cmd_target, args)) {
@@ -1062,6 +1063,12 @@ MigrationTestEnv *migration_get_env(void)
     env->has_uffd = ufd_version_check(&env->uffd_feature_thread_id);
     env->arch = qtest_get_arch();
     env->is_x86 = !strcmp(env->arch, "i386") || !strcmp(env->arch, "x86_64");
+
+    env->kernel = getenv("QTEST_MIG_KERNEL");
+    if (env->kernel && !g_str_equal(env->arch, "x86_64")) {
+        g_test_message("Kernel option only supported on x86_64");
+        exit(1);
+    }
 
     env->tmpfs = g_dir_make_tmp("migration-test-XXXXXX", &err);
     if (!env->tmpfs) {

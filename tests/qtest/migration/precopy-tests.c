@@ -805,7 +805,7 @@ static QTestState *dirtylimit_start_vm(void)
     g_autofree gchar *cmd = NULL;
     const char *bootpath;
 
-    bootpath = bootfile_create(qtest_get_arch(), tmpfs, false);
+    bootpath = bootfile_create(qtest_get_arch(), NULL, tmpfs, false);
     cmd = g_strdup_printf("-accel kvm,dirty-ring-size=4096 "
                           "-name dirtylimit-test,debug-threads=on "
                           "-m 150M -smp 1 "
@@ -1077,7 +1077,11 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
 
 static void migration_test_add_precopy_smoke(MigrationTestEnv *env)
 {
-    if (env->is_x86) {
+    /*
+     * TODO: The suspend test writes to the guest memory. That's not yet
+     * supported with a full kernel inside the guest.
+     */
+    if (env->is_x86 && !env->kernel) {
         migration_test_add("/migration/precopy/unix/suspend/live",
                            test_precopy_unix_suspend_live);
         migration_test_add("/migration/precopy/unix/suspend/notlive",
@@ -1093,8 +1097,15 @@ static void migration_test_add_precopy_smoke(MigrationTestEnv *env)
     migration_test_add("/migration/multifd/tcp/plain/cancel",
                        test_multifd_precopy_tcp_cancel);
     if (env->has_uffd) {
-        migration_test_add("/migration/multifd+postcopy/tcp/plain/cancel",
-                           test_multifd_postcopy_tcp_cancel);
+        /*
+         * FIXME: Using a kernel requires disabling the dirty memory
+         * detection and shortens a race window which breaks this
+         * test. Skip it until the fix is merged.
+         */
+        if (!env->kernel) {
+            migration_test_add("/migration/multifd+postcopy/tcp/plain/cancel",
+                               test_multifd_postcopy_tcp_cancel);
+        }
     }
 
 #ifdef CONFIG_RDMA

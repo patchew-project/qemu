@@ -38,6 +38,7 @@ typedef enum {
      * Use guest-memfd, shared mappings.
      */
     MEM_TYPE_GUEST_MEMFD,
+    MEM_TYPE_HUGETLB,
     MEM_TYPE_NUM,
 } MemType;
 
@@ -53,6 +54,7 @@ typedef struct MigrationTestEnv {
     const char *arch;
     const char *qemu_src;
     const char *qemu_dst;
+    const char *kernel;
     char *tmpfs;
 } MigrationTestEnv;
 
