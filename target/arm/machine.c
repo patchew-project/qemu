@@ -11,6 +11,7 @@
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 #include "target/arm/gtimer.h"
+#include "qapi/error.h"
 
 static bool vfp_needed(void *opaque)
 {
@@ -1151,10 +1152,11 @@ static void handle_cpreg_missing_in_incoming_stream(ARMCPU *cpu, uint64_t kvmidx
  * Handle the situation where @kvmidx is in the incoming
  * stream but not on destination. This fails the migration if
  * no cpreg mig tolerance is matched for this @kvmidx
- * Return true if the migration should eventually fail
+ * Return true if success, false otherwise.
  */
 static bool
-handle_cpreg_only_in_incoming_stream(ARMCPU *cpu, uint64_t kvmidx, uint64_t value)
+handle_cpreg_only_in_incoming_stream(ARMCPU *cpu, uint64_t kvmidx, uint64_t value,
+                                     Error **errp)
 {
     g_autofree gchar *name = print_register_name(kvmidx);
 
@@ -1163,18 +1165,17 @@ handle_cpreg_only_in_incoming_stream(ARMCPU *cpu, uint64_t kvmidx, uint64_t valu
         arm_cpu_match_cpreg_mig_tolerance(cpu, kvmidx,
                                           value, 0, ToleranceOnlySrcTestValue)) {
         trace_tolerate_cpreg_only_in_incoming_stream(name);
-        return false;
+        return true;
     }
-    error_report("%s: %s in the incoming stream but unknown on the "
-                 "destination: fail migration", __func__, name);
-    return true;
+    error_setg(errp, "cpreg %s in the incoming stream but unknown on the "
+               "destination", name);
+    return false;
 }
 
-static int cpu_post_load(void *opaque, int version_id)
+static bool cpu_post_load(void *opaque, int version_id, Error **errp)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
-    bool fail = false;
     bool ignore_s_regs;
     int i, v;
 
@@ -1229,9 +1230,11 @@ static int cpu_post_load(void *opaque, int version_id)
             continue;
         }
         if (cpu->cpreg_vmstate_indexes[v] < cpu->cpreg_indexes[i]) {
-            fail = handle_cpreg_only_in_incoming_stream(cpu,
-                                                        cpu->cpreg_vmstate_indexes[v],
-                                                        cpu->cpreg_vmstate_values[v]);
+            if (!handle_cpreg_only_in_incoming_stream(
+                    cpu, cpu->cpreg_vmstate_indexes[v],
+                    cpu->cpreg_vmstate_values[v], errp)) {
+                return false;
+            }
             v++;
             continue;
         }
@@ -1278,21 +1281,22 @@ static int cpu_post_load(void *opaque, int version_id)
      * still regs in the input stream, continue parsing the vmstate array
      */
     for ( ; v < cpu->cpreg_vmstate_array_len; v++) {
-        fail = handle_cpreg_only_in_incoming_stream(cpu,
-                                                    cpu->cpreg_vmstate_indexes[v],
-                                                    cpu->cpreg_vmstate_values[v]);
-    }
-    if (fail) {
-        return -1;
+        if (!handle_cpreg_only_in_incoming_stream(
+                cpu, cpu->cpreg_vmstate_indexes[v],
+                cpu->cpreg_vmstate_values[v], errp)) {
+            return false;
+        }
     }
 
     if (kvm_enabled()) {
         if (!kvm_arm_cpu_post_load(cpu)) {
-            return -1;
+            error_setg(errp, "kvm_arm_cpu_post_load() failed");
+            return false;
         }
     } else {
         if (!write_list_to_cpustate(cpu)) {
-            return -1;
+            error_setg(errp, "write_list_to_cpustate() failed");
+            return false;
         }
     }
 
@@ -1307,7 +1311,8 @@ static int cpu_post_load(void *opaque, int version_id)
      * thumb_tr_translate_insn().
      */
     if (!is_a64(env) && env->thumb && (env->regs[15] & 1)) {
-        return -1;
+        error_setg(errp, "Misaligned thumb pc");
+        return false;
     }
 
     if (tcg_enabled()) {
@@ -1325,7 +1330,8 @@ static int cpu_post_load(void *opaque, int version_id)
                       FPCR_LTPSIZE_SHIFT, FPCR_LTPSIZE_LENGTH) != 4 ||
             extract32(env->v7m.fpdscr[M_REG_S],
                       FPCR_LTPSIZE_SHIFT, FPCR_LTPSIZE_LENGTH) != 4) {
-            return -1;
+            error_setg(errp, "Bogus fpdscr[] values");
+            return false;
         }
     }
 
@@ -1337,7 +1343,7 @@ static int cpu_post_load(void *opaque, int version_id)
         arm_rebuild_hflags(env);
     }
 
-    return 0;
+    return true;
 }
 
 const VMStateDescription vmstate_arm_cpu = {
@@ -1347,7 +1353,7 @@ const VMStateDescription vmstate_arm_cpu = {
     .pre_save = cpu_pre_save,
     .post_save = cpu_post_save,
     .pre_load = cpu_pre_load,
-    .post_load = cpu_post_load,
+    .post_load_errp = cpu_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(env.regs, ARMCPU, 16),
         VMSTATE_UINT64_ARRAY(env.xregs, ARMCPU, 32),
