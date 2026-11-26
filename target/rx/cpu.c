@@ -47,10 +47,10 @@ static vaddr rx_cpu_get_pc(CPUState *cs)
 static TCGTBCPUState rx_get_tb_cpu_state(CPUState *cs)
 {
     CPURXState *env = cpu_env(cs);
-    uint32_t flags = 0;
+    uint64_t flags = 0;
 
-    flags = FIELD_DP32(flags, PSW, PM, env->psw_pm);
-    flags = FIELD_DP32(flags, PSW, U, env->psw_u);
+    flags = FIELD_DP64(flags, PSW, PM, env->psw_pm);
+    flags = FIELD_DP64(flags, PSW, U, env->psw_u);
 
     return (TCGTBCPUState){ .pc = env->pc, .flags = flags };
 }
