@@ -24,6 +24,12 @@ DEF_HELPER_FLAGS_4(probe, TCG_CALL_NO_WG, tl, env, tl, i32, i32)
 
 DEF_HELPER_FLAGS_1(loaded_fr0, TCG_CALL_NO_RWG, void, env)
 
+#ifndef CONFIG_USER_ONLY
+DEF_HELPER_FLAGS_5(fmpy_pa1, TCG_CALL_NO_RWG, void, env, i64, i64, i32, i32)
+DEF_HELPER_FLAGS_7(fmpyadd_pa1, TCG_CALL_NO_RWG, void, env, i64, i64, i64, i64,
+                   i32, i32)
+#endif
+
 DEF_HELPER_FLAGS_2(fsqrt_s, TCG_CALL_NO_RWG, f32, env, f32)
 DEF_HELPER_FLAGS_2(frnd_s, TCG_CALL_NO_RWG, f32, env, f32)
 DEF_HELPER_FLAGS_3(fadd_s, TCG_CALL_NO_RWG, f32, env, f32, f32)

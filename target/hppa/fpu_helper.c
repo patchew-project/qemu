@@ -240,13 +240,127 @@ float64 HELPER(frem_d)(CPUHPPAState *env, float64 a, float64 b)
 #ifndef CONFIG_USER_ONLY
 static void defer_fp_unimplemented(CPUHPPAState *env, uint32_t insn)
 {
-    uint32_t code = (insn >> 26) == 0x0c ? 0x09 : 0x0b;
+    uint32_t code;
+
+    switch (insn >> 26) {
+    case 0x06:
+        code = 0x03;
+        break;
+    case 0x26:
+        code = 0x23;
+        break;
+    case 0x0c:
+        code = 0x09;
+        break;
+    case 0x0e:
+        code = 0x0b;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
     uint32_t record = deposit32(insn, 26, 6, code);
 
     /* PA7300LC records the original operation in exception register 2. */
     env->fr[1] = deposit64(env->fr[1], 32, 32, record);
     env->fr0_shadow |= R_FPSR_T_MASK;
     env->fr[0] = deposit64(env->fr[0], 32, 32, env->fr0_shadow);
+}
+
+static float_status pa1_multiply_status(CPUHPPAState *env)
+{
+    float_status status = env->fp_status;
+
+    if (!(env->fr0_shadow & R_FPSR_D_MASK)) {
+        /* Identify tiny results even when IEEE underflow is not raised. */
+        set_flush_to_zero(true, &status);
+        set_float_ftz_detection(float_ftz_after_rounding, &status);
+    }
+    return status;
+}
+
+static bool pa1_multiply_needs_assist(CPUHPPAState *env,
+                                    const float_status *status, bool single,
+                                    bool multiply, uint64_t a, uint64_t b)
+{
+    if (env->fr0_shadow & R_FPSR_D_MASK) {
+        return false;
+    }
+    if (get_float_exception_flags(status) & float_flag_output_denormal_flushed) {
+        return true;
+    }
+
+    uint64_t sign_mask = single ? INT32_MAX : INT64_MAX;
+    uint64_t min_normal = single ? 0x00800000 : 0x0010000000000000ULL;
+    uint64_t infinity = single ? 0x7f800000 : 0x7ff0000000000000ULL;
+
+    a &= sign_mask;
+    b &= sign_mask;
+    return (a != 0 && a < min_normal && b != infinity &&
+            (!multiply || b != 0)) ||
+           (b != 0 && b < min_normal && a != infinity &&
+            (!multiply || a != 0));
+}
+
+static void pa1_multiply_write_result(CPUHPPAState *env, uint32_t reg,
+                                      bool single, uint64_t result,
+                                      const float_status *status, uintptr_t ra)
+{
+    set_float_exception_flags(get_float_exception_flags(status),
+                              &env->fp_status);
+    update_fr0_op(env, ra);
+    if (single) {
+        unsigned shift = reg & 32 ? 0 : 32;
+
+        reg &= 31;
+        env->fr[reg] = deposit64(env->fr[reg], shift, 32, result);
+    } else {
+        env->fr[reg] = result;
+    }
+}
+
+void HELPER(fmpy_pa1)(CPUHPPAState *env, uint64_t a, uint64_t b,
+                      uint32_t reg, uint32_t insn)
+{
+    bool single = !extract32(insn, 11, 1);
+    float_status status = pa1_multiply_status(env);
+    uint64_t product = single ? float32_mul(a, b, &status)
+                              : float64_mul(a, b, &status);
+
+    if (pa1_multiply_needs_assist(env, &status, single, true, a, b)) {
+        defer_fp_unimplemented(env, insn);
+        return;
+    }
+    pa1_multiply_write_result(env, reg, single, product, &status, GETPC());
+}
+
+void HELPER(fmpyadd_pa1)(CPUHPPAState *env, uint64_t m1, uint64_t m2,
+                        uint64_t a1, uint64_t a2, uint32_t regs, uint32_t insn)
+{
+    bool single = extract32(insn, 5, 1);
+    bool subtract = (insn >> 26) == 0x26;
+    float_status multiply_status = pa1_multiply_status(env);
+    float_status add_status = multiply_status;
+    uint64_t product, sum;
+
+    if (single) {
+        product = float32_mul(m1, m2, &multiply_status);
+        sum = subtract ? float32_sub(a1, a2, &add_status)
+                       : float32_add(a1, a2, &add_status);
+    } else {
+        product = float64_mul(m1, m2, &multiply_status);
+        sum = subtract ? float64_sub(a1, a2, &add_status)
+                       : float64_add(a1, a2, &add_status);
+    }
+
+    if (pa1_multiply_needs_assist(env, &multiply_status, single, true, m1, m2) ||
+        pa1_multiply_needs_assist(env, &add_status, single, false, a1, a2)) {
+        defer_fp_unimplemented(env, insn);
+        return;
+    }
+    pa1_multiply_write_result(env, regs & 63, single, product,
+                              &multiply_status, GETPC());
+    pa1_multiply_write_result(env, regs >> 6, single, sum, &add_status, GETPC());
 }
 #endif
 

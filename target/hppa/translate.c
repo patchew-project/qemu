@@ -4519,11 +4519,27 @@ static bool trans_fsub_d(DisasContext *ctx, arg_fclass3 *a)
 
 static bool trans_fmpy_f(DisasContext *ctx, arg_fclass3 *a)
 {
+#ifndef CONFIG_USER_ONLY
+    if (!ctx->is_pa20) {
+        fp_nullify_over(ctx);
+        gen_helper_fmpy_pa1(tcg_env, load_frw0_i64(a->r1), load_frw0_i64(a->r2),
+                            tcg_constant_i32(a->t), tcg_constant_i32(ctx->insn));
+        return nullify_end(ctx);
+    }
+#endif
     return do_fop_weww(ctx, a->t, a->r1, a->r2, gen_helper_fmpy_s);
 }
 
 static bool trans_fmpy_d(DisasContext *ctx, arg_fclass3 *a)
 {
+#ifndef CONFIG_USER_ONLY
+    if (!ctx->is_pa20) {
+        fp_nullify_over(ctx);
+        gen_helper_fmpy_pa1(tcg_env, load_frd0(a->r1), load_frd0(a->r2),
+                            tcg_constant_i32(a->t), tcg_constant_i32(ctx->insn));
+        return nullify_end(ctx);
+    }
+#endif
     return do_fop_dedd(ctx, a->t, a->r1, a->r2, gen_helper_fmpy_d);
 }
 
@@ -4575,6 +4591,18 @@ static bool do_fmpyadd_s(DisasContext *ctx, arg_mpyadd *a, bool is_sub)
     int rm2 = fmpyadd_s_reg(a->rm2);
     int rm1 = fmpyadd_s_reg(a->rm1);
 
+#ifndef CONFIG_USER_ONLY
+    /* A zero addend field in FMPYADD encodes FMPYCFXT on PA7300LC. */
+    if (!ctx->is_pa20 && (is_sub || a->ra != 0)) {
+        fp_nullify_over(ctx);
+        gen_helper_fmpyadd_pa1(tcg_env,
+                              load_frw0_i64(rm1), load_frw0_i64(rm2),
+                              load_frw0_i64(ta), load_frw0_i64(ra),
+                              tcg_constant_i32((ta << 6) | tm),
+                              tcg_constant_i32(ctx->insn));
+        return nullify_end(ctx);
+    }
+#endif
     nullify_over(ctx);
 
     do_fop_weww(ctx, tm, rm1, rm2, gen_helper_fmpy_s);
@@ -4596,6 +4624,17 @@ static bool trans_fmpysub_f(DisasContext *ctx, arg_mpyadd *a)
 
 static bool do_fmpyadd_d(DisasContext *ctx, arg_mpyadd *a, bool is_sub)
 {
+#ifndef CONFIG_USER_ONLY
+    if (!ctx->is_pa20 && (is_sub || a->ra != 0)) {
+        fp_nullify_over(ctx);
+        gen_helper_fmpyadd_pa1(tcg_env,
+                              load_frd0(a->rm1), load_frd0(a->rm2),
+                              load_frd0(a->ta), load_frd0(a->ra),
+                              tcg_constant_i32((a->ta << 6) | a->tm),
+                              tcg_constant_i32(ctx->insn));
+        return nullify_end(ctx);
+    }
+#endif
     nullify_over(ctx);
 
     do_fop_dedd(ctx, a->tm, a->rm1, a->rm2, gen_helper_fmpy_d);

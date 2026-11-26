@@ -510,6 +510,104 @@ static void test_fcnv(const void *opaque)
     qtest_quit(qts);
 }
 
+typedef struct FmpyAssistTest {
+    const char *name;
+    uint32_t instruction;
+    uint32_t er2;
+    uint64_t fr22;
+    uint64_t fr23;
+} FmpyAssistTest;
+
+static const FmpyAssistTest fmpy_assist_tests[] = {
+    {
+        .name = "scalar-tiny",
+        .instruction = 0x33374617, /* fmpy,sgl fr25,fr23,fr23 */
+        .er2 = 0x27374617,
+        .fr22 = 0xb79bae5f8cad057cULL,
+        .fr23 = 0x37d95384fd6b8987ULL,
+    },
+    {
+        .name = "compound-trace",
+        .instruction = 0x19263a26, /* fmpyadd,sgl fr25,fr22,fr22,fr24,fr23 */
+        .er2 = 0x0d263a26,
+        .fr22 = 0xb79bae5f8cad057cULL,
+        .fr23 = 0x004a1020fd6b8987ULL,
+    },
+    {
+        .name = "compound-tiny",
+        .instruction = 0x19263a26,
+        .er2 = 0x0d263a26,
+        .fr22 = 0x380000008cad057cULL, /* Exact subnormal product. */
+        .fr23 = 0x37d95384fd6b8987ULL,
+    },
+    {
+        .name = "double-scalar-tiny",
+        .instruction = 0x33374e17, /* fmpy,dbl fr25,fr23,fr23 */
+        .er2 = 0x27374e17,
+        .fr22 = 0xb79bae5f8cad057cULL,
+        .fr23 = 0x3850000000000000ULL, /* 2^-122. */
+    },
+    {
+        .name = "compound-subtract-tiny",
+        .instruction = 0x99263a26, /* fmpysub,sgl fr25,fr22,fr22,fr24,fr23 */
+        .er2 = 0x8d263a26,
+        .fr22 = 0x380000008cad057cULL,
+        .fr23 = 0x37d95384fd6b8987ULL,
+    },
+    {
+        .name = "compound-denormal",
+        .instruction = 0x19263a26,
+        .er2 = 0x0d263a26,
+        .fr22 = 0x3f8000008cad057cULL, /* Multiply by 1.0f. */
+        .fr23 = 0x004a1020fd6b8987ULL,
+    },
+};
+
+static void test_fmpy_assist(const void *opaque)
+{
+    const FmpyAssistTest *test = opaque;
+    const uint32_t guest[] = {
+        0x34011000, /* ldi 0x800,r1 */
+        0x01c11840, /* mtctl r1,iva */
+        0x34103000, /* ldi 0x1800,r16 */
+        0x34113200, /* ldi 0x1900,r17 */
+        0x34010180, /* ldi 0xc0,r1 */
+        0x01411840, /* mtctl r1,ccr */
+        0x2e001016, /* fldd 0(r16),fr22 */
+        0x2e101017, /* fldd 8(r16),fr23 */
+        0x36100020, /* ldo 16(r16),r16 */
+        0x2e001018, /* fldd 0(r16),fr24 */
+        0x2e101019, /* fldd 8(r16),fr25 */
+        test->instruction,
+        0x2e001200, /* fstd fr0,0(r16) */
+        0x2e101201, /* fstd fr1,8(r16) */
+        0x36100020, /* ldo 16(r16),r16 */
+        0x2e001200, /* fstd fr0,0(r16) */
+        0x2e101216, /* fstd fr22,8(r16) */
+        0x36100020, /* ldo 16(r16),r16 */
+        0x2e001217, /* fstd fr23,0(r16) */
+        0x34010002, /* ldi 1,r1 */
+        0x6a210000, /* stw r1,0(r17): completion */
+    };
+    QTestState *qts = start_guest(false);
+    uint32_t end = CODE + sizeof(guest);
+
+    write_words(qts, CODE, guest, G_N_ELEMENTS(guest));
+    qtest_writel(qts, end, branch(end, HALT));
+    qtest_writeq(qts, DATA, test->fr22);
+    qtest_writeq(qts, DATA + 8, test->fr23);
+    qtest_writeq(qts, DATA + 16, 0x3895c07a1110fe7aULL);
+    qtest_writeq(qts, DATA + 24, 0x07ae7c429facdab0ULL);
+
+    run_guest(qts, 1);
+    g_assert_cmphex(qtest_readq(qts, DATA + 16), ==, 0x0000004000000000ULL);
+    g_assert_cmphex(qtest_readl(qts, DATA + 24), ==, test->er2);
+    g_assert_cmphex(qtest_readq(qts, DATA + 32), ==, 0);
+    g_assert_cmphex(qtest_readq(qts, DATA + 40), ==, test->fr22);
+    g_assert_cmphex(qtest_readq(qts, DATA + 48), ==, test->fr23);
+    qtest_quit(qts);
+}
+
 static const uint32_t fault_guest[] = {
     0x34011000, /* ldi 0x800,r1 */
     0x01c11840, /* mtctl r1,iva */
@@ -585,6 +683,12 @@ int main(int argc, char **argv)
         g_autofree char *name = g_strdup_printf("fpu/fcnv/%s", fcnv_tests[i].name);
 
         qtest_add_data_func(name, &fcnv_tests[i], test_fcnv);
+    }
+    for (size_t i = 0; i < G_N_ELEMENTS(fmpy_assist_tests); i++) {
+        g_autofree char *name = g_strdup_printf("fpu/fmpy-assist/%s",
+                                                fmpy_assist_tests[i].name);
+
+        qtest_add_data_func(name, &fmpy_assist_tests[i], test_fmpy_assist);
     }
     for (size_t i = 0; i < G_N_ELEMENTS(fault_tests); i++) {
         g_autofree char *name = g_strdup_printf("fpu/%s", fault_tests[i].name);
