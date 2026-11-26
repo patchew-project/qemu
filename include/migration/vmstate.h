@@ -130,10 +130,6 @@ enum VMStateFlags {
      * allocated. Only valid in combination with VMS_VBUFFER. */
     VMS_MULTIPLY         = 0x200,
 
-    /* Fail loading the serialised VM state if this field is missing
-     * from the input. */
-    VMS_MUST_EXIST       = 0x1000,
-
     /* When loading serialised VM state, allocate memory for the
      * (entire) field. Only valid in combination with
      * VMS_POINTER. Note: Not all combinations with other flags are
@@ -456,13 +452,6 @@ extern const VMStateInfo vmstate_info_g_byte_array;
     .info         = &(_info),                                        \
     .flags        = VMS_SINGLE,                                      \
     .offset       = vmstate_offset_value(_state, _field, _type),     \
-}
-
-/* Validate state using a boolean predicate. */
-#define VMSTATE_VALIDATE(_name, _test) { \
-    .name         = (_name),                                         \
-    .field_exists = (_test),                                         \
-    .flags        = VMS_MUST_EXIST | VMS_NO_STATE,                   \
 }
 
 #define VMSTATE_POINTER(_field, _state, _version, _info, _type) {    \

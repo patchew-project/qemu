@@ -622,11 +622,6 @@ static void dump_vmstate_vmsd(FILE *out_file,
         fprintf(out_file, ",\n%*s\"Fields\": [\n", indent, "");
         first = true;
         while (field->name != NULL) {
-            if (field->flags & VMS_MUST_EXIST) {
-                /* Ignore VMSTATE_VALIDATE bits; these don't get migrated */
-                field++;
-                continue;
-            }
             if (!first) {
                 fprintf(out_file, ",\n");
             }

@@ -116,8 +116,6 @@ static uint64_t vmstate_n_elems(void *opaque, const VMStateField *field)
         n_elems = field->num;
     } else if (field->flags & VMS_VARRAY) {
         n_elems = vmstate_read_from_offset(&field->num_indirect, opaque);
-    } else if (field->flags & VMS_MUST_EXIST && field->flags & VMS_NO_STATE) {
-        n_elems = 0;
     } else {
         n_elems = 1;
     }
@@ -430,10 +428,6 @@ bool vmstate_load_vmsd(QEMUFile *f, const VMStateDescription *vmsd,
                     return false;
                 }
             }
-        } else if (field->flags & VMS_MUST_EXIST) {
-            error_setg(errp, "Input validation failed: %s/%s version_id: %d",
-                       vmsd->name, field->name, vmsd->version_id);
-            return false;
         }
         field++;
     }
@@ -809,12 +803,6 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
                 if (vmdesc_loop && max_elems > 1) {
                     vmdesc_loop = NULL;
                 }
-            }
-        } else {
-            if (field->flags & VMS_MUST_EXIST) {
-                error_report("Output state validation failed: %s/%s",
-                        vmsd->name, field->name);
-                assert(!(field->flags & VMS_MUST_EXIST));
             }
         }
         field++;
