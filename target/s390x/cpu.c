@@ -319,7 +319,7 @@ static int s390x_cpu_mmu_index(CPUState *cs, bool ifetch)
 static TCGTBCPUState s390x_get_tb_cpu_state(CPUState *cs)
 {
     CPUS390XState *env = cpu_env(cs);
-    uint32_t flags;
+    uint64_t flags;
 
     if (env->psw.addr & 1) {
         /*
