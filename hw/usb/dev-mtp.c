@@ -1570,19 +1570,15 @@ static void usb_mtp_cancel_packet(USBDevice *dev, USBPacket *p)
 
 static char *utf16_to_str(uint8_t len, uint8_t *str16)
 {
-    wchar_t *wstr = g_new0(wchar_t, len + 1);
-    int count, dlen;
+    gunichar2 *wstr = g_new0(gunichar2, len + 1);
+    int count;
     char *dest;
 
     for (count = 0; count < len; count++) {
-        /* FIXME: not working for surrogate pairs */
         wstr[count] = lduw_le_p(str16 + (count * 2));
     }
-    wstr[count] = 0;
 
-    dlen = wcstombs(NULL, wstr, 0) + 1;
-    dest = g_malloc(dlen);
-    wcstombs(dest, wstr, dlen);
+    dest = g_utf16_to_utf8(wstr, len, NULL, NULL, NULL);
     g_free(wstr);
     return dest;
 }
@@ -1747,7 +1743,7 @@ static void usb_mtp_write_metadata(MTPState *s)
     filename = utf16_to_str(MIN(dataset->length, filename_chars),
                             dataset->filename);
 
-    if (strchr(filename, '/')) {
+    if (!filename || strchr(filename, '/')) {
         usb_mtp_queue_result(s, RES_PARAMETER_NOT_SUPPORTED, d->trans,
                              0, 0, 0, 0);
         g_free(filename);
