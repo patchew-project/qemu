@@ -688,8 +688,9 @@ static void nvme_irq_assert(NvmeCtrl *n, NvmeCQueue *cq)
             msix_notify(pci, cq->vector);
         } else {
             trace_pci_nvme_irq_pin();
-            assert(cq->vector < 32);
-            n->irq_status |= 1 << cq->vector;
+            if (cq->vector < 32) {
+                n->irq_status |= 1U << cq->vector;
+            }
             nvme_irq_check(n);
         }
     } else {
@@ -703,9 +704,8 @@ static void nvme_irq_deassert(NvmeCtrl *n, NvmeCQueue *cq)
         if (msix_enabled(PCI_DEVICE(n))) {
             return;
         } else {
-            assert(cq->vector < 32);
-            if (!n->cq_pending) {
-                n->irq_status &= ~(1 << cq->vector);
+            if (!n->cq_pending && cq->vector < 32) {
+                n->irq_status &= ~(1U << cq->vector);
             }
             nvme_irq_check(n);
         }
