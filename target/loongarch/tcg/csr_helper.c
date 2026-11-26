@@ -60,16 +60,6 @@ target_ulong HELPER(csrrd_pgd)(CPULoongArchState *env)
     return v;
 }
 
-target_ulong HELPER(csrrd_cpuid)(CPULoongArchState *env)
-{
-    LoongArchCPU *lac = env_archcpu(env);
-    CPUSysState *sys = env_sys(env);
-
-    sys->CSR_CPUID = CPU(lac)->cpu_index;
-
-    return sys->CSR_CPUID;
-}
-
 target_ulong HELPER(csrrd_tval)(CPULoongArchState *env)
 {
     return cpu_loongarch_get_timer_ticks(env_timer(env));
