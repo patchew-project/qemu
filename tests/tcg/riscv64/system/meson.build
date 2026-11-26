@@ -17,6 +17,13 @@ qemu_args = ['-M', 'virt',
 setup = {'cflags': cflags, 'qemu_args': qemu_args}
 
 tests += {
+  'test-gstage-access-fault.S': {
+    'cflags': cflags + ['-march=rv64ima_zicsr'],
+    'qemu_args': ['-cpu', 'rv64,h=true,svade=false,svadu=false', qemu_args],
+  },
+}
+
+tests += {
   'doubletrap.S': setup + {'plugin_test': {'plugin': 'discons'}},
   'interruptedmemory.S': setup + {'plugin_test': {'plugin': 'discons'}},
   'issue1060.S': setup,
