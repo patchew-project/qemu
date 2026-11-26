@@ -126,7 +126,10 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
         /* Interrupt */
         uint32_t vector = 0;
         uint32_t pending = FIELD_EX64(sys->CSR_ESTAT, CSR_ESTAT, IS);
-        pending &= FIELD_EX64(sys->CSR_ECFG, CSR_ECFG, LIE);
+
+        /* msgint does not mask from ECFG */
+        pending = (pending & FIELD_EX64(sys->CSR_ECFG, CSR_ECFG, LIE)) |
+                  (pending & R_CSR_ESTAT_MSGINT_MASK);
 
         /* Find the highest-priority interrupt. */
         vector = 31 - clz32(pending);

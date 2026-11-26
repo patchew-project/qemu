@@ -50,8 +50,8 @@ FIELD(CSR_MISC, DWPL, 16, 3)
 CSR_WRMASK(MISC, 1, 18)
 
 #define LOONGARCH_CSR_ECFG           0x4 /* Exception config */
-FIELD(CSR_ECFG, LIE, 0, 15)        /* bit 15 is msg interrupt enabled */
-FIELD(CSR_ECFG, MSGINT, 14, 1)
+FIELD(CSR_ECFG, LIE, 0, 13)
+FIELD(CSR_ECFG, RSV, 13, 3)
 FIELD(CSR_ECFG, VS, 16, 3)
 CSR_WRMASK(ECFG, 0, 19)
 
