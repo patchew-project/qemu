@@ -13,14 +13,15 @@
         .flags  = FL                                       \
     }
 
-#define CSR_OFF_ARRAY(NAME, N)                             \
+#define CSR_OFF_ARRAY_FLAGS(NAME, N, FL)                   \
     [LOONGARCH_CSR_##NAME(N)] = {                          \
         .name   = (stringify(NAME##N)),                    \
         .offset = CSR_OFFSET(CSR_##NAME[N]),               \
-        .flags  = CSRFL_BASIC                              \
+        .flags  = FL                                       \
     }
 
 #define CSR_OFF(NAME)             CSR_OFF_FLAGS(NAME, CSRFL_BASIC)
+#define CSR_OFF_ARRAY(NAME, N)    CSR_OFF_ARRAY_FLAGS(NAME, N, CSRFL_BASIC)
 
 static CSRInfo csr_info[] = {
     CSR_OFF_FLAGS(CRMD, CSRFL_EXITTB),
@@ -117,11 +118,11 @@ static CSRInfo csr_info[] = {
     CSR_OFF_ARRAY(PERFCNTR, 14),
     CSR_OFF_ARRAY(PERFCTRL, 15),
     CSR_OFF_ARRAY(PERFCNTR, 15),
-    CSR_OFF_ARRAY(MSGIS, 0),
-    CSR_OFF_ARRAY(MSGIS, 1),
-    CSR_OFF_ARRAY(MSGIS, 2),
-    CSR_OFF_ARRAY(MSGIS, 3),
-    CSR_OFF(MSGIR),
+    CSR_OFF_ARRAY_FLAGS(MSGIS, 0, CSRFL_READONLY),
+    CSR_OFF_ARRAY_FLAGS(MSGIS, 1, CSRFL_READONLY),
+    CSR_OFF_ARRAY_FLAGS(MSGIS, 2, CSRFL_READONLY),
+    CSR_OFF_ARRAY_FLAGS(MSGIS, 3, CSRFL_READONLY),
+    CSR_OFF_FLAGS(MSGIR, CSRFL_READONLY),
 };
 
 CSRInfo *get_csr(unsigned int csr_num)
