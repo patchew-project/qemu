@@ -407,14 +407,6 @@ static const VMStateDescription vmstate_m_faultmask_primask = {
  * just non-secure, we transfer both banks here rather than putting
  * the secure banked version in the m-security subsection.
  */
-static bool csselr_vmstate_validate(void *opaque, int version_id)
-{
-    ARMCPU *cpu = opaque;
-
-    return cpu->env.v7m.csselr[M_REG_NS] <= R_V7M_CSSELR_INDEX_MASK
-        && cpu->env.v7m.csselr[M_REG_S] <= R_V7M_CSSELR_INDEX_MASK;
-}
-
 static bool m_csselr_needed(void *opaque)
 {
     ARMCPU *cpu = opaque;
@@ -429,7 +421,6 @@ static const VMStateDescription vmstate_m_csselr = {
     .needed = m_csselr_needed,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(env.v7m.csselr, ARMCPU, M_REG_NUM_BANKS),
-        VMSTATE_VALIDATE("CSSELR is valid", csselr_vmstate_validate),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -590,18 +581,6 @@ static bool pmsav7_needed(void *opaque)
            !arm_feature(env, ARM_FEATURE_V8);
 }
 
-static bool pmsav7_rgnr_vmstate_validate(void *opaque, int version_id)
-{
-    ARMCPU *cpu = opaque;
-
-    /*
-     * Check MPU_RNR in-bounds. If no MPU, we still migrate this field
-     * but number of regions == 0 and MPU_RNR is RAZ/WI so also 0
-     */
-    return cpu->env.pmsav7.rnr[M_REG_NS] < cpu->pmsav7_dregion ||
-        (cpu->pmsav7_dregion == 0 && cpu->env.pmsav7.rnr[M_REG_NS] == 0);
-}
-
 static const VMStateDescription vmstate_pmsav7 = {
     .name = "cpu/pmsav7",
     .version_id = 1,
@@ -614,7 +593,6 @@ static const VMStateDescription vmstate_pmsav7 = {
                               vmstate_info_uint32, uint32_t),
         VMSTATE_VARRAY_UINT32(env.pmsav7.dracr, ARMCPU, pmsav7_dregion, 0,
                               vmstate_info_uint32, uint32_t),
-        VMSTATE_VALIDATE("rgnr is valid", pmsav7_rgnr_vmstate_validate),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -695,31 +673,6 @@ static const VMStateDescription vmstate_pmsav8 = {
     }
 };
 
-static bool s_rnr_vmstate_validate(void *opaque, int version_id)
-{
-    ARMCPU *cpu = opaque;
-
-    /*
-     * Check MPU_RNR in-bounds. If no MPU, we still migrate this field
-     * but number of regions == 0 and MPU_RNR is RAZ/WI so also 0
-     */
-    return cpu->env.pmsav7.rnr[M_REG_S] < cpu->pmsav7_dregion ||
-        (cpu->pmsav7_dregion == 0 && cpu->env.pmsav7.rnr[M_REG_S] == 0);
-}
-
-static bool sau_rnr_vmstate_validate(void *opaque, int version_id)
-{
-    ARMCPU *cpu = opaque;
-
-    /*
-     * Check SAU_RNR in-bounds. If no SAU regions are implemented,
-     * we still migrate this field, but number of regions == 0 and
-     * SAU_RNR is RAZ/WI so also 0
-     */
-    return cpu->env.sau.rnr < cpu->sau_sregion ||
-        (cpu->sau_sregion == 0 && cpu->env.sau.rnr == 0);
-}
-
 static bool m_security_needed(void *opaque)
 {
     ARMCPU *cpu = opaque;
@@ -749,7 +702,6 @@ static const VMStateDescription vmstate_m_security = {
         VMSTATE_VARRAY_UINT32(env.pmsav8.rlar[M_REG_S], ARMCPU, pmsav7_dregion,
                               0, vmstate_info_uint32, uint32_t),
         VMSTATE_UINT32(env.pmsav7.rnr[M_REG_S], ARMCPU),
-        VMSTATE_VALIDATE("secure MPU_RNR is valid", s_rnr_vmstate_validate),
         VMSTATE_UINT32(env.v7m.mpu_ctrl[M_REG_S], ARMCPU),
         VMSTATE_UINT32(env.v7m.ccr[M_REG_S], ARMCPU),
         VMSTATE_UINT32(env.v7m.mmfar[M_REG_S], ARMCPU),
@@ -761,7 +713,6 @@ static const VMStateDescription vmstate_m_security = {
         VMSTATE_VARRAY_UINT32(env.sau.rlar, ARMCPU, sau_sregion, 0,
                               vmstate_info_uint32, uint32_t),
         VMSTATE_UINT32(env.sau.rnr, ARMCPU),
-        VMSTATE_VALIDATE("SAU_RNR is valid", sau_rnr_vmstate_validate),
         VMSTATE_UINT32(env.sau.ctrl, ARMCPU),
         VMSTATE_UINT32(env.v7m.scr[M_REG_S], ARMCPU),
         /* AIRCR is not secure-only, but our implementation is R/O if the
@@ -1177,10 +1128,47 @@ static bool cpu_post_load(void *opaque, int version_id, Error **errp)
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
     bool ignore_s_regs;
+    bool valid;
     int i, v;
 
     trace_cpu_post_load(cpu->cpreg_vmstate_array_len,
                         cpu->cpreg_array_len);
+
+    if (env->v7m.csselr[M_REG_NS] > R_V7M_CSSELR_INDEX_MASK ||
+        env->v7m.csselr[M_REG_S] > R_V7M_CSSELR_INDEX_MASK) {
+        error_setg(errp, "CSSELR is invalid");
+        return false;
+    }
+
+    /*
+     * Check MPU_RNR in-bounds. If no MPU, we still migrate these fields
+     * but number of regions == 0 and MPU_RNR is RAZ/WI so also 0
+     */
+    valid = env->pmsav7.rnr[M_REG_NS] < cpu->pmsav7_dregion ||
+        (cpu->pmsav7_dregion == 0 && env->pmsav7.rnr[M_REG_NS] == 0);
+    if (!valid) {
+        error_setg(errp, "rgnr is invalid");
+        return false;
+    }
+
+    valid = env->pmsav7.rnr[M_REG_S] < cpu->pmsav7_dregion ||
+        (cpu->pmsav7_dregion == 0 && env->pmsav7.rnr[M_REG_S] == 0);
+    if (!valid) {
+        error_setg(errp, "secure MPU_RNR is invalid");
+        return false;
+    }
+
+    /*
+     * Check SAU_RNR in-bounds. If no SAU regions are implemented,
+     * we still migrate this field, but number of regions == 0 and
+     * SAU_RNR is RAZ/WI so also 0
+     */
+    valid = env->sau.rnr < cpu->sau_sregion ||
+        (cpu->sau_sregion == 0 && env->sau.rnr == 0);
+    if (!valid) {
+        error_setg(errp, "SAU_RNR is invalid");
+        return false;
+    }
 
     /*
      * Handle migration compatibility from old QEMU which didn't
@@ -1426,10 +1414,6 @@ const VMStateDescription vmstate_arm_cpu = {
         &vmstate_vfp,
         &vmstate_m,
         &vmstate_thumb2ee,
-        /* pmsav7_rnr must come before pmsav7 so that we have the
-         * region number before we test it in the VMSTATE_VALIDATE
-         * in vmstate_pmsav7.
-         */
         &vmstate_pmsav7_rnr,
         &vmstate_pmsav7,
         &vmstate_pmsav8,
