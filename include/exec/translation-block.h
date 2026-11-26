@@ -60,12 +60,19 @@ struct TranslationBlock {
     vaddr pc;
 
     /*
-     * Target-specific data associated with the TranslationBlock, e.g.:
-     * x86: the original user, the Code Segment virtual base,
-     * arm: an extension of tb->flags,
+     * cs_base: target-specific data associated with the TranslationBlock,
+     * as returned by cpu_get_tb_cpu_state() and part of the lookup key.
+     *
+     * Targets using it:
+     * x86: the Code Segment virtual base (0 in 64-bit mode),
+     * arm: an extension of tb->flags (CPUARMTBFlags::flags2),
+     * hppa: the CS_BASE_DIFF* bits and the IAOQ_B page offset,
+     * microblaze: the IMM prefix value,
+     * riscv: misa_ext (lookup key only, not read by the translator),
      * s390x: instruction data for EXECUTE,
+     * sh4: r0 (gUSA region end) when in a gUSA sequence (user-only),
      * sparc: the next pc of the instruction queue (for delay slots),
-     * riscv: misa_ext.
+     * xtensa: zero-overhead loop end distance and loop begin offset.
      */
     uint64_t cs_base;
 
