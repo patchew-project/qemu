@@ -97,6 +97,7 @@
 
 /* Emulated hardware TOC button */
 #define EXCP_TOC                 32 /* TOC = Transfer of control (NMI) */
+#define EXCP_ASSIST_DELAYED      33 /* Internal, delivered through vector 14 */
 
 const char *hppa_exception_name(int excp);
 

@@ -394,6 +394,122 @@ static void test_frem(const void *opaque)
     qtest_quit(qts);
 }
 
+typedef struct FcnvTest {
+    const char *name;
+    uint32_t instruction;
+    uint64_t operand;
+    uint64_t result;
+    uint64_t result_mask;
+    uint32_t er2;
+    bool result_first;
+} FcnvTest;
+
+static const FcnvTest fcnv_tests[] = {
+    {
+        .name = "status-first",
+        .instruction = 0x3180220c, /* fcnvff,sgl,dbl fr12,fr12 */
+        .operand = 0x7fa0000012345678ULL,
+        .result = 0x7fa0000000000000ULL,
+        .result_mask = 0xffffffff00000000ULL,
+        .er2 = 0x2580220c,
+    },
+    {
+        .name = "result-first",
+        .instruction = 0x3180220c,
+        .operand = 0x7fa0000012345678ULL,
+        .result = 0x7fa0000000000000ULL,
+        .result_mask = 0xffffffff00000000ULL,
+        .er2 = 0x2580220c,
+        .result_first = true,
+    },
+    {
+        .name = "finite",
+        .instruction = 0x3180220c,
+        .operand = 0x4000000012345678ULL, /* 2.0f in the left half */
+        .result = 0x4000000000000000ULL, /* 2.0 */
+        .result_mask = UINT64_MAX,
+    },
+    {
+        .name = "extended-status-first",
+        .instruction = 0x39800a4c, /* fcnvff,dbl,sgl fr12,fr12R */
+        .operand = 0x7ff4000001234567ULL,
+        .result = 0x7ff4000001234567ULL,
+        .result_mask = UINT64_MAX,
+        .er2 = 0x2d800a4c,
+    },
+    {
+        .name = "extended-finite",
+        .instruction = 0x39800a4c,
+        .operand = 0x4004000000000000ULL, /* 2.5 */
+        .result = 0x4004000040200000ULL, /* 2.5f in the right half */
+        .result_mask = UINT64_MAX,
+    },
+};
+
+static const uint32_t fcnv_save[] = {
+    0x2e101200, /* fstd fr0,8(r16) */
+    0x36100020, /* ldo 16(r16),r16 */
+    0x2e001201, /* fstd fr1,0(r16) */
+    0x2e101200, /* fstd fr0,8(r16) */
+    0x36100020, /* ldo 16(r16),r16 */
+    0x2e00120c, /* fstd fr12,0(r16) */
+};
+
+static void test_fcnv(const void *opaque)
+{
+    const FcnvTest *test = opaque;
+    const uint32_t guest[] = {
+        0x34011000, /* ldi 0x800,r1 */
+        0x01c11840, /* mtctl r1,iva */
+        0x34103000, /* ldi 0x1800,r16 */
+        0x34113200, /* ldi 0x1900,r17 */
+        0x34123050, /* ldi 0x1828,r18 */
+        0x34010180, /* ldi 0xc0,r1 */
+        0x01411840, /* mtctl r1,ccr */
+        0x2e00100c, /* fldd 0(r16),fr12 */
+        test->instruction,
+        0x08002880, /* cmpclr,= r0,r0,r0 */
+        0x2e40120c, /* fstd fr12,0(r18): nullified */
+    };
+    static const uint32_t complete[] = {
+        0x34010002, /* ldi 1,r1 */
+        0x6a210000, /* stw r1,0(r17): completion */
+    };
+    QTestState *qts = start_guest(false);
+    uint32_t pc = CODE + sizeof(guest);
+    uint64_t fr0 = test->er2 ? 0x0000004000000000ULL : 0;
+
+    write_words(qts, CODE, guest, G_N_ELEMENTS(guest));
+    if (test->result_first) {
+        uint32_t vector_branch = 0x800 + 14 * 32 + 4;
+        uint32_t end = ASSIST + sizeof(fcnv_save);
+
+        qtest_writel(qts, pc, 0x2e40120c); /* fstd fr12,0(r18) */
+        pc += 4;
+        qtest_writel(qts, vector_branch, branch(vector_branch, ASSIST));
+        write_words(qts, ASSIST, fcnv_save, G_N_ELEMENTS(fcnv_save));
+        qtest_writel(qts, end, branch(end, UNEXPECTED));
+    }
+    write_words(qts, pc, fcnv_save, G_N_ELEMENTS(fcnv_save));
+    pc += sizeof(fcnv_save);
+    write_words(qts, pc, complete, G_N_ELEMENTS(complete));
+    pc += sizeof(complete);
+    qtest_writel(qts, pc, branch(pc, HALT));
+    qtest_writeq(qts, DATA, test->operand);
+
+    run_guest(qts, test->result_first ? 0x10e : 1);
+    if (test->result_first) {
+        g_assert_cmphex(qtest_readl(qts, RESULT + 8), ==, CODE + sizeof(guest));
+    }
+    g_assert_cmphex(qtest_readq(qts, DATA + 8), ==, fr0);
+    g_assert_cmphex(qtest_readl(qts, DATA + 16), ==, test->er2);
+    g_assert_cmphex(qtest_readq(qts, DATA + 24), ==, 0);
+    g_assert_cmphex(qtest_readq(qts, DATA + 32) & test->result_mask, ==,
+                    test->result);
+    g_assert_cmphex(qtest_readq(qts, DATA + 40), ==, 0);
+    qtest_quit(qts);
+}
+
 static const uint32_t fault_guest[] = {
     0x34011000, /* ldi 0x800,r1 */
     0x01c11840, /* mtctl r1,iva */
@@ -464,6 +580,11 @@ int main(int argc, char **argv)
         g_autofree char *name = g_strdup_printf("fpu/frem/%s", frem_tests[i].name);
 
         qtest_add_data_func(name, &frem_tests[i], test_frem);
+    }
+    for (size_t i = 0; i < G_N_ELEMENTS(fcnv_tests); i++) {
+        g_autofree char *name = g_strdup_printf("fpu/fcnv/%s", fcnv_tests[i].name);
+
+        qtest_add_data_func(name, &fcnv_tests[i], test_fcnv);
     }
     for (size_t i = 0; i < G_N_ELEMENTS(fault_tests); i++) {
         g_autofree char *name = g_strdup_printf("fpu/%s", fault_tests[i].name);

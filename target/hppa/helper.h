@@ -40,8 +40,8 @@ DEF_HELPER_FLAGS_3(fmpy_d, TCG_CALL_NO_RWG, f64, env, f64, f64)
 DEF_HELPER_FLAGS_3(fdiv_d, TCG_CALL_NO_RWG, f64, env, f64, f64)
 DEF_HELPER_FLAGS_3(frem_d, TCG_CALL_NO_RWG, f64, env, f64, f64)
 
-DEF_HELPER_FLAGS_2(fcnv_s_d, TCG_CALL_NO_RWG, f64, env, f32)
-DEF_HELPER_FLAGS_2(fcnv_d_s, TCG_CALL_NO_RWG, f32, env, f64)
+DEF_HELPER_FLAGS_4(fcnv_s_d, TCG_CALL_NO_RWG, void, env, f32, i32, i32)
+DEF_HELPER_FLAGS_4(fcnv_d_s, TCG_CALL_NO_RWG, void, env, f64, i32, i32)
 
 DEF_HELPER_FLAGS_2(fcnv_w_s, TCG_CALL_NO_RWG, f32, env, s32)
 DEF_HELPER_FLAGS_2(fcnv_dw_s, TCG_CALL_NO_RWG, f32, env, s64)

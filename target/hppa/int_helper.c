@@ -162,6 +162,7 @@ void hppa_cpu_do_interrupt(CPUState *cs)
         case EXCP_COND:
         case EXCP_PRIV_REG:
         case EXCP_PRIV_OPR:
+        case EXCP_ASSIST_DELAYED:
             /* IIR set via translate.c.  */
             break;
 
@@ -223,6 +224,9 @@ void hppa_cpu_do_interrupt(CPUState *cs)
     }
 
     /* step 7 */
+    if (i == EXCP_ASSIST_DELAYED) {
+        i = EXCP_ASSIST;
+    }
     if (i == EXCP_TOC) {
         hwaddr pdc_toc_addr = FIRMWARE_START;
 

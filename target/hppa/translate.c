@@ -1692,13 +1692,32 @@ static bool do_load(DisasContext *ctx, unsigned rt, unsigned rb,
     return nullify_end(ctx);
 }
 
+static void gen_fp_assist_check(DisasContext *ctx)
+{
+#ifndef CONFIG_USER_ONLY
+    if (!ctx->is_pa20) {
+        TCGv_i32 fpsr = tcg_temp_new_i32();
+        DisasDelayException *e = delay_excp(ctx, EXCP_ASSIST_DELAYED);
+
+        tcg_gen_ld_i32(fpsr, tcg_env, offsetof(CPUHPPAState, fr0_shadow));
+        tcg_gen_brcondi_i32(TCG_COND_TSTNE, fpsr, R_FPSR_T_MASK, e->lab);
+    }
+#endif
+}
+
+static void fp_nullify_over(DisasContext *ctx)
+{
+    nullify_over(ctx);
+    gen_fp_assist_check(ctx);
+}
+
 static bool do_floadw(DisasContext *ctx, unsigned rt, unsigned rb,
                       unsigned rx, int scale, int64_t disp,
                       unsigned sp, int modify)
 {
     TCGv_i32 tmp;
 
-    nullify_over(ctx);
+    fp_nullify_over(ctx);
 
     tmp = tcg_temp_new_i32();
     do_load_32(ctx, tmp, rb, rx, scale, disp, sp, modify, MO_UL);
@@ -1745,7 +1764,7 @@ static bool do_floadd(DisasContext *ctx, unsigned rt, unsigned rb,
 {
     TCGv_i64 tmp;
 
-    nullify_over(ctx);
+    fp_nullify_over(ctx);
 
     tmp = tcg_temp_new_i64();
     do_load_64(ctx, tmp, rb, rx, scale, disp, sp, modify, MO_UQ);
@@ -1782,7 +1801,7 @@ static bool do_fstorew(DisasContext *ctx, unsigned rt, unsigned rb,
 {
     TCGv_i32 tmp;
 
-    nullify_over(ctx);
+    fp_nullify_over(ctx);
 
     tmp = load_frw_i32(rt);
     do_store_32(ctx, tmp, rb, rx, scale, disp, sp, modify, MO_UL);
@@ -1807,8 +1826,22 @@ static bool do_fstored(DisasContext *ctx, unsigned rt, unsigned rb,
 
     nullify_over(ctx);
 
+    if (rt != 0) {
+        gen_fp_assist_check(ctx);
+    }
     tmp = load_frd(rt);
     do_store_64(ctx, tmp, rb, rx, scale, disp, sp, modify, MO_UQ);
+#ifndef CONFIG_USER_ONLY
+    if (rt == 0 && !ctx->is_pa20) {
+        TCGv_i32 fpsr = tcg_temp_new_i32();
+
+        /* FSTD FR0 saves T in memory and clears it only after the store. */
+        tcg_gen_andi_i64(tmp, tmp, ~((uint64_t)R_FPSR_T_MASK << 32));
+        save_frd(0, tmp);
+        tcg_gen_extrh_i64_i32(fpsr, tmp);
+        tcg_gen_st_i32(fpsr, tcg_env, offsetof(CPUHPPAState, fr0_shadow));
+    }
+#endif
 
     return nullify_end(ctx);
 }
@@ -1827,7 +1860,7 @@ static bool do_fop_wew(DisasContext *ctx, unsigned rt, unsigned ra,
 {
     TCGv_i32 tmp;
 
-    nullify_over(ctx);
+    fp_nullify_over(ctx);
     tmp = load_frw0_i32(ra);
 
     func(tmp, tcg_env, tmp);
@@ -1842,7 +1875,7 @@ static bool do_fop_wed(DisasContext *ctx, unsigned rt, unsigned ra,
     TCGv_i32 dst;
     TCGv_i64 src;
 
-    nullify_over(ctx);
+    fp_nullify_over(ctx);
     src = load_frd(ra);
     dst = tcg_temp_new_i32();
 
@@ -1857,7 +1890,7 @@ static bool do_fop_ded(DisasContext *ctx, unsigned rt, unsigned ra,
 {
     TCGv_i64 tmp;
 
-    nullify_over(ctx);
+    fp_nullify_over(ctx);
     tmp = load_frd0(ra);
 
     func(tmp, tcg_env, tmp);
@@ -1872,7 +1905,7 @@ static bool do_fop_dew(DisasContext *ctx, unsigned rt, unsigned ra,
     TCGv_i32 src;
     TCGv_i64 dst;
 
-    nullify_over(ctx);
+    fp_nullify_over(ctx);
     src = load_frw0_i32(ra);
     dst = tcg_temp_new_i64();
 
@@ -1888,7 +1921,7 @@ static bool do_fop_weww(DisasContext *ctx, unsigned rt,
 {
     TCGv_i32 a, b;
 
-    nullify_over(ctx);
+    fp_nullify_over(ctx);
     a = load_frw0_i32(ra);
     b = load_frw0_i32(rb);
 
@@ -1904,7 +1937,7 @@ static bool do_fop_dedd(DisasContext *ctx, unsigned rt,
 {
     TCGv_i64 a, b;
 
-    nullify_over(ctx);
+    fp_nullify_over(ctx);
     a = load_frd0(ra);
     b = load_frd0(rb);
 
@@ -4133,7 +4166,7 @@ static bool trans_fid_f(DisasContext *ctx, arg_fid_f *a)
         ret = 0x0f080000000000ULL; /* PA7300LC (PCX-L2) */
     }
 
-    nullify_over(ctx);
+    fp_nullify_over(ctx);
     save_frd(0, tcg_constant_i64(ret));
     return nullify_end(ctx);
 }
@@ -4239,12 +4272,18 @@ static bool trans_fnegabs_d(DisasContext *ctx, arg_fclass01 *a)
 
 static bool trans_fcnv_d_f(DisasContext *ctx, arg_fclass01 *a)
 {
-    return do_fop_wed(ctx, a->t, a->r, gen_helper_fcnv_d_s);
+    fp_nullify_over(ctx);
+    gen_helper_fcnv_d_s(tcg_env, load_frd(a->r), tcg_constant_i32(a->t),
+                       tcg_constant_i32(ctx->insn));
+    return nullify_end(ctx);
 }
 
 static bool trans_fcnv_f_d(DisasContext *ctx, arg_fclass01 *a)
 {
-    return do_fop_dew(ctx, a->t, a->r, gen_helper_fcnv_s_d);
+    fp_nullify_over(ctx);
+    gen_helper_fcnv_s_d(tcg_env, load_frw0_i32(a->r), tcg_constant_i32(a->t),
+                       tcg_constant_i32(ctx->insn));
+    return nullify_end(ctx);
 }
 
 static bool trans_fcnv_w_f(DisasContext *ctx, arg_fclass01 *a)
@@ -4375,7 +4414,7 @@ static bool trans_fcmp_f(DisasContext *ctx, arg_fclass2 *a)
 {
     TCGv_i32 ta, tb, tc, ty;
 
-    nullify_over(ctx);
+    fp_nullify_over(ctx);
 
     ta = load_frw0_i32(a->r1);
     tb = load_frw0_i32(a->r2);
@@ -4392,7 +4431,7 @@ static bool trans_fcmp_d(DisasContext *ctx, arg_fclass2 *a)
     TCGv_i64 ta, tb;
     TCGv_i32 tc, ty;
 
-    nullify_over(ctx);
+    fp_nullify_over(ctx);
 
     ta = load_frd0(a->r1);
     tb = load_frd0(a->r2);
@@ -4411,9 +4450,6 @@ static bool trans_ftest(DisasContext *ctx, arg_ftest *a)
     TCGv_i64 t;
 
     nullify_over(ctx);
-
-    t = tcg_temp_new_i64();
-    tcg_gen_ld32u_i64(t, tcg_env, offsetof(CPUHPPAState, fr0_shadow));
 
     if (a->y == 1) {
         switch (a->c) {
@@ -4450,6 +4486,9 @@ static bool trans_ftest(DisasContext *ctx, arg_ftest *a)
         mask = R_FPSR_CA0_MASK >> cbit;
     }
 
+    gen_fp_assist_check(ctx);
+    t = tcg_temp_new_i64();
+    tcg_gen_ld32u_i64(t, tcg_env, offsetof(CPUHPPAState, fr0_shadow));
     ctx->null_cond = cond_make_ti(tc, t, mask);
     return nullify_end(ctx);
 }
@@ -4512,7 +4551,7 @@ static bool trans_xmpyu(DisasContext *ctx, arg_xmpyu *a)
 {
     TCGv_i64 x, y;
 
-    nullify_over(ctx);
+    fp_nullify_over(ctx);
 
     x = load_frw0_i64(a->r1);
     y = load_frw0_i64(a->r2);
@@ -4580,7 +4619,7 @@ static bool trans_fmpyfadd_f(DisasContext *ctx, arg_fmpyfadd_f *a)
 {
     TCGv_i32 x, y, z;
 
-    nullify_over(ctx);
+    fp_nullify_over(ctx);
     x = load_frw0_i32(a->rm1);
     y = load_frw0_i32(a->rm2);
     z = load_frw0_i32(a->ra3);
@@ -4599,7 +4638,7 @@ static bool trans_fmpyfadd_d(DisasContext *ctx, arg_fmpyfadd_d *a)
 {
     TCGv_i64 x, y, z;
 
-    nullify_over(ctx);
+    fp_nullify_over(ctx);
     x = load_frd0(a->rm1);
     y = load_frd0(a->rm2);
     z = load_frd0(a->ra3);

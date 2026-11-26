@@ -113,6 +113,10 @@ static void update_fr0_op(CPUHPPAState *env, uintptr_t ra)
         shadow = FIELD_DP32(shadow, FPSR, T, 1);
         /* fill exception register #1, which is lower 32-bits of fr[0] */
 #if !defined(CONFIG_USER_ONLY)
+        if (!hppa_is_pa20(env)) {
+            /* Drop any retained ER2 record before an immediate trap. */
+            env->fr[1] = (uint32_t)env->fr[1];
+        }
         if (hard_exp & (R_FPSR_ENA_O_MASK | R_FPSR_ENA_U_MASK)) {
             /* over- and underflow both set overflow flag only */
             fr1 = FIELD_DP32(fr1, FPSR, C, 1);
@@ -233,18 +237,49 @@ float64 HELPER(frem_d)(CPUHPPAState *env, float64 a, float64 b)
     return ret;
 }
 
-float64 HELPER(fcnv_s_d)(CPUHPPAState *env, float32 arg)
+#ifndef CONFIG_USER_ONLY
+static void defer_fp_unimplemented(CPUHPPAState *env, uint32_t insn)
 {
-    float64 ret = float32_to_float64(arg, &env->fp_status);
+    uint32_t code = (insn >> 26) == 0x0c ? 0x09 : 0x0b;
+    uint32_t record = deposit32(insn, 26, 6, code);
+
+    /* PA7300LC records the original operation in exception register 2. */
+    env->fr[1] = deposit64(env->fr[1], 32, 32, record);
+    env->fr0_shadow |= R_FPSR_T_MASK;
+    env->fr[0] = deposit64(env->fr[0], 32, 32, env->fr0_shadow);
+}
+#endif
+
+void HELPER(fcnv_s_d)(CPUHPPAState *env, float32 arg, uint32_t reg, uint32_t insn)
+{
+    float64 ret;
+
+#ifndef CONFIG_USER_ONLY
+    if (!hppa_is_pa20(env) && float32_is_any_nan(arg)) {
+        defer_fp_unimplemented(env, insn);
+        return;
+    }
+#endif
+    ret = float32_to_float64(arg, &env->fp_status);
     update_fr0_op(env, GETPC());
-    return ret;
+    env->fr[reg] = ret;
 }
 
-float32 HELPER(fcnv_d_s)(CPUHPPAState *env, float64 arg)
+void HELPER(fcnv_d_s)(CPUHPPAState *env, float64 arg, uint32_t reg, uint32_t insn)
 {
-    float32 ret = float64_to_float32(arg, &env->fp_status);
+    float32 ret;
+    unsigned shift = reg & 32 ? 0 : 32;
+
+#ifndef CONFIG_USER_ONLY
+    if (!hppa_is_pa20(env) && float64_is_any_nan(arg)) {
+        defer_fp_unimplemented(env, insn);
+        return;
+    }
+#endif
+    ret = float64_to_float32(arg, &env->fp_status);
     update_fr0_op(env, GETPC());
-    return ret;
+    reg &= 31;
+    env->fr[reg] = deposit64(env->fr[reg], shift, 32, ret);
 }
 
 float32 HELPER(fcnv_w_s)(CPUHPPAState *env, int32_t arg)
