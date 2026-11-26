@@ -44,7 +44,7 @@ static vaddr alpha_cpu_get_pc(CPUState *cs)
 static TCGTBCPUState alpha_get_tb_cpu_state(CPUState *cs)
 {
     CPUAlphaState *env = cpu_env(cs);
-    uint32_t flags = env->flags & ENV_FLAG_TB_MASK;
+    uint64_t flags = env->flags & ENV_FLAG_TB_MASK;
 
 #ifdef CONFIG_USER_ONLY
     flags |= TB_FLAG_UNALIGN * !cs->prctl_unalign_sigbus;

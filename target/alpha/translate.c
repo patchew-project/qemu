@@ -48,7 +48,7 @@ struct DisasContext {
 #ifdef CONFIG_USER_ONLY
     MemOp unalign;
 #endif
-    uint32_t tbflags;
+    uint64_t tbflags;
     int mem_idx;
 
     /* True if generating pc-relative code.  */
