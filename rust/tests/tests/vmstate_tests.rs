@@ -483,3 +483,52 @@ fn test_vmstate_validate() {
     // The last VMStateField in VMSTATE_FOOD.
     assert_eq!(foo_fields[3].flags, VMStateFlags::VMS_END);
 }
+
+// =========================== Test VMSTATE_FOOE ===========================
+// Test the use cases of the vmstate macro, corresponding to the following C
+// macro variants:
+//   * VMSTATE_FOOE:
+//     - VMSTATE_VARRAY with a `usize` length
+#[repr(C)]
+#[derive(Default)]
+struct FooE {
+    arr: [u8; FOO_ARRAY_MAX],
+    num: usize,
+}
+
+static VMSTATE_FOOE: VMStateDescription<FooE> = VMStateDescriptionBuilder::<FooE>::new()
+    .name(c"foo_e")
+    .version_id(1)
+    .minimum_version_id(1)
+    .fields(vmstate_fields! {
+        vmstate_of!(FooE, arr[0 .. num]),
+    })
+    .build();
+
+#[test]
+fn test_vmstate_varray_usize() {
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOE.as_ref().fields, 2) };
+
+    // 1st VMStateField ("arr") in VMSTATE_FOOE
+    assert_eq!(
+        unsafe { CStr::from_ptr(foo_fields[0].name) }.to_bytes_with_nul(),
+        b"arr\0"
+    );
+    assert_eq!(foo_fields[0].offset, 0);
+    assert_eq!(
+        foo_fields[0].num_indirect.offset,
+        std::mem::offset_of!(FooE, num) as u32
+    );
+    assert_eq!(foo_fields[0].num_indirect.size, size_of::<usize>() as u8);
+    assert_eq!(foo_fields[0].info, unsafe { &vmstate_info_uint8 });
+    assert_eq!(foo_fields[0].version_id, 0);
+    assert_eq!(foo_fields[0].size, 1);
+    assert_eq!(foo_fields[0].num, 0);
+    assert_eq!(foo_fields[0].flags, VMStateFlags::VMS_VARRAY);
+    assert!(foo_fields[0].vmsd.is_null());
+    assert!(foo_fields[0].field_exists.is_none());
+
+    // The last VMStateField in VMSTATE_FOOE.
+    assert_eq!(foo_fields[1].flags, VMStateFlags::VMS_END);
+}
