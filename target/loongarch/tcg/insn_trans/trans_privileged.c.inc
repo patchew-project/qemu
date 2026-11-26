@@ -43,7 +43,7 @@ GEN_FALSE_TRANS(idle)
 #else
 
 typedef void (*GenCSRRead)(TCGv dest, TCGv_ptr env);
-typedef void (*GenCSRWrite)(TCGv dest, TCGv_ptr env, TCGv src);
+typedef void (*GenCSRWrite)(TCGv dest, TCGv_ptr env, TCGv src, TCGv_i32 csr);
 
 static bool check_plv(DisasContext *ctx)
 {
@@ -111,15 +111,15 @@ static void init_csr_wrmask(void)
 
 void loongarch_csr_translate_init(void)
 {
-    SET_CSR_FUNC(STLBPS, NULL, gen_helper_csrwr_stlbps);
-    SET_CSR_FUNC(ESTAT, NULL, gen_helper_csrwr_estat);
-    SET_CSR_FUNC(ASID,  NULL, gen_helper_csrwr_asid);
+    SET_CSR_FUNC(STLBPS, NULL, gen_helper_csrwr);
+    SET_CSR_FUNC(ESTAT, NULL, gen_helper_csrwr);
+    SET_CSR_FUNC(ASID,  NULL, gen_helper_csrwr);
     SET_CSR_FUNC(PGD,   gen_helper_csrrd_pgd, NULL);
-    SET_CSR_FUNC(PWCL,  NULL, gen_helper_csrwr_pwcl);
-    SET_CSR_FUNC(PWCH,  NULL, gen_helper_csrwr_pwch);
-    SET_CSR_FUNC(TCFG,  NULL, gen_helper_csrwr_tcfg);
+    SET_CSR_FUNC(PWCL,  NULL, gen_helper_csrwr);
+    SET_CSR_FUNC(PWCH,  NULL, gen_helper_csrwr);
+    SET_CSR_FUNC(TCFG,  NULL, gen_helper_csrwr);
     SET_CSR_FUNC(TVAL,  gen_helper_csrrd_tval, NULL);
-    SET_CSR_FUNC(TICLR, NULL, gen_helper_csrwr_ticlr);
+    SET_CSR_FUNC(TICLR, NULL, gen_helper_csrwr);
     SET_CSR_FUNC(MSGIR, gen_helper_csrrd_msgir, NULL);
     init_csr_wrmask();
 }
@@ -178,6 +178,7 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
     GenCSRWrite writefn;
     tcg_target_long offset;
     bool rdonly;
+    TCGv_i32 csrid;
 
     if (check_plv(ctx)) {
         return false;
@@ -198,7 +199,8 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
     writefn = (GenCSRWrite)csr->writefn;
     if (writefn) {
         dest = gpr_dst(ctx, a->rd, EXT_NONE);
-        writefn(dest, tcg_env, src1);
+        csrid = tcg_constant_i32(a->csr);
+        writefn(dest, tcg_env, src1, csrid);
     } else {
         dest = tcg_temp_new();
         offset = get_csr_offset(csr, 0);
@@ -223,6 +225,7 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
     GenCSRWrite writefn;
     tcg_target_long offset;
     bool rdonly;
+    TCGv_i32 csrid;
 
     if (check_plv(ctx)) {
         return false;
@@ -260,7 +263,8 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
 
     writefn = (GenCSRWrite)csr->writefn;
     if (writefn) {
-        writefn(oldv, tcg_env, newv);
+        csrid = tcg_constant_i32(a->csr);
+        writefn(oldv, tcg_env, newv, csrid);
     } else {
         tcg_gen_st_tl(newv, tcg_env, offset);
     }

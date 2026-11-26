@@ -17,6 +17,7 @@
 #include "hw/core/irq.h"
 #include "cpu-csr.h"
 #include "cpu-mmu.h"
+#include "csr.h"
 
 target_ulong HELPER(csrwr_stlbps)(CPULoongArchState *env, target_ulong val)
 {
@@ -185,3 +186,45 @@ target_ulong HELPER(csrwr_pwch)(CPULoongArchState *env, target_ulong val)
     sys->CSR_PWCH = val;
     return old_v;
  }
+
+target_ulong HELPER(csrwr)(CPULoongArchState *env, target_ulong val,
+                           uint32_t csr)
+{
+    const CSRInfo *csrinfo;
+    int64_t *pcsr, offset, old_v = 0;
+
+    switch (csr) {
+    case LOONGARCH_CSR_STLBPS:
+        return HELPER(csrwr_stlbps)(env, val);
+
+    case LOONGARCH_CSR_ESTAT:
+        return HELPER(csrwr_estat)(env, val);
+
+    case LOONGARCH_CSR_ASID:
+        return HELPER(csrwr_asid)(env, val);
+
+    case LOONGARCH_CSR_TCFG:
+        return HELPER(csrwr_tcfg)(env, val);
+
+    case LOONGARCH_CSR_TICLR:
+        return HELPER(csrwr_ticlr)(env, val);
+
+    case LOONGARCH_CSR_PWCL:
+        return HELPER(csrwr_pwcl)(env, val);
+
+    case LOONGARCH_CSR_PWCH:
+        return HELPER(csrwr_pwch)(env, val);
+
+    default:
+        csrinfo = get_csr(csr);
+        if (!csrinfo) {
+            return old_v;
+        }
+
+        offset = get_csr_offset(csrinfo, 0);
+        pcsr = (int64_t *)((void*)env + offset);
+        old_v = *pcsr;
+        *pcsr = val & csrinfo->wrmask;
+        return old_v;
+    }
+}
