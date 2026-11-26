@@ -18,6 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import errno
 import os
 import iotests
 
@@ -32,6 +33,15 @@ drive_opts = f'node-name=disk,driver={iotests.imgfmt},' \
 
 class TestPreallocateBase(iotests.QMPTestCase):
     def setUp(self):
+        with iotests.FilePath('zero-probe.raw') as probe_path:
+            iotests.qemu_img_create('-f', 'raw', probe_path, '1M')
+            ret = iotests.qemu_io('-f', 'raw', '-c', 'write -z -n -q 0 1M',
+                                  probe_path, check=False)
+            if ret.returncode != 0:
+                if os.strerror(errno.ENOTSUP) in ret.stdout:
+                    self.case_skip("File backend does not support "
+                                   "efficient zero writes")
+            self.assertEqual(ret.returncode, 0, ret.stdout)
         iotests.qemu_img_create('-f', iotests.imgfmt, disk, str(10 * MiB))
 
     def tearDown(self):
