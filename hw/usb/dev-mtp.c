@@ -1236,6 +1236,16 @@ static void usb_mtp_object_delete(MTPState *s, uint32_t handle,
     }
 }
 
+static void usb_mtp_reset_pending_write(MTPState *s)
+{
+    g_free(s->dataset.filename);
+    s->dataset.filename = NULL;
+    s->dataset.size = 0;
+    s->dataset.format = 0;
+    s->dataset.parent_handle = 0;
+    s->write_pending = false;
+}
+
 static void usb_mtp_command(MTPState *s, MTPControl *c)
 {
     MTPData *data_in = NULL;
@@ -1282,6 +1292,7 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         trace_usb_mtp_op_close_session(s->dev.addr);
         s->session = 0;
         s->next_handle = 0;
+        usb_mtp_reset_pending_write(s);
         usb_mtp_file_monitor_cleanup(s);
         usb_mtp_object_free(s, QTAILQ_FIRST(&s->objects));
         assert(QTAILQ_EMPTY(&s->objects));
@@ -1509,6 +1520,7 @@ static void usb_mtp_handle_reset(USBDevice *dev)
     s->data_out = NULL;
     g_free(s->result);
     s->result = NULL;
+    usb_mtp_reset_pending_write(s);
 }
 
 static void usb_mtp_handle_control(USBDevice *dev, USBPacket *p,
@@ -1531,9 +1543,7 @@ static void usb_mtp_handle_control(USBDevice *dev, USBPacket *p,
             usb_mtp_data_free(s->data_in);
             s->data_in = NULL;
             if (s->write_pending) {
-                g_free(s->dataset.filename);
-                s->write_pending = false;
-                s->dataset.size = 0;
+                usb_mtp_reset_pending_write(s);
             }
             usb_mtp_data_free(s->data_out);
             s->data_out = NULL;
@@ -1623,7 +1633,7 @@ static void usb_mtp_write_data(MTPState *s, uint32_t handle)
         if (!parent || !s->write_pending) {
             usb_mtp_queue_result(s, RES_INVALID_OBJECTINFO, d->trans,
                 0, 0, 0, 0);
-            return;
+            goto close;
         }
 
         if (s->dataset.filename) {
@@ -1700,10 +1710,10 @@ close:
         close(d->fd);
         d->fd = -1;
     }
-    g_free(s->dataset.filename);
-    s->dataset.size = 0;
+    usb_mtp_data_free(s->data_out);
+    s->data_out = NULL;
+    usb_mtp_reset_pending_write(s);
     g_free(path);
-    s->write_pending = false;
 }
 
 static void usb_mtp_write_metadata(MTPState *s)
@@ -1749,6 +1759,7 @@ static void usb_mtp_write_metadata(MTPState *s)
         next_handle = o->handle;
     }
 
+    g_free(s->dataset.filename);
     s->dataset.filename = filename;
     s->dataset.format = dataset->format;
     s->dataset.size = dataset->size;
