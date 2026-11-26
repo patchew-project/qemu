@@ -135,6 +135,7 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
     const CSRInfo *csr;
     GenCSRWrite writefn;
     tcg_target_long offset;
+    bool rdonly;
 
     if (check_plv(ctx)) {
         return false;
@@ -145,10 +146,12 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
         gen_set_gpr(a->rd, tcg_constant_tl(0), EXT_NONE);
         return true;
     }
-    if (!check_csr_flags(ctx, csr, true)) {
-        /* CSR is readonly: trap. */
-        return false;
-    }
+
+    /*
+     * For a read-only CSR, the CSR itself must not be updated, but the
+     * destination GPR rd must still be loaded with the value of CSR
+     */
+    rdonly = !check_csr_flags(ctx, csr, true);
     src1 = gpr_src(ctx, a->rd, EXT_NONE);
     writefn = (GenCSRWrite)csr->writefn;
     if (writefn) {
@@ -158,7 +161,10 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
         dest = tcg_temp_new();
         offset = get_csr_offset(csr, 0);
         tcg_gen_ld_tl(dest, tcg_env, offset);
-        tcg_gen_st_tl(src1, tcg_env, offset);
+
+        if (!rdonly) {
+            tcg_gen_st_tl(src1, tcg_env, offset);
+        }
     }
     gen_set_gpr(a->rd, dest, EXT_NONE);
     return true;
@@ -170,6 +176,7 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
     const CSRInfo *csr;
     GenCSRWrite writefn;
     tcg_target_long offset;
+    bool rdonly;
 
     if (check_plv(ctx)) {
         return false;
@@ -181,14 +188,7 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
         return true;
     }
 
-    if (!check_csr_flags(ctx, csr, true)) {
-        /* CSR is readonly: trap. */
-        return false;
-    }
-
-    /* So far only readonly csrs have readfn. */
-    assert(csr->readfn == NULL);
-
+    rdonly = !check_csr_flags(ctx, csr, true);
     src1 = gpr_src(ctx, a->rd, EXT_NONE);
     mask = gpr_src(ctx, a->rj, EXT_NONE);
     oldv = tcg_temp_new();
@@ -197,6 +197,13 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
 
     offset = get_csr_offset(csr, 0);
     tcg_gen_ld_tl(oldv, tcg_env, offset);
+    if (rdonly) {
+        /* So far only readonly csrs have readfn. */
+        assert(csr->readfn == NULL);
+        gen_set_gpr(a->rd, oldv, EXT_NONE);
+        return true;
+    }
+
     tcg_gen_and_tl(newv, src1, mask);
     tcg_gen_andc_tl(temp, oldv, mask);
     tcg_gen_or_tl(newv, newv, temp);
