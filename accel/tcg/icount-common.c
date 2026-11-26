@@ -104,15 +104,26 @@ void icount_update(CPUState *cpu)
                          &timers_state.vm_clock_lock);
 }
 
-static int64_t icount_get_raw_locked(void)
+/* Return the running vCPU of this thread, if any, checking it may do I/O */
+static CPUState *icount_running_cpu(void)
 {
     CPUState *cpu = current_cpu;
 
-    if (cpu && cpu->running) {
-        if (!cpu->neg.can_do_io) {
-            error_report("Bad icount read");
-            exit(1);
-        }
+    if (!cpu || !cpu->running) {
+        return NULL;
+    }
+    if (!cpu->neg.can_do_io) {
+        error_report("Bad icount read");
+        exit(1);
+    }
+    return cpu;
+}
+
+static int64_t icount_get_raw_locked(void)
+{
+    CPUState *cpu = icount_running_cpu();
+
+    if (cpu) {
         /* Take into account what has run */
         icount_update_locked(cpu);
     }
