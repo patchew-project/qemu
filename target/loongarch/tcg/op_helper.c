@@ -97,7 +97,8 @@ uint64_t HELPER(rdtime_d)(CPULoongArchState *env)
     CPUSysState *sys = container_of(timer, CPUSysState, timer_state);
 
     plv = FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, PLV);
-    if (extract64(sys->CSR_MISC, R_CSR_MISC_DRDTL_SHIFT + plv, 1)) {
+    if (plv >= 1 &&
+        extract64(sys->CSR_MISC, R_CSR_MISC_DRDTL_SHIFT + plv - 1, 1)) {
         do_raise_exception(env, EXCCODE_IPE, GETPC());
     }
 
