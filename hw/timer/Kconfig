@@ -78,3 +78,7 @@ config AVR_TIMER16
 
 config HEX_QTIMER
     bool
+
+config DW_APB_TIMER
+    bool
+    select PTIMER
