@@ -65,7 +65,7 @@ struct TranslationBlock {
      * arm: an extension of tb->flags,
      * s390x: instruction data for EXECUTE,
      * sparc: the next pc of the instruction queue (for delay slots),
-     * riscv: an extension of tb->flags.
+     * riscv: misa_ext.
      */
     uint64_t cs_base;
 
