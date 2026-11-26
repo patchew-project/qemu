@@ -370,13 +370,13 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
 {
     CPUHexagonState *env = cpu_env(cs);
     vaddr pc = env->gpr[HEX_REG_PC];
-    uint32_t hex_flags = 0;
+    uint64_t hex_flags = 0;
 #ifndef CONFIG_USER_ONLY
     HexagonCPU *cpu;
 #endif
 
     if (pc == env->gpr[HEX_REG_SA0]) {
-        hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP, 1);
+        hex_flags = FIELD_DP64(hex_flags, TB_FLAGS, IS_TIGHT_LOOP, 1);
     }
     if (pc & PCALIGN_MASK) {
         env->cause_code = HEX_CAUSE_PC_NOT_ALIGNED;
@@ -385,22 +385,22 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
 
 #ifndef CONFIG_USER_ONLY
     cpu = env_archcpu(env);
-    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX,
+    hex_flags = FIELD_DP64(hex_flags, TB_FLAGS, MMU_INDEX,
                            cpu_mmu_index(env_cpu(env), false));
-    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED,
+    hex_flags = FIELD_DP64(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED,
                            cpu->hvx_ctx[0] &&
                            GET_SSR_FIELD(SSR_XE, env->t_sreg[HEX_SREG_SSR]));
-    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, CPU_MODE,
+    hex_flags = FIELD_DP64(hex_flags, TB_FLAGS, CPU_MODE,
                            get_cpu_mode(env));
     /* Single-step applies only to user and guest mode packets */
-    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, SS_ACTIVE,
+    hex_flags = FIELD_DP64(hex_flags, TB_FLAGS, SS_ACTIVE,
                            GET_SSR_FIELD(SSR_SS, env->t_sreg[HEX_SREG_SSR]) &&
                            get_cpu_mode(env) != HEX_CPU_MODE_MONITOR);
-    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HMX_COPROC_ENABLED,
+    hex_flags = FIELD_DP64(hex_flags, TB_FLAGS, HMX_COPROC_ENABLED,
                            cpu->hmx &&
                            GET_SSR_FIELD(SSR_XE2, env->t_sreg[HEX_SREG_SSR]));
 #else
-    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
+    hex_flags = FIELD_DP64(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
 #endif
 
     return (TCGTBCPUState){ .pc = pc, .flags = hex_flags };

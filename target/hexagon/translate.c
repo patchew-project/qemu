@@ -1570,9 +1570,9 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     HexagonCPU *hex_cpu = env_archcpu(cpu_env(cs));
-    uint32_t hex_flags = dcbase->tb->flags;
+    uint64_t hex_flags = dcbase->tb->flags;
 
-    ctx->mem_idx = FIELD_EX32(hex_flags, TB_FLAGS, MMU_INDEX);
+    ctx->mem_idx = FIELD_EX64(hex_flags, TB_FLAGS, MMU_INDEX);
     ctx->num_packets = 0;
     ctx->num_insns = 0;
     ctx->num_hvx_insns = 0;
@@ -1582,23 +1582,23 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->hlx_check_emitted = false;
 #endif
     ctx->branch_cond = TCG_COND_NEVER;
-    ctx->is_tight_loop = FIELD_EX32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP);
+    ctx->is_tight_loop = FIELD_EX64(hex_flags, TB_FLAGS, IS_TIGHT_LOOP);
     ctx->short_circuit = hex_cpu->cfg.short_circuit;
     ctx->hex_def = HEXAGON_CPU_GET_CLASS(hex_cpu)->hex_def;
     ctx->ieee_fp_extension = hex_cpu->cfg.ieee_fp_extension;
 #ifndef CONFIG_USER_ONLY
     ctx->hvx_coproc_enabled =
-        FIELD_EX32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED);
+        FIELD_EX64(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED);
     ctx->hvx_check_emitted = false;
-    ctx->cpu_mode = FIELD_EX32(hex_flags, TB_FLAGS, CPU_MODE);
-    ctx->ss_active = FIELD_EX32(hex_flags, TB_FLAGS, SS_ACTIVE);
+    ctx->cpu_mode = FIELD_EX64(hex_flags, TB_FLAGS, CPU_MODE);
+    ctx->ss_active = FIELD_EX64(hex_flags, TB_FLAGS, SS_ACTIVE);
     if (ctx->ss_active) {
         /* Step one packet, and let endloop0 branch within the packet */
         ctx->base.max_insns = 1;
         ctx->is_tight_loop = false;
     }
     ctx->hmx_coproc_enabled =
-        FIELD_EX32(hex_flags, TB_FLAGS, HMX_COPROC_ENABLED);
+        FIELD_EX64(hex_flags, TB_FLAGS, HMX_COPROC_ENABLED);
     ctx->hmx_check_emitted = false;
 #endif
 }
