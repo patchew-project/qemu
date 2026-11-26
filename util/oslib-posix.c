@@ -107,6 +107,10 @@ int qemu_get_thread_id(void)
     return _lwp_self();
 #elif defined(__OpenBSD__)
     return getthrid();
+#elif defined(__APPLE__)
+    uint64_t tid;
+    pthread_threadid_np(NULL, &tid);
+    return tid & INT_MAX;
 #else
     return getpid();
 #endif
