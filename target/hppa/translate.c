@@ -82,7 +82,7 @@ typedef struct DisasContext {
     TCGv_i64 zero;
 
     uint32_t insn;
-    uint32_t tb_flags;
+    uint64_t tb_flags;
     int mmu_idx;
     int privilege;
     uint32_t psw_xb;

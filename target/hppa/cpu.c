@@ -56,7 +56,7 @@ static vaddr hppa_cpu_get_pc(CPUState *cs)
 static TCGTBCPUState hppa_get_tb_cpu_state(CPUState *cs)
 {
     CPUHPPAState *env = cpu_env(cs);
-    uint32_t flags = 0;
+    uint64_t flags = 0;
     uint64_t cs_base = 0;
     vaddr pc;
 
