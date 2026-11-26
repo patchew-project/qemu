@@ -36,7 +36,7 @@
 typedef struct DisasContext {
     DisasContextBase base;
 
-    uint32_t tbflags;  /* should stay unmodified during the TB translation */
+    uint64_t tbflags;  /* should stay unmodified during the TB translation */
     uint32_t envflags; /* should stay in sync with env->flags using TCG ops */
     int memidx;
     int gbank;
@@ -2177,7 +2177,7 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
 static void sh4_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    uint32_t tbflags;
+    uint64_t tbflags;
     int bound;
 
     ctx->tbflags = tbflags = ctx->base.tb->flags;

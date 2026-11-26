@@ -47,7 +47,7 @@ static vaddr superh_cpu_get_pc(CPUState *cs)
 static TCGTBCPUState superh_get_tb_cpu_state(CPUState *cs)
 {
     CPUSH4State *env = cpu_env(cs);
-    uint32_t flags;
+    uint64_t flags;
 
     flags = env->flags
             | (env->fpscr & TB_FLAG_FPSCR_MASK)
