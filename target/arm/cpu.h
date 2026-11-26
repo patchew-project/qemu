@@ -2484,8 +2484,9 @@ static inline bool arm_sctlr_b(const CPUARMState *env)
 uint64_t arm_sctlr(CPUARMState *env, int el);
 
 /*
- * We have more than 32-bits worth of state per TB, so we split the data
- * between tb->flags and tb->cs_base, which is otherwise unused for ARM.
+ * We have more than 64-bits worth of state per TB (AArch64 needs
+ * TBFLAG_ANY (15 bits) plus TBFLAG_A64 (51 bits)), so we split the data
+ * between tb->flags and tb->cs_base.
  * We collect these two parts in CPUARMTBFlags where they are named
  * flags and flags2 respectively.
  *
