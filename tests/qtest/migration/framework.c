@@ -41,38 +41,86 @@ static QTestMigrationState dst_state;
 static char *tmpfs;
 
 /*
- * Wait for some output in the serial output file,
- * we get an 'A' followed by an endless string of 'B's
- * but on the destination we won't have the A (unless we enabled suspend/resume)
+ * Wait for some output in the serial output file, we get a so called
+ * "A" pattern followed by a endless string of the so called "B"
+ * pattern. On the destination we won't have the A (unless we enabled
+ * suspend/resume). Depending on the guest code being used, the
+ * patterns are different:
+ *
+ * For bootfile.c:
+ * A='A'
+ * B='B'
+ *
+ * For stress.c:
+ * A="/init (<tid>): INFO: RAM # GiB across # CPUs"
+ * B="/init (<tid>): INFO: #ms copied # GB in #ms"
  */
 void wait_for_serial(const char *side)
 {
     g_autofree char *serialpath = g_strdup_printf("%s/%s", tmpfs, side);
     FILE *serialfile = fopen(serialpath, "r");
+    char buf[128];
+    int i = 0;
+    const char *a_b[] = { "AB", "ABB", "ABBB", "B", "BB", "BBB", "BBBB" };
+    const char *stress[] = { "/init (", ": INFO: RAM" };
+    const char *skip[] = { "[", "]" };
+    const char *bad[] = { "panic+", "Code:", "BUG:" };
 
-    do {
-        int readvalue = fgetc(serialfile);
+    for (;;) {
 
-        switch (readvalue) {
-        case 'A':
-            /* Fine */
-            break;
+        if (!fgets(buf, 128, serialfile)) {
+            int c = fgetc(serialfile);
 
-        case 'B':
-            /* It's alive! */
-            fclose(serialfile);
-            return;
-
-        case EOF:
-            fseek(serialfile, 0, SEEK_SET);
-            usleep(1000);
-            break;
-
-        default:
-            fprintf(stderr, "Unexpected %d on %s serial\n", readvalue, side);
-            g_assert_not_reached();
+            if (c == EOF) {
+                usleep(1000);
+                fseek(serialfile, 0, SEEK_SET);
+                continue;
+            }
         }
-    } while (true);
+
+        /* look for the main patterns */
+        i = 0;
+        while (i < ARRAY_SIZE(a_b)) {
+            if (g_str_equal(buf, a_b[i++])) {
+                goto found;
+            }
+        }
+
+        i = 0;
+        while (i < ARRAY_SIZE(stress)) {
+            if (strstr(buf, stress[i++])) {
+                goto found;
+            }
+        }
+
+        /*
+         * Look for the stress.c patterns: dmesg lines when 'quiet' is
+         * not used in the kernel cmdline or kernel panic messages.
+         */
+
+        i = 0;
+        while (i < ARRAY_SIZE(bad)) {
+            if (strstr(buf, bad[i++])) {
+                goto err;
+            }
+        }
+
+        i = 0;
+        while (i < ARRAY_SIZE(skip)) {
+            if (strstr(buf, skip[i++])) {
+                break;
+            }
+        }
+        usleep(1000);
+    }
+
+err:
+    fprintf(stderr, "Unexpected string on %s: %s\n", side, buf);
+    fclose(serialfile);
+    g_assert_not_reached();
+
+found:
+    fclose(serialfile);
 }
 
 static void cleanup(const char *filename)
