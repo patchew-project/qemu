@@ -47,6 +47,7 @@
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_hvx_context.h"
 #include "hw/hexagon/hexagon_hmx_context.h"
+#include "hw/hexagon/hexagon_pmu.h"
 #endif
 
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
@@ -76,6 +77,8 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UINT32("htid", HexagonCPU, htid, 0),
     DEFINE_PROP_LINK("hlx", HexagonCPU, hlx,
                      TYPE_HEXAGON_HLX, HexagonHLXState *),
+    DEFINE_PROP_LINK("pmu", HexagonCPU, pmu, TYPE_HEXAGON_PMU,
+                     HexagonPMUState *),
 #endif
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, cfg.lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, cfg.lldb_stack_adjust,
@@ -118,7 +121,10 @@ const char * const hexagon_sregnames[] = {
     "commit14t",  "commit15t",  "commit16t",  "pcycle9t",   "pcycle10t",
     "pcycle11t",  "pcycle12t",  "pcycle13t",  "pcycle14t",  "pcycle15t",
     "pcycle16t",  "ipend",      "iad",        "isdbst1",    "isdbst2",
-    "brkptinfo1",
+    "brkptinfo1", "s106",       "s107",       "s108",       "s109",
+    "s110",       "pmuevtcfg2", "s112",       "s113",       "s114",
+    "s115",       "pmucnt8",    "pmucnt9",    "pmucnt10",   "pmucnt11",
+    "pmustid2",
 };
 
 G_STATIC_ASSERT(NUM_SREGS == ARRAY_SIZE(hexagon_sregnames));
@@ -130,7 +136,7 @@ const char * const hexagon_gregnames[] = {
     "gpcycle6t",  "gpmucnt4",  "gpmucnt5",  "gpmucnt6",  "gpmucnt7",
     "gcommit7t",  "gcommit8t", "gpcycle7t", "gpcycle8t", "gpcyclelo",
     "gpcyclehi",  "gpmucnt0",  "gpmucnt1",  "gpmucnt2",  "gpmucnt3",
-    "g30",        "g31",
+    "gpmucnt8",   "gpmucnt9",
 };
 #endif
 /*
@@ -399,6 +405,11 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HMX_COPROC_ENABLED,
                            cpu->hmx &&
                            GET_SSR_FIELD(SSR_XE2, env->t_sreg[HEX_SREG_SSR]));
+    /* Like the MMU index, this runs per TB lookup: read SYSCFG unlocked. */
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PMU_ENABLED,
+                           GET_SYSCFG_FIELD(SYSCFG_PM,
+                               hexagon_globalreg_read_syscfg_unlocked(
+                                   cpu->globalregs)));
 #else
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
 #endif
@@ -518,6 +529,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->k0_lock_state = HEX_LOCK_UNLOCKED;
     env->tlb_lock_count = 0;
     env->k0_lock_count = 0;
+    memset(&env->pmu, 0, sizeof(env->pmu));
 
     env->t_sreg[HEX_SREG_HTID] = cpu->htid;
     env->threadId = cpu->htid;
@@ -995,6 +1007,17 @@ uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
         return ssr_ce ?
             hexagon_globalreg_read(cpu->globalregs, HEX_SREG_PCYCLEHI,
                                    env->threadId) : 0;
+    case HEX_GREG_GPMUCNT0:
+    case HEX_GREG_GPMUCNT1:
+    case HEX_GREG_GPMUCNT2:
+    case HEX_GREG_GPMUCNT3:
+    case HEX_GREG_GPMUCNT4:
+    case HEX_GREG_GPMUCNT5:
+    case HEX_GREG_GPMUCNT6:
+    case HEX_GREG_GPMUCNT7:
+    case HEX_GREG_GPMUCNT8:
+    case HEX_GREG_GPMUCNT9:
+        return hexagon_get_pmu_greg(env, reg);
     default:
         return env->greg[reg];
     }

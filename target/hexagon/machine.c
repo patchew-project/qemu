@@ -63,15 +63,49 @@ static const VMStateInfo vmstate_info_hlxvector = {
 
 #define VMSTATE_HLXVECTOR_ARRAY_V(_f, _s, _n, _v) \
     VMSTATE_SUB_ARRAY(_f, _s, 0, _n, _v, vmstate_info_hlxvector, HLXVector)
+
+/*
+ * Only the per-thread system registers, which are below HEX_SREG_GLB_START,
+ * are used in t_sreg.  Migrate the 106 entries that it once had, so that the
+ * stream is unchanged by the addition of system registers past those.
+ */
+#define HEX_T_SREG_MIGRATED 106
+
+static const VMStateDescription vmstate_hexagon_pmu_counters = {
+    .name = "hexagon_pmu_counters",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(num_packets, PMUCounters),
+        VMSTATE_UINT32(xe_packets, PMUCounters),
+        VMSTATE_UINT32(committed_loads, PMUCounters),
+        VMSTATE_UINT32(committed_stores, PMUCounters),
+        VMSTATE_UINT32(committed_memops, PMUCounters),
+        VMSTATE_UINT32(hvx_packets, PMUCounters),
+        VMSTATE_UINT32(hvx_pipe_alu, PMUCounters),
+        VMSTATE_UINT32(hvx_pipe_mpy, PMUCounters),
+        VMSTATE_UINT32(hvx_pipe_shift, PMUCounters),
+        VMSTATE_UINT32(hvx_pipe_perm, PMUCounters),
+        VMSTATE_UINT32(hlx_packets, PMUCounters),
+        VMSTATE_UINT32(hlx_slot_alu, PMUCounters),
+        VMSTATE_UINT32(hlx_slot_shift, PMUCounters),
+        VMSTATE_UINT32(hlx_slot_mpy, PMUCounters),
+        VMSTATE_UINT32(hlx_slot_ld, PMUCounters),
+        VMSTATE_UINT32(hlx_slot_st, PMUCounters),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_hexagon_cpu = {
     .name = "cpu",
-    .version_id = 4,
+    .version_id = 5,
     .minimum_version_id = 2,
     .post_load = hexagon_cpu_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(env.gpr, HexagonCPU, TOTAL_PER_THREAD_REGS),
         VMSTATE_UINT32_ARRAY(env.pred, HexagonCPU, NUM_PREGS),
-        VMSTATE_UINT32_ARRAY(env.t_sreg, HexagonCPU, NUM_SREGS),
+        VMSTATE_UINT32_SUB_ARRAY(env.t_sreg, HexagonCPU, 0,
+                                 HEX_T_SREG_MIGRATED),
         VMSTATE_UINT32_ARRAY(env.greg, HexagonCPU, NUM_GREGS),
         VMSTATE_UINT32(env.tlb_lock_state, HexagonCPU),
         VMSTATE_UINT32(env.k0_lock_state, HexagonCPU),
@@ -83,6 +117,8 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINT32(env.imprecise_exception, HexagonCPU),
         VMSTATE_UINT32_V(env.cfi_active, HexagonCPU, 3),
         VMSTATE_HLXVECTOR_ARRAY_V(env.future_LRegs, HexagonCPU, NUM_LREGS, 4),
+        VMSTATE_STRUCT(env.pmu, HexagonCPU, 5, vmstate_hexagon_pmu_counters,
+                       PMUCounters),
 
         VMSTATE_END_OF_LIST()
     },

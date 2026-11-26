@@ -22,6 +22,7 @@
 #include "internal.h"
 #ifndef CONFIG_USER_ONLY
 #include "cpu_helper.h"
+#include "pmu.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_hlx.h"
 #endif
@@ -94,7 +95,8 @@ int hexagon_sys_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         if (n < HEX_SREG_GLB_START) {
             val = env->t_sreg[n];
         } else {
-            val = cpu->globalregs ?
+            val = IS_PMU_SREG(n) ? hexagon_pmu_sreg_read(env, n) :
+                  cpu->globalregs ?
                 hexagon_globalreg_read(cpu->globalregs, n, env->threadId) : 0;
         }
         return gdb_get_reg32(mem_buf, val);
@@ -127,6 +129,8 @@ int hexagon_sys_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             hexagon_modify_ccr(env, val, old);
         } else if (n < HEX_SREG_GLB_START) {
             env->t_sreg[n] = val;
+        } else if (IS_PMU_SREG(n)) {
+            hexagon_pmu_sreg_write(env, n, val);
         } else if (cpu->globalregs) {
             hexagon_globalreg_write(cpu->globalregs, n, val, env->threadId);
         }

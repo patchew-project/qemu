@@ -75,6 +75,14 @@ enum {
     HEX_REG_PKTCNTHI         = 51,
     HEX_REG_VFRAMELIMIT       = 60,
     HEX_REG_VSP               = 61,
+    HEX_REG_UPMUCNT0         = 52,
+    HEX_REG_UPMUCNT1         = 53,
+    HEX_REG_UPMUCNT2         = 54,
+    HEX_REG_UPMUCNT3         = 55,
+    HEX_REG_UPMUCNT4         = 56,
+    HEX_REG_UPMUCNT5         = 57,
+    HEX_REG_UPMUCNT6         = 58,
+    HEX_REG_UPMUCNT7         = 59,
     HEX_REG_UTIMERLO          = 62,
     HEX_REG_UTIMERHI          = 63,
 };
@@ -106,6 +114,8 @@ enum {
   DECL_HEX_GREG(GPMUCNT1,   27) \
   DECL_HEX_GREG(GPMUCNT2,   28) \
   DECL_HEX_GREG(GPMUCNT3,   29) \
+  DECL_HEX_GREG(GPMUCNT8,   30) \
+  DECL_HEX_GREG(GPMUCNT9,   31) \
   DECL_HEX_GREG_DONE
 
 #define DECL_HEX_GREG_DONE
@@ -123,8 +133,8 @@ static inline bool greg_implemented(enum hex_greg greg)
 #if NUM_GREGS > 32
 #error "NUM_GREGS too large for greg_implemented(): update `impl_bitmap`"
 #endif
-    static int32_t impl_bitmap = HEX_GREG_VALUES;
-    return impl_bitmap & (1 << greg);
+    static uint32_t impl_bitmap = HEX_GREG_VALUES;
+    return impl_bitmap & (1u << greg);
 }
 #undef DECL_HEX_GREG
 #undef DECL_HEX_GREG_DONE
@@ -235,6 +245,12 @@ enum {
     HEX_SREG_ISDBST1 = 103,
     HEX_SREG_ISDBST2 = 104,
     HEX_SREG_BRKPTINFO1 = 105,
+    HEX_SREG_PMUEVTCFG2 = 111,
+    HEX_SREG_PMUCNT8 = 116,
+    HEX_SREG_PMUCNT9 = 117,
+    HEX_SREG_PMUCNT10 = 118,
+    HEX_SREG_PMUCNT11 = 119,
+    HEX_SREG_PMUSTID2 = 120,
 };
 #endif /* !CONFIG_USER_ONLY */
 

@@ -12,6 +12,9 @@ void hexagon_write_memory(CPUHexagonState *env, target_ulong vaddr,
 void hexagon_peek_memory_range(CPUHexagonState *env, uint32_t start_addr,
                                uint32_t length, uintptr_t retaddr);
 uint32_t hexagon_get_pmu_counter(CPUHexagonState *cur_env, int index);
+uint32_t hexagon_pmu_sreg_read(CPUHexagonState *env, uint32_t reg);
+void hexagon_pmu_sreg_write(CPUHexagonState *env, uint32_t reg, uint32_t val);
+uint32_t hexagon_get_pmu_greg(CPUHexagonState *env, uint32_t greg);
 void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old);
 void hexagon_modify_ccr(CPUHexagonState *env, uint32_t new, uint32_t old);
 unsigned hexagon_hvx_select_context(CPUHexagonState *env, uint32_t ssr);

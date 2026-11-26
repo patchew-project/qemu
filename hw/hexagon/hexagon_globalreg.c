@@ -396,14 +396,6 @@ static void do_hexagon_globalreg_reset(HexagonGlobalRegState *s)
     s->regs[HEX_SREG_PCYCLEHI] = INVALID_REG_VAL;
     s->regs[HEX_SREG_TIMERLO] = INVALID_REG_VAL;
     s->regs[HEX_SREG_TIMERHI] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT0] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT1] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT2] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT3] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT4] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT5] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT6] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT7] = INVALID_REG_VAL;
 }
 
 static void hexagon_globalreg_reset_hold(Object *obj, ResetType type)
@@ -448,14 +440,21 @@ static int hexagon_globalreg_post_load(void *opaque,
     return 0;
 }
 
+/*
+ * The registers the device had in version 1 of its migration state.  The
+ * ones that were added since follow the other fields, in version 2.
+ */
+#define HEX_GLOBALREG_MIGRATED_V1 106
+
 static const VMStateDescription vmstate_hexagon_globalreg = {
     .name = "hexagon_globalreg",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .pre_save = hexagon_globalreg_pre_save,
     .post_load = hexagon_globalreg_post_load,
     .fields = (const VMStateField[]){
-        VMSTATE_UINT32_ARRAY(regs, HexagonGlobalRegState, NUM_SREGS),
+        VMSTATE_UINT32_SUB_ARRAY(regs, HexagonGlobalRegState, 0,
+                                 HEX_GLOBALREG_MIGRATED_V1),
         VMSTATE_UINT64(g_pcycle_base, HexagonGlobalRegState),
         VMSTATE_UINT32(boot_evb, HexagonGlobalRegState),
         VMSTATE_UINT64(config_table_addr, HexagonGlobalRegState),
@@ -464,6 +463,10 @@ static const VMStateDescription vmstate_hexagon_globalreg = {
         VMSTATE_BOOL(isdben_dfd_enable, HexagonGlobalRegState),
         VMSTATE_BOOL(isdben_trusted, HexagonGlobalRegState),
         VMSTATE_BOOL(isdben_secure, HexagonGlobalRegState),
+        VMSTATE_SUB_ARRAY(regs, HexagonGlobalRegState,
+                          HEX_GLOBALREG_MIGRATED_V1,
+                          NUM_SREGS - HEX_GLOBALREG_MIGRATED_V1, 2,
+                          vmstate_info_uint32, uint32_t),
         VMSTATE_END_OF_LIST()
     }
 };

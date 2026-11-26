@@ -81,6 +81,22 @@ TCGv_ptr hex_hvx_ptr;
 #ifndef CONFIG_USER_ONLY
 TCGv_i32 hex_greg[NUM_GREGS];
 TCGv_i32 hex_t_sreg[NUM_SREGS];
+TCGv_i32 hex_pmu_num_packets;
+TCGv_i32 hex_pmu_xe_packets;
+TCGv_i32 hex_pmu_committed_loads;
+TCGv_i32 hex_pmu_committed_stores;
+TCGv_i32 hex_pmu_committed_memops;
+TCGv_i32 hex_pmu_hvx_packets;
+TCGv_i32 hex_pmu_hvx_pipe_alu;
+TCGv_i32 hex_pmu_hvx_pipe_mpy;
+TCGv_i32 hex_pmu_hvx_pipe_shift;
+TCGv_i32 hex_pmu_hvx_pipe_perm;
+TCGv_i32 hex_pmu_hlx_packets;
+TCGv_i32 hex_pmu_hlx_slot_alu;
+TCGv_i32 hex_pmu_hlx_slot_shift;
+TCGv_i32 hex_pmu_hlx_slot_mpy;
+TCGv_i32 hex_pmu_hlx_slot_ld;
+TCGv_i32 hex_pmu_hlx_slot_st;
 #endif
 static TCGv_i32 hex_cause_code;
 
@@ -205,6 +221,7 @@ static void gen_end_tb_singlestep(DisasContext *ctx)
 static void gen_end_tb(DisasContext *ctx)
 {
 #ifndef CONFIG_USER_ONLY
+    gen_pmu_flush(ctx);
     if (ctx->ss_active) {
         gen_end_tb_singlestep(ctx);
         return;
@@ -248,6 +265,9 @@ static void gen_end_tb(DisasContext *ctx)
 
 void hex_gen_exception_end_tb(DisasContext *ctx, int cause)
 {
+#ifndef CONFIG_USER_ONLY
+    gen_pmu_flush(ctx);
+#endif
     gen_precise_exception(cause, ctx->pkt.pc);
     ctx->base.is_jmp = DISAS_NORETURN;
 }
@@ -260,6 +280,9 @@ static void gen_exception_decode_fail(DisasContext *ctx, int nwords, int cause)
 {
     target_ulong fail_pc = ctx->base.pc_next + nwords * sizeof(uint32_t);
 
+#ifndef CONFIG_USER_ONLY
+    gen_pmu_flush(ctx);
+#endif
     tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], fail_pc);
     gen_precise_exception(cause, fail_pc);
     ctx->base.is_jmp = DISAS_NORETURN;
@@ -808,6 +831,23 @@ static void gen_start_packet(DisasContext *ctx)
     }
 #endif
 
+#ifndef CONFIG_USER_ONLY
+    /*
+     * Privileged and guest instructions can read or write the PMU
+     * registers (or stop the thread), and a memory access can fault, which
+     * abandons the translation block, so make the tallies current first.
+     */
+    if (check_for_attrib(&ctx->pkt, A_PRIV) ||
+        check_for_attrib(&ctx->pkt, A_GUEST) ||
+        check_for_attrib(&ctx->pkt, A_LOAD) ||
+        check_for_attrib(&ctx->pkt, A_STORE) ||
+        check_for_attrib(&ctx->pkt, A_CVI_VM) ||
+        check_for_attrib(&ctx->pkt, A_HLX_MEM) ||
+        check_for_attrib(&ctx->pkt, A_HMX)) {
+        gen_pmu_flush(ctx);
+    }
+#endif
+
     /* Initialize the runtime state for packet semantics */
     if (need_slot_cancelled(&ctx->pkt)) {
         tcg_gen_movi_tl(hex_slot_cancelled, 0);
@@ -1308,6 +1348,132 @@ static void gen_commit_hmx(DisasContext *ctx)
 }
 
 #ifndef CONFIG_USER_ONLY
+#define PMU_COUNTER_FIELDS(X) \
+    X(num_packets) X(xe_packets) X(committed_loads) X(committed_stores) \
+    X(committed_memops) X(hvx_packets) X(hvx_pipe_alu) X(hvx_pipe_mpy) \
+    X(hvx_pipe_shift) X(hvx_pipe_perm) X(hlx_packets) X(hlx_slot_alu) \
+    X(hlx_slot_shift) X(hlx_slot_mpy) X(hlx_slot_ld) X(hlx_slot_st)
+
+/*
+ * Add the events accumulated in ctx->pmu_pend to the vCPU's tallies. The
+ * per-packet counts are translation-time constants, so packet commit only
+ * sums them in the DisasContext and this emits one update per event, not
+ * one per packet. It must run, in straight-line code, before anything that
+ * can observe or leave the tallies: every TB exit and exception, and any
+ * packet that reads or writes a PMU register (privileged and guest
+ * instructions, and UPMUCNT reads), and before any packet that can fault,
+ * so that a fault only loses the packet that raised it.
+ */
+void gen_pmu_flush(DisasContext *ctx)
+{
+#define FLUSH_ONE(f) \
+    if (ctx->pmu_pend.f) { \
+        tcg_gen_addi_i32(hex_pmu_##f, hex_pmu_##f, ctx->pmu_pend.f); \
+    }
+    if (!ctx->pmu_enabled) {
+        return;
+    }
+    PMU_COUNTER_FIELDS(FLUSH_ONE)
+#undef FLUSH_ONE
+    memset(&ctx->pmu_pend, 0, sizeof(ctx->pmu_pend));
+}
+
+/*
+ * Account for the packet just committed. Emits no TCG ops itself: it only
+ * accumulates counts in ctx->pmu_pend (see gen_pmu_flush()), and only when
+ * PMU_ENABLED is set for this TB (ctx->pmu_enabled), computed once in
+ * hexagon_get_tb_cpu_state() from SYSCFG.PM -- so a guest that hasn't
+ * enabled the PMU generates none of this code.
+ */
+static void update_pmu_counters(DisasContext *ctx)
+{
+    PMUCounters *pend = &ctx->pmu_pend;
+
+    if (!ctx->pmu_enabled) {
+        return;
+    }
+
+    for (int i = 0; i < ctx->pkt.num_insns; i++) {
+        int opcode = ctx->pkt.insn[i].opcode;
+
+        /*
+         * COMMITTED_LD/ST count scalar loads and stores only: memops have
+         * their own event, and loads and stores of the coprocessors are
+         * excluded.
+         */
+        if (GET_ATTRIB(opcode, A_MEMOP)) {
+            pend->committed_memops++;
+        } else if (!GET_ATTRIB(opcode, A_CVI) &&
+                   !GET_ATTRIB(opcode, A_HLX) &&
+                   !GET_ATTRIB(opcode, A_HMX)) {
+            if (GET_ATTRIB(opcode, A_LOAD)) {
+                pend->committed_loads++;
+            }
+            if (GET_ATTRIB(opcode, A_STORE)) {
+                pend->committed_stores++;
+            }
+        }
+        if (GET_ATTRIB(opcode, A_HLX)) {
+            /*
+             * The HLX pipes are the slots the instruction is restricted to:
+             * loads in slot 1, stores in slot 0, shifts (including the
+             * paired ALU forms) in slot 2, multiplies in slot 3 and the
+             * common ALU in either of slots 2 and 3.
+             */
+            if (GET_ATTRIB(opcode, A_HLX_MEM)) {
+                if (GET_ATTRIB(opcode, A_LOAD)) {
+                    pend->hlx_slot_ld++;
+                } else if (GET_ATTRIB(opcode, A_STORE)) {
+                    pend->hlx_slot_st++;
+                }
+            } else if (GET_ATTRIB(opcode, A_HLX_MPY)) {
+                pend->hlx_slot_mpy++;
+            } else if (GET_ATTRIB(opcode, A_HLX_SHIFT)) {
+                pend->hlx_slot_shift++;
+            } else if (GET_ATTRIB(opcode, A_HLX_COMMON_ALU)) {
+                pend->hlx_slot_alu++;
+            }
+            continue;
+        }
+        if (!GET_ATTRIB(opcode, A_CVI)) {
+            continue;
+        }
+        /*
+         * A double-vector ALU or multiply occupies two pipes of its kind, as
+         * the maximum increments of HVXPIPE_ALU and HVXPIPE_MPY show.  The
+         * dual-function ops (A_CVI_VP_VS, A_CVI_VS_VX) aren't attributed to
+         * either HVXPIPE_* bucket below: which physical pipe executes them
+         * isn't derivable from decode attributes alone.
+         */
+        if (GET_ATTRIB(opcode, A_CVI_VA)) {
+            pend->hvx_pipe_alu++;
+        } else if (GET_ATTRIB(opcode, A_CVI_VA_DV)) {
+            pend->hvx_pipe_alu += 2;
+        } else if (GET_ATTRIB(opcode, A_CVI_VX)) {
+            pend->hvx_pipe_mpy++;
+        } else if (GET_ATTRIB(opcode, A_CVI_VX_DV)) {
+            pend->hvx_pipe_mpy += 2;
+        } else if (GET_ATTRIB(opcode, A_CVI_VS)) {
+            pend->hvx_pipe_shift++;
+        } else if (GET_ATTRIB(opcode, A_CVI_VP)) {
+            pend->hvx_pipe_perm++;
+        }
+    }
+
+    pend->num_packets++;
+    if (ctx->hvx_coproc_enabled) {
+        pend->xe_packets++;
+    }
+    if (ctx->pkt.pkt_has_hvx) {
+        pend->hvx_packets++;
+    }
+    if (ctx->pkt.pkt_has_hlx) {
+        pend->hlx_packets++;
+    }
+}
+#endif
+
+#ifndef CONFIG_USER_ONLY
 /*
  * A tlbp instruction may detect multiple TLB matches and set a pending
  * imprecise exception.  Raise it after the packet that ran the tlbp.
@@ -1431,6 +1597,9 @@ static void gen_commit_packet(DisasContext *ctx)
     if (ctx->pkt.pkt_has_hmx) {
         gen_commit_hmx(ctx);
     }
+#ifndef CONFIG_USER_ONLY
+    update_pmu_counters(ctx);
+#endif
 
     if (ctx->pkt.vhist_insn != NULL) {
         ctx->pre_commit = false;
@@ -1551,6 +1720,8 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->hvx_coproc_enabled =
         FIELD_EX32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED);
     ctx->hvx_check_emitted = false;
+    ctx->pmu_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PMU_ENABLED);
+    memset(&ctx->pmu_pend, 0, sizeof(ctx->pmu_pend));
     ctx->cpu_mode = FIELD_EX32(hex_flags, TB_FLAGS, CPU_MODE);
     ctx->ss_active = FIELD_EX32(hex_flags, TB_FLAGS, SS_ACTIVE);
     if (ctx->ss_active) {
@@ -1626,6 +1797,9 @@ static void hexagon_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
 
     switch (ctx->base.is_jmp) {
     case DISAS_TOO_MANY:
+#ifndef CONFIG_USER_ONLY
+        gen_pmu_flush(ctx);
+#endif
         tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->base.pc_next);
 #ifndef CONFIG_USER_ONLY
         if (ctx->ss_active) {
@@ -1690,6 +1864,41 @@ void hexagon_translate_init(void)
                 hexagon_sregnames[i]);
         }
     }
+    hex_pmu_num_packets = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.num_packets), "pmu_num_packets");
+    hex_pmu_xe_packets = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.xe_packets), "pmu_xe_packets");
+    hex_pmu_committed_loads = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.committed_loads),
+        "pmu_committed_loads");
+    hex_pmu_committed_stores = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.committed_stores),
+        "pmu_committed_stores");
+    hex_pmu_committed_memops = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.committed_memops),
+        "pmu_committed_memops");
+    hex_pmu_hvx_packets = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hvx_packets), "pmu_hvx_packets");
+    hex_pmu_hvx_pipe_alu = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hvx_pipe_alu), "pmu_hvx_pipe_alu");
+    hex_pmu_hvx_pipe_mpy = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hvx_pipe_mpy), "pmu_hvx_pipe_mpy");
+    hex_pmu_hvx_pipe_shift = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hvx_pipe_shift), "pmu_hvx_pipe_shift");
+    hex_pmu_hvx_pipe_perm = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hvx_pipe_perm), "pmu_hvx_pipe_perm");
+    hex_pmu_hlx_packets = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hlx_packets), "pmu_hlx_packets");
+    hex_pmu_hlx_slot_alu = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hlx_slot_alu), "pmu_hlx_slot_alu");
+    hex_pmu_hlx_slot_shift = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hlx_slot_shift), "pmu_hlx_slot_shift");
+    hex_pmu_hlx_slot_mpy = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hlx_slot_mpy), "pmu_hlx_slot_mpy");
+    hex_pmu_hlx_slot_ld = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hlx_slot_ld), "pmu_hlx_slot_ld");
+    hex_pmu_hlx_slot_st = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hlx_slot_st), "pmu_hlx_slot_st");
 #endif
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
         hex_gpr[i] = tcg_global_mem_new(tcg_env,

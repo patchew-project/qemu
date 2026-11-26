@@ -111,6 +111,14 @@ typedef struct DisasContext {
     DECLARE_BITMAP(lregs_updated_tmp, NUM_LREGS);
     bool hmx_coproc_enabled;
     bool hmx_check_emitted;
+#ifndef CONFIG_USER_ONLY
+    bool pmu_enabled;
+    /*
+     * PMU events from packets already translated in this TB but not yet
+     * added to the vCPU's tallies; see gen_pmu_flush().
+     */
+    PMUCounters pmu_pend;
+#endif
 } DisasContext;
 
 bool is_gather_store_insn(DisasContext *ctx);
@@ -426,10 +434,37 @@ extern TCGv_ptr hex_hvx_ptr;
 #ifndef CONFIG_USER_ONLY
 extern TCGv_i32 hex_greg[NUM_GREGS];
 extern TCGv_i32 hex_t_sreg[NUM_SREGS];
+
+/*
+ * Per-vCPU PMU tallies, mapped onto CPUHexagonState's embedded PMUCounters
+ * (see cpu.h). Packet commit only accumulates translation-time constants
+ * in DisasContext.pmu_pend; gen_pmu_flush() adds them to these at the points
+ * where the tallies can be observed. See update_pmu_counters() in
+ * translate.c.
+ */
+extern TCGv_i32 hex_pmu_num_packets;
+extern TCGv_i32 hex_pmu_xe_packets;
+extern TCGv_i32 hex_pmu_committed_loads;
+extern TCGv_i32 hex_pmu_committed_stores;
+extern TCGv_i32 hex_pmu_committed_memops;
+extern TCGv_i32 hex_pmu_hvx_packets;
+extern TCGv_i32 hex_pmu_hvx_pipe_alu;
+extern TCGv_i32 hex_pmu_hvx_pipe_mpy;
+extern TCGv_i32 hex_pmu_hvx_pipe_shift;
+extern TCGv_i32 hex_pmu_hvx_pipe_perm;
+extern TCGv_i32 hex_pmu_hlx_packets;
+extern TCGv_i32 hex_pmu_hlx_slot_alu;
+extern TCGv_i32 hex_pmu_hlx_slot_shift;
+extern TCGv_i32 hex_pmu_hlx_slot_mpy;
+extern TCGv_i32 hex_pmu_hlx_slot_ld;
+extern TCGv_i32 hex_pmu_hlx_slot_st;
 #endif
 
 
 void hex_gen_exception_end_tb(DisasContext *ctx, int cause);
+#ifndef CONFIG_USER_ONLY
+void gen_pmu_flush(DisasContext *ctx);
+#endif
 
 void process_store(DisasContext *ctx, int slot_num);
 

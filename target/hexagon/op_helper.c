@@ -47,6 +47,7 @@
 #endif
 #ifndef CONFIG_USER_ONLY
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "pmu.h"
 #include "hex_mmu.h"
 #include "hw/hexagon/hexagon_tlb.h"
 #include "hw/intc/hex-l2vic.h"
@@ -1999,6 +2000,8 @@ void HELPER(sreg_write_masked)(CPUHexagonState *env, uint32_t reg, uint32_t val)
             val = deposit32(env->t_sreg[reg], 0, 16, val);
         }
         env->t_sreg[reg] = val;
+    } else if (IS_PMU_SREG(reg)) {
+        hexagon_pmu_sreg_write(env, reg, val);
     } else {
         HexagonCPU *cpu = env_archcpu(env);
         if (cpu->globalregs) {
@@ -2030,6 +2033,9 @@ static inline QEMU_ALWAYS_INLINE uint32_t sreg_read(CPUHexagonState *env,
     }
     if (reg < HEX_SREG_GLB_START) {
         return env->t_sreg[reg];
+    }
+    if (IS_PMU_SREG(reg)) {
+        return hexagon_pmu_sreg_read(env, reg);
     }
     return cpu->globalregs ?
         hexagon_globalreg_read(cpu->globalregs, reg, env->threadId) : 0;
@@ -2065,6 +2071,22 @@ uint32_t HELPER(upcycle_read)(CPUHexagonState *env, uint32_t sreg)
     BQL_LOCK_GUARD();
     ssr = env->t_sreg[HEX_SREG_SSR];
     if (!GET_SSR_FIELD(SSR_CE, ssr)) {
+        return 0;
+    }
+    return sreg_read(env, sreg);
+}
+
+/*
+ * UPMUCNT0-7 are the user-visible alias of the PMU counters, readable
+ * without privilege but only once SSR[PE] is set.
+ */
+uint32_t HELPER(upmucnt_read)(CPUHexagonState *env, uint32_t sreg)
+{
+    uint32_t ssr;
+
+    BQL_LOCK_GUARD();
+    ssr = env->t_sreg[HEX_SREG_SSR];
+    if (!GET_SSR_FIELD(SSR_PE, ssr)) {
         return 0;
     }
     return sreg_read(env, sreg);

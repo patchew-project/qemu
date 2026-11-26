@@ -12,6 +12,7 @@
 #include "hw/hexagon/hexagon_hlx.h"
 #include "hw/hexagon/hexagon_hvx_context.h"
 #include "hw/hexagon/hexagon_hmx_context.h"
+#include "hw/hexagon/hexagon_pmu.h"
 #include "hw/hexagon/hexagon_tlb.h"
 #include "hw/intc/hex-l2vic.h"
 #include "hw/timer/qct-qtimer.h"
@@ -148,6 +149,16 @@ static void hmx_context_create(HexagonCommonMachineState *hms,
     sysbus_realize_and_unref(SYS_BUS_DEVICE(ctx), &error_fatal);
 }
 
+static DeviceState *pmu_create(HexagonCommonMachineState *hms)
+{
+    DeviceState *pmu = qdev_new(TYPE_HEXAGON_PMU);
+
+    object_property_add_child(OBJECT(hms), "pmu", OBJECT(pmu));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(pmu), &error_fatal);
+
+    return pmu;
+}
+
 static DeviceState *cluster_create(HexagonCommonMachineState *hms)
 {
     DeviceState *cluster = qdev_new(TYPE_CPU_CLUSTER);
@@ -197,6 +208,7 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
     hvx_contexts_create(hms, m_cfg);
     hms->hlx = hlx_create(hms, m_cfg);
     hmx_context_create(hms, m_cfg);
+    hms->pmu = pmu_create(hms);
 }
 
 void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
@@ -211,6 +223,8 @@ void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
     object_property_set_link(OBJECT(cpu), "l2vic", OBJECT(hms->l2vic),
                              &error_fatal);
     object_property_set_link(OBJECT(cpu), "hlx", OBJECT(hms->hlx),
+                             &error_fatal);
+    object_property_set_link(OBJECT(cpu), "pmu", OBJECT(hms->pmu),
                              &error_fatal);
     for (unsigned i = 0; i < hms->num_hvx_ctx; i++) {
         g_autofree char *name = g_strdup_printf("hvx-context[%u]", i);

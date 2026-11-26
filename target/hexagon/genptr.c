@@ -150,6 +150,14 @@ const target_ulong reg_immut_masks[TOTAL_PER_THREAD_REGS] = {
     [HEX_REG_GP] = 0x3f,
     [HEX_REG_UPCYCLELO] = IMMUTABLE,
     [HEX_REG_UPCYCLEHI] = IMMUTABLE,
+    [HEX_REG_UPMUCNT0] = IMMUTABLE,
+    [HEX_REG_UPMUCNT1] = IMMUTABLE,
+    [HEX_REG_UPMUCNT2] = IMMUTABLE,
+    [HEX_REG_UPMUCNT3] = IMMUTABLE,
+    [HEX_REG_UPMUCNT4] = IMMUTABLE,
+    [HEX_REG_UPMUCNT5] = IMMUTABLE,
+    [HEX_REG_UPMUCNT6] = IMMUTABLE,
+    [HEX_REG_UPMUCNT7] = IMMUTABLE,
     [HEX_REG_UTIMERLO] = IMMUTABLE,
     [HEX_REG_UTIMERHI] = IMMUTABLE,
 };
@@ -462,6 +470,14 @@ static inline void gen_read_ctrl_reg(DisasContext *ctx, const int reg_num,
         translator_io_start(&ctx->base);
         gen_helper_upcycle_read(dest, tcg_env,
                                 tcg_constant_i32(HEX_SREG_PCYCLEHI));
+    } else if (reg_num >= HEX_REG_UPMUCNT0 && reg_num <= HEX_REG_UPMUCNT7) {
+        int index = reg_num - HEX_REG_UPMUCNT0;
+        int sreg = index < 4 ? HEX_SREG_PMUCNT0 + index :
+                               HEX_SREG_PMUCNT4 + index - 4;
+
+        gen_pmu_flush(ctx);
+        translator_io_start(&ctx->base);
+        gen_helper_upmucnt_read(dest, tcg_env, tcg_constant_i32(sreg));
 #else
     } else if (reg_num == HEX_REG_UTIMERLO) {
         TCGv_i64 utimer = tcg_temp_new_i64();
@@ -498,6 +514,13 @@ static inline void gen_read_ctrl_reg_pair(DisasContext *ctx, const int reg_num,
     } else if (reg_num == HEX_REG_UPCYCLELO) {
         translator_io_start(&ctx->base);
         gen_helper_upcycle_read_pair(dest, tcg_env);
+    } else if (reg_num >= HEX_REG_UPMUCNT0 && reg_num < HEX_REG_UPMUCNT7) {
+        TCGv lo = tcg_temp_new();
+        TCGv hi = tcg_temp_new();
+
+        gen_read_ctrl_reg(ctx, reg_num, lo);
+        gen_read_ctrl_reg(ctx, reg_num + 1, hi);
+        tcg_gen_concat_i32_i64(dest, lo, hi);
 #else
     } else if (reg_num == HEX_REG_UTIMERLO) {
         /* One helper call, so the pair is a coherent 64-bit snapshot. */
