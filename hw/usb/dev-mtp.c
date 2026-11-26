@@ -1845,7 +1845,28 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
         usb_packet_copy(p, d->data + d->data_offset, dlen);
         d->offset += dlen;
         d->data_offset += dlen;
-        if ((p->iov.size % 64) || !p->iov.size) {
+        /*
+         * The transfer ends on:
+         *  - A short packet
+         *  - A Zero Length Packet
+         *  - When the declared size has been received.
+         * A size of 0xFFFFFFFF means the object is >= 4GiB and its real size
+         * is unknown, so it can be neither used to detect the end nor checked
+         * against the received length.
+         */
+        if (!p->iov.size ||
+            (p->ep->max_packet_size && (p->iov.size % p->ep->max_packet_size)) ||
+            (s->dataset.size != 0xFFFFFFFF && s->dataset.size == d->offset)) {
+            /* Size is known (< 4GiB) but received data doesn't match it */
+            if (s->dataset.size != 0xFFFFFFFF &&
+                s->dataset.size != d->offset) {
+                usb_mtp_queue_result(s, RES_INCOMPLETE_TRANSFER, d->trans,
+                                     0, 0, 0, 0);
+                usb_mtp_data_free(s->data_out);
+                s->data_out = NULL;
+                usb_mtp_reset_pending_write(s);
+                return;
+            }
             if (d->length == MTP_WRITE_BUF_SZ) {
                 d->write_status = WRITE_END;
             } else {
@@ -1965,7 +1986,15 @@ static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
         }
         break;
     case EP_DATA_OUT:
-        if (p->iov.size < sizeof(container)) {
+        /*
+         * A ZLP terminates the data phase: it carries no container header,
+         * and one arriving after the transfer already ended has nothing
+         * left to terminate.
+         */
+        if (!p->iov.size && (!s->data_out || s->data_out->first)) {
+            return;
+        }
+        if (p->iov.size && p->iov.size < sizeof(container)) {
             trace_usb_mtp_stall(s->dev.addr, "packet too small");
             p->status = USB_RET_STALL;
             return;
