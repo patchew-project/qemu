@@ -566,8 +566,10 @@ void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr)
 
 #ifndef CONFIG_USER_ONLY
 /*
- * In deterministic execution mode, instructions doing device I/Os
- * must be at the end of the TB.
+ * Instructions doing device I/Os must happen at the end
+ * of the TB as they can change system state affecting following
+ * instructions. When we detect mid-block IO we trigger a re-compile
+ * with cflags
  *
  * Called by softmmu_template.h, with iothread mutex not held.
  */
