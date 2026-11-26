@@ -68,8 +68,8 @@ typedef struct DisasContext {
 
     /* Decoder.  */
     uint32_t ext_imm;
-    unsigned int tb_flags;
-    unsigned int tb_flags_to_set;
+    uint64_t tb_flags;
+    uint64_t tb_flags_to_set;
     int mem_index;
 
     /* Condition under which to jump, including NEVER and ALWAYS. */
@@ -1668,7 +1668,7 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
         /*
          * Finish any return-from branch.
          */
-        uint32_t rt_ibe = dc->tb_flags & (DRTI_FLAG | DRTB_FLAG | DRTE_FLAG);
+        uint64_t rt_ibe = dc->tb_flags & (DRTI_FLAG | DRTB_FLAG | DRTE_FLAG);
         if (unlikely(rt_ibe != 0)) {
             dc->tb_flags &= ~(DRTI_FLAG | DRTB_FLAG | DRTE_FLAG);
             if (rt_ibe & DRTI_FLAG) {
