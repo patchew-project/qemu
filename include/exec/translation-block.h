@@ -69,7 +69,7 @@ struct TranslationBlock {
      */
     uint64_t cs_base;
 
-    uint32_t flags; /* flags defining in which context the code was generated */
+    uint64_t flags; /* flags defining in which context the code was generated */
     uint32_t cflags;    /* compile flags */
 
 /* Note that TCG_MAX_INSNS is 512; we validate this match elsewhere. */
