@@ -19,7 +19,7 @@
 #include "cpu-mmu.h"
 #include "csr.h"
 
-target_ulong HELPER(csrwr_stlbps)(CPULoongArchState *env, target_ulong val)
+static target_ulong csrwr_stlbps(CPULoongArchState *env, target_ulong val)
 {
     CPUSysState *sys = env_sys(env);
     int64_t old_v = sys->CSR_STLBPS;
@@ -88,7 +88,7 @@ target_ulong HELPER(csrrd_msgir)(CPULoongArchState *env)
     return irq;
 }
 
-target_ulong HELPER(csrwr_estat)(CPULoongArchState *env, target_ulong val)
+static target_ulong csrwr_estat(CPULoongArchState *env, target_ulong val)
 {
     CPUSysState *sys = env_sys(env);
     int64_t old_v = sys->CSR_ESTAT;
@@ -109,7 +109,7 @@ target_ulong HELPER(csrwr_estat)(CPULoongArchState *env, target_ulong val)
     return old_v;
 }
 
-target_ulong HELPER(csrwr_asid)(CPULoongArchState *env, target_ulong val)
+static target_ulong csrwr_asid(CPULoongArchState *env, target_ulong val)
 {
     CPUSysState *sys = env_sys(env);
     int64_t old_v = sys->CSR_ASID;
@@ -122,7 +122,7 @@ target_ulong HELPER(csrwr_asid)(CPULoongArchState *env, target_ulong val)
     return old_v;
 }
 
-target_ulong HELPER(csrwr_tcfg)(CPULoongArchState *env, target_ulong val)
+static target_ulong csrwr_tcfg(CPULoongArchState *env, target_ulong val)
 {
     CPUTimerState *timer = env_timer(env);
     CPUSysState *sys = container_of(timer, CPUSysState, timer_state);
@@ -133,7 +133,7 @@ target_ulong HELPER(csrwr_tcfg)(CPULoongArchState *env, target_ulong val)
     return old_v;
 }
 
-target_ulong HELPER(csrwr_ticlr)(CPULoongArchState *env, target_ulong val)
+static target_ulong csrwr_ticlr(CPULoongArchState *env, target_ulong val)
 {
     CPUTimerState *timer = env_timer(env);
     int64_t old_v = 0;
@@ -146,7 +146,7 @@ target_ulong HELPER(csrwr_ticlr)(CPULoongArchState *env, target_ulong val)
     return old_v;
 }
 
-target_ulong HELPER(csrwr_pwcl)(CPULoongArchState *env, target_ulong val)
+static target_ulong csrwr_pwcl(CPULoongArchState *env, target_ulong val)
 {
     uint8_t shift, ptbase;
     CPUSysState *sys = env_sys(env);
@@ -171,7 +171,7 @@ target_ulong HELPER(csrwr_pwcl)(CPULoongArchState *env, target_ulong val)
     return old_v;
 }
 
-target_ulong HELPER(csrwr_pwch)(CPULoongArchState *env, target_ulong val)
+static target_ulong csrwr_pwch(CPULoongArchState *env, target_ulong val)
 {
     uint8_t has_ptw;
     CPUSysState *sys = env_sys(env);
@@ -195,25 +195,25 @@ target_ulong HELPER(csrwr)(CPULoongArchState *env, target_ulong val,
 
     switch (csr) {
     case LOONGARCH_CSR_STLBPS:
-        return HELPER(csrwr_stlbps)(env, val);
+        return csrwr_stlbps(env, val);
 
     case LOONGARCH_CSR_ESTAT:
-        return HELPER(csrwr_estat)(env, val);
+        return csrwr_estat(env, val);
 
     case LOONGARCH_CSR_ASID:
-        return HELPER(csrwr_asid)(env, val);
+        return csrwr_asid(env, val);
 
     case LOONGARCH_CSR_TCFG:
-        return HELPER(csrwr_tcfg)(env, val);
+        return csrwr_tcfg(env, val);
 
     case LOONGARCH_CSR_TICLR:
-        return HELPER(csrwr_ticlr)(env, val);
+        return csrwr_ticlr(env, val);
 
     case LOONGARCH_CSR_PWCL:
-        return HELPER(csrwr_pwcl)(env, val);
+        return csrwr_pwcl(env, val);
 
     case LOONGARCH_CSR_PWCH:
-        return HELPER(csrwr_pwch)(env, val);
+        return csrwr_pwch(env, val);
 
     default:
         csrinfo = get_csr(csr);
