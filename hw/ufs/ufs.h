@@ -66,6 +66,9 @@ typedef struct UfsRequest {
     QEMUSGList *sg;
     uint32_t data_len;
 
+    /* ZBC IN or ZBC OUT command of a zoned LU in progress */
+    struct UfsZbcCmd *zbc_cmd;
+
     /* for MCQ */
     struct UfsSq *sq;
     struct UfsCqEntry cqe;
@@ -88,6 +91,10 @@ typedef struct UfsLu {
     SCSIDevice *scsi_dev;
     BlockConf conf;
     UfsScsiOp scsi_op;
+    /* For Zoned UFS: the zones of the drive, in logical blocks */
+    bool zoned;
+    uint64_t zone_size;
+    uint32_t nr_zones;
 } UfsLu;
 
 /*
@@ -334,6 +341,7 @@ void ufs_build_upiu_header(UfsRequest *req, uint8_t trans_type, uint8_t flags,
 void ufs_build_query_response(UfsRequest *req);
 void ufs_complete_req(UfsRequest *req, UfsReqResult req_result);
 bool ufs_fit_data_buffer(UfsRequest *req, uint64_t len);
+void ufs_zbc_cancel(UfsRequest *req);
 void ufs_wb_update_avail_buffer(UfsHc *u);
 void ufs_init_wlu(UfsLu *wlu, uint8_t wlun);
 bool ufs_realize(UfsHc *u, DeviceState *dev, AddressSpace *dma_as,

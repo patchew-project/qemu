@@ -708,6 +708,21 @@ enum {
     UFS_MASK_OCS = 0xFF,
 };
 
+/* ZBC IN and ZBC OUT operation codes and their service actions */
+#define UFS_ZBC_OUT 0x94
+#define UFS_ZBC_IN 0x95
+
+enum {
+    UFS_ZBC_REPORT_ZONES = 0x00,
+};
+
+enum {
+    UFS_ZBC_CLOSE_ZONE = 0x01,
+    UFS_ZBC_FINISH_ZONE = 0x02,
+    UFS_ZBC_OPEN_ZONE = 0x03,
+    UFS_ZBC_RESET_WRITE_POINTER = 0x04,
+};
+
 /*
  * struct UfshcdSgEntry - UFSHCI PRD Entry
  * @addr: Physical address; DW-0 and DW-1.

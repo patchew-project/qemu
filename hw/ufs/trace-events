@@ -61,3 +61,8 @@ ufs_err_mcq_delete_cq_sq_not_deleted(uint8_t sqid, uint8_t cqid) "mcq sq %"PRIu8
 # HID (Host Initiated Defragmentation)
 ufs_hid_defrag_operation(uint8_t op, uint8_t state) "HID defrag operation 0x%"PRIx8", new state 0x%"PRIx8""
 ufs_hid_defrag_progress(uint32_t remaining, uint8_t progress) "HID defrag remaining %"PRIu32", progress %"PRIu8"%%"
+
+# lu.c (zoned logical units)
+ufs_zbc_report_zones(uint8_t lun, uint64_t lba, uint32_t alloc_len, uint8_t options) "lun 0x%"PRIx8", lba %"PRIu64", alloc_len %"PRIu32", options 0x%"PRIx8""
+ufs_zbc_zone_op(uint8_t lun, uint8_t action, uint64_t zone_id, bool all) "lun 0x%"PRIx8", action 0x%"PRIx8", zone id %"PRIu64", all %d"
+ufs_zbc_zone_mgmt_failed(uint8_t lun, uint8_t action, uint64_t offset, int ret) "lun 0x%"PRIx8", action 0x%"PRIx8", offset %"PRIu64", ret %d"

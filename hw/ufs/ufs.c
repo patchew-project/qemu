@@ -956,6 +956,19 @@ static void ufs_hce_reset(UfsHc *u)
         }
     }
 
+    /*
+     * Detach the zone commands of zoned LUs from their requests first: the
+     * purge below drains the drives, which can run them on.
+     */
+    for (i = 0; i < u->params.nutrs; i++) {
+        ufs_zbc_cancel(&u->req_list[i]);
+    }
+    for (i = 0; i < ARRAY_SIZE(u->sq); i++) {
+        for (int j = 0; u->sq[i] && j < u->sq[i]->size; j++) {
+            ufs_zbc_cancel(&u->sq[i]->req[j]);
+        }
+    }
+
     /* 2. Purge outstanding SCSI requests for all logical units */
     for (i = 0; i < UFS_MAX_LUS; i++) {
         if (u->lus[i] && u->lus[i]->scsi_dev) {
@@ -1090,6 +1103,7 @@ static void ufs_process_tmr(UfsHc *u, uint32_t val)
                             req->sreq = NULL;
                             scsi_req_cancel(sreq);
                         }
+                        ufs_zbc_cancel(req);
                         req->state = UFS_REQUEST_ERROR;
                     } else {
                         ufs_clear_req(req);
@@ -1346,6 +1360,7 @@ static void ufs_mcq_sq_cleanup(UfsHc *u, uint8_t qid)
                 req->sreq = NULL;
                 scsi_req_cancel(sreq);
             }
+            ufs_zbc_cancel(req);
             req->utrd.header.dword_2 = cpu_to_le32(
                 (le32_to_cpu(req->utrd.header.dword_2) & ~UFS_MASK_OCS) |
                 UFS_OCS_ABORTED);
@@ -2694,6 +2709,7 @@ static void ufs_clear_req(UfsRequest *req)
         req->sreq = NULL;
         scsi_req_cancel(sreq);
     }
+    ufs_zbc_cancel(req);
 
     if (req->sg != NULL) {
         qemu_sglist_destroy(req->sg);
