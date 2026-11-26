@@ -21,12 +21,6 @@
 #include <sys/wait.h>
 #include <sys/un.h>
 #endif /* _WIN32 */
-#ifdef __linux__
-#include <sys/prctl.h>
-#endif /* __linux__ */
-#ifdef __FreeBSD__
-#include <sys/procctl.h>
-#endif /* __FreeBSD__ */
 
 #include "libqtest.h"
 #include "libqmp.h"
