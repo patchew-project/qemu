@@ -279,7 +279,10 @@ void qemu_co_sleep_wake(QemuCoSleep *w);
 /**
  * Yield until a file descriptor becomes readable
  *
- * Note that this function clobbers the handlers for the file descriptor.
+ * Notes:
+ * (1) this function clobbers the handlers for the file descriptor.
+ * (2) this function may be interrupted by another re-enter of coroutine,
+ *     the caller needs to be prepared on fd not readable after returned.
  */
 void coroutine_fn yield_until_fd_readable(int fd);
 
