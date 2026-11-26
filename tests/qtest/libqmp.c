@@ -68,23 +68,27 @@ QDict *qmp_fd_receive(int fd)
     qmp.response = NULL;
     json_message_parser_init(&qmp.parser, qmp_response, &qmp, NULL);
     while (!qmp.response) {
-        ssize_t len;
-        char c;
+        ssize_t len, consumed;
+        char buf[512];
 
-        len = recv(fd, &c, 1, 0);
-        if (len == -1 && errno == EINTR) {
-            continue;
-        }
-
-        if (len == -1 || len == 0) {
+        /* Get copy of the available data without removing it from the queue */
+        len = RETRY_ON_EINTR(recv(fd, buf, sizeof(buf), MSG_PEEK));
+        if (len <= 0) {
             fprintf(stderr, "Broken pipe\n");
             abort();
         }
 
-        if (log) {
-            g_assert(write(2, &c, 1) == 1);
+        for (consumed = 0; consumed < len && !qmp.response; consumed++) {
+            json_message_parser_feed(&qmp.parser, &buf[consumed], 1);
         }
-        json_message_parser_feed(&qmp.parser, &c, 1);
+
+        if (log) {
+            g_assert(write(2, buf, consumed) == consumed);
+        }
+
+        /* Remove the handled characters from the queue */
+        len = RETRY_ON_EINTR(recv(fd, buf, consumed, 0));
+        g_assert_cmpint(len, ==, consumed);
     }
     if (log) {
         g_assert(write(2, "\n", 1) == 1);
