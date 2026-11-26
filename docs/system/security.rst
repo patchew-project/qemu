@@ -99,6 +99,11 @@ an issue as a normal bug.
   crashes / undesirable behaviour in QEMU will **not** be treated as
   security flaws, but should be fixed as hardening bugs.
 
+* **virtio-gpu** with 3D acceleration. While VirtIO is generally
+  preferred for the virtualisation use case we make an exception for
+  3D acceleration given the potentially large attack surface it
+  presents. You should only use 3D acceleration with trusted guests.
+
 * **memory allocation bounds**. There are many ways in which a QEMU
   process can legitimately consume an amount of memory that is
   significantly larger than the assigned guest RAM. QEMU's worst

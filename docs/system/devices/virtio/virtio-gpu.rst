@@ -29,6 +29,18 @@ host's GPU and for the best performance be able to reliably share GPU
 memory with the guest. Details of 3D acceleration requirements are
 described in a further sections.
 
+.. warning::
+
+   As 3D acceleration by its very nature involves giving the guest
+   fairly complete access to a bus master processing unit in the host
+   GPU we consider this outside the virtualisation use case with
+   respect to security. You should only ever enable 3D acceleration
+   with trusted guests. There is still the option of off-loading 3D
+   acceleration to a separate process via :ref:`vhost_user_proto`
+   depending on what guarantees that process can make and how well
+   confined it can be if things go wrong.
+
+
 QEMU virtio-gpu variants
 ------------------------
 
