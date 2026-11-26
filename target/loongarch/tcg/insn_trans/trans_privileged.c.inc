@@ -72,6 +72,7 @@ static bool set_csr_trans_func(unsigned int csr_num, GenCSRRead readfn,
 static void init_csr_wrmask(void)
 {
     int i;
+    CSRInfo *csr;
     uint64_t romask;
 
     romask = R_CSR_MISC_RSV_MASK | R_CSR_MISC_RSV1_MASK;
@@ -103,6 +104,23 @@ static void init_csr_wrmask(void)
     romask = MAKE_64BIT_MASK(10, 6);
     for (i = 0; i < MAX_PERF_EVENTS; i++) {
         clear_csr_wrmask(LOONGARCH_CSR_PERFCTRL(i), romask);
+    }
+
+    for (i = 0; i < LOONGARCH_CSR_MAX; i++) {
+        csr = get_csr(i);
+        if (!csr || (csr->flags & CSRFL_READONLY) || csr->writefn) {
+            continue;
+        }
+
+        if (csr->wrmask == MAKE_64BIT_MASK(0, 64)) {
+            continue;
+        }
+
+        if (csr_get_width(csr) == 32 && csr->wrmask == MAKE_64BIT_MASK(0, 32)) {
+            continue;
+        }
+
+        csr->writefn = (GenCSRFunc)gen_helper_csrwr;
     }
 }
 
