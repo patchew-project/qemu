@@ -82,9 +82,7 @@ F: docs/glossary.rst
 
 Responsible Disclosure, Reporting Security Issues
 -------------------------------------------------
-W: https://wiki.qemu.org/SecurityProcess
-M: Michael S. Tsirkin <mst@redhat.com>
-L: qemu-security@nongnu.org
+W: https://www.qemu.org/contribute/security-process/
 
 Trivial patches
 ---------------
