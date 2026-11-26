@@ -1069,6 +1069,11 @@ static bool check_svukte_addr(CPURISCVState *env, vaddr addr)
     return !high_bit;
 }
 
+static bool is_physical_access_fault(int ret)
+{
+    return ret == TRANSLATE_PMP_FAIL || ret == TRANSLATE_PMA_FAIL;
+}
+
 /*
  * get_physical_address - get the physical address for this virtual address
  *
@@ -1257,6 +1262,9 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
                                                  is_debug, false);
 
             if (vbase_ret != TRANSLATE_SUCCESS) {
+                if (is_physical_access_fault(vbase_ret)) {
+                    return vbase_ret;
+                }
                 if (fault_pte_addr) {
                     *fault_pte_addr = (base + idx * ptesize) >> 2;
                 }
@@ -1875,7 +1883,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         }
     }
 
-    if (ret == TRANSLATE_PMP_FAIL || ret == TRANSLATE_PMA_FAIL) {
+    if (is_physical_access_fault(ret)) {
         pmp_pma_violation = true;
     }
 
