@@ -807,21 +807,51 @@ static const VMStateDescription vmstate_pcie_aer_err = {
     }
 };
 
-static bool pcie_aer_state_log_num_valid(void *opaque, int version_id)
-{
-    PCIEAERLog *s = opaque;
+typedef struct {
+    uint16_t v;
+} tmp_u16;
 
+static bool pcie_aer_state_log_num_valid(PCIEAERLog *s)
+{
     return s->log_num <= s->log_max;
 }
+
+static bool pcie_aer_state_log_num_post_load(void *opaque, int version,
+                                             Error **errp)
+{
+    PCIEAERLog *s = container_of(opaque, PCIEAERLog, log_num);
+
+    if (!pcie_aer_state_log_num_valid(s)) {
+        error_setg(errp, "PCIe AER log num too big: log_num > log_max");
+        return false;
+    }
+
+    return true;
+}
+
+static const VMStateDescription vmstate_pcie_aer_log_num = {
+    .name = "PCIE_AER_ERROR_LOG/NUM",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load_errp = pcie_aer_state_log_num_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT16(v, tmp_u16),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 const VMStateDescription vmstate_pcie_aer_log = {
     .name = "PCIE_AER_ERROR_LOG",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(log_num, PCIEAERLog),
+        /*
+         * Only to use STRUCT for a post_load_errp().  New code should try
+         * to use something look better, e.g. subsections in order.
+         */
+        VMSTATE_STRUCT(log_num, PCIEAERLog, 1,
+                       vmstate_pcie_aer_log_num, uint16_t),
         VMSTATE_UINT16_EQUAL(log_max, PCIEAERLog),
-        VMSTATE_VALIDATE("log_num <= log_max", pcie_aer_state_log_num_valid),
         VMSTATE_STRUCT_VARRAY_POINTER_UINT16(log, PCIEAERLog, log_num,
                               vmstate_pcie_aer_err, PCIEAERErr),
         VMSTATE_END_OF_LIST()
