@@ -682,7 +682,7 @@ static int mips_cpu_mmu_index(CPUState *cs, bool ifunc)
 static TCGTBCPUState mips_get_tb_cpu_state(CPUState *cs)
 {
     CPUMIPSState *env = cpu_env(cs);
-    uint32_t flags = env->hflags & MIPS_HFLAG_TB_MASK;
+    uint64_t flags = env->hflags & MIPS_HFLAG_TB_MASK;
 
 #ifdef CONFIG_USER_ONLY
     if (!cs->prctl_unalign_sigbus) {
