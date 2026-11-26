@@ -69,6 +69,43 @@ static bool set_csr_trans_func(unsigned int csr_num, GenCSRRead readfn,
     return true;
 }
 
+static void init_csr_wrmask(void)
+{
+    int i;
+    uint64_t romask;
+
+    romask = R_CSR_MISC_RSV_MASK | R_CSR_MISC_RSV1_MASK;
+    clear_csr_wrmask(LOONGARCH_CSR_MISC, romask);
+
+    romask = R_CSR_ECFG_RSV_MASK;
+    clear_csr_wrmask(LOONGARCH_CSR_ECFG, romask);
+
+    /* 2048 TLB entries */
+    romask = MAKE_64BIT_MASK(12, 12) | BIT_ULL(30);
+    clear_csr_wrmask(LOONGARCH_CSR_TLBIDX, romask);
+
+    /* BIT P and W in pte entry is not handled here */
+    romask = MAKE_64BIT_MASK(9, 5) | MAKE_64BIT_MASK(48, 13);
+    clear_csr_wrmask(LOONGARCH_CSR_TLBELO0, romask);
+    clear_csr_wrmask(LOONGARCH_CSR_TLBELO1, romask);
+    clear_csr_wrmask(LOONGARCH_CSR_TLBRELO0, romask);
+    clear_csr_wrmask(LOONGARCH_CSR_TLBRELO1, romask);
+
+    romask = R_CSR_TLBRERA_RSV_MASK;
+    clear_csr_wrmask(LOONGARCH_CSR_TLBRERA, romask);
+
+    romask = R_CSR_TLBREHI_RSV_MASK;
+    clear_csr_wrmask(LOONGARCH_CSR_TLBREHI, romask);
+
+    romask = R_CSR_TLBRPRMD_RSV_MASK;
+    clear_csr_wrmask(LOONGARCH_CSR_TLBRPRMD, romask);
+
+    romask = MAKE_64BIT_MASK(10, 6);
+    for (i = 0; i < MAX_PERF_EVENTS; i++) {
+        clear_csr_wrmask(LOONGARCH_CSR_PERFCTRL(i), romask);
+    }
+}
+
 #define SET_CSR_FUNC(NAME, read, write)                 \
         set_csr_trans_func(LOONGARCH_CSR_##NAME, read, write)
 
@@ -84,6 +121,7 @@ void loongarch_csr_translate_init(void)
     SET_CSR_FUNC(TVAL,  gen_helper_csrrd_tval, NULL);
     SET_CSR_FUNC(TICLR, NULL, gen_helper_csrwr_ticlr);
     SET_CSR_FUNC(MSGIR, gen_helper_csrrd_msgir, NULL);
+    init_csr_wrmask();
 }
 #undef SET_CSR_FUNC
 

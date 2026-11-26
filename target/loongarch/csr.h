@@ -34,6 +34,8 @@ typedef struct {
 
 CSRInfo *get_csr(unsigned int csr_num);
 bool set_csr_flag(unsigned int csr_num, int flag);
+bool clear_csr_wrmask(unsigned int csr_num, uint64_t wrmask);
+bool set_csr_wrmask(unsigned int csr_num, uint64_t wrmask);
 static inline unsigned int get_csr_offset(const CSRInfo *csr, int vm_level)
 {
     return csr->offset + offsetof(CPULoongArchState, sys_states[vm_level]);

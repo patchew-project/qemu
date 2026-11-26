@@ -139,6 +139,7 @@ static void loongarch_la464_init_csr(DeviceState *dev)
     CPULoongArchState *env = &cpu->env;
     CPUSysState *sys = env_sys(env);
     int i, num;
+    uint64_t romask;
 
     if (!initialized) {
         initialized = true;
@@ -152,6 +153,19 @@ static void loongarch_la464_init_csr(DeviceState *dev)
         for (i = env->perf_event_num; i < MAX_PERF_EVENTS; i++) {
             set_csr_flag(LOONGARCH_CSR_PERFCTRL(i), CSRFL_UNUSED);
             set_csr_flag(LOONGARCH_CSR_PERFCNTR(i), CSRFL_UNUSED);
+        }
+
+        if (tcg_enabled()) {
+            if (FIELD_EX32(env->cpucfg[2], CPUCFG2, HPTW)) {
+                set_csr_wrmask(LOONGARCH_CSR_PWCH, R_CSR_PWCH_HPTW_EN_MASK);
+            } else {
+                /* Bit P and W is hardware bit with PTE entry */
+                romask = R_TLBENTRY_P_MASK | R_TLBENTRY_W_MASK;
+                clear_csr_wrmask(LOONGARCH_CSR_TLBELO0, romask);
+                clear_csr_wrmask(LOONGARCH_CSR_TLBELO1, romask);
+                clear_csr_wrmask(LOONGARCH_CSR_TLBRELO0, romask);
+                clear_csr_wrmask(LOONGARCH_CSR_TLBRELO1, romask);
+            }
         }
     }
 #endif
