@@ -1854,7 +1854,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                  * level exception
                  */
                 first_stage_error = false;
-                if (ret != TRANSLATE_PMP_FAIL) {
+                if (!is_physical_access_fault(ret)) {
                     env->guest_phys_fault_addr = (im_address |
                                                   (address &
                                                    (TARGET_PAGE_SIZE - 1))) >> 2;
