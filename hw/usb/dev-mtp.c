@@ -1783,6 +1783,14 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
             return;
     }
     if (d->first) {
+        if (cpu_to_le32(container->length) < sizeof(mtp_container)) {
+            usb_mtp_queue_result(s, RES_PARAMETER_NOT_SUPPORTED, d->trans,
+                                 0, 0, 0, 0);
+            usb_mtp_data_free(s->data_out);
+            s->data_out = NULL;
+            usb_mtp_reset_pending_write(s);
+            return;
+        }
         /* Total length of incoming data */
         total_len = cpu_to_le32(container->length) - sizeof(mtp_container);
         /* Length of data in this packet */
