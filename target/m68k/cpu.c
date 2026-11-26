@@ -47,7 +47,7 @@ static vaddr m68k_cpu_get_pc(CPUState *cs)
 static TCGTBCPUState m68k_get_tb_cpu_state(CPUState *cs)
 {
     CPUM68KState *env = cpu_env(cs);
-    uint32_t flags;
+    uint64_t flags;
 
     flags = (env->macsr >> 4) & TB_FLAGS_MACSR;
     if (env->sr & SR_S) {
