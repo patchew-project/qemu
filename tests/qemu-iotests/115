@@ -78,7 +78,7 @@ _make_test_img -o "refcount_bits=64,cluster_size=512,preallocation=metadata" 256
 # qemu-img check for that purpose, too.
 
 $QEMU_IMG check "$TEST_IMG" | \
-    sed -e 's/^.* = \([0-9]\+\.[0-9]\+% allocated\).*\(clusters\)$/\1 \2/' \
+    gsed -e 's/^.* = \([0-9]\+\.[0-9]\+% allocated\).*\(clusters\)$/\1 \2/' \
         -e '/^Image end offset/d'
 
 # (Note that we cannot use _check_test_img because that function filters out the
