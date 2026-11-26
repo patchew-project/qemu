@@ -125,6 +125,7 @@ uint64_t blk_get_zone_size(BlockBackend *blk);
 BlockZoneModel blk_get_zone_model(BlockBackend *blk);
 uint32_t blk_get_max_open_zones(BlockBackend *blk);
 uint64_t blk_get_zone_capacity(BlockBackend *blk);
+uint32_t blk_get_max_active_zones(BlockBackend *blk);
 
 int coroutine_fn blk_co_copy_range(BlockBackend *blk_in, int64_t off_in,
                                    BlockBackend *blk_out, int64_t off_out,

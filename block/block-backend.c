@@ -2371,6 +2371,17 @@ uint64_t blk_get_zone_capacity(BlockBackend *blk)
     return bs ? bs->bl.zone_capacity : 0;
 }
 
+/*
+ * Returns the maximum number of active zones of a zoned backend, or 0 if
+ * there is no limit or @blk is not zoned.
+ */
+uint32_t blk_get_max_active_zones(BlockBackend *blk)
+{
+    BlockDriverState *bs = blk_bs(blk);
+    IO_CODE();
+    return bs ? bs->bl.max_active_zones : 0;
+}
+
 /* Returns the optimal write zeroes alignment, in bytes; guaranteed nonzero */
 uint32_t blk_get_pwrite_zeroes_alignment(BlockBackend *blk)
 {
