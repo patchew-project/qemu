@@ -33,6 +33,13 @@ _cleanup()
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
+_normalize_errors()
+{
+    # chop off strerror() strings as they are different across OSes
+    sed -e "s/\(address resolution failed for -1:10809\).*/\1/" \
+        -e "s/\(Failed to connect to 'localhost:0'\).*/\1/"
+}
+
 # get standard environment, filters and checks
 . ./common.rc
 . ./common.filter
@@ -45,7 +52,7 @@ echo '=== NBD ==='
 # NBD expects all of its arguments to be strings
 
 # So this should not crash
-$QEMU_IMG info 'json:{"driver": "nbd", "host": -1}'
+$QEMU_IMG info 'json:{"driver": "nbd", "host": -1}' 2>&1 | _normalize_errors
 
 # And this should not treat @port as if it had not been specified
 # (We need to set up a server here, because the error message for "Connection
@@ -78,10 +85,12 @@ echo '=== SSH ==='
 # expected to be an integer
 
 # So "0" should be converted to an integer here (instead of crashing)
-$QEMU_IMG info 'json:{"driver": "ssh", "host": "localhost", "port": "0", "path": "/foo"}'
+$QEMU_IMG info \
+    'json:{"driver": "ssh", "host": "localhost", "port": "0", "path": "/foo"}' 2>&1 | \
+        _normalize_errors
 # The same, basically (all values for --image-opts are seen as strings in qemu)
 $QEMU_IMG info --image-opts \
-    driver=ssh,host=localhost,port=0,path=/foo
+    driver=ssh,host=localhost,port=0,path=/foo 2>&1 | _normalize_errors
 
 # This, however, should fail because of the wrong type
 $QEMU_IMG info 'json:{"driver": "ssh", "host": "localhost", "port": 0.42, "path": "/foo"}'
