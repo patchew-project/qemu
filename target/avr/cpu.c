@@ -58,7 +58,7 @@ static int avr_cpu_mmu_index(CPUState *cs, bool ifetch)
 static TCGTBCPUState avr_get_tb_cpu_state(CPUState *cs)
 {
     CPUAVRState *env = cpu_env(cs);
-    uint32_t flags = 0;
+    uint64_t flags = 0;
 
     if (env->fullacc) {
         flags |= TB_FLAGS_FULL_ACCESS;
