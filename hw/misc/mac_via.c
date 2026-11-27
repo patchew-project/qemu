@@ -1192,7 +1192,7 @@ static int via1_post_load(void *opaque, int version_id)
 {
     MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(opaque);
 
-    if (v1s->blk) {
+    if (v1s->blk && !v1s->vmstate) {
         v1s->vmstate = qemu_add_vm_change_state_handler(
                            via1_postload_update_cb, v1s);
     }
