@@ -3587,9 +3587,8 @@ static int vhost_user_net_save_state(QEMUFile *f, void *pv, size_t size,
 
     vhdev = virtio_net_get_vhost(vdev);
     if (vhdev == NULL) {
-        error_reportf_err(local_error,
-                          "Error getting vhost back-end of %s device %s: ",
-                          vdev->name, vdev->parent_obj.canonical_path);
+        error_report("Error getting vhost back-end of %s device %s",
+                     vdev->name, vdev->parent_obj.canonical_path);
         return -1;
     }
 
@@ -3615,16 +3614,15 @@ static int vhost_user_net_load_state(QEMUFile *f, void *pv, size_t size,
 
     vhdev = virtio_net_get_vhost(vdev);
     if (vhdev == NULL) {
-        error_reportf_err(local_error,
-                          "Error getting vhost back-end of %s device %s: ",
-                          vdev->name, vdev->parent_obj.canonical_path);
+        error_report("Error getting vhost back-end of %s device %s",
+                     vdev->name, vdev->parent_obj.canonical_path);
         return -1;
     }
 
     ret = vhost_load_backend_state(vhdev, f, &local_error);
     if (ret < 0) {
         error_reportf_err(local_error,
-                          "Error loading  back-end state of %s device %s: ",
+                          "Error loading back-end state of %s device %s: ",
                           vdev->name, vdev->parent_obj.canonical_path);
         return ret;
     }
