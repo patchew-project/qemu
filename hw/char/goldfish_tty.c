@@ -71,7 +71,7 @@ static void goldfish_tty_cmd(GoldfishTTYState *s, uint32_t cmd)
 {
     uint32_t to_copy;
     uint8_t data_out[GOLFISH_TTY_BUFFER_SIZE];
-    int len;
+    unsigned int len;
     uint64_t ptr;
 
     switch (cmd) {
