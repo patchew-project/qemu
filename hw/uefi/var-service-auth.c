@@ -214,7 +214,7 @@ static efi_status uefi_vars_check_auth_2_sb(uefi_vars_state *uv,
             };
             return uefi_vars_check_pkcs7_2(&tmp, NULL, NULL, va, data);
         } else {
-            return true;
+            return EFI_SUCCESS;
         }
     }
 
