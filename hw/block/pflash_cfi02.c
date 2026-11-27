@@ -1070,7 +1070,7 @@ static int pflash_post_load(void *opaque, int version_id)
 {
     PFlashCFI02 *pfl = opaque;
 
-    if (!pfl->ro) {
+    if (!pfl->ro && !pfl->vmstate) {
         pfl->vmstate = qemu_add_vm_change_state_handler(postload_update_cb, pfl);
     }
 
