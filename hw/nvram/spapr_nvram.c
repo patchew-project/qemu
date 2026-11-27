@@ -233,7 +233,7 @@ static int spapr_nvram_post_load(void *opaque, int version_id)
 {
     SpaprNvram *nvram = VIO_SPAPR_NVRAM(opaque);
 
-    if (nvram->blk) {
+    if (nvram->blk && !nvram->vmstate) {
         nvram->vmstate = qemu_add_vm_change_state_handler(postload_update_cb,
                                                           nvram);
     }
