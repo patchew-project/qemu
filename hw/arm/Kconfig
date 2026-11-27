@@ -183,6 +183,14 @@ config SABRELITE
     select FSL_IMX6
     select SSI_M25P80
 
+config SCOBC_A1
+    bool
+    default y
+    depends on TCG && ARM
+    select ARM_V7M
+    select UNIMP
+    select XILINX # UART Lite
+
 config STELLARIS
     bool
     default y

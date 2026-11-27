@@ -98,6 +98,7 @@ Board-specific documentation
    arm/raspi
    arm/collie
    arm/sx1
+   arm/scobc-a1
    arm/stellaris
    arm/stm32
    arm/virt
