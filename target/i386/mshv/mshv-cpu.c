@@ -28,6 +28,7 @@
 #include "emulate/x86_decode.h"
 #include "emulate/x86_emu.h"
 #include "emulate/x86_flags.h"
+#include "emulate/x86_mmu.h"
 #include "gdbstub/enums.h"
 
 #include "accel/accel-cpu-target.h"
@@ -305,47 +306,6 @@ static int get_xc_reg(CPUState *cpu)
         return -1;
     }
     env->xcr0 = assocs[0].value.reg64;
-
-    return 0;
-}
-
-static int translate_gva(const CPUState *cpu, uint64_t gva, uint64_t *gpa,
-                         uint64_t flags)
-{
-    int ret;
-    int cpu_fd = mshv_vcpufd(cpu);
-    int vp_index = cpu->cpu_index;
-
-    hv_input_translate_virtual_address in = { 0 };
-    hv_output_translate_virtual_address out = { 0 };
-    struct mshv_root_hvcall args = {0};
-    uint64_t gva_page = gva >> HV_HYP_PAGE_SHIFT;
-
-    in.vp_index = vp_index;
-    in.control_flags = flags;
-    in.gva_page = gva_page;
-
-    /* create the hvcall envelope */
-    args.code = HVCALL_TRANSLATE_VIRTUAL_ADDRESS;
-    args.in_sz = sizeof(in);
-    args.in_ptr = (uint64_t) &in;
-    args.out_sz = sizeof(out);
-    args.out_ptr = (uint64_t) &out;
-
-    /* perform the call */
-    ret = mshv_hvcall(cpu_fd, &args);
-    if (ret < 0) {
-        error_report("Failed to invoke gva->gpa translation");
-        return -errno;
-    }
-
-    if (out.translation_result.result_code != HV_TRANSLATE_GVA_SUCCESS) {
-        error_report("Failed to translate gva (" TARGET_FMT_lx ") to gpa", gva);
-        return -1;
-    }
-
-    *gpa = ((out.gpa_page << HV_HYP_PAGE_SHIFT)
-         | (gva & ~(uint64_t)HV_HYP_PAGE_MASK));
 
     return 0;
 }
@@ -1711,27 +1671,55 @@ static inline MemTxAttrs get_mem_attrs(bool is_secure_mode)
     return memattr;
 }
 
-static void pio_read(uint64_t port, uint8_t *data, uintptr_t size,
-                     bool is_secure_mode)
+static int pio_read(uint16_t port, uint8_t *data, uintptr_t size,
+                    bool is_secure_mode)
 {
-    int ret = 0;
+    int ret;
     MemTxAttrs memattr = get_mem_attrs(is_secure_mode);
+
     ret = address_space_rw(&address_space_io, port, memattr, (void *)data, size,
                            false);
     if (ret != MEMTX_OK) {
-        error_report("Failed to read from port %lx: %d", port, ret);
-        abort();
+        error_report("Failed to read from port %x: %d", port, ret);
+        return -1;
     }
+
+    return 0;
 }
 
-static int pio_write(uint64_t port, const uint8_t *data, uintptr_t size,
+static int pio_write(uint16_t port, const uint8_t *data, uintptr_t size,
                      bool is_secure_mode)
 {
-    int ret = 0;
+    int ret;
     MemTxAttrs memattr = get_mem_attrs(is_secure_mode);
+
     ret = address_space_rw(&address_space_io, port, memattr, (void *)data, size,
                            true);
-    return ret;
+    if (ret != MEMTX_OK) {
+        error_report("Failed to write to port %x: %d", port, ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+static void handle_io(CPUState *cpu, uint16_t port, void *buffer,
+                      int direction, int size, int count)
+{
+    uint8_t *data = buffer;
+    int i, ret;
+    MemTxAttrs memattr = {0};
+    bool write = (direction != 0);
+
+    for (i = 0; i < count; i++, data += size) {
+        ret = address_space_rw(&address_space_io, port, memattr, (void *)data,
+                               size, write);
+        if (ret != MEMTX_OK) {
+            error_report("Failed to %s port %x: %d",
+                         write ? "write to" : "read from", port, ret);
+            abort();
+        }
+    }
 }
 
 static int handle_pio_non_str(CPUState *cpu,
@@ -1812,202 +1800,68 @@ static int handle_pio_non_str(CPUState *cpu,
     return 0;
 }
 
-static int read_memory(const CPUState *cpu, uint64_t initial_gva,
-                       uint64_t initial_gpa, uint64_t gva, uint8_t *data,
-                       size_t len)
-{
-    int ret;
-    uint64_t gpa, flags;
-    uint64_t cur_gva = gva;
-    size_t page_left, chunk;
-    uint8_t *cur_data = data;
-
-    /*
-     * If the read spans multiple pages,
-     * we need to translate and read each page separately
-     */
-    while (len > 0) {
-        page_left = HV_HYP_PAGE_SIZE - (cur_gva & (HV_HYP_PAGE_SIZE - 1));
-        chunk = MIN(len, page_left);
-
-        if (cur_gva == initial_gva) {
-            gpa = initial_gpa;
-        } else {
-            flags = HV_TRANSLATE_GVA_VALIDATE_READ;
-            ret = translate_gva(cpu, cur_gva, &gpa, flags);
-            if (ret < 0) {
-                return -1;
-            }
-        }
-
-        ret = mshv_guest_mem_read(gpa, cur_data, chunk,
-                                  false, false);
-        if (ret < 0) {
-            error_report("failed to read guest mem");
-            return -1;
-        }
-
-        cur_gva += chunk;
-        cur_data += chunk;
-        len -= chunk;
-    }
-
-    return 0;
-}
-
-static int write_memory(const CPUState *cpu, uint64_t gva, const uint8_t *data,
-                        size_t len)
-{
-    int ret;
-    uint64_t gpa, flags;
-    uint64_t cur_gva = gva;
-    size_t page_left, chunk;
-    const uint8_t *cur_data = data;
-
-    /*
-     * If the write spans multiple pages,
-     * we need to translate and write each page separately
-     */
-    while (len > 0) {
-        page_left = HV_HYP_PAGE_SIZE - (cur_gva & (HV_HYP_PAGE_SIZE - 1));
-        chunk = MIN(len, page_left);
-
-        flags = HV_TRANSLATE_GVA_VALIDATE_WRITE;
-        ret = translate_gva(cpu, cur_gva, &gpa, flags);
-        if (ret < 0) {
-            error_report("failed to translate gva to gpa");
-            return -1;
-        }
-
-        ret = mshv_guest_mem_write(gpa, cur_data, chunk, false);
-        if (ret != MEMTX_OK) {
-            error_report("failed to write to mmio");
-            return -1;
-        }
-
-        cur_gva += chunk;
-        cur_data += chunk;
-        len -= chunk;
-    }
-
-    return 0;
-}
-
-static int handle_pio_str_write(CPUState *cpu,
-                                hv_x64_io_port_intercept_message *info,
-                                size_t repeat, uint16_t port,
-                                bool direction_flag)
-{
-    int ret;
-    uint64_t src;
-    uint8_t data[4] = { 0 };
-    size_t len = info->access_info.access_size;
-
-    src = linear_addr(cpu, info->rsi, R_DS);
-
-    for (size_t i = 0; i < repeat; i++) {
-        ret = read_memory(cpu, 0, 0, src, data, len);
-        if (ret < 0) {
-            error_report("Failed to read memory");
-            return -1;
-        }
-        ret = pio_write(port, data, len, false);
-        if (ret < 0) {
-            error_report("Failed to write to io port");
-            return -1;
-        }
-        src += direction_flag ? -len : len;
-        info->rsi += direction_flag ? -len : len;
-    }
-
-    return 0;
-}
-
-static int handle_pio_str_read(CPUState *cpu,
-                               hv_x64_io_port_intercept_message *info,
-                               size_t repeat, uint16_t port,
-                               bool direction_flag)
-{
-    int ret;
-    uint64_t dst;
-    size_t len = info->access_info.access_size;
-    uint8_t data[4] = { 0 };
-
-    dst = linear_addr(cpu, info->rdi, R_ES);
-
-    for (size_t i = 0; i < repeat; i++) {
-        pio_read(port, data, len, false);
-
-        ret = write_memory(cpu, dst, data, len);
-        if (ret < 0) {
-            error_report("Failed to write memory");
-            return -1;
-        }
-        dst += direction_flag ? -len : len;
-        info->rdi += direction_flag ? -len : len;
-    }
-
-    return 0;
-}
-
 static int handle_pio_str(CPUState *cpu, hv_x64_io_port_intercept_message *info)
 {
     uint8_t access_type = info->header.intercept_access_type;
-    uint16_t port = info->port_number;
-    bool repop = info->access_info.rep_prefix == 1;
-    size_t repeat = repop ? info->rcx : 1;
     size_t insn_len = info->header.instruction_length;
-    uint64_t rip;
-    bool direction_flag;
-    uint32_t reg_names[3];
-    uint64_t reg_values[3];
-    int ret;
+    bool success;
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
+    struct x86_decode decode = { 0 };
+    x86_insn_stream stream = {
+        .bytes = info->instruction_bytes,
+        .len = insn_len,
+    };
+
+    if (info->access_info.access_size != 1 &&
+        info->access_info.access_size != 2 &&
+        info->access_info.access_size != 4) {
+        error_report("Invalid string pio access size: %u",
+                     info->access_info.access_size);
+        return -1;
+    }
+
+    if (insn_len == 0 ||
+        insn_len > info->instruction_byte_count ||
+        info->instruction_byte_count > sizeof(info->instruction_bytes)) {
+        error_report("Invalid string pio instruction length: %zu", insn_len);
+        return -1;
+    }
 
     load_regs(cpu);
 
-    direction_flag = (env->eflags & DESC_E_MASK) != 0;
-
-    if (access_type == HV_X64_INTERCEPT_ACCESS_TYPE_WRITE) {
-        ret = handle_pio_str_write(cpu, info, repeat, port, direction_flag);
-        if (ret < 0) {
-            error_report("Failed to handle pio str write");
-            return -1;
-        }
-        reg_names[0] = HV_X64_REGISTER_RSI;
-        reg_values[0] = info->rsi;
-    } else {
-        ret = handle_pio_str_read(cpu, info, repeat, port, direction_flag);
-        if (ret < 0) {
-            error_report("Failed to handle pio str read");
-            return -1;
-        }
-        reg_names[0] = HV_X64_REGISTER_RDI;
-        reg_values[0] = info->rdi;
+    if (decode_instruction_stream(env, &decode, &stream) != insn_len) {
+        error_report("String pio instruction length mismatch: "
+                     "decoded %d, expected %zu", decode.len, insn_len);
+        return -1;
     }
 
-    rip = info->header.rip + insn_len;
+    if (access_type == HV_X64_INTERCEPT_ACCESS_TYPE_WRITE
+        ? decode.cmd != X86_DECODE_CMD_OUTS
+        : decode.cmd != X86_DECODE_CMD_INS) {
+        error_report("String pio direction mismatch");
+        return -1;
+    }
 
-    if (cpu->vcpu_dirty) {
-        env->eip = rip;
-        if (access_type == HV_X64_INTERCEPT_ACCESS_TYPE_WRITE) {
-            env->regs[R_ESI] = info->rsi;
-        } else {
-            env->regs[R_EDI] = info->rdi;
-        }
-        /* Sync modified standard registers back and clear dirty. */
-        store_regs(cpu);
-        cpu->vcpu_dirty = false;
-    } else {
-        reg_names[1] = HV_X64_REGISTER_RIP;
-        reg_values[1] = rip;
+    if (decode.operand_size != info->access_info.access_size) {
+        error_report("String pio access size mismatch: decoded %d, expected %u",
+                     decode.operand_size, info->access_info.access_size);
+        return -1;
+    }
 
-        ret = set_x64_registers(cpu, reg_names, reg_values);
-        if (ret < 0) {
-            error_report("Failed to set x64 registers");
-            return -1;
-        }
+    if (!!decode.rep != !!info->access_info.rep_prefix) {
+        error_report("String pio REP prefix mismatch");
+        return -1;
+    }
+
+    success = exec_instruction(env, &decode);
+    store_regs(cpu);
+    cpu->vcpu_dirty = false;
+
+    if (!success) {
+        error_report("Failed to emulate string pio at " TARGET_FMT_lx,
+                     info->header.rip);
+        return -1;
     }
 
     return 0;
@@ -2290,8 +2144,22 @@ static void read_segment_descriptor(CPUState *cpu,
     x86_set_segment_base(desc, seg->base);
 }
 
+static bool is_user_mode(CPUState *cpu)
+{
+    CPUX86State *env = &X86_CPU(cpu)->env;
+
+    /* If the guest is in real mode, it is not user mode. */
+    if (!(env->cr[0] & CR0_PG_MASK)) {
+        return false;
+    }
+
+    return (env->segs[R_CS].selector & 3) == 3 || (env->eflags & VM_MASK);
+}
+
 static const struct x86_emul_ops mshv_x86_emul_ops = {
     .read_segment_descriptor = read_segment_descriptor,
+    .is_user_mode = is_user_mode,
+    .handle_io = handle_io,
 };
 
 void mshv_init_mmio_emu(void)
