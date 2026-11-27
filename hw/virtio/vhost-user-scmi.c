@@ -125,7 +125,7 @@ static int vu_scmi_set_status(VirtIODevice *vdev, uint8_t status)
     }
 
     if (should_start) {
-        vu_scmi_start(vdev);
+        return vu_scmi_start(vdev);
     } else {
         int ret;
         ret = vu_scmi_stop(vdev);
@@ -260,8 +260,6 @@ static void vu_scmi_device_realize(DeviceState *dev, Error **errp)
     ret = vhost_dev_init(&scmi->vhost_dev, &scmi->vhost_user,
                          VHOST_BACKEND_TYPE_USER, 0, errp);
     if (ret < 0) {
-        error_setg_errno(errp, -ret,
-                         "vhost-user-scmi: vhost_dev_init() failed");
         do_vhost_user_cleanup(vdev, scmi, vhost_vqs);
         return;
     }
