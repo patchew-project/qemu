@@ -57,6 +57,12 @@
 #define BLOCK_OPT_COMPRESSION_TYPE  "compression_type"
 #define BLOCK_OPT_EXTL2             "extended_l2"
 #define BLOCK_OPT_KEEP_DATA_FILE    "keep_data_file"
+#define BLOCK_OPT_ZONE_MODEL        "zone.mode"
+#define BLOCK_OPT_ZONE_SIZE         "zone.size"
+#define BLOCK_OPT_ZONE_CAPACITY     "zone.capacity"
+#define BLOCK_OPT_CONVENTIONAL_ZONES    "zone.conventional_zones"
+#define BLOCK_OPT_MAX_ACTIVE_ZONES      "zone.max_active_zones"
+#define BLOCK_OPT_MAX_OPEN_ZONES        "zone.max_open_zones"
 
 #define BLOCK_PROBE_BUF_SIZE        512
 
@@ -910,6 +916,12 @@ typedef struct BlockLimits {
      * falls in is a shift rather than a division. See bdrv_zone_index().
      */
     uint32_t zone_size_bits;
+
+    /*
+     * The number of usable logical blocks within the zone, expressed
+     * in bytes. A zone capacity is smaller or equal to the zone size.
+     */
+    uint64_t zone_capacity;
 
     /* total number of zones */
     uint32_t nr_zones;

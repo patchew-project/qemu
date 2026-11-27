@@ -10,7 +10,7 @@ data                      <binary>
 
 Header extension:
 magic                     0x6803f857 (Feature table)
-length                    384
+length                    432
 data                      <binary>
 
 image: TEST_DIR/t.IMGFMT
@@ -24,7 +24,7 @@ No errors were found on the image.
 
 Header extension:
 magic                     0x6803f857 (Feature table)
-length                    384
+length                    432
 data                      <binary>
 
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Missing CRYPTO header for crypt method 2

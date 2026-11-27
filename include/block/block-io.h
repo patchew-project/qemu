@@ -135,6 +135,12 @@ uint32_t bdrv_zone_index(BlockDriverState *bs, uint64_t offset);
  */
 bool bdrv_zone_is_conv(BlockDriverState *bs, uint32_t index);
 /*
+ * The offset at which the writable part of a zone ends. That is a zone
+ * capacity beyond the start of the zone, except for a last zone that the
+ * capacity of the device cuts short.
+ */
+uint64_t bdrv_zone_writable_end(BlockDriverState *bs, uint32_t index);
+/*
  * True when the write pointer of a zone has reached the end of the writable
  * part of that zone, so that nothing more can be written to it until it is
  * reset. The write pointer lock must be held when called.
