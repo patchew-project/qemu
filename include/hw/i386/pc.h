@@ -277,9 +277,6 @@ extern const size_t pc_compat_5_0_len;
 extern GlobalProperty pc_compat_4_2[];
 extern const size_t pc_compat_4_2_len;
 
-extern GlobalProperty pc_compat_4_1[];
-extern const size_t pc_compat_4_1_len;
-
 #define DEFINE_PC_MACHINE_EXTENDED(suffix, namestr, initfn, optsfn, issecure) \
     static void pc_machine_##suffix##_class_init(ObjectClass *oc, \
                                                  const void *data) \
