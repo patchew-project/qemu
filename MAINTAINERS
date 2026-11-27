@@ -1104,6 +1104,7 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/scobc_a1.c
 F: docs/system/arm/scobc-a1.rst
+F: tests/functional/arm/test_scobc_a1.py
 
 Stellaris
 M: Peter Maydell <peter.maydell@linaro.org>

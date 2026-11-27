@@ -70,6 +70,7 @@ tests_arm_system_thorough = [
   'realview',
   'replay',
   'sabrelite',
+  'scobc_a1',
   'smdkc210',
   'stellaris',
   'sx1',
