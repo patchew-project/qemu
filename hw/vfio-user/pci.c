@@ -11,6 +11,7 @@
 #include "qapi/qapi-type-infos-sockets.h"
 #include "qapi-visit-sockets.h"
 #include "qemu/error-report.h"
+#include "migration/blocker.h"
 
 #include "hw/core/qdev-properties.h"
 #include "hw/vfio/pci.h"
@@ -284,6 +285,13 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
         return;
     }
     vbasedev->proxy = proxy;
+
+    error_setg(&vbasedev->migration_blocker,
+               "%s: migration is not supported", vbasedev->name);
+    if (migrate_add_blocker(&vbasedev->migration_blocker, errp) < 0) {
+        goto error;
+    }
+
     vfio_user_set_handler(vbasedev, vfio_user_pci_process_req, vdev);
 
     if (udev->send_queued) {
@@ -358,6 +366,7 @@ out_teardown:
     vfio_pci_teardown_msi(vdev);
     vfio_pci_bars_exit(vdev);
 error:
+    migrate_del_blocker(&vbasedev->migration_blocker);
     error_prepend(errp, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     vfio_pci_put_device(vdev);
 }
