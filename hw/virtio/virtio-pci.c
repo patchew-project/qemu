@@ -799,10 +799,7 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
     struct virtio_pci_cfg_cap *cfg;
 
     pci_default_write_config(pci_dev, address, val, len);
-
-    if (proxy->flags & VIRTIO_PCI_FLAG_INIT_FLR) {
-        pcie_cap_flr_write_config(pci_dev, address, val, len);
-    }
+    pcie_cap_flr_write_config(pci_dev, address, val, len);
 
     if (proxy->flags & VIRTIO_PCI_FLAG_ATS) {
         pcie_ats_config_write(pci_dev, address, val, len);
@@ -2309,10 +2306,8 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
             proxy->last_pcie_cap_offset += PCI_EXT_CAP_ATS_SIZEOF;
         }
 
-        if (proxy->flags & VIRTIO_PCI_FLAG_INIT_FLR) {
-            /* Set Function Level Reset capability bit */
-            pcie_cap_flr_init(pci_dev);
-        }
+        /* Set Function Level Reset capability bit */
+        pcie_cap_flr_init(pci_dev);
     } else {
         /*
          * make future invocations of pci_is_express() return false
@@ -2418,8 +2413,6 @@ static const Property virtio_pci_properties[] = {
                     VIRTIO_PCI_FLAG_ATS_PAGE_ALIGNED_BIT, true),
     DEFINE_PROP_BIT("x-pcie-pm-no-soft-reset", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_PM_NO_SOFT_RESET_BIT, false),
-    DEFINE_PROP_BIT("x-pcie-flr-init", VirtIOPCIProxy, flags,
-                    VIRTIO_PCI_FLAG_INIT_FLR_BIT, true),
     DEFINE_PROP_BIT("aer", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_AER_BIT, false),
 };
