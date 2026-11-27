@@ -99,6 +99,15 @@ $QEMU_IO $IMG -c "zap -p 268435456 0x1000 0x2000"
 echo "After appending the second zone secondly:"
 $QEMU_IO $IMG -c "zrp 268435456 1"
 
+echo
+echo "(7) append write after a zero write"
+$QEMU_IO $IMG -c "write -z 536870912 0x1000" -c "zap -p 536870912 0x1000" \
+    -c "zrp 536870912 1" | _filter_qemu_io
+echo
+echo "(8) append write after a zero write with detect-zeroes"
+$QEMU_IO $IMG,detect-zeroes=on -c "write -P 0 805306368 0x1000" \
+    -c "zap -p 805306368 0x1000" -c "zrp 805306368 1" | _filter_qemu_io
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

@@ -66,4 +66,16 @@ start: 0x80000, len 0x80000, cap 0x80000, wptr 0x80018, zcond:2, [type: 2]
 After zap done, the append sector is 0x80018
 After appending the second zone secondly:
 start: 0x80000, len 0x80000, cap 0x80000, wptr 0x80030, zcond:2, [type: 2]
+
+(7) append write after a zero write
+wrote 4096/4096 bytes at offset 536870912
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+After zap done, the append sector is 0x100008
+start: 0x100000, len 0x80000, cap 0x80000, wptr 0x100010, zcond:2, [type: 2]
+
+(8) append write after a zero write with detect-zeroes
+wrote 4096/4096 bytes at offset 805306368
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+After zap done, the append sector is 0x180008
+start: 0x180000, len 0x80000, cap 0x80000, wptr 0x180010, zcond:2, [type: 2]
 *** done

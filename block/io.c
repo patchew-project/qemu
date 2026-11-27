@@ -1918,15 +1918,19 @@ bdrv_co_do_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
         }
 
         ret = -ENOTSUP;
-        /* First try the efficient write zeroes operation */
-        if (drv->bdrv_co_pwrite_zeroes) {
+        /*
+         * First try the efficient write zeroes operation, except on a host
+         * managed zoned device, where only the write path checks and moves
+         * the write pointer: there, the zeroes are written as data below.
+         */
+        if (drv->bdrv_co_pwrite_zeroes && bs->bl.zoned != BLK_Z_HM) {
             ret = drv->bdrv_co_pwrite_zeroes(bs, offset, num,
                                              flags & bs->supported_zero_flags);
             if (ret != -ENOTSUP && (flags & BDRV_REQ_FUA) &&
                 !(bs->supported_zero_flags & BDRV_REQ_FUA)) {
                 need_flush = true;
             }
-        } else {
+        } else if (!drv->bdrv_co_pwrite_zeroes) {
             assert(!bs->supported_zero_flags);
         }
 
