@@ -3608,6 +3608,30 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .misa_mxl_max = MXL_RV64
     ),
 
+    DEFINE_RISCV_CPU(TYPE_RISCV_CPU_SIFIVE_S7_AD, TYPE_RISCV_VENDOR_CPU,
+        .misa_mxl_max = MXL_RV64,
+        .misa_ext = RVI | RVM | RVA | RVC | RVS | RVU,
+        .priv_spec = PRIV_VERSION_1_12_0,
+
+        .cfg.mmu = true,
+        .cfg.ext_zifencei = true,
+        .cfg.ext_zicsr = true,
+        .cfg.pmp = true,
+        .cfg.pmp_regions = 8,
+        .cfg.ext_zihintpause = true,
+        .cfg.ext_zba = true,
+        .cfg.ext_zbb = true,
+        .cfg.ext_zkt = true,
+        .cfg.ext_sscofpmf = true,
+        .cfg.ext_svadu = false,
+        .cfg.pmu_mask = MAKE_64BIT_MASK(3, 29),
+        .cfg.max_satp_mode = VM_1_10_MBARE,
+
+        .cfg.mvendorid = 0x489,
+        .cfg.marchid = UINT64_C(0x8000000000000d07),
+        .cfg.mimpid = UINT64_C(0x0a231123),
+    ),
+
     DEFINE_RISCV_CPU(TYPE_RISCV_CPU_SIFIVE_U54, TYPE_RISCV_CPU_SIFIVE_U,
         .misa_mxl_max = MXL_RV64,
     ),
