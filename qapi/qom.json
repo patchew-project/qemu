@@ -1054,10 +1054,10 @@
 
 ##
 # @SevSnpGuestProperties:
+#     Properties for sev-snp-guest objects.
 #
-# Properties for sev-snp-guest objects.  Most of these are direct
-# arguments for the KVM_SNP_* interfaces documented in the Linux
-# kernel source under
+# Most of these are direct arguments for the KVM_SNP_* interfaces
+# documented in the Linux kernel source under
 # Documentation/arch/x86/amd-memory-encryption.rst, which are in turn
 # closely coupled with the SNP_INIT/SNP_LAUNCH_* firmware commands
 # documented in the SEV-SNP Firmware ABI Specification (Rev 0.9).
