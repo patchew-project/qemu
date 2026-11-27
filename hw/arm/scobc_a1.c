@@ -43,11 +43,29 @@ OBJECT_DECLARE_SIMPLE_TYPE(SCOBCA1MachineState, SCOBC_A1_MACHINE)
 #define SCOBC_A1_UART_BASE    0x4f010000
 #define SCOBC_A1_UART_IRQ     0
 
+/* Mission bus UARTs of the default FPGA image */
+#define SCOBC_A1_NUM_MISSION_UARTS 6
+#define SCOBC_A1_MISSION_UART_BASE 0x50000000
+#define SCOBC_A1_MISSION_UART_IRQ  16
+
+static void scobc_a1_create_uart(DeviceState *armv7m, hwaddr base, int irq,
+                                 Chardev *chr)
+{
+    DeviceState *uart;
+
+    uart = qdev_new(TYPE_XILINX_UARTLITE);
+    qdev_prop_set_enum(uart, "endianness", ENDIAN_MODE_LITTLE);
+    qdev_prop_set_chr(uart, "chardev", chr);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(uart), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(uart), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(uart), 0,
+                       qdev_get_gpio_in(armv7m, irq));
+}
+
 static void scobc_a1_init(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     SCOBCA1MachineState *s = SCOBC_A1_MACHINE(machine);
-    DeviceState *uart;
 
     /* Check the amount of memory is compatible with the board */
     if (machine->ram_size != mc->default_ram_size) {
@@ -79,13 +97,9 @@ static void scobc_a1_init(MachineState *machine)
                              OBJECT(get_system_memory()), &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), &error_fatal);
 
-    uart = qdev_new(TYPE_XILINX_UARTLITE);
-    qdev_prop_set_enum(uart, "endianness", ENDIAN_MODE_LITTLE);
-    qdev_prop_set_chr(uart, "chardev", serial_hd(0));
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(uart), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(uart), 0, SCOBC_A1_UART_BASE);
-    sysbus_connect_irq(SYS_BUS_DEVICE(uart), 0,
-                       qdev_get_gpio_in(DEVICE(&s->armv7m), SCOBC_A1_UART_IRQ));
+    /* Console UART */
+    scobc_a1_create_uart(DEVICE(&s->armv7m), SCOBC_A1_UART_BASE,
+                         SCOBC_A1_UART_IRQ, serial_hd(0));
 
     /* System peripherals */
     create_unimplemented_device("scobc-a1.qspi-config", 0x40000000, 0x10000);
@@ -99,12 +113,12 @@ static void scobc_a1_init(MachineState *machine)
     create_unimplemented_device("scobc-a1.timer", 0x4f050000, 0x10000);
 
     /* Mission AXI bus peripherals (as defined in standard FPGA image) */
-    create_unimplemented_device("scobc-a1.uartlite1", 0x50000000, 0x10000);
-    create_unimplemented_device("scobc-a1.uartlite2", 0x50010000, 0x10000);
-    create_unimplemented_device("scobc-a1.uartlite3", 0x50020000, 0x10000);
-    create_unimplemented_device("scobc-a1.uartlite4", 0x50030000, 0x10000);
-    create_unimplemented_device("scobc-a1.uartlite5", 0x50040000, 0x10000);
-    create_unimplemented_device("scobc-a1.uartlite6", 0x50050000, 0x10000);
+    for (int i = 0; i < SCOBC_A1_NUM_MISSION_UARTS; i++) {
+        scobc_a1_create_uart(DEVICE(&s->armv7m),
+                             SCOBC_A1_MISSION_UART_BASE + i * 0x10000,
+                             SCOBC_A1_MISSION_UART_IRQ + i,
+                             serial_hd(1 + i));
+    }
     create_unimplemented_device("scobc-a1.i2c1", 0x50060000, 0x10000);
     create_unimplemented_device("scobc-a1.i2c2", 0x50070000, 0x10000);
     create_unimplemented_device("scobc-a1.qspi", 0x50080000, 0x10000);

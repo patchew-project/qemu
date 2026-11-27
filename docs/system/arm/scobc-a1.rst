@@ -21,6 +21,7 @@ Supported devices
 - 4 MiB HRMEM main memory
 - HRMEM mirror (``0x6000_0000``)
 - Xilinx UART Lite console UART (``0x4f01_0000``)
+- 6 Xilinx UART Lite mission bus UARTs (``0x5000_0000`` - ``0x5005_0000``)
 
 Missing devices
 """""""""""""""
@@ -35,7 +36,16 @@ The following devices are present in the memory map but not implemented:
 - System monitor (FPGA watchdog, SEM controller, XADC and board health
   monitor)
 - General purpose timer
-- Mission bus UARTs, I2C, SPI and GPIO controllers
+- Mission bus I2C, SPI and GPIO controllers
+
+Serial ports
+""""""""""""
+
+The UARTs are connected to the ``-serial`` options in the following order:
+
+- ``serial0``: console UART (``0x4f01_0000``)
+- ``serial1`` - ``serial6``: mission bus UART 1 - 6 (``0x5000_0000`` -
+  ``0x5005_0000``)
 
 Boot options
 """"""""""""
