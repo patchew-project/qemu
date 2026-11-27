@@ -69,6 +69,10 @@ extern const struct SCSISense sense_code_TARGET_FAILURE;
 extern const struct SCSISense sense_code_INVALID_OPCODE;
 /* Illegal request, LBA out of range */
 extern const struct SCSISense sense_code_LBA_OUT_OF_RANGE;
+/* Illegal request, Unaligned write command */
+extern const struct SCSISense sense_code_UNALIGNED_WRITE;
+/* Illegal request, Write boundary violation */
+extern const struct SCSISense sense_code_WRITE_BOUNDARY_VIOLATION;
 /* Illegal request, Invalid field in CDB */
 extern const struct SCSISense sense_code_INVALID_FIELD;
 /* Illegal request, Invalid field in parameter list */
@@ -119,6 +123,8 @@ extern const struct SCSISense sense_code_DEVICE_INTERNAL_RESET;
 extern const struct SCSISense sense_code_WRITE_PROTECTED;
 /* Data Protection, Space Allocation Failed Write Protect */
 extern const struct SCSISense sense_code_SPACE_ALLOC_FAILED;
+/* Data Protection, Insufficient zone resources */
+extern const struct SCSISense sense_code_INSUFFICIENT_ZONE_RESOURCES;
 
 #define SENSE_CODE(x) sense_code_ ## x
 
