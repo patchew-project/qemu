@@ -864,10 +864,10 @@
 
 ##
 # @chardev-window-size-changed:
-#
-# Notifies a chardev about the current size of the terminal connected
-# to this chardev.  The information will be forwarded to the guest if
-# the chardev is connected to a virtio console device.
+#     Notifies a chardev about the current size of the terminal
+#     connected to this chardev.  The information will be forwarded to
+#     the guest if the chardev is connected to a virtio console
+#     device.
 #
 # The initial size is 0x0, which should be interpreted as an unknown
 # size.
